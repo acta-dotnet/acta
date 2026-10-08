@@ -10,7 +10,7 @@ internal static class WorkersEndpoints
         reads.MapList(
             "/workers",
             "List workers.",
-            DashboardJsonContext.Default.PagedResultWorkerListItem,
+            DashboardJsonContext.Default.ListWorkersResponse,
             static query => new ListWorkersQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 Status: query.Enum<WorkerStatusCode>("status"),

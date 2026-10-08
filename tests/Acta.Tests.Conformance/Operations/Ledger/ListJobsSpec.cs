@@ -45,7 +45,7 @@ public sealed class ListJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var enqueued = (await SeedJobsForList(5)).ToHashSet();
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var seen = new List<JobListItem>();
+        var seen = new List<ListJobsItem>();
         string? cursor = null;
         var pages = 0;
         do
@@ -129,7 +129,7 @@ public sealed class ListJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     [Fact(DisplayName = "The list projection exposes no payload column")]
     public void Job_list_item_exposes_no_payload()
     {
-        var names = typeof(JobListItem).GetProperties().Select(static p => p.Name.ToLowerInvariant()).ToList();
+        var names = typeof(ListJobsItem).GetProperties().Select(static p => p.Name.ToLowerInvariant()).ToList();
 
         Assert.DoesNotContain("input", names);
         Assert.DoesNotContain("inputformatid", names);

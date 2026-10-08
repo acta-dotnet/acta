@@ -38,7 +38,7 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var jobId = enqueued[0].JobId;
         await Runtime.RunOnceAsync(jobId, ct);
 
-        var seen = new List<EventListItem>();
+        var seen = new List<ListEventsItem>();
         string? cursor = null;
         var pages = 0;
         do

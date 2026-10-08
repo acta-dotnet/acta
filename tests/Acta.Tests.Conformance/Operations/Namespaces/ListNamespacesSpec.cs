@@ -20,7 +20,7 @@ public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture,
     protected override bool RunAsWorker => true;
 
     // The name is this run's own, so filtering on it reaches the row in a database holding earlier runs.
-    private async Task<NamespaceListItem> FindAsync(string name, CancellationToken ct) =>
+    private async Task<ListNamespacesItem> FindAsync(string name, CancellationToken ct) =>
         (await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: name), ct)).Items.Single(r => r.JobNamespace == name);
 
     [Fact(DisplayName = "The admin row carries the namespace id, status, owner team, description, and version")]

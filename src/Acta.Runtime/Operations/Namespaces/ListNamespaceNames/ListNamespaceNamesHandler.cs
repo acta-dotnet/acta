@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class ListNamespaceNamesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<string>> HandleAsync(ListNamespaceNamesQuery query, CancellationToken ct)
+    public async ValueTask<ListNamespaceNamesResponse> HandleAsync(ListNamespaceNamesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var (fragment, pattern) = NamespaceNames.Search(query.NameContains);
@@ -33,6 +33,7 @@ internal sealed class ListNamespaceNamesHandler(IDbSession session, ISqlDialect 
             static reader => reader.GetString(0),
             ct
         );
-        return paging.Page(rows, total, static name => [name]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static name => [name]);
+        return new ListNamespaceNamesResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

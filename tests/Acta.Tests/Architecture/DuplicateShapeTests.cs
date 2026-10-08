@@ -51,18 +51,13 @@ public sealed class DuplicateShapeTests
         Ratchet.Check("duplicate-shape", copies, "Return the existing type instead of copying it; SQL can fill a public model directly.");
     }
 
-    // A Get and a List each own their read model, so one subject's Detail and ListItem may match today and diverge later.
+    // A Get and a List each own their read model, so a subject's Detail and its list's Item may match today and diverge later.
     private static bool IsReadModelPair(IEnumerable<Type> types)
     {
-        var subjects = types
-            .Select(ShippedCode.SimpleName)
-            .Select(name =>
-                name.EndsWith("ListItem", StringComparison.Ordinal) ? name[..^"ListItem".Length]
-                : name.EndsWith("Detail", StringComparison.Ordinal) ? name[..^"Detail".Length]
-                : null
-            )
-            .ToList();
-        return subjects.All(subject => subject is not null) && subjects.Distinct(StringComparer.Ordinal).Count() == 1;
+        var names = types.Select(ShippedCode.SimpleName).ToList();
+        return names.Count == 2
+            && names.FirstOrDefault(name => name.EndsWith("Detail", StringComparison.Ordinal)) is { } detail
+            && names.Contains($"List{detail[..^"Detail".Length]}sItem", StringComparer.Ordinal);
     }
 
     private static bool IsPerOperation(Type type) =>

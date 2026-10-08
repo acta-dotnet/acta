@@ -8,10 +8,10 @@ namespace Acta;
 public interface ILedger
 {
     /// <summary>List jobs newest first, optionally filtered by namespace, status, definition, tenant, correlation id, or tags.</summary>
-    ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default);
+    ValueTask<ListJobsResponse> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default);
 
     /// <summary>List audit events newest first, optionally scoped to a job, lineage, namespace, or event code.</summary>
-    ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default);
+    ValueTask<ListEventsResponse> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default);
 
     /// <summary>One-shot dashboard health counters, optionally scoped to a namespace.</summary>
     ValueTask<OverviewSnapshot> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default);

@@ -434,8 +434,8 @@ See `concepts/000-fundamentals/021-jobs-cli` for a worked example.
 
 `IJobs` is the read-only operator surface as well as the control surface. Root reads cover jobs,
 events, namespaces, and overview counters; domain reads hang off `operations.Definitions`, `operations.Schedules`,
-`operations.Workers`, `operations.Alerts`, `operations.Tenants`, and `operations.Namespaces`. Every list read is keyset-paginated: pass the
-returned `PagedResult<T>.NextCursor` back as `Cursor` for the next page. Cursors are opaque and
+`operations.Workers`, `operations.Alerts`, `operations.Tenants`, and `operations.Namespaces`. Every list read is keyset-paginated and answers
+its own `ListXResponse`, an `IPagedResponse<T>`: pass its `NextCursor` back as `Cursor` for the next page. Cursors are opaque and
 bound to the operation, ordering, and filters that issued them; a stale or foreign cursor is
 rejected with `InvalidPageCursorException` rather than returning wrong pages. Page sizes default to
 50 and clamp at 100; `IncludeTotal` opts into a filter-wide count (job-scoped only for events). List

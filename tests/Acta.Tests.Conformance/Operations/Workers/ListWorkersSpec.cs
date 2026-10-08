@@ -27,7 +27,7 @@ public sealed class ListWorkersSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-b", "v2", "engine-b", ".NET test", 1002, 8, ct);
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-c", "v3", "engine-c", ".NET test", 1003, 16, ct);
 
-        var seen = new List<WorkerListItem>();
+        var seen = new List<ListWorkersItem>();
         string? cursor = null;
         var pages = 0;
         do

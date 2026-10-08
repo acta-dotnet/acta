@@ -6,7 +6,7 @@ namespace Acta;
 /// fold lowercase, <c>CorrelationKey</c> matches verbatim and case-sensitively; <c>TerminalOnly</c> true restricts to
 /// Succeeded, Failed, and Cancelled, and <c>RecurringOnly</c> true to jobs with at least one live schedule (null or
 /// false skips either); <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c> is the previous page's
-/// <see cref="PagedResult{T}.NextCursor"/>; <c>Tags</c> restricts to jobs carrying every supplied tag filter.
+/// <see cref="IPagedResponse{T}.NextCursor"/>; <c>Tags</c> restricts to jobs carrying every supplied tag filter.
 /// </summary>
 public sealed record ListJobsQuery(
     string? JobNamespace = null,

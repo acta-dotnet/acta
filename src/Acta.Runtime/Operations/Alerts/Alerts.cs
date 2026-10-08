@@ -22,7 +22,7 @@ internal sealed class Alerts(
         CancellationToken ct = default
     ) => resolveAlert.HandleAsync(new ResolveAlertCommand(alertRef, reasonMessage, actorKey), ct);
 
-    public ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
         listAlerts.HandleAsync(query, ct);
 
     public ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>

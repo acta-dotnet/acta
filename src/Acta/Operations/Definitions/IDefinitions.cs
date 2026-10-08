@@ -38,5 +38,5 @@ public interface IDefinitions
     ValueTask<DefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
-    ValueTask<PagedResult<DefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
+    ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
 }

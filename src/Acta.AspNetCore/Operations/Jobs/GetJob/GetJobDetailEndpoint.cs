@@ -19,7 +19,7 @@ internal sealed record GetJobDetailHttpResponse(
     IReadOnlyList<CheckpointHttpResponse> Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobExplanation? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobLineageMap? Lineage,
-    IReadOnlyList<ScheduleListItem> Schedules,
+    IReadOnlyList<ListSchedulesItem> Schedules,
     // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
     long? SchedulesTotal,
     // Echo of the job row's tenant key at the top level so the summary link needs no nested dig.
@@ -28,7 +28,7 @@ internal sealed record GetJobDetailHttpResponse(
     // Effective retry budget from the definition so the summary can render "n of m consecutive
     // failures" without a second read. Absent when the definition row is gone.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxAttemptsEffective,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WorkerListItem>? Workers,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ListWorkersItem>? Workers,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )
 {

@@ -43,12 +43,19 @@ internal sealed class Paging
         return new Paging(list, order, filterHash, JobsQueryLimits.NormalizePageSize(pageSize), after);
     }
 
-    /// <summary>Cuts the rows read to the page and encodes the cursor after its last row.</summary>
-    public PagedResult<T> Page<T>(IReadOnlyList<T> rows, long? total, Func<T, object[]> keys)
+    /// <summary>
+    /// Cuts the rows read to the page and encodes the cursor after its last row: the members of the list's
+    /// <see cref="IPagedResponse{T}"/>, which the handler builds its own response from.
+    /// </summary>
+    public (IReadOnlyList<T> Items, string? NextCursor, bool HasMore, int PageSize, long? TotalCount) Page<T>(
+        IReadOnlyList<T> rows,
+        long? total,
+        Func<T, object[]> keys
+    )
     {
         var hasMore = rows.Count > PageSize;
         var items = hasMore ? rows.Take(PageSize).ToList() : rows;
         var next = hasMore ? PageCursorCodec.Encode(_list, _order, _filterHash, keys(items[^1])) : null;
-        return new PagedResult<T>(items, next, hasMore, PageSize, total);
+        return (items, next, hasMore, PageSize, total);
     }
 }

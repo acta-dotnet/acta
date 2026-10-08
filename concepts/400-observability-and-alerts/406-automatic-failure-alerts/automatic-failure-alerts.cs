@@ -50,7 +50,7 @@ await jobs.CancelAsync(outcome, "demo cancelled after two failures");
 // Cron.EveryMinute sweep generates them. Wait up to ~75s for the row to appear.
 Console.WriteLine("waiting for the sys.alerts sweep...");
 var deadline = DateTime.UtcNow.AddSeconds(75);
-PagedResult<AlertListItem>? alertPage = null;
+ListAlertsResponse? alertPage = null;
 while (DateTime.UtcNow < deadline)
 {
     alertPage = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: "automatic-failure-alerts"));
@@ -72,7 +72,7 @@ else
                 + $"occurrences={alert.OccurrenceCount} channel='{alert.ChannelName}' delivery={alert.DeliveryStatus}"
         );
         Console.WriteLine($"  title: {alert.Title}");
-        // RunbookUrl is not on AlertListItem (the query projection); it is resolved at delivery
+        // RunbookUrl is not on ListAlertsItem (the query projection); it is resolved at delivery
         // time onto AlertNotification.RunbookUrl. To see it, look at the delivered
         // "ACTA ALERT ... runbook=https://..." log line above, emitted by LogAlertTransport.
     }

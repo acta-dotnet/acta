@@ -40,7 +40,7 @@ public interface IAlerts
     /// List alerts newest first, optionally filtered by namespace, job, resolution, acknowledgement,
     /// severity, and delivery status.
     /// </summary>
-    ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
+    ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
 
     /// <summary>Point-read one alert by ref; null when it does not exist.</summary>
     ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default);

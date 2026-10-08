@@ -261,27 +261,6 @@ sealed class Acta.AlertKindCodeJsonConverter
     .ctor()
     Acta.AlertKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertKindCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.AlertListItem
-    .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
-    Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
-    Acta.AlertKindCode Kind { get;init; }
-    Acta.AlertOriginCode Origin { get;init; }
-    Acta.AlertRef AlertRef { get;init; }
-    Acta.AlertSeverityCode Severity { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 OccurrenceCount { get;init; }
-    System.Int32 RetryCount { get;init; }
-    System.Int64 AlertId { get;init; }
-    System.Nullable<Acta.JobRef> JobRef { get;init; }
-    System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
-    System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
-    System.Nullable<System.DateTime> RetryAfterUtc { get;init; }
-    System.Nullable<System.Int64> JobId { get;init; }
-    System.String ChannelName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String Message { get;init; }
-    System.String Title { get;init; }
 sealed class Acta.AlertNotification
     .ctor(Acta.AlertRef AlertRef, System.String JobNamespace, System.Nullable<Acta.JobRef> JobRef, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String RunbookUrl, System.Int32 OccurrenceCount, System.DateTime CreatedAtUtc)
     Acta.AlertKindCode Kind { get;init; }
@@ -664,26 +643,6 @@ sealed class Acta.DefinitionDetail
     System.String RunbookUrl { get;init; }
     System.String RunbookUrlEffective { get;init; }
     System.String RunbookUrlOverride { get;init; }
-sealed class Acta.DefinitionListItem
-    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.DefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int32> MaxAttemptsOverride, System.Int32 MaxAttemptsEffective, System.Nullable<System.Int32> ConcurrencyLimitOverride, System.Nullable<System.Int32> ConcurrencyLimitEffective, System.String RateLimitOverride, System.String RateLimitEffective, System.String RateKey, System.String Lane, System.DateTime ModifiedAtUtc, System.Int32 Version)
-    Acta.DefinitionStatusCode Status { get;init; }
-    Acta.JobPriorityCode PriorityEffective { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 DefinitionId { get;init; }
-    System.Int32 MaxAttemptsEffective { get;init; }
-    System.Int32 Version { get;init; }
-    System.Nullable<Acta.JobPriorityCode> PriorityOverride { get;init; }
-    System.Nullable<System.Int32> ConcurrencyLimitEffective { get;init; }
-    System.Nullable<System.Int32> ConcurrencyLimitOverride { get;init; }
-    System.Nullable<System.Int32> MaxAttemptsOverride { get;init; }
-    System.String InputTypeName { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String Lane { get;init; }
-    System.String OutputTypeName { get;init; }
-    System.String RateKey { get;init; }
-    System.String RateLimitEffective { get;init; }
-    System.String RateLimitOverride { get;init; }
 sealed class Acta.DefinitionPolicyOverrides
     .ctor(System.Nullable<Acta.JobPriorityCode> Priority = default, System.Nullable<System.Int32> MaxAttempts = default, System.Nullable<System.Int32> ConcurrencyLimit = default, System.String RateLimit = default, System.String Backoff = default, System.Nullable<System.Int32> ExecutionTimeoutSeconds = default, System.Nullable<System.Int32> DeadlineSeconds = default, System.Nullable<Acta.DeadlineBehaviorCode> DeadlineBehavior = default, System.Nullable<System.Int32> JobRetentionSeconds = default, System.Nullable<Acta.DefinitionAuditLevelCode> AuditLevel = default, System.Nullable<Acta.AlertProfileCode> AlertProfile = default, System.String AlertChannelName = default, System.String RunbookUrl = default, System.String DisplayName = default, System.String Description = default)
     System.Nullable<Acta.AlertProfileCode> AlertProfile { get;init; }
@@ -844,32 +803,6 @@ sealed class Acta.EventCodeJsonConverter
     .ctor()
     Acta.EventCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.EventCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.EventListItem
-    .ctor(System.Int64 JobEventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, System.String JobName, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.Nullable<System.Int32> WorkerId, System.Nullable<System.Int32> ExecutionNumber, Acta.ActorCode ActorCode, System.String ActorKey, System.Nullable<Acta.JobStatusCode> FromStatus, System.Nullable<Acta.JobStatusCode> ToStatus, System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus, System.Nullable<System.Int32> DurationMs, System.Nullable<Acta.EventReasonCode> ReasonCode, System.String ReasonMessage, System.String DetailText, System.Nullable<Acta.WorkerRef> WorkerRef, System.String TenantKey)
-    Acta.ActorCode ActorCode { get;init; }
-    Acta.EventCode EventCode { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.Int64 JobEventId { get;init; }
-    System.Nullable<Acta.EventReasonCode> ReasonCode { get;init; }
-    System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus { get;init; }
-    System.Nullable<Acta.JobRef> JobRef { get;init; }
-    System.Nullable<Acta.JobRef> LineageRootJobRef { get;init; }
-    System.Nullable<Acta.JobStatusCode> FromStatus { get;init; }
-    System.Nullable<Acta.JobStatusCode> ToStatus { get;init; }
-    System.Nullable<Acta.WorkerRef> WorkerRef { get;init; }
-    System.Nullable<System.Int32> DefinitionId { get;init; }
-    System.Nullable<System.Int32> DurationMs { get;init; }
-    System.Nullable<System.Int32> ExecutionNumber { get;init; }
-    System.Nullable<System.Int32> TenantId { get;init; }
-    System.Nullable<System.Int32> WorkerId { get;init; }
-    System.Nullable<System.Int64> JobId { get;init; }
-    System.Nullable<System.Int64> LineageRootId { get;init; }
-    System.String ActorKey { get;init; }
-    System.String DetailText { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String ReasonMessage { get;init; }
-    System.String TenantKey { get;init; }
 enum Acta.EventReasonCode
     JobAttemptAborted = 25
     JobConcurrencyKeyHeld = 62
@@ -999,7 +932,7 @@ interface Acta.IAlertTransportRegistry
 interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AcknowledgeAlertResponse> AcknowledgeAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListAlertsResponse> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResolveAlertResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IControlResponse
     Acta.ControlAction Action { get; }
@@ -1008,7 +941,7 @@ interface Acta.IDefinitionControlResponse
     Acta.ControlAction Action { get; }
 interface Acta.IDefinitions
     System.Threading.Tasks.ValueTask<Acta.DefinitionDetail> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.DefinitionListItem>> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListDefinitionsResponse> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RetireDefinitionResponse> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SetDefinitionOverridesResponse> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.DefinitionPolicyOverrides overrides, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IJobContextAccessor
@@ -1066,19 +999,19 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<System.Nullable<System.Int64>> GetJobIdAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
 interface Acta.ILedger
+    System.Threading.Tasks.ValueTask<Acta.ListEventsResponse> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListJobsResponse> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.OverviewSnapshot> GetOverviewAsync(Acta.GetOverviewQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.EventListItem>> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobListItem>> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.INamespaces
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespaceNamesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListNamespaceNamesResponse> ListNamesAsync(Acta.ListNamespaceNamesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListNamespacesResponse> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateNamespaceResponse> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IOutbox
     System.Threading.Tasks.ValueTask<Acta.DiscardOutboxResponse> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxQuarantinedListItem>> ListQuarantinedAsync(Acta.ListOutboxQuarantinedQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxSourceListItem>> ListSourcesAsync(Acta.ListOutboxSourcesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListOutboxQuarantinedResponse> ListQuarantinedAsync(Acta.ListOutboxQuarantinedQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListOutboxSourcesResponse> ListSourcesAsync(Acta.ListOutboxSourcesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RequeueOutboxResponse> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IOutboxControlResponse
     Acta.ControlAction Action { get; }
@@ -1088,12 +1021,18 @@ interface Acta.IOutboxSourceBuilder
     System.String Schema { get;set; }
     System.String SourceName { get; }
     System.String Table { get;set; }
+interface Acta.IPagedResponse<T>
+    System.Boolean HasMore { get; }
+    System.Collections.Generic.IReadOnlyList<T> Items { get; }
+    System.Int32 PageSize { get; }
+    System.Nullable<System.Int64> TotalCount { get; }
+    System.String NextCursor { get; }
 interface Acta.IScheduleControlResponse
     System.Nullable<Acta.ScheduleStatusCode> Status { get; }
     System.Nullable<System.DateTime> NextRunAtUtc { get; }
     System.Nullable<System.DateTime> PausedUntilUtc { get; }
 interface Acta.ISchedules
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.ScheduleListItem>> ListAsync(Acta.ListSchedulesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListSchedulesResponse> ListAsync(Acta.ListSchedulesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PauseScheduleResponse> PauseAsync(Acta.ScheduleLookup schedule, System.Nullable<System.DateTime> untilUtc = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeScheduleResponse> ResumeAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SchedulePreview> PreviewAsync(Acta.ScheduleLookup schedule, System.Int32 count = default, System.Threading.CancellationToken ct = default)
@@ -1107,7 +1046,7 @@ interface Acta.ITags
     System.Threading.Tasks.ValueTask<Acta.TagSet> GetAsync(Acta.TagTarget target, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpsertTagsResponse> UpsertAsync(Acta.TagTarget target, Acta.TagInput tag, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.ITenants
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.TenantListItem>> ListAsync(Acta.ListTenantsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListTenantsResponse> ListAsync(Acta.ListTenantsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RegisterTenantResponse> RegisterAsync(System.String tenantKey, System.String displayName = default, System.String description = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeTenantResponse> ResumeAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SuspendTenantResponse> SuspendAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -1123,7 +1062,7 @@ interface Acta.IWorkerWakeup
     System.Threading.Tasks.ValueTask WakeAsync(Acta.WorkerWakeupChannel channel, Acta.WorkerWakeupReason reason, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.WorkerWakeupWaitStatus> WaitAsync(Acta.WorkerWakeupChannel channel, System.TimeSpan timeout, System.Threading.CancellationToken ct)
 interface Acta.IWorkers
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.WorkerListItem>> ListAsync(Acta.ListWorkersQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListWorkersResponse> ListAsync(Acta.ListWorkersQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.WorkerDetail> GetAsync(Acta.WorkerRef workerRef, System.Threading.CancellationToken ct = default)
 static class Acta.IdentifierSyntax
     System.Boolean IsBareIdentifier(System.String value)
@@ -1468,28 +1407,6 @@ sealed class Acta.JobLineageMap
 sealed class Acta.JobLineageMapOptions
     .ctor(System.Int32 ChildLimit = default)
     System.Int32 ChildLimit { get;init; }
-sealed class Acta.JobListItem
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.Nullable<System.Int32> TenantId, System.String TenantKey, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.String DeduplicationKey, System.String CorrelationKey, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String Lane, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Int32 ExecutionNumber, System.Int32 FailureCount)
-    Acta.JobPriorityCode Priority { get;init; }
-    Acta.JobRef JobRef { get;init; }
-    Acta.JobStatusCode Status { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 ExecutionNumber { get;init; }
-    System.Int32 FailureCount { get;init; }
-    System.Int64 JobId { get;init; }
-    System.Nullable<Acta.JobRef> LineageRootJobRef { get;init; }
-    System.Nullable<Acta.JobRef> ParentJobRef { get;init; }
-    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
-    System.Nullable<System.Int32> TenantId { get;init; }
-    System.Nullable<System.Int64> LineageRootId { get;init; }
-    System.Nullable<System.Int64> ParentJobId { get;init; }
-    System.String CorrelationKey { get;init; }
-    System.String DeduplicationKey { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String Lane { get;init; }
-    System.String TenantKey { get;init; }
 struct Acta.JobLookup
     Acta.JobLookup ByDeduplicationKey(System.String jobNamespace, System.String deduplicationKey)
     Acta.JobLookup ById(System.Int64 jobId)
@@ -1674,6 +1591,27 @@ sealed class Acta.JsonJobPayloadSerializer
     Acta.JsonJobPayloadSerializer WithResolver(System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver)
     System.Text.Json.JsonSerializerOptions DefaultJsonOptions { get; }
     T Deserialize<T>(Acta.JobPayload payload)
+sealed class Acta.ListAlertsItem
+    .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
+    Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
+    Acta.AlertKindCode Kind { get;init; }
+    Acta.AlertOriginCode Origin { get;init; }
+    Acta.AlertRef AlertRef { get;init; }
+    Acta.AlertSeverityCode Severity { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 OccurrenceCount { get;init; }
+    System.Int32 RetryCount { get;init; }
+    System.Int64 AlertId { get;init; }
+    System.Nullable<Acta.JobRef> JobRef { get;init; }
+    System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
+    System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
+    System.Nullable<System.DateTime> RetryAfterUtc { get;init; }
+    System.Nullable<System.Int64> JobId { get;init; }
+    System.String ChannelName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String Message { get;init; }
+    System.String Title { get;init; }
 sealed class Acta.ListAlertsQuery
     .ctor(System.String JobNamespace = default, System.Nullable<System.Int64> JobId = default, System.Nullable<System.Boolean> UnresolvedOnly = default, System.Nullable<Acta.AlertSeverityCode> SeverityAtLeast = default, System.Nullable<Acta.AlertDeliveryStatusCode> DeliveryStatus = default, System.Nullable<System.Boolean> AcknowledgedOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1686,6 +1624,33 @@ sealed class Acta.ListAlertsQuery
     System.Nullable<System.Int64> JobId { get;init; }
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.ListAlertsResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListAlertsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListAlertsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListDefinitionsItem
+    .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.DefinitionStatusCode Status, System.String InputTypeName, System.String OutputTypeName, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Nullable<System.Int32> MaxAttemptsOverride, System.Int32 MaxAttemptsEffective, System.Nullable<System.Int32> ConcurrencyLimitOverride, System.Nullable<System.Int32> ConcurrencyLimitEffective, System.String RateLimitOverride, System.String RateLimitEffective, System.String RateKey, System.String Lane, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    Acta.DefinitionStatusCode Status { get;init; }
+    Acta.JobPriorityCode PriorityEffective { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 DefinitionId { get;init; }
+    System.Int32 MaxAttemptsEffective { get;init; }
+    System.Int32 Version { get;init; }
+    System.Nullable<Acta.JobPriorityCode> PriorityOverride { get;init; }
+    System.Nullable<System.Int32> ConcurrencyLimitEffective { get;init; }
+    System.Nullable<System.Int32> ConcurrencyLimitOverride { get;init; }
+    System.Nullable<System.Int32> MaxAttemptsOverride { get;init; }
+    System.String InputTypeName { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String Lane { get;init; }
+    System.String OutputTypeName { get;init; }
+    System.String RateKey { get;init; }
+    System.String RateLimitEffective { get;init; }
+    System.String RateLimitOverride { get;init; }
 sealed class Acta.ListDefinitionsQuery
     .ctor(System.String JobNamespace = default, System.String NameContains = default, System.Nullable<Acta.DefinitionStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1695,6 +1660,39 @@ sealed class Acta.ListDefinitionsQuery
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }
     System.String NameContains { get;init; }
+sealed class Acta.ListDefinitionsResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListDefinitionsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListDefinitionsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListEventsItem
+    .ctor(System.Int64 JobEventId, Acta.EventCode EventCode, System.DateTime CreatedAtUtc, System.String JobNamespace, System.String JobName, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int32> DefinitionId, System.Nullable<System.Int32> TenantId, System.Nullable<System.Int32> WorkerId, System.Nullable<System.Int32> ExecutionNumber, Acta.ActorCode ActorCode, System.String ActorKey, System.Nullable<Acta.JobStatusCode> FromStatus, System.Nullable<Acta.JobStatusCode> ToStatus, System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus, System.Nullable<System.Int32> DurationMs, System.Nullable<Acta.EventReasonCode> ReasonCode, System.String ReasonMessage, System.String DetailText, System.Nullable<Acta.WorkerRef> WorkerRef, System.String TenantKey)
+    Acta.ActorCode ActorCode { get;init; }
+    Acta.EventCode EventCode { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.Int64 JobEventId { get;init; }
+    System.Nullable<Acta.EventReasonCode> ReasonCode { get;init; }
+    System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus { get;init; }
+    System.Nullable<Acta.JobRef> JobRef { get;init; }
+    System.Nullable<Acta.JobRef> LineageRootJobRef { get;init; }
+    System.Nullable<Acta.JobStatusCode> FromStatus { get;init; }
+    System.Nullable<Acta.JobStatusCode> ToStatus { get;init; }
+    System.Nullable<Acta.WorkerRef> WorkerRef { get;init; }
+    System.Nullable<System.Int32> DefinitionId { get;init; }
+    System.Nullable<System.Int32> DurationMs { get;init; }
+    System.Nullable<System.Int32> ExecutionNumber { get;init; }
+    System.Nullable<System.Int32> TenantId { get;init; }
+    System.Nullable<System.Int32> WorkerId { get;init; }
+    System.Nullable<System.Int64> JobId { get;init; }
+    System.Nullable<System.Int64> LineageRootId { get;init; }
+    System.String ActorKey { get;init; }
+    System.String DetailText { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String ReasonMessage { get;init; }
+    System.String TenantKey { get;init; }
 sealed class Acta.ListEventsQuery
     .ctor(System.Nullable<System.Int64> JobId = default, System.Nullable<System.Int64> LineageRootId = default, System.String JobNamespace = default, System.Nullable<Acta.EventCode> EventCode = default, System.Nullable<System.Int32> DefinitionId = default, System.Nullable<System.Int32> TenantId = default, System.String TenantKey = default, System.Nullable<System.Int32> WorkerId = default, System.Nullable<Acta.ActorCode> ActorCode = default, System.Nullable<Acta.EventReasonCode> ReasonCode = default, System.Nullable<System.DateTime> CreatedFromUtc = default, System.Nullable<System.DateTime> CreatedToUtc = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1713,6 +1711,35 @@ sealed class Acta.ListEventsQuery
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }
     System.String TenantKey { get;init; }
+sealed class Acta.ListEventsResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListEventsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListEventsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListJobsItem
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, System.Nullable<System.Int32> TenantId, System.String TenantKey, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.String DeduplicationKey, System.String CorrelationKey, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String Lane, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Int32 ExecutionNumber, System.Int32 FailureCount)
+    Acta.JobPriorityCode Priority { get;init; }
+    Acta.JobRef JobRef { get;init; }
+    Acta.JobStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 ExecutionNumber { get;init; }
+    System.Int32 FailureCount { get;init; }
+    System.Int64 JobId { get;init; }
+    System.Nullable<Acta.JobRef> LineageRootJobRef { get;init; }
+    System.Nullable<Acta.JobRef> ParentJobRef { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.Int32> TenantId { get;init; }
+    System.Nullable<System.Int64> LineageRootId { get;init; }
+    System.Nullable<System.Int64> ParentJobId { get;init; }
+    System.String CorrelationKey { get;init; }
+    System.String DeduplicationKey { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String Lane { get;init; }
+    System.String TenantKey { get;init; }
 sealed class Acta.ListJobsQuery
     .ctor(System.String JobNamespace = default, System.Nullable<Acta.JobStatusCode> Status = default, System.String JobName = default, System.Nullable<System.Int64> ParentJobId = default, System.Nullable<System.Int32> TenantId = default, System.String TenantKey = default, System.String CorrelationKey = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default, System.Nullable<System.Boolean> TerminalOnly = default, System.Nullable<System.Boolean> RecurringOnly = default, System.String Lane = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1729,6 +1756,13 @@ sealed class Acta.ListJobsQuery
     System.String JobNamespace { get;init; }
     System.String Lane { get;init; }
     System.String TenantKey { get;init; }
+sealed class Acta.ListJobsResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListJobsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListJobsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
 sealed class Acta.ListNamespaceNamesQuery
     .ctor(System.String NameContains = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1736,6 +1770,21 @@ sealed class Acta.ListNamespaceNamesQuery
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
+sealed class Acta.ListNamespaceNamesResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<System.String> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<System.String> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListNamespacesItem
+    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
+    Acta.NamespaceStatusCode Status { get;init; }
+    System.Int32 NamespaceId { get;init; }
+    System.Int32 Version { get;init; }
+    System.String Description { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String OwnerTeam { get;init; }
 sealed class Acta.ListNamespacesQuery
     .ctor(System.String NameContains = default, System.Nullable<Acta.NamespaceStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1744,17 +1793,78 @@ sealed class Acta.ListNamespacesQuery
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
+sealed class Acta.ListNamespacesResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListNamespacesItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListNamespacesItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListOutboxQuarantinedItem
+    .ctor(System.Guid OutboxId, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String CorrelationKey, System.String TenantKey, System.Int32 FailureCount, System.String LastError, System.DateTime CreatedAtUtc)
+    System.DateTime CreatedAtUtc { get;init; }
+    System.Guid OutboxId { get;init; }
+    System.Int32 FailureCount { get;init; }
+    System.String CorrelationKey { get;init; }
+    System.String DeduplicationKey { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String LastError { get;init; }
+    System.String TenantKey { get;init; }
 sealed class Acta.ListOutboxQuarantinedQuery
     .ctor(System.String JobNamespace, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default)
     System.Boolean IncludeTotal { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.ListOutboxQuarantinedResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListOutboxQuarantinedItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListOutboxQuarantinedItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListOutboxSourcesItem
+    .ctor(System.String JobNamespace, Acta.JobRef SlotJobRef, System.String LastTickSummary, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
+    Acta.JobRef SlotJobRef { get;init; }
+    System.Boolean IsLocal { get;init; }
+    System.Nullable<System.Int64> Backlog { get;init; }
+    System.Nullable<System.Int64> QuarantineTotal { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String LastTickSummary { get;init; }
 sealed class Acta.ListOutboxSourcesQuery
     .ctor(System.String JobNamespace = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default)
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.ListOutboxSourcesResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListOutboxSourcesItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListOutboxSourcesItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListSchedulesItem
+    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef)
+    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
+    Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
+    Acta.ScheduleOriginCode Origin { get;init; }
+    Acta.ScheduleStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 DefinitionId { get;init; }
+    System.Int32 Version { get;init; }
+    System.Int64 JobId { get;init; }
+    System.Int64 JobScheduleId { get;init; }
+    System.Nullable<Acta.JobRef> JobRef { get;init; }
+    System.Nullable<System.DateTime> LastRunAtUtc { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.String Expression { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String ScheduleName { get;init; }
+    System.String TimeZoneId { get;init; }
 sealed class Acta.ListSchedulesQuery
     .ctor(System.String JobNamespace = default, System.String JobName = default, System.Nullable<Acta.ScheduleOriginCode> Origin = default, System.Nullable<System.Boolean> LiveOnly = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1765,6 +1875,23 @@ sealed class Acta.ListSchedulesQuery
     System.String Cursor { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.ListSchedulesResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListSchedulesItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListSchedulesItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListTenantsItem
+    .ctor(System.Int32 TenantId, System.String TenantKey, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
+    Acta.TenantStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 TenantId { get;init; }
+    System.Int32 Version { get;init; }
+    System.String Description { get;init; }
+    System.String DisplayName { get;init; }
+    System.String TenantKey { get;init; }
 sealed class Acta.ListTenantsQuery
     .ctor(System.String NameContains = default, System.Nullable<Acta.TenantStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1773,6 +1900,28 @@ sealed class Acta.ListTenantsQuery
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
+sealed class Acta.ListTenantsResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListTenantsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListTenantsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed class Acta.ListWorkersItem
+    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
+    Acta.WorkerRef WorkerRef { get;init; }
+    Acta.WorkerStatusCode Status { get;init; }
+    System.DateTime LastHeartbeatAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.DateTime StartedAtUtc { get;init; }
+    System.Int32 MaxConcurrency { get;init; }
+    System.Int32 WorkerId { get;init; }
+    System.Nullable<System.Int32> ProcessId { get;init; }
+    System.String DeploymentVersion { get;init; }
+    System.String DotnetVersion { get;init; }
+    System.String EngineVersion { get;init; }
+    System.String Host { get;init; }
+    System.String JobNamespace { get;init; }
 sealed class Acta.ListWorkersQuery
     .ctor(System.String JobNamespace = default, System.Nullable<Acta.WorkerStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
@@ -1781,6 +1930,13 @@ sealed class Acta.ListWorkersQuery
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.ListWorkersResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListWorkersItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListWorkersItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
 sealed class Acta.LockAcquisitionTimeoutException
     .ctor(System.String key, System.TimeSpan timeout)
     System.String Key { get; }
@@ -1819,14 +1975,6 @@ sealed class Acta.MisfireStrategyCodeJsonConverter
     .ctor()
     Acta.MisfireStrategyCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.MisfireStrategyCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.NamespaceListItem
-    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
-    Acta.NamespaceStatusCode Status { get;init; }
-    System.Int32 NamespaceId { get;init; }
-    System.Int32 Version { get;init; }
-    System.String Description { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String OwnerTeam { get;init; }
 enum Acta.NamespaceStatusCode
     Active = 10
     Suspended = 20
@@ -1846,25 +1994,6 @@ sealed class Acta.NamespaceStatusCodeJsonConverter
     Acta.NamespaceStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.NamespaceStatusCode value, System.Text.Json.JsonSerializerOptions options)
 struct Acta.NoInput
-sealed class Acta.OutboxQuarantinedListItem
-    .ctor(System.Guid OutboxId, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String CorrelationKey, System.String TenantKey, System.Int32 FailureCount, System.String LastError, System.DateTime CreatedAtUtc)
-    System.DateTime CreatedAtUtc { get;init; }
-    System.Guid OutboxId { get;init; }
-    System.Int32 FailureCount { get;init; }
-    System.String CorrelationKey { get;init; }
-    System.String DeduplicationKey { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String LastError { get;init; }
-    System.String TenantKey { get;init; }
-sealed class Acta.OutboxSourceListItem
-    .ctor(System.String JobNamespace, Acta.JobRef SlotJobRef, System.String LastTickSummary, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
-    Acta.JobRef SlotJobRef { get;init; }
-    System.Boolean IsLocal { get;init; }
-    System.Nullable<System.Int64> Backlog { get;init; }
-    System.Nullable<System.Int64> QuarantineTotal { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String LastTickSummary { get;init; }
 enum Acta.OutboxStatusCode
     Claimed = 20
     Pending = 10
@@ -1899,13 +2028,6 @@ sealed class Acta.OverviewSnapshot
     System.Int64 UnresolvedCriticalAlertCount { get;init; }
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
     System.Nullable<System.Int64> ScheduleLagSeconds { get;init; }
-sealed class Acta.PagedResult<T>
-    .ctor(System.Collections.Generic.IReadOnlyList<T> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
-    System.Boolean HasMore { get;init; }
-    System.Collections.Generic.IReadOnlyList<T> Items { get;init; }
-    System.Int32 PageSize { get;init; }
-    System.Nullable<System.Int64> TotalCount { get;init; }
-    System.String NextCursor { get;init; }
 sealed class Acta.ParallelBuilder
     .ctor()
     Acta.ParallelBuilder Child<TInput>(System.String branchName, TInput input)
@@ -2057,27 +2179,6 @@ sealed class Acta.ScheduleExpressionKindCodeJsonConverter
     .ctor()
     Acta.ScheduleExpressionKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleExpressionKindCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.ScheduleListItem
-    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef)
-    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
-    Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
-    Acta.ScheduleOriginCode Origin { get;init; }
-    Acta.ScheduleStatusCode Status { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 DefinitionId { get;init; }
-    System.Int32 Version { get;init; }
-    System.Int64 JobId { get;init; }
-    System.Int64 JobScheduleId { get;init; }
-    System.Nullable<Acta.JobRef> JobRef { get;init; }
-    System.Nullable<System.DateTime> LastRunAtUtc { get;init; }
-    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
-    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
-    System.String Expression { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String ScheduleName { get;init; }
-    System.String TimeZoneId { get;init; }
 sealed class Acta.ScheduleLookup
     .ctor(Acta.JobLookup Job, System.String ScheduleName)
     Acta.JobLookup Job { get;init; }
@@ -2281,16 +2382,6 @@ sealed class Acta.TenantDetail
     System.String Description { get;init; }
     System.String DisplayName { get;init; }
     System.String TenantKey { get;init; }
-sealed class Acta.TenantListItem
-    .ctor(System.Int32 TenantId, System.String TenantKey, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
-    Acta.TenantStatusCode Status { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 TenantId { get;init; }
-    System.Int32 Version { get;init; }
-    System.String Description { get;init; }
-    System.String DisplayName { get;init; }
-    System.String TenantKey { get;init; }
 enum Acta.TenantStatusCode
     Active = 10
     Suspended = 20
@@ -2340,21 +2431,6 @@ sealed class Acta.UpsertTagsResponse
     .ctor(Acta.TagMutationAction Action)
     Acta.TagMutationAction Action { get;init; }
 sealed class Acta.WorkerDetail
-    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
-    Acta.WorkerRef WorkerRef { get;init; }
-    Acta.WorkerStatusCode Status { get;init; }
-    System.DateTime LastHeartbeatAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.DateTime StartedAtUtc { get;init; }
-    System.Int32 MaxConcurrency { get;init; }
-    System.Int32 WorkerId { get;init; }
-    System.Nullable<System.Int32> ProcessId { get;init; }
-    System.String DeploymentVersion { get;init; }
-    System.String DotnetVersion { get;init; }
-    System.String EngineVersion { get;init; }
-    System.String Host { get;init; }
-    System.String JobNamespace { get;init; }
-sealed class Acta.WorkerListItem
     .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.WorkerRef WorkerRef { get;init; }
     Acta.WorkerStatusCode Status { get;init; }

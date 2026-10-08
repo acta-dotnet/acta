@@ -36,7 +36,7 @@ internal sealed record ListEventsRow(
     string? TenantKey
 )
 {
-    public EventListItem ToItem() =>
+    public ListEventsItem ToItem() =>
         new(
             JobEventId,
             EventCode,

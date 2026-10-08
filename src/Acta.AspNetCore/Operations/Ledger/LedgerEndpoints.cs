@@ -23,7 +23,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/jobs",
                 "List jobs, filtered and keyset-paged.",
-                DashboardJsonContext.Default.PagedResultJobListItem,
+                DashboardJsonContext.Default.ListJobsResponse,
                 query =>
                     (
                         Query: new ListJobsQuery(
@@ -72,7 +72,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/events",
                 "List ledger events, filtered and keyset-paged.",
-                DashboardJsonContext.Default.PagedResultEventListItem,
+                DashboardJsonContext.Default.ListEventsResponse,
                 query =>
                     (
                         Query: new ListEventsQuery(
@@ -144,7 +144,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/jobs/{jobRef}/events",
                 "List one job's event timeline.",
-                DashboardJsonContext.Default.PagedResultEventListItem,
+                DashboardJsonContext.Default.ListEventsResponse,
                 query =>
                     (
                         Job: RouteKeys.Job(query.Http, options),
@@ -176,7 +176,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/definitions/{jobNamespace}/{jobName}/events",
                 "List a definition's ledger events (its jobs' lineage, not just changes).",
-                DashboardJsonContext.Default.PagedResultEventListItem,
+                DashboardJsonContext.Default.ListEventsResponse,
                 static query =>
                     (
                         Namespace: query.Route("jobNamespace"),

@@ -7,5 +7,5 @@ public interface IWorkers
     ValueTask<WorkerDetail?> GetAsync(WorkerRef workerRef, CancellationToken ct = default);
 
     /// <summary>List workers most recently seen first, optionally filtered by namespace and status.</summary>
-    ValueTask<PagedResult<WorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default);
+    ValueTask<ListWorkersResponse> ListAsync(ListWorkersQuery query, CancellationToken ct = default);
 }

@@ -24,7 +24,7 @@ public interface ITenants
     ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default);
 
     /// <summary>List registered tenants ordered by tenant key ascending.</summary>
-    ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default);
+    ValueTask<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default);
 
     /// <summary>Suspend a registered tenant by key (status-only, idempotent). Emits tenant.suspended.</summary>
     ValueTask<SuspendTenantResponse> SuspendAsync(

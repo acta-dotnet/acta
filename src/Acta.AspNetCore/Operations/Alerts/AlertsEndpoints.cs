@@ -15,7 +15,7 @@ internal static class AlertsEndpoints
             .MapList(
                 "/alerts",
                 "List alerts.",
-                DashboardJsonContext.Default.PagedResultAlertListItem,
+                DashboardJsonContext.Default.ListAlertsResponse,
                 query =>
                     (
                         Query: new ListAlertsQuery(

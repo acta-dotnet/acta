@@ -7,16 +7,18 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Holds operations to "every operation has its own input and its own response" in <c>docs/internals/naming-conventions.md</c>:
-/// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, and a
-/// row, command, query, or response is declared in its operation's folder under the operation's name, a row named by no
-/// other operation. What predates a rule is listed in its ratchet, <c>handler-response</c> or <c>slice-members</c>.
+/// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, a list
+/// returns its own page, and a row, command, query, response, or list element is declared in its operation's folder under
+/// the operation's name, a row named by no other operation. What predates a rule is listed in its ratchet,
+/// <c>handler-response</c> or <c>slice-members</c>.
 /// </summary>
 public sealed class HandlerResponseTests
 {
-    private const string Operations = "src/Acta.Runtime/Operations/";
+    // The Runtime half and the public half of the operation folders; an operation's slice is the same in both.
+    private static readonly string[] OperationRoots = ["src/Acta.Runtime/Operations/", "src/Acta/Operations/"];
 
     // What an operation owns outright; of these, only a row is also kept from every other operation.
-    private static readonly string[] SliceRoles = ["Row", "Command", "Query", "Response"];
+    private static readonly string[] SliceRoles = ["Row", "Command", "Query", "Response", "Item"];
 
     [Fact]
     public void A_handler_takes_its_operations_input_and_returns_its_response()
@@ -43,13 +45,31 @@ public sealed class HandlerResponseTests
             .Where(handler => handler.Input.Name.EndsWith("Command", StringComparison.Ordinal))
             .Where(handler => handler.Returns is not null && handler.Returns.Name != handler.Input.Name[..^"Command".Length] + "Response")
             .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Input.Name} returns {Describe(handler.Returns)}"));
+        // A list returns its own page; a public one pages through IPagedResponse.
+        var lists = handlers
+            .Where(handler =>
+                handler.Input.Name.StartsWith("List", StringComparison.Ordinal)
+                && handler.Input.Name.EndsWith("Query", StringComparison.Ordinal)
+            )
+            .Where(handler =>
+                handler.Returns?.Name != handler.Input.Name[..^"Query".Length] + "Response"
+                || (handler.Input.IsPublic && !Paged(handler.Returns))
+            )
+            .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Input.Name} returns {Describe(handler.Returns)}"));
 
         Ratchet.Check(
             "handler-response",
-            inputs.Concat(responses),
-            "Take the operation's own XCommand or XQuery in HandleAsync, and return its own XResponse, or nothing, from a command."
+            inputs.Concat(responses).Concat(lists),
+            "Take the operation's own XCommand or XQuery in HandleAsync, return its own XResponse, or nothing, from a command, and "
+                + "its own ListXResponse : IPagedResponse<ListXItem> from a list."
         );
     }
+
+    private static bool Paged(Type? response) =>
+        response is not null
+        && response
+            .GetInterfaces()
+            .Any(contract => contract.IsGenericType && contract.GetGenericTypeDefinition() == typeof(IPagedResponse<>));
 
     private static bool OwnInput(Type handler, Type input)
     {
@@ -62,8 +82,17 @@ public sealed class HandlerResponseTests
     {
         var files = ShippedCode
             .SourceFiles("*.cs")
-            .Where(file => file.Relative.StartsWith(Operations, StringComparison.Ordinal))
-            .Select(file => (Slice: Slice(file.Relative), Root: CSharpSyntaxTree.ParseText(File.ReadAllText(file.Path)).GetRoot()))
+            .Select(file =>
+                (
+                    file.Path,
+                    Below: OperationRoots
+                        .Where(root => file.Relative.StartsWith(root, StringComparison.Ordinal))
+                        .Select(root => file.Relative[root.Length..])
+                        .FirstOrDefault()
+                )
+            )
+            .Where(file => file.Below is not null)
+            .Select(file => (Slice: Slice(file.Below!), Root: CSharpSyntaxTree.ParseText(File.ReadAllText(file.Path)).GetRoot()))
             .ToList();
 
         // The operation folders that name each identifier, crefs included; a group-level file may name any row.
@@ -76,11 +105,23 @@ public sealed class HandlerResponseTests
             )
             .ToLookup(use => use.Name, use => use.Slice, StringComparer.Ordinal);
 
-        var violations = files.SelectMany(file =>
-            file.Root.DescendantNodes()
-                .OfType<BaseTypeDeclarationSyntax>()
-                .SelectMany(type => SliceViolations(type.Identifier.Text, file.Slice, users))
-        );
+        // An interface is the contract several responses share, not a response.
+        var types = files
+            .SelectMany(file =>
+                file.Root.DescendantNodes()
+                    .OfType<BaseTypeDeclarationSyntax>()
+                    .Where(type => type is not InterfaceDeclarationSyntax)
+                    .Select(type => (Name: type.Identifier.Text, file.Slice))
+            )
+            .ToList();
+        // A Set's element sits beside its Set: TagSet is a list of TagItem.
+        var sets = types
+            .Select(type => type.Name)
+            .Where(name => name.EndsWith("Set", StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+        var violations = types
+            .Where(type => !(type.Name.EndsWith("Item", StringComparison.Ordinal) && sets.Contains(type.Name[..^"Item".Length] + "Set")))
+            .SelectMany(type => SliceViolations(type.Name, type.Slice, users));
 
         Ratchet.Check(
             "slice-members",
@@ -89,9 +130,8 @@ public sealed class HandlerResponseTests
         );
     }
 
-    // "Group/Operation" for a file in an operation folder, null for a group-level file.
-    private static string? Slice(string relative) =>
-        relative[Operations.Length..].Split('/') is [var group, var operation, _] ? $"{group}/{operation}" : null;
+    // "Group/Operation" for a file in an operation folder, null for a group-level file; the path is below Operations/.
+    private static string? Slice(string path) => path.Split('/') is [var group, var operation, _] ? $"{group}/{operation}" : null;
 
     private static IEnumerable<(string Key, string? Detail)> SliceViolations(string name, string? slice, ILookup<string, string> users)
     {

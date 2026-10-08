@@ -28,8 +28,8 @@ internal sealed class FakeTenants : ITenants
             );
         List = static (_, _) =>
             ValueTask.FromResult(
-                new PagedResult<TenantListItem>(
-                    [new TenantListItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)],
+                new ListTenantsResponse(
+                    [new ListTenantsItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)],
                     null,
                     false,
                     50,
@@ -53,7 +53,7 @@ internal sealed class FakeTenants : ITenants
 
     public Func<string, CancellationToken, ValueTask<TenantDetail?>> Get { get; set; }
 
-    public Func<ListTenantsQuery, CancellationToken, ValueTask<PagedResult<TenantListItem>>> List { get; set; }
+    public Func<ListTenantsQuery, CancellationToken, ValueTask<ListTenantsResponse>> List { get; set; }
 
     public Func<string, string?, string?, CancellationToken, ValueTask<SuspendTenantResponse>> Suspend { get; set; }
 
@@ -70,7 +70,7 @@ internal sealed class FakeTenants : ITenants
 
     ValueTask<TenantDetail?> ITenants.GetAsync(string tenantKey, CancellationToken ct) => Get(tenantKey, ct);
 
-    ValueTask<PagedResult<TenantListItem>> ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct) => List(query, ct);
+    ValueTask<ListTenantsResponse> ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct) => List(query, ct);
 
     ValueTask<SuspendTenantResponse> ITenants.SuspendAsync(
         string tenantKey,

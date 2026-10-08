@@ -270,12 +270,12 @@ public class CliRunnerClipboardTests
         public ILedger Ledger => this;
         public DbProvider Provider => DbProvider.Sqlite;
 
-        public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
+        public ValueTask<ListJobsResponse> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         /// <summary>The job carries no retained events; whether it still exists is the status read.</summary>
-        public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
-            ValueTask.FromResult(new PagedResult<EventListItem>([], null, false, 50, null));
+        public ValueTask<ListEventsResponse> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
+            ValueTask.FromResult(new ListEventsResponse([], null, false, 50, null));
 
         public ValueTask<OverviewSnapshot> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();

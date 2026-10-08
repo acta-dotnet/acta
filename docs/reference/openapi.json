@@ -1614,7 +1614,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobListItem"
+                  "$ref": "#/components/schemas/ListJobsResponse"
                 }
               }
             }
@@ -3163,7 +3163,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfTenantListItem"
+                  "$ref": "#/components/schemas/ListTenantsResponse"
                 }
               }
             }
@@ -6304,7 +6304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfWorkerListItem"
+                  "$ref": "#/components/schemas/ListWorkersResponse"
                 }
               }
             }
@@ -6503,7 +6503,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfNamespaceListItem"
+                  "$ref": "#/components/schemas/ListNamespacesResponse"
                 }
               }
             }
@@ -6657,7 +6657,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfAlertListItem"
+                  "$ref": "#/components/schemas/ListAlertsResponse"
                 }
               }
             }
@@ -6834,7 +6834,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfOutboxSourceListItem"
+                  "$ref": "#/components/schemas/ListOutboxSourcesResponse"
                 }
               }
             }
@@ -6929,7 +6929,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfOutboxQuarantinedListItem"
+                  "$ref": "#/components/schemas/ListOutboxQuarantinedResponse"
                 }
               }
             }
@@ -7066,7 +7066,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfDefinitionListItem"
+                  "$ref": "#/components/schemas/ListDefinitionsResponse"
                 }
               }
             }
@@ -7201,7 +7201,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfScheduleListItem"
+                  "$ref": "#/components/schemas/ListSchedulesResponse"
                 }
               }
             }
@@ -7560,7 +7560,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfEventListItem"
+                  "$ref": "#/components/schemas/ListEventsResponse"
                 }
               }
             }
@@ -7711,7 +7711,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfEventListItem"
+                  "$ref": "#/components/schemas/ListEventsResponse"
                 }
               }
             }
@@ -7862,7 +7862,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfEventListItem"
+                  "$ref": "#/components/schemas/ListEventsResponse"
                 }
               }
             }
@@ -8158,113 +8158,6 @@
       },
       "AlertKindCode": {
         "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral."
-      },
-      "AlertListItem": {
-        "required": [
-          "alertRef",
-          "jobNamespace",
-          "jobRef",
-          "origin",
-          "severity",
-          "kind",
-          "title",
-          "message",
-          "channelName",
-          "occurrenceCount",
-          "resolvedAtUtc",
-          "deliveryStatus",
-          "retryCount",
-          "retryAfterUtc",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "acknowledgedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "alertRef": {
-            "$ref": "#/components/schemas/AlertRef"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "origin": {
-            "$ref": "#/components/schemas/AlertOriginCode"
-          },
-          "severity": {
-            "$ref": "#/components/schemas/AlertSeverityCode"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/AlertKindCode"
-          },
-          "title": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "channelName": {
-            "type": "string"
-          },
-          "occurrenceCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "resolvedAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "deliveryStatus": {
-            "$ref": "#/components/schemas/AlertDeliveryStatusCode"
-          },
-          "retryCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "retryAfterUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "acknowledgedAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "One alert row in a ValueTask&lt;PagedResult&lt;AlertListItem&gt;&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration, endpoints, and deduplication keys\nare delivery internals, never exposed by list reads. JSON carries the public job ref and hides the numeric job id;\nthe ref goes null once the subject job row is purged, since alerts outlive their job. `RetryCount` is the\nattempts spent in the current send series (a delivered send ends it), and `RetryAfterUtc` the earliest instant\nthe alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled."
       },
       "AlertOriginCode": { },
       "AlertProfileCode": { },
@@ -8852,134 +8745,7 @@
             "format": "int32"
           }
         },
-        "description": "The whole `definitions` row ValueTask&lt;DefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nDefinitionListItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
-      },
-      "DefinitionListItem": {
-        "required": [
-          "jobNamespace",
-          "jobName",
-          "status",
-          "inputTypeName",
-          "outputTypeName",
-          "priorityOverride",
-          "priorityEffective",
-          "maxAttemptsOverride",
-          "maxAttemptsEffective",
-          "concurrencyLimitOverride",
-          "concurrencyLimitEffective",
-          "rateLimitOverride",
-          "rateLimitEffective",
-          "rateKey",
-          "lane",
-          "modifiedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/DefinitionStatusCode"
-          },
-          "inputTypeName": {
-            "type": "string"
-          },
-          "outputTypeName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "priorityOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPriorityCode"
-              }
-            ]
-          },
-          "priorityEffective": {
-            "$ref": "#/components/schemas/JobPriorityCode"
-          },
-          "maxAttemptsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimitOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimitEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "rateLimitOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateLimitEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "lane": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "One definition in an ValueTask&lt;PagedResult&lt;DefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate key, which names the meter and so says\nwhich definitions share it. DefinitionDetail carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
+        "description": "The whole `definitions` row ValueTask&lt;DefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nListDefinitionsItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
       },
       "DefinitionPolicyOverrides": {
         "type": "object",
@@ -9194,172 +8960,6 @@
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
       },
-      "EventListItem": {
-        "required": [
-          "jobEventId",
-          "eventCode",
-          "createdAtUtc",
-          "jobNamespace",
-          "jobName",
-          "jobRef",
-          "lineageRootJobRef",
-          "executionNumber",
-          "actorCode",
-          "actorKey",
-          "fromStatus",
-          "toStatus",
-          "executionStatus",
-          "durationMs",
-          "reasonCode",
-          "reasonMessage",
-          "detailText",
-          "workerRef",
-          "tenantKey"
-        ],
-        "type": "object",
-        "properties": {
-          "jobEventId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "eventCode": {
-            "$ref": "#/components/schemas/EventCode"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "jobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "lineageRootJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "actorCode": {
-            "$ref": "#/components/schemas/ActorCode"
-          },
-          "actorKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "fromStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "toStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "executionStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ExecutionStatusCode"
-              }
-            ]
-          },
-          "durationMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "reasonCode": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/EventReasonCode"
-              }
-            ]
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "detailText": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "workerRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WorkerRef"
-              }
-            ]
-          },
-          "tenantKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantKey`, and `WorkerRef` are\nnull when absent or purged, and a worker actor's `ActorKey` is its public ref. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
-      },
       "EventReasonCode": { },
       "ExecutionStatusCode": { },
       "GetInputTemplateHttpResponse": {
@@ -9461,7 +9061,7 @@
           "schedules": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ScheduleListItem"
+              "$ref": "#/components/schemas/ListSchedulesItem"
             }
           },
           "schedulesTotal": {
@@ -9494,7 +9094,7 @@
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/WorkerListItem"
+              "$ref": "#/components/schemas/ListWorkersItem"
             }
           },
           "workersTotal": {
@@ -9965,7 +9565,7 @@
             "format": "date-time"
           }
         },
-        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef JobLineageJob.JobRef forms alongside the JSON-hidden numeric ids, matching JobListItem."
+        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef JobLineageJob.JobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
       },
       "JobLineageMap": {
         "required": [
@@ -10015,7 +9615,598 @@
         },
         "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on, and its direct children, assembled like JobExplanation\nfrom the same rows a `SELECT` would read. Returned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard\nrenders it as a lineage panel. V1 is shallow: `Ancestors` is context only (root first, immediate parent last,\nno steps of their own), `Job` is the focused subtree root, and `Children` are the direct children capped\nat int JobLineageMapOptions.ChildLimit with `ChildrenHasMore` flagging a truncated set."
       },
-      "JobListItem": {
+      "JobPayloadHttpResponse": {
+        "required": [
+          "formatName",
+          "formatId"
+        ],
+        "type": "object",
+        "properties": {
+          "formatName": {
+            "type": "string"
+          },
+          "formatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "json": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "byteLength": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "truncated": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "JobPriorityCode": {
+        "description": "Claim-priority value for `JobRuntime.Priority`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
+      },
+      "JobRef": {
+        "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
+      },
+      "JobStatusCode": { },
+      "JsonElement": { },
+      "ListAlertsItem": {
+        "required": [
+          "alertRef",
+          "jobNamespace",
+          "jobRef",
+          "origin",
+          "severity",
+          "kind",
+          "title",
+          "message",
+          "channelName",
+          "occurrenceCount",
+          "resolvedAtUtc",
+          "deliveryStatus",
+          "retryCount",
+          "retryAfterUtc",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "acknowledgedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "alertRef": {
+            "$ref": "#/components/schemas/AlertRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/AlertOriginCode"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AlertSeverityCode"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertKindCode"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "channelName": {
+            "type": "string"
+          },
+          "occurrenceCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "deliveryStatus": {
+            "$ref": "#/components/schemas/AlertDeliveryStatusCode"
+          },
+          "retryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "retryAfterUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acknowledgedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "One alert row in a ValueTask&lt;ListAlertsResponse&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration, endpoints, and deduplication keys\nare delivery internals, never exposed by list reads. JSON carries the public job ref and hides the numeric job id;\nthe ref goes null once the subject job row is purged, since alerts outlive their job. `RetryCount` is the\nattempts spent in the current send series (a delivered send ends it), and `RetryAfterUtc` the earliest instant\nthe alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled."
+      },
+      "ListAlertsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListAlertsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListAlertsResponse&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListDefinitionsItem": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "status",
+          "inputTypeName",
+          "outputTypeName",
+          "priorityOverride",
+          "priorityEffective",
+          "maxAttemptsOverride",
+          "maxAttemptsEffective",
+          "concurrencyLimitOverride",
+          "concurrencyLimitEffective",
+          "rateLimitOverride",
+          "rateLimitEffective",
+          "rateKey",
+          "lane",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DefinitionStatusCode"
+          },
+          "inputTypeName": {
+            "type": "string"
+          },
+          "outputTypeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priorityOverride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPriorityCode"
+              }
+            ]
+          },
+          "priorityEffective": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "maxAttemptsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxAttemptsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimitOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimitEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimitOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One definition in an ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate key, which names the meter and so says\nwhich definitions share it. DefinitionDetail carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
+      },
+      "ListDefinitionsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListDefinitionsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListEventsItem": {
+        "required": [
+          "jobEventId",
+          "eventCode",
+          "createdAtUtc",
+          "jobNamespace",
+          "jobName",
+          "jobRef",
+          "lineageRootJobRef",
+          "executionNumber",
+          "actorCode",
+          "actorKey",
+          "fromStatus",
+          "toStatus",
+          "executionStatus",
+          "durationMs",
+          "reasonCode",
+          "reasonMessage",
+          "detailText",
+          "workerRef",
+          "tenantKey"
+        ],
+        "type": "object",
+        "properties": {
+          "jobEventId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "eventCode": {
+            "$ref": "#/components/schemas/EventCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "lineageRootJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "executionNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "actorCode": {
+            "$ref": "#/components/schemas/ActorCode"
+          },
+          "actorKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fromStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "toStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "executionStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ExecutionStatusCode"
+              }
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonCode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EventReasonCode"
+              }
+            ]
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "detailText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "workerRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkerRef"
+              }
+            ]
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One audit event row in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantKey`, and `WorkerRef` are\nnull when absent or purged, and a worker actor's `ActorKey` is its public ref. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
+      },
+      "ListEventsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListEventsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListJobsItem": {
         "required": [
           "jobRef",
           "jobNamespace",
@@ -10127,40 +10318,42 @@
             "format": "int32"
           }
         },
-        "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page: identity, lifecycle, and audit-facing fields only; the\ninput payload is never exposed by list reads. JSON carries the public refs and hides the numeric ids.\n`CorrelationKey` is the caller-supplied trace, request, or order id, `ExecutionNumber` the attempt\ncounter, and `FailureCount` the consecutive-failure count behind the retry budget."
+        "description": "One job row in a ValueTask&lt;ListJobsResponse&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page: identity, lifecycle, and audit-facing fields only; the\ninput payload is never exposed by list reads. JSON carries the public refs and hides the numeric ids.\n`CorrelationKey` is the caller-supplied trace, request, or order id, `ExecutionNumber` the attempt\ncounter, and `FailureCount` the consecutive-failure count behind the retry budget."
       },
-      "JobPayloadHttpResponse": {
+      "ListJobsResponse": {
         "required": [
-          "formatName",
-          "formatId"
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
         ],
         "type": "object",
         "properties": {
-          "formatName": {
-            "type": "string"
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListJobsItem"
+            }
           },
-          "formatId": {
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
-            "format": "uint8"
+            "format": "int32"
           },
-          "json": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "byteLength": {
+          "totalCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
@@ -10168,25 +10361,11 @@
               "string"
             ],
             "format": "int64"
-          },
-          "truncated": {
-            "type": [
-              "null",
-              "boolean"
-            ]
           }
-        }
+        },
+        "description": "One page of ValueTask&lt;ListJobsResponse&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken))."
       },
-      "JobPriorityCode": {
-        "description": "Claim-priority value for `JobRuntime.Priority`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
-      },
-      "JobRef": {
-        "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
-      },
-      "JobStatusCode": { },
-      "JsonElement": { },
-      "MisfireStrategyCode": { },
-      "NamespaceListItem": {
+      "ListNamespacesItem": {
         "required": [
           "jobNamespace",
           "status",
@@ -10223,33 +10402,54 @@
             "format": "int32"
           }
         },
-        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `namespaces` table and the\none representation `GET /namespaces` answers with; ValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers\nthat want only the names. `NamespaceId` is the DB-assigned id `job.namespace_id` references, internal and\nnever serialized, since a namespace is addressed by its unique kebab-case name; `Status` Active resolves at\nenqueue and Suspended rejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "One namespace row in an ValueTask&lt;ListNamespacesResponse&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `namespaces` table and the\none representation `GET /namespaces` answers with; ValueTask&lt;ListNamespaceNamesResponse&gt; INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers\nthat want only the names. `NamespaceId` is the DB-assigned id `job.namespace_id` references, internal and\nnever serialized, since a namespace is addressed by its unique kebab-case name; `Status` Active resolves at\nenqueue and Suspended rejects it; `Version` is the row version a CAS control verb takes as expected."
       },
-      "NamespaceStatusCode": {
-        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
-      },
-      "OutboxControlHttpRequest": {
+      "ListNamespacesResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
         "type": "object",
         "properties": {
-          "outboxIds": {
-            "type": [
-              "null",
-              "array"
-            ],
+          "items": {
+            "type": "array",
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/ListNamespacesItem"
             }
           },
-          "reasonMessage": {
+          "nextCursor": {
             "type": [
               "null",
               "string"
             ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
           }
-        }
+        },
+        "description": "One page of ValueTask&lt;ListNamespacesResponse&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken))."
       },
-      "OutboxQuarantinedListItem": {
+      "ListOutboxQuarantinedItem": {
         "required": [
           "outboxId",
           "jobNamespace",
@@ -10309,7 +10509,52 @@
         },
         "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields (a null\ncorrelation or tenant key was never set), when the producer staged it, and the failure evidence\n(`FailureCount` delivery attempts consumed before quarantine, and the bounded `LastError`).\n`OutboxId` is the producer-minted id a scoped requeue or discard targets. The payload never leaves\nthe producer's database."
       },
-      "OutboxSourceListItem": {
+      "ListOutboxQuarantinedResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListOutboxQuarantinedItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListOutboxQuarantinedResponse&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListOutboxSourcesItem": {
         "required": [
           "jobNamespace",
           "slotJobRef",
@@ -10354,7 +10599,435 @@
             "type": "boolean"
           }
         },
-        "description": "One relay source as ValueTask&lt;PagedResult&lt;OutboxSourceListItem&gt;&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's `sys.outbox` slot\n(`SlotJobRef`, whose audit trail holds the operator evidence) plus the accounting parsed from the slot's\npersisted tick summary: `LastTickSummary` verbatim, `Backlog` (pending rows still awaiting relay), and\n`QuarantineTotal`, all null until the slot's first successful tick. `IsLocal` says this process\nregistered the source, so ValueTask&lt;PagedResult&lt;OutboxQuarantinedListItem&gt;&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
+        "description": "One relay source as ValueTask&lt;ListOutboxSourcesResponse&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's `sys.outbox` slot\n(`SlotJobRef`, whose audit trail holds the operator evidence) plus the accounting parsed from the slot's\npersisted tick summary: `LastTickSummary` verbatim, `Backlog` (pending rows still awaiting relay), and\n`QuarantineTotal`, all null until the slot's first successful tick. `IsLocal` says this process\nregistered the source, so ValueTask&lt;ListOutboxQuarantinedResponse&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
+      },
+      "ListOutboxSourcesResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListOutboxSourcesItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListOutboxSourcesResponse&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListSchedulesItem": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "scheduleName",
+          "origin",
+          "expressionKind",
+          "expression",
+          "timeZoneId",
+          "misfireStrategy",
+          "nextRunAtUtc",
+          "lastRunAtUtc",
+          "status",
+          "pausedUntilUtc",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version",
+          "jobRef"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "scheduleName": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ScheduleOriginCode"
+          },
+          "expressionKind": {
+            "$ref": "#/components/schemas/ScheduleExpressionKindCode"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "timeZoneId": {
+            "type": "string"
+          },
+          "misfireStrategy": {
+            "$ref": "#/components/schemas/MisfireStrategyCode"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScheduleStatusCode"
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          }
+        },
+        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `Expression` and `TimeZoneId` are the\neffective values, the operator override when present and else the original; `LastRunAtUtc` is the most recent\noccurrence the schedule was advanced past, misfires included; `Status` is Active, Paused, or Orphaned, with\n`PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as expected;\n`JobRef` is the recurring slot job's public ref, null when the slot row was purged."
+      },
+      "ListSchedulesResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListSchedulesItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListTenantsItem": {
+        "required": [
+          "tenantKey",
+          "displayName",
+          "description",
+          "status",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/TenantStatusCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One tenant row in a ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantKey` is the caller-supplied opaque external identifier, unique, and `DisplayName` the human label\n(dashboards fall back to the key); `TenantId` is the DB-assigned id `job.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
+      },
+      "ListTenantsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListTenantsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListWorkersItem": {
+        "required": [
+          "workerRef",
+          "jobNamespace",
+          "status",
+          "host",
+          "deploymentVersion",
+          "engineVersion",
+          "dotnetVersion",
+          "processId",
+          "maxConcurrency",
+          "lastHeartbeatAtUtc",
+          "startedAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "workerRef": {
+            "$ref": "#/components/schemas/WorkerRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkerStatusCode"
+          },
+          "host": {
+            "type": "string"
+          },
+          "deploymentVersion": {
+            "type": "string"
+          },
+          "engineVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dotnetVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "processId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxConcurrency": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastHeartbeatAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One worker row in a ValueTask&lt;ListWorkersResponse&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page: the registration's public ref and internal id, its\nnamespace and status, and what it reported at start (host machine, deployment version, engine version, runtime\nframework, process id, executor cap), with the last heartbeat, start, and last change instants."
+      },
+      "ListWorkersResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListWorkersItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListWorkersResponse&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "MisfireStrategyCode": { },
+      "NamespaceStatusCode": {
+        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
+      },
+      "OutboxControlHttpRequest": {
+        "type": "object",
+        "properties": {
+          "outboxIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "OverviewSnapshot": {
         "required": [
@@ -10482,506 +11155,6 @@
           }
         },
         "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers that\n`ExecutingCount` saturates against."
-      },
-      "PagedResultOfAlertListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AlertListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfDefinitionListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DefinitionListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfEventListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EventListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfJobListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfNamespaceListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NamespaceListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfOutboxQuarantinedListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OutboxQuarantinedListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfOutboxSourceListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OutboxSourceListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfScheduleListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScheduleListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfTenantListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TenantListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
-      },
-      "PagedResultOfWorkerListItem": {
-        "required": [
-          "items",
-          "nextCursor",
-          "hasMore",
-          "pageSize",
-          "totalCount"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WorkerListItem"
-            },
-            "description": "The page rows, at most PageSize of them."
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Opaque cursor for the next page, or null on the final page."
-          },
-          "hasMore": {
-            "type": "boolean",
-            "description": "Whether at least one more row exists beyond this page."
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "The effective page size after defaulting and clamping.",
-            "format": "int32"
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "Filter-wide row count, populated only when the query set IncludeTotal.",
-            "format": "int64"
-          }
-        },
-        "description": "One page of a keyset-paginated list read."
       },
       "PauseJobResponse": {
         "required": [
@@ -11592,104 +11765,6 @@
         "description": "What retiring a definition did."
       },
       "ScheduleExpressionKindCode": { },
-      "ScheduleListItem": {
-        "required": [
-          "jobNamespace",
-          "jobName",
-          "scheduleName",
-          "origin",
-          "expressionKind",
-          "expression",
-          "timeZoneId",
-          "misfireStrategy",
-          "nextRunAtUtc",
-          "lastRunAtUtc",
-          "status",
-          "pausedUntilUtc",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "version",
-          "jobRef"
-        ],
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "scheduleName": {
-            "type": "string"
-          },
-          "origin": {
-            "$ref": "#/components/schemas/ScheduleOriginCode"
-          },
-          "expressionKind": {
-            "$ref": "#/components/schemas/ScheduleExpressionKindCode"
-          },
-          "expression": {
-            "type": "string"
-          },
-          "timeZoneId": {
-            "type": "string"
-          },
-          "misfireStrategy": {
-            "$ref": "#/components/schemas/MisfireStrategyCode"
-          },
-          "nextRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "lastRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ScheduleStatusCode"
-          },
-          "pausedUntilUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "jobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          }
-        },
-        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `Expression` and `TimeZoneId` are the\neffective values, the operator override when present and else the original; `LastRunAtUtc` is the most recent\noccurrence the schedule was advanced past, misfires included; `Status` is Active, Paused, or Orphaned, with\n`PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as expected;\n`JobRef` is the recurring slot job's public ref, null when the slot row was purged."
-      },
       "ScheduleOriginCode": { },
       "SchedulePreview": {
         "required": [
@@ -11957,56 +12032,7 @@
             "format": "int32"
           }
         },
-        "description": "The single-tenant read model returned by ValueTask&lt;TenantDetail?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nTenantListItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantKey`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
-      },
-      "TenantListItem": {
-        "required": [
-          "tenantKey",
-          "displayName",
-          "description",
-          "status",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantKey": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/TenantStatusCode"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantKey` is the caller-supplied opaque external identifier, unique, and `DisplayName` the human label\n(dashboards fall back to the key); `TenantId` is the DB-assigned id `job.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "The single-tenant read model returned by ValueTask&lt;TenantDetail?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantKey`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
@@ -12353,82 +12379,6 @@
           }
         },
         "description": "Durable operator detail for one worker process registration."
-      },
-      "WorkerListItem": {
-        "required": [
-          "workerRef",
-          "jobNamespace",
-          "status",
-          "host",
-          "deploymentVersion",
-          "engineVersion",
-          "dotnetVersion",
-          "processId",
-          "maxConcurrency",
-          "lastHeartbeatAtUtc",
-          "startedAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "workerRef": {
-            "$ref": "#/components/schemas/WorkerRef"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/WorkerStatusCode"
-          },
-          "host": {
-            "type": "string"
-          },
-          "deploymentVersion": {
-            "type": "string"
-          },
-          "engineVersion": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "dotnetVersion": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "processId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxConcurrency": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "lastHeartbeatAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "startedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "One worker row in a ValueTask&lt;PagedResult&lt;WorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page: the registration's public ref and internal id, its\nnamespace and status, and what it reported at start (host machine, deployment version, engine version, runtime\nframework, process id, executor cap), with the last heartbeat, start, and last change instants."
       },
       "WorkerRef": { },
       "WorkerStatusCode": {

@@ -31,7 +31,7 @@ public sealed class ListSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var seen = new List<ScheduleListItem>();
+        var seen = new List<ListSchedulesItem>();
         string? cursor = null;
         var pages = 0;
         do

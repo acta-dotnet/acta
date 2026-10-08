@@ -12,15 +12,16 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class RouteTable
 {
-    public static RouteHandlerBuilder MapList<TQuery, TItem>(
+    public static RouteHandlerBuilder MapList<TQuery, TResponse>(
         this RouteGroupBuilder group,
         string pattern,
         string summary,
-        JsonTypeInfo<PagedResult<TItem>> json,
+        JsonTypeInfo<TResponse> json,
         Func<QueryReader, TQuery> bind,
-        Func<ReadCall, TQuery, ValueTask<PagedResult<TItem>>> list,
+        Func<ReadCall, TQuery, ValueTask<TResponse>> list,
         params QueryParameterDoc[] parameters
-    ) =>
+    )
+        where TResponse : IPagedResponse<object> =>
         group
             .MapGet(
                 pattern,
@@ -30,7 +31,7 @@ internal static class RouteTable
                     )
             )
             .WithSummary(summary)
-            .Produces<PagedResult<TItem>>(StatusCodes.Status200OK)
+            .Produces<TResponse>(StatusCodes.Status200OK)
             .WithQueryParameters(parameters);
 
     public static RouteHandlerBuilder MapDetail<TDetail>(

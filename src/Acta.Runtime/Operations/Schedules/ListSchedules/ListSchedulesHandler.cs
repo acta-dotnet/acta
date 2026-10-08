@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="ISchedules.ListAsync"/>: schedules next run first, one keyset page at a time.</summary>
 internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<ScheduleListItem>> HandleAsync(ListSchedulesQuery query, CancellationToken ct)
+    public async ValueTask<ListSchedulesResponse> HandleAsync(ListSchedulesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -43,11 +43,16 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            DbProjectionResolver.Resolve<ScheduleListItem>(),
+            DbProjectionResolver.Resolve<ListSchedulesItem>(),
             ct
         );
 
         // The list excludes rows without a next run, so the cursor key is always present.
-        return paging.Page(rows, total, static item => [item.NextRunAtUtc!.Value, item.JobScheduleId]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
+            rows,
+            total,
+            static item => [item.NextRunAtUtc!.Value, item.JobScheduleId]
+        );
+        return new ListSchedulesResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

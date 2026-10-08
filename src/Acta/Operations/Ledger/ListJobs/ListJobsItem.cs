@@ -8,7 +8,7 @@ namespace Acta;
 /// <c>CorrelationKey</c> is the caller-supplied trace, request, or order id, <c>ExecutionNumber</c> the attempt
 /// counter, and <c>FailureCount</c> the consecutive-failure count behind the retry budget.
 /// </summary>
-public sealed record JobListItem(
+public sealed record ListJobsItem(
     [property: JsonIgnore] long JobId,
     JobRef JobRef,
     string JobNamespace,

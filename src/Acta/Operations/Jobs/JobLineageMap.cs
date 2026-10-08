@@ -26,7 +26,7 @@ public sealed record JobLineageMapOptions(int ChildLimit = 100);
 
 /// <summary>
 /// A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public
-/// <see cref="JobRef"/> forms alongside the JSON-hidden numeric ids, matching <see cref="JobListItem"/>.
+/// <see cref="JobRef"/> forms alongside the JSON-hidden numeric ids, matching <see cref="ListJobsItem"/>.
 /// </summary>
 public sealed record JobLineageJob(
     [property: JsonIgnore] long JobId,

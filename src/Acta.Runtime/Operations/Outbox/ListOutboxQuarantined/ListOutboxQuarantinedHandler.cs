@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class ListOutboxQuarantinedHandler(OutboxRelayRegistry? registry = null)
 {
-    public async ValueTask<PagedResult<OutboxQuarantinedListItem>> HandleAsync(ListOutboxQuarantinedQuery query, CancellationToken ct)
+    public async ValueTask<ListOutboxQuarantinedResponse> HandleAsync(ListOutboxQuarantinedQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(query.JobNamespace);
@@ -38,8 +38,9 @@ internal sealed class ListOutboxQuarantinedHandler(OutboxRelayRegistry? registry
             afterOutboxId = parsed;
         }
 
-        var rows = await source.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(paging.Fetch, afterOutboxId), ct);
+        var rows = (await source.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(paging.Fetch, afterOutboxId), ct)).Items;
         long? total = query.IncludeTotal ? await source.CountQuarantinedAsync(ct) : null;
-        return paging.Page(rows, total, static item => [item.OutboxId.ToString("D")]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.OutboxId.ToString("D")]);
+        return new ListOutboxQuarantinedResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

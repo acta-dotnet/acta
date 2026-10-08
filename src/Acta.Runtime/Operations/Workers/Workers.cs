@@ -6,6 +6,6 @@ internal sealed class Workers(GetWorkerHandler getWorker, ListWorkersHandler lis
     public ValueTask<WorkerDetail?> GetAsync(WorkerRef workerRef, CancellationToken ct = default) =>
         getWorker.HandleAsync(new GetWorkerQuery(workerRef), ct);
 
-    public ValueTask<PagedResult<WorkerListItem>> ListAsync(ListWorkersQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListWorkersResponse> ListAsync(ListWorkersQuery query, CancellationToken ct = default) =>
         listWorkers.HandleAsync(query, ct);
 }

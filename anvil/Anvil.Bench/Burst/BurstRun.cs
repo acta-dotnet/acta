@@ -410,7 +410,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
         // which is exactly what the cap is documented to ignore. Filtering to undelivered rows as well
         // looked tighter and was wrong: a small run delivers every alert it raises and the subset came
         // back empty.
-        var stuck = new List<AlertListItem>();
+        var stuck = new List<ListAlertsItem>();
         string? cursor = null;
         do
         {
@@ -570,7 +570,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
         return (DateTime.MinValue, 0);
     }
 
-    private async Task<JobListItem> SlotAsync(string jobName, CancellationToken ct)
+    private async Task<ListJobsItem> SlotAsync(string jobName, CancellationToken ct)
     {
         var page = await host.Operations.Ledger.ListJobsAsync(
             new ListJobsQuery(JobNamespace: options.Namespace, JobName: jobName, PageSize: 1),

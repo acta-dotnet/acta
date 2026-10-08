@@ -9,7 +9,7 @@ namespace Acta;
 /// null when absent or purged, and a worker actor's <c>ActorKey</c> is its public ref. <c>DetailText</c> is the
 /// free-form or structured detail decoded to text, null when the event carries none or a non-text format.
 /// </summary>
-public sealed record EventListItem(
+public sealed record ListEventsItem(
     long JobEventId,
     EventCode EventCode,
     DateTime CreatedAtUtc,

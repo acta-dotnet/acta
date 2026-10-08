@@ -15,7 +15,7 @@ internal sealed class FakeOutbox : IOutbox
     {
         ListSources = static (query, _) =>
             ValueTask.FromResult(
-                new PagedResult<OutboxSourceListItem>(query.JobNamespace is null or "billing" ? [Billing] : [], null, false, 50, null)
+                new ListOutboxSourcesResponse(query.JobNamespace is null or "billing" ? [Billing] : [], null, false, 50, null)
             );
         ListQuarantined = static (query, _) => ValueTask.FromResult(Quarantined(query));
         Requeue = (jobNamespace, outboxIds, reason, actor, _) =>
@@ -47,25 +47,19 @@ internal sealed class FakeOutbox : IOutbox
         string? ActorKey
     )> ControlCalls { get; } = [];
 
-    public Func<ListOutboxSourcesQuery, CancellationToken, ValueTask<PagedResult<OutboxSourceListItem>>> ListSources { get; set; }
+    public Func<ListOutboxSourcesQuery, CancellationToken, ValueTask<ListOutboxSourcesResponse>> ListSources { get; set; }
 
-    public Func<
-        ListOutboxQuarantinedQuery,
-        CancellationToken,
-        ValueTask<PagedResult<OutboxQuarantinedListItem>>
-    > ListQuarantined { get; set; }
+    public Func<ListOutboxQuarantinedQuery, CancellationToken, ValueTask<ListOutboxQuarantinedResponse>> ListQuarantined { get; set; }
 
     public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, ValueTask<RequeueOutboxResponse>> Requeue { get; set; }
 
     public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, ValueTask<DiscardOutboxResponse>> Discard { get; set; }
 
-    ValueTask<PagedResult<OutboxSourceListItem>> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) =>
+    ValueTask<ListOutboxSourcesResponse> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) =>
         ListSources(query, ct);
 
-    ValueTask<PagedResult<OutboxQuarantinedListItem>> IOutbox.ListQuarantinedAsync(
-        ListOutboxQuarantinedQuery query,
-        CancellationToken ct
-    ) => ListQuarantined(query, ct);
+    ValueTask<ListOutboxQuarantinedResponse> IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct) =>
+        ListQuarantined(query, ct);
 
     ValueTask<RequeueOutboxResponse> IOutbox.RequeueAsync(
         string jobNamespace,
@@ -83,7 +77,7 @@ internal sealed class FakeOutbox : IOutbox
         CancellationToken ct
     ) => Discard(jobNamespace, outboxIds, reasonMessage, actorKey, ct);
 
-    private static readonly OutboxSourceListItem Billing = new(
+    private static readonly ListOutboxSourcesItem Billing = new(
         "billing",
         FakeJobs.FoundJobRef,
         "claimed=2 relayed=2 dedup=0 quarantined=0 backlog=5 quarantine=1",
@@ -92,11 +86,11 @@ internal sealed class FakeOutbox : IOutbox
         IsLocal: true
     );
 
-    private static PagedResult<OutboxQuarantinedListItem> Quarantined(ListOutboxQuarantinedQuery query) =>
+    private static ListOutboxQuarantinedResponse Quarantined(ListOutboxQuarantinedQuery query) =>
         query.JobNamespace == "billing"
-            ? new PagedResult<OutboxQuarantinedListItem>(
+            ? new ListOutboxQuarantinedResponse(
                 [
-                    new OutboxQuarantinedListItem(
+                    new ListOutboxQuarantinedItem(
                         QuarantinedId,
                         "billing",
                         "send-invoice",

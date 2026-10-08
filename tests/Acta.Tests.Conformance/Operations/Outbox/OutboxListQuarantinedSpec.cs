@@ -33,9 +33,11 @@ public sealed class OutboxListQuarantinedSpec : OutboxSpecBase
 
         Assert.Equal(3, await Store.CountQuarantinedAsync(ct));
 
-        var first = await Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(PageSize: 2, AfterOutboxId: null), ct);
+        var first = (await Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(PageSize: 2, AfterOutboxId: null), ct)).Items;
         Assert.Equal(2, first.Count);
-        var second = await Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(PageSize: 2, AfterOutboxId: first[^1].OutboxId), ct);
+        var second = (
+            await Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(PageSize: 2, AfterOutboxId: first[^1].OutboxId), ct)
+        ).Items;
         Assert.Single(second);
 
         // Exactly-once coverage is the paging contract. The row order itself is the provider's own

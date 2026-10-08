@@ -63,8 +63,6 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   members and implements the new `IJobControlResponse`, which extends `IControlResponse`.
   `ITenants.RegisterAsync` returns `RegisterTenantResponse`, whose `TenantId` is the id it returned
   before. The HTTP bodies do not change; the OpenAPI document names each response type.
-- **`OutboxQuarantinedItem` is now `OutboxQuarantinedListItem`**, the name every other list row
-  takes. Its members are unchanged.
 - **Durable settings are gone.** `IActaOperations.Settings`, `ISettings`, `SettingDetail`,
   `SettingScopeCode`, and the `setting.updated` event (160) are removed, with the `settings` table and
   the `set_setting` routine. Nothing in Acta read a setting; keep such values in your own table or in
@@ -86,9 +84,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `DefinitionAuditLevelCode` and `DefinitionTenantRequirementCode`. Their generated `Extensions` and
   `JsonConverter` classes follow, as does `JobStepStatusExtensions`, now `StepStatusExtensions`.
   Members, stored values, and JSON strings are unchanged; the OpenAPI schemas take the new names.
-- **Definition read models drop the `Job` prefix.** `JobDefinitionDetail`, `JobDefinitionListItem`, and
-  `JobDefinitionPolicyOverrides` are now `DefinitionDetail`, `DefinitionListItem`, and
-  `DefinitionPolicyOverrides`. Members and JSON are unchanged; the OpenAPI schemas take the new names.
+- **Definition read models drop the `Job` prefix.** `JobDefinitionDetail` and `JobDefinitionPolicyOverrides`
+  are now `DefinitionDetail` and `DefinitionPolicyOverrides`; the list element is renamed with the other lists
+  below. Members and JSON are unchanged; the OpenAPI schemas take the new names.
 - **`IJobs.GetCheckpointsAsync` returns a `CheckpointSet`.** It was a list of `JobCheckpointItem`; the
   set holds `CheckpointItem`, with the same members, ordered by kind and then by name. A job without
   slots answers an empty set, and a lookup that matches no job now answers `null` instead of an empty
@@ -119,9 +117,23 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `enqueue_job`, and a database provisioned from the previous `docs/reference/schema-<provider>.sql` runs the
   new one before this build starts. The old routines stay installed for older workers during a rolling deploy;
   drop them once none runs. The object package moves to revision 49; the minimum stays 9.
-- **`INamespaces.ListNamesAsync` takes `ListNamespaceNamesQuery`.** The name list has its own query,
-  without the `Status` filter it never applied. `ListAsync` keeps `ListNamespacesQuery` with the same
-  members.
+- **Each list returns its own response.** `PagedResult<T>` is gone. Every list method returns its own
+  `ListXResponse`, named for the operation, which implements the new `IPagedResponse<T>` with the same five
+  members, and its element is `ListXItem`: `ILedger.ListJobsAsync` returns `ListJobsResponse` and
+  `ListEventsAsync` `ListEventsResponse`; `ListAsync` returns `ListAlertsResponse` on `IAlerts`,
+  `ListDefinitionsResponse` on `IDefinitions`, `ListNamespacesResponse` on `INamespaces`,
+  `ListSchedulesResponse` on `ISchedules`, `ListTenantsResponse` on `ITenants`, and `ListWorkersResponse` on
+  `IWorkers`; `IOutbox.ListSourcesAsync` returns `ListOutboxSourcesResponse` and `ListQuarantinedAsync`
+  `ListOutboxQuarantinedResponse`. The elements `JobListItem`, `EventListItem`, `AlertListItem`,
+  `JobDefinitionListItem`, `NamespaceListItem`, `ScheduleListItem`, `TenantListItem`, `WorkerListItem`,
+  `OutboxSourceListItem`, and `OutboxQuarantinedItem` are now `ListJobsItem`, `ListEventsItem`,
+  `ListAlertsItem`, `ListDefinitionsItem`, `ListNamespacesItem`, `ListSchedulesItem`, `ListTenantsItem`,
+  `ListWorkersItem`, `ListOutboxSourcesItem`, and `ListOutboxQuarantinedItem`, with the same members.
+  `INamespaces.ListNamesAsync` returns `ListNamespaceNamesResponse` and takes the new
+  `ListNamespaceNamesQuery`, without the `Status` filter the name list never applied; `ListAsync` keeps
+  `ListNamespacesQuery`. Code that reads a page through `var` and its members compiles unchanged. The JSON is
+  unchanged; the OpenAPI schemas take the new names, so `PagedResultOfJobListItem` is now `ListJobsResponse`
+  and `JobListItem` is now `ListJobsItem`.
 
 ### Additions
 

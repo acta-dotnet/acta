@@ -35,7 +35,7 @@ internal sealed class FakeAlerts : IAlerts
             ResolveCalls.Add((alertRef, reason, actor));
             return ValueTask.FromResult(new ResolveAlertResponse(alertRef, ControlAction.Applied, null, ResolvedAt));
         };
-        List = static (_, _) => ValueTask.FromResult(new PagedResult<AlertListItem>([], null, false, 50, null));
+        List = static (_, _) => ValueTask.FromResult(new ListAlertsResponse([], null, false, 50, null));
         Get = static (alertRef, _) => ValueTask.FromResult<AlertDetail?>(alertRef == KnownAlertRef ? Known : null);
     }
 
@@ -47,7 +47,7 @@ internal sealed class FakeAlerts : IAlerts
 
     public Func<AlertRef, string?, string?, CancellationToken, ValueTask<ResolveAlertResponse>> Resolve { get; set; }
 
-    public Func<ListAlertsQuery, CancellationToken, ValueTask<PagedResult<AlertListItem>>> List { get; set; }
+    public Func<ListAlertsQuery, CancellationToken, ValueTask<ListAlertsResponse>> List { get; set; }
 
     public Func<AlertRef, CancellationToken, ValueTask<AlertDetail?>> Get { get; set; }
 
@@ -65,7 +65,7 @@ internal sealed class FakeAlerts : IAlerts
         CancellationToken ct
     ) => Resolve(alertRef, reasonMessage, actorKey, ct);
 
-    ValueTask<PagedResult<AlertListItem>> IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct) => List(query, ct);
+    ValueTask<ListAlertsResponse> IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct) => List(query, ct);
 
     ValueTask<AlertDetail?> IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct) => Get(alertRef, ct);
 

@@ -34,6 +34,6 @@ internal sealed class Definitions(
     public ValueTask<DefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         getDefinition.HandleAsync(new GetDefinitionQuery(jobNamespace, jobName), ct);
 
-    public ValueTask<PagedResult<DefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listDefinitions.HandleAsync(query, ct);
 }

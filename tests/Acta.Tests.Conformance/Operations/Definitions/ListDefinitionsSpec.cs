@@ -24,7 +24,7 @@ public sealed class ListDefinitionsSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var seen = new List<DefinitionListItem>();
+        var seen = new List<ListDefinitionsItem>();
         string? cursor = null;
         var pages = 0;
         do

@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="INamespaces.ListAsync"/>: namespaces by name ascending, one keyset page at a time.</summary>
 internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<NamespaceListItem>> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
+    public async ValueTask<ListNamespacesResponse> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var (fragment, pattern) = NamespaceNames.Search(query.NameContains);
@@ -31,9 +31,10 @@ internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            DbProjectionResolver.Resolve<NamespaceListItem>(),
+            DbProjectionResolver.Resolve<ListNamespacesItem>(),
             ct
         );
-        return paging.Page(rows, total, static item => [item.JobNamespace]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.JobNamespace]);
+        return new ListNamespacesResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

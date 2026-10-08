@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="IWorkers.ListAsync"/>: workers most recently seen first, one keyset page at a time.</summary>
 internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<WorkerListItem>> HandleAsync(ListWorkersQuery query, CancellationToken ct)
+    public async ValueTask<ListWorkersResponse> HandleAsync(ListWorkersQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -33,9 +33,14 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            DbProjectionResolver.Resolve<WorkerListItem>(),
+            DbProjectionResolver.Resolve<ListWorkersItem>(),
             ct
         );
-        return paging.Page(rows, total, static item => [item.LastHeartbeatAtUtc, item.WorkerId]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
+            rows,
+            total,
+            static item => [item.LastHeartbeatAtUtc, item.WorkerId]
+        );
+        return new ListWorkersResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

@@ -9,7 +9,7 @@ namespace Acta;
 /// never serialized, since a namespace is addressed by its unique kebab-case name; <c>Status</c> Active resolves at
 /// enqueue and Suspended rejects it; <c>Version</c> is the row version a CAS control verb takes as expected.
 /// </summary>
-public sealed record NamespaceListItem(
+public sealed record ListNamespacesItem(
     [property: JsonIgnore] int NamespaceId,
     string JobNamespace,
     NamespaceStatusCode Status,

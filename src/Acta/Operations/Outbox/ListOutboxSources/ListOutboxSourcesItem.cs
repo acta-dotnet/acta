@@ -7,7 +7,7 @@ namespace Acta;
 /// <c>QuarantineTotal</c>, all null until the slot's first successful tick. <c>IsLocal</c> says this process
 /// registered the source, so <see cref="IOutbox.ListQuarantinedAsync"/> works here.
 /// </summary>
-public sealed record OutboxSourceListItem(
+public sealed record ListOutboxSourcesItem(
     string JobNamespace,
     JobRef SlotJobRef,
     string? LastTickSummary,

@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="ILedger.ListEventsAsync"/>: events newest first, one keyset page at a time.</summary>
 internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<EventListItem>> HandleAsync(ListEventsQuery query, CancellationToken ct)
+    public async ValueTask<ListEventsResponse> HandleAsync(ListEventsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -76,6 +76,11 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
             reader => read(reader).ToItem(),
             ct
         );
-        return paging.Page(rows, total, static item => [item.CreatedAtUtc, item.JobEventId]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
+            rows,
+            total,
+            static item => [item.CreatedAtUtc, item.JobEventId]
+        );
+        return new ListEventsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

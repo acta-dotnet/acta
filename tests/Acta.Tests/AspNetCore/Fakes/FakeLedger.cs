@@ -6,7 +6,7 @@ namespace Acta.Tests.AspNetCore.Fakes;
 /// </summary>
 internal sealed class FakeLedger : ILedger
 {
-    public static readonly JobListItem Job = new(
+    public static readonly ListJobsItem Job = new(
         JobId: 42,
         JobRef: FakeJobs.FoundJobRef,
         JobNamespace: "billing",
@@ -36,12 +36,12 @@ internal sealed class FakeLedger : ILedger
             LastJobsQuery = query;
             return query.Cursor is not null
                 ? throw new InvalidPageCursorException("Cursor operation does not match this query.")
-                : ValueTask.FromResult(new PagedResult<JobListItem>([Job], null, false, 50, null));
+                : ValueTask.FromResult(new ListJobsResponse([Job], null, false, 50, null));
         };
         ListEvents = (query, _) =>
         {
             LastEventsQuery = query;
-            return ValueTask.FromResult(new PagedResult<EventListItem>([], null, false, 50, query.IncludeTotal ? 0L : null));
+            return ValueTask.FromResult(new ListEventsResponse([], null, false, 50, query.IncludeTotal ? 0L : null));
         };
         GetOverview = static (query, _) => ValueTask.FromResult(Overview(query));
     }
@@ -50,15 +50,15 @@ internal sealed class FakeLedger : ILedger
 
     public ListEventsQuery? LastEventsQuery { get; private set; }
 
-    public Func<ListJobsQuery, CancellationToken, ValueTask<PagedResult<JobListItem>>> ListJobs { get; set; }
+    public Func<ListJobsQuery, CancellationToken, ValueTask<ListJobsResponse>> ListJobs { get; set; }
 
-    public Func<ListEventsQuery, CancellationToken, ValueTask<PagedResult<EventListItem>>> ListEvents { get; set; }
+    public Func<ListEventsQuery, CancellationToken, ValueTask<ListEventsResponse>> ListEvents { get; set; }
 
     public Func<GetOverviewQuery, CancellationToken, ValueTask<OverviewSnapshot>> GetOverview { get; set; }
 
-    ValueTask<PagedResult<JobListItem>> ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct) => ListJobs(query, ct);
+    ValueTask<ListJobsResponse> ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct) => ListJobs(query, ct);
 
-    ValueTask<PagedResult<EventListItem>> ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct) => ListEvents(query, ct);
+    ValueTask<ListEventsResponse> ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct) => ListEvents(query, ct);
 
     ValueTask<OverviewSnapshot> ILedger.GetOverviewAsync(GetOverviewQuery query, CancellationToken ct) => GetOverview(query, ct);
 

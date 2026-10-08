@@ -41,7 +41,7 @@ var outcome = await jobs.RunAndWaitAsync<RunPipeline>(
 outcome.ThrowIfFailed();
 Console.WriteLine("pipeline done");
 
-// Operator read: CorrelationKey is both a ListJobsQuery filter and a JobListItem field, so one list
+// Operator read: CorrelationKey is both a ListJobsQuery filter and a ListJobsItem field, so one list
 // read pulls every job on a trace - parent and inherited children - with the id already on each row.
 // (It is also on JobDetail via GetAsync when you want the full per-job detail.)
 Console.WriteLine($"operator read: ListJobs filtered by CorrelationKey={correlationKey}");

@@ -61,7 +61,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         return enqueued.JobId;
     }
 
-    private async Task<IReadOnlyList<AlertListItem>> AllAlertsAsync(CancellationToken ct, string ns = null!) =>
+    private async Task<IReadOnlyList<ListAlertsItem>> AllAlertsAsync(CancellationToken ct, string ns = null!) =>
         (
             await Services
                 .GetRequiredService<IActaOperations>()

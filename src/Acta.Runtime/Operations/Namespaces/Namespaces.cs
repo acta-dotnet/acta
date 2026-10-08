@@ -9,10 +9,10 @@ internal sealed class Namespaces(
     UpdateNamespaceHandler updateNamespace
 ) : INamespaces
 {
-    public ValueTask<PagedResult<string>> ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListNamespaceNamesResponse> ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default) =>
         listNamespaceNames.HandleAsync(query, ct);
 
-    public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         listNamespaces.HandleAsync(query, ct);
 
     public ValueTask<SuspendNamespaceResponse> SuspendAsync(

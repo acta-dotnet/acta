@@ -9,16 +9,16 @@ internal sealed class FakeWorkers : IWorkers
     public FakeWorkers()
     {
         Get = static (workerRef, _) => ValueTask.FromResult<WorkerDetail?>(workerRef == KnownWorkerRef ? Known : null);
-        List = static (_, _) => ValueTask.FromResult(new PagedResult<WorkerListItem>([], null, false, 50, null));
+        List = static (_, _) => ValueTask.FromResult(new ListWorkersResponse([], null, false, 50, null));
     }
 
     public Func<WorkerRef, CancellationToken, ValueTask<WorkerDetail?>> Get { get; set; }
 
-    public Func<ListWorkersQuery, CancellationToken, ValueTask<PagedResult<WorkerListItem>>> List { get; set; }
+    public Func<ListWorkersQuery, CancellationToken, ValueTask<ListWorkersResponse>> List { get; set; }
 
     ValueTask<WorkerDetail?> IWorkers.GetAsync(WorkerRef workerRef, CancellationToken ct) => Get(workerRef, ct);
 
-    ValueTask<PagedResult<WorkerListItem>> IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct) => List(query, ct);
+    ValueTask<ListWorkersResponse> IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct) => List(query, ct);
 
     private static readonly WorkerDetail Known = new(
         KnownWorkerRef,

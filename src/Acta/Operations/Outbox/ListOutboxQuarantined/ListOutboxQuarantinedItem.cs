@@ -7,7 +7,7 @@ namespace Acta;
 /// <c>OutboxId</c> is the producer-minted id a scoped requeue or discard targets. The payload never leaves
 /// the producer's database.
 /// </summary>
-public sealed record OutboxQuarantinedListItem(
+public sealed record ListOutboxQuarantinedItem(
     Guid OutboxId,
     string JobNamespace,
     string JobName,

@@ -5,7 +5,7 @@ namespace Acta;
 /// ascending, id ascending) and rows without a next run are excluded. <c>JobNamespace</c> is required with
 /// <c>JobName</c>; <c>LiveOnly</c> null or true (the default) returns only schedules with no orphaned instant, false
 /// includes orphaned ones; <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c> is the previous page's
-/// <see cref="PagedResult{T}.NextCursor"/>; <c>Tags</c> restricts to schedules carrying every supplied exact filter.
+/// <see cref="IPagedResponse{T}.NextCursor"/>; <c>Tags</c> restricts to schedules carrying every supplied exact filter.
 /// </summary>
 public sealed record ListSchedulesQuery(
     string? JobNamespace = null,

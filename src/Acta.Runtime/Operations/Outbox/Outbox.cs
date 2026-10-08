@@ -8,10 +8,10 @@ internal sealed class Outbox(
     DiscardOutboxHandler discardOutbox
 ) : IOutbox
 {
-    public ValueTask<PagedResult<OutboxSourceListItem>> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default) =>
         listOutboxSources.HandleAsync(query, ct);
 
-    public ValueTask<PagedResult<OutboxQuarantinedListItem>> ListQuarantinedAsync(
+    public ValueTask<ListOutboxQuarantinedResponse> ListQuarantinedAsync(
         ListOutboxQuarantinedQuery query,
         CancellationToken ct = default
     ) => listOutboxQuarantined.HandleAsync(query, ct);

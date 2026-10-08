@@ -20,7 +20,7 @@ internal sealed class DefinitionKeyResolution(IDbSession session, ISqlDialect di
         var (rows, _) = await session.QueryPageAsync(
             "ListDefinitions",
             cmd => ListDefinitionsHandler.Bind(cmd, dialect, ns, name, status: null, tags: null, after: null, take: 2, includeTotal: false),
-            DbProjectionResolver.Resolve<DefinitionListItem>(),
+            DbProjectionResolver.Resolve<ListDefinitionsItem>(),
             ct
         );
         foreach (var row in rows)

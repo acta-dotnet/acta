@@ -19,7 +19,7 @@ internal static class TenantsEndpoints
         reads.MapList(
             "/tenants",
             "List tenants.",
-            DashboardJsonContext.Default.PagedResultTenantListItem,
+            DashboardJsonContext.Default.ListTenantsResponse,
             static query => new ListTenantsQuery(
                 NameContains: query.Text("nameContains"),
                 Status: query.Enum<TenantStatusCode>("status"),

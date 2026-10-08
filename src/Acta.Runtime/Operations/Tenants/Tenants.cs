@@ -20,7 +20,7 @@ internal sealed class Tenants(
     public ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default) =>
         getTenant.HandleAsync(new GetTenantQuery(tenantKey), ct);
 
-    public ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
+    public ValueTask<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
         listTenants.HandleAsync(query, ct);
 
     public ValueTask<SuspendTenantResponse> SuspendAsync(

@@ -9,7 +9,7 @@ namespace Acta;
 /// attempts spent in the current send series (a delivered send ends it), and <c>RetryAfterUtc</c> the earliest instant
 /// the alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled.
 /// </summary>
-public sealed record AlertListItem(
+public sealed record ListAlertsItem(
     AlertRef AlertRef,
     [property: JsonIgnore] long AlertId,
     string JobNamespace,

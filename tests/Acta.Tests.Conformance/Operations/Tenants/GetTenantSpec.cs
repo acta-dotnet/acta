@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
 /// <summary>
-/// Conformance for the tenant point-read: <c>GetTenant</c> returns the <c>TenantListItem</c>
+/// Conformance for the tenant point-read: <c>GetTenant</c> returns the <c>ListTenantsItem</c>
 /// projection addressed by canonical key or internal id, resolves suspended tenants (lookup is
 /// status-blind), and returns null when no row matches.
 /// </summary>

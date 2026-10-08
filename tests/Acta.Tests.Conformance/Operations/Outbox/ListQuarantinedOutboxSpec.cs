@@ -68,7 +68,7 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
 
         // The order itself is the provider's uuid order (SQL Server sorts by trailing bytes, SQLite by
         // case-folded text), so the walk is held to the full read rather than to a .NET Guid sort.
-        var walked = new List<OutboxQuarantinedListItem>();
+        var walked = new List<ListOutboxQuarantinedItem>();
         var pageSizes = new List<int>();
         Guid? after = null;
         while (await ListAsync(pageSize: 2, after, ct) is { Count: > 0 } page)
@@ -100,8 +100,8 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
         Assert.Empty(await ListAsync(pageSize: 2, after: full[3], ct));
     }
 
-    private Task<IReadOnlyList<OutboxQuarantinedListItem>> ListAsync(int pageSize, Guid? after, CancellationToken ct) =>
-        Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(pageSize, after), ct);
+    private async Task<IReadOnlyList<ListOutboxQuarantinedItem>> ListAsync(int pageSize, Guid? after, CancellationToken ct) =>
+        (await Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(pageSize, after), ct)).Items;
 
     private async Task<HashSet<Guid>> SeedQuarantinedAsync(int count)
     {

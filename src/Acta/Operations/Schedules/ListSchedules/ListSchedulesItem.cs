@@ -9,7 +9,7 @@ namespace Acta;
 /// <c>PausedUntilUtc</c> for a timed pause; <c>Version</c> is the row version a CAS control verb takes as expected;
 /// <c>JobRef</c> is the recurring slot job's public ref, null when the slot row was purged.
 /// </summary>
-public sealed record ScheduleListItem(
+public sealed record ListSchedulesItem(
     [property: JsonIgnore] long JobScheduleId,
     [property: JsonIgnore] long JobId,
     [property: JsonIgnore] int DefinitionId,

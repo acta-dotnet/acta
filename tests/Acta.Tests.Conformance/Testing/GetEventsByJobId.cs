@@ -31,7 +31,7 @@ internal static class GetEventsByJobId
     public static async Task<IReadOnlyList<JobEventRecord>> Run(IServiceProvider services, long jobId, CancellationToken ct)
     {
         var ledger = services.GetRequiredService<ILedger>();
-        var rows = new List<EventListItem>();
+        var rows = new List<ListEventsItem>();
         string? cursor = null;
         do
         {

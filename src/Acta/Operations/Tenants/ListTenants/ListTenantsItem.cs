@@ -9,7 +9,7 @@ namespace Acta;
 /// and never serialized, since a tenant is addressed by its key; <c>Status</c> Active resolves at enqueue and Suspended
 /// rejects it; <c>Version</c> is the row version a CAS control verb takes as expected.
 /// </summary>
-public sealed record TenantListItem(
+public sealed record ListTenantsItem(
     [property: JsonIgnore] int TenantId,
     string TenantKey,
     string? DisplayName,

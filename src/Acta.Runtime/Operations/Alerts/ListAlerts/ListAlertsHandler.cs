@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="IAlerts.ListAsync"/>: alerts newest first, one keyset page at a time.</summary>
 internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<AlertListItem>> HandleAsync(ListAlertsQuery query, CancellationToken ct)
+    public async ValueTask<ListAlertsResponse> HandleAsync(ListAlertsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -48,9 +48,10 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            DbProjectionResolver.Resolve<AlertListItem>(),
+            DbProjectionResolver.Resolve<ListAlertsItem>(),
             ct
         );
-        return paging.Page(rows, total, static item => [item.CreatedAtUtc, item.AlertId]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.CreatedAtUtc, item.AlertId]);
+        return new ListAlertsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

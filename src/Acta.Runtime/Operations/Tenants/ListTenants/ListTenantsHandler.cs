@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="ITenants.ListAsync"/>: tenants by key ascending, one keyset page at a time.</summary>
 internal sealed class ListTenantsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<TenantListItem>> HandleAsync(ListTenantsQuery query, CancellationToken ct)
+    public async ValueTask<ListTenantsResponse> HandleAsync(ListTenantsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -32,9 +32,10 @@ internal sealed class ListTenantsHandler(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            DbProjectionResolver.Resolve<TenantListItem>(),
+            DbProjectionResolver.Resolve<ListTenantsItem>(),
             ct
         );
-        return paging.Page(rows, total, static item => [item.TenantKey]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.TenantKey]);
+        return new ListTenantsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

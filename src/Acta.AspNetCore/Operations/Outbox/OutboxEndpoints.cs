@@ -22,7 +22,7 @@ internal static class OutboxEndpoints
         reads.MapList(
             "/outbox/sources",
             "List outbox relay sources with backlog and quarantine totals.",
-            DashboardJsonContext.Default.PagedResultOutboxSourceListItem,
+            DashboardJsonContext.Default.ListOutboxSourcesResponse,
             static query => new ListOutboxSourcesQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 PageSize: query.Int("pageSize"),
@@ -38,7 +38,7 @@ internal static class OutboxEndpoints
             .MapList(
                 "/outbox/{jobNamespace}/quarantined",
                 "List a relay source's quarantined staging rows.",
-                DashboardJsonContext.Default.PagedResultOutboxQuarantinedListItem,
+                DashboardJsonContext.Default.ListOutboxQuarantinedResponse,
                 static query => new ListOutboxQuarantinedQuery(
                     query.Route("jobNamespace"),
                     PageSize: query.Int("pageSize"),

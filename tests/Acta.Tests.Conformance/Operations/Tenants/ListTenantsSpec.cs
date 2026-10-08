@@ -105,6 +105,6 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
     }
 
     // The key is this run's own, so filtering on it reaches the row in a database holding earlier runs.
-    private async Task<TenantListItem> FindAsync(string key, CancellationToken ct) =>
+    private async Task<ListTenantsItem> FindAsync(string key, CancellationToken ct) =>
         (await Tenants.ListAsync(new ListTenantsQuery(NameContains: key), ct)).Items.Single(r => r.TenantKey == key);
 }

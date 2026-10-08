@@ -43,7 +43,7 @@ public interface ISchedules
     );
 
     /// <summary>List schedules next-run first, optionally filtered by namespace, name, origin, and liveness.</summary>
-    ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
+    ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Previews up to <paramref name="count"/> (clamped to [1, 50]) upcoming fire instants for the schedule identified

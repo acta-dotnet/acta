@@ -25,7 +25,7 @@ internal sealed class FakeDefinitions : IDefinitions
             ValueTask.FromResult(new RetireDefinitionResponse(Outcome(jobName, expectedVersion)));
         Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
         List = static (query, _) =>
-            ValueTask.FromResult(new PagedResult<DefinitionListItem>(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
+            ValueTask.FromResult(new ListDefinitionsResponse(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
     }
 
     public Func<
@@ -43,7 +43,7 @@ internal sealed class FakeDefinitions : IDefinitions
 
     public Func<string, string, CancellationToken, ValueTask<DefinitionDetail?>> Get { get; set; }
 
-    public Func<ListDefinitionsQuery, CancellationToken, ValueTask<PagedResult<DefinitionListItem>>> List { get; set; }
+    public Func<ListDefinitionsQuery, CancellationToken, ValueTask<ListDefinitionsResponse>> List { get; set; }
 
     ValueTask<SetDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
         string jobNamespace,
@@ -67,7 +67,7 @@ internal sealed class FakeDefinitions : IDefinitions
     ValueTask<DefinitionDetail?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
         Get(jobNamespace, jobName, ct);
 
-    ValueTask<PagedResult<DefinitionListItem>> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
+    ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
 
     private static ControlAction Outcome(string jobName, int expectedVersion) =>
         jobName == "missing" ? ControlAction.NotFound
@@ -93,7 +93,7 @@ internal sealed class FakeDefinitions : IDefinitions
         return jobNamespace == "billing" && jobName == "send-invoice" ? SendInvoice : null;
     }
 
-    private static readonly DefinitionListItem Item = new(
+    private static readonly ListDefinitionsItem Item = new(
         5,
         "billing",
         "send-invoice",

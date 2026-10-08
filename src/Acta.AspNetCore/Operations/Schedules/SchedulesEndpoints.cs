@@ -34,7 +34,7 @@ internal static class SchedulesEndpoints
         reads.MapList(
             "/schedules",
             "List recurring schedules, next run first.",
-            DashboardJsonContext.Default.PagedResultScheduleListItem,
+            DashboardJsonContext.Default.ListSchedulesResponse,
             static query => new ListSchedulesQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 JobName: query.Text("jobName"),

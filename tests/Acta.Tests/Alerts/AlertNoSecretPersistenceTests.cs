@@ -33,9 +33,9 @@ public sealed class AlertNoSecretPersistenceTests
     [Fact]
     public void Public_alert_list_exposes_channel_name_only()
     {
-        var properties = typeof(AlertListItem).GetProperties().Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+        var properties = typeof(ListAlertsItem).GetProperties().Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains(nameof(AlertListItem.ChannelName), properties);
+        Assert.Contains(nameof(ListAlertsItem.ChannelName), properties);
         Assert.DoesNotContain("TransportKind", properties);
         Assert.DoesNotContain("Endpoint", properties);
         Assert.DoesNotContain("ConfigFormatId", properties);

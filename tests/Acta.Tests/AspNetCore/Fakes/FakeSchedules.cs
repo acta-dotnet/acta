@@ -21,7 +21,7 @@ internal sealed class FakeSchedules : ISchedules
         UpdateOverrides = (schedule, expectedVersion, expression, timeZoneId, reason, actor, _) =>
             ValueTask.FromResult(SetOverrides(schedule, expectedVersion, expression, timeZoneId, reason, actor));
         TriggerNow = (schedule, reason, actor, _) => ValueTask.FromResult(Trigger(schedule, reason, actor));
-        List = static (_, _) => ValueTask.FromResult(new PagedResult<ScheduleListItem>([], null, false, 50, null));
+        List = static (_, _) => ValueTask.FromResult(new ListSchedulesResponse([], null, false, 50, null));
         Preview = static (schedule, _, _) =>
             ValueTask.FromResult<SchedulePreview?>(
                 schedule.ScheduleName == "missing"
@@ -60,7 +60,7 @@ internal sealed class FakeSchedules : ISchedules
 
     public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<TriggerScheduleNowResponse>> TriggerNow { get; set; }
 
-    public Func<ListSchedulesQuery, CancellationToken, ValueTask<PagedResult<ScheduleListItem>>> List { get; set; }
+    public Func<ListSchedulesQuery, CancellationToken, ValueTask<ListSchedulesResponse>> List { get; set; }
 
     public Func<ScheduleLookup, int, CancellationToken, ValueTask<SchedulePreview?>> Preview { get; set; }
 
@@ -96,7 +96,7 @@ internal sealed class FakeSchedules : ISchedules
         CancellationToken ct
     ) => TriggerNow(schedule, reasonMessage, actorKey, ct);
 
-    ValueTask<PagedResult<ScheduleListItem>> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
+    ValueTask<ListSchedulesResponse> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
 
     ValueTask<SchedulePreview?> ISchedules.PreviewAsync(ScheduleLookup schedule, int count, CancellationToken ct) =>
         Preview(schedule, count, ct);

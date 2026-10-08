@@ -10,10 +10,10 @@ internal sealed class FakeNamespaces : INamespaces
     {
         List = static (_, _) =>
             ValueTask.FromResult(
-                new PagedResult<NamespaceListItem>(
+                new ListNamespacesResponse(
                     [
-                        new NamespaceListItem(1, "sys", NamespaceStatusCode.Active, null, "system", 0),
-                        new NamespaceListItem(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", 3),
+                        new ListNamespacesItem(1, "sys", NamespaceStatusCode.Active, null, "system", 0),
+                        new ListNamespacesItem(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", 3),
                     ],
                     null,
                     false,
@@ -32,7 +32,7 @@ internal sealed class FakeNamespaces : INamespaces
     /// <summary>Applied admin verbs, named suspend, resume, or patch.</summary>
     public List<(string Verb, string Name, string? ReasonMessage, string? ActorKey)> AdminCalls { get; } = [];
 
-    public Func<ListNamespacesQuery, CancellationToken, ValueTask<PagedResult<NamespaceListItem>>> List { get; set; }
+    public Func<ListNamespacesQuery, CancellationToken, ValueTask<ListNamespacesResponse>> List { get; set; }
 
     public Func<string, string?, string?, CancellationToken, ValueTask<SuspendNamespaceResponse>> Suspend { get; set; }
 
@@ -40,7 +40,7 @@ internal sealed class FakeNamespaces : INamespaces
 
     public Func<string, int, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateNamespaceResponse>> Update { get; set; }
 
-    ValueTask<PagedResult<NamespaceListItem>> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
+    ValueTask<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
 
     ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(
         string name,
@@ -66,7 +66,7 @@ internal sealed class FakeNamespaces : INamespaces
         CancellationToken ct
     ) => Update(name, expectedVersion, ownerTeam, description, reasonMessage, actorKey, ct);
 
-    ValueTask<PagedResult<string>> INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct) =>
+    ValueTask<ListNamespaceNamesResponse> INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct) =>
         throw new NotSupportedException();
 
     private ValueTask<T> Apply<T>(

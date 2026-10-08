@@ -65,7 +65,7 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
     public Task<long> CountQuarantinedAsync(CancellationToken ct) => _countQuarantined.HandleAsync(ct);
 
     /// <summary>One keyset page of Quarantined rows ordered by outbox id: identity and failure evidence, never the payload.</summary>
-    public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
+    public Task<ListQuarantinedOutboxResponse> ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
         _listQuarantined.HandleAsync(query, ct);
 
     /// <summary>

@@ -137,7 +137,7 @@ public sealed class AnvilStateReader(
 
     private IReadOnlyList<AnvilWorker> MergeWorkers(
         IReadOnlyList<WorkerSnapshot> managedWorkers,
-        IReadOnlyList<WorkerListItem> rows,
+        IReadOnlyList<ListWorkersItem> rows,
         DateTime utcNow,
         bool databaseAvailable = true
     )
@@ -167,9 +167,9 @@ public sealed class AnvilStateReader(
         return result;
     }
 
-    private WorkerListItem? NewestOwnRow(IReadOnlyList<WorkerListItem> rows, string deploymentVersion)
+    private ListWorkersItem? NewestOwnRow(IReadOnlyList<ListWorkersItem> rows, string deploymentVersion)
     {
-        WorkerListItem? newest = null;
+        ListWorkersItem? newest = null;
         foreach (var row in rows)
         {
             if (
@@ -186,7 +186,7 @@ public sealed class AnvilStateReader(
 
     private static AnvilWorker InterpretWorker(
         WorkerSnapshot? process,
-        WorkerListItem? row,
+        ListWorkersItem? row,
         DateTime utcNow,
         TimeSpan workerDeadAfter,
         bool databaseAvailable
@@ -302,7 +302,7 @@ public sealed class AnvilStateReader(
             External: workers.Count(worker => worker.DisplayState == "external")
         );
 
-    private static IReadOnlyList<AnvilEvent> MapEvents(IReadOnlyList<EventListItem> rows, IReadOnlyDictionary<int, string> workerNames) =>
+    private static IReadOnlyList<AnvilEvent> MapEvents(IReadOnlyList<ListEventsItem> rows, IReadOnlyDictionary<int, string> workerNames) =>
         rows.Select(row => new AnvilEvent(
                 TimeUtc: row.CreatedAtUtc,
                 EventCode: row.EventCode.ToString(),

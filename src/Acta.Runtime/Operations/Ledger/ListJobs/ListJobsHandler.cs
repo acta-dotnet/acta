@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="ILedger.ListJobsAsync"/>: jobs newest first, one keyset page at a time.</summary>
 internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<JobListItem>> HandleAsync(ListJobsQuery query, CancellationToken ct)
+    public async ValueTask<ListJobsResponse> HandleAsync(ListJobsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -43,7 +43,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
             ]
         );
 
-        var read = DbProjectionResolver.Resolve<JobListItem>();
+        var read = DbProjectionResolver.Resolve<ListJobsItem>();
         var (rows, total) = await session.QueryPageAsync(
             "ListJobs",
             cmd =>
@@ -76,6 +76,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
             },
             ct
         );
-        return paging.Page(rows, total, static item => [item.CreatedAtUtc, item.JobId]);
+        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(rows, total, static item => [item.CreatedAtUtc, item.JobId]);
+        return new ListJobsResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

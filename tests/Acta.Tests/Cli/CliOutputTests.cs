@@ -158,7 +158,7 @@ public class CliOutputTests
         Assert.Contains("\"status\":null", json.ToString());
     }
 
-    private static EventListItem Event(
+    private static ListEventsItem Event(
         EventCode code,
         JobStatusCode? from,
         JobStatusCode? to,
@@ -197,7 +197,7 @@ public class CliOutputTests
     public void Events_plain_writes_one_line_per_event_with_reason_detail()
     {
         var w = new StringWriter();
-        var page = new PagedResult<EventListItem>(
+        var page = new ListEventsResponse(
             [
                 Event(EventCode.JobExecutionStarted, JobStatusCode.Ready, JobStatusCode.Executing),
                 Event(
@@ -228,7 +228,7 @@ public class CliOutputTests
     public void Events_plain_empty_page_prints_no_events()
     {
         var w = new StringWriter();
-        var page = new PagedResult<EventListItem>([], NextCursor: null, HasMore: false, PageSize: 50, TotalCount: null);
+        var page = new ListEventsResponse([], NextCursor: null, HasMore: false, PageSize: 50, TotalCount: null);
         CliOutput.WriteEvents(w, SampleJobRef, page, json: false);
         Assert.Contains("(no events)", w.ToString());
     }
@@ -237,7 +237,7 @@ public class CliOutputTests
     public void Events_json_writes_event_array_and_next_cursor()
     {
         var w = new StringWriter();
-        var page = new PagedResult<EventListItem>(
+        var page = new ListEventsResponse(
             [
                 Event(
                     EventCode.JobExecutionFinished,
@@ -649,10 +649,10 @@ public class CliOutputTests
             Version: 3
         );
 
-    private static PagedResult<EventListItem> SentinelEventPage() =>
+    private static ListEventsResponse SentinelEventPage() =>
         new(
             [
-                new EventListItem(
+                new ListEventsItem(
                     JobEventId: SentinelJobEventId,
                     EventCode: EventCode.JobExecutionFinished,
                     CreatedAtUtc: new DateTime(2026, 6, 21, 12, 30, 1, DateTimeKind.Utc),

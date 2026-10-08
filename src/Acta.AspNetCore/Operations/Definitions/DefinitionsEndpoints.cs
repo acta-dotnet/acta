@@ -33,7 +33,7 @@ internal static class DefinitionsEndpoints
         reads.MapList(
             "/definitions",
             "List job definitions.",
-            DashboardJsonContext.Default.PagedResultDefinitionListItem,
+            DashboardJsonContext.Default.ListDefinitionsResponse,
             static query => new ListDefinitionsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 NameContains: query.Text("nameContains"),

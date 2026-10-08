@@ -57,8 +57,7 @@ public sealed class TypeNamingTests
         var suffix = LastWord(name);
         var banned = suffix switch
         {
-            "Result" => name != "PagedResult",
-            "Item" => !name.EndsWith("ListItem", StringComparison.Ordinal) && !SetElement(type, name),
+            "Item" => !ListElement(type, name) && !SetElement(type, name),
             "Outcome" => !DomainOutcomes.Contains(name),
             _ => BannedSuffixes.Contains(suffix),
         };
@@ -69,6 +68,10 @@ public sealed class TypeNamingTests
         if (name.EndsWith("PageRequest", StringComparison.Ordinal))
         {
             yield return "PageRequest";
+        }
+        if (name.EndsWith("ListItem", StringComparison.Ordinal))
+        {
+            yield return "ListItem";
         }
         if (suffix == "Row" && !projected.Contains(type))
         {
@@ -81,6 +84,11 @@ public sealed class TypeNamingTests
             yield return table ? "DbTable without Entity" : "Entity outside a table model";
         }
     }
+
+    // Item names the element of a list: ListJobsResponse is a page of ListJobsItem.
+    private static bool ListElement(Type type, string name) =>
+        type.Assembly.GetType($"{type.Namespace}.{name[..^"Item".Length]}Response") is { } response
+        && typeof(IPagedResponse<>).MakeGenericType(type).IsAssignableFrom(response);
 
     // Item also names the element of a Set: TagSet is a list of TagItem.
     private static bool SetElement(Type type, string name) =>
