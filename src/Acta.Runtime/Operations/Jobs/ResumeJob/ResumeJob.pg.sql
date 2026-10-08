@@ -1,136 +1,108 @@
-CREATE OR REPLACE FUNCTION {{schema}}.resume_job(
-    p_id BIGINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-    v_lane_id BIGINT;
-    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM {{schema}}.runtimes r
-    WHERE r.job_id = p_id;
+-- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: the lane, then the
+-- job's rows (docs/internals/sql-execution-policy.md, "Lane lock order"); lane_id never changes, so the
+-- unlocked read that finds it is safe.
+DROP TABLE IF EXISTS pg_temp._resume_job_lane;
+DROP TABLE IF EXISTS pg_temp._resume_job;
+CREATE TEMP TABLE _resume_job_lane (id BIGINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _resume_job (
+    from_status SMALLINT NOT NULL,
+    from_version INT NOT NULL,
+    lane_id BIGINT,
+    namespace_id INT NOT NULL,
+    lineage_root_id BIGINT,
+    definition_id INT NOT NULL,
+    tenant_id INT,
+    execution_number INT NOT NULL,
+    audit_level_code SMALLINT NOT NULL,
+    job_ref UUID NOT NULL,
+    to_status SMALLINT NOT NULL
+) ON COMMIT DROP;
 
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM {{schema}}.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
+INSERT INTO _resume_job_lane (id)
+SELECT l.id
+FROM {{schema}}.lanes l
+WHERE l.id = (SELECT r.lane_id FROM {{schema}}.runtimes r WHERE r.job_id = @p_id)
+FOR UPDATE;
 
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
-    FROM {{schema}}.runtimes r
-    JOIN {{schema}}.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_id
-    FOR UPDATE OF r;
+INSERT INTO _resume_job (
+    from_status, from_version, lane_id, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
+    audit_level_code, job_ref, to_status)
+SELECT
+    r.status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number,
+    j.audit_level_code, j.job_ref, 10 /* JobStatusCode.Ready */
+FROM {{schema}}.runtimes r
+JOIN {{schema}}.jobs j ON j.id = r.job_id
+WHERE r.job_id = @p_id
+FOR UPDATE OF r;
 
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status <> 30 /* JobStatusCode.Paused */ THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    -- A laned job resumes Ready unless another member runs or an older member is unfinished
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL AND EXISTS (
+-- A laned job resumes Blocked while another member runs or an older member is unfinished.
+UPDATE _resume_job s
+SET to_status = 15 /* JobStatusCode.Blocked */
+WHERE
+    s.lane_id IS NOT NULL
+    AND EXISTS (
         SELECT 1
         FROM {{schema}}.runtimes o
         WHERE
-            o.lane_id = v_lane_id
+            o.lane_id = s.lane_id
             AND o.lane_id IS NOT NULL
             AND o.status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
             )
-            AND o.job_id <> p_id
+            AND o.job_id <> @p_id
             AND (
                 o.status_code IN (
                     10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                     40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                 )
-                OR o.job_id < p_id
+                OR o.job_id < @p_id
             )
-    ) THEN
-        v_to_status := 15 /* JobStatusCode.Blocked */;
-    END IF;
+    );
 
-    UPDATE {{schema}}.runtimes AS r
-    SET
-        status_code = v_to_status,
-        next_run_at_utc = COALESCE(p_next_run_at_utc, now()),
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
+UPDATE {{schema}}.runtimes AS r
+SET
+    status_code = s.to_status,
+    next_run_at_utc = COALESCE(@p_next_run_at_utc, now()),
+    modified_at_utc = now(),
+    version = r.version + 1
+FROM _resume_job s
+WHERE
+    r.job_id = @p_id
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    AND s.from_status = 30 /* JobStatusCode.Paused */;
 
-    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        INSERT INTO {{schema}}.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            72 /* EventCode.JobResumed */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            30 /* JobStatusCode.Paused */,
-            v_to_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code, reason_code, reason_message)
+SELECT
+    72 /* EventCode.JobResumed */, now(), s.namespace_id, @p_actor_code, @p_actor_key, @p_id, s.job_ref,
+    s.execution_number, COALESCE(s.lineage_root_id, @p_id), s.definition_id, s.tenant_id, 30 /* JobStatusCode.Paused */,
+    s.to_status, @p_reason_code, @p_reason_message
+FROM _resume_job s
+WHERE
+    s.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    AND s.from_status = 30 /* JobStatusCode.Paused */;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
-END;
-$$;
+SELECT
+    CASE
+        WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        WHEN s.from_status <> 30 /* JobStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
+        ELSE 1 /* ControlAction.Applied */
+    END::SMALLINT AS action,
+    CASE
+        WHEN s.from_status IS NULL THEN NULL
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
+        WHEN s.from_status <> 30 /* JobStatusCode.Paused */ THEN s.from_status
+        ELSE s.to_status
+    END AS status_code,
+    CASE
+        WHEN s.from_status IS NULL THEN NULL
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
+        WHEN s.from_status <> 30 /* JobStatusCode.Paused */ THEN s.from_version
+        ELSE s.from_version + 1
+    END AS version
+FROM (SELECT 1) one
+LEFT JOIN _resume_job s ON true;

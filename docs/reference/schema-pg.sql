@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 30)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 31)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -5948,143 +5948,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.resume_job(
-    p_id BIGINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-    v_lane_id BIGINT;
-    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
-
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
-
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
-    FROM acta.runtimes r
-    JOIN acta.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_id
-    FOR UPDATE OF r;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status <> 30 /* JobStatusCode.Paused */ THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    -- A laned job resumes Ready unless another member runs or an older member is unfinished
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL AND EXISTS (
-        SELECT 1
-        FROM acta.runtimes o
-        WHERE
-            o.lane_id = v_lane_id
-            AND o.lane_id IS NOT NULL
-            AND o.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-            AND o.job_id <> p_id
-            AND (
-                o.status_code IN (
-                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-                OR o.job_id < p_id
-            )
-    ) THEN
-        v_to_status := 15 /* JobStatusCode.Blocked */;
-    END IF;
-
-    UPDATE acta.runtimes AS r
-    SET
-        status_code = v_to_status,
-        next_run_at_utc = COALESCE(p_next_run_at_utc, now()),
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            72 /* EventCode.JobResumed */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            30 /* JobStatusCode.Paused */,
-            v_to_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.set_job_definition_overrides(
     p_id INT,
     p_version INT,
@@ -6582,7 +6445,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.30-c1dfc9a84ed4f105e8379fbe3e235cdd', 'acta');
+VALUES (-1, 'objects-1.31-58771591e6a9fe31309a0cb8a7e7a318', 'acta');
 
 COMMIT;
 
