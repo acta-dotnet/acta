@@ -14,15 +14,15 @@ internal sealed class GetJobInputHandler(JobLookupResolution lookup, IDbSession 
         // A None-format row carries no input; surface it as null like a missing job.
         return record is null || record.FormatId == 0
             ? null
-            : JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Data.ToArray());
+            : JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Input ?? []);
     }
 
     /// <summary>The stored input payload and its format by id, or null when no row matches.</summary>
-    internal Task<JobInputRecord?> ReadAsync(long jobId, CancellationToken ct) =>
+    internal Task<JobInputRow?> ReadAsync(long jobId, CancellationToken ct) =>
         session.QuerySingleAsync(
             "GetJobInput",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
-            static reader => DbProjectionResolver.Resolve<JobInputRow>()(reader).ToRecord(),
+            DbProjectionResolver.Resolve<JobInputRow>(),
             ct
         );
 }

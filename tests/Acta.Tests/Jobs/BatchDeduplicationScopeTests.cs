@@ -8,7 +8,7 @@ public sealed class BatchDeduplicationScopeTests
     [Fact]
     public void Root_duplicate_reports_namespace_and_ordinals()
     {
-        JobEnqueueRow[] rows =
+        JobEnqueueValues[] rows =
         [
             JobEnqueue.Canonicalize(Root("billing", "invoice-7")),
             JobEnqueue.Canonicalize(Root("billing", "other")),
@@ -29,7 +29,7 @@ public sealed class BatchDeduplicationScopeTests
     [Fact]
     public void Same_root_key_in_different_namespaces_is_allowed()
     {
-        JobEnqueueRow[] rows = [Root("billing", "invoice-7"), Root("shipping", "invoice-7")];
+        JobEnqueueValues[] rows = [Root("billing", "invoice-7"), Root("shipping", "invoice-7")];
 
         EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
@@ -37,7 +37,7 @@ public sealed class BatchDeduplicationScopeTests
     [Fact]
     public void Child_duplicate_reports_parent_and_ordinals()
     {
-        JobEnqueueRow[] rows = [Child(42, "line-7"), Child(42, "other"), Child(42, "line-7")];
+        JobEnqueueValues[] rows = [Child(42, "line-7"), Child(42, "other"), Child(42, "line-7")];
 
         var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
             EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows)
@@ -53,7 +53,7 @@ public sealed class BatchDeduplicationScopeTests
     [Fact]
     public void Same_child_key_under_different_parents_is_allowed()
     {
-        JobEnqueueRow[] rows = [Child(42, "line-7"), Child(43, "line-7")];
+        JobEnqueueValues[] rows = [Child(42, "line-7"), Child(43, "line-7")];
 
         EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
@@ -61,14 +61,14 @@ public sealed class BatchDeduplicationScopeTests
     [Fact]
     public void Root_and_child_boundaries_do_not_collide()
     {
-        JobEnqueueRow[] rows = [Root("billing", "invoice-7"), Child(42, "invoice-7")];
+        JobEnqueueValues[] rows = [Root("billing", "invoice-7"), Child(42, "invoice-7")];
 
         EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
-    private static JobEnqueueRow Root(string jobNamespace, string deduplicationKey) =>
+    private static JobEnqueueValues Root(string jobNamespace, string deduplicationKey) =>
         new(jobNamespace, "job", JobPayload.None, DeduplicationKey: deduplicationKey);
 
-    private static JobEnqueueRow Child(long parentJobId, string deduplicationKey) =>
+    private static JobEnqueueValues Child(long parentJobId, string deduplicationKey) =>
         new("billing", "job", JobPayload.None, DeduplicationKey: deduplicationKey, ParentId: parentJobId);
 }

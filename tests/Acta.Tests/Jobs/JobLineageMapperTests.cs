@@ -57,7 +57,7 @@ public class JobLineageMapperTests
         new(kind, name, CheckpointStatusCode.Pending, due);
 
     private static JobLineageMap Map(params ExplainCheckpointRow[] checkpoints) =>
-        JobLineageMapper.Map(new JobLineageData(Focus(), [], [], checkpoints, []), childLimit: 10);
+        JobLineageMapper.Map(new JobLineageRows(Focus(), [], [], checkpoints, []), childLimit: 10);
 
     private static LineageJobRow Focus() =>
         new(

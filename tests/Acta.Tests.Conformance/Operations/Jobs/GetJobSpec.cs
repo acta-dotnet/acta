@@ -31,7 +31,14 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, DeduplicationKey: deduplicationKey)],
+            [
+                new JobEnqueueValues(
+                    NamespaceName: TestNamespace,
+                    JobName: "add-numbers",
+                    Input: payload,
+                    DeduplicationKey: deduplicationKey
+                ),
+            ],
             ct
         );
         var jobId = results[0].JobId;
@@ -70,7 +77,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantKey: tenantKey)],
+            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantKey: tenantKey)],
             ct
         );
 

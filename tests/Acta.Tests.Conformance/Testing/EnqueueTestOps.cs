@@ -12,11 +12,11 @@ internal static class EnqueueTestOps
 {
     public static async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
         IServiceProvider services,
-        IReadOnlyList<JobEnqueueRow> rows,
+        IReadOnlyList<JobEnqueueValues> rows,
         CancellationToken ct
     )
     {
-        var canonical = new JobEnqueueRow[rows.Count];
+        var canonical = new JobEnqueueValues[rows.Count];
         for (var i = 0; i < rows.Count; i++)
         {
             canonical[i] = JobEnqueue.Canonicalize(rows[i]);
@@ -45,6 +45,6 @@ internal static class EnqueueTestOps
         return outcomes;
     }
 
-    public static async Task<JobEnqueueResponse> EnqueueOneAsync(IServiceProvider services, JobEnqueueRow row, CancellationToken ct) =>
+    public static async Task<JobEnqueueResponse> EnqueueOneAsync(IServiceProvider services, JobEnqueueValues row, CancellationToken ct) =>
         (await EnqueueBatchAsync(services, [row], ct))[0];
 }

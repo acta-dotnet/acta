@@ -32,7 +32,7 @@ public static class SqliteOutboxStagingExtensions
     private static async Task InsertAsync(
         DbTransaction transaction,
         DbConnection connection,
-        OutboxStagingRow row,
+        OutboxStagingValues row,
         string sql,
         CancellationToken cancellationToken
     )

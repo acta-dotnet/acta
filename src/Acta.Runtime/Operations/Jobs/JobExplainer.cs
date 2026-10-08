@@ -13,7 +13,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class JobExplainer
 {
-    public static JobExplanation Explain(JobExplainData data, DateTime nowUtc)
+    public static JobExplanation Explain(JobExplanationRows data, DateTime nowUtc)
     {
         var h = data.Header;
         var status = h.Status;

@@ -31,7 +31,7 @@ public sealed class OutboxStagingCoreTests
             Lane: "lane-9"
         );
 
-    private static JobEnqueueRequest Reconstruct(OutboxStagingRow row)
+    private static JobEnqueueRequest Reconstruct(OutboxStagingValues row)
     {
         var input =
             row.InputFormatId == 0 ? JobPayload.None : JobPayload.CopyBytes(JobPayloadFormat.ForId(row.InputFormatId), row.Input ?? []);

@@ -25,11 +25,11 @@ public sealed class ListJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
-        var rows = new List<JobEnqueueRow>(count);
+        var rows = new List<JobEnqueueValues>(count);
         for (var i = 0; i < count; i++)
         {
             var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(i, i));
-            rows.Add(new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload));
+            rows.Add(new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload));
         }
 
         var results = await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);

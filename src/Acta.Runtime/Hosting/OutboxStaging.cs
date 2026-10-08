@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 /// <see cref="JobEnqueueRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK
 /// (identifiers, tags, schedule mutual exclusion, priority, payload pair) and layers the two stricter
 /// outbox-only rules on top: a deduplication key is required and a parent id is rejected. A valid request
-/// projects into an <see cref="OutboxStagingRow"/> with a client-generated <c>outbox_id</c>. <see cref="Prepare"/>
+/// projects into an <see cref="OutboxStagingValues"/> with a client-generated <c>outbox_id</c>. <see cref="Prepare"/>
 /// runs the whole provider-neutral prologue (identifier qualification, request projection, transaction
 /// guard, INSERT text), leaving each provider extension only its typed parameter binding and execution.
 /// </summary>
@@ -31,7 +31,7 @@ internal static class OutboxStaging
     /// open connection, and the full canonical INSERT text. Runs before any I/O, so a bad request or a
     /// detached/closed transaction throws exactly like the transactional enqueue overloads.
     /// </summary>
-    public static (OutboxStagingRow Row, DbConnection Connection, string Sql) Prepare(
+    public static (OutboxStagingValues Row, DbConnection Connection, string Sql) Prepare(
         DbTransaction transaction,
         JobEnqueueRequest request,
         string table,
@@ -45,7 +45,7 @@ internal static class OutboxStaging
         return (row, connection, $"INSERT INTO {tableRef}\n{InsertColumnsAndValues}");
     }
 
-    public static OutboxStagingRow Stage(JobEnqueueRequest request)
+    public static OutboxStagingValues Stage(JobEnqueueRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -64,7 +64,7 @@ internal static class OutboxStaging
                 "An outbox record cannot carry a ParentJobId; external records request root jobs only.",
                 $"{nameof(request)}.{nameof(JobEnqueueRequest.ParentJobId)}"
             )
-            : new OutboxStagingRow(
+            : new OutboxStagingValues(
                 OutboxId: Guid.NewGuid(),
                 JobNamespace: normalized.JobNamespace,
                 JobName: normalized.JobName,
@@ -93,7 +93,7 @@ internal static class OutboxStaging
 /// pair, <c>last_error</c>) are omitted so the database defaults apply. Each provider staging extension
 /// binds these fields into its own canonical INSERT.
 /// </summary>
-internal readonly record struct OutboxStagingRow(
+internal readonly record struct OutboxStagingValues(
     Guid OutboxId,
     string JobNamespace,
     string JobName,

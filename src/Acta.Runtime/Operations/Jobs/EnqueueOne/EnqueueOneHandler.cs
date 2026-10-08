@@ -42,7 +42,7 @@ internal sealed class EnqueueOneHandler(
 
     /// <summary>One <c>enqueue_one</c> call with the allocated ref, through <paramref name="transaction"/> when it is set.</summary>
     internal Task<IReadOnlyList<EnqueueOutcomeRow>> InsertAsync(
-        JobEnqueueRow row,
+        JobEnqueueValues row,
         Guid jobRef,
         DbTransaction? transaction,
         CancellationToken ct

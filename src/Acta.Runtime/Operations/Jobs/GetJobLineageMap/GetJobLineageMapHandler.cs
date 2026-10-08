@@ -20,8 +20,8 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
     }
 
     /// <summary>The lineage sets by job id with at most <paramref name="childFetchLimit"/> children, or null when no row matches.</summary>
-    internal async ValueTask<JobLineageData?> ReadAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
-        await session.QueryAsync<JobLineageData?>(
+    internal async ValueTask<JobLineageRows?> ReadAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
+        await session.QueryAsync<JobLineageRows?>(
             "GetJobLineageMap",
             cmd =>
             {
@@ -77,7 +77,7 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
                     }
                 }
 
-                return focus is null ? null : new JobLineageData(focus, ancestors, steps, checkpoints, children);
+                return focus is null ? null : new JobLineageRows(focus, ancestors, steps, checkpoints, children);
             },
             ct
         );

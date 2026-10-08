@@ -96,7 +96,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             (object?)DbParams.JsonIdArray(definitionIds) ?? DBNull.Value
         );
 
-    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema)
+    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var sql = (SqlCommand)command;
         sql.Parameters.Add(
@@ -119,7 +119,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
-    public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema)
+    public void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
     {
         var sql = (SqlCommand)command;
         AddScalar(sql, "@p_job_ref", SqlDbType.UniqueIdentifier, jobRef);
@@ -181,7 +181,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("lane", SqlDbType.VarChar, 128),
     ];
 
-    private static IEnumerable<SqlDataRecord> BuildBatchRecords(IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs)
+    private static IEnumerable<SqlDataRecord> BuildBatchRecords(IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs)
     {
         var record = new SqlDataRecord(BatchColumns);
         for (var i = 0; i < rows.Count; i++)
@@ -229,11 +229,11 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("value_search", SqlDbType.NVarChar, TagValueSearch.MaxLength),
     ];
 
-    private static IEnumerable<SqlDataRecord>? BuildTagRecords(IReadOnlyList<JobEnqueueRow> rows)
+    private static IEnumerable<SqlDataRecord>? BuildTagRecords(IReadOnlyList<JobEnqueueValues> rows)
     {
         return !rows.Any(row => row.Tags is { Count: > 0 }) ? null : Stream(rows);
 
-        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<JobEnqueueRow> rows)
+        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<JobEnqueueValues> rows)
         {
             var record = new SqlDataRecord(TagColumns);
             for (var i = 0; i < rows.Count; i++)
@@ -259,7 +259,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<DefinitionRow> rows,
+        IReadOnlyList<DefinitionValues> rows,
         string schema
     )
     {
@@ -310,11 +310,11 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("lane", SqlDbType.VarChar, 128),
     ];
 
-    private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<DefinitionRow> rows)
+    private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<DefinitionValues> rows)
     {
         return rows.Count == 0 ? null : Stream(rows);
 
-        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<DefinitionRow> rows)
+        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<DefinitionValues> rows)
         {
             var record = new SqlDataRecord(DefinitionColumns);
             foreach (var row in rows)

@@ -12,7 +12,7 @@ internal static class JobEnqueue
     /// Normalizes and validates one request, caps its payload, and canonicalizes it into the row the routine
     /// takes; <paramref name="index"/> names the row in a batch's messages.
     /// </summary>
-    public static (JobEnqueueRequest Request, JobEnqueueRow Row) Prepare(
+    public static (JobEnqueueRequest Request, JobEnqueueValues Row) Prepare(
         JobEnqueueRequest request,
         string paramName,
         int index,
@@ -26,7 +26,7 @@ internal static class JobEnqueue
         }
 
         var row = Canonicalize(
-            new JobEnqueueRow(
+            new JobEnqueueValues(
                 NamespaceName: request.JobNamespace,
                 JobName: request.JobName,
                 Input: request.Input,
@@ -51,7 +51,7 @@ internal static class JobEnqueue
     /// Names must already be lowercase Acta names; equality keys normalize to lowercase ASCII.
     /// CorrelationKey is an external token and is preserved exactly.
     /// </summary>
-    internal static JobEnqueueRow Canonicalize(JobEnqueueRow row)
+    internal static JobEnqueueValues Canonicalize(JobEnqueueValues row)
     {
         IReadOnlyList<TagInput>? tags = row.Tags?.Select((t, i) => TagInput.Normalize(t, $"Tags[{i}]")).ToList();
 
@@ -77,7 +77,7 @@ internal static class JobEnqueue
     /// ambiguity here rather than pick a winner. A negative delay is meaningless (the routine
     /// clamps null to immediate).
     /// </summary>
-    internal static void ValidateRow(JobEnqueueRow row, int index)
+    internal static void ValidateRow(JobEnqueueValues row, int index)
     {
         if (row.NextRunAtUtc is not null && row.DelaySeconds is not null)
         {

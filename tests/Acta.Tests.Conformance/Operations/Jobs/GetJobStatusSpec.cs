@@ -30,7 +30,7 @@ public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(3, 4));
         var results = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
+            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
             ct
         );
         var jobId = results[0].JobId;

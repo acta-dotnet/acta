@@ -18,8 +18,8 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
     }
 
     /// <summary>The explanation header plus its step and checkpoint sets by job id, or null when no row matches.</summary>
-    internal async ValueTask<JobExplainData?> ReadAsync(long jobId, CancellationToken ct) =>
-        await session.QueryAsync<JobExplainData?>(
+    internal async ValueTask<JobExplanationRows?> ReadAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<JobExplanationRows?>(
             "GetJobExplanation",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             static async (reader, token) =>
@@ -52,7 +52,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
                     }
                 }
 
-                return header is null ? null : new JobExplainData(header, steps, checkpoints);
+                return header is null ? null : new JobExplanationRows(header, steps, checkpoints);
             },
             ct
         );

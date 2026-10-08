@@ -28,11 +28,11 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
-    private JobEnqueueRow Row()
+    private JobEnqueueValues Row()
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload);
+        return new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload);
     }
 
     private async Task<int> CountJobsAsync(CancellationToken ct)

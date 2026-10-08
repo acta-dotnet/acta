@@ -157,7 +157,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         // shared transport. The safety poll is the only discovery path.
         var rows = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)))],
+            [new JobEnqueueValues(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)))],
             ct
         );
         var jobId = rows[0].JobId;

@@ -123,11 +123,11 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
     }
 
-    private JobEnqueueRow Row(string? deduplicationKey = null, string? concurrencyKey = null)
+    private JobEnqueueValues Row(string? deduplicationKey = null, string? concurrencyKey = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRow(
+        return new JobEnqueueValues(
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
@@ -136,7 +136,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueRow> rows, CancellationToken ct)
+    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);

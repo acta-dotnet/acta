@@ -57,7 +57,7 @@ public class JobExplainerTests
                 : lastExecutedByWorkerRef ?? (lastExecutedByWorkerId is null ? null : LastRunWorkerRef.Value)
         );
 
-    private static JobExplainData Data(
+    private static JobExplanationRows Data(
         ExplainHeaderRow header,
         IReadOnlyList<ExplainStepRow>? steps = null,
         IReadOnlyList<ExplainCheckpointRow>? checkpoints = null

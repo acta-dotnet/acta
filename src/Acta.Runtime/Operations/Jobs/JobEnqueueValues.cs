@@ -14,7 +14,7 @@ namespace Acta.Runtime;
 /// resolves on the database clock as <c>db_now + delay</c>. When both are null the routine stamps the
 /// enqueue time, so the row is claimable immediately.
 /// </remarks>
-internal sealed record JobEnqueueRow(
+internal sealed record JobEnqueueValues(
     string NamespaceName,
     string JobName,
     JobPayload Input,

@@ -20,11 +20,11 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 )]
 public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    private JobEnqueueRow AddNumbersRow(string? tenantKey = null, long? parentId = null)
+    private JobEnqueueValues AddNumbersRow(string? tenantKey = null, long? parentId = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRow(
+        return new JobEnqueueValues(
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
@@ -33,7 +33,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueRow> rows, CancellationToken ct)
+    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
@@ -188,7 +188,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
 
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var echoPayload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new Echo("hi"));
-        var j2Outcomes = await EnqueueAsync([new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload)], ct);
+        var j2Outcomes = await EnqueueAsync([new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload)], ct);
         var j2 = j2Outcomes[0].JobId;
 
         await Runtime.RunOnceAsync(j1, ct);

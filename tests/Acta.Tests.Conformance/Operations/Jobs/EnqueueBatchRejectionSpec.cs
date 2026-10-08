@@ -31,7 +31,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueRow[] command = [Row("dup-1", new AddNumbers(1, 1)), Row("dup-1", new AddNumbers(2, 2))];
+        JobEnqueueValues[] command = [Row("dup-1", new AddNumbers(1, 1)), Row("dup-1", new AddNumbers(2, 2))];
 
         var ex = await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
         Assert.Equal("dup-1", ex.DeduplicationKey);
@@ -49,7 +49,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueRow[] command = [Row("Invoice-7", new AddNumbers(1, 1)), Row("invoice-7", new AddNumbers(2, 2))];
+        JobEnqueueValues[] command = [Row("Invoice-7", new AddNumbers(1, 1)), Row("invoice-7", new AddNumbers(2, 2))];
 
         await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -61,7 +61,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueRow[] command = [Row("dup-2", new AddNumbers(10, 20)), Row("dup-2", new AddNumbers(99, 99))];
+        JobEnqueueValues[] command = [Row("dup-2", new AddNumbers(10, 20)), Row("dup-2", new AddNumbers(99, 99))];
 
         await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -73,7 +73,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueRow[] command =
+        JobEnqueueValues[] command =
         [
             Row("invoice-a", new AddNumbers(1, 1)),
             Row("invoice-b", new AddNumbers(2, 2)),
@@ -93,7 +93,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueRow[] command = [Row("tagged-1", new AddNumbers(1, 1), [new TagInput("env", "a"), new TagInput("env", "b")])];
+        JobEnqueueValues[] command = [Row("tagged-1", new AddNumbers(1, 1), [new TagInput("env", "a"), new TagInput("env", "b")])];
 
         await Assert.ThrowsAsync<ArgumentException>(() => RunAsync(command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -107,7 +107,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
 
         // One well-formed row plus a same-batch duplicate pair: the whole batch is rejected before
         // SQL, so the valid row never lands either.
-        JobEnqueueRow[] command =
+        JobEnqueueValues[] command =
         [
             Row("good-row", new AddNumbers(1, 1)),
             Row("dup-3", new AddNumbers(2, 2)),
@@ -127,7 +127,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var dialect = Services.GetRequiredService<ISqlDialect>();
 
         // Unknown job: the routine's resolved-count check throws (provider-native, not wrapped).
-        JobEnqueueRow[] command = [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "no-such-job", Input: JobPayload.None)];
+        JobEnqueueValues[] command = [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "no-such-job", Input: JobPayload.None)];
 
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -140,7 +140,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var taken = (await RunAsync([Row(null, new AddNumbers(1, 1))], ct))[0];
         var before = await CountJobsAsync(ct);
         var enqueueBatch = Services.GetRequiredService<EnqueueBatchHandler>();
-        JobEnqueueRow[] rows =
+        JobEnqueueValues[] rows =
         [
             JobEnqueue.Canonicalize(Row(null, new AddNumbers(2, 2), [new TagInput("probe", "taken-ref")])),
             JobEnqueue.Canonicalize(Row(null, new AddNumbers(3, 3))),
@@ -152,11 +152,11 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Empty(await Db.From<TagEntity>().Where(t => t.Name == "probe").ToListAsync(ct));
     }
 
-    private JobEnqueueRow Row(string? deduplicationKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)
+    private JobEnqueueValues Row(string? deduplicationKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
-        return new JobEnqueueRow(
+        return new JobEnqueueValues(
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
@@ -165,7 +165,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> RunAsync(IReadOnlyList<JobEnqueueRow> command, CancellationToken ct)
+    private async Task<IReadOnlyList<JobEnqueueResponse>> RunAsync(IReadOnlyList<JobEnqueueValues> command, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct);

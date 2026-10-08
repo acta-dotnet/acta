@@ -30,7 +30,7 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var enqueued = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
+            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
             ct
         );
         var jobId = enqueued[0].JobId;
@@ -72,7 +72,7 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var enqueued = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
+            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
             ct
         );
         var jobId = enqueued[0].JobId;

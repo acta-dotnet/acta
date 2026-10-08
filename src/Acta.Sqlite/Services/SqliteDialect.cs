@@ -169,7 +169,7 @@ internal sealed class SqliteDialect : ISqlDialect
     public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
         AddNullableText(command, "@p_excluded_definition_ids", DbParams.JsonIdArray(definitionIds));
 
-    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema)
+    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var jsonRows = JsonArray(
             rows,
@@ -223,7 +223,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_tags", jsonTags);
     }
 
-    public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema)
+    public void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
     {
         if (row.ParentId is null)
         {
@@ -276,7 +276,7 @@ internal sealed class SqliteDialect : ISqlDialect
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<DefinitionRow> rows,
+        IReadOnlyList<DefinitionValues> rows,
         string schema
     )
     {

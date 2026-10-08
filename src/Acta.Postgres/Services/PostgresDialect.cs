@@ -102,7 +102,7 @@ internal sealed class PostgresDialect : ISqlDialect
     public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
         AddArray((NpgsqlCommand)command, "@p_excluded_definition_ids", NpgsqlDbType.Integer, definitionIds ?? []);
 
-    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema)
+    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var postgres = (NpgsqlCommand)command;
         var count = rows.Count;
@@ -188,7 +188,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_lane", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
     }
 
-    public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema)
+    public void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
     {
         var postgres = (NpgsqlCommand)command;
         AddScalar(postgres, "@p_job_ref", NpgsqlDbType.Uuid, jobRef);
@@ -237,7 +237,7 @@ internal sealed class PostgresDialect : ISqlDialect
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<DefinitionRow> rows,
+        IReadOnlyList<DefinitionValues> rows,
         string schema
     )
     {

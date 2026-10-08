@@ -33,7 +33,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         await EnqueueTestOps.EnqueueBatchAsync(
             Services,
             [
-                new JobEnqueueRow(
+                new JobEnqueueValues(
                     NamespaceName: TestNamespace,
                     JobName: "add-numbers",
                     Input: payload,

@@ -77,7 +77,7 @@ public sealed class LaneOptionTests
     [Fact]
     public void Enqueue_row_canonicalization_folds_the_lane()
     {
-        var row = JobEnqueue.Canonicalize(new JobEnqueueRow("billing", "send-invoice", JobPayload.None, Lane: "Customer-42"));
+        var row = JobEnqueue.Canonicalize(new JobEnqueueValues("billing", "send-invoice", JobPayload.None, Lane: "Customer-42"));
 
         Assert.Equal("customer-42", row.Lane);
     }
@@ -87,7 +87,7 @@ public sealed class LaneOptionTests
     public void Enqueue_row_canonicalization_rejects_an_invalid_lane(string lane)
     {
         Assert.ThrowsAny<ArgumentException>(() =>
-            JobEnqueue.Canonicalize(new JobEnqueueRow("billing", "send-invoice", JobPayload.None, Lane: lane))
+            JobEnqueue.Canonicalize(new JobEnqueueValues("billing", "send-invoice", JobPayload.None, Lane: lane))
         );
     }
 }

@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class JobLineageMapper
 {
-    public static JobLineageMap Map(JobLineageData data, int childLimit)
+    public static JobLineageMap Map(JobLineageRows data, int childLimit)
     {
         var hasMore = data.Children.Count > childLimit;
         var childRows = hasMore ? data.Children.Take(childLimit) : data.Children;

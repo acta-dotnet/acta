@@ -75,7 +75,7 @@ internal sealed class EnqueueBatchHandler(
     /// rows by position and each outcome carries its input ordinal.
     /// </summary>
     internal Task<IReadOnlyList<EnqueueOutcomeRow>> InsertAsync(
-        IReadOnlyList<JobEnqueueRow> rows,
+        IReadOnlyList<JobEnqueueValues> rows,
         IReadOnlyList<Guid> jobRefs,
         DbTransaction? transaction,
         CancellationToken ct
@@ -91,7 +91,7 @@ internal sealed class EnqueueBatchHandler(
     }
 
     /// <summary>Prepares every row against the batch limits, then rejects same-batch duplicate keys.</summary>
-    private static (JobEnqueueRequest[] Prepared, JobEnqueueRow[] Rows) Prepare(
+    private static (JobEnqueueRequest[] Prepared, JobEnqueueValues[] Rows) Prepare(
         IReadOnlyList<JobEnqueueRequest> requests,
         int maxInlinePayloadBytes
     )
@@ -105,7 +105,7 @@ internal sealed class EnqueueBatchHandler(
         }
 
         var prepared = new JobEnqueueRequest[requests.Count];
-        var rows = new JobEnqueueRow[requests.Count];
+        var rows = new JobEnqueueValues[requests.Count];
         long payloadBytes = 0;
         for (var i = 0; i < requests.Count; i++)
         {
@@ -162,7 +162,7 @@ internal sealed class EnqueueBatchHandler(
     /// and the providers diverge on them (SQL Server trips the unique index, PostgreSQL skips one row), so they
     /// are rejected before any SQL. The scope mirrors the unique indexes: per namespace for roots, per parent for children.
     /// </summary>
-    internal static void ValidateDeduplicationKeyUniqueness(IReadOnlyList<JobEnqueueRow> rows)
+    internal static void ValidateDeduplicationKeyUniqueness(IReadOnlyList<JobEnqueueValues> rows)
     {
         if (rows.Count < 2)
         {

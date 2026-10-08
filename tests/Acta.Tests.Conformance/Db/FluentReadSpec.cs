@@ -102,7 +102,14 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         _ = Services.GetRequiredService<ISqlDialect>();
         await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, DeduplicationKey: deduplicationKey)],
+            [
+                new JobEnqueueValues(
+                    NamespaceName: TestNamespace,
+                    JobName: "add-numbers",
+                    Input: payload,
+                    DeduplicationKey: deduplicationKey
+                ),
+            ],
             ct
         );
         return deduplicationKey;

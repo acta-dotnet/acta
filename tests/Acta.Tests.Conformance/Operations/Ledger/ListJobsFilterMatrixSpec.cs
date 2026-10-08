@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 )]
 public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    private JobEnqueueRow AddNumbersRow(
+    private JobEnqueueValues AddNumbersRow(
         string? tenantKey = null,
         long? parentId = null,
         string? correlationKey = null,
@@ -28,7 +28,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRow(
+        return new JobEnqueueValues(
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
@@ -39,7 +39,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueRow> rows, CancellationToken ct)
+    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
@@ -254,7 +254,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var ns2Outcomes = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
-            [new JobEnqueueRow(NamespaceName: ns2Name, JobName: "add-numbers", Input: payload)],
+            [new JobEnqueueValues(NamespaceName: ns2Name, JobName: "add-numbers", Input: payload)],
             ct
         );
         var j3 = ns2Outcomes[0].JobId;
@@ -330,8 +330,8 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var echoOutcomes = await EnqueueTestOps.EnqueueBatchAsync(
             Services,
             [
-                new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
-                new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
+                new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
+                new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
             ],
             ct
         );

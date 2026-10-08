@@ -23,7 +23,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
 {
     protected override bool RunAsWorker => true;
 
-    private JobEnqueueRow Row(string jobName, string? tenantKey = null, long? parentId = null)
+    private JobEnqueueValues Row(string jobName, string? tenantKey = null, long? parentId = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = jobName switch
@@ -32,7 +32,13 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
             "tenant-forbidden-probe" => serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new TenantNeutralWork("w")),
             _ => serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2)),
         };
-        return new JobEnqueueRow(NamespaceName: TestNamespace, JobName: jobName, Input: payload, ParentId: parentId, TenantKey: tenantKey);
+        return new JobEnqueueValues(
+            NamespaceName: TestNamespace,
+            JobName: jobName,
+            Input: payload,
+            ParentId: parentId,
+            TenantKey: tenantKey
+        );
     }
 
     private async Task<string> RegisterTenantAsync(string hint, CancellationToken ct)

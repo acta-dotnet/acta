@@ -25,11 +25,11 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
-    private JobEnqueueRow Row(string? tenantKey, long? parentId = null, string? deduplicationKey = null, bool overrideParent = false)
+    private JobEnqueueValues Row(string? tenantKey, long? parentId = null, string? deduplicationKey = null, bool overrideParent = false)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRow(
+        return new JobEnqueueValues(
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
@@ -115,7 +115,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Operations.Tenants.RegisterAsync(good, null, null, ct);
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueRow[] command = [Row(tenantKey: good), Row(tenantKey: TestKey("ten-missing"))];
+        JobEnqueueValues[] command = [Row(tenantKey: good), Row(tenantKey: TestKey("ten-missing"))];
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, command, ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));

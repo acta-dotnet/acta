@@ -18,7 +18,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             return result;
         }
 
-        var rows = new List<DefinitionRow>(command.Descriptors.Length);
+        var rows = new List<DefinitionValues>(command.Descriptors.Length);
         foreach (var descriptor in command.Descriptors)
         {
             rows.Add(BuildRow(descriptor, command.NamespaceId));
@@ -86,7 +86,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
     /// made stick; that keeps <see cref="SetDefinitionOverridesHandler"/> free to retune a meter.
     /// </summary>
     private static void ValidateJoiningRatesMatchOverriddenMeters(
-        List<DefinitionRow> rows,
+        List<DefinitionValues> rows,
         Dictionary<string, StoredDefinitionContract> storedByName,
         int namespaceId
     )
@@ -129,7 +129,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
     /// rate would depend on arrival order rather than on anything declared. Only definitions that
     /// declare a rate take part, because one that declares none never asks the meter anything.
     /// </summary>
-    private static void ValidateSharedRateKeys(List<DefinitionRow> rows, int namespaceId)
+    private static void ValidateSharedRateKeys(List<DefinitionValues> rows, int namespaceId)
     {
         var rateByKey = new Dictionary<string, (string Name, string RateLimit)>(StringComparer.Ordinal);
         foreach (var row in rows)
@@ -155,7 +155,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         }
     }
 
-    private static DefinitionRow BuildRow(JobDescriptor descriptor, int namespaceId)
+    private static DefinitionValues BuildRow(JobDescriptor descriptor, int namespaceId)
     {
         var priorityCode = (byte)descriptor.Priority;
         var maxAttempts = descriptor.MaxAttempts;
@@ -213,7 +213,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             lane
         );
 
-        return new DefinitionRow(
+        return new DefinitionValues(
             Name: descriptor.JobName,
             PriorityCode: priorityCode,
             MaxAttempts: maxAttempts,

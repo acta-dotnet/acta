@@ -45,7 +45,7 @@ internal sealed record ExplainStepRow(
 internal sealed record ExplainCheckpointRow(CheckpointKindCode Kind, string Name, CheckpointStatusCode? Status, DateTime? DueAtUtc);
 
 /// <summary>The three consistent result sets the explain read returns for one Job.</summary>
-internal sealed record JobExplainData(
+internal sealed record JobExplanationRows(
     ExplainHeaderRow Header,
     IReadOnlyList<ExplainStepRow> Steps,
     IReadOnlyList<ExplainCheckpointRow> Checkpoints
@@ -83,7 +83,7 @@ internal sealed record LineageChildRow(
 );
 
 /// <summary>The five raw result sets the lineage read returns for one focused Job.</summary>
-internal sealed record JobLineageData(
+internal sealed record JobLineageRows(
     LineageJobRow Focus,
     IReadOnlyList<LineageJobRow> Ancestors,
     IReadOnlyList<LineageStepRow> Steps,
@@ -91,20 +91,9 @@ internal sealed record JobLineageData(
     IReadOnlyList<LineageChildRow> Children
 );
 
-/// <summary>
-/// One <c>results</c> row; format and data buffer reconstitute a <see cref="JobPayload"/>.
-/// </summary>
-internal sealed record JobResultRecord(int ExecutionNumber, JobPayloadFormat Format, ReadOnlyMemory<byte> Data, DateTime CreatedAtUtc);
-
-/// <summary>The stored input format id and buffer for one job; None format id means no input.</summary>
-internal sealed record JobInputRecord(byte FormatId, ReadOnlyMemory<byte> Data);
-
 /// <summary>Flat input row (input_format_id, input); the input buffer is NULL for a no-input job.</summary>
 [DbProjection]
-internal sealed record JobInputRow(byte FormatId, byte[]? Input)
-{
-    public JobInputRecord ToRecord() => new(FormatId, Input ?? ReadOnlyMemory<byte>.Empty);
-}
+internal sealed record JobInputRow(byte FormatId, byte[]? Input);
 
 /// <summary>
 /// Flat <c>checkpoints</c> row for the job read surface, in SELECT order; value bytes reconstitute a
@@ -134,13 +123,11 @@ internal sealed record CheckpointReadRow(
         );
 }
 
-/// <summary>
-/// Flat result row; resolves the payload format registry value after binding.
-/// </summary>
+/// <summary>One <c>results</c> row; its format and data buffer reconstitute a <see cref="JobPayload"/>.</summary>
 [DbProjection]
 internal sealed record JobResultRow(int ExecutionNumber, byte FormatId, ReadOnlyMemory<byte> Data, DateTime CreatedAtUtc)
 {
-    public JobResultRecord ToRecord() => new(ExecutionNumber, JobPayloadFormat.ForId(FormatId), Data, CreatedAtUtc);
+    public JobPayloadFormat Format => JobPayloadFormat.ForId(FormatId);
 }
 
 /// <summary>Normalizes keys read from storage without applying user-key reserved-prefix rules.</summary>

@@ -44,9 +44,9 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
         var deduplicationKey = TestKey("single");
-        JobEnqueueRow[] command =
+        JobEnqueueValues[] command =
         [
-            new JobEnqueueRow(
+            new JobEnqueueValues(
                 NamespaceName: TestNamespace,
                 JobName: "add-numbers",
                 Input: payload,
@@ -91,11 +91,11 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var serializer = serializers.Resolve(JobPayloadFormat.Json.Id);
 
-        var rows = new JobEnqueueRow[batchSize];
+        var rows = new JobEnqueueValues[batchSize];
         for (var i = 0; i < batchSize; i++)
         {
             var payload = serializer.Serialize(new AddNumbers(i, i + 1));
-            rows[i] = new JobEnqueueRow(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload);
+            rows[i] = new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload);
         }
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
@@ -131,7 +131,7 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
         var longBytes = "{\"left\":123456789,\"right\":987654321}"u8.ToArray();
         var shortBytes = "{\"left\":1,\"right\":2}"u8.ToArray();
-        JobEnqueueRow[] rows =
+        JobEnqueueValues[] rows =
         [
             new(TestNamespace, "add-numbers", JobPayload.CopyBytes(JobPayloadFormat.Json, longBytes)),
             new(TestNamespace, "add-numbers", JobPayload.CopyBytes(JobPayloadFormat.Json, shortBytes)),

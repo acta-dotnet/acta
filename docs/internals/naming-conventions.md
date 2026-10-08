@@ -57,6 +57,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | Executes one command or query | `Handler` | `PauseJobHandler` |
 | What a command returns (public) | `Response` | `PauseJobResponse : IJobControlResponse` |
 | Bound straight from a reader, internal, no public twin | `Row` | `ClaimBatchRow` |
+| The column values one batch write binds, internal | `Values` | `JobEnqueueValues` |
 | Public single-entity read model | `Detail` | `JobDetail`, `TenantDetail` |
 | Public point-in-time aggregate | `Snapshot` | `OverviewSnapshot` |
 | Public paged element | `ListItem` | `JobListItem`, `OutboxSourceListItem` |

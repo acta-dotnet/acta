@@ -26,11 +26,11 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
 
     private ITenants Tenants() => Operations.Tenants;
 
-    private JobEnqueueRow Row(string? tenantKey, long? parentId = null)
+    private JobEnqueueValues Row(string? tenantKey, long? parentId = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRow(
+        return new JobEnqueueValues(
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
