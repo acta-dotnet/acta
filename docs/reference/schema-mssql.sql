@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 22)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 23)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4450,138 +4450,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.pause_schedule
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_paused_until_utc DATETIME2(7),
-    @p_job_next_run_at_utc DATETIME2(7),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-        DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
-
-        /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
-           runtimes then schedules, so every writer of both must take runtimes first. */
-        SELECT @en = r.execution_number
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        WHERE r.job_id = @p_job_id;
-
-        SELECT @schedule_id = js.id
-        FROM acta.schedules js WITH (UPDLOCK, ROWLOCK)
-        WHERE
-            js.job_id = @p_job_id
-            AND js.name = @p_name
-            AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
-
-        IF @schedule_id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code,
-                    CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
-                    CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        SELECT
-            @ns = j.namespace_id,
-            @def = j.definition_id,
-            @lineage = j.lineage_root_id,
-            @audit = j.audit_level_code,
-            @job_ref = j.job_ref
-        FROM acta.jobs j
-        WHERE j.id = @p_job_id;
-
-        UPDATE acta.schedules
-        SET
-            status_code = 30 /* ScheduleStatusCode.Paused */,
-            paused_until_utc = @p_paused_until_utc,
-            reason_message = @p_reason_message,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE id = @schedule_id;
-
-        SELECT
-            @status = status_code,
-            @paused = paused_until_utc,
-            @next = next_run_at_utc,
-            @version = version
-        FROM acta.schedules
-        WHERE id = @schedule_id;
-
-        -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
-        -- means no schedule offered a run (ScheduleWalker, "held").
-        UPDATE acta.runtimes
-        SET
-            next_run_at_utc = @p_job_next_run_at_utc,
-            status_code = CASE
-                WHEN @p_job_next_run_at_utc IS NULL
-                    THEN 30 /* JobStatusCode.Paused */
-                ELSE 10 /* JobStatusCode.Ready */
-            END,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE
-            job_id = @p_job_id
-            AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
-
-        IF @audit = 20 /* DefinitionAuditLevelCode.Audit */
-            BEGIN
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor_key,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                VALUES (
-                    100 /* EventCode.SchedulePaused */, @now, @ns,
-                    @p_actor_code, @p_actor_key,
-                    @p_job_id, @job_ref, @en,
-                    COALESCE(@lineage, @p_job_id), @def,
-                    NULL,
-                    NULL, NULL,
-                    NULL, NULL,
-                    NULL, @p_name
-                );
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @status AS status_code,
-            @paused AS paused_until_utc,
-            @next AS next_run_at_utc,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- One section, one bounded atomic batch. Section numbers match RetentionSection.
 CREATE OR ALTER PROCEDURE acta.purge_expired_data
     @p_namespace_id INT,
@@ -8585,9 +8453,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.22-a8ab4e20df383ff01d58cd8bee41f6c8', 'acta'
+SELECT -1, 'objects-1.23-72d4ad30e2f484659d1fdf432e83bf9b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_schedule', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 57;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_schedule', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 56;
 GO
 COMMIT TRANSACTION;
 GO

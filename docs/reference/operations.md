@@ -144,7 +144,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `GetLiveSchedules` | · | · | · | inline | inline | inline | · | `GetLiveSchedulesSpec` |
 | `GetScheduleState` | · | · | · | inline | inline | inline | · | `GetScheduleStateSpec` |
 | `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |
-| `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
+| `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
 | `RegisterScheduledJobs` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterScheduledJobsMisfireMatrixSpec`, `RegisterScheduledJobsNoteSpec`, `RegisterScheduledJobsSpec` |
 | `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `ResumeScheduleSpec` |

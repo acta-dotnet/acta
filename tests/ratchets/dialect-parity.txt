@@ -5,7 +5,6 @@ ClaimBatch
 CompleteExecution
 ConsumeOutboxSignal
 ParkOutboxSignal
-PauseSchedule
 RaiseJobAlert
 ReclaimStuckJobs
 RegisterJobDefinitions
