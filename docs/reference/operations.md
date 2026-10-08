@@ -177,7 +177,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` | · | routine | routine | inline | `tenants` | `RegisterTenantSpec` |
 | `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantKey}/resume` | · | inline | inline | inline | `events`, `tenants` | `ResumeTenantSpec` |
 | `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantKey}/suspend` | · | inline | inline | inline | `events`, `tenants` | `SuspendTenantSpec` |
-| `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantKey}` | · | routine | routine | inline | `events`, `tenants` | `UpdateTenantSpec` |
+| `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantKey}` | · | inline | inline | inline | `events`, `tenants` | `UpdateTenantSpec` |
 
 ## Workers
 

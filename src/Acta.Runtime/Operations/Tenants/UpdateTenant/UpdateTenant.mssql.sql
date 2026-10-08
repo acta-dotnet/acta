@@ -1,78 +1,46 @@
-CREATE OR ALTER PROCEDURE {{schema}}.update_tenant
-    @p_tenant_key VARCHAR(128),
-    @p_display_name NVARCHAR(128),
-    @p_description NVARCHAR(512),
-    @p_expected_version INT,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
 
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
+DECLARE @entry_trancount INT = @@TRANCOUNT;
+DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+DECLARE @id INT, @version INT, @applied BIT = 0;
 
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @version INT;
+BEGIN TRY
+    IF @entry_trancount = 0
+        BEGIN TRANSACTION;
 
-        SELECT
-            @id = t.id,
-            @version = t.version
-        FROM {{schema}}.tenants t WITH (UPDLOCK, ROWLOCK)
-        WHERE t.tenant_key = @p_tenant_key;
+    SELECT @id = t.id, @version = t.version
+    FROM {{schema}}.tenants t WITH (UPDLOCK, ROWLOCK)
+    WHERE t.tenant_key = @p_tenant_key;
 
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @version <> @p_expected_version
-            BEGIN
-
-                SELECT
-                    CAST(5 /* ControlAction.VersionConflict */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
+    IF @id IS NOT NULL AND @version = @p_expected_version
+    BEGIN
         UPDATE {{schema}}.tenants
         SET display_name = @p_display_name, description = @p_description, modified_at_utc = @now, version = version + 1
         WHERE id = @id;
         SET @version = @version + 1;
+        SET @applied = 1;
 
         -- namespace_id 1 is the seeded sys namespace (M001).
-        INSERT INTO {{schema}}.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, @id, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
+        INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, tenant_id, reason_message)
+        VALUES (12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key, @id, @p_reason_message);
+    END;
 
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
+    SELECT
+        CAST(
+            CASE
+                WHEN @id IS NULL THEN 2 /* ControlAction.NotFound */
+                WHEN @applied = 1 THEN 1 /* ControlAction.Applied */
+                ELSE 5 /* ControlAction.VersionConflict */
+            END AS SMALLINT
+        ) AS action,
+        @version AS version;
 
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
+    IF @entry_trancount = 0
+        COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @entry_trancount = 0 AND XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
