@@ -1,0 +1,431 @@
+using System.Collections.Generic;
+using Microsoft.CodeAnalysis;
+using static Acta.Generators.ActaManifestGenerator;
+using static Acta.Generators.JobPolicyValues;
+
+namespace Acta.Generators;
+
+/// <summary>Reads a <c>[Job]</c> attribute's named arguments into the definition policy the descriptor carries.</summary>
+internal static class JobPolicyReader
+{
+    /// <summary>
+    /// Framework defaults: keep aligned with JobAttribute's defaults.
+    /// </summary>
+    internal const int DefaultMaxAttempts = 15;
+
+    /// <summary>
+    /// The declared concurrency limit's range, the same 1..1024 band JobsOptions allows for
+    /// MaxConcurrentExecutors: a limit above the largest possible executor pool cannot bind.
+    /// </summary>
+    internal const int MinConcurrencyLimit = 1;
+    internal const int MaxConcurrencyLimit = 1024;
+    internal const string DefaultPriorityName = "Normal";
+    internal const string DefaultAuditLevelName = "Audit";
+    internal const string DefaultAlertProfileName = "OnFailure";
+    internal const int DefaultRecurringResultCap = 1;
+
+    internal static AttributePolicy ReadAttributePolicy(AttributeData attr, List<DiagnosticRecord> diagnostics, Location location)
+    {
+        var draft = new PolicyDraft();
+        foreach (var named in attr.NamedArguments)
+        {
+            // Each key belongs to exactly one group, so the arguments are still read once each, in order.
+            _ =
+                ReadFormatArgument(named, draft)
+                || ReadCodeArgument(named, draft, diagnostics, location)
+                || ReadLimitArgument(named, draft, diagnostics, location)
+                || ReadOperatorArgument(named, draft, diagnostics, location);
+        }
+
+        // ACTA0132: `Format` is the both-sides shorthand; pairing it with a per-side override is
+        // ambiguous. The void-output and unknown-name variants are raised later, where the handler's
+        // result shape and the validated format set are known.
+        if (draft.Format is not null)
+        {
+            if (draft.InputFormat is not null)
+            {
+                diagnostics.Add(ManifestDiagnostics.PayloadFormatConflict("InputFormat", location));
+            }
+            if (draft.OutputFormat is not null)
+            {
+                diagnostics.Add(ManifestDiagnostics.PayloadFormatConflict("OutputFormat", location));
+            }
+        }
+
+        return new AttributePolicy(
+            draft.Format,
+            draft.InputFormat,
+            draft.OutputFormat,
+            draft.PriorityName,
+            draft.MaxAttempts,
+            draft.ConcurrencyLimit,
+            draft.RateLimit,
+            draft.RateKey,
+            draft.Lane,
+            draft.AuditLevelName,
+            draft.AlertProfileName,
+            draft.TenantRequirementId,
+            draft.RecurringResultCap,
+            draft.BackoffExpression,
+            draft.ExecutionTimeoutSeconds,
+            draft.DeadlineSeconds,
+            draft.DeadlineBehaviorId,
+            draft.JobRetentionSeconds,
+            draft.AlertChannelName,
+            draft.RunbookUrl,
+            draft.DisplayName,
+            draft.Description
+        );
+    }
+
+    /// <summary>The policy as the named arguments fill it in, starting from the framework defaults.</summary>
+    private sealed class PolicyDraft
+    {
+        public string? Format { get; set; }
+        public string? InputFormat { get; set; }
+        public string? OutputFormat { get; set; }
+        public string PriorityName { get; set; } = DefaultPriorityName;
+        public int MaxAttempts { get; set; } = DefaultMaxAttempts;
+        public int? ConcurrencyLimit { get; set; }
+        public string? RateLimit { get; set; }
+        public string? RateKey { get; set; }
+        public string? Lane { get; set; }
+        public string? AuditLevelName { get; set; }
+        public string AlertProfileName { get; set; } = DefaultAlertProfileName;
+        public byte TenantRequirementId { get; set; }
+        public int RecurringResultCap { get; set; } = DefaultRecurringResultCap;
+        public string? BackoffExpression { get; set; }
+        public int? ExecutionTimeoutSeconds { get; set; }
+        public int? DeadlineSeconds { get; set; }
+        public byte DeadlineBehaviorId { get; set; } = 10;
+        public int? JobRetentionSeconds { get; set; }
+        public string? AlertChannelName { get; set; }
+        public string? RunbookUrl { get; set; }
+        public string? DisplayName { get; set; }
+        public string? Description { get; set; }
+    }
+
+    private static bool ReadFormatArgument(KeyValuePair<string, TypedConstant> named, PolicyDraft draft)
+    {
+        switch (named.Key)
+        {
+            case "Format":
+                if (named.Value.Value is string fmt && !string.IsNullOrWhiteSpace(fmt))
+                {
+                    draft.Format = fmt;
+                }
+                return true;
+
+            case "InputFormat":
+                if (named.Value.Value is string ifmt && !string.IsNullOrWhiteSpace(ifmt))
+                {
+                    draft.InputFormat = ifmt;
+                }
+                return true;
+
+            case "OutputFormat":
+                if (named.Value.Value is string ofmt && !string.IsNullOrWhiteSpace(ofmt))
+                {
+                    draft.OutputFormat = ofmt;
+                }
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool ReadCodeArgument(
+        KeyValuePair<string, TypedConstant> named,
+        PolicyDraft draft,
+        List<DiagnosticRecord> diagnostics,
+        Location location
+    )
+    {
+        switch (named.Key)
+        {
+            case "Priority":
+                if (TryGetEnumByte(named.Value, out var p))
+                {
+                    var name = PriorityIdToName(p);
+                    if (name is null)
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                p.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The value is not a defined `JobPriorityCode`.",
+                                location
+                            )
+                        );
+                    }
+                    draft.PriorityName = name ?? DefaultPriorityName;
+                }
+                return true;
+
+            case "AuditLevel":
+                if (TryGetEnumByte(named.Value, out var al))
+                {
+                    var name = AuditLevelIdToName(al);
+                    if (name is null)
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                al.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The value is not a defined `DefinitionAuditLevelCode`.",
+                                location
+                            )
+                        );
+                    }
+                    draft.AuditLevelName = name ?? DefaultAuditLevelName;
+                }
+                return true;
+
+            case "TenantRequirement":
+                if (TryGetEnumByte(named.Value, out var tr))
+                {
+                    if (TenantRequirementIdToName(tr) is null)
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                tr.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The value is not a defined `DefinitionTenantRequirementCode`.",
+                                location
+                            )
+                        );
+                    }
+                    else
+                    {
+                        draft.TenantRequirementId = tr;
+                    }
+                }
+                return true;
+
+            case "AlertProfile":
+                if (TryGetEnumByte(named.Value, out var ap))
+                {
+                    var name = AlertProfileIdToName(ap);
+                    if (name is null)
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                ap.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The value is not a defined `AlertProfileCode`.",
+                                location
+                            )
+                        );
+                    }
+                    draft.AlertProfileName = name ?? DefaultAlertProfileName;
+                }
+                return true;
+
+            case "DeadlineBehavior":
+                if (TryGetEnumByte(named.Value, out var db))
+                {
+                    draft.DeadlineBehaviorId = db;
+                }
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool ReadLimitArgument(
+        KeyValuePair<string, TypedConstant> named,
+        PolicyDraft draft,
+        List<DiagnosticRecord> diagnostics,
+        Location location
+    )
+    {
+        switch (named.Key)
+        {
+            case "RecurringResultCap":
+                if (named.Value.Value is int rc)
+                {
+                    if (rc > 0)
+                    {
+                        draft.RecurringResultCap = rc;
+                    }
+                    else
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                rc.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The cap is at least 1.",
+                                location
+                            )
+                        );
+                    }
+                }
+                return true;
+
+            case "MaxAttempts":
+                if (named.Value.Value is int m)
+                {
+                    if (m > 0)
+                    {
+                        draft.MaxAttempts = m;
+                    }
+                    else
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                m.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The failure budget is at least 1.",
+                                location
+                            )
+                        );
+                    }
+                }
+                return true;
+
+            case "ConcurrencyLimit":
+                if (named.Value.Value is int cl)
+                {
+                    if (cl is >= MinConcurrencyLimit and <= MaxConcurrencyLimit)
+                    {
+                        draft.ConcurrencyLimit = cl;
+                    }
+                    else
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                cl.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                $"The concurrency limit is between {MinConcurrencyLimit} and {MaxConcurrencyLimit}.",
+                                location
+                            )
+                        );
+                    }
+                }
+                return true;
+
+            case "RateLimit":
+                draft.RateLimit = ReadRateLimit(named, diagnostics, location);
+                return true;
+
+            case "Backoff":
+                draft.BackoffExpression = ReadBackoff(named, diagnostics, location);
+                return true;
+
+            case "ExecutionTimeout":
+                draft.ExecutionTimeoutSeconds = ReadDurationSeconds(named, diagnostics, location);
+                return true;
+
+            case "Deadline":
+                draft.DeadlineSeconds = ReadDurationSeconds(named, diagnostics, location);
+                return true;
+
+            case "JobRetention":
+                draft.JobRetentionSeconds = ReadDurationSeconds(named, diagnostics, location);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool ReadOperatorArgument(
+        KeyValuePair<string, TypedConstant> named,
+        PolicyDraft draft,
+        List<DiagnosticRecord> diagnostics,
+        Location location
+    )
+    {
+        switch (named.Key)
+        {
+            case "RateKey":
+                if (named.Value.Value is string rk && !string.IsNullOrWhiteSpace(rk))
+                {
+                    if (KebabName.IsValid(rk, maxLength: 128, allowSystemPrefix: false))
+                    {
+                        draft.RateKey = rk;
+                    }
+                    else
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                $"\"{rk}\"",
+                                "Rate keys are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
+                                location
+                            )
+                        );
+                    }
+                }
+                return true;
+
+            case "Lane":
+                if (named.Value.Value is string ln)
+                {
+                    if (TryCanonicalizeLane(ln, out var canonicalLane))
+                    {
+                        draft.Lane = canonicalLane;
+                    }
+                    else
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                $"\"{ln}\"",
+                                "Lanes follow the concurrency-key rule: 1 to 128 key characters (a-z, A-Z, 0-9, '.', '-', '_', ':', '/', '@', '+', '=') after trimming, and not under the reserved `sys.` prefix.",
+                                location
+                            )
+                        );
+                    }
+                }
+                return true;
+
+            case "AlertChannelName":
+                if (named.Value.Value is string ch && !string.IsNullOrWhiteSpace(ch))
+                {
+                    if (KebabName.IsValid(ch, maxLength: 128, allowSystemPrefix: false))
+                    {
+                        draft.AlertChannelName = ch;
+                    }
+                    else
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                $"\"{ch}\"",
+                                "Alert channel names are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
+                                location
+                            )
+                        );
+                    }
+                }
+                return true;
+
+            case "RunbookUrl":
+                if (named.Value.Value is string rb && !string.IsNullOrWhiteSpace(rb))
+                {
+                    draft.RunbookUrl = rb;
+                }
+                return true;
+
+            case "DisplayName":
+                if (named.Value.Value is string dn && !string.IsNullOrWhiteSpace(dn))
+                {
+                    draft.DisplayName = dn;
+                }
+                return true;
+
+            case "Description":
+                if (named.Value.Value is string desc && !string.IsNullOrWhiteSpace(desc))
+                {
+                    draft.Description = desc;
+                }
+                return true;
+
+            default:
+                return false;
+        }
+    }
+}

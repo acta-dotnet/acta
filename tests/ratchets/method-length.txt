@@ -1,5 +1,3 @@
 # Known method-length violations; entries may only be removed.
-ActaManifestGenerator.BuildManifestSource
-ActaManifestGenerator.ReadAttributePolicy
 ActaSchemaGenerator.Transform
 CodeGenerator.GroupByContainingEnum

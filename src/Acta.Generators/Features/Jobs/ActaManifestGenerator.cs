@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Acta.Generators.JobPolicyReader;
+using static Acta.Generators.JobScheduleReader;
+using static Acta.Generators.JobSignatureReader;
+using static Acta.Generators.ManifestSourceWriter;
 
 namespace Acta.Generators;
 
@@ -17,21 +20,21 @@ namespace Acta.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class ActaManifestGenerator : IIncrementalGenerator
 {
-    private const string JobAttributeMetadataName = "Acta.JobAttribute";
-    private const string JobScheduleAttributeMetadataName = "Acta.JobScheduleAttribute";
+    internal const string JobAttributeMetadataName = "Acta.JobAttribute";
+    internal const string JobScheduleAttributeMetadataName = "Acta.JobScheduleAttribute";
 
-    private const string JobContextMetadataName = "Acta.JobContext";
-    private const string CancellationTokenMetadataName = "System.Threading.CancellationToken";
-    private const string IServiceProviderMetadataName = "System.IServiceProvider";
+    internal const string JobContextMetadataName = "Acta.JobContext";
+    internal const string CancellationTokenMetadataName = "System.Threading.CancellationToken";
+    internal const string IServiceProviderMetadataName = "System.IServiceProvider";
 
-    private const string MediatRUnitMetadataName = "MediatR.Unit";
+    internal const string MediatRUnitMetadataName = "MediatR.Unit";
 
-    private const string TaskMetadataName = "System.Threading.Tasks.Task";
-    private const string ValueTaskMetadataName = "System.Threading.Tasks.ValueTask";
-    private const string TaskOfTMetadataName = "System.Threading.Tasks.Task`1";
-    private const string ValueTaskOfTMetadataName = "System.Threading.Tasks.ValueTask`1";
+    internal const string TaskMetadataName = "System.Threading.Tasks.Task";
+    internal const string ValueTaskMetadataName = "System.Threading.Tasks.ValueTask";
+    internal const string TaskOfTMetadataName = "System.Threading.Tasks.Task`1";
+    internal const string ValueTaskOfTMetadataName = "System.Threading.Tasks.ValueTask`1";
 
-    private const string JobPayloadFormatDeclarationAttributeMetadataName = "Acta.JobPayloadFormatDeclarationAttribute";
+    internal const string JobPayloadFormatDeclarationAttributeMetadataName = "Acta.JobPayloadFormatDeclarationAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -79,7 +82,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     /// <summary>
     /// A [JobSchedule] rides a [Job] definition; without one it would silently never fire.
     /// </summary>
-    private static DiagnosticRecord? TransformOrphanSchedule(GeneratorAttributeSyntaxContext ctx)
+    internal static DiagnosticRecord? TransformOrphanSchedule(GeneratorAttributeSyntaxContext ctx)
     {
         if (ctx.TargetSymbol is not IMethodSymbol method)
         {
@@ -87,10 +90,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         }
         return method.GetAttributes().Any(a => a.AttributeClass is not null && TypeFullName(a.AttributeClass) == JobAttributeMetadataName)
             ? null
-            : Diagnostics.ScheduleWithoutJob(method, method.Locations.FirstOrDefault() ?? Location.None);
+            : ManifestDiagnostics.ScheduleWithoutJob(method, method.Locations.FirstOrDefault() ?? Location.None);
     }
 
-    private static CustomPayloadFormat? TransformPayloadFormat(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
+    internal static CustomPayloadFormat? TransformPayloadFormat(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
     {
         if (ctx.TargetSymbol is not INamedTypeSymbol cls)
         {
@@ -110,7 +113,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return new CustomPayloadFormat(id, name, implementsSerializer, cls.Locations.FirstOrDefault() ?? Location.None);
     }
 
-    private static DiscoveredJob? TransformMethod(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
+    internal static DiscoveredJob? TransformMethod(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
     {
         if (ctx.TargetSymbol is not IMethodSymbol method)
         {
@@ -133,24 +136,24 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         if (method.IsGenericMethod || method.TypeParameters.Length > 0)
         {
-            diagnostics.Add(Diagnostics.OpenGenericHandler(method, location));
+            diagnostics.Add(ManifestDiagnostics.OpenGenericHandler(method, location));
         }
 
         if (method.IsAsync && method.ReturnsVoid)
         {
-            diagnostics.Add(Diagnostics.AsyncVoid(method, location));
+            diagnostics.Add(ManifestDiagnostics.AsyncVoid(method, location));
         }
 
         if (method.DeclaredAccessibility == Accessibility.Private)
         {
-            diagnostics.Add(Diagnostics.PrivateHandler(method, location));
+            diagnostics.Add(ManifestDiagnostics.PrivateHandler(method, location));
         }
 
         for (var container = method.ContainingType; container is not null; container = container.ContainingType)
         {
             if (container.DeclaredAccessibility == Accessibility.Private)
             {
-                diagnostics.Add(Diagnostics.PrivateContainingType(method, container, location));
+                diagnostics.Add(ManifestDiagnostics.PrivateContainingType(method, container, location));
                 break;
             }
         }
@@ -160,13 +163,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         if (parameterModel?.InputType is { } forbiddenCandidate && IsForbiddenInputType(forbiddenCandidate))
         {
-            diagnostics.Add(Diagnostics.ForbiddenInputType(method, forbiddenCandidate, location));
+            diagnostics.Add(ManifestDiagnostics.ForbiddenInputType(method, forbiddenCandidate, location));
         }
 
         return BuildDiscoveredJob(method, jobName, attr, diagnostics, parameterModel, returnModel, schedules);
     }
 
-    private static DiscoveredJob BuildDiscoveredJob(
+    internal static DiscoveredJob BuildDiscoveredJob(
         IMethodSymbol method,
         string jobName,
         AttributeData attr,
@@ -198,7 +201,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         // exempt: on a void handler it silently applies to the input only.
         if (outputType is null && policy.OutputFormat is not null)
         {
-            diagnostics.Add(Diagnostics.OutputFormatOnVoidHandler(method, method.Locations.FirstOrDefault() ?? Location.None));
+            diagnostics.Add(ManifestDiagnostics.OutputFormatOnVoidHandler(method, method.Locations.FirstOrDefault() ?? Location.None));
         }
 
         // No input parameter (zero-input handler) ⇒ none format, same as a parameterless data-less
@@ -213,7 +216,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         if (!schedules.IsDefaultOrEmpty && inputType is not null && !HasAccessibleParameterlessCtor(inputType))
         {
             diagnostics.Add(
-                Diagnostics.ScheduledInputNotConstructible(method, inputType, method.Locations.FirstOrDefault() ?? Location.None)
+                ManifestDiagnostics.ScheduledInputNotConstructible(method, inputType, method.Locations.FirstOrDefault() ?? Location.None)
             );
         }
 
@@ -257,573 +260,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         );
     }
 
-    /// <summary>
-    /// Framework defaults: keep aligned with JobAttribute's defaults.
-    /// </summary>
-    private const int DefaultMaxAttempts = 15;
-
-    /// <summary>
-    /// The declared concurrency limit's range, the same 1..1024 band JobsOptions allows for
-    /// MaxConcurrentExecutors: a limit above the largest possible executor pool cannot bind.
-    /// </summary>
-    private const int MinConcurrencyLimit = 1;
-    private const int MaxConcurrencyLimit = 1024;
-    private const string DefaultPriorityName = "Normal";
-    private const string DefaultAuditLevelName = "Audit";
-    private const string DefaultAlertProfileName = "OnFailure";
-    private const int DefaultRecurringResultCap = 1;
-
-    private static AttributePolicy ReadAttributePolicy(AttributeData attr, List<DiagnosticRecord> diagnostics, Location location)
-    {
-        string? format = null;
-        string? inputFormat = null;
-        string? outputFormat = null;
-        var priorityName = DefaultPriorityName;
-        var maxAttempts = DefaultMaxAttempts;
-        int? concurrencyLimit = null;
-        string? rateLimit = null;
-        string? rateKey = null;
-        string? lane = null;
-        string? auditLevelName = null;
-        var alertProfileName = DefaultAlertProfileName;
-        byte tenantRequirementId = 0;
-        var recurringResultCap = DefaultRecurringResultCap;
-        string? backoffExpression = null;
-        int? executionTimeoutSeconds = null;
-        int? deadlineSeconds = null;
-        byte deadlineBehaviorId = 10;
-        int? jobRetentionSeconds = null;
-        string? alertChannelName = null;
-        string? runbookUrl = null;
-        string? displayName = null;
-        string? description = null;
-
-        foreach (var named in attr.NamedArguments)
-        {
-            switch (named.Key)
-            {
-                case "RecurringResultCap":
-                    if (named.Value.Value is int rc)
-                    {
-                        if (rc > 0)
-                        {
-                            recurringResultCap = rc;
-                        }
-                        else
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    rc.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The cap is at least 1.",
-                                    location
-                                )
-                            );
-                        }
-                    }
-                    break;
-
-                case "Format":
-                    if (named.Value.Value is string fmt && !string.IsNullOrWhiteSpace(fmt))
-                    {
-                        format = fmt;
-                    }
-                    break;
-
-                case "InputFormat":
-                    if (named.Value.Value is string ifmt && !string.IsNullOrWhiteSpace(ifmt))
-                    {
-                        inputFormat = ifmt;
-                    }
-                    break;
-
-                case "OutputFormat":
-                    if (named.Value.Value is string ofmt && !string.IsNullOrWhiteSpace(ofmt))
-                    {
-                        outputFormat = ofmt;
-                    }
-                    break;
-
-                case "Priority":
-                    if (TryGetEnumByte(named.Value, out var p))
-                    {
-                        var name = PriorityIdToName(p);
-                        if (name is null)
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    p.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `JobPriorityCode`.",
-                                    location
-                                )
-                            );
-                        }
-                        priorityName = name ?? DefaultPriorityName;
-                    }
-                    break;
-
-                case "MaxAttempts":
-                    if (named.Value.Value is int m)
-                    {
-                        if (m > 0)
-                        {
-                            maxAttempts = m;
-                        }
-                        else
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    m.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The failure budget is at least 1.",
-                                    location
-                                )
-                            );
-                        }
-                    }
-                    break;
-
-                case "ConcurrencyLimit":
-                    if (named.Value.Value is int cl)
-                    {
-                        if (cl is >= MinConcurrencyLimit and <= MaxConcurrencyLimit)
-                        {
-                            concurrencyLimit = cl;
-                        }
-                        else
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    cl.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    $"The concurrency limit is between {MinConcurrencyLimit} and {MaxConcurrencyLimit}.",
-                                    location
-                                )
-                            );
-                        }
-                    }
-                    break;
-
-                case "AuditLevel":
-                    if (TryGetEnumByte(named.Value, out var al))
-                    {
-                        var name = AuditLevelIdToName(al);
-                        if (name is null)
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    al.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `DefinitionAuditLevelCode`.",
-                                    location
-                                )
-                            );
-                        }
-                        auditLevelName = name ?? DefaultAuditLevelName;
-                    }
-                    break;
-
-                case "TenantRequirement":
-                    if (TryGetEnumByte(named.Value, out var tr))
-                    {
-                        if (TenantRequirementIdToName(tr) is null)
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    tr.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `DefinitionTenantRequirementCode`.",
-                                    location
-                                )
-                            );
-                        }
-                        else
-                        {
-                            tenantRequirementId = tr;
-                        }
-                    }
-                    break;
-
-                case "AlertProfile":
-                    if (TryGetEnumByte(named.Value, out var ap))
-                    {
-                        var name = AlertProfileIdToName(ap);
-                        if (name is null)
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    ap.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `AlertProfileCode`.",
-                                    location
-                                )
-                            );
-                        }
-                        alertProfileName = name ?? DefaultAlertProfileName;
-                    }
-                    break;
-
-                case "RateLimit":
-                    rateLimit = ReadRateLimit(named, diagnostics, location);
-                    break;
-
-                case "RateKey":
-                    if (named.Value.Value is string rk && !string.IsNullOrWhiteSpace(rk))
-                    {
-                        if (KebabName.IsValid(rk, maxLength: 128, allowSystemPrefix: false))
-                        {
-                            rateKey = rk;
-                        }
-                        else
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    $"\"{rk}\"",
-                                    "Rate keys are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
-                                    location
-                                )
-                            );
-                        }
-                    }
-                    break;
-
-                case "Lane":
-                    if (named.Value.Value is string ln)
-                    {
-                        if (TryCanonicalizeLane(ln, out var canonicalLane))
-                        {
-                            lane = canonicalLane;
-                        }
-                        else
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    $"\"{ln}\"",
-                                    "Lanes follow the concurrency-key rule: 1 to 128 key characters (a-z, A-Z, 0-9, '.', '-', '_', ':', '/', '@', '+', '=') after trimming, and not under the reserved `sys.` prefix.",
-                                    location
-                                )
-                            );
-                        }
-                    }
-                    break;
-
-                case "Backoff":
-                    backoffExpression = ReadBackoff(named, diagnostics, location);
-                    break;
-
-                case "ExecutionTimeout":
-                    executionTimeoutSeconds = ReadDurationSeconds(named, diagnostics, location);
-                    break;
-
-                case "Deadline":
-                    deadlineSeconds = ReadDurationSeconds(named, diagnostics, location);
-                    break;
-
-                case "DeadlineBehavior":
-                    if (TryGetEnumByte(named.Value, out var db))
-                    {
-                        deadlineBehaviorId = db;
-                    }
-                    break;
-
-                case "JobRetention":
-                    jobRetentionSeconds = ReadDurationSeconds(named, diagnostics, location);
-                    break;
-
-                case "AlertChannelName":
-                    if (named.Value.Value is string ch && !string.IsNullOrWhiteSpace(ch))
-                    {
-                        if (KebabName.IsValid(ch, maxLength: 128, allowSystemPrefix: false))
-                        {
-                            alertChannelName = ch;
-                        }
-                        else
-                        {
-                            diagnostics.Add(
-                                Diagnostics.InvalidPolicyValue(
-                                    named.Key,
-                                    $"\"{ch}\"",
-                                    "Alert channel names are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
-                                    location
-                                )
-                            );
-                        }
-                    }
-                    break;
-
-                case "RunbookUrl":
-                    if (named.Value.Value is string rb && !string.IsNullOrWhiteSpace(rb))
-                    {
-                        runbookUrl = rb;
-                    }
-                    break;
-
-                case "DisplayName":
-                    if (named.Value.Value is string dn && !string.IsNullOrWhiteSpace(dn))
-                    {
-                        displayName = dn;
-                    }
-                    break;
-
-                case "Description":
-                    if (named.Value.Value is string desc && !string.IsNullOrWhiteSpace(desc))
-                    {
-                        description = desc;
-                    }
-                    break;
-            }
-        }
-
-        // ACTA0132: `Format` is the both-sides shorthand; pairing it with a per-side override is
-        // ambiguous. The void-output and unknown-name variants are raised later, where the handler's
-        // result shape and the validated format set are known.
-        if (format is not null)
-        {
-            if (inputFormat is not null)
-            {
-                diagnostics.Add(Diagnostics.PayloadFormatConflict("InputFormat", location));
-            }
-            if (outputFormat is not null)
-            {
-                diagnostics.Add(Diagnostics.PayloadFormatConflict("OutputFormat", location));
-            }
-        }
-
-        return new AttributePolicy(
-            format,
-            inputFormat,
-            outputFormat,
-            priorityName,
-            maxAttempts,
-            concurrencyLimit,
-            rateLimit,
-            rateKey,
-            lane,
-            auditLevelName,
-            alertProfileName,
-            tenantRequirementId,
-            recurringResultCap,
-            backoffExpression,
-            executionTimeoutSeconds,
-            deadlineSeconds,
-            deadlineBehaviorId,
-            jobRetentionSeconds,
-            alertChannelName,
-            runbookUrl,
-            displayName,
-            description
-        );
-    }
-
-    /// <summary>
-    /// The key rule the runtime enforces in <c>IdentifierSyntax.NormalizeKey</c>: trimmed, 1 to 128 key
-    /// characters, lowercased, and not under the reserved <c>sys.</c> prefix. The descriptor carries the
-    /// canonical form, the same value registration would store.
-    /// </summary>
-    private static bool TryCanonicalizeLane(string lane, out string canonical)
-    {
-        var trimmed = lane.Trim();
-        canonical = trimmed.ToLowerInvariant();
-        if (trimmed.Length is 0 or > 128 || canonical.StartsWith("sys.", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        foreach (var c in trimmed)
-        {
-            var keyChar =
-                c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '-' or '_' or ':' or '/' or '@' or '+' or '=';
-            if (!keyChar)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Validates the raw `RateLimit` string against the same format `RateLimitSpec` parses at runtime,
-    /// so a typo is a build error rather than a definition that quietly meters nothing. The rate is
-    /// carried forward as written; registration stores its canonical form.
-    /// </summary>
-    private static string? ReadRateLimit(KeyValuePair<string, TypedConstant> named, List<DiagnosticRecord> diagnostics, Location location)
-    {
-        if (named.Value.Value is not string text || string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        var slash = text.IndexOf('/');
-        var periodMilliseconds = slash > 0 && slash == text.Length - 2 ? PeriodMilliseconds(text[text.Length - 1]) : 0;
-        if (
-            periodMilliseconds != 0
-            && int.TryParse(text.Substring(0, slash), NumberStyles.None, CultureInfo.InvariantCulture, out var count)
-            && count >= 1
-            && count <= periodMilliseconds
-            && text[0] != '0'
-        )
-        {
-            return text;
-        }
-
-        diagnostics.Add(
-            Diagnostics.InvalidPolicyValue(
-                named.Key,
-                $"\"{text}\"",
-                "A rate limit is a positive count with no leading zero, a slash, and a period of s, m, or h (\"10/s\"), at most 1000 per second.",
-                location
-            )
-        );
-        return null;
-    }
-
-    private static int PeriodMilliseconds(char period) =>
-        period switch
-        {
-            's' => 1_000,
-            'm' => 60_000,
-            'h' => 3_600_000,
-            _ => 0,
-        };
-
-    /// <summary>
-    /// Validates the raw `Backoff` DSL string (format + the 64-char storage ceiling) but carries the
-    /// RAW text forward - the definitions column stores the expression itself, never the parsed knobs.
-    /// </summary>
-    private static string? ReadBackoff(KeyValuePair<string, TypedConstant> named, List<DiagnosticRecord> diagnostics, Location location)
-    {
-        if (named.Value.Value is not string text || string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        if (!BackoffExpressionValidator.TryParseBackoff(text, out _, out var error))
-        {
-            ReportDurationSyntaxError(named.Key, text, error, diagnostics, location);
-            return null;
-        }
-
-        if (text.Length > 64)
-        {
-            diagnostics.Add(
-                Diagnostics.InvalidPolicyValue(named.Key, $"\"{text}\"", "Backoff expressions are at most 64 characters.", location)
-            );
-            return null;
-        }
-
-        return text;
-    }
-
-    /// <summary>
-    /// [Job] durations accept both the human syntax (e.g. "1m") and its ISO-8601 time-only
-    /// equivalent (e.g. "PT1M"). The descriptor and DB carry whole seconds.
-    /// </summary>
-    private static int? ReadDurationSeconds(
-        KeyValuePair<string, TypedConstant> named,
-        List<DiagnosticRecord> diagnostics,
-        Location location
-    )
-    {
-        if (named.Value.Value is not string text || string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        if (
-            BackoffExpressionValidator.TryParseDuration(text, out var span, out var error)
-            && BackoffExpressionValidator.TryToWholeSeconds(span, out var seconds)
-        )
-        {
-            return seconds;
-        }
-
-        ReportDurationSyntaxError(named.Key, text, error, diagnostics, location);
-        return null;
-    }
-
-    private static void ReportDurationSyntaxError(
-        string argument,
-        string value,
-        BackoffExpressionValidator.Error error,
-        List<DiagnosticRecord> diagnostics,
-        Location location
-    )
-    {
-        diagnostics.Add(
-            error.Kind == BackoffExpressionValidator.ErrorKind.InvalidUnit
-                ? Diagnostics.InvalidDurationUnit(error.Unit ?? value, location)
-                : Diagnostics.InvalidDuration(argument, value, location)
-        );
-    }
-
-    /// <summary>
-    /// Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
-    /// (JobPriorityCode / DefinitionAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
-    /// misses them. Read whatever integral the constant carries and narrow to byte.
-    /// </summary>
-    private static bool TryGetEnumByte(TypedConstant constant, out byte value)
-    {
-        value = 0;
-        if (constant.IsNull || constant.Value is null)
-        {
-            return false;
-        }
-        try
-        {
-            value = Convert.ToByte(constant.Value, System.Globalization.CultureInfo.InvariantCulture);
-            return true;
-        }
-        catch (Exception ex) when (ex is OverflowException or FormatException or InvalidCastException)
-        {
-            return false;
-        }
-    }
-
-    private static string? PriorityIdToName(byte id) =>
-        id switch
-        {
-            0 => "Bulk",
-            50 => "Normal",
-            70 => "High",
-            85 => "Critical",
-            100 => "Realtime",
-            _ => null,
-        };
-
-    private static string? AuditLevelIdToName(byte id) =>
-        id switch
-        {
-            0 => "Off",
-            10 => "Failures",
-            20 => "Audit",
-            _ => null,
-        };
-
-    private static string? AlertProfileIdToName(byte id) =>
-        id switch
-        {
-            0 => "None",
-            10 => "OnFailure",
-            20 => "Info",
-            30 => "OnTerminal",
-            40 => "SysCritical",
-            _ => null,
-        };
-
-    private static string? TenantRequirementIdToName(byte id) =>
-        id switch
-        {
-            0 => "Optional",
-            10 => "Required",
-            20 => "Forbidden",
-            _ => null,
-        };
-
-    private sealed record AttributePolicy(
+    internal sealed record AttributePolicy(
         string? Format,
         string? InputFormat,
         string? OutputFormat,
@@ -848,418 +285,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? Description
     );
 
-    private static ParameterModel AnalyzeParameters(IMethodSymbol method, Location location, List<DiagnosticRecord> diagnostics)
-    {
-        var parameters = method.Parameters;
-
-        // The input is the first parameter UNLESS that parameter is itself a framework parameter
-        // (JobContext / CancellationToken), in which case the handler is zero-input. Any other first
-        // type, including a forbidden one (IServiceProvider, Task, ref-like), is treated as the
-        // input candidate and rejected downstream by IsForbiddenInputType (ACTA0103).
-        ITypeSymbol? inputType = null;
-        var scanFrom = 0;
-        if (parameters.Length > 0)
-        {
-            var firstName = TypeFullName(parameters[0].Type);
-            if (firstName is not (JobContextMetadataName or CancellationTokenMetadataName))
-            {
-                inputType = parameters[0].Type;
-                scanFrom = 1;
-            }
-        }
-
-        var hasJobContext = false;
-        var hasCancellationToken = false;
-        var validOrder = true;
-
-        for (var i = scanFrom; i < parameters.Length; i++)
-        {
-            var p = parameters[i];
-            var name = TypeFullName(p.Type);
-            switch (name)
-            {
-                case JobContextMetadataName:
-                    if (hasJobContext || hasCancellationToken)
-                    {
-                        diagnostics.Add(Diagnostics.InvalidParameterOrder(method, location));
-                        validOrder = false;
-                    }
-                    hasJobContext = true;
-                    break;
-
-                case CancellationTokenMetadataName:
-                    hasCancellationToken = true;
-                    break;
-
-                default:
-                    diagnostics.Add(Diagnostics.ExtraParameter(method, p, location));
-                    validOrder = false;
-                    break;
-            }
-        }
-
-        if (validOrder && hasJobContext && !hasCancellationToken)
-        {
-            diagnostics.Add(Diagnostics.JobContextWithoutCancellationToken(method, location));
-        }
-
-        return new ParameterModel(inputType, hasJobContext, hasCancellationToken);
-    }
-
-    private static ReturnTypeModel? AnalyzeReturnType(
-        IMethodSymbol method,
-        Location location,
-        ParameterModel? parameters,
-        List<DiagnosticRecord> diagnostics
-    )
-    {
-        var returnType = method.ReturnType;
-        var returnName = TypeFullName(returnType);
-
-        // void / Task / ValueTask: no durable result.
-        if (returnType.SpecialType == SpecialType.System_Void)
-        {
-            CheckSyncContext(method, parameters, location, diagnostics);
-            return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.Sync);
-        }
-
-        if (returnName == TaskMetadataName)
-        {
-            return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.Task);
-        }
-
-        if (returnName == ValueTaskMetadataName)
-        {
-            return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.ValueTask);
-        }
-
-        // Task<T> / ValueTask<T>: async typed result.
-        if (returnType is INamedTypeSymbol named && named.IsGenericType)
-        {
-            var constructedFrom = TypeFullName(named.ConstructedFrom);
-            if (constructedFrom == TaskOfTMetadataName)
-            {
-                var inner = named.TypeArguments[0];
-                return BuildResultModel(method, inner, JobInvocationKind.TaskOfT, location, diagnostics);
-            }
-
-            if (constructedFrom == ValueTaskOfTMetadataName)
-            {
-                var inner = named.TypeArguments[0];
-                return BuildResultModel(method, inner, JobInvocationKind.ValueTaskOfT, location, diagnostics);
-            }
-        }
-
-        // Synchronous typed return.
-        CheckSyncContext(method, parameters, location, diagnostics);
-        return BuildResultModel(method, returnType, JobInvocationKind.SyncOfT, location, diagnostics);
-    }
-
-    private static void CheckSyncContext(
-        IMethodSymbol method,
-        ParameterModel? parameters,
-        Location location,
-        List<DiagnosticRecord> diagnostics
-    )
-    {
-        if (parameters?.HasJobContext == true)
-        {
-            diagnostics.Add(Diagnostics.SyncWithJobContext(method, location));
-        }
-    }
-
-    private static ReturnTypeModel BuildResultModel(
-        IMethodSymbol method,
-        ITypeSymbol resultType,
-        JobInvocationKind invocationKind,
-        Location location,
-        List<DiagnosticRecord> diagnostics
-    )
-    {
-        var resultName = TypeFullName(resultType);
-
-        // MediatR.Unit collapses to no-result regardless of declared shape.
-        if (resultName == MediatRUnitMetadataName)
-        {
-            // Sync<TUnit> collapses to plain Sync; the async wrappers stay (caller still has to await).
-            return new ReturnTypeModel(
-                OutputType: null,
-                InvocationKind: invocationKind == JobInvocationKind.SyncOfT ? JobInvocationKind.Sync : invocationKind
-            );
-        }
-
-        if (
-            resultName is TaskMetadataName or ValueTaskMetadataName
-            || (
-                resultType is INamedTypeSymbol nested
-                && nested.IsGenericType
-                && (
-                    TypeFullName(nested.ConstructedFrom) == TaskOfTMetadataName
-                    || TypeFullName(nested.ConstructedFrom) == ValueTaskOfTMetadataName
-                )
-            )
-        )
-        {
-            diagnostics.Add(Diagnostics.NestedAwaitableReturn(method, resultType, location));
-        }
-
-        return new ReturnTypeModel(resultType, invocationKind);
-    }
-
-    private static bool IsForbiddenInputType(ITypeSymbol type)
-    {
-        var name = TypeFullName(type);
-        if (
-            name
-            is JobContextMetadataName
-                or CancellationTokenMetadataName
-                or IServiceProviderMetadataName
-                or TaskMetadataName
-                or ValueTaskMetadataName
-        )
-        {
-            return true;
-        }
-
-        // Task<T> / ValueTask<T> as input.
-        if (type is INamedTypeSymbol named && named.IsGenericType)
-        {
-            var ctor = TypeFullName(named.ConstructedFrom);
-            if (ctor == TaskOfTMetadataName || ctor == ValueTaskOfTMetadataName)
-            {
-                return true;
-            }
-        }
-
-        // Ref-like types (Span<T>, ref struct).
-        return type.IsRefLikeType ? true : type.SpecialType == SpecialType.System_Void;
-    }
-
-    /// <summary>
-    /// True when `new T()` is safe AND the type has no instance state (canonical: empty record).
-    /// Used to detect pure dispatch-key DTOs the runtime can fabricate without a payload.
-    /// </summary>
-    private static bool IsParameterlessDataLess(ITypeSymbol type)
-    {
-        if (type is not INamedTypeSymbol nt)
-        {
-            return false;
-        }
-        if (type.IsRefLikeType || type.IsAbstract || type.TypeKind == TypeKind.Interface)
-        {
-            return false;
-        }
-
-        // Primitives and other intrinsic scalars (int, double, DateTime, ...) and enums carry a
-        // value despite having an implicit parameterless ctor and no Roslyn-visible instance field.
-        // They are never data-less; classifying them as such would map them to the 'none' format and
-        // silently drop the input. Only user-defined empty records/structs reach the field scan below.
-        if (type.SpecialType != SpecialType.None || type.TypeKind == TypeKind.Enum)
-        {
-            return false;
-        }
-
-        // Value types always have an implicit parameterless ctor (or one explicit). For reference
-        // types require an accessible parameterless instance ctor: public or internal.
-        var hasAccessibleParameterlessCtor =
-            type.IsValueType
-            || nt.InstanceConstructors.Any(c =>
-                c.Parameters.IsEmpty && c.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
-            );
-        if (!hasAccessibleParameterlessCtor)
-        {
-            return false;
-        }
-
-        for (var t = (ITypeSymbol?)nt; t is not null && t.SpecialType != SpecialType.System_Object; t = t.BaseType)
-        {
-            foreach (var member in t.GetMembers())
-            {
-                if (member.IsStatic || member.IsImplicitlyDeclared)
-                {
-                    continue;
-                }
-                if (member is IFieldSymbol)
-                {
-                    return false;
-                }
-                if (member is IPropertySymbol p && p.SetMethod is not null)
-                {
-                    return false;
-                }
-                if (member is IPropertySymbol { IsRequired: true })
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    private static bool HasAccessibleParameterlessCtor(ITypeSymbol? type)
-    {
-        if (type is null)
-        {
-            return false;
-        }
-        if (type.IsValueType)
-        {
-            return true;
-        }
-        return type is not INamedTypeSymbol nt || type.IsAbstract || type.TypeKind == TypeKind.Interface
-            ? false
-            : nt.InstanceConstructors.Any(c =>
-                c.Parameters.IsEmpty && c.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
-            );
-    }
-
-    private static ImmutableArray<DiscoveredSchedule> ReadSchedules(IMethodSymbol method, string jobName)
-    {
-        var builder = ImmutableArray.CreateBuilder<DiscoveredSchedule>();
-        foreach (var attr in method.GetAttributes())
-        {
-            if (attr.AttributeClass is null || TypeFullName(attr.AttributeClass) != JobScheduleAttributeMetadataName)
-            {
-                continue;
-            }
-            if (attr.ConstructorArguments.Length < 2)
-            {
-                continue;
-            }
-
-            // Malformed names/expressions/environments are kept verbatim; Emit diagnoses them
-            // (ACTA0121/ACTA0122) instead of silently dropping the schedule.
-            var scheduleName = attr.ConstructorArguments[0].Value as string ?? "";
-            var expression = attr.ConstructorArguments[1].Value as string ?? "";
-
-            // Match JobScheduleAttribute's runtime default and make the default explicit in the
-            // generated descriptor so persistence never receives an empty time-zone sentinel.
-            string? timeZone = "UTC";
-            string? description = null;
-            var misfireName = "Skip";
-            var environments = ImmutableArray<string>.Empty;
-
-            foreach (var named in attr.NamedArguments)
-            {
-                switch (named.Key)
-                {
-                    case "TimeZoneId" when named.Value.Value is string tz && !string.IsNullOrWhiteSpace(tz):
-                        timeZone = tz;
-                        break;
-                    case "Description" when named.Value.Value is string d && !string.IsNullOrWhiteSpace(d):
-                        description = d;
-                        break;
-                    // MisfireStrategyCode is byte-backed; read it through TryGetEnumByte rather than an
-                    // `is int` pattern that never matches a boxed byte and silently drops the value.
-                    case "MisfireStrategy" when TryGetEnumByte(named.Value, out var mf):
-                        misfireName = mf == 20 ? "Skip" : "CatchUpOnce";
-                        break;
-                    case "Environments" when !named.Value.IsNull:
-                        environments = [.. named.Value.Values.Select(v => v.Value as string ?? "")];
-                        break;
-                }
-            }
-
-            var kindName = InferExpressionKindName(expression);
-            builder.Add(
-                new DiscoveredSchedule(jobName, scheduleName, expression, timeZone, misfireName, kindName, description, environments)
-            );
-        }
-        return builder.ToImmutable();
-    }
-
-    /// <summary>
-    /// A single-token expression starting with a digit (human form, e.g. `5m`) or `P`/`p` (ISO 8601, e.g.
-    /// `PT5M`/`P1D`) is an interval; a space-separated or macro expression (e.g. `0 5 * * *`, `@daily`) is cron.
-    /// </summary>
-    private static string InferExpressionKindName(string expression)
-    {
-        var e = expression.Trim();
-        return e.Length > 0 && e.IndexOf(' ') < 0 && (e[0] is 'P' or 'p' || char.IsDigit(e[0])) ? "Interval" : "Cron";
-    }
-
-    /// <summary>
-    /// Arity-suffixed metadata name (e.g. `System.Threading.Tasks.Task`1`) for comparison
-    /// against the *MetadataName constants above.
-    /// </summary>
-    private static string TypeFullName(ITypeSymbol type)
-    {
-        if (type is INamedTypeSymbol named)
-        {
-            var ns = named.ContainingNamespace.IsGlobalNamespace ? null : named.ContainingNamespace.ToDisplayString();
-            var prefix = ns is null ? "" : ns + ".";
-            return prefix + named.MetadataName;
-        }
-        return type.ToDisplayString();
-    }
-
-    private static string InferPayloadFormatName(ITypeSymbol? type, bool isInput)
-    {
-        if (type is null)
-        {
-            return "json";
-        }
-
-        var name = TypeFullName(type);
-
-        // A parameterless data-less contract (e.g. `public sealed record FetchJoke;`) is a pure
-        // dispatch key: no fields, no settable props, no required members. Serializing it to `{}`
-        // is wasted bytes; map it to `none`. The dispatch class fabricates `new T()` at execute
-        // time so the handler still receives a non-null instance.
-        if (isInput && IsParameterlessDataLess(type))
-        {
-            return "none";
-        }
-
-        // byte[], ReadOnlyMemory<byte>.
-        if (type is IArrayTypeSymbol array && array.ElementType.SpecialType == SpecialType.System_Byte)
-        {
-            return "bytes";
-        }
-        if (
-            type is INamedTypeSymbol nm
-            && nm.IsGenericType
-            && TypeFullName(nm.ConstructedFrom) == "System.ReadOnlyMemory`1"
-            && nm.TypeArguments.Length == 1
-            && nm.TypeArguments[0].SpecialType == SpecialType.System_Byte
-        )
-        {
-            return "bytes";
-        }
-
-        if (type.TypeKind == TypeKind.Enum)
-        {
-            return "text";
-        }
-
-        if (
-            type.SpecialType
-            is SpecialType.System_String
-                or SpecialType.System_Boolean
-                or SpecialType.System_Char
-                or SpecialType.System_SByte
-                or SpecialType.System_Byte
-                or SpecialType.System_Int16
-                or SpecialType.System_UInt16
-                or SpecialType.System_Int32
-                or SpecialType.System_UInt32
-                or SpecialType.System_Int64
-                or SpecialType.System_UInt64
-                or SpecialType.System_Single
-                or SpecialType.System_Double
-                or SpecialType.System_Decimal
-                or SpecialType.System_DateTime
-        )
-        {
-            return "text";
-        }
-
-        return name is "System.Guid" or "System.DateTimeOffset" or "System.TimeSpan" or "System.DateOnly" or "System.TimeOnly"
-            ? "text"
-            : "json";
-    }
-
-    private static void Emit(
+    internal static void Emit(
         SourceProductionContext spc,
         ImmutableArray<DiscoveredJob> jobs,
         ImmutableArray<CustomPayloadFormat> customFormats,
@@ -1297,7 +323,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         {
             if (!KebabName.IsValid(job.JobName, maxLength: 128, allowSystemPrefix: isFrameworkAssembly))
             {
-                ReportDiagnostic(spc, Diagnostics.InvalidJobName(job));
+                ReportDiagnostic(spc, ManifestDiagnostics.InvalidJobName(job));
                 invalid.Add(job);
             }
             if (!ValidateSchedules(spc, job, isFrameworkAssembly))
@@ -1309,12 +335,12 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             // names can land here.
             if (!validFormatNames.Contains(job.InputPayloadFormatName))
             {
-                ReportDiagnostic(spc, Diagnostics.UnknownPayloadFormat(job, job.InputPayloadFormatName));
+                ReportDiagnostic(spc, ManifestDiagnostics.UnknownPayloadFormat(job, job.InputPayloadFormatName));
                 invalid.Add(job);
             }
             if (job.OutputPayloadFormatName is { } outFormatName && !validFormatNames.Contains(outFormatName))
             {
-                ReportDiagnostic(spc, Diagnostics.UnknownPayloadFormat(job, outFormatName));
+                ReportDiagnostic(spc, ManifestDiagnostics.UnknownPayloadFormat(job, outFormatName));
                 invalid.Add(job);
             }
         }
@@ -1331,7 +357,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             duplicateNames.Add(g.Key);
             foreach (var job in g)
             {
-                ReportDiagnostic(spc, Diagnostics.DuplicateJobName(job));
+                ReportDiagnostic(spc, ManifestDiagnostics.DuplicateJobName(job));
             }
         }
 
@@ -1350,7 +376,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         {
             foreach (var job in g)
             {
-                ReportDiagnostic(spc, Diagnostics.DuplicateInputType(job, g.Key));
+                ReportDiagnostic(spc, ManifestDiagnostics.DuplicateInputType(job, g.Key));
             }
         }
 
@@ -1364,7 +390,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             foreach (var job in group)
             {
                 contractCollisions.Add(job.JobName);
-                ReportDiagnostic(spc, Diagnostics.ContractMemberCollision(job, PascalCase(job.JobName)));
+                ReportDiagnostic(spc, ManifestDiagnostics.ContractMemberCollision(job, PascalCase(job.JobName)));
             }
         }
 
@@ -1373,12 +399,15 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         spc.AddSource($"{manifestTypeName}.g.cs", SourceText.From(manifest));
     }
 
-    private static readonly string[] BuiltinFormatNames = ["json", "text", "bytes", "none"];
+    internal static readonly string[] BuiltinFormatNames = ["json", "text", "bytes", "none"];
 
     /// <summary>
     /// ACTA0131: declaration validity; returns the name-to-id map of the clean declarations.
     /// </summary>
-    private static Dictionary<string, byte> ValidatePayloadFormats(SourceProductionContext spc, ImmutableArray<CustomPayloadFormat> formats)
+    internal static Dictionary<string, byte> ValidatePayloadFormats(
+        SourceProductionContext spc,
+        ImmutableArray<CustomPayloadFormat> formats
+    )
     {
         var result = new Dictionary<string, byte>(StringComparer.Ordinal);
         if (formats.IsDefaultOrEmpty)
@@ -1397,27 +426,27 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             var ok = true;
             if (format.Id < 128)
             {
-                ReportDiagnostic(spc, Diagnostics.PayloadFormatIdReserved(format));
+                ReportDiagnostic(spc, ManifestDiagnostics.PayloadFormatIdReserved(format));
                 ok = false;
             }
             if (!KebabName.IsValid(format.Name, maxLength: 64, allowSystemPrefix: false) || BuiltinFormatNames.Contains(format.Name))
             {
-                ReportDiagnostic(spc, Diagnostics.InvalidPayloadFormatName(format));
+                ReportDiagnostic(spc, ManifestDiagnostics.InvalidPayloadFormatName(format));
                 ok = false;
             }
             if (!format.ImplementsSerializer)
             {
-                ReportDiagnostic(spc, Diagnostics.PayloadFormatNotSerializer(format));
+                ReportDiagnostic(spc, ManifestDiagnostics.PayloadFormatNotSerializer(format));
                 ok = false;
             }
             if (duplicateIds.Contains(format.Id))
             {
-                ReportDiagnostic(spc, Diagnostics.DuplicatePayloadFormat(format, "id"));
+                ReportDiagnostic(spc, ManifestDiagnostics.DuplicatePayloadFormat(format, "id"));
                 ok = false;
             }
             if (duplicateNames.Contains(format.Name))
             {
-                ReportDiagnostic(spc, Diagnostics.DuplicatePayloadFormat(format, "name"));
+                ReportDiagnostic(spc, ManifestDiagnostics.DuplicatePayloadFormat(format, "name"));
                 ok = false;
             }
             if (ok)
@@ -1428,953 +457,18 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         return result;
     }
 
-    /// <summary>
-    /// ACTA0121 / ACTA0122: declaration and expression validity for every [JobSchedule].
-    /// </summary>
-    private static bool ValidateSchedules(SourceProductionContext spc, DiscoveredJob job, bool isFrameworkAssembly)
+    internal static void ReportDiagnostic(SourceProductionContext spc, DiagnosticRecord record)
     {
-        if (job.Schedules.IsDefaultOrEmpty)
-        {
-            return true;
-        }
-
-        var ok = true;
-        if (job.Lane is not null)
-        {
-            ReportDiagnostic(spc, Diagnostics.LanedSchedule(job));
-            ok = false;
-        }
-
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var duplicated = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var schedule in job.Schedules)
-        {
-            if (!KebabName.IsValid(schedule.ScheduleName, maxLength: 128, allowSystemPrefix: isFrameworkAssembly))
-            {
-                ReportDiagnostic(spc, Diagnostics.InvalidScheduleName(job, schedule.ScheduleName));
-                ok = false;
-            }
-            else if (!seen.Add(schedule.ScheduleName) && duplicated.Add(schedule.ScheduleName))
-            {
-                ReportDiagnostic(spc, Diagnostics.DuplicateScheduleName(job, schedule.ScheduleName));
-                ok = false;
-            }
-
-            if (string.IsNullOrWhiteSpace(schedule.Expression))
-            {
-                ReportDiagnostic(spc, Diagnostics.BlankScheduleExpression(job, schedule.ScheduleName));
-                ok = false;
-            }
-            else if (!IsValidScheduleExpression(schedule.Expression, schedule.ExpressionKindName))
-            {
-                ReportDiagnostic(spc, Diagnostics.InvalidScheduleExpression(job, schedule.ScheduleName, schedule.Expression));
-                ok = false;
-            }
-
-            foreach (var env in schedule.Environments)
-            {
-                if (string.IsNullOrWhiteSpace(env))
-                {
-                    ReportDiagnostic(spc, Diagnostics.BlankScheduleEnvironment(job, schedule.ScheduleName));
-                    ok = false;
-                }
-            }
-        }
-        return ok;
+        spc.ReportDiagnostic(Diagnostic.Create(ManifestDiagnostics.For(record.Id), record.Location, record.Message));
     }
 
-    /// <summary>
-    /// Mirrors NextOccurrenceCalculator.ParseInterval: an interval is the human form (number + ms/s/m/h/d)
-    /// or a positive ISO 8601 duration via XmlConvert; cron uses the conservative Cronos-dialect validator.
-    /// </summary>
-    private static bool IsValidScheduleExpression(string expression, string kindName)
-    {
-        return kindName == "Interval"
-            ? TryParseInterval(expression.Trim(), out var span) && span > TimeSpan.Zero
-            : CronExpressionValidator.IsValid(expression);
-    }
+    internal static bool HasBlockingDiagnostics(DiscoveredJob job) => job.Diagnostics.Any();
 
-    private static bool TryParseInterval(string e, out TimeSpan span)
-    {
-        span = TimeSpan.Zero;
-        if (e.Length == 0)
-        {
-            return false;
-        }
-        if (e[0] is 'P' or 'p')
-        {
-            try
-            {
-                span = System.Xml.XmlConvert.ToTimeSpan(e);
-                return true;
-            }
-            catch (FormatException)
-            {
-                return false;
-            }
-        }
+    internal sealed record ParameterModel(ITypeSymbol? InputType, bool HasJobContext, bool HasCancellationToken);
 
-        var i = 0;
-        while (i < e.Length && (char.IsDigit(e[i]) || e[i] == '.'))
-        {
-            i++;
-        }
-        if (i == 0 || i == e.Length)
-        {
-            return false;
-        }
-        if (
-            !double.TryParse(
-                e.Substring(0, i),
-                System.Globalization.NumberStyles.AllowDecimalPoint,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var n
-            )
-        )
-        {
-            return false;
-        }
-        try
-        {
-            switch (e.Substring(i))
-            {
-                case "ms":
-                    span = TimeSpan.FromMilliseconds(n);
-                    return true;
-                case "s":
-                    span = TimeSpan.FromSeconds(n);
-                    return true;
-                case "m":
-                    span = TimeSpan.FromMinutes(n);
-                    return true;
-                case "h":
-                    span = TimeSpan.FromHours(n);
-                    return true;
-                case "d":
-                    span = TimeSpan.FromDays(n);
-                    return true;
-                default:
-                    return false;
-            }
-        }
-        catch (OverflowException)
-        {
-            return false;
-        }
-    }
+    internal sealed record ReturnTypeModel(ITypeSymbol? OutputType, JobInvocationKind InvocationKind);
 
-    private static void ReportDiagnostic(SourceProductionContext spc, DiagnosticRecord record)
-    {
-        spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.For(record.Id), record.Location, record.Message));
-    }
-
-    private static bool HasBlockingDiagnostics(DiscoveredJob job) => job.Diagnostics.Any();
-
-    /// <summary>
-    /// Manifest type name = the assembly's area (RootNamespace's last segment). Non-"Jobs" areas get
-    /// the short "{Area}Jobs" (e.g. "HelloActa" to "HelloActaJobs"). An area already ending in "Jobs"
-    /// keeps a "Manifest" suffix ("TestJobs" to "TestJobsManifest", "Jobs" to "JobsManifest") because
-    /// "{Area}" alone would equal the type's own namespace segment and the namespace would shadow it.
-    /// </summary>
-    private static string ManifestTypeName(string rootNamespace)
-    {
-        var dot = rootNamespace.LastIndexOf('.');
-        var segment = dot < 0 ? rootNamespace : rootNamespace.Substring(dot + 1);
-        return segment.EndsWith("Jobs", StringComparison.Ordinal) ? segment + "Manifest" : segment + "Jobs";
-    }
-
-    private static string BuildManifestSource(
-        string rootNamespace,
-        string manifestTypeName,
-        DiscoveredJob[] jobs,
-        IReadOnlyDictionary<string, byte> customFormatById,
-        ISet<string> contractCollisions
-    )
-    {
-        var sb = new StringBuilder();
-        GeneratorText.AutoGeneratedHeader(sb);
-        sb.AppendLine("using System;");
-        sb.AppendLine("using System.Collections.Immutable;");
-        sb.AppendLine("using System.Threading;");
-        sb.AppendLine("using System.Threading.Tasks;");
-        sb.AppendLine("using Acta;");
-        sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        sb.AppendLine();
-        sb.AppendLine($"namespace {rootNamespace};");
-        sb.AppendLine();
-        sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// Generator-emitted manifest for this assembly. Bound to a namespace at registration");
-        sb.AppendLine($"/// time via <c>IActaBuilder.Run&lt;{manifestTypeName}&gt;(namespaceName)</c>.");
-        sb.AppendLine("/// </summary>");
-        sb.AppendLine($"public sealed class {manifestTypeName} : IJobManifest");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static JobDescriptorManifest Descriptors { get; } =");
-        sb.AppendLine("        new JobDescriptorManifest(");
-        sb.AppendLine("            Descriptors: ImmutableArray.Create<JobDescriptor>(");
-        for (var i = 0; i < jobs.Length; i++)
-        {
-            var j = jobs[i];
-            var trailing = i == jobs.Length - 1 ? "" : ",";
-            sb.AppendLine($"                new JobDescriptor(");
-            sb.AppendLine($"                    JobName: \"{j.JobName}\",");
-            sb.AppendLine($"                    HandlerType: typeof({DisplayName(j.HandlerType!)}),");
-            sb.AppendLine($"                    MethodName: \"{j.MethodName}\",");
-            sb.AppendLine($"                    InputType: typeof({InputTypeExpr(j)}),");
-            var outputTypeExpr = j.OutputType is null ? "null" : $"typeof({DisplayName(j.OutputType)})";
-            sb.AppendLine($"                    OutputType: {outputTypeExpr},");
-            sb.AppendLine(
-                $"                    InputPayloadFormat: {PayloadFormatExpression(j.InputPayloadFormatName, customFormatById)},"
-            );
-            var outputFormatExpr = j.OutputPayloadFormatName is null
-                ? "null"
-                : PayloadFormatExpression(j.OutputPayloadFormatName, customFormatById);
-            sb.AppendLine($"                    OutputPayloadFormat: {outputFormatExpr},");
-            sb.AppendLine($"                    InvocationKind: JobInvocationKind.{j.InvocationKind},");
-            sb.AppendLine($"                    RequiresJobContextParameter: {(j.RequiresJobContext ? "true" : "false")},");
-            sb.AppendLine($"                    RequiresCancellationToken: {(j.RequiresCancellationToken ? "true" : "false")},");
-            sb.AppendLine($"                    Priority: JobPriorityCode.{j.PriorityName},");
-            sb.AppendLine($"                    MaxAttempts: {j.MaxAttempts},");
-            sb.AppendLine($"                    AuditLevel: DefinitionAuditLevelCode.{j.AuditLevelName},");
-            sb.AppendLine($"                    AlertProfile: AlertProfileCode.{j.AlertProfileName},");
-            sb.AppendLine($"                    Invoker: GeneratedHandlerDispatch.Invoke_{j.JobNameSafe()},");
-            sb.AppendLine($"                    DeserializeInput: GeneratedHandlerDispatch.DeserializeInput_{j.JobNameSafe()},");
-            var serExpr = j.OutputType is null ? "null" : $"GeneratedHandlerDispatch.SerializeOutput_{j.JobNameSafe()}";
-
-            var policyLines = new List<string>();
-            if (j.TenantRequirementId != 0)
-            {
-                policyLines.Add($"TenantRequirement = (Acta.DefinitionTenantRequirementCode){j.TenantRequirementId},");
-            }
-
-            if (j.ConcurrencyLimit is { } concurrencyLimit)
-            {
-                policyLines.Add($"ConcurrencyLimit = {concurrencyLimit},");
-            }
-
-            if (j.RateLimit is { } rateLimitRaw)
-            {
-                policyLines.Add($"RateLimit = {FormatString(rateLimitRaw)},");
-            }
-
-            if (j.RateKey is { } rateKeyRaw)
-            {
-                policyLines.Add($"RateKey = {FormatString(rateKeyRaw)},");
-            }
-
-            if (j.Lane is { } laneRaw)
-            {
-                policyLines.Add($"Lane = {FormatString(laneRaw)},");
-            }
-
-            if (j.Backoff is { } backoffRaw)
-            {
-                policyLines.Add($"Backoff = {FormatString(backoffRaw)},");
-            }
-
-            if (j.ExecutionTimeoutSeconds is { } timeout)
-            {
-                policyLines.Add($"ExecutionTimeoutSeconds = {timeout},");
-            }
-
-            if (j.DeadlineSeconds is { } deadline)
-            {
-                policyLines.Add($"DeadlineSeconds = {deadline},");
-            }
-
-            if (j.DeadlineBehaviorId != 10)
-            {
-                policyLines.Add($"DeadlineBehavior = (Acta.DeadlineBehaviorCode){j.DeadlineBehaviorId},");
-            }
-
-            if (j.JobRetentionSeconds is { } retention)
-            {
-                policyLines.Add($"JobRetentionSeconds = {retention},");
-            }
-
-            if (j.AlertChannelName is { } channel)
-            {
-                policyLines.Add($"AlertChannelName = {FormatString(channel)},");
-            }
-
-            if (j.RunbookUrl is { } runbook)
-            {
-                policyLines.Add($"RunbookUrl = {FormatString(runbook)},");
-            }
-
-            if (j.DisplayName is { } displayName)
-            {
-                policyLines.Add($"DisplayName = {FormatString(displayName)},");
-            }
-
-            if (j.Description is { } description)
-            {
-                policyLines.Add($"Description = {FormatString(description)},");
-            }
-
-            if (j.InputTemplateJson is { } inputTemplate)
-            {
-                policyLines.Add($"InputTemplateJson = {FormatString(inputTemplate)},");
-            }
-
-            var hasSchedules = !j.Schedules.IsDefaultOrEmpty;
-            if (policyLines.Count == 0 && !hasSchedules)
-            {
-                sb.AppendLine($"                    SerializeOutput: {serExpr}){trailing}");
-            }
-            else
-            {
-                sb.AppendLine($"                    SerializeOutput: {serExpr})");
-                sb.AppendLine("                {");
-                foreach (var line in policyLines)
-                {
-                    sb.AppendLine($"                    {line}");
-                }
-                if (hasSchedules)
-                {
-                    sb.AppendLine("                    Schedules = ImmutableArray.Create<ScheduleDescriptor>(");
-                    EmitScheduleDescriptors(sb, j);
-                    sb.AppendLine("                    ),");
-                    sb.AppendLine($"                    CreateDefaultInput = static () => new {InputTypeExpr(j)}(),");
-                    sb.AppendLine($"                    SerializeInput = GeneratedHandlerDispatch.SerializeInput_{j.JobNameSafe()},");
-                    sb.AppendLine($"                    RecurringResultCap = {j.RecurringResultCap},");
-                }
-                sb.AppendLine($"                }}{trailing}");
-            }
-        }
-        sb.AppendLine("            ));");
-        EmitContractMembers(sb, jobs, manifestTypeName, contractCollisions);
-        sb.AppendLine("}");
-        sb.AppendLine();
-        EmitGeneratedHandlerDispatchClass(sb, jobs);
-        return sb.ToString();
-    }
-
-    private static void EmitContractMembers(
-        StringBuilder sb,
-        DiscoveredJob[] jobs,
-        string manifestTypeName,
-        ISet<string> contractCollisions
-    )
-    {
-        foreach (var j in jobs)
-        {
-            if (contractCollisions.Contains(j.JobName))
-            {
-                continue;
-            }
-
-            var name = PascalCase(j.JobName);
-            var input = InputTypeExpr(j);
-            var contractType = j.OutputType is null
-                ? $"global::Acta.JobContract<{input}>"
-                : $"global::Acta.JobContract<{input}, {DisplayName(j.OutputType)}>";
-
-            sb.AppendLine();
-            sb.AppendLine("    /// <summary>");
-            sb.AppendLine($"    /// Contract for job <c>{j.JobName}</c>.");
-            sb.AppendLine("    /// </summary>");
-            sb.AppendLine($"    public static {contractType} {name} {{ get; }} = new(typeof({manifestTypeName}), \"{j.JobName}\");");
-        }
-    }
-
-    private static string FormatString(string value) => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(value, quote: true);
-
-    private static void EmitScheduleDescriptors(StringBuilder sb, DiscoveredJob j)
-    {
-        for (var i = 0; i < j.Schedules.Length; i++)
-        {
-            var s = j.Schedules[i];
-            var trailing = i == j.Schedules.Length - 1 ? "" : ",";
-            var envExpr = s.Environments.IsDefaultOrEmpty
-                ? "ImmutableArray<string>.Empty"
-                : $"ImmutableArray.Create<string>({string.Join(", ", s.Environments.Select(Lit))})";
-            sb.AppendLine("                        new ScheduleDescriptor(");
-            sb.AppendLine($"                            JobName: {Lit(s.JobName)},");
-            sb.AppendLine($"                            ScheduleName: {Lit(s.ScheduleName)},");
-            sb.AppendLine($"                            Expression: {Lit(s.Expression)},");
-            sb.AppendLine($"                            TimeZoneId: {LitOrNull(s.TimeZoneId)},");
-            sb.AppendLine($"                            MisfireStrategy: MisfireStrategyCode.{s.MisfireName},");
-            sb.AppendLine($"                            ExpressionKind: ScheduleExpressionKindCode.{s.ExpressionKindName},");
-            sb.AppendLine($"                            Description: {LitOrNull(s.Description)},");
-            sb.AppendLine($"                            Environments: {envExpr}){trailing}");
-        }
-    }
-
-    private static string Lit(string value) => "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-
-    private static string LitOrNull(string? value) => value is null ? "null" : Lit(value);
-
-    private static void EmitGeneratedHandlerDispatchClass(StringBuilder sb, DiscoveredJob[] jobs)
-    {
-        sb.AppendLine("file static class GeneratedHandlerDispatch");
-        sb.AppendLine("{");
-        for (var i = 0; i < jobs.Length; i++)
-        {
-            var j = jobs[i];
-            var safe = j.JobNameSafe();
-            var inputTypeName = InputTypeExpr(j);
-            // "none" format means a parameterless data-less contract (or a zero-input handler whose
-            // input slot is the NoInput sentinel). Fabricate `new TIn()` instead
-            // of deserializing: the descriptor declared no payload, so the runtime never asks a
-            // serializer to materialize this type.
-            var fabricateInput = j.InputPayloadFormatName == "none";
-
-            sb.AppendLine($"    public static object DeserializeInput_{safe}(IJobPayloadSerializer serializer, JobPayload payload) =>");
-            if (fabricateInput)
-            {
-                sb.AppendLine($"        new {inputTypeName}();");
-            }
-            else
-            {
-                sb.AppendLine($"        serializer.Deserialize<{inputTypeName}>(payload)!;");
-            }
-            sb.AppendLine();
-
-            if (j.OutputType is not null)
-            {
-                var outputTypeName = DisplayName(j.OutputType);
-                sb.AppendLine($"    public static JobPayload SerializeOutput_{safe}(IJobPayloadSerializer serializer, object? value) =>");
-                sb.AppendLine($"        serializer.Serialize<{outputTypeName}>(({outputTypeName})value!);");
-                sb.AppendLine();
-            }
-
-            if (!j.Schedules.IsDefaultOrEmpty)
-            {
-                sb.AppendLine($"    public static JobPayload SerializeInput_{safe}(IJobPayloadSerializer serializer, object value) =>");
-                sb.AppendLine($"        serializer.Serialize<{inputTypeName}>(({inputTypeName})value);");
-                sb.AppendLine();
-            }
-
-            sb.AppendLine($"    public static async ValueTask<JobHandlerOutput> Invoke_{safe}(");
-            sb.AppendLine($"        IServiceProvider attemptServices, object request, JobContext context, CancellationToken ct)");
-            sb.AppendLine("    {");
-            EmitInvokerBody(sb, j);
-            sb.AppendLine("    }");
-            sb.AppendLine();
-        }
-        sb.AppendLine("}");
-    }
-
-    private static void EmitInvokerBody(StringBuilder sb, DiscoveredJob j)
-    {
-        var handlerType = DisplayName(j.HandlerType!);
-
-        // Zero-input handlers (j.InputType is null) take no request parameter: the runtime still
-        // passes the fabricated NoInput sentinel as `request`, but the handler signature omits it.
-        var args = new List<string>();
-        if (j.InputType is not null)
-        {
-            sb.AppendLine($"        var typedRequest = ({DisplayName(j.InputType)})request;");
-            args.Add("typedRequest");
-        }
-        if (j.RequiresJobContext)
-        {
-            args.Add("context");
-        }
-        if (j.RequiresCancellationToken)
-        {
-            args.Add("ct");
-        }
-        var argList = string.Join(", ", args);
-
-        // Static handlers call the type directly; instance handlers go through DI so any
-        // constructor-injected dependencies resolve from the per-attempt scope.
-        string target;
-        if (j.IsStaticMethod)
-        {
-            target = $"{handlerType}.{j.MethodName}({argList})";
-        }
-        else
-        {
-            sb.AppendLine($"        var handler = ActivatorUtilities.CreateInstance<{handlerType}>(attemptServices);");
-            target = $"handler.{j.MethodName}({argList})";
-        }
-
-        // Three axes determine the body: is the handler async, does it return a T (vs void), and
-        // does the descriptor propagate that T (hasResult). Voids stay synchronous and must
-        // satisfy the ValueTask<T> invoker contract via an explicit `await ValueTask.CompletedTask`.
-        // Async-no-result includes the "Task<T>-with-parameterless-T" collapse: the Task is still
-        // awaited so side-effects/exceptions complete; the boxed empty value is discarded.
-        var hasResult = j.OutputType is not null;
-        var isAsync =
-            j.InvocationKind
-            is JobInvocationKind.Task
-                or JobInvocationKind.TaskOfT
-                or JobInvocationKind.ValueTask
-                or JobInvocationKind.ValueTaskOfT;
-        var returnsT = j.InvocationKind is JobInvocationKind.SyncOfT or JobInvocationKind.TaskOfT or JobInvocationKind.ValueTaskOfT;
-
-        if (isAsync)
-        {
-            if (hasResult)
-            {
-                sb.AppendLine($"        var result = await {target};");
-                sb.AppendLine("        return new JobHandlerOutput(HasResult: true, Result: result);");
-            }
-            else
-            {
-                sb.AppendLine($"        await {target};");
-                sb.AppendLine("        return new JobHandlerOutput(HasResult: false, Result: null);");
-            }
-        }
-        else
-        {
-            if (hasResult)
-            {
-                sb.AppendLine($"        var result = {target};");
-            }
-            else if (returnsT)
-            {
-                sb.AppendLine($"        _ = {target};");
-            }
-            else
-            {
-                sb.AppendLine($"        {target};");
-            }
-            sb.AppendLine("        await ValueTask.CompletedTask;");
-            var resultClause = hasResult ? "HasResult: true, Result: result" : "HasResult: false, Result: null";
-            sb.AppendLine($"        return new JobHandlerOutput({resultClause});");
-        }
-    }
-
-    private static string DisplayName(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-
-    /// <summary>
-    /// A zero-input handler has no TIn; its descriptor InputType slot is the framework NoInput
-    /// sentinel so the runtime keeps a non-null input type for hashing, registration, and dispatch.
-    /// </summary>
-    private static string InputTypeExpr(DiscoveredJob j) => j.InputType is null ? "global::Acta.NoInput" : DisplayName(j.InputType);
-
-    /// <summary>
-    /// Job name (kebab) -&gt; C# identifier: capitalize the first letter of each alphanumeric run,
-    /// drop separators. "hello" -&gt; "Hello", "send-mail" -&gt; "SendMail", "sys.alerts" -&gt; "SysAlerts".
-    /// </summary>
-    private static string PascalCase(string jobName)
-    {
-        var sb = new StringBuilder(jobName.Length);
-        var upcoming = true;
-        foreach (var c in jobName)
-        {
-            if (!char.IsLetterOrDigit(c))
-            {
-                upcoming = true;
-                continue;
-            }
-            sb.Append(upcoming ? char.ToUpperInvariant(c) : c);
-            upcoming = false;
-        }
-        return sb.ToString();
-    }
-
-    private static string PayloadFormatExpression(string name, IReadOnlyDictionary<string, byte> customFormatById) =>
-        name switch
-        {
-            "none" => "global::Acta.JobPayloadFormat.None",
-            "json" => "global::Acta.JobPayloadFormat.Json",
-            "bytes" => "global::Acta.JobPayloadFormat.Bytes",
-            "text" => "global::Acta.JobPayloadFormat.Text",
-            _ when customFormatById.TryGetValue(name, out var id) => $"global::Acta.JobPayloadFormat.Custom({id}, \"{name}\")",
-            // Unreachable for emitted jobs: an unknown name is rejected by ACTA0132 and the job is
-            // excluded before emit. This defensive branch keeps the switch total.
-            _ => $"global::Acta.JobPayloadFormat.Custom(128, \"{name}\")",
-        };
-
-    /// <summary>
-    /// Factory methods for every <c>ACTAxxxx</c> diagnostic the generator can emit. One ID per fix
-    /// category; message variants carry the specifics.
-    /// </summary>
-    private static class Diagnostics
-    {
-        /// <summary>
-        /// ACTA01xx descriptors. Messages are fully formatted at the check site; every descriptor passes
-        /// them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
-        /// </summary>
-        private static readonly DiagnosticDescriptor DuplicateName = new(
-            id: "ACTA0101",
-            title: "Job names must be unique within the manifest",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidName = new(
-            id: "ACTA0102",
-            title: "Job names must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidSignature = new(
-            id: "ACTA0103",
-            title: "Job handler signatures must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor DuplicateInput = new(
-            id: "ACTA0104",
-            title: "Job input types should route uniquely for typed enqueue",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Warning,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidPolicy = new(
-            id: "ACTA0105",
-            title: "Job policy values must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor ContractCollision = new(
-            id: "ACTA0106",
-            title: "Job contract member names should not collide",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Warning,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidSchedule = new(
-            id: "ACTA0121",
-            title: "Job schedule declarations must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidScheduleExpr = new(
-            id: "ACTA0122",
-            title: "Job schedule expressions must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor ScheduledInputCtor = new(
-            id: "ACTA0123",
-            title: "Scheduled job inputs must be constructible",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidPayloadFormat = new(
-            id: "ACTA0131",
-            title: "Payload format declarations must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidPayloadFormatUsage = new(
-            id: "ACTA0132",
-            title: "Payload format usage on [Job] must be valid",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        private static readonly DiagnosticDescriptor InvalidDurationUnitDescriptor = new(
-            id: "ACTA0142",
-            title: "Acta durations must use lowercase non-calendar units",
-            messageFormat: "{0}",
-            category: "Acta",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
-
-        public static DiagnosticDescriptor For(string id) =>
-            id switch
-            {
-                "ACTA0101" => DuplicateName,
-                "ACTA0102" => InvalidName,
-                "ACTA0103" => InvalidSignature,
-                "ACTA0104" => DuplicateInput,
-                "ACTA0105" => InvalidPolicy,
-                "ACTA0106" => ContractCollision,
-                "ACTA0121" => InvalidSchedule,
-                "ACTA0122" => InvalidScheduleExpr,
-                "ACTA0123" => ScheduledInputCtor,
-                "ACTA0131" => InvalidPayloadFormat,
-                "ACTA0132" => InvalidPayloadFormatUsage,
-                "ACTA0142" => InvalidDurationUnitDescriptor,
-                _ => throw new InvalidOperationException($"Unknown ACTA01xx descriptor '{id}'."),
-            };
-
-        /// <summary>
-        /// ACTA0101: duplicate [Job] name within the manifest.
-        /// </summary>
-        public static DiagnosticRecord DuplicateJobName(DiscoveredJob job) =>
-            new(
-                "ACTA0101",
-                $"Duplicate `[Job(\"{job.JobName}\")]` name on `{job.HandlerType?.ToDisplayString()}.{job.MethodName}`. Job names are unique within the manifest.",
-                job.Location
-            );
-
-        /// <summary>
-        /// ACTA0102: invalid [Job] name.
-        /// </summary>
-        public static DiagnosticRecord InvalidJobName(DiscoveredJob job) =>
-            new(
-                "ACTA0102",
-                $"`[Job(\"{job.JobName}\")]` is not a valid JobName. Names are kebab-case (`[a-z][a-z0-9-]*`, no leading/trailing/double dash), at most 128 chars; the `sys.` prefix is reserved for system jobs.",
-                job.Location
-            );
-
-        /// <summary>
-        /// ACTA0103: invalid handler signature; one ID, per-variant messages.
-        /// </summary>
-        public static DiagnosticRecord InvalidParameterOrder(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` has an invalid parameter order. Canonical order is `Handle(TIn, JobContext?, CancellationToken?)`; `JobContext` must precede `CancellationToken`.",
-                location
-            );
-
-        public static DiagnosticRecord AsyncVoid(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` is `async void`. Async handlers must return `Task`, `Task<TOut>`, `ValueTask`, or `ValueTask<TOut>` so the framework can await completion.",
-                location
-            );
-
-        public static DiagnosticRecord NestedAwaitableReturn(IMethodSymbol method, ITypeSymbol resultType, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` returns a nested awaitable (`{resultType.ToDisplayString()}`). Unwrap the inner task: return `Task<T>` / `ValueTask<T>` where `T` is the durable result.",
-                location
-            );
-
-        public static DiagnosticRecord ExtraParameter(IMethodSymbol method, IParameterSymbol p, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` declares an extra parameter `{p.Type.ToDisplayString()} {p.Name}`. Handler methods accept only the request, optional `JobContext`, and optional `CancellationToken`; resolve dependencies through constructor injection.",
-                location
-            );
-
-        public static DiagnosticRecord ForbiddenInputType(IMethodSymbol method, ITypeSymbol inputType, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` declares its input as `{inputType.ToDisplayString()}`, which is a forbidden framework type. The first parameter is `TIn` (use a parameterless record, e.g. `record Reconcile;`, for payload-less jobs); `JobContext`, `CancellationToken`, `IServiceProvider`, `Task`/`ValueTask`, and ref-like types are reserved.",
-                location
-            );
-
-        public static DiagnosticRecord OpenGenericHandler(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` is generic. Open-generic handler methods are invalid; every descriptor must resolve to a closed concrete TIn (and optional TOut). Replace the type parameters with concrete types.",
-                location
-            );
-
-        public static DiagnosticRecord PrivateHandler(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` is private. Job handlers must be at least `internal`; the source-generated manifest cannot reference a private method.",
-                location
-            );
-
-        public static DiagnosticRecord PrivateContainingType(IMethodSymbol method, INamedTypeSymbol container, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}`'s containing type `{container.Name}` is private. Job handlers must live on a non-private type.",
-                location
-            );
-
-        public static DiagnosticRecord JobContextWithoutCancellationToken(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` declares `(TIn, JobContext)` without `CancellationToken`. Context-aware handlers must also accept `CancellationToken`; canonical shape is `Handle(TIn, JobContext, CancellationToken)`.",
-                location
-            );
-
-        public static DiagnosticRecord SyncWithJobContext(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0103",
-                $"`[Job]` method `{method.Name}` declares `JobContext` but returns synchronously. `JobContext` is paired with the per-attempt `CancellationToken`; return `Task`/`Task<TOut>`/`ValueTask`/`ValueTask<TOut>`.",
-                location
-            );
-
-        /// <summary>
-        /// ACTA0104: duplicate input type within the manifest (warning; the manifest still emits).
-        /// </summary>
-        public static DiagnosticRecord DuplicateInputType(DiscoveredJob job, string inputTypeName) =>
-            new(
-                "ACTA0104",
-                $"Input type `{inputTypeName}` is declared by multiple `[Job]` handlers in this manifest; typed enqueue cannot resolve a unique route from it. Give the jobs distinct input types, or enqueue them via the raw `JobEnqueueRequest` path, which names the job.",
-                job.Location
-            );
-
-        /// <summary>
-        /// ACTA0106: contract member name collision within the manifest (warning; the jobs stay
-        /// valid, only their contract members are omitted).
-        /// </summary>
-        public static DiagnosticRecord ContractMemberCollision(DiscoveredJob job, string memberName) =>
-            new(
-                "ACTA0106",
-                $"`[Job(\"{job.JobName}\")]` produces contract member `{memberName}`, which collides with another job in this manifest once separators are removed and case is ignored (e.g. `send-mail` and `sendmail`, or `job-1` and `job1`). Rename one job for a contract member; the colliding members are omitted (`Descriptors` and the typed/raw enqueue paths are unaffected).",
-                job.Location
-            );
-
-        /// <summary>
-        /// ACTA0105: invalid [Job] policy value; one ID, per-variant messages.
-        /// </summary>
-        public static DiagnosticRecord InvalidDuration(string argument, string value, Location location) =>
-            new(
-                "ACTA0105",
-                $"`[Job]` argument `{argument}` value `\"{value}\"` is not a valid non-negative Acta duration (e.g. `\"30s\"`, `\"1m\"`, `\"2h\"`). The framework default is used until corrected.",
-                location
-            );
-
-        public static DiagnosticRecord InvalidDurationUnit(string unit, Location location) =>
-            new("ACTA0142", $"Unit '{unit}' is not valid. Use '1m' for minutes. (Acta durations have no calendar units.)", location);
-
-        public static DiagnosticRecord InvalidPolicyValue(string argument, string value, string requirement, Location location) =>
-            new(
-                "ACTA0105",
-                $"`[Job]` argument `{argument}` value `{value}` is invalid. {requirement} The framework default is used until corrected.",
-                location
-            );
-
-        /// <summary>
-        /// ACTA0121: invalid [JobSchedule] declaration; one ID, per-variant messages.
-        /// </summary>
-        public static DiagnosticRecord ScheduleWithoutJob(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0121",
-                $"Method `{method.Name}` declares `[JobSchedule]` without `[Job]`. A schedule rides a job definition; add `[Job(\"...\")]` to the method.",
-                location
-            );
-
-        public static DiagnosticRecord InvalidScheduleName(DiscoveredJob job, string scheduleName) =>
-            new(
-                "ACTA0121",
-                $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` is not a valid schedule name. Names are kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars; the `sys.` prefix is reserved for system schedules.",
-                job.Location
-            );
-
-        public static DiagnosticRecord DuplicateScheduleName(DiscoveredJob job, string scheduleName) =>
-            new(
-                "ACTA0121",
-                $"`[Job(\"{job.JobName}\")]` declares `[JobSchedule(\"{scheduleName}\")]` more than once. Schedule names are unique within the definition.",
-                job.Location
-            );
-
-        public static DiagnosticRecord BlankScheduleExpression(DiscoveredJob job, string scheduleName) =>
-            new(
-                "ACTA0121",
-                $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` has a blank expression. Supply a cron expression (Cronos dialect) or an interval duration (e.g. `\"5m\"` or `\"PT5M\"`).",
-                job.Location
-            );
-
-        public static DiagnosticRecord LanedSchedule(DiscoveredJob job) =>
-            new(
-                "ACTA0121",
-                $"`[Job(\"{job.JobName}\")]` declares a `Lane` and a `[JobSchedule]`. A recurring slot never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work from the scheduled job.",
-                job.Location
-            );
-
-        public static DiagnosticRecord BlankScheduleEnvironment(DiscoveredJob job, string scheduleName) =>
-            new(
-                "ACTA0121",
-                $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` lists a blank `Environments` entry. Every entry is a non-empty environment name.",
-                job.Location
-            );
-
-        /// <summary>
-        /// ACTA0122: invalid schedule expression.
-        /// </summary>
-        public static DiagnosticRecord InvalidScheduleExpression(DiscoveredJob job, string scheduleName, string expression) =>
-            new(
-                "ACTA0122",
-                $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` expression `\"{expression}\"` is not a valid cron expression (Cronos dialect, 5 or 6 fields) or positive interval duration (e.g. `\"5m\"` or `\"PT5M\"`).",
-                job.Location
-            );
-
-        /// <summary>
-        /// ACTA0123: scheduled handler whose input cannot be default-constructed.
-        /// </summary>
-        public static DiagnosticRecord ScheduledInputNotConstructible(IMethodSymbol method, ITypeSymbol inputType, Location location) =>
-            new(
-                "ACTA0123",
-                $"`[Job]` method `{method.Name}` declares one or more `[JobSchedule]` but its input `{inputType.ToDisplayString()}` has no accessible parameterless constructor. The recurring slot seeds its payload from `new {inputType.Name}()`; give the input a parameterless constructor or use a parameterless record (e.g. `record Reconcile;`).",
-                location
-            );
-
-        /// <summary>
-        /// ACTA0131: invalid [JobPayloadFormatDeclaration]; one ID, per-variant messages.
-        /// </summary>
-        public static DiagnosticRecord PayloadFormatIdReserved(CustomPayloadFormat format) =>
-            new(
-                "ACTA0131",
-                $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` uses a reserved format id. Custom formats use ids 128..255; 0..127 belong to Acta.",
-                format.Location
-            );
-
-        public static DiagnosticRecord InvalidPayloadFormatName(CustomPayloadFormat format) =>
-            new(
-                "ACTA0131",
-                $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` is not a valid format name. Names are kebab-case (`[a-z][a-z0-9-]*`), at most 64 chars, and must not collide with the built-in `json`/`text`/`bytes`/`none`.",
-                format.Location
-            );
-
-        public static DiagnosticRecord DuplicatePayloadFormat(CustomPayloadFormat format, string what) =>
-            new(
-                "ACTA0131",
-                $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` duplicates the {what} of another declaration in this compilation. Format ids and names are unique.",
-                format.Location
-            );
-
-        public static DiagnosticRecord PayloadFormatNotSerializer(CustomPayloadFormat format) =>
-            new(
-                "ACTA0131",
-                $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` decorates a class that does not implement `IJobPayloadSerializer`. The attributed class is the serializer for the format.",
-                format.Location
-            );
-
-        /// <summary>
-        /// ACTA0132: invalid [Job] payload-format usage; one ID, per-variant messages.
-        /// </summary>
-        public static DiagnosticRecord PayloadFormatConflict(string other, Location location) =>
-            new(
-                "ACTA0132",
-                $"`[Job]` sets both `Format` and `{other}`. `Format` applies to input and output together; use `Format` alone, or the per-side `InputFormat`/`OutputFormat`, not both.",
-                location
-            );
-
-        public static DiagnosticRecord OutputFormatOnVoidHandler(IMethodSymbol method, Location location) =>
-            new(
-                "ACTA0132",
-                $"`[Job]` method `{method.Name}` sets `OutputFormat` but returns no result. A void- or `Task`-returning handler has no output payload; remove `OutputFormat`.",
-                location
-            );
-
-        public static DiagnosticRecord UnknownPayloadFormat(DiscoveredJob job, string name) =>
-            new(
-                "ACTA0132",
-                $"`[Job(\"{job.JobName}\")]` references payload format `\"{name}\"`, which is neither a built-in (`json`/`text`/`bytes`) nor a `[JobPayloadFormatDeclaration]` in this compilation. Declare a serializer for it or use a known format name.",
-                job.Location
-            );
-    }
-
-    private sealed record ParameterModel(ITypeSymbol? InputType, bool HasJobContext, bool HasCancellationToken);
-
-    private sealed record ReturnTypeModel(ITypeSymbol? OutputType, JobInvocationKind InvocationKind);
-
-    private sealed record DiagnosticRecord(string Id, string Message, Location Location);
+    internal sealed record DiagnosticRecord(string Id, string Message, Location Location);
 
     internal readonly record struct CustomPayloadFormat(byte Id, string Name, bool ImplementsSerializer, Location Location);
 
@@ -2392,7 +486,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         ValueTaskOfT = 6,
     }
 
-    private sealed record DiscoveredJob(
+    internal sealed record DiscoveredJob(
         string JobName,
         INamedTypeSymbol? HandlerType,
         string MethodName,
@@ -2440,7 +534,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         }
     }
 
-    private sealed record DiscoveredSchedule(
+    internal sealed record DiscoveredSchedule(
         string JobName,
         string ScheduleName,
         string Expression,
