@@ -3,15 +3,15 @@ using System.Globalization;
 
 namespace Acta.Runtime;
 
-/// <summary><see cref="AlertLifecycle.RaiseJobAlertAsync"/>: one routine call answering the post-raise occurrence.</summary>
-internal sealed class RaiseJobAlertHandler(IDbSession session, ISqlDialect dialect)
+/// <summary><see cref="AlertLifecycle.RaiseAlertAsync"/>: one routine call answering the post-raise occurrence.</summary>
+internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<AlertOccurrence> HandleAsync(RaiseJobAlertCommand command, CancellationToken ct)
+    public async Task<AlertOccurrence> HandleAsync(RaiseAlertCommand command, CancellationToken ct)
     {
         try
         {
             var rows = await session.ExecuteAsync(
-                new StoreCommand("RaiseJobAlert"),
+                new StoreCommand("RaiseAlert"),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, command.JobNamespace));
@@ -39,7 +39,7 @@ internal sealed class RaiseJobAlertHandler(IDbSession session, ISqlDialect diale
 
             return rows.Count > 0 && rows[^1] is { } occurrence
                 ? occurrence
-                : throw new InvalidOperationException("raise_job_alert returned no occurrence_count.");
+                : throw new InvalidOperationException("raise_alert returned no occurrence_count.");
         }
         catch (DbException ex) when (ex.Message.Contains("ACTA:ALERT_UNKNOWN_JOB:", StringComparison.Ordinal))
         {

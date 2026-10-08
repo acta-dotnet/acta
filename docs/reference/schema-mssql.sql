@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 41)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 42)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4054,7 +4054,7 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.raise_job_alert
+CREATE OR ALTER PROCEDURE acta.raise_alert
     @p_namespace_name VARCHAR(128),
     @p_job_id BIGINT,
     @p_origin_code TINYINT,
@@ -4084,7 +4084,7 @@ BEGIN
             WHERE name = @p_namespace_name
         );
         IF @v_ns IS NULL
-            THROW 50000, 'raise_job_alert: unknown namespace', 1;
+            THROW 50000, 'raise_alert: unknown namespace', 1;
 
         -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
         -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
@@ -4095,7 +4095,7 @@ BEGIN
         WHERE id = @p_job_id;
 
         IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
-            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
+            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id', 1;
 
         IF @p_dedupe_key IS NULL
             BEGIN
@@ -5950,9 +5950,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.41-05c97400f65bd67d854b9d541a21aa76', 'acta'
+SELECT -1, 'objects-1.42-67ff88c5f0d8d970e02a51be01ecc5d4', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO
 COMMIT TRANSACTION;
 GO

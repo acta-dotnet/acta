@@ -161,7 +161,7 @@ row, are the long-horizon record. This key names an **incident**, not a time buc
 index on `(namespace_id, dedupe_key)` filtered to unresolved rows, so at most one OPEN row exists per
 key at any moment (`JobAlert.cs`). A repeat of the same condition while that row is open folds onto it
 — `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
-(`RaiseJobAlert.*.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
+(`RaiseAlert.*.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
 once a success stamps it, the row never reopens, and the next failure on the same key opens a fresh
 incident with a fresh ref and fresh delivery state.
 
@@ -179,12 +179,12 @@ Four things follow from the key's shape:
 
 Automatic writes are replay-safe. Each carries the projecting event's id, and the upsert increments and
 re-stamps only when that id is strictly newer than the row's `last_projected_event_id`
-(`AlertsJob.EmitAsync`, `RaiseJobAlert.*.sql`). Because resolution is terminal, a failure event
+(`AlertsJob.EmitAsync`, `RaiseAlert.*.sql`). Because resolution is terminal, a failure event
 replayed after the incident it belongs to has already closed must not reopen it: the insert arm is
 guarded against every row of the identity, resolved ones included, not just the open one, so a raise
 whose event the identity has already absorbed at or past that id opens nothing — the ghost-incident
-guard (`RaiseJobAlert.*.sql`). The public `alert_ref` is applied on the INSERT arm only, and is
-absent from the `DO UPDATE SET` list (`RaiseJobAlert.*.sql`), so a row keeps the ref its first
+guard (`RaiseAlert.*.sql`). The public `alert_ref` is applied on the INSERT arm only, and is
+absent from the `DO UPDATE SET` list (`RaiseAlert.*.sql`), so a row keeps the ref its first
 firing minted for as long as the incident stays open, and the next incident on the same key gets a ref
 of its own.
 
@@ -208,7 +208,7 @@ A successful execution resolves that job's open automatic alerts and writes noth
 
 Manual alerts are a separate path throughout — separate by key, not by wall. `ctx.AlertAsync`
 writes `origin = Manual`, `kind = Manual` (`JobContext.AlertAsync`,
-`RaiseJobAlertCommand.Manual`), which the automatic resolve never matches. A caller that
+`RaiseAlertCommand.Manual`), which the automatic resolve never matches. A caller that
 deliberately reuses an automatic `auto:` key merges its raise onto that incident and takes over
 its lifecycle; Acta does not police key choice, it deduplicates on it. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlerts.ResolveAsync`
 (`IAlerts.AcknowledgeAsync`, `IAlerts.ResolveAsync`) are idempotent, emit `alert.acknowledged` (140) /
@@ -243,7 +243,7 @@ restarts the count at 1 (`JobsOptions.AlertFailureThreshold`).
 Delivery selects an unresolved incident whose delivery is `Pending`/`RetryAfter` due now, or whose
 delivery already settled (`Delivered`/`Failed`) and whose scheduled reminder has come
 (`GetDeliverableAlerts.sql`; see [Delivery](#delivery)). Every newly inserted row is born `Pending`
-(`AlertsJob.EmitAsync`, `RaiseJobAlert.*.sql`), so a new incident's first notification is
+(`AlertsJob.EmitAsync`, `RaiseAlert.*.sql`), so a new incident's first notification is
 immediate.
 
 **A job that is permanently broken produces exactly one open incident row per (kind, reason) — one for

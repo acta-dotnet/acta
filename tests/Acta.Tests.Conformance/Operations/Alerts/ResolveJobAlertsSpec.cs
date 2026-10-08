@@ -127,8 +127,8 @@ public sealed class ResolveJobAlertsSpec : ActaStorageTestBase<ConformanceFixtur
     ) =>
         Services
             .GetRequiredService<AlertLifecycle>()
-            .RaiseJobAlertAsync(
-                RaiseJobAlertCommand.Create(
+            .RaiseAlertAsync(
+                RaiseAlertCommand.Create(
                     TestNamespace,
                     jobId,
                     origin,

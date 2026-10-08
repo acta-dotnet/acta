@@ -619,8 +619,8 @@ internal sealed class RuntimeJobContext(
         CancellationToken ct
     )
     {
-        await _alerts.RaiseJobAlertAsync(
-            RaiseJobAlertCommand.Manual(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey),
+        await _alerts.RaiseAlertAsync(
+            RaiseAlertCommand.Manual(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey),
             ct
         );
     }

@@ -351,10 +351,10 @@ internal sealed class AlertsJob(
 
         // The two proven poison shapes are re-tagged here, at the site that proves them, so the
         // projector's skip path never swallows an ArgumentException raised by an unrelated defect.
-        RaiseJobAlertCommand command;
+        RaiseAlertCommand command;
         try
         {
-            command = RaiseJobAlertCommand.Create(
+            command = RaiseAlertCommand.Create(
                 ctx.JobNamespace,
                 e.JobId,
                 AlertOriginCode.Automatic,
@@ -380,7 +380,7 @@ internal sealed class AlertsJob(
 
         try
         {
-            return await _alerts.RaiseJobAlertAsync(command, ct);
+            return await _alerts.RaiseAlertAsync(command, ct);
         }
         catch (ArgumentException ex) when (string.Equals(ex.ParamName, "jobId", StringComparison.Ordinal))
         {

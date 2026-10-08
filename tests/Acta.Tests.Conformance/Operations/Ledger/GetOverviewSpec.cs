@@ -101,7 +101,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     /// <list type="bullet">
     ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + StartExecution + CompleteExecution.</item>
     ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
-    ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseJobAlert.</item>
+    ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseAlert.</item>
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
     ///   <item>StaleWorkerCount · threshold flip: W2 aged 2 min; staleAfterSeconds=60 → 1, staleAfterSeconds=14400 → 0.</item>
     ///   <item>DueSoonScheduleCount · 0: dueSoonSeconds=1 and the slot cursors are parked a day out, so the one-second window can never include them.</item>

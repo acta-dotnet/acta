@@ -34,8 +34,8 @@ internal static class AlertTestOps
     ) =>
         services
             .GetRequiredService<AlertLifecycle>()
-            .RaiseJobAlertAsync(
-                RaiseJobAlertCommand.Create(
+            .RaiseAlertAsync(
+                RaiseAlertCommand.Create(
                     jobNamespace,
                     jobId,
                     origin,

@@ -88,7 +88,7 @@ public sealed class AlertsJobPoisonEventTests
                         .Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId))
                         .Take(call.Get(ActaSchema.Sql.AlertBatchSize))
                         .ToArray(),
-                    "RaiseJobAlert" => Raise(call.Get(ActaSchema.Alert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
+                    "RaiseAlert" => Raise(call.Get(ActaSchema.Alert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
                     "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }

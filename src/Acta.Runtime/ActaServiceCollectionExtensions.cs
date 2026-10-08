@@ -119,7 +119,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListEventsHandler>();
         services.TryAddSingleton<GetOverviewHandler>();
         services.TryAddSingleton<ILedger, Ledger>();
-        services.TryAddSingleton<RaiseJobAlertHandler>();
+        services.TryAddSingleton<RaiseAlertHandler>();
         services.TryAddSingleton<GetAlertableEventsHandler>();
         services.TryAddSingleton<GetDeliverableAlertsHandler>();
         services.TryAddSingleton<UpdateAlertDeliveryHandler>();

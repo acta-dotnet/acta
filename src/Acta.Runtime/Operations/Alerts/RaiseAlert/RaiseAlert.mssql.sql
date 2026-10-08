@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE {{schema}}.raise_job_alert
+CREATE OR ALTER PROCEDURE {{schema}}.raise_alert
     @p_namespace_name VARCHAR(128),
     @p_job_id BIGINT,
     @p_origin_code TINYINT,
@@ -28,7 +28,7 @@ BEGIN
             WHERE name = @p_namespace_name
         );
         IF @v_ns IS NULL
-            THROW 50000, 'raise_job_alert: unknown namespace', 1;
+            THROW 50000, 'raise_alert: unknown namespace', 1;
 
         -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
         -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
@@ -39,7 +39,7 @@ BEGIN
         WHERE id = @p_job_id;
 
         IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
-            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
+            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id', 1;
 
         IF @p_dedupe_key IS NULL
             BEGIN

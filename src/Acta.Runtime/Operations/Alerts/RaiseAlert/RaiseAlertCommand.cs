@@ -4,7 +4,7 @@ namespace Acta.Runtime;
 /// Validated alert raise; construct via <see cref="Create"/> so channel canonicalization, deduplication-key
 /// normalization, and bounded-prose truncation happen once, identically for every caller.
 /// </summary>
-internal sealed record RaiseJobAlertCommand(
+internal sealed record RaiseAlertCommand(
     string JobNamespace,
     long? JobId,
     AlertOriginCode Origin,
@@ -19,7 +19,7 @@ internal sealed record RaiseJobAlertCommand(
     Guid AlertRef
 )
 {
-    public static RaiseJobAlertCommand Create(
+    public static RaiseAlertCommand Create(
         string jobNamespace,
         long? jobId,
         AlertOriginCode origin,
@@ -39,7 +39,7 @@ internal sealed record RaiseJobAlertCommand(
             deduplicationKey = IdentifierSyntax.NormalizeKey(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDedupeKey);
         }
 
-        return new RaiseJobAlertCommand(
+        return new RaiseAlertCommand(
             jobNamespace,
             jobId,
             origin,
@@ -64,7 +64,7 @@ internal sealed record RaiseJobAlertCommand(
     /// high-water mark. A null deduplication key always inserts; a non-null key collapses onto the one open
     /// row carrying it, and opens a fresh row once that one is resolved.
     /// </summary>
-    public static RaiseJobAlertCommand Manual(
+    public static RaiseAlertCommand Manual(
         string jobNamespace,
         long jobId,
         AlertSeverityCode severity,

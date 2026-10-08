@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION {{schema}}.raise_job_alert(
+CREATE OR REPLACE FUNCTION {{schema}}.raise_alert(
     p_namespace_name VARCHAR,
     p_job_id BIGINT,
     p_origin_code SMALLINT,
@@ -26,7 +26,7 @@ BEGIN
 
     SELECT id INTO v_ns FROM {{schema}}.namespaces WHERE name = p_namespace_name;
     IF v_ns IS NULL THEN
-        RAISE EXCEPTION 'raise_job_alert: unknown namespace ''%''', p_namespace_name;
+        RAISE EXCEPTION 'raise_alert: unknown namespace ''%''', p_namespace_name;
     END IF;
 
     -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
@@ -35,7 +35,7 @@ BEGIN
     SELECT job_ref INTO v_job_ref FROM {{schema}}.jobs WHERE id = p_job_id FOR SHARE;
 
     IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
-        RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'
+        RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id'
             USING ERRCODE = 'P0001';
     END IF;
 

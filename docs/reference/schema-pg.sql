@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 41)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 42)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3401,7 +3401,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.raise_job_alert(
+CREATE OR REPLACE FUNCTION acta.raise_alert(
     p_namespace_name VARCHAR,
     p_job_id BIGINT,
     p_origin_code SMALLINT,
@@ -3429,7 +3429,7 @@ BEGIN
 
     SELECT id INTO v_ns FROM acta.namespaces WHERE name = p_namespace_name;
     IF v_ns IS NULL THEN
-        RAISE EXCEPTION 'raise_job_alert: unknown namespace ''%''', p_namespace_name;
+        RAISE EXCEPTION 'raise_alert: unknown namespace ''%''', p_namespace_name;
     END IF;
 
     -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
@@ -3438,7 +3438,7 @@ BEGIN
     SELECT job_ref INTO v_job_ref FROM acta.jobs WHERE id = p_job_id FOR SHARE;
 
     IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
-        RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'
+        RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -5207,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.41-9074819a9b360b044ab04817385403d0', 'acta');
+VALUES (-1, 'objects-1.42-df9cde2f6ff32d6d13231d4e26eef7d3', 'acta');
 
 COMMIT;
 

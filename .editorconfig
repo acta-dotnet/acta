@@ -642,7 +642,7 @@ dotnet_diagnostic.CA1031.severity = none
 # the conformance spec pins the shape, so the paramName is a protocol token between the provider and
 # the projection, not a misnamed argument. Renaming it to 'command' would break that filter and let a
 # null-command ArgumentNullException masquerade as an unknown job.
-[src/Acta.Runtime/Operations/Alerts/RaiseJobAlert/RaiseJobAlertHandler.cs]
+[src/Acta.Runtime/Operations/Alerts/RaiseAlert/RaiseAlertHandler.cs]
 dotnet_diagnostic.CA2208.severity = none
 
 # CA1031: spawning an OS clipboard tool fails in as many shapes as there are platforms - a missing

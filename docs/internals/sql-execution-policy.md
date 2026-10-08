@@ -165,7 +165,7 @@ child table, but it locks only the batch's own keys.
 ### Alert lock order
 
 A routine that writes a job's alerts locks the job row first, then the alert rows. `purge_job` holds the
-job row while it deletes the job's alerts, and `raise_job_alert` and `resolve_job_alerts` lock the same
+job row while it deletes the job's alerts, and `raise_alert` and `resolve_job_alerts` lock the same
 row before they touch an alert: `UPDLOCK` on SQL Server, `FOR SHARE` on PostgreSQL against the
 purge's `FOR UPDATE`. A raise or resolve that meets a purge of its job waits for it. A raise that then
 finds the job gone is refused, so no alert outlives its job.
@@ -182,7 +182,7 @@ finds the job gone is refused, so no alert outlives its job.
   primary key. On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
   each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
 - On SQL Server a row that has a deduplication identity is locked through its
-  `ix_alerts_dedupe_identity` key before the row itself. `raise_job_alert` seeks that index under
+  `ix_alerts_dedupe_identity` key before the row itself. `raise_alert` seeks that index under
   `UPDLOCK, HOLDLOCK`, pinned by name, and range-locks the identity and its next key. `purge_job` and
   the alert retention sections lock identity rows through the same index before deleting them.
   Retention stages its batch without locks and locks with `READPAST`, so it skips a row a raise holds.

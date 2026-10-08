@@ -48,7 +48,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
     /// Enqueue one job in this spec's own namespace and return its id, for use as an alert subject.
     /// </summary>
     /// <remarks>
-    /// raise_job_alert resolves job_id against the whole jobs table, not against the alert's namespace, so
+    /// raise_alert resolves job_id against the whole jobs table, not against the alert's namespace, so
     /// a hardcoded id (this spec used 1 and 2) names rows some other spec created in the shared acta_test
     /// schema and throws ACTA:ALERT_UNKNOWN_JOB the moment a purge or a schema reset removes them. Which
     /// ids the alerts hang off is irrelevant to the filter under test; that this spec owns them is not.

@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// reads, the delivery outcome, and the auto-resolve on success.
 /// </summary>
 internal sealed class AlertLifecycle(
-    RaiseJobAlertHandler raiseJobAlert,
+    RaiseAlertHandler raiseAlert,
     GetAlertableEventsHandler getAlertableEvents,
     GetDeliverableAlertsHandler getDeliverableAlerts,
     UpdateAlertDeliveryHandler updateAlertDelivery,
@@ -19,8 +19,7 @@ internal sealed class AlertLifecycle(
     /// resolution, and a replayed <c>SourceEventId</c> neither inflates a count nor reopens an incident. An
     /// unknown job id throws <see cref="ArgumentException"/>.
     /// </summary>
-    public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
-        raiseJobAlert.HandleAsync(command, ct);
+    public Task<AlertOccurrence> RaiseAlertAsync(RaiseAlertCommand command, CancellationToken ct) => raiseAlert.HandleAsync(command, ct);
 
     /// <summary>
     /// How far behind the database clock the alertable-event read stops, so every alertable row stamped at or

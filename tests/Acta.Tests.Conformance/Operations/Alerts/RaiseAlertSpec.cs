@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Alerts;
 
 /// <summary>
-/// Conformance for the manual-alert write path - the <c>raise_job_alert</c> slice and the
+/// Conformance for the manual-alert write path - the <c>raise_alert</c> slice and the
 /// <see cref="JobContext.AlertAsync"/> seam that wraps it. Asserts the SQL contract (a null deduplication key
 /// always inserts; a non-null key names an incident whose one open row absorbs every repeat, bumping
 /// <c>occurrence_count</c> and leaving delivery/resolution untouched; once that row is resolved the next
@@ -21,12 +21,12 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Alerts",
     Contract = "A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row."
 )]
-public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private const int ExecNo = 3;
 
     // A real definition + job are seeded so the alert's (job_id, job_ref) pair satisfies
-    // ck_alerts_job_ref_pair (raise_job_alert denormalizes job_ref from the jobs row).
+    // ck_alerts_job_ref_pair (raise_alert denormalizes job_ref from the jobs row).
     private long JobIdValue;
     private Guid JobRefValue;
     private int DefId;

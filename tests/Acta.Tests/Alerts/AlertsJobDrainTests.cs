@@ -198,7 +198,7 @@ public sealed class AlertsJobDrainTests
                         call.Get(ActaSchema.Sql.AlertBatchSize),
                         call.Get(ActaSchema.Sql.AlertHorizonUtc)
                     ),
-                    "RaiseJobAlert" => new AlertOccurrence(++Raises, call.Get(ActaSchema.Sql.SourceEventId)),
+                    "RaiseAlert" => new AlertOccurrence(++Raises, call.Get(ActaSchema.Sql.SourceEventId)),
                     "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }

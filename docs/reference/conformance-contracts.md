@@ -2224,7 +2224,7 @@
 | `PurgeExpiredData` | yes | yes | yes |
 | `PurgeJob` | yes | yes | yes |
 | `QuarantineOutbox` | yes | yes | yes |
-| `RaiseJobAlert` | yes | yes | yes |
+| `RaiseAlert` | yes | yes | yes |
 | `RaiseSignal` | yes | yes | yes |
 | `ReclaimStuckJobs` | yes | yes | yes |
 | `RecordNote` | yes | yes | yes |

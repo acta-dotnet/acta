@@ -60,7 +60,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // Positive control: the same shape with no violation inserts cleanly.
         Assert.True(await Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(), ct) > 0);
 
-        // ck_alerts_job_ref_pair: job_id set without job_ref (the shape raise_job_alert produces for an
+        // ck_alerts_job_ref_pair: job_id set without job_ref (the shape raise_alert produces for an
         // unknown job_id, load-bearing on the alert write path since the data-model-hardening re-cut).
         await Assert.ThrowsAnyAsync<DbException>(() => Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(jobId: 999_999_999), ct));
 

@@ -224,7 +224,7 @@ public sealed class JobsOptions
     /// <summary>
     /// Number of failures within one incident at which an automatic failure alert escalates to
     /// <c>ThresholdReached</c> (<c>Error</c> severity). The <c>sys.alerts</c> generate phase reads the
-    /// post-upsert <c>occurrence_count</c> from <c>raise_job_alert</c> and escalates when it meets this
+    /// post-upsert <c>occurrence_count</c> from <c>raise_alert</c> and escalates when it meets this
     /// value and the row's high-water mark names the event being projected - so a crash-replay re-fires
     /// the escalation only for the event that actually crossed, recovering an emit lost mid-batch, and
     /// never for the events around it; reset-immune, with no JOIN to the mutable

@@ -148,7 +148,7 @@
          trips generated text. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1305</NoWarn>
     <!-- Spec code only, and for one specific reason: the fakes and poison-event specs reproduce the
-         production throw shapes verbatim, including RaiseJobAlertAsync's 'jobId' paramName, which is not
+         production throw shapes verbatim, including RaiseAlertAsync's 'jobId' paramName, which is not
          a mistake but the unknown-job signal AlertsJob filters on. A spec that "corrected" the name
          would stop reproducing the thing it exists to pin. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA2208</NoWarn>

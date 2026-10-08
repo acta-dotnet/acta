@@ -89,7 +89,7 @@ public sealed class MessageTruncatorTests
         // The alert projector's real path: a stored reason within its own cap grows past the alert
         // cap once Render prefixes it, and the truncation must stay pair-safe there too.
         var reason = new string('r', 500) + "\U0001F4A5";
-        var command = RaiseJobAlertCommand.Create(
+        var command = RaiseAlertCommand.Create(
             "test-ns",
             jobId: 1,
             AlertOriginCode.Automatic,
