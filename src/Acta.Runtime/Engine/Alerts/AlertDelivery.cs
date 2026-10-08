@@ -225,7 +225,7 @@ internal sealed class AlertDelivery(
         CancellationToken ct
     )
     {
-        if (!await _alerts.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct))
+        if (!(await _alerts.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct)).Updated)
         {
             _log.LogDebug(
                 "ACTA sys.alerts: alert ({Ref}) moved while its delivery attempt was in flight; settlement is ({Outcome}) ({Detail}).",

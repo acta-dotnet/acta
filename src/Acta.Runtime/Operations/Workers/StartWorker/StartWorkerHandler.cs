@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="WorkerLifecycle.StartWorkerAsync"/>: one round trip.</summary>
 internal sealed class StartWorkerHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<StartWorkerRow> HandleAsync(StartWorkerCommand command, CancellationToken ct) =>
+    public Task<StartWorkerResponse> HandleAsync(StartWorkerCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("StartWorker"),
             cmd =>
@@ -21,7 +21,7 @@ internal sealed class StartWorkerHandler(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.MaxConcurrency, command.MaxConcurrency));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.WorkerRef, command.WorkerRef));
             },
-            DbProjectionResolver.Resolve<StartWorkerRow>(),
+            DbProjectionResolver.Resolve<StartWorkerResponse>(),
             ct
         );
 }

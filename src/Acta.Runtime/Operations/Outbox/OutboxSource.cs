@@ -29,8 +29,7 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
     /// row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger
     /// in staging order; that check must not skip locked rows, or a row another relay holds would read as gone.
     /// </summary>
-    public Task<IReadOnlyList<ClaimOutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) =>
-        _claim.HandleAsync(command, ct);
+    public Task<ClaimOutboxResponse> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) => _claim.HandleAsync(command, ct);
 
     /// <summary>
     /// Deletes every claimed row the command names whose representative safely ingested; a row whose token
@@ -71,16 +70,15 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
 
     /// <summary>
     /// Returns Quarantined rows to Pending, immediately due, failure count reset and last error kept as
-    /// evidence. The status filter is the whole guard, since quarantined rows are never claimed. Returns the
-    /// ids it requeued.
+    /// evidence. The status filter is the whole guard, since quarantined rows are never claimed.
     /// </summary>
-    public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
+    public Task<RequeueQuarantinedOutboxResponse> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
         _requeueQuarantined.HandleAsync(command, ct);
 
     /// <summary>
     /// Deletes Quarantined rows and returns their ids, so the applying tick can write them into ledger evidence
     /// before the proof leaves the source; the status filter keeps an in-flight claimed row safe.
     /// </summary>
-    public Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
+    public Task<DiscardQuarantinedOutboxResponse> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
         _discardQuarantined.HandleAsync(command, ct);
 }

@@ -1,9 +1,9 @@
 namespace Acta.Runtime;
 
-/// <summary>Keeps a held lock for another time to live; false when its hold token no longer matches.</summary>
+/// <summary>Keeps a held lock for another time to live, guarded by its hold token.</summary>
 internal sealed class ExtendLockHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<bool> HandleAsync(ExtendLockCommand command, CancellationToken ct)
+    public async Task<ExtendLockResponse> HandleAsync(ExtendLockCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("ExtendLock"),
@@ -16,6 +16,6 @@ internal sealed class ExtendLockHandler(IDbSession session, ISqlDialect dialect)
             static _ => true,
             ct
         );
-        return rows.Count > 0;
+        return new ExtendLockResponse(rows.Count > 0);
     }
 }

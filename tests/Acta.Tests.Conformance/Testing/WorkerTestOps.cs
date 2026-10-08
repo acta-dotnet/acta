@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class WorkerTestOps
 {
-    public static Task<StartWorkerRow> StartAsync(
+    public static Task<StartWorkerResponse> StartAsync(
         IServiceProvider services,
         string namespaceName,
         string? ownerTeam,

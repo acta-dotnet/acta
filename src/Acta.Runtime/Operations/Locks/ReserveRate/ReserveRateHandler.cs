@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class ReserveRateHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<RateReservation> HandleAsync(ReserveRateCommand command, CancellationToken ct)
+    public async Task<ReserveRateResponse> HandleAsync(ReserveRateCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("ReserveRate"),
@@ -25,8 +25,8 @@ internal sealed class ReserveRateHandler(IDbSession session, ISqlDialect dialect
                 // literals and each provider binds it in its own wire form.
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.HoldToken, Guid.Empty));
             },
-            // The routine answers (resume_at_utc, admitted, wait_ms), so the record is built by position.
-            static reader => new RateReservation(
+            // The routine answers (resume_at_utc, admitted, wait_ms), so the response is built by position.
+            static reader => new ReserveRateResponse(
                 Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture),
                 reader.GetDateTimeUtc(0),
                 Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture)

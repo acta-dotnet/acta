@@ -16,7 +16,7 @@ internal enum CompleteExecutionAction : byte
 /// namespace since the parent may live elsewhere, and <c>LanePromoted</c> that the lane's next member is now Ready.
 /// </summary>
 [DbProjection]
-internal sealed record CompleteExecutionRow(
+internal sealed record CompleteExecutionResponse(
     CompleteExecutionAction Action,
     byte? FinalStatusCode,
     DateTime? FinalNextRunAtUtc,

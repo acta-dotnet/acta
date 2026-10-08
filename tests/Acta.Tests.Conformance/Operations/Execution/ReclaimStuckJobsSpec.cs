@@ -123,9 +123,11 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var claimed = Assert.Single(
             await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
-        var started = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
+        var started = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+        ).Action;
         Assert.Equal(StartExecutionAction.Started, started);
 
         // Back-date the lease so the Executing row is eligible for reclaim.
@@ -167,9 +169,11 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var claimed = Assert.Single(
             await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
-        var started = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
+        var started = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+        ).Action;
         Assert.Equal(StartExecutionAction.Started, started);
 
         // One direct reclaim pass: must NOT touch the live-lease Executing row.
@@ -210,7 +214,9 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var claimed = Assert.Single(await execution.ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            (
+                await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            ).Action
         );
 
         var armed = await execution.ArmOrConsumeSleepTimerAsync(

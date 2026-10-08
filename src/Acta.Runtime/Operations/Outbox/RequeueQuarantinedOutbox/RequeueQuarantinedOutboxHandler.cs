@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="OutboxSource.RequeueQuarantinedAsync"/>: one statement answering the ids it requeued.</summary>
 internal sealed class RequeueQuarantinedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<IReadOnlyList<Guid>> HandleAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct)
+    public async Task<RequeueQuarantinedOutboxResponse> HandleAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct)
     {
         var affected = await session.ExecuteAsync(
             new StoreCommand("RequeueQuarantinedOutbox"),
@@ -14,6 +14,6 @@ internal sealed class RequeueQuarantinedOutboxHandler(IDbSession session, ISqlDi
             DbProjectionResolver.Resolve<RequeueQuarantinedOutboxRow>(),
             ct
         );
-        return [.. affected.Select(static row => row.OutboxId)];
+        return new RequeueQuarantinedOutboxResponse([.. affected.Select(static row => row.OutboxId)]);
     }
 }

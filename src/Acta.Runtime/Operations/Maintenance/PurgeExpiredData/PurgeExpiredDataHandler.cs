@@ -1,9 +1,9 @@
 namespace Acta.Runtime;
 
-/// <summary>Deletes one bounded batch of a retention section and returns how many roots it deleted.</summary>
+/// <summary>Deletes one bounded batch of a retention section.</summary>
 internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<int> HandleAsync(PurgeExpiredDataCommand command, CancellationToken ct)
+    public async Task<PurgeExpiredDataResponse> HandleAsync(PurgeExpiredDataCommand command, CancellationToken ct)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
         if (command.Section is < RetentionSection.Jobs or > RetentionSection.Lanes)
@@ -23,6 +23,6 @@ internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect di
             ct
         );
 
-        return rows.Single();
+        return new PurgeExpiredDataResponse(rows.Single());
     }
 }

@@ -243,7 +243,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         return worker.Id;
     }
 
-    private Task<CompleteExecutionRow> CompleteAsync(
+    private Task<CompleteExecutionResponse> CompleteAsync(
         long jobId,
         int workerId,
         IReadOnlyList<ScheduleAdvance> advances,

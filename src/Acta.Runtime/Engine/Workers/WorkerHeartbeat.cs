@@ -168,7 +168,7 @@ internal sealed class WorkerHeartbeat(
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)
                 {
-                    foreach (var row in await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, ct))
+                    foreach (var row in (await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, ct)).Leases)
                     {
                         live.Add((row.JobId, row.ExecutionNumber));
                         if (row.Renewed)

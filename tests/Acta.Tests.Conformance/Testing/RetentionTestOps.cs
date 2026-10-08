@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class RetentionTestOps
 {
-    public static Task<PurgeExpiredDataResponse> PurgeAsync(
+    public static Task<RetentionSweepCounts> PurgeAsync(
         IServiceProvider services,
         int namespaceId,
         int eventsRetentionDays,
@@ -54,7 +54,7 @@ internal static class RetentionTestOps
     /// outcome and the counts across the whole drain rather than what one pass happened to catch.
     /// Same shape as <see cref="RecoverySweep.ReclaimAtLeastOneAsync"/>, for the same reason.
     /// </remarks>
-    public static async Task<PurgeExpiredDataResponse> PurgeUntilAsync(
+    public static async Task<RetentionSweepCounts> PurgeUntilAsync(
         IServiceProvider services,
         int namespaceId,
         int eventsRetentionDays,
@@ -67,7 +67,7 @@ internal static class RetentionTestOps
     )
     {
         const int maxAttempts = 300;
-        var total = default(PurgeExpiredDataResponse);
+        var total = default(RetentionSweepCounts);
         for (var attempt = 0; ; attempt++)
         {
             var result = await PurgeAsync(
@@ -80,7 +80,7 @@ internal static class RetentionTestOps
                 maxIterations,
                 ct
             );
-            total = new PurgeExpiredDataResponse(
+            total = new RetentionSweepCounts(
                 total.Jobs + result.Jobs,
                 total.Events + result.Events,
                 total.Alerts + result.Alerts,

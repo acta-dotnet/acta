@@ -1,12 +1,12 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Version-CAS delete of an applied command row. False means a newer command superseded it while it was
-/// being applied; the newer command simply applies on the next tick.
+/// Version-CAS delete of an applied command row. A command superseded while it was being applied is not
+/// consumed; the newer command simply applies on the next tick.
 /// </summary>
 internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<bool> HandleAsync(ConsumeOutboxSignalCommand command, CancellationToken ct)
+    public async Task<ConsumeOutboxSignalResponse> HandleAsync(ConsumeOutboxSignalCommand command, CancellationToken ct)
     {
         var row = await session.ExecuteSingleAsync(
             new StoreCommand("ConsumeOutboxSignal"),
@@ -19,6 +19,6 @@ internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect
             DbProjectionResolver.Resolve<ConsumeOutboxSignalRow>(),
             ct
         );
-        return row is { Consumed: > 0 };
+        return new ConsumeOutboxSignalResponse(row is { Consumed: > 0 });
     }
 }

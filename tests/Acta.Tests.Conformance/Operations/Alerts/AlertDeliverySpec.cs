@@ -289,7 +289,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     private Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct) =>
         Services.GetRequiredService<AlertLifecycle>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct);
 
-    private Task<bool> SettleAsync(
+    private async Task<bool> SettleAsync(
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
@@ -297,16 +297,20 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
         DateTime? retryAfterUtc,
         CancellationToken ct
     ) =>
-        Services
-            .GetRequiredService<AlertLifecycle>()
-            .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct);
+        (
+            await Services
+                .GetRequiredService<AlertLifecycle>()
+                .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct)
+        ).Updated;
 
     private Task<int> ResolveAsync(CancellationToken ct) => ResolveAsync(JobIdValue, ct);
 
     private async Task<int> ResolveAsync(long jobId, CancellationToken ct) =>
-        await Services
-            .GetRequiredService<AlertLifecycle>()
-            .ResolveAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
+        (
+            await Services
+                .GetRequiredService<AlertLifecycle>()
+                .ResolveAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct)
+        ).Resolved;
 
     // Moves the row's scheduled instant without touching anything else, which is how these facts travel
     // in time: the delivery read compares retry_after_utc against the database's own clock, so rewinding

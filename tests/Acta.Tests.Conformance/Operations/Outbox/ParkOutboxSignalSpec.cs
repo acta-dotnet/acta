@@ -126,7 +126,13 @@ public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
         Assert.Equal(otherRequeue, (await RowAsync(otherJobId, OutboxSignalNames.Requeue, ct)).Value);
     }
 
-    private Task<ParkOutboxSignalRow> ParkAsync(long jobId, string name, byte[] value, DateTime staleBeforeUtc, CancellationToken ct) =>
+    private Task<ParkOutboxSignalResponse> ParkAsync(
+        long jobId,
+        string name,
+        byte[] value,
+        DateTime staleBeforeUtc,
+        CancellationToken ct
+    ) =>
         Services
             .GetRequiredService<ParkOutboxSignalHandler>()
             .HandleAsync(new ParkOutboxSignalCommand(jobId, name, Json, value, staleBeforeUtc), ct);

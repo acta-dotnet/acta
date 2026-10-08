@@ -38,9 +38,11 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
             await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct)
         );
 
-        var action = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct);
+        var action = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+        ).Action;
 
         Assert.Equal(StartExecutionAction.Started, action);
         var snapshot = await Jobs.GetAsync(enqueued, ct);
@@ -66,9 +68,11 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
 
         // Same id / worker / execution_number as the live claim, but a version that no longer matches
         // the row - exactly the state a reclaim or steal leaves behind for the stale buffered claim.
-        var action = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version + 1, leaseTtl, ct);
+        var action = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version + 1, leaseTtl, ct)
+        ).Action;
 
         Assert.Equal(StartExecutionAction.LostClaim, action);
         var snapshot = await Jobs.GetAsync(enqueued, ct);
@@ -97,9 +101,11 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
             await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, leaseTtlSeconds: -5, enqueued, ct)
         );
 
-        var action = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtlSeconds: 180, ct);
+        var action = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtlSeconds: 180, ct)
+        ).Action;
 
         Assert.Equal(StartExecutionAction.LeaseExpired, action);
         var snapshot = await Jobs.GetAsync(enqueued, ct);

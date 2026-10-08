@@ -39,10 +39,10 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
         var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
         var key = TestKey("ck.release-lock-spec");
 
-        var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
+        var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;
         Assert.NotNull(token);
 
-        Assert.True(await locks.ReleaseLockAsync(token!.Value, ct));
+        Assert.True((await locks.ReleaseLockAsync(token!.Value, ct)).Released);
 
         // Gone, not expired in place: the query carries no expiry filter, so an expire-style
         // release would still return the row and fail here. See the class remarks for why
@@ -51,10 +51,10 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(lease);
 
         // Releasing again with the same (now-stale) token is a token-CAS miss.
-        Assert.False(await locks.ReleaseLockAsync(token.Value, ct));
+        Assert.False((await locks.ReleaseLockAsync(token.Value, ct)).Released);
 
         // Key is free: a new acquire succeeds.
-        var reacquired = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
+        var reacquired = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct)).Token;
         Assert.NotNull(reacquired);
 
         await locks.ReleaseLockAsync(reacquired!.Value, ct);

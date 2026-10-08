@@ -96,12 +96,12 @@ public sealed class AlertsJobPoisonEventTests
 
         // A deterministic failure is the provider's unknown-job error, which the raise handler maps to the
         // ArgumentException the projection skips.
-        private AlertOccurrence Raise(long? jobId, long? sourceEventId)
+        private RaiseAlertResponse Raise(long? jobId, long? sourceEventId)
         {
             RaiseAttempts.Add(jobId == 101 ? 11L : 12L);
             return jobId == 101
                 ? throw failure ?? (deterministicFailure ? new UnknownJob() : new TimeoutException("provider timeout"))
-                : new AlertOccurrence(1, sourceEventId);
+                : new RaiseAlertResponse(1, sourceEventId);
         }
 
         private static AlertableEvent Event(long eventId, long jobId) =>

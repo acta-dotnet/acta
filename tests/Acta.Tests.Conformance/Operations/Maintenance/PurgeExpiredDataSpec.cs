@@ -354,7 +354,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     /// SKIP LOCKED, and a spec's own row can sit under a parallel spec's lock. Which sweep arm counted
     /// the row, which is what these facts are about, is settled either way.
     /// </summary>
-    private Task<PurgeExpiredDataResponse> PurgeAlertsUntilGoneAsync(int ns, CancellationToken ct) =>
+    private Task<RetentionSweepCounts> PurgeAlertsUntilGoneAsync(int ns, CancellationToken ct) =>
         RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,
@@ -415,12 +415,18 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // puts its expiry in the past, making it immediately reapable.
         var liveKey = TestKey("reap-spec.live");
         var deadKey = TestKey("reap-spec.dead");
-        var liveToken = await Services
-            .GetRequiredService<Acta.Runtime.Locks>()
-            .AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct);
+        var liveToken = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Locks>()
+                .AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct)
+        ).Token;
         Assert.NotNull(liveToken);
         Assert.NotNull(
-            await Services.GetRequiredService<Acta.Runtime.Locks>().AcquireLockAsync(deadKey, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Locks>()
+                    .AcquireLockAsync(deadKey, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)
+            ).Token
         );
 
         try
@@ -549,10 +555,10 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         string[] deadKeys = [TestKey("lock-batch.d1"), TestKey("lock-batch.d2"), TestKey("lock-batch.d3")];
         foreach (var key in deadKeys)
         {
-            Assert.NotNull(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct));
+            Assert.NotNull((await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)).Token);
         }
         var liveKey = TestKey("lock-batch.live");
-        var liveToken = await locks.AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct);
+        var liveToken = (await locks.AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct)).Token;
         Assert.NotNull(liveToken);
 
         try

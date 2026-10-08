@@ -57,7 +57,7 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
         await Fixture.StageInOneTransactionAsync(SourceTable, [Row("claimed", "a"), Row("claimed", "b")]);
 
         // Another relay's claim, left in flight: the head is Claimed under a token this tick does not own.
-        var held = await SourceStore.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct);
+        var held = (await SourceStore.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct)).Rows;
         Assert.Single(held);
 
         await Relay(SourceStore, OwnedSubmission).RunTickAsync(TickOptions(), ct);

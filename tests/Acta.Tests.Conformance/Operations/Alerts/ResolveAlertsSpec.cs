@@ -111,14 +111,14 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(raised.Version, row.Version);
     }
 
-    private Task<int> ResolveAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        Services.GetRequiredService<AlertLifecycle>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct);
+    private async Task<int> ResolveAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+        (await Services.GetRequiredService<AlertLifecycle>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct)).Resolved;
 
     /// <summary>
     /// A keyless raise, so every call is its own row. The source event id stands in for the failure event the
     /// projector would pass: a mark compared by value, not a reference to an events row.
     /// </summary>
-    private Task<AlertOccurrence> RaiseAsync(
+    private Task<RaiseAlertResponse> RaiseAsync(
         long jobId,
         AlertOriginCode origin,
         AlertKindCode kind,

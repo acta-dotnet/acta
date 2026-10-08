@@ -4,4 +4,4 @@ namespace Acta.Runtime;
 /// The namespace and worker ids the bootstrap routine assigns - the single-row result of the start.
 /// </summary>
 [DbProjection]
-internal sealed record StartWorkerRow(int NamespaceId, int WorkerId);
+internal sealed record StartWorkerResponse(int NamespaceId, int WorkerId);

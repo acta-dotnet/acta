@@ -36,7 +36,7 @@ internal sealed class RecoveryPass(
     /// </summary>
     public async Task<RecoveryPassReport> RunAsync(int namespaceId, string namespaceName, CancellationToken ct)
     {
-        var deadWorkers = await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct);
+        var deadWorkers = (await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct)).Marked;
         var result = await execution.ReclaimStuckJobsAsync(namespaceId, ct);
         if (result.Reclaimed > 0 || result.RepairedLanes > 0)
         {

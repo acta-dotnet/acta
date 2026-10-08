@@ -101,7 +101,9 @@ internal sealed class WorkerRuntimeInitializer(
         var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
 
-        var defIds = await registerDefinitions.HandleAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct);
+        var defIds = (
+            await registerDefinitions.HandleAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct)
+        ).DefinitionIds;
         foreach (var (jobName, defId) in defIds)
         {
             perNamespaceDefIds[jobName] = defId;
@@ -529,7 +531,7 @@ internal sealed class WorkerRuntimeInitializer(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        var slots = await registerSchedules.HandleAsync(new RegisterSchedulesCommand(definitions, slotRefs), ct);
+        var slots = (await registerSchedules.HandleAsync(new RegisterSchedulesCommand(definitions, slotRefs), ct)).Slots;
         if (slots.Count != definitions.Count)
         {
             // A recurring slot's deduplication key is its job name, so an ordinary job that took that key

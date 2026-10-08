@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.RepairRecoverySlotAsync"/>: one routine call; no row means the slot is missing.</summary>
 internal sealed class RepairRecoverySlotHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<RecoverySlotRepair> HandleAsync(RepairRecoverySlotCommand command, CancellationToken ct)
+    public async Task<RepairRecoverySlotResponse> HandleAsync(RepairRecoverySlotCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("RepairRecoverySlot"),
@@ -19,6 +19,6 @@ internal sealed class RepairRecoverySlotHandler(IDbSession session, ISqlDialect 
                 (RecoverySlotRepair)Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
             ct
         );
-        return rows.Count == 0 ? RecoverySlotRepair.Missing : rows[0];
+        return new RepairRecoverySlotResponse(rows.Count == 0 ? RecoverySlotRepair.Missing : rows[0]);
     }
 }

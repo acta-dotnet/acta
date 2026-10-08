@@ -414,10 +414,10 @@ internal sealed class JobExecutionHarness(
             return (byte)(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
         }
 
-        private StartStepRow StartStep(string name)
+        private StartStepResponse StartStep(string name)
         {
             _startedSteps.Add(name);
-            return new StartStepRow(
+            return new StartStepResponse(
                 StartStepOutcomeCode.Invoke,
                 AttemptNumber: 1,
                 Version: 1,
@@ -429,20 +429,20 @@ internal sealed class JobExecutionHarness(
             );
         }
 
-        private CompleteStepRow CompleteStep()
+        private CompleteStepResponse CompleteStep()
         {
             OnStepCompletion?.Invoke();
-            return new CompleteStepRow(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
+            return new CompleteStepResponse(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
         }
 
-        private CompleteExecutionRow Complete(BoundCompletion completion)
+        private CompleteExecutionResponse Complete(BoundCompletion completion)
         {
             _submitted.Add(completion);
             if (completionAction != CompleteExecutionAction.Completed)
             {
                 // The CAS matched no row: nothing is written, and the reported status is the row's
                 // current one rather than anything this attempt asked for.
-                return new CompleteExecutionRow(
+                return new CompleteExecutionResponse(
                     completionAction,
                     (byte)JobStatusCode.Executing,
                     FinalNextRunAtUtc: null,
@@ -452,7 +452,7 @@ internal sealed class JobExecutionHarness(
             }
 
             _applied.Add(completion);
-            return new CompleteExecutionRow(
+            return new CompleteExecutionResponse(
                 CompleteExecutionAction.Completed,
                 FinalStatus(completion),
                 FinalNextRunAtUtc: null,
@@ -635,7 +635,7 @@ internal sealed class JobExecutionHarness(
             return true;
         }
 
-        private RateReservation ReserveRate(RateRequest request)
+        private ReserveRateResponse ReserveRate(RateRequest request)
         {
             _rateRequests.Add(request);
             if (_rateRequests.Count == 1)
@@ -650,11 +650,11 @@ internal sealed class JobExecutionHarness(
             // is handed back with its wait once, and the call that follows the sleep finds it admitted.
             if (rateWaitMilliseconds is { } wait && _rateRequests.Count == 1)
             {
-                return new RateReservation(false, DateTime.UtcNow.AddMilliseconds(wait), wait);
+                return new ReserveRateResponse(false, DateTime.UtcNow.AddMilliseconds(wait), wait);
             }
             return rateResumeAtUtc is { } resumeAt
-                ? new RateReservation(false, resumeAt, ExecutionAdmission.RateTurnWaitMilliseconds + 1)
-                : new RateReservation(true, DateTime.UtcNow, 0);
+                ? new ReserveRateResponse(false, resumeAt, ExecutionAdmission.RateTurnWaitMilliseconds + 1)
+                : new ReserveRateResponse(true, DateTime.UtcNow, 0);
         }
     }
 

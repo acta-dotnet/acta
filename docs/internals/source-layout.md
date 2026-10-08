@@ -31,7 +31,7 @@ src/Acta.Runtime/Operations/Jobs/
 tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 ```
 
-- A write operation has an `XCommand`, an `XHandler`, and a public `XResponse`. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`, and returns a `Detail`, a `Snapshot`, a value, or `PagedResult<XListItem>`. The suffixes are in [naming conventions](naming-conventions.md).
+- A write operation has an `XCommand`, an `XHandler`, and an `XResponse`, public when a facade returns it, or none when it answers nothing. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`, and returns a `Detail`, a `Snapshot`, a value, or `PagedResult<XListItem>`. The suffixes are in [naming conventions](naming-conventions.md).
 - The public half mirrors the Runtime path: every `src/Acta/Operations/<Group>/<Operation>/` folder has a Runtime operation at the same path, and types a whole group shares sit in the group folder. `Acta` has one namespace, so moving a public type never changes its name.
 - The facade is hand-written, one line per operation: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator and no partial class.
 - A group's handlers and its facade are registered together in `AddActa`.
@@ -61,7 +61,7 @@ tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 |---|---|
 | `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`; once a group's Runtime folder holds C#, a handler per operation and a Runtime twin for each public operation folder; no `Operations/` file names a type declared under `Engine/` |
 | `TypeNamingTests` | the banned suffixes, the `Row` rule, and `Entity` on every table model |
-| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, and `HandleAsync(XCommand)` returns `XResponse`; rows, commands, and queries declared in their slice under its name, a row named by no other slice |
+| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, and `HandleAsync(XCommand)` returns `XResponse` or nothing; rows, commands, queries, and responses declared in their slice under its name, a row named by no other slice |
 | `DuplicateShapeTests` | no two types declaring the same property names, except operations' own inputs, responses, and rows |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
 | `FileLengthTests` | at most 600 lines per source file; the 150-line method cap is MA0051's, in the build |

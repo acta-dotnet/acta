@@ -107,7 +107,7 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var claimB = second.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
         var results = await Task.WhenAll(claimA, claimB);
 
-        var concurrent = results[0].Concat(results[1]).Select(r => r.OutboxId).ToList();
+        var concurrent = results[0].Rows.Concat(results[1].Rows).Select(r => r.OutboxId).ToList();
         Assert.Equal(concurrent.Count, concurrent.Distinct().Count());
 
         // Draining the remainder proves every seeded row is claimable exactly once overall: no row was

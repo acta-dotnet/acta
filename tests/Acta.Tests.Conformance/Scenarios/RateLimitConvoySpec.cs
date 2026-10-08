@@ -67,7 +67,7 @@ public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture
         }
 
         // The convoy: each call blocks on the held row the instant it reaches the store.
-        var queued = new List<Task<RateReservation>>(QueuedCalls);
+        var queued = new List<Task<ReserveRateResponse>>(QueuedCalls);
         for (var i = 0; i < QueuedCalls; i++)
         {
             var jobId = 100 + i;

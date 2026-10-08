@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<CompleteExecutionRow> HandleAsync(CompleteExecutionCommand command, CancellationToken ct) =>
+    public Task<CompleteExecutionResponse> HandleAsync(CompleteExecutionCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("CompleteExecution"),
             cmd =>
@@ -25,7 +25,7 @@ internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect d
                     dialect.BindRecurringCompletion(cmd, command, session.Schema);
                 }
             },
-            DbProjectionResolver.Resolve<CompleteExecutionRow>(),
+            DbProjectionResolver.Resolve<CompleteExecutionResponse>(),
             ct
         );
 

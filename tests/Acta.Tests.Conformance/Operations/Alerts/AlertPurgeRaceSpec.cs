@@ -103,7 +103,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         }
     }
 
-    private Task<AlertOccurrence> RaiseAsync(long jobId, AlertKindCode kind, CancellationToken ct) =>
+    private Task<RaiseAlertResponse> RaiseAsync(long jobId, AlertKindCode kind, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,

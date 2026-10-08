@@ -201,7 +201,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         Assert.NotEqual(rows[0].AlertRef, rows[1].AlertRef);
     }
 
-    private Task<AlertOccurrence> RaiseThresholdAsync(long jobId, string deduplicationKey, CancellationToken ct) =>
+    private Task<RaiseAlertResponse> RaiseThresholdAsync(long jobId, string deduplicationKey, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,

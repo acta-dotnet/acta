@@ -6,4 +6,4 @@ namespace Acta.Runtime;
 /// (the store's clock or the booked turn) and is ignored. <paramref name="WaitMilliseconds"/> is that instant minus
 /// the store's clock, zero when admitted, so a caller that sleeps it out never imports host skew.
 /// </summary>
-internal readonly record struct RateReservation(bool Admitted, DateTime ResumeAtUtc, long WaitMilliseconds);
+internal readonly record struct ReserveRateResponse(bool Admitted, DateTime ResumeAtUtc, long WaitMilliseconds);

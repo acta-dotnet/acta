@@ -5,17 +5,16 @@ namespace Acta.Runtime;
 /// <summary>
 /// Registers a namespace's whole definitions set: resolves descriptors to rows, then skips the upsert
 /// entirely when nothing is new or changed, so a steady-state restart issues zero writes and takes no
-/// locks. Returns a name-to-id map for every descriptor. The database keeps the per-row generation/hash
-/// gate, so it holds under concurrent registrars.
+/// locks. The database keeps the per-row generation/hash gate, so it holds under concurrent registrars.
 /// </summary>
 internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<IReadOnlyDictionary<string, int>> HandleAsync(RegisterDefinitionsCommand command, CancellationToken ct)
+    public async Task<RegisterDefinitionsResponse> HandleAsync(RegisterDefinitionsCommand command, CancellationToken ct)
     {
         var result = new Dictionary<string, int>(StringComparer.Ordinal);
         if (command.Descriptors.IsDefaultOrEmpty)
         {
-            return result;
+            return new RegisterDefinitionsResponse(result);
         }
 
         var rows = new List<DefinitionValues>(command.Descriptors.Length);
@@ -56,7 +55,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
                 result[row.Name] = storedByName[row.Name].Id;
             }
 
-            return result;
+            return new RegisterDefinitionsResponse(result);
         }
 
         var registered = await session.ExecuteAsync(
@@ -75,7 +74,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
                 $"register_definitions returned {result.Count} name-to-id rows for {rows.Count} input definitions. "
                     + "The routine must return exactly one row per registered definition."
             )
-            : result;
+            : new RegisterDefinitionsResponse(result);
     }
 
     /// <summary>

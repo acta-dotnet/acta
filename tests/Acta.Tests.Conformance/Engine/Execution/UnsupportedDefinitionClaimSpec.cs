@@ -82,9 +82,11 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         // else, so the only way a job the worker cannot run stops being renewed forever is for the
         // worker to have released it. This is the assertion the defect failed.
         var workerId = await WorkerIdAsync(ct);
-        var renewed = await Services
-            .GetRequiredService<WorkerLifecycle>()
-            .ExtendWorkerLeasesAsync(workerId, leaseTtlSeconds: 600, draining: false, ct);
+        var renewed = (
+            await Services
+                .GetRequiredService<WorkerLifecycle>()
+                .ExtendWorkerLeasesAsync(workerId, leaseTtlSeconds: 600, draining: false, ct)
+        ).Leases;
         Assert.DoesNotContain(renewed, r => r.JobId == enqueued.JobId);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);

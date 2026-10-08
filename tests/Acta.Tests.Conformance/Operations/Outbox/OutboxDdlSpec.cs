@@ -37,7 +37,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var toDelete = DueSeed();
         await Fixture.SeedOutboxRowAsync(table, toDelete);
         var deleteToken = Guid.NewGuid();
-        Assert.Single(await store.ClaimDueAsync(new ClaimOutboxCommand(deleteToken, 10, LeaseTtlSeconds), ct));
+        Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(deleteToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(deleteToken, [toDelete.OutboxId]), ct);
         Assert.False((await Fixture.ReadOutboxRowAsync(table, toDelete.OutboxId)).Exists);
 
@@ -45,7 +45,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var toReschedule = DueSeed();
         await Fixture.SeedOutboxRowAsync(table, toReschedule);
         var rescheduleToken = Guid.NewGuid();
-        Assert.Single(await store.ClaimDueAsync(new ClaimOutboxCommand(rescheduleToken, 10, LeaseTtlSeconds), ct));
+        Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(rescheduleToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.RescheduleAsync(
             new RescheduleOutboxCommand(rescheduleToken, [new OutboxReschedule(toReschedule.OutboxId, 1, 60, "recoverable")]),
             ct
@@ -58,7 +58,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var toQuarantine = DueSeed();
         await Fixture.SeedOutboxRowAsync(table, toQuarantine);
         var quarantineToken = Guid.NewGuid();
-        Assert.Single(await store.ClaimDueAsync(new ClaimOutboxCommand(quarantineToken, 10, LeaseTtlSeconds), ct));
+        Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(quarantineToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.QuarantineAsync(
             new QuarantineOutboxCommand(quarantineToken, [new OutboxQuarantine(toQuarantine.OutboxId, 5, "poison")]),
             ct

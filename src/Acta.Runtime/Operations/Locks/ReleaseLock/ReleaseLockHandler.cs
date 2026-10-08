@@ -1,9 +1,9 @@
 namespace Acta.Runtime;
 
-/// <summary>Gives back a held lock; false when its hold token no longer matches.</summary>
+/// <summary>Gives back a held lock, guarded by its hold token.</summary>
 internal sealed class ReleaseLockHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<bool> HandleAsync(ReleaseLockCommand command, CancellationToken ct)
+    public async Task<ReleaseLockResponse> HandleAsync(ReleaseLockCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("ReleaseLock"),
@@ -15,6 +15,6 @@ internal sealed class ReleaseLockHandler(IDbSession session, ISqlDialect dialect
             static _ => true,
             ct
         );
-        return rows.Count > 0;
+        return new ReleaseLockResponse(rows.Count > 0);
     }
 }

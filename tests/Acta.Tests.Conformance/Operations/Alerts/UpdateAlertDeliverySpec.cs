@@ -81,7 +81,7 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
         Assert.Equal(raised.Version + 2, row.Version);
     }
 
-    private Task<bool> SettleAsync(
+    private async Task<bool> SettleAsync(
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
@@ -89,9 +89,11 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
         DateTime? retryAfterUtc,
         CancellationToken ct
     ) =>
-        Services
-            .GetRequiredService<AlertLifecycle>()
-            .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct);
+        (
+            await Services
+                .GetRequiredService<AlertLifecycle>()
+                .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct)
+        ).Updated;
 
     private async Task<AlertEntity> RowAsync(long alertId, CancellationToken ct) =>
         Assert.Single(await Db.From<AlertEntity>().Where(a => a.Id == alertId).ToListAsync(ct));

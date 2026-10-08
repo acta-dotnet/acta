@@ -15,4 +15,4 @@ internal enum SleepOutcomeCode : byte
 
 /// <summary>The arm/consume decision plus the stored due instant when the outcome is <see cref="SleepOutcomeCode.Suspend"/>.</summary>
 [DbProjection]
-internal sealed record ArmOrConsumeSleepTimerRow(SleepOutcomeCode Outcome, DateTime? DueAtUtc);
+internal sealed record ArmOrConsumeSleepTimerResponse(SleepOutcomeCode Outcome, DateTime? DueAtUtc);

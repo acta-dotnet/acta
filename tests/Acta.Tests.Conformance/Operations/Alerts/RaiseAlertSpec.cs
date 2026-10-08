@@ -116,14 +116,16 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         // status would be indistinguishable from an untouched one, and the fact would prove nothing about
         // the second incident notifying on its own.
         Assert.True(
-            await store.UpdateAlertDeliveryAsync(
-                opened.Id,
-                opened.Version,
-                AlertDeliveryStatusCode.Failed,
-                retryCount: 4,
-                retryAfterUtc: null,
-                ct
-            )
+            (
+                await store.UpdateAlertDeliveryAsync(
+                    opened.Id,
+                    opened.Version,
+                    AlertDeliveryStatusCode.Failed,
+                    retryCount: 4,
+                    retryAfterUtc: null,
+                    ct
+                )
+            ).Updated
         );
 
         // Stamped directly rather than through a resolve verb: this fact is about the raise path's

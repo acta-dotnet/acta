@@ -48,7 +48,7 @@ internal static class CheckpointSlot
     public static async Task<bool> DeleteAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
         (await Run(store, CheckpointSlotAction.Delete, jobId, kind, name, null, ct)).Found != 0;
 
-    private static Task<CheckpointSlotRow> Run(
+    private static Task<CheckpointSlotResponse> Run(
         Execution store,
         CheckpointSlotAction action,
         long jobId,
@@ -62,7 +62,7 @@ internal static class CheckpointSlot
             ct
         );
 
-    private static CheckpointValue ToValue(CheckpointSlotRow row)
+    private static CheckpointValue ToValue(CheckpointSlotResponse row)
     {
         return row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version
             ? throw new InvalidOperationException("checkpoint_slot returned a found slot with NULL value columns.")

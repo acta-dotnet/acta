@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="AlertLifecycle.RaiseAlertAsync"/>: one routine call answering the post-raise occurrence.</summary>
 internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<AlertOccurrence> HandleAsync(RaiseAlertCommand command, CancellationToken ct)
+    public async Task<RaiseAlertResponse> HandleAsync(RaiseAlertCommand command, CancellationToken ct)
     {
         try
         {
@@ -30,7 +30,7 @@ internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
                 static reader =>
                     reader.IsDBNull(0)
                         ? null
-                        : new AlertOccurrence(
+                        : new RaiseAlertResponse(
                             Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
                             reader.IsDBNull(1) ? null : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)
                         ),

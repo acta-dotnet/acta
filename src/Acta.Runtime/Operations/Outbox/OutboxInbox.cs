@@ -75,7 +75,7 @@ internal sealed class OutboxInbox(
     public Task<CheckpointValue?> GetAsync(long slotJobId, string name, CancellationToken ct) =>
         get.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct);
 
-    public Task<bool> ConsumeAsync(long slotJobId, string name, int version, CancellationToken ct) =>
+    public Task<ConsumeOutboxSignalResponse> ConsumeAsync(long slotJobId, string name, int version, CancellationToken ct) =>
         consume.HandleAsync(new ConsumeOutboxSignalCommand(slotJobId, name, version), ct);
 
     public Task RecordAppliedAsync(RecordOutboxEventCommand command, CancellationToken ct) => record.HandleAsync(command, ct);

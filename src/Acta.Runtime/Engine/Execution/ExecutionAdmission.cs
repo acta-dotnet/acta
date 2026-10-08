@@ -19,7 +19,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     /// </summary>
     internal const int RateTurnWaitMilliseconds = 250;
 
-    private static bool IsNearTurn(RateReservation reservation) =>
+    private static bool IsNearTurn(ReserveRateResponse reservation) =>
         !reservation.Admitted && reservation.WaitMilliseconds > 0 && reservation.WaitMilliseconds <= RateTurnWaitMilliseconds;
 
     /// <summary>The settlement of an attempt the gates turn away, or null when it is admitted and its handler runs.</summary>
@@ -160,7 +160,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     )
     {
         var rateKey = descriptor.RateKey ?? descriptor.JobName;
-        RateReservation reservation;
+        ReserveRateResponse reservation;
         try
         {
             reservation = await jobContext.ReserveRateAsync(rateKey, rate, ct);
@@ -216,12 +216,12 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     /// taken to the millisecond. A farther turn goes back through the claim path, where a
     /// one-second validity window covers the worker's pickup latency when it returns.
     /// </summary>
-    private async Task<RateReservation> WaitForTurnAsync(
+    private async Task<ReserveRateResponse> WaitForTurnAsync(
         ClaimedJob job,
         RuntimeJobContext jobContext,
         string rateKey,
         RateLimitSpec rate,
-        RateReservation reservation,
+        ReserveRateResponse reservation,
         CancellationToken ct
     )
     {
@@ -248,7 +248,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             // the timeout. Admitted on paper, so the handler invocation settles it the way it
             // settles any attempt cancelled before its handler ran; the booked turn stays on
             // the row for a return inside the window or for the sweep.
-            return new RateReservation(true, reservation.ResumeAtUtc, 0);
+            return new ReserveRateResponse(true, reservation.ResumeAtUtc, 0);
         }
     }
 }

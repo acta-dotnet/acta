@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class ParkOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<ParkOutboxSignalRow> HandleAsync(ParkOutboxSignalCommand command, CancellationToken ct) =>
+    public Task<ParkOutboxSignalResponse> HandleAsync(ParkOutboxSignalCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("ParkOutboxSignal"),
             cmd =>
@@ -17,7 +17,7 @@ internal sealed class ParkOutboxSignalHandler(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, command.Value));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleBefore, command.StaleBeforeUtc));
             },
-            DbProjectionResolver.Resolve<ParkOutboxSignalRow>(),
+            DbProjectionResolver.Resolve<ParkOutboxSignalResponse>(),
             ct
         );
 }

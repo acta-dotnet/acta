@@ -55,7 +55,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | Input to a write operation (internal) | `Command` | `PauseJobCommand` |
 | Input to a read operation, including public list filters | `Query` | `ListJobsQuery` |
 | Executes one command or query | `Handler` | `PauseJobHandler` |
-| What a command returns (public) | `Response` | `PauseJobResponse : IJobControlResponse` |
+| What a command returns | `Response` | `PauseJobResponse : IJobControlResponse` |
 | Bound straight from a reader, internal, no public twin | `Row` | `ClaimBatchRow` |
 | The column values one batch write binds, internal | `Values` | `JobEnqueueValues` |
 | Public single-entity read model | `Detail` | `JobDetail`, `TenantDetail` |
@@ -70,11 +70,12 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 
 - **A `Get` query returns one thing and a `List` query returns a page.** `Get` returns a `Detail`, a `Snapshot`, a `Set`, or a single value, and `null` when nothing is found. `List` always returns `PagedResult<XListItem>`, never an unpaged list. `PagedResult<T>` keeps its name: it is a page, not an operation's response.
 - **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation. A subject's `Detail` and `ListItem` stay two types for the same reason, even where they match today.
+- **Every value a command answers is its `XResponse`, and a command that answers nothing returns nothing.** A flag, a count, a token, or a list becomes the response's one member, named for what it means (`ExtendLockResponse(bool Extended)`, `ClaimOutboxResponse(IReadOnlyList<ClaimOutboxRow> Rows)`); a row the handler returns unchanged is the response itself, so no wrapper only forwards its members. No command returns an empty record or a bare row.
 - **`Row` means the database loaded it.** Every `*Row` carries `[DbProjection]`. A model the public API exposes is never a row; SQL fills it directly. A row is declared in its operation's folder as `<Operation>Row`, or `<Operation><Part>Row` when one operation reads several shapes, and no other operation names it.
 - **A type takes the subject of the table it describes.** `StepStatusCode` maps `steps.status_code`, `DefinitionAuditLevelCode` maps `definitions.audit_level_code`, and `EventReasonCode` maps `events.reason_code`. `Job` prefixes only what describes a job itself (`JobStatusCode`, `JobDetail`).
 - **`Outcome` is a handler-code noun, never an operation's return.** It names how a job, a child, a map, or a wait ended inside handler code; what an operation returns is a `Response`.
 - **Banned suffixes:** `Result`, `Dto`, `Data`, `Info`, `Model`, `Entity` outside table models, `Record`, `Item` outside `ListItem` and a `Set`'s element, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`.
-- **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Entity` rule** over every shipped assembly, and **`HandlerResponseTests` holds `XHandler.HandleAsync` to taking its own `XCommand` or `XQuery`, `HandleAsync(XCommand)` to returning `XResponse`, and every row, command, and query to its slice.** Names and handlers that predate the rules are listed in `tests/ratchets/naming.txt` and `tests/ratchets/handler-response.txt`, and entries may only be removed.
+- **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Entity` rule** over every shipped assembly, and **`HandlerResponseTests` holds `XHandler.HandleAsync` to taking its own `XCommand` or `XQuery`, `HandleAsync(XCommand)` to returning `XResponse` or nothing, and every row, command, query, and response to its slice.** Names and handlers that predate the rules are listed in `tests/ratchets/naming.txt` and `tests/ratchets/handler-response.txt`, and entries may only be removed.
 
 ## Public identity: refs and the wire boundary
 

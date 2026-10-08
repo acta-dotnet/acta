@@ -142,13 +142,15 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         // Hold the key's only execution slot on behalf of a foreign owner, as another worker's live
         // execution would. Same composition the runner uses ({ns_id}.sem.{canonical key}).
         var locks = Services.GetRequiredService<Locks>();
-        var held = await locks.AcquireSlotAsync(
-            $"{ns}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}",
-            limit: 1,
-            TimeSpan.FromMinutes(5),
-            ownerJobId: long.MaxValue,
-            ct
-        );
+        var held = (
+            await locks.AcquireSlotAsync(
+                $"{ns}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}",
+                limit: 1,
+                TimeSpan.FromMinutes(5),
+                ownerJobId: long.MaxValue,
+                ct
+            )
+        ).Token;
         Assert.NotNull(held);
 
         // attempt-overlap is audit-level, so the bounce's job.rescheduled event row is written.

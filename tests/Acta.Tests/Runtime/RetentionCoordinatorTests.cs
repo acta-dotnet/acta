@@ -20,7 +20,7 @@ public sealed class RetentionCoordinatorTests
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(16, store.Calls.Count);
-        Assert.Equal(new PurgeExpiredDataResponse(2, 2, 2, 2, 2, 2, 2), result);
+        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2), result);
         for (var index = 0; index < 8; index++)
         {
             var first = store.Calls[index * 2];

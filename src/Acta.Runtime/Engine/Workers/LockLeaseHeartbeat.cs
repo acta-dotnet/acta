@@ -105,7 +105,7 @@ internal sealed class LockLeaseHeartbeat(
                     callCts.CancelAfter(_interval);
                     try
                     {
-                        var stillHeld = await _locks.ExtendLockAsync(token, _lockTtl, callCts.Token);
+                        var stillHeld = (await _locks.ExtendLockAsync(token, _lockTtl, callCts.Token)).Extended;
                         if (stillHeld)
                         {
                             // Confirmed extend: advance this lock's deadline (no-op if the handler released

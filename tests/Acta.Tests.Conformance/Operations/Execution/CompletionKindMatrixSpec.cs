@@ -36,9 +36,11 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
 
         // Wrong worker: correct execution_number+version but different worker id.
-        var action = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(enqueued.JobId, -workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
+        var action = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(enqueued.JobId, -workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+        ).Action;
 
         Assert.Equal(StartExecutionAction.NotOwner, action);
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -62,9 +64,11 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            ).Action
         );
         Assert.Equal(
             CompleteExecutionAction.Completed,
@@ -79,9 +83,11 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct));
 
         // Retry start with stale claim: SQL checks status IN (100, 200, 220) → AlreadyTerminal before NotOwner.
-        var action = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
+        var action = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+        ).Action;
 
         Assert.Equal(StartExecutionAction.AlreadyTerminal, action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -105,9 +111,11 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            ).Action
         );
 
         // Wrong worker: the runtime row's leased_by_worker_id = workerId, request says a foreign id.
@@ -136,9 +144,11 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+            ).Action
         );
         var req = MakeCompleteRequest(claimed, workerId);
         Assert.Equal(
@@ -178,9 +188,11 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(enqueued.JobId, worker1Id, claimed1.ExecutionNumber, claimed1.Version, LiveLeaseTtl, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(enqueued.JobId, worker1Id, claimed1.ExecutionNumber, claimed1.Version, LiveLeaseTtl, ct)
+            ).Action
         );
 
         // Expire the lease so the Executing row is eligible for reclaim.

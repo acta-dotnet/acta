@@ -18,7 +18,7 @@ internal static class AlertTestOps
     /// high-water mark. Specs that need the projector's event-scoped behavior drive
     /// <c>AlertsJob</c> itself.
     /// </summary>
-    public static Task<AlertOccurrence> RaiseAsync(
+    public static Task<RaiseAlertResponse> RaiseAsync(
         IServiceProvider services,
         string jobNamespace,
         long? jobId,

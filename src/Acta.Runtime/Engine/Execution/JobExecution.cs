@@ -86,13 +86,14 @@ internal sealed class JobExecution(
         var expiredRefusals = 0;
         while (true)
         {
-            var (start, _) = await CompletionWrite.RetryAsync(
+            var (response, _) = await CompletionWrite.RetryAsync(
                 token => execution.StartExecutionAsync(jobId, workerId, executionNumber, version, leaseTtlSeconds, token),
                 log,
                 jobId,
                 ct,
                 metrics
             );
+            var start = response.Action;
             // AlreadyTerminal is read against the row too: on PostgreSQL a start that waited on a row
             // lock held by a concurrent verb classifies against its statement snapshot, which still
             // shows the claim's version, and answers AlreadyTerminal for a row that is Dispatched under

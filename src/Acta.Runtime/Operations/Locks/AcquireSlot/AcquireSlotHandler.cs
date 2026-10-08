@@ -2,11 +2,11 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Takes the first free slot of a counted key in one round trip whatever the limit: the SQL enumerates
-/// the slots and inserts the first free one. Null when every slot is held or a racer took the chosen one.
+/// the slots and inserts the first free one.
 /// </summary>
 internal sealed class AcquireSlotHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<LockToken?> HandleAsync(AcquireSlotCommand command, CancellationToken ct)
+    public async Task<AcquireSlotResponse> HandleAsync(AcquireSlotCommand command, CancellationToken ct)
     {
         // A limit counts the holders that may run at once, so it is at least one; below that it names no slot,
         // and the dialects' slot enumerations would answer it differently.
@@ -28,6 +28,6 @@ internal sealed class AcquireSlotHandler(IDbSession session, ISqlDialect dialect
                 reader.GetString(0),
             ct
         );
-        return key is null ? null : new LockToken(key, holdToken);
+        return new AcquireSlotResponse(key is null ? null : new LockToken(key, holdToken));
     }
 }

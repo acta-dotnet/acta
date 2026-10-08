@@ -6,4 +6,4 @@ namespace Acta.Runtime;
 /// command's park instant - the age the rejection reports to the operator.
 /// </summary>
 [DbProjection]
-internal sealed record ParkOutboxSignalRow(byte Action, DateTime? PendingSinceUtc);
+internal sealed record ParkOutboxSignalResponse(byte Action, DateTime? PendingSinceUtc);

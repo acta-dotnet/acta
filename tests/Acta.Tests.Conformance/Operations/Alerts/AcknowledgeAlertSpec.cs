@@ -115,14 +115,16 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
         // A delivered alert whose next notification has come round.
         var row = await AlertRowAsync(jobId, ct);
         Assert.True(
-            await store.UpdateAlertDeliveryAsync(
-                row.Id,
-                row.Version,
-                AlertDeliveryStatusCode.Delivered,
-                retryCount: 0,
-                retryAfterUtc: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                ct
-            )
+            (
+                await store.UpdateAlertDeliveryAsync(
+                    row.Id,
+                    row.Version,
+                    AlertDeliveryStatusCode.Delivered,
+                    retryCount: 0,
+                    retryAfterUtc: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    ct
+                )
+            ).Updated
         );
         Assert.Contains(
             await store.GetDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct),

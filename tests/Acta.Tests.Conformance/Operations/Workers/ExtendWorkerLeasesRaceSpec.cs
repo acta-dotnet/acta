@@ -71,7 +71,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         // The renewal must finish while the completion still holds the child's row; one that waited for it
         // would hold the parent's row and deadlock with the completion once the gate opened, so it would never
         // return, and the bound is only a hang guard.
-        var rows = await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, ct).WaitAsync(SpecWaits.Gate, ct);
+        var rows = (await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, ct).WaitAsync(SpecWaits.Gate, ct)).Leases;
         await gate.CommitAsync(ct);
 
         Assert.Equal(CompleteExecutionAction.Completed, (await completion).Action);
@@ -99,7 +99,10 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<(int WorkerId, Func<Task<CompleteExecutionRow>> Complete)> StartedAsync(JobEnqueueResponse job, CancellationToken ct)
+    private async Task<(int WorkerId, Func<Task<CompleteExecutionResponse>> Complete)> StartedAsync(
+        JobEnqueueResponse job,
+        CancellationToken ct
+    )
     {
         var store = Services.GetRequiredService<Acta.Runtime.Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -109,7 +112,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         var claimed = Assert.Single(await store.ClaimOneAsync(ns, workerId, leaseTtl, job.JobId, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+            (await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)).Action
         );
         return (
             workerId,

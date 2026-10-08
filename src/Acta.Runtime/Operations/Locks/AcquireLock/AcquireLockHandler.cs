@@ -2,11 +2,11 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Takes a lock, stealing it when the current hold has expired, and stamps a hold token minted here, so
-/// the SQL needs no per-dialect uuid generation and success is a plain row count. Null when the lock is held.
+/// the SQL needs no per-dialect uuid generation and success is a plain row count.
 /// </summary>
 internal sealed class AcquireLockHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<LockToken?> HandleAsync(AcquireLockCommand command, CancellationToken ct)
+    public async Task<AcquireLockResponse> HandleAsync(AcquireLockCommand command, CancellationToken ct)
     {
         var holdToken = Guid.NewGuid();
         var rows = await session.ExecuteAsync(
@@ -21,6 +21,6 @@ internal sealed class AcquireLockHandler(IDbSession session, ISqlDialect dialect
             static _ => true,
             ct
         );
-        return rows.Count > 0 ? new LockToken(command.Key, holdToken) : null;
+        return new AcquireLockResponse(rows.Count > 0 ? new LockToken(command.Key, holdToken) : null);
     }
 }

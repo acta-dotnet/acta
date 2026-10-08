@@ -51,9 +51,11 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var retryAfter = new DateTime(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         Assert.True(
-            await Services
-                .GetRequiredService<AlertLifecycle>()
-                .UpdateAlertDeliveryAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.RetryAfter, 3, retryAfter, ct)
+            (
+                await Services
+                    .GetRequiredService<AlertLifecycle>()
+                    .UpdateAlertDeliveryAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.RetryAfter, 3, retryAfter, ct)
+            ).Updated
         );
         var settled = await Operations.Alerts.GetAsync(alertRef, ct);
         Assert.NotNull(settled);

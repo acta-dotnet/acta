@@ -12,7 +12,7 @@ internal sealed partial class RuntimeJobContext
         // Capture the request-start BEFORE the acquire: the store stamps the lease no earlier than this
         // instant, so requestStart + TTL is a conservative lower bound on when the lock actually expires.
         var requestedAt = Stopwatch.GetTimestamp();
-        var token = await _locks.AcquireLockAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
+        var token = (await _locks.AcquireLockAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
             // Register so the lock heartbeat extends this handler-acquired lock for as long as the
@@ -51,7 +51,7 @@ internal sealed partial class RuntimeJobContext
     {
         var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKeyLookup(concurrencyKey, nameof(concurrencyKey))}";
         var requestedAt = Stopwatch.GetTimestamp();
-        var token = await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
+        var token = (await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
             _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
@@ -67,7 +67,7 @@ internal sealed partial class RuntimeJobContext
     /// reason. The grace a booked turn gets before the sweep may take it is a constant, not the lease TTL: the turn is
     /// decoded as expiry minus grace, so a value moving with worker settings would shift every booked turn.
     /// </summary>
-    internal Task<RateReservation> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
+    internal Task<ReserveRateResponse> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
     {
         var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKeyLookup(rateKey, nameof(rateKey))}";
         return _locks.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Burst, RateReservationGraceSeconds, ct);

@@ -17,7 +17,8 @@ internal sealed class WorkerLifecycle(
     /// this process, and records a <c>worker.started</c> event, returning both DB-assigned ids. The
     /// worker id is the owner stamp on every claim / lease / execution write.
     /// </summary>
-    public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => startWorker.HandleAsync(command, ct);
+    public Task<StartWorkerResponse> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) =>
+        startWorker.HandleAsync(command, ct);
 
     /// <summary>
     /// Clean-shutdown counterpart to start: flips this process's <c>workers</c> row from
@@ -34,7 +35,7 @@ internal sealed class WorkerLifecycle(
     /// the ids against the jobs it is running to detect ones cancelled or stolen externally. Deliberately
     /// does not bump <c>runtimes.version</c>.
     /// </summary>
-    public Task<IReadOnlyList<ExtendWorkerLeasesRow>> ExtendWorkerLeasesAsync(
+    public Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(
         int workerId,
         int leaseTtlSeconds,
         bool draining,
@@ -44,8 +45,8 @@ internal sealed class WorkerLifecycle(
     /// <summary>
     /// Dead-worker sweep across all namespaces: flips Active <c>workers</c> rows whose
     /// <c>last_seen_at_utc</c> is older than the window to Dead, skipping rows another sweep holds, and
-    /// emits one <c>worker.died</c> event per reaped worker. Returns the count marked (diagnostic).
+    /// emits one <c>worker.died</c> event per reaped worker. The count marked is diagnostic.
     /// </summary>
-    public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) =>
+    public Task<MarkDeadWorkersResponse> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) =>
         markDeadWorkers.HandleAsync(new MarkDeadWorkersCommand(deadAfterSeconds), ct);
 }

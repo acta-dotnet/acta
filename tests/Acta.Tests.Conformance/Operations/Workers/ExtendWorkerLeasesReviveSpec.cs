@@ -56,7 +56,7 @@ public sealed class ExtendWorkerLeasesReviveSpec : ActaRuntimeTestBase<Conforman
         );
     }
 
-    private Task<StartWorkerRow> StartWorkerAsync(string hostName, CancellationToken ct) =>
+    private Task<StartWorkerResponse> StartWorkerAsync(string hostName, CancellationToken ct) =>
         WorkerTestOps.StartAsync(
             Services,
             TestNamespace,

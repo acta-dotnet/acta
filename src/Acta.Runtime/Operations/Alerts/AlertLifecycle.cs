@@ -19,7 +19,7 @@ internal sealed class AlertLifecycle(
     /// resolution, and a replayed <c>SourceEventId</c> neither inflates a count nor reopens an incident. An
     /// unknown job id throws <see cref="ArgumentException"/>.
     /// </summary>
-    public Task<AlertOccurrence> RaiseAlertAsync(RaiseAlertCommand command, CancellationToken ct) => raiseAlert.HandleAsync(command, ct);
+    public Task<RaiseAlertResponse> RaiseAlertAsync(RaiseAlertCommand command, CancellationToken ct) => raiseAlert.HandleAsync(command, ct);
 
     /// <summary>
     /// How far behind the database clock the alertable-event read stops, so every alertable row stamped at or
@@ -59,7 +59,7 @@ internal sealed class AlertLifecycle(
     /// selected. False means the row moved meanwhile (resolved, or settled by another worker); the newer
     /// state stands. A re-fire after resolution is a different row, so it never loses this race.
     /// </summary>
-    public Task<bool> UpdateAlertDeliveryAsync(
+    public Task<UpdateAlertDeliveryResponse> UpdateAlertDeliveryAsync(
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
@@ -75,6 +75,6 @@ internal sealed class AlertLifecycle(
     /// and RetryAfter become Suppressed and <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or
     /// Suppressed row keeps the status that records what happened.
     /// </summary>
-    public Task<int> ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+    public Task<ResolveAlertsResponse> ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
         resolveAlerts.HandleAsync(new ResolveAlertsCommand(namespaceId, jobId, sourceEventId), ct);
 }

@@ -40,7 +40,34 @@ internal sealed record ClaimedJob(
     DateTime CreatedAtUtc,
     int FailureCount,
     int Version
-);
+)
+{
+    /// <summary>Reads a job row of either claim routine; the horizon sentinel row is the claim scan's own.</summary>
+    public static ClaimedJob From(IClaimColumns row) =>
+        new(
+            JobId: row.JobId!.Value,
+            JobRef: Required(row.JobRef, "job_ref"),
+            NamespaceId: Required(row.NamespaceId, "namespace_id"),
+            DefinitionId: Required(row.DefinitionId, "definition_id"),
+            TenantId: row.TenantId,
+            ExecutionNumber: Required(row.ExecutionNumber, "execution_number"),
+            DeduplicationKey: row.DeduplicationKey is null
+                ? null
+                : IdentifierSyntax.NormalizeKeyLookup(row.DeduplicationKey, nameof(row.DeduplicationKey)),
+            CorrelationKey: row.CorrelationKey,
+            ConcurrencyKey: row.ConcurrencyKey,
+            InputFormatId: Required(row.InputFormatId, "input_format_id"),
+            Input: row.Input ?? ReadOnlyMemory<byte>.Empty,
+            NextRunAtUtc: row.NextRunAtUtc,
+            LeaseExpiresAtUtc: Required(row.LeaseExpiresAtUtc, "lease_expires_at_utc"),
+            CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
+            FailureCount: Required(row.FailureCount, "failure_count"),
+            Version: Required(row.Version, "version")
+        );
+
+    private static T Required<T>(T? value, string column)
+        where T : struct => value ?? throw new InvalidOperationException($"claim returned a job row with NULL {column}.");
+}
 
 /// <summary>
 /// The empty-claim horizon: the routine's clock reading and the earliest claimable row's effective run time in the
@@ -53,18 +80,8 @@ internal sealed record ClaimedJob(
 internal readonly record struct ClaimHorizon(DateTime DbNowUtc, DateTime? NextReadyAtUtc);
 
 /// <summary>
-/// Claim outcome: the claimed rows, plus the horizon when nothing was claimed. Exactly one of the
-/// two carries information: a non-empty <c>Jobs</c> has a null <c>Horizon</c>, and an empty claim
-/// has it set (the routine emits one sentinel row in place of job rows).
-/// </summary>
-internal sealed record ClaimResponse(IReadOnlyList<ClaimedJob> Jobs, ClaimHorizon? Horizon)
-{
-    public static readonly ClaimResponse Empty = new([], null);
-}
-
-/// <summary>
-/// The columns both claim routines return, in SELECT order, so one mapper reads a <c>ClaimBatch</c> or a
-/// <c>ClaimOne</c> row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
+/// The columns both claim routines return, in SELECT order, so <see cref="ClaimedJob.From"/> reads a
+/// <c>ClaimBatch</c> or a <c>ClaimOne</c> row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
 /// </summary>
 internal interface IClaimColumns
 {
@@ -103,60 +120,4 @@ internal interface IClaimColumns
     DateTime? DbNowUtc { get; }
 
     DateTime? NextReadyAtUtc { get; }
-}
-
-/// <summary>
-/// Provider-independent projection of the flat claim rows into a <see cref="ClaimResponse"/>: job rows
-/// map to <see cref="ClaimedJob"/>, the sentinel (null <c>JobId</c>) row becomes the horizon.
-/// </summary>
-internal static class ClaimResponseMapper
-{
-    public static ClaimResponse Map(IReadOnlyList<IClaimColumns> rows)
-    {
-        if (rows.Count == 0)
-        {
-            return ClaimResponse.Empty;
-        }
-
-        ClaimHorizon? horizon = null;
-        var jobs = new List<ClaimedJob>(rows.Count);
-        foreach (var row in rows)
-        {
-            if (row.JobId is null)
-            {
-                horizon = new ClaimHorizon(Required(row.DbNowUtc, "db_now"), row.NextReadyAtUtc);
-            }
-            else
-            {
-                jobs.Add(ToClaimedJob(row));
-            }
-        }
-
-        return new ClaimResponse(jobs, horizon);
-    }
-
-    public static ClaimedJob ToClaimedJob(IClaimColumns row) =>
-        new(
-            JobId: row.JobId!.Value,
-            JobRef: Required(row.JobRef, "job_ref"),
-            NamespaceId: Required(row.NamespaceId, "namespace_id"),
-            DefinitionId: Required(row.DefinitionId, "definition_id"),
-            TenantId: row.TenantId,
-            ExecutionNumber: Required(row.ExecutionNumber, "execution_number"),
-            DeduplicationKey: row.DeduplicationKey is null
-                ? null
-                : IdentifierSyntax.NormalizeKeyLookup(row.DeduplicationKey, nameof(row.DeduplicationKey)),
-            CorrelationKey: row.CorrelationKey,
-            ConcurrencyKey: row.ConcurrencyKey,
-            InputFormatId: Required(row.InputFormatId, "input_format_id"),
-            Input: row.Input ?? ReadOnlyMemory<byte>.Empty,
-            NextRunAtUtc: row.NextRunAtUtc,
-            LeaseExpiresAtUtc: Required(row.LeaseExpiresAtUtc, "lease_expires_at_utc"),
-            CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
-            FailureCount: Required(row.FailureCount, "failure_count"),
-            Version: Required(row.Version, "version")
-        );
-
-    private static T Required<T>(T? value, string column)
-        where T : struct => value ?? throw new InvalidOperationException($"claim returned a job row with NULL {column}.");
 }

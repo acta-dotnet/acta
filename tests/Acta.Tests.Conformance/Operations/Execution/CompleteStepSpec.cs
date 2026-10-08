@@ -42,7 +42,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
             ct
         );
 
-        Assert.Equal(new CompleteStepRow(CompleteStepOutcomeCode.Succeeded, null), done);
+        Assert.Equal(new CompleteStepResponse(CompleteStepOutcomeCode.Succeeded, null), done);
         var step = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.Equal(JobPayloadFormat.Json.Id, step.ResultFormatId);
@@ -84,7 +84,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         var exhausted = await FailAsync(job, start.Version, maxAttempts: 1, null, ct);
 
-        Assert.Equal(new CompleteStepRow(CompleteStepOutcomeCode.Exhausted, null), exhausted);
+        Assert.Equal(new CompleteStepResponse(CompleteStepOutcomeCode.Exhausted, null), exhausted);
         var step = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Null(step.NextRetryAtUtc);
@@ -127,8 +127,8 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         );
         var failure = await FailAsync(job, stale.Version, maxAttempts: 3, null, ct);
 
-        Assert.Equal(new CompleteStepRow(CompleteStepOutcomeCode.StaleVersion, null), success);
-        Assert.Equal(new CompleteStepRow(CompleteStepOutcomeCode.StaleVersion, null), failure);
+        Assert.Equal(new CompleteStepResponse(CompleteStepOutcomeCode.StaleVersion, null), success);
+        Assert.Equal(new CompleteStepResponse(CompleteStepOutcomeCode.StaleVersion, null), failure);
         var after = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Pending, after.Status);
         Assert.Equal(before.Version, after.Version);
@@ -140,7 +140,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
         (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
 
-    private Task<CompleteStepRow> FailAsync(long jobId, int version, int maxAttempts, int? retryWindowSeconds, CancellationToken ct) =>
+    private Task<CompleteStepResponse> FailAsync(long jobId, int version, int maxAttempts, int? retryWindowSeconds, CancellationToken ct) =>
         Execution.CompleteStepAsync(
             new CompleteStepCommand(
                 jobId,

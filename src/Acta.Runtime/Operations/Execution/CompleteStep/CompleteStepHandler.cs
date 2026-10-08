@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.CompleteStepAsync"/>: one routine call records the attempt and answers its decision.</summary>
 internal sealed class CompleteStepHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<CompleteStepRow> HandleAsync(CompleteStepCommand command, CancellationToken ct) =>
+    public Task<CompleteStepResponse> HandleAsync(CompleteStepCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("CompleteStep"),
             cmd =>
@@ -20,7 +20,7 @@ internal sealed class CompleteStepHandler(IDbSession session, ISqlDialect dialec
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepRetryWindowSeconds, command.RetryWindowSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.Version, command.ExpectedVersion));
             },
-            DbProjectionResolver.Resolve<CompleteStepRow>(),
+            DbProjectionResolver.Resolve<CompleteStepResponse>(),
             ct
         );
 }

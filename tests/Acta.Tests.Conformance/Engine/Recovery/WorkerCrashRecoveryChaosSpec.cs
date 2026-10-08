@@ -74,9 +74,11 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         );
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, claimed.Version, LeaseTtlSeconds, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, claimed.Version, LeaseTtlSeconds, ct)
+            ).Action
         );
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
 

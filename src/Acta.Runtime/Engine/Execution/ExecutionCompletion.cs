@@ -285,7 +285,7 @@ internal sealed class ExecutionCompletion(
     /// HorizonChanged so sleeping loops re-read their horizon); a final terminal status wakes the job's completion
     /// channel for a colocated RunAndWaitAsync caller.
     /// </summary>
-    private async Task WakeAsync(CompleteExecutionRow complete, ClaimedJob job, RuntimeJobContext jobContext, CancellationToken ct)
+    private async Task WakeAsync(CompleteExecutionResponse complete, ClaimedJob job, RuntimeJobContext jobContext, CancellationToken ct)
     {
         if (complete.FinalStatusCode == (byte)JobStatusCode.Ready)
         {

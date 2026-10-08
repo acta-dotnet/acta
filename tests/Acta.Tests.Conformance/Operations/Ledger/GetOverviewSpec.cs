@@ -175,18 +175,22 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var c3 = Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
+            ).Action
         );
 
         // j4 → Failed: claim + start + ctx.FailAsync-style complete (HandlerStatusCode = 200 bypasses the failure budget).
         var c4 = Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, w1.Id, LeaseTtl, j4, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, c4.Version, LeaseTtl, ct)
+            (
+                await Services
+                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, c4.Version, LeaseTtl, ct)
+            ).Action
         );
         var cr4 = await Services
             .GetRequiredService<Acta.Runtime.Execution>()

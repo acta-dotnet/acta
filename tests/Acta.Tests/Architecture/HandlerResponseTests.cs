@@ -7,16 +7,16 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Holds operations to "every operation has its own input and its own response" in <c>docs/internals/naming-conventions.md</c>:
-/// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c> and returns <c>XResponse</c> for a command, and a row,
-/// command, or query is declared in its operation's folder under the operation's name, a row named by no other
-/// operation. What predates a rule is listed in its ratchet, <c>handler-response</c> or <c>slice-members</c>.
+/// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, and a
+/// row, command, query, or response is declared in its operation's folder under the operation's name, a row named by no
+/// other operation. What predates a rule is listed in its ratchet, <c>handler-response</c> or <c>slice-members</c>.
 /// </summary>
 public sealed class HandlerResponseTests
 {
     private const string Operations = "src/Acta.Runtime/Operations/";
 
     // What an operation owns outright; of these, only a row is also kept from every other operation.
-    private static readonly string[] SliceRoles = ["Row", "Command", "Query"];
+    private static readonly string[] SliceRoles = ["Row", "Command", "Query", "Response"];
 
     [Fact]
     public void A_handler_takes_its_operations_input_and_returns_its_response()
@@ -38,15 +38,16 @@ public sealed class HandlerResponseTests
             .Select(handler =>
                 ($"{ShippedCode.Key(handler.Handler)} (takes {Describe(handler.Input)})", (string?)"HandleAsync takes another input")
             );
+        // A command that answers nothing returns a plain task.
         var responses = handlers
             .Where(handler => handler.Input.Name.EndsWith("Command", StringComparison.Ordinal))
-            .Where(handler => handler.Returns?.Name != handler.Input.Name[..^"Command".Length] + "Response")
+            .Where(handler => handler.Returns is not null && handler.Returns.Name != handler.Input.Name[..^"Command".Length] + "Response")
             .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Input.Name} returns {Describe(handler.Returns)}"));
 
         Ratchet.Check(
             "handler-response",
             inputs.Concat(responses),
-            "Take the operation's own XCommand or XQuery in HandleAsync, and return its own XResponse from a command."
+            "Take the operation's own XCommand or XQuery in HandleAsync, and return its own XResponse, or nothing, from a command."
         );
     }
 

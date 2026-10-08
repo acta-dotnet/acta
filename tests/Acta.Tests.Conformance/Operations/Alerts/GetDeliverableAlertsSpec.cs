@@ -152,9 +152,11 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
             await Db.From<AlertEntity>().Where(a => a.NamespaceId == TestNamespaceId && a.DedupeKey == key).ToListAsync(ct)
         );
         Assert.True(
-            await Services
-                .GetRequiredService<AlertLifecycle>()
-                .UpdateAlertDeliveryAsync(row.Id, row.Version, status, retryCount: 1, retryAfterUtc: null, ct)
+            (
+                await Services
+                    .GetRequiredService<AlertLifecycle>()
+                    .UpdateAlertDeliveryAsync(row.Id, row.Version, status, retryCount: 1, retryAfterUtc: null, ct)
+            ).Updated
         );
         return row.Id;
     }

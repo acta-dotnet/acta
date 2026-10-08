@@ -81,7 +81,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
 
         var admitted = await ReserveAsync(bucket, 110, ct);
 
-        Assert.Equal(new RateReservation(true, turn, 0), admitted);
+        Assert.Equal(new ReserveRateResponse(true, turn, 0), admitted);
         Assert.Equal(meter, await MeterAsync(bucket, ct));
         Assert.Null(await ReadAsync($"{bucket}.110", ct));
         Assert.False((await ReserveAsync(bucket, 110, ct)).Admitted);
@@ -125,7 +125,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.False((await ReserveAsync(bucket, 200 + Burst, ct)).Admitted);
     }
 
-    private Task<RateReservation> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
+    private Task<ReserveRateResponse> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
         Services.GetRequiredService<Acta.Runtime.Locks>().ReserveRateAsync(bucket, jobId, IntervalMilliseconds, Burst, GraceSeconds, ct);
 
     private async Task DrainBurstAsync(string bucket, CancellationToken ct)
@@ -143,7 +143,9 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
     private async Task<DateTime> StageTurnAsync(string bucket, long jobId, TimeSpan age, CancellationToken ct)
     {
         var key = $"{bucket}.{jobId}";
-        Assert.NotNull(await Services.GetRequiredService<Acta.Runtime.Locks>().AcquireLockAsync(key, TimeSpan.FromMinutes(10), jobId, ct));
+        Assert.NotNull(
+            (await Services.GetRequiredService<Acta.Runtime.Locks>().AcquireLockAsync(key, TimeSpan.FromMinutes(10), jobId, ct)).Token
+        );
         var expires = (await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct)).Add(age).AddSeconds(GraceSeconds);
         Assert.Equal(
             1,

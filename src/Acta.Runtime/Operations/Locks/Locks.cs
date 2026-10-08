@@ -14,18 +14,18 @@ internal sealed class Locks(
     ReleaseLockHandler releaseLock
 )
 {
-    /// <summary>Null when the lock is currently held; carry the token to ReleaseLockAsync.</summary>
-    public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+    /// <summary>The token is null when the lock is currently held; carry it to ReleaseLockAsync.</summary>
+    public Task<AcquireLockResponse> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
         acquireLock.HandleAsync(new AcquireLockCommand(key, ttl, ownerJobId), ct);
 
     /// <summary>
     /// Takes the lowest-numbered free slot of a counted key (limit at least 1) in one round trip: the slots
     /// are the rows <c>{keyPrefix}.0</c> .. <c>{keyPrefix}.{limit-1}</c>, and a slot is free when it has no
-    /// row or its hold expired (steal on expiry, as AcquireLockAsync does). Null when every slot is held, and
+    /// row or its hold expired (steal on expiry, as AcquireLockAsync does). The token is null when every slot is held, and
     /// also when a racer took the chosen slot first: the routine makes one attempt and never retries, so the
     /// caller settles the loss rather than waiting. The token carries the slot's own key for extend and release.
     /// </summary>
-    public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+    public Task<AcquireSlotResponse> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
         acquireSlot.HandleAsync(new AcquireSlotCommand(keyPrefix, limit, ttl, ownerJobId), ct);
 
     /// <summary>
@@ -36,7 +36,7 @@ internal sealed class Locks(
     /// an idle meter equals a missing one, and a reservation lapses <paramref name="graceSeconds"/> past
     /// its turn; a turn stale by more than a second (or one interval) is re-metered rather than released.
     /// </summary>
-    public Task<RateReservation> ReserveRateAsync(
+    public Task<ReserveRateResponse> ReserveRateAsync(
         string bucketKey,
         long jobId,
         int intervalMilliseconds,
@@ -46,13 +46,14 @@ internal sealed class Locks(
     ) => reserveRate.HandleAsync(new ReserveRateCommand(bucketKey, jobId, intervalMilliseconds, burst, graceSeconds), ct);
 
     /// <summary>
-    /// CAS on the hold token, which is unchanged so the same token still releases; false when the lock
+    /// CAS on the hold token, which is unchanged so the same token still releases; not extended when the lock
     /// had been stolen or reacquired. The engine's lock-lease heartbeat calls it to keep a long-running
     /// handler's locks alive by moving <c>locks.expires_at_utc</c>.
     /// </summary>
-    public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) =>
+    public Task<ExtendLockResponse> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) =>
         extendLock.HandleAsync(new ExtendLockCommand(token, ttl), ct);
 
-    /// <summary>CAS on the hold token; false when it had already been stolen/reacquired.</summary>
-    public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => releaseLock.HandleAsync(new ReleaseLockCommand(token), ct);
+    /// <summary>CAS on the hold token; not released when it had already been stolen/reacquired.</summary>
+    public Task<ReleaseLockResponse> ReleaseLockAsync(LockToken token, CancellationToken ct) =>
+        releaseLock.HandleAsync(new ReleaseLockCommand(token), ct);
 }

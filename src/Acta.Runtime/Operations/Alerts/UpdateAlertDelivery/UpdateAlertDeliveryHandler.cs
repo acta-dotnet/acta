@@ -6,20 +6,21 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class UpdateAlertDeliveryHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<bool> HandleAsync(UpdateAlertDeliveryCommand command, CancellationToken ct) =>
-        (
-            await session.ExecuteAsync(
-                new StoreCommand("UpdateAlertDelivery"),
-                cmd =>
-                {
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Id, command.AlertId));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Version, command.ExpectedVersion));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, (short)command.Status));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.RetryCount, command.RetryCount));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.RetryAfterUtc, command.RetryAfterUtc));
-                },
-                static _ => true,
-                ct
-            )
-        ).Count != 0;
+    public async Task<UpdateAlertDeliveryResponse> HandleAsync(UpdateAlertDeliveryCommand command, CancellationToken ct)
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("UpdateAlertDelivery"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Id, command.AlertId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Version, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, (short)command.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.RetryCount, command.RetryCount));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.RetryAfterUtc, command.RetryAfterUtc));
+            },
+            static _ => true,
+            ct
+        );
+        return new UpdateAlertDeliveryResponse(rows.Count != 0);
+    }
 }

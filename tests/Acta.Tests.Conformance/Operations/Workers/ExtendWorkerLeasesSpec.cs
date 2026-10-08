@@ -47,7 +47,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // strictly-greater assertion below is deterministic under load (claim->extend can be sub-ms).
         await Task.Delay(5, ct);
 
-        var extended = await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
+        var extended = (await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct)).Leases;
         // The live worker may hold its own system job by now, so only this job's renewal is asserted.
         Assert.Equal(
             new ExtendWorkerLeasesRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true),
@@ -92,16 +92,18 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // The worker's own heartbeat refreshes the lease while this claim is still buffered (Dispatched,
         // not yet started). It must not advance the runtime version, or the claim-time version below
         // fails the start CAS as LostClaim and the row stalls leased-but-never-run.
-        var extended = await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
+        var extended = (await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct)).Leases;
         // The live worker may hold its own system job by now, so only this job's renewal is asserted.
         Assert.Equal(
             new ExtendWorkerLeasesRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true),
             Assert.Single(extended, row => row.JobId == enqueued.JobId)
         );
 
-        var action = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
-            .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct);
+        var action = (
+            await Services
+                .GetRequiredService<Acta.Runtime.Execution>()
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+        ).Action;
 
         Assert.Equal(StartExecutionAction.Started, action);
         var snapshot = await Jobs.GetAsync(enqueued, ct);

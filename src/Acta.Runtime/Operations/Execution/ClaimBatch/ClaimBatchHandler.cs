@@ -3,12 +3,12 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.ClaimBatchAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
 internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<ClaimResponse> HandleAsync(ClaimBatchCommand command, CancellationToken ct)
+    public async Task<ClaimBatchResponse> HandleAsync(ClaimBatchCommand command, CancellationToken ct)
     {
         var request = command.Request;
         if (request.MaxBatch <= 0)
         {
-            return ClaimResponse.Empty;
+            return ClaimBatchResponse.Empty;
         }
 
         var rows = await session.ExecuteAsync(
@@ -25,6 +25,34 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
             DbProjectionResolver.Resolve<ClaimBatchRow>(),
             ct
         );
-        return ClaimResponseMapper.Map(rows);
+        return Map(rows);
+    }
+
+    /// <summary>Job rows become claimed jobs; the sentinel row, its job id null, becomes the horizon.</summary>
+    private static ClaimBatchResponse Map(IReadOnlyList<ClaimBatchRow> rows)
+    {
+        if (rows.Count == 0)
+        {
+            return ClaimBatchResponse.Empty;
+        }
+
+        ClaimHorizon? horizon = null;
+        var jobs = new List<ClaimedJob>(rows.Count);
+        foreach (var row in rows)
+        {
+            if (row.JobId is null)
+            {
+                horizon = new ClaimHorizon(
+                    row.DbNowUtc ?? throw new InvalidOperationException("claim returned a horizon row with NULL db_now."),
+                    row.NextReadyAtUtc
+                );
+            }
+            else
+            {
+                jobs.Add(ClaimedJob.From(row));
+            }
+        }
+
+        return new ClaimBatchResponse(jobs, horizon);
     }
 }

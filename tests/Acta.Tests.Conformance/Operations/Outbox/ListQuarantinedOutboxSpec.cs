@@ -94,7 +94,7 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
         var first = await ListAsync(pageSize: 2, after: null, ct);
         Assert.Equal(full.Take(2), first.Select(r => r.OutboxId));
 
-        Assert.Equal([full[2]], await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([full[2]]), ct));
+        Assert.Equal([full[2]], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([full[2]]), ct)).OutboxIds);
 
         Assert.Equal([full[3]], (await ListAsync(pageSize: 2, after: first[^1].OutboxId, ct)).Select(r => r.OutboxId));
         Assert.Empty(await ListAsync(pageSize: 2, after: full[3], ct));

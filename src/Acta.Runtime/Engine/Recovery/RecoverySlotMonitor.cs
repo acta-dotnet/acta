@@ -134,7 +134,7 @@ internal sealed class RecoverySlotMonitor(
         CancellationToken ct
     )
     {
-        var outcome = await execution.RepairRecoverySlotAsync(namespaceId, slotJobId, ct);
+        var outcome = (await execution.RepairRecoverySlotAsync(namespaceId, slotJobId, ct)).Repair;
         switch (outcome)
         {
             case RecoverySlotRepair.Missing:

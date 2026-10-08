@@ -5,10 +5,10 @@ namespace Acta.Runtime;
 /// </summary>
 internal enum StartStepOutcomeCode : byte
 {
-    /// <summary>Run the body for the attempt carried by <see cref="StartStepRow.AttemptNumber"/>.</summary>
+    /// <summary>Run the body for the attempt carried by <see cref="StartStepResponse.AttemptNumber"/>.</summary>
     Invoke = 1,
 
-    /// <summary>Pending with an unreached retry instant; re-arm the parent until <see cref="StartStepRow.NextRetryAtUtc"/>.</summary>
+    /// <summary>Pending with an unreached retry instant; re-arm the parent until <see cref="StartStepResponse.NextRetryAtUtc"/>.</summary>
     Suspend = 2,
 
     /// <summary>Already succeeded; return the stored result without running the body.</summary>
@@ -28,7 +28,7 @@ internal enum StartStepOutcomeCode : byte
 /// the final reason (Exhausted).
 /// </summary>
 [DbProjection]
-internal sealed record StartStepRow(
+internal sealed record StartStepResponse(
     StartStepOutcomeCode Outcome,
     int AttemptNumber,
     int Version,

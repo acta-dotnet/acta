@@ -80,9 +80,3 @@ internal sealed record DefinitionSchedules(
     DateTime? SlotMinNextRunAtUtc,
     IReadOnlyList<SlotSchedule> Schedules
 );
-
-/// <summary>
-/// Definition/slot id pair returned by <c>register_schedules</c>.
-/// </summary>
-[DbProjection]
-internal readonly record struct RegisteredScheduleSlot(int DefinitionId, long SlotId);

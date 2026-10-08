@@ -27,16 +27,16 @@ public sealed class ExtendLockSpec : ActaStorageTestBase<ConformanceFixture>
         var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
         var key = TestKey("ck.lease-renewal");
 
-        var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
+        var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;
         Assert.NotNull(token);
 
         // Renew the held lock: the holder keeps the key, so a competing acquirer is still blocked.
-        Assert.True(await locks.ExtendLockAsync(token!.Value, TimeSpan.FromSeconds(60), ct));
-        Assert.Null(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct));
+        Assert.True((await locks.ExtendLockAsync(token!.Value, TimeSpan.FromSeconds(60), ct)).Extended);
+        Assert.Null((await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct)).Token);
 
         // After release the token no longer renews (version-CAS miss) and the key is acquirable again.
-        Assert.True(await locks.ReleaseLockAsync(token.Value, ct));
-        Assert.False(await locks.ExtendLockAsync(token.Value, TimeSpan.FromSeconds(60), ct));
-        Assert.NotNull(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -3, ct));
+        Assert.True((await locks.ReleaseLockAsync(token.Value, ct)).Released);
+        Assert.False((await locks.ExtendLockAsync(token.Value, TimeSpan.FromSeconds(60), ct)).Extended);
+        Assert.NotNull((await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -3, ct)).Token);
     }
 }

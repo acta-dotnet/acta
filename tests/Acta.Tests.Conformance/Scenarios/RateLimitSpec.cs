@@ -55,7 +55,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // A database whose every round trip outlasts an interval refills a turn per request and never
         // denies, so the loop is bounded by the clock, not by a count.
         var admittedPastBurst = 0;
-        RateReservation? denied = null;
+        ReserveRateResponse? denied = null;
         var deniedAt = DateTime.MinValue;
         while (clock.Elapsed < TimeSpan.FromSeconds(2))
         {
@@ -99,7 +99,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // Parked thirty days ahead so the first request has to wait, and so the row stays well clear of
         // any concurrent sweep in this shared database: a charge below must be the only thing that
         // moves it.
-        Assert.NotNull(await Locks.AcquireLockAsync(bucket, TimeSpan.FromDays(30), 1201, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromDays(30), 1201, ct)).Token);
 
         var booked = await ReserveAsync(bucket, jobId, ct);
         Assert.False(booked.Admitted);
@@ -134,7 +134,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // defeated by the worker's poll floor and jitter. Half a second of the window is left for the
         // round trips between the stage and the reserve, which a shared CI database can stretch past
         // the hundred milliseconds a tighter stage would leave.
-        Assert.NotNull(await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct)).Token);
         var clock = Stopwatch.StartNew();
         await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-500), ct);
         var meterBefore = await MeterAsync(bucket, ct);
@@ -171,7 +171,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // A turn that went by while every executor was busy: still inside its grace, so the row is
         // there, but further past its instant than the second a turn stays valid for.
-        Assert.NotNull(await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1451, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1451, ct)).Token);
         await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-5), ct);
         var meterBefore = await MeterAsync(bucket, ct);
 
@@ -225,7 +225,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // A turn whose instant has already gone by but whose grace has not: the row a job that is
         // late but still alive is coming back for.
-        Assert.NotNull(await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1481, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1481, ct)).Token);
         await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-1), ct);
         var staged = await ReadLockAsync(reservation, ct);
 
@@ -245,7 +245,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // A cancelled or reclaimed job leaves its turn behind. Past its grace as well as its instant,
         // so no live job can still be coming back for it and it is ordinary garbage.
-        Assert.NotNull(await Locks.AcquireLockAsync(reservation, TimeSpan.FromSeconds(-1), jobId, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(reservation, TimeSpan.FromSeconds(-1), jobId, ct)).Token);
 
         await RetentionTestOps.PurgeUntilAsync(
             Services,
@@ -322,7 +322,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // Stage the shared meter minutes ahead. Neither definition has spent anything of its own, so
         // each is denied only if it really reads this meter rather than one under its own name.
-        Assert.NotNull(await Locks.AcquireLockAsync(Bucket(RateLimitProbes.SharedKey), TimeSpan.FromMinutes(5), 1700, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(Bucket(RateLimitProbes.SharedKey), TimeSpan.FromMinutes(5), 1700, ct)).Token);
 
         foreach (var name in new[] { "rate-shared-left", "rate-shared-right" })
         {
@@ -505,7 +505,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // Stage the meter well ahead of now rather than spending its burst, so the denial is a fact
         // about admission and not about how fast this machine got from the spend to the claim.
-        Assert.NotNull(await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), ownerJobId: 1600, ct));
+        Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), ownerJobId: 1600, ct)).Token);
 
         RateLimitProbes.Reset(TestNamespace);
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "rate-and-slot-probe", JobPayload.None), ct);
@@ -570,7 +570,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     // The composition the runner uses: namespace id, the rate discriminator, and the canonical key.
     private string Bucket(string key) => $"{NamespaceId}.rate.{IdentifierSyntax.NormalizeLowerInvariant(key)}";
 
-    private Task<RateReservation> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
+    private Task<ReserveRateResponse> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
         Locks.ReserveRateAsync(bucket, jobId, IntervalMilliseconds, Burst, GraceSeconds, ct);
 
     /// <summary>The meter's stored arrival time, which every charged request moves and nothing else does.</summary>

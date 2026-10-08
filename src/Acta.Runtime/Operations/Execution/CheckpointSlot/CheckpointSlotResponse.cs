@@ -5,4 +5,4 @@ namespace Acta.Runtime;
 /// the write/exists/delete shapes and for a missing slot).
 /// </summary>
 [DbProjection]
-internal sealed record CheckpointSlotRow(int Found, byte? ValueFormatId, byte[]? Value, int? Version);
+internal sealed record CheckpointSlotResponse(int Found, byte? ValueFormatId, byte[]? Value, int? Version);

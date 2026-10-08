@@ -31,8 +31,8 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         var prefix = TestKey("slots");
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-        var first = Assert.NotNull(await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -1, ct));
-        var second = Assert.NotNull(await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -2, ct));
+        var first = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)).Token);
+        var second = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -2, ct)).Token);
 
         Assert.Equal($"{prefix}.0", first.Key);
         Assert.Equal($"{prefix}.1", second.Key);
@@ -52,10 +52,10 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         var held = new List<LockToken>();
         for (var i = 0; i < 2; i++)
         {
-            held.Add(Assert.NotNull(await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -1 - i, ct)));
+            held.Add(Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -1 - i, ct)).Token));
         }
 
-        Assert.Null(await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -9, ct));
+        Assert.Null((await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -9, ct)).Token);
 
         foreach (var token in held)
         {
@@ -70,18 +70,18 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
         var prefix = TestKey("steal");
-        Assert.Equal($"{prefix}.0", (await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -1, ct))?.Key);
-        var lapsed = Assert.NotNull(await locks.AcquireSlotAsync(prefix, limit: 3, ExpiredTtl, ownerJobId: -2, ct));
+        Assert.Equal($"{prefix}.0", (await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -1, ct)).Token?.Key);
+        var lapsed = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, ExpiredTtl, ownerJobId: -2, ct)).Token);
         Assert.Equal($"{prefix}.1", lapsed.Key);
 
-        var stolen = Assert.NotNull(await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -3, ct));
+        var stolen = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -3, ct)).Token);
 
         Assert.Equal($"{prefix}.1", stolen.Key);
         var row = await ReadOneAsync(stolen.Key, ct);
         Assert.Equal(-3L, row.JobId);
         Assert.Equal(stolen.HoldToken, row.HoldToken);
         Assert.Null(await ReadAsync($"{prefix}.2", ct));
-        Assert.False(await locks.ReleaseLockAsync(lapsed, ct));
+        Assert.False((await locks.ReleaseLockAsync(lapsed, ct)).Released);
     }
 
     [Fact(DisplayName = "Simultaneous acquires of a key's one free slot leave exactly one holder")]
@@ -96,7 +96,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
             .Select(async i =>
             {
                 await start.Task;
-                return await locks.AcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: -i, ct);
+                return (await locks.AcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: -i, ct)).Token;
             })
             .ToArray();
         start.SetResult();

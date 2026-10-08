@@ -313,7 +313,7 @@ internal sealed class AlertsJob(
         }
     }
 
-    private async Task<AlertOccurrence> EmitAsync(
+    private async Task<RaiseAlertResponse> EmitAsync(
         JobContext ctx,
         AlertableEvent e,
         string channel,

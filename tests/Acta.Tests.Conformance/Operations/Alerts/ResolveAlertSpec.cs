@@ -102,24 +102,28 @@ public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var queued = await AlertRowAsync(queuedJobId, ct);
         var sent = await AlertRowAsync(sentJobId, ct);
         Assert.True(
-            await store.UpdateAlertDeliveryAsync(
-                queued.Id,
-                queued.Version,
-                AlertDeliveryStatusCode.RetryAfter,
-                retryCount: 2,
-                retryAfterUtc: new DateTime(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                ct
-            )
+            (
+                await store.UpdateAlertDeliveryAsync(
+                    queued.Id,
+                    queued.Version,
+                    AlertDeliveryStatusCode.RetryAfter,
+                    retryCount: 2,
+                    retryAfterUtc: new DateTime(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    ct
+                )
+            ).Updated
         );
         Assert.True(
-            await store.UpdateAlertDeliveryAsync(
-                sent.Id,
-                sent.Version,
-                AlertDeliveryStatusCode.Delivered,
-                retryCount: 0,
-                retryAfterUtc: null,
-                ct
-            )
+            (
+                await store.UpdateAlertDeliveryAsync(
+                    sent.Id,
+                    sent.Version,
+                    AlertDeliveryStatusCode.Delivered,
+                    retryCount: 0,
+                    retryAfterUtc: null,
+                    ct
+                )
+            ).Updated
         );
 
         Assert.Equal(ControlAction.Applied, (await Operations.Alerts.ResolveAsync(queuedRef, ct: ct)).Action);

@@ -69,8 +69,8 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
 
         var affected =
             name == OutboxSignalNames.Requeue
-                ? await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)
-                : await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct);
+                ? (await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds
+                : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds;
 
         await inbox.RecordAppliedAsync(
             new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.ActorKey, Evidence(payload.ReasonMessage, affected)),
@@ -172,7 +172,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
 
         for (var batch = 0; batch < MaxBatches && budget.Remaining > 0; batch++)
         {
-            var claimed = await source.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct);
+            var claimed = (await source.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct)).Rows;
             if (claimed.Count == 0)
             {
                 break;

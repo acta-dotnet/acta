@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.StartExecutionAsync"/>: one routine call answers the start action.</summary>
 internal sealed class StartExecutionHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<StartExecutionAction> HandleAsync(StartExecutionCommand command, CancellationToken ct)
+    public async Task<StartExecutionResponse> HandleAsync(StartExecutionCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
             new StoreCommand("StartExecution"),
@@ -20,7 +20,7 @@ internal sealed class StartExecutionHandler(IDbSession session, ISqlDialect dial
         );
 
         return rows.Count > 0 && rows[^1] is { } action
-            ? (StartExecutionAction)action
+            ? new StartExecutionResponse((StartExecutionAction)action)
             : throw new InvalidOperationException("StartExecution returned no action.");
     }
 }

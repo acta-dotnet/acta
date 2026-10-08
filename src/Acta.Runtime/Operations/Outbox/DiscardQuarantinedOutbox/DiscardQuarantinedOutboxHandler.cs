@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="OutboxSource.DiscardQuarantinedAsync"/>: one statement answering the ids it discarded.</summary>
 internal sealed class DiscardQuarantinedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<IReadOnlyList<Guid>> HandleAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct)
+    public async Task<DiscardQuarantinedOutboxResponse> HandleAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct)
     {
         var affected = await session.ExecuteAsync(
             new StoreCommand("DiscardQuarantinedOutbox"),
@@ -14,6 +14,6 @@ internal sealed class DiscardQuarantinedOutboxHandler(IDbSession session, ISqlDi
             DbProjectionResolver.Resolve<DiscardQuarantinedOutboxRow>(),
             ct
         );
-        return [.. affected.Select(static row => row.OutboxId)];
+        return new DiscardQuarantinedOutboxResponse([.. affected.Select(static row => row.OutboxId)]);
     }
 }

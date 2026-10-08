@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="WorkerLifecycle.MarkDeadWorkersAsync"/>: one round trip.</summary>
 internal sealed class MarkDeadWorkersHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<int> HandleAsync(MarkDeadWorkersCommand command, CancellationToken ct)
+    public async Task<MarkDeadWorkersResponse> HandleAsync(MarkDeadWorkersCommand command, CancellationToken ct)
     {
         var counts = await session.ExecuteAsync(
             new StoreCommand("MarkDeadWorkers"),
@@ -15,7 +15,7 @@ internal sealed class MarkDeadWorkersHandler(IDbSession session, ISqlDialect dia
         );
 
         return counts.Count > 0 && counts[^1] is int count
-            ? count
+            ? new MarkDeadWorkersResponse(count)
             : throw new InvalidOperationException("mark_dead_workers returned no count.");
     }
 }

@@ -47,7 +47,7 @@ public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFix
         var keys = Enumerable.Range(0, ExpiredRows).Select(i => TestKey($"sweep-race.{i:D4}")).ToList();
         foreach (var key in keys)
         {
-            Assert.NotNull(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct));
+            Assert.NotNull((await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)).Token);
         }
 
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

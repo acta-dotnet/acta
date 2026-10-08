@@ -112,7 +112,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
             .Select(async _ =>
             {
                 await start.Task;
-                return await Execution.RepairRecoverySlotAsync(TestNamespaceId, slotId, ct);
+                return (await Execution.RepairRecoverySlotAsync(TestNamespaceId, slotId, ct)).Repair;
             })
             .ToArray();
         start.SetResult();
@@ -151,7 +151,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
             Assert.False(repair.IsCompleted);
 
             await tx.CommitAsync(ct);
-            outcome = await repair;
+            outcome = (await repair).Repair;
         }
 
         Assert.Equal(RecoverySlotRepair.Healthy, outcome);
@@ -175,7 +175,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         var ct = TestContext.Current.CancellationToken;
         var missingId = long.MaxValue;
 
-        Assert.Equal(RecoverySlotRepair.Missing, await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct));
+        Assert.Equal(RecoverySlotRepair.Missing, (await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct)).Repair);
         Assert.Equal(RecoverySlotRepair.Missing, await CheckAsync(missingId, ct));
 
         Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == missingId).ToListAsync(ct));

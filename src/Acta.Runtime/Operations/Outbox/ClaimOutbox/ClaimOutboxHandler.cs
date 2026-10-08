@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="OutboxSource.ClaimDueAsync"/>: one statement claims the batch and returns it.</summary>
 internal sealed class ClaimOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<IReadOnlyList<ClaimOutboxRow>> HandleAsync(ClaimOutboxCommand command, CancellationToken ct)
+    public async Task<ClaimOutboxResponse> HandleAsync(ClaimOutboxCommand command, CancellationToken ct)
     {
         var claimed = await session.ExecuteAsync(
             new StoreCommand("ClaimOutbox"),
@@ -18,6 +18,6 @@ internal sealed class ClaimOutboxHandler(IDbSession session, ISqlDialect dialect
         );
 
         // RETURNING and OUTPUT carry no order, so the batch is put back in staging order here.
-        return [.. claimed.OrderBy(static r => r.Id)];
+        return new ClaimOutboxResponse([.. claimed.OrderBy(static r => r.Id)]);
     }
 }
