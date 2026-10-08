@@ -10,8 +10,8 @@ namespace Acta.Runtime;
 /// alertable events from their immutable transition triple, applies the definition profile, and collapses automatic
 /// alerts onto one open incident row per job and condition, draining in bounded batches and checkpointing its cursor
 /// after each; a deterministic poison event is recorded before the cursor advances, a transient failure keeps it for
-/// retry. Deliver resolves channels and transports and settles each row against its version at selection, at least once
-/// (a crash after send may resend). An alert resolved before selection is not sent, and resolution stops further attempts.
+/// retry. <see cref="AlertDelivery"/> resolves channels and transports and settles each row against its version at
+/// selection, at least once (a crash after send may resend). An alert resolved before selection is not sent, and resolution stops further attempts.
 /// </summary>
 internal sealed class AlertsJob(
     AlertLifecycle alerts,
@@ -39,7 +39,6 @@ internal sealed class AlertsJob(
     internal const string SkipVariablePrefix = "alerts-skip-";
     private const string DefaultChannelName = "default";
     private const int GenerateBatchSize = 256;
-    private const int DeliverBatchSize = 256;
 
     /// <summary>
     /// The generate drain's two bounds. 40 batches of 256 is 10,240 events in one invocation: a burst clears in a tick
@@ -52,21 +51,19 @@ internal sealed class AlertsJob(
     private const int GenerateMaxBatches = 40;
     private static readonly TimeSpan GenerateTimeBudget = TimeSpan.FromSeconds(30);
 
-    /// <summary>
-    /// Delivery retry curve, independent of any job's backoff policy. 30s to 1h, doubling, 10%
-    /// jitter (the ranged-expression defaults) - parsed once from the same DSL every definition uses.
-    /// </summary>
-    private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
-
     private readonly AlertLifecycle _alerts = alerts;
     private readonly IActaClock _clock = clock;
-    private readonly AlertChannelRegistry _channels = channels;
-    private readonly IAlertTransportRegistry _transports = transports;
-    private readonly int _maxDeliveryRetries = options.Value.AlertDeliveryMaxRetries;
     private readonly int _failureThreshold = options.Value.AlertFailureThreshold;
-    private readonly TimeSpan _reminderInterval = options.Value.AlertReminderInterval;
     private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;
     private readonly JobMetrics? _metrics = metrics;
+    private readonly AlertDelivery _delivery = new(
+        alerts,
+        channels,
+        transports,
+        options.Value.AlertDeliveryMaxRetries,
+        options.Value.AlertReminderInterval,
+        log ?? NullLogger<AlertsJob>.Instance
+    );
 
     /// <summary>
     /// The shipped drain bounds as one value. Internal because the drain specs stage backlogs
@@ -106,7 +103,7 @@ internal sealed class AlertsJob(
         var nowUtc = await _clock.GetUtcNowAsync(ct);
         var settlement = new AlertSettlementClock(nowUtc, clockRequestedAt);
         await GenerateAsync(ctx, nowUtc, ct);
-        await DeliverAsync(ctx, settlement, ct);
+        await _delivery.DeliverAsync(ctx, settlement, ct);
     }
 
     /// <summary>
@@ -378,7 +375,7 @@ internal sealed class AlertsJob(
     /// Encodes the render-don't-pass-typed rule for log sites: a serializing sink must never see
     /// the raw uuid.
     /// </summary>
-    private static string RenderRef(Guid alertRef) => new AlertRef(alertRef).ToString();
+    internal static string RenderRef(Guid alertRef) => new AlertRef(alertRef).ToString();
 
     private static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)
     {
@@ -394,232 +391,4 @@ internal sealed class AlertsJob(
             _ => ($"Job '{e.JobName}'", reasonText),
         };
     }
-
-    private async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, CancellationToken ct)
-    {
-        var due = await _alerts.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
-        foreach (var a in due)
-        {
-            var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);
-            var transport = channel is null ? null : _transports.Resolve(channel.TransportKind);
-            var decision = AlertChannelVerdict.Decide(a, channel, transport);
-
-            switch (decision.Kind)
-            {
-                case AlertChannelVerdictKind.Failed:
-                    LogFailedDecision(ctx, a, channel, decision.Reason);
-                    await SettleAsync(a, AlertSendStatus.Permanent, settlement, ct);
-                    continue;
-
-                case AlertChannelVerdictKind.Suppressed:
-                    LogSuppressedDecision(ctx, a, channel!, decision.Reason);
-                    await SuppressAsync(a, ct);
-                    continue;
-            }
-
-            var outcome = await SendAsync(ctx, a, channel!, transport!, ct);
-            await SettleAsync(a, outcome, settlement, ct);
-        }
-    }
-
-    private async Task<AlertSendStatus> SendAsync(
-        JobContext ctx,
-        DeliverableAlert a,
-        AlertChannelDeclaration channel,
-        IAlertTransport transport,
-        CancellationToken ct
-    )
-    {
-        var notification = new AlertNotification(
-            new AlertRef(a.AlertRef),
-            ctx.JobNamespace,
-            a.JobRef is { } jobRef ? new JobRef(jobRef) : null,
-            a.Severity,
-            a.Kind,
-            a.Title,
-            a.Message,
-            a.RunbookUrl,
-            a.OccurrenceCount,
-            a.CreatedAtUtc
-        );
-        var target = new AlertTarget(
-            channel.Name,
-            channel.TransportKind,
-            channel.Endpoint,
-            ConfigFormatId: 0,
-            Config: ReadOnlyMemory<byte>.Empty
-        );
-
-        try
-        {
-            return await transport.SendAsync(notification, target, ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(
-                ex,
-                "ACTA sys.alerts: transport kind ({Detail}) threw delivering alert ({Ref}); will retry.",
-                channel.TransportKind,
-                RenderRef(a.AlertRef)
-            );
-            return AlertSendStatus.Retryable;
-        }
-    }
-
-    private void LogFailedDecision(
-        JobContext ctx,
-        DeliverableAlert alert,
-        AlertChannelDeclaration? channel,
-        AlertChannelVerdictReason reason
-    )
-    {
-        if (reason == AlertChannelVerdictReason.MissingChannel)
-        {
-            _log.LogWarning(
-                "ACTA sys.alerts: channel ({Detail}) is not configured for namespace ({Namespace}); marking alert ({Ref}) failed.",
-                alert.ChannelName,
-                ctx.JobNamespace,
-                RenderRef(alert.AlertRef)
-            );
-            return;
-        }
-
-        _log.LogWarning(
-            "ACTA sys.alerts: no transport is registered for ({Detail}); marking alert ({Ref}) delivery failed.",
-            $"kind '{channel!.TransportKind}' on channel '{channel.Name}'",
-            RenderRef(alert.AlertRef)
-        );
-    }
-
-    private void LogSuppressedDecision(
-        JobContext ctx,
-        DeliverableAlert alert,
-        AlertChannelDeclaration channel,
-        AlertChannelVerdictReason reason
-    )
-    {
-        if (reason is AlertChannelVerdictReason.DisabledChannel or AlertChannelVerdictReason.DeprecatedChannel)
-        {
-            _log.LogInformation(
-                "ACTA sys.alerts: alert ({Ref}) in namespace ({Namespace}) is ({Outcome}): channel ({Detail}) is ({Reason}).",
-                RenderRef(alert.AlertRef),
-                ctx.JobNamespace,
-                "Suppressed",
-                channel.Name,
-                channel.Status.ToString()
-            );
-            return;
-        }
-
-        _log.LogInformation(
-            "ACTA sys.alerts: alert ({Ref}) is ({Outcome}): ({Detail}).",
-            RenderRef(alert.AlertRef),
-            "Suppressed",
-            $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"
-        );
-    }
-
-    private Task SuppressAsync(DeliverableAlert a, CancellationToken ct) =>
-        WriteSettlementAsync(a, AlertDeliveryStatusCode.Suppressed, a.RetryCount, retryAfterUtc: null, ct);
-
-    private Task SettleAsync(DeliverableAlert a, AlertSendStatus outcome, AlertSettlementClock settlement, CancellationToken ct)
-    {
-        // Read once per settlement, so the status, the count and the instant this row lands with all
-        // describe the same moment - the moment the attempt settled, not the moment the pass began.
-        var nowUtc = settlement.UtcNow;
-        switch (outcome)
-        {
-            // retry_count back to zero, because it is the budget for one send series and this series just
-            // ended. A row that took four attempts to land would otherwise carry that four into its next
-            // reminder, where one throw is enough to reach the cap - a reminder that goes terminal on its
-            // first failure, having never once been retried. Each series starts with the whole curve.
-            case AlertSendStatus.Delivered:
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, retryCount: 0, ReminderAfter(a, nowUtc), ct);
-
-            case AlertSendStatus.Retryable:
-                var nextRetryCount = a.RetryCount + 1;
-                if (nextRetryCount >= _maxDeliveryRetries)
-                {
-                    // Out of retries, but the incident is still open, so the row keeps a reminder instant:
-                    // a transport that was down must not be the reason nobody hears about the outage
-                    // again. True for a manual alert too - that send genuinely failed. The count stays at
-                    // the cap on purpose: a Failed row's reminder gets one attempt per interval, because
-                    // the retry curve belonged to the original send series and the transport already
-                    // proved it needs more than a curve.
-                    return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, nextRetryCount, nowUtc + _reminderInterval, ct);
-                }
-                var delaySeconds = BackoffSchedule.ComputeDelaySeconds(nextRetryCount, RetryBackoff);
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.RetryAfter, nextRetryCount, nowUtc.AddSeconds(delaySeconds), ct);
-
-            // Permanent: no channel, or no transport for its kind. Same reasoning as the exhausted arm -
-            // the send failed, so the row stays on the reminder cadence until the incident closes.
-            default:
-                return WriteSettlementAsync(a, AlertDeliveryStatusCode.Failed, a.RetryCount, nowUtc + _reminderInterval, ct);
-        }
-    }
-
-    /// <summary>
-    /// When a delivered send should be repeated, written into retry_after_utc as the row's one
-    /// "not before" instant. Automatic alerts track a condition Acta watches, so while the incident
-    /// stays open the operator is re-notified on the interval. A manual alert is one handler's
-    /// statement at one moment: nothing in Acta knows whether it still holds, and the caller owns
-    /// resolving it, so turning every ctx.AlertAsync into an unbounded daily nag would be Acta
-    /// inventing a lifecycle it cannot see.
-    /// </summary>
-    private DateTime? ReminderAfter(DeliverableAlert a, DateTime nowUtc) =>
-        a.Origin == AlertOriginCode.Automatic ? nowUtc + _reminderInterval : null;
-
-    /// <summary>
-    /// Every settlement writes against the version the row carried at selection, and losing that compare-and-swap is
-    /// correct: the row moved on and the newer state stands, settled by an operator resolve or a competing worker. The
-    /// frequent partner is the raise path's collapse arm, which bumps the version when a repeat of the same condition
-    /// lands inside the send window, so this settle loses and the row keeps the state the read found (Pending, an
-    /// elapsed RetryAfter, or a settled row past its reminder), which the next pass selects again: a re-send, allowed
-    /// at least once, carrying the count the repeat wrote. No retry and no warning, only Debug for tracing one attempt.
-    /// </summary>
-    private async Task WriteSettlementAsync(
-        DeliverableAlert a,
-        AlertDeliveryStatusCode status,
-        int retryCount,
-        DateTime? retryAfterUtc,
-        CancellationToken ct
-    )
-    {
-        if (!await _alerts.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct))
-        {
-            _log.LogDebug(
-                "ACTA sys.alerts: alert ({Ref}) moved while its delivery attempt was in flight; settlement is ({Outcome}) ({Detail}).",
-                RenderRef(a.AlertRef),
-                "Skipped",
-                $"expected version {a.Version}"
-            );
-        }
-    }
-}
-
-/// <summary>
-/// The bounds one <c>sys.alerts</c> generate pass drains within: how many events one batch reads
-/// (<c>BatchSize</c>), how many batches the pass may complete (<c>MaxBatches</c>), and the elapsed
-/// budget it spends (<c>TimeBudget</c>). The time budget is cooperative - read between batches, never
-/// inside one - so the batch in flight always finishes and always checkpoints its cursor. The first
-/// bound reached ends the pass.
-/// </summary>
-internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);
-
-/// <summary>
-/// The instant one <c>sys.alerts</c> pass stamps a settlement with: the database clock read once at the start of the
-/// pass, advanced by the monotonic time spent since. A pass is long enough for the difference to matter: the generate
-/// drain may spend a 30-second budget before delivery starts, and delivery adds a transport round trip per row, so a
-/// <c>retry_after_utc</c> computed from the pass start stamps a backoff the pass already consumed, and a short one
-/// lands in the past and is re-selected at once. Monotonic rather than a second clock read: no round trip on the
-/// delivery path, no step backwards if the wall clock is adjusted, and the base stays the database's for comparability.
-/// </summary>
-internal readonly struct AlertSettlementClock(DateTime baseUtc, long startedTimestamp)
-{
-    /// <summary>The base instant plus the elapsed time since it was read.</summary>
-    public DateTime UtcNow => baseUtc + Stopwatch.GetElapsedTime(startedTimestamp);
 }

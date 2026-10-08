@@ -675,7 +675,7 @@ dotnet_diagnostic.CA1031.severity = none
 # to Retryable for that one channel; escaping would fail the whole sys.alerts job and stall delivery for
 # every other alert and channel in the tick. The caller's own cancellation is rethrown by the filtered
 # arm above, so shutdown is never recorded as a transport fault.
-[src/Acta.Runtime/Engine/Alerts/AlertsJob.cs]
+[src/Acta.Runtime/Engine/Alerts/AlertDelivery.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: per-tick catch on a long-lived background loop. A failed reload tick - a database outage, a
