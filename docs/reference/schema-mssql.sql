@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 19)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 20)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -6261,48 +6261,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.register_tenant
-    @p_tenant_key VARCHAR(128),
-    @p_display_name NVARCHAR(128),
-    @p_description NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @tenant_id INT;
-
-        -- Hold the indexed key (or gap) until the operation commits; no unique-error recovery in an aborted transaction.
-        SELECT @tenant_id = id
-        FROM acta.tenants WITH (UPDLOCK, HOLDLOCK)
-        WHERE tenant_key = @p_tenant_key;
-
-        IF @tenant_id IS NULL
-        BEGIN
-            INSERT INTO acta.tenants
-                (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
-            VALUES (@p_tenant_key, @p_display_name, @p_description, 10 /* TenantStatusCode.Active */, @now, @now, 0);
-            SET @tenant_id = CAST(SCOPE_IDENTITY() AS INT);
-        END;
-
-        SELECT @tenant_id AS tenant_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.release_lock
     @p_lock_key VARCHAR(256),
     @p_hold_token UNIQUEIDENTIFIER
@@ -8802,9 +8760,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.19-bfef78b9029d89e3a84d761179ea6370', 'acta'
+SELECT -1, 'objects-1.20-b984b261f5150fd1c1a4efa26b50fb7b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'register_tenant', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_schedule', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'start_worker', 'stop_worker', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 60;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_schedule', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'start_worker', 'stop_worker', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 59;
 GO
 COMMIT TRANSACTION;
 GO

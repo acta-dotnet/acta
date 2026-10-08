@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 19)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 20)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -5481,27 +5481,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.register_tenant(
-    p_tenant_key VARCHAR,
-    p_display_name VARCHAR,
-    p_description VARCHAR
-)
-RETURNS TABLE (tenant_id INT)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Two statements on purpose: each statement in a VOLATILE plpgsql body takes a fresh snapshot,
-    -- so the SELECT sees the concurrently committed same-key winner that made ON CONFLICT skip (a
-    -- single-statement sql body shares one snapshot across both arms and returns no row then).
-    INSERT INTO acta.tenants
-        (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
-    VALUES (p_tenant_key, p_display_name, p_description, 10 /* TenantStatusCode.Active */, now(), now(), 0)
-    ON CONFLICT (tenant_key) DO NOTHING;
-
-    RETURN QUERY SELECT t.id FROM acta.tenants t WHERE t.tenant_key = p_tenant_key;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.release_lock(
     p_lock_key VARCHAR,
     p_hold_token UUID
@@ -7722,7 +7701,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.19-cb3ebd7849046bd3b7e21c5cb03daf47', 'acta');
+VALUES (-1, 'objects-1.20-650316804b86aec4b68aee3f9025b723', 'acta');
 
 COMMIT;
 
