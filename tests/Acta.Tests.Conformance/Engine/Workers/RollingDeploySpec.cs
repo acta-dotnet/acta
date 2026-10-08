@@ -209,7 +209,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
         for (var tick = 0; tick < 32; tick++)
         {
-            if (await runtime.RunOnceAsync(jobNamespace, ct) == RunOnceOutcome.NothingClaimed)
+            if (await runtime.RunOnceAsync(jobNamespace, ct) == RunOnceStatus.NothingClaimed)
             {
                 return;
             }

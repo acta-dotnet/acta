@@ -25,7 +25,7 @@ public static class ScriptProvisionedRuntime
     {
         await using var host = await StartAsync(applyProvider, schema, ct);
         var enqueued = await host.Jobs.EnqueueAsync(new AddNumbers(left, right), ct: ct);
-        Assert.Equal(ActaRunOutcome.Completed, await host.RunOnceAsync(enqueued, ct));
+        Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(enqueued, ct));
         Assert.Equal(
             new AddNumbersResult(left + right),
             await host.Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ByRef(enqueued.JobRef), ct)

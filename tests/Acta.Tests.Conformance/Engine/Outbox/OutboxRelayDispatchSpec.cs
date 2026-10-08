@@ -80,7 +80,7 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         await ChaosSpecHelpers.SetReadyAsync(Db, slot!.Id, ct);
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(TestNamespace, slot.Id, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(TestNamespace, slot.Id, ct));
 
         // Ordinary jobs keep running after the relay tick failed.
         var after = await EnqueueAndRunAsync("echo", new TestJobs.Echo("after"), ct);

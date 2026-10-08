@@ -22,7 +22,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-lifecycle", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableLifecycleResult>(enqueued, ct))!;
         Assert.False(result.ExistsBefore);
@@ -51,7 +51,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariablePersistenceResult>(enqueued, ct))!;
         Assert.Equal(string.Empty, result.EmptyText);
@@ -78,7 +78,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var progress = await Db.From<CheckpointEntity>()
             .Where(v => v.JobId == enqueued.JobId && v.Kind == CheckpointKindCode.Progress && v.Name == "sys.progress")
@@ -94,7 +94,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var fetchValueText = await ReadValueTextAsync(Db, enqueued.JobId, "fetch.status", ct);
         var progressValueText = await ReadValueTextAsync(Db, enqueued.JobId, "sys.progress", ct);
@@ -109,7 +109,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-versioning", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableVersioningResult>(enqueued, ct))!;
         Assert.Equal("v2", result.OverwrittenValue);
@@ -126,7 +126,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-versioning", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableVersioningResult>(enqueued, ct))!;
         Assert.Equal(7, result.GetOrSetInsertedValue);
@@ -145,7 +145,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-validation", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableValidationResult>(enqueued, ct))!;
         Assert.True(result.InvalidNamesRejected);
@@ -165,7 +165,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-race", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableRaceResult>(enqueued, ct))!;
         Assert.Equal(1, result.DistinctObservedValues);
@@ -185,7 +185,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-roundtrip", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableRoundTripResult>(enqueued, ct))!;
         Assert.True(result.PrimitiveValues);
@@ -205,7 +205,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
             await InsertCorruptedJsonVariableAsync(Db, enqueued.JobId, ct);
         }
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariableCorruptReadResult>(enqueued, ct))!;
         Assert.True(result.Rejected);

@@ -88,7 +88,7 @@ public sealed class LaneAncestorGuardSpec : ActaRuntimeTestBase<ConformanceFixtu
         var ct = TestContext.Current.CancellationToken;
         var grandparent = await Jobs.EnqueueAsync(Step("orders", "g", lane: "orders"), ct);
         var parent = await Jobs.EnqueueAsync(Step("none", "p", lane: null) with { ParentJobId = grandparent.JobId }, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, grandparent.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, grandparent.JobId, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(grandparent.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
 

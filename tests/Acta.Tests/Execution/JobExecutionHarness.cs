@@ -142,7 +142,7 @@ internal sealed class JobExecutionHarness(
     /// Runs one attempt. The default handler invokes <c>ctx.RunStepAsync</c> once with a body that
     /// succeeds, so the scripted <c>complete_step</c> answer is what decides the outcome.
     /// </summary>
-    public async Task<RunOnceOutcome> RunAsync(Func<JobContext, CancellationToken, Task>? handler = null)
+    public async Task<RunOnceStatus> RunAsync(Func<JobContext, CancellationToken, Task>? handler = null)
     {
         handler ??= static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token);
         _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _attemptCts.Cancel : null;
@@ -214,7 +214,7 @@ internal sealed class JobExecutionHarness(
     /// store is the same one, so a test reads the released claim off <see cref="Submitted"/> and the
     /// bounce off <see cref="Log"/>.
     /// </summary>
-    public async Task<RunOnceOutcome> RunWithNoDescriptorAsync()
+    public async Task<RunOnceStatus> RunWithNoDescriptorAsync()
     {
         var executor = Executor(new WorkerContext(null));
         return await executor.ExecuteClaimedJobAsync(
@@ -234,7 +234,7 @@ internal sealed class JobExecutionHarness(
     /// the outcome the executor reported for that late claim; the release's own writes are read off
     /// <see cref="Submitted"/> and <see cref="StartAttempts"/>.
     /// </summary>
-    public async Task<RunOnceOutcome> ReleaseOrphanWithLateClaimAnswerAsync()
+    public async Task<RunOnceStatus> ReleaseOrphanWithLateClaimAnswerAsync()
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["harness"] = WorkerId;
@@ -248,7 +248,7 @@ internal sealed class JobExecutionHarness(
         );
         var executor = Executor(context);
 
-        var lateClaim = RunOnceOutcome.NothingClaimed;
+        var lateClaim = RunOnceStatus.NothingClaimed;
         _store.BeforeFirstStart = async () =>
             lateClaim = await executor.ExecuteClaimedJobAsync(
                 Job(failureCount, concurrencyKey),

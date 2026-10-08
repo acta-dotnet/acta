@@ -185,7 +185,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
                 {
                     while (Volatile.Read(ref completed) < jobs && DateTime.UtcNow < deadline)
                     {
-                        if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceOutcome.Completed)
+                        if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.Completed)
                         {
                             Interlocked.Increment(ref completed);
                         }

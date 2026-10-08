@@ -35,7 +35,7 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var jobRef = enqueued.JobRef.Value;
 
         var rewritten = await Db.From<EventEntity>()

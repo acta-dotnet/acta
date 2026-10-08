@@ -118,12 +118,12 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         // An unbounded wait is never backlog: no worker will ever claim it, and only a raise can move it.
         var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
 
         // Nor is a bounded one while its deadline is still ahead: a queue of long approval waits is
         // work nobody is behind on, and counting it would make the gauge cry wolf.
         var bounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
 
         var waiting = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
         Assert.Equal(before.ReadyCount, waiting.ReadyCount);

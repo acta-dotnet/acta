@@ -328,7 +328,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         {
             var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, name, JobPayload.None), ct);
 
-            Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+            Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
             Assert.Equal(
                 EventReasonCode.JobRateLimited,
                 (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct)).ReasonCode
@@ -510,7 +510,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         RateLimitProbes.Reset(TestNamespace);
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "rate-and-slot-probe", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(EventReasonCode.JobRateLimited, bounce.ReasonCode);
         Assert.Equal(0, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
@@ -541,13 +541,13 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // when the host clock allows the turn to have gone stale, in which case it was re-metered against
         // a bucket parked minutes ahead and booked again.
         var outcome = await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct);
-        if (outcome == RunOnceOutcome.Completed)
+        if (outcome == RunOnceStatus.Completed)
         {
             Assert.Single(RateLimitProbes.AdmittedAt(TestNamespace));
         }
         else
         {
-            Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+            Assert.Equal(RunOnceStatus.Rearmed, outcome);
             Assert.True(
                 clock.Elapsed >= TimeSpan.FromMilliseconds(950),
                 $"the turn was re-armed with {950 - clock.Elapsed.TotalMilliseconds:0}ms of its validity left"
@@ -653,7 +653,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                 {
                     while (Volatile.Read(ref completed) < jobs && DateTime.UtcNow < deadline)
                     {
-                        if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceOutcome.Completed)
+                        if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.Completed)
                         {
                             Interlocked.Increment(ref completed);
                         }

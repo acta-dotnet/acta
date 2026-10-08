@@ -46,7 +46,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
         // Start the loop on a namespace with no Ready rows: its first empty claim sees a null horizon
@@ -87,7 +87,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, job.Status);
@@ -110,10 +110,10 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         // Force a re-claim while still pending: the replayed wait must not duplicate the slot or consume an attempt.
         await SetJobStatusReadyAsync(Db, enqueued.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, sig.Status);
@@ -125,7 +125,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
@@ -138,7 +138,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
@@ -154,7 +154,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
@@ -165,13 +165,13 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var decision = new ReviewDecision(true, "looks good");
         var raise = await Jobs.RaiseSignalAsync(enqueued, "review", decision, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
@@ -180,7 +180,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
 
@@ -195,13 +195,13 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct);
 
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(new ReviewDecision(true, "second"), await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
@@ -210,7 +210,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var pause = await Jobs.PauseAsync(enqueued, ct: ct);
         Assert.Equal(ControlAction.Applied, pause.Action);

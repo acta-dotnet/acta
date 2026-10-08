@@ -267,13 +267,13 @@ internal sealed class WorkerRuntime
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
     /// lifecycle (including the concurrency-key lock). Deterministic single-shot primitive for loop and tests.
     /// </summary>
-    public Task<RunOnceOutcome> RunOnceAsync(string namespaceName, CancellationToken ct) => _executor.RunOnceAsync(namespaceName, ct);
+    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, CancellationToken ct) => _executor.RunOnceAsync(namespaceName, ct);
 
     /// <summary>
     /// Claim and run a specific Ready job by id (the claim's <c>ExplicitJobIds</c> path). One tick, no
-    /// retry: a transiently-locked row (READPAST) yields <see cref="RunOnceOutcome.NothingClaimed"/>.
+    /// retry: a transiently-locked row (READPAST) yields <see cref="RunOnceStatus.NothingClaimed"/>.
     /// </summary>
-    public Task<RunOnceOutcome> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>
+    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>
         _executor.RunOnceAsync(namespaceName, jobId, ct);
 
     /// <summary>

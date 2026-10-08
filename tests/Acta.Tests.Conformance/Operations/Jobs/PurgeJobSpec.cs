@@ -98,7 +98,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parentId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parentId, ct));
 
         var result = await Jobs.PurgeAsync(JobLookup.ById(parentId), ct: ct);
 

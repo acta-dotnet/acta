@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary>
 /// Outcome of a single <c>JobExecutor.RunOnceAsync</c> tick.
 /// </summary>
-internal enum RunOnceOutcome : byte
+internal enum RunOnceStatus : byte
 {
     /// <summary>
     /// Nothing executed this tick: either no Ready job was claimable, or a claimed job's

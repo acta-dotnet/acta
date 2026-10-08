@@ -457,7 +457,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var (parent, child) = await EnqueueParentAndChildAsync(ct);
 
         // Parent to terminal with zero retention; the child stays Ready (default 90-day window).
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
 
@@ -475,8 +475,8 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var (parent, child) = await EnqueueParentAndChildAsync(ct);
 
         // Both terminal with zero retention: the whole subtree is immediately eligible.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child, ct));
 
         // What this asserts is the lineage guarantee, not a per-call one: the sweep deletes leaves
         // only, so a parent is never removed while a child still references it, and a fully expired

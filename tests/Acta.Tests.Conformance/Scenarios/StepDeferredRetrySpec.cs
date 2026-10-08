@@ -109,7 +109,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ProbeName, JobPayload.None), ct);
 
         // Tick 1: body fails on attempt 1; step schedules a retry in 30s (real DB clock).
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invoked exactly once.
         Assert.Equal(1, DeferredRetryStepHandler.BodyInvocations[enqueued.JobId]);
@@ -130,7 +130,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // Tick 2: single-shot claim before the retry instant returns NothingClaimed (parent not yet due).
         var tick2 = await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct);
-        Assert.Equal(RunOnceOutcome.NothingClaimed, tick2);
+        Assert.Equal(RunOnceStatus.NothingClaimed, tick2);
 
         // Body not re-invoked.
         Assert.Equal(1, DeferredRetryStepHandler.BodyInvocations[enqueued.JobId]);
@@ -143,7 +143,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ProbeName, JobPayload.None), ct);
 
         // Tick 1: body fails, retry deferred.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(1, DeferredRetryStepHandler.BodyInvocations[enqueued.JobId]);
 
         // Read the retry instant so we can assert exact equality before and after.
@@ -165,7 +165,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         await SetStepNextRetryAtAsync(Db, enqueued.JobId, StepName, past, ct);
 
         // Tick 3: at/after retry instant, body re-invoked (attempt 2 succeeds), parent Succeeded.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invoked twice total.
         Assert.Equal(2, DeferredRetryStepHandler.BodyInvocations[enqueued.JobId]);

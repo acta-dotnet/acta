@@ -63,16 +63,16 @@ public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture
             ct
         );
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await _parentRuntime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await _parentRuntime.RunOnceAsync(parent, ct));
 
         var child = await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(child);
         Assert.Equal(_childRuntime.RegisteredNamespaceIds[ChildNamespace], child!.NamespaceId);
         Assert.Equal(parent.JobId, child.LineageRootId);
 
-        Assert.Equal(RunOnceOutcome.Completed, await _childRuntime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(RunOnceStatus.Completed, await _childRuntime.RunOnceAsync(child.Id, ct));
 
-        Assert.Equal(RunOnceOutcome.Completed, await _parentRuntime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await _parentRuntime.RunOnceAsync(parent, ct));
         var outcome = await Jobs.GetResultAsync<ChildJobOutcome>(parent, ct);
         Assert.True(outcome!.Succeeded);
         Assert.Equal(child.Id, outcome.ChildJobId);

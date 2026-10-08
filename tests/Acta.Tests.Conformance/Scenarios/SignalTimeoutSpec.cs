@@ -28,7 +28,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal("go", slot.Name);
@@ -47,13 +47,13 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-typed", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(
             ControlAction.Applied,
             (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "in time"), ct: ct)).Action
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var report = await Jobs.GetResultAsync<WaitTimeoutReport>(enqueued, ct);
         Assert.Equal(new WaitTimeoutReport(TimedOut: false, Received: true, "in time"), report);
@@ -69,10 +69,10 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
@@ -84,14 +84,14 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var before = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(0, before.FailureCount);
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
         // The claim admits the due Suspended row; the replayed wait is what actually resolves it.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, job.Status);
@@ -111,7 +111,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
         // The combined claim is the poll loop's shape and the only one that writes the started event
@@ -138,10 +138,10 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(
@@ -163,9 +163,9 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(received, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(received, ct));
         await Jobs.RaiseSignalAsync(received, "review", new ReviewDecision(true, "looks good"), ct: ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(received, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(received, ct));
         Assert.Equal(
             new WaitTimeoutReport(TimedOut: false, Received: true, "looks good"),
             await Jobs.GetResultAsync<WaitTimeoutReport>(received, ct)
@@ -175,9 +175,9 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(expired, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(expired, ct));
         await ExpireWaitAsync(Db, expired.JobId, "review", ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(expired, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(expired, ct));
         Assert.Equal(
             new WaitTimeoutReport(TimedOut: true, Received: false, null),
             await Jobs.GetResultAsync<WaitTimeoutReport>(expired, ct)
@@ -189,14 +189,14 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-replay", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
         Assert.NotNull(armed);
 
         // Force a re-claim while the wait is still pending. The replayed handler asks for twice the
         // original timeout; the existing slot must win over the code that re-entered it.
         await ForceClaimableAsync(Db, enqueued.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
@@ -212,7 +212,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Deterministic staging of the race the slot lock arbitrates: the slot is already overdue when
         // the raise lands, and the wait has not re-entered yet. The wait had not resolved, so the raise
@@ -223,7 +223,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             (await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "just in time"), ct: ct)).Action
         );
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(
             new WaitTimeoutReport(TimedOut: false, Received: true, "just in time"),
@@ -241,12 +241,12 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-then-hold", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
         // The wait resolves TimedOut and the handler parks on a second, unbounded signal, so the job is
         // alive and Suspended while "go" is already Expired.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var parked = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, parked.Status);
         Assert.Null(parked.NextRunAtUtc);
@@ -272,7 +272,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // Releasing the second signal replays the handler over the expired slot: it still resolves
         // TimedOut, deterministically, and the job runs to completion.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
     }
@@ -285,19 +285,19 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-then-unbounded", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
         // The Try overload resolves TimedOut and parks the handler on a second, unbounded signal, so
         // the job is alive while "go" is already Expired.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
         // Releasing the park replays the handler over the same slot with the unbounded overload. State
         // records only the expiration; the code that re-enters decides what reaching it means, and the
         // unbounded overload ends the job rather than returning a result.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, job.Status);
@@ -319,14 +319,14 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-upgrade", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
         Assert.Null((await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc);
 
         // The stranded job is unclaimable by construction, so an operator reschedule is what gets the
         // replay running; the arming then happens on that claimed attempt.
         await ForceClaimableAsync(Db, enqueued.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
         Assert.NotNull(armed);
@@ -337,7 +337,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(armed, suspended.NextRunAtUtc);
 
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
@@ -350,12 +350,12 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-downgrade", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
         Assert.NotNull(armed);
 
         await ForceClaimableAsync(Db, enqueued.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
@@ -372,7 +372,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // The unbounded arrival's slot, armed by the handler itself. Two first arrivals racing the same
         // absent slot leave exactly this state for the loser, which is the interleaving this pins: the
         // caller that carries a bound must arm the deadline whether it created the row or found it.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
 
         var decision = await Services
@@ -392,7 +392,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
@@ -404,7 +404,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         // The claim widened to Suspended rows, but a NULL next run is claimable for Ready only: an
         // unbounded wait must stay parked until a raise releases it.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 

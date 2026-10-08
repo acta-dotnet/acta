@@ -79,7 +79,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         // The aborted attempt must NOT land terminal Failed: the row is still Executing and still
         // leased to this worker (the lock store is a separate failure domain), so the completion CAS
         // matches. The runner submits a retryable job.attempt-aborted failure and the job re-arms.
-        Assert.Equal(RunOnceOutcome.Rearmed, await run.WaitAsync(Timeout, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await run.WaitAsync(Timeout, ct));
         Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);

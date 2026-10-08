@@ -28,7 +28,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-fail", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
@@ -56,7 +56,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-throw-not-implemented", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
@@ -73,7 +73,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         // A second tick on this job finds nothing: the job is terminal, not waiting on a retry.
         // Target the job id: a namespace-wide tick can legitimately claim a manifest schedule slot
         // whenever the test happens to straddle the slot's cron boundary.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
     }
 
     [Fact(DisplayName = "Handler cancel lands terminal Cancelled with the matching reason, no result, and a JobCancelled lifecycle event")]
@@ -82,7 +82,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-cancel", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, job.Status);
@@ -105,7 +105,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Paused, job.Status);
@@ -125,7 +125,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         // A paused Job is not claimable: a second tick on its id finds nothing and leaves it Paused.
         // Target the job id: a namespace-wide tick can legitimately claim a manifest schedule slot
         // whenever the test happens to straddle the slot's cron boundary.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
@@ -135,7 +135,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
         var resumed = await Jobs.ResumeAsync(JobLookup.ById(enqueued.JobId), "operator resumed", ct: ct);

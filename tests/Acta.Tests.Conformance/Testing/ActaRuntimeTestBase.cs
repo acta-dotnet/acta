@@ -147,7 +147,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload, null, null, null), ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         return enqueued;
     }
 }

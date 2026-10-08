@@ -62,7 +62,7 @@ public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase
         // boundary re-arms onto that boundary, which a check against now would read as not re-armed.
         var due = (await ReadJobAsync(slotId, ct)).NextRunAtUtc;
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, ct));
 
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);

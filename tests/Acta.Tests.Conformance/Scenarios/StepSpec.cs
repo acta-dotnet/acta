@@ -27,7 +27,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal("ok", await Jobs.GetResultAsync<string>(enqueued, ct));
@@ -47,7 +47,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-void", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal("side-effect", step.Name);
@@ -64,13 +64,13 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-replay", JobPayload.None), ct);
 
         // Tick 1: step runs, then the handler waits on a signal.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
         Assert.Equal(StepStatusCode.Succeeded, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
 
         // Tick 2: raise the signal and replay - the step must replay-skip (no second invocation).
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "proceed", JobPayload.None, ct: ct)).Action);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -84,7 +84,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-retry", JobPayload.None), ct);
 
         // Tick 1: first execution inserts Pending attempt 1, the body fails, a retry is scheduled.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var afterFirst = (await ReadStepsAsync(enqueued.JobId, ct)).Single();
         Assert.Equal(StepStatusCode.Pending, afterFirst.Status);
         Assert.Equal(1, afterFirst.AttemptNumber);
@@ -96,11 +96,11 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(EventReasonCode.JobStepRetryScheduled, rescheduleEvent.ReasonCode);
 
         // Tick 2: attempt_number increments before the second invocation, which also fails.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(2, (await ReadStepsAsync(enqueued.JobId, ct)).Single().AttemptNumber);
 
         // Tick 3: the third invocation succeeds; the parent completes with an untouched budget.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(3, JobStepProbes.BodyInvocations[enqueued.JobId]);
         Assert.Equal(StepStatusCode.Succeeded, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
 
@@ -117,11 +117,11 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-exhaust", JobPayload.None), ct);
 
         // Tick 1: attempt 1 fails in budget (step MaxAttempts = 2) -> budget-neutral re-arm.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(StepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
 
         // Tick 2: attempt 2 exhausts the step; the uncaught exception fails the parent (MaxAttempts = 1).
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepStatusCode.Exhausted, step.Status);

@@ -42,7 +42,7 @@ public sealed class JobExecutionLostClaimTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.True(harness.HandlerRan);
         Assert.Equal([1, 1], harness.StartVersions);
     }
@@ -59,7 +59,7 @@ public sealed class JobExecutionLostClaimTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Empty(harness.Submitted);
         Assert.Equal([1], harness.StartVersions);
@@ -79,7 +79,7 @@ public sealed class JobExecutionLostClaimTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.True(harness.HandlerRan);
         Assert.Equal([1, 2], harness.StartVersions);
     }
@@ -93,7 +93,7 @@ public sealed class JobExecutionLostClaimTests
         // Nothing was mutated and nothing must be: no handler invocation, and above all no completion
         // command, because a completion CAS submitted for a row this worker no longer owns is how a
         // reclaimed job gets a second, contradictory terminal write attempted against it.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Empty(harness.Submitted);
 

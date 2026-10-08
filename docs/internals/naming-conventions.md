@@ -193,7 +193,7 @@ free and it grows with every line anyone adds.
   which is the whole point of splitting categorical from cardinal.
 - **`Outcome` values are PascalCase; `Operation` and `Reason` values are kebab-case.** The split is not
   cosmetic, it follows what the value *is*. An `Outcome` reports a state C# already names - a
-  `RunOnceOutcome`, a `CompleteExecutionAction` - so it mirrors the enum member exactly (`Succeeded`,
+  `RunOnceStatus`, a `CompleteExecutionAction` - so it mirrors the enum member exactly (`Succeeded`,
   `NothingClaimed`), and the handful of sites with no enum behind them spell their literal the same way
   (`Bounced`, `Suppressed`, `Quarantined`). `Operation` and `Reason` are invented labels rather than
   enum members - `concurrency-key-admission`, `outbox-relay`, `key-held`, `unknown-job` - so they take

@@ -54,7 +54,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var outcome = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
         Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(outcome, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(outcome, ct));
 
         var result = await Jobs.GetResultAsync<AddNumbersResult>(outcome, ct);
         Assert.NotNull(result);
@@ -69,11 +69,11 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // Regression: scalar value types (int, double) must survive typed enqueue. They were once
         // misclassified as the 'none' payload format and arrived at the handler as default(T).
         var intJob = await Jobs.EnqueueAsync(21, ct: ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(intJob, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(intJob, ct));
         Assert.Equal(42, await Jobs.GetResultAsync<int>(intJob, ct));
 
         var doubleJob = await Jobs.EnqueueAsync(9.0, ct: ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(doubleJob, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(doubleJob, ct));
         Assert.Equal(4.5, await Jobs.GetResultAsync<double>(doubleJob, ct));
     }
 
@@ -111,7 +111,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
             new JobEnqueueOptions { NextRunAtUtc = DateTime.UtcNow.AddHours(1) },
             ct
         );
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, future.JobId, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, future.JobId, ct));
         var stillReady = await Jobs.GetAsync(future, ct);
         Assert.Equal(JobStatusCode.Ready, stillReady!.Status);
 
@@ -121,7 +121,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
             new JobEnqueueOptions { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) },
             ct
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(due, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(due, ct));
         var result = await Jobs.GetResultAsync<AddNumbersResult>(due, ct);
         Assert.Equal(7, result!.Sum);
     }
@@ -134,7 +134,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var outcome = await Jobs.EnqueueAsync(new NullResultInput(1), ct: ct);
         // Null contract: a null Task<T> return is a handler bug -> terminal Failed (MaxAttempts = 1),
         // never stored as a result.
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(outcome, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(outcome, ct));
 
         var snapshot = await Jobs.GetAsync(outcome, ct);
         Assert.Equal(JobStatusCode.Failed, snapshot!.Status);

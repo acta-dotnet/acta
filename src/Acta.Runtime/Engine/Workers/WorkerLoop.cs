@@ -315,7 +315,7 @@ internal sealed class WorkerLoop(
                 try
                 {
                     var outcome = await _executor.ExecuteClaimedJobAsync(job, ns, namespaceId, workerId, alreadyStarted: false, ct);
-                    if (outcome != RunOnceOutcome.NothingClaimed)
+                    if (outcome != RunOnceStatus.NothingClaimed)
                     {
                         _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, outcome.ToString());
                     }
@@ -454,7 +454,7 @@ internal sealed class WorkerLoop(
         try
         {
             var outcome = await _executor.ExecuteClaimedJobAsync(job, ns, namespaceId, workerId, alreadyStarted: true, ct);
-            if (outcome != RunOnceOutcome.NothingClaimed)
+            if (outcome != RunOnceStatus.NothingClaimed)
             {
                 _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, outcome.ToString());
             }

@@ -244,7 +244,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
     private async Task SucceedOneFireAsync(long slotId, CancellationToken ct)
     {
         var before = RecurringPingHandler.TriggersFor(TestNamespace).Count;
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Equal(before + 1, RecurringPingHandler.TriggersFor(TestNamespace).Count);
 
         var slot = await ReadJobAsync(slotId, ct);

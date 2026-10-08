@@ -40,7 +40,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(JobStatusCode.Ready, raise.Status);
 
         // --- 2. One tick consumes the pre-set signal and completes without suspending.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
@@ -59,14 +59,14 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-wait-signal", ct);
 
         // --- 1. First tick creates the waiter and suspends the job.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, await Jobs.GetStatusAsync(enqueued, ct));
 
         // --- 2. Raising the signal resumes the job; the next tick completes it.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
@@ -93,8 +93,8 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-step-exhaust", ct);
 
         // --- 1. The step retries once, then exhausts its budget and fails the parent.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // --- 2. The step slot is Exhausted after two attempts (no read operation, read the row).
         var step = Assert.Single(await Db.From<StepEntity>().Where(a => a.JobId == enqueued.JobId).ToListAsync(ct));

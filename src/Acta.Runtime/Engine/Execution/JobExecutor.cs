@@ -51,19 +51,19 @@ internal sealed class JobExecutor(
     /// lifecycle (including the concurrency-key lock). The deterministic single-shot primitive: the
     /// production loop drives it from N executor loops; tests drive it directly.
     /// </summary>
-    public Task<RunOnceOutcome> RunOnceAsync(string namespaceName, CancellationToken ct) =>
+    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, CancellationToken ct) =>
         RunOnceCoreAsync(namespaceName, explicitJobId: null, ct);
 
     /// <summary>
     /// Claim and run a specific Ready job by id (via the claim's <c>ExplicitJobIds</c> path),
     /// for callers that already know which job to run. Still a single tick: the claim uses READPAST, so
-    /// a transiently-locked row yields <see cref="RunOnceOutcome.NothingClaimed"/>, and the caller decides
+    /// a transiently-locked row yields <see cref="RunOnceStatus.NothingClaimed"/>, and the caller decides
     /// whether to tick again.
     /// </summary>
-    public Task<RunOnceOutcome> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>
+    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>
         RunOnceCoreAsync(namespaceName, jobId, ct);
 
-    private async Task<RunOnceOutcome> RunOnceCoreAsync(string namespaceName, long? explicitJobId, CancellationToken ct)
+    private async Task<RunOnceStatus> RunOnceCoreAsync(string namespaceName, long? explicitJobId, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
         var (namespaceId, workerId) = _context.ResolveWorker(namespaceName);
@@ -81,7 +81,7 @@ internal sealed class JobExecutor(
         if (claim.Jobs.Count == 0)
         {
             _metrics?.RecordClaim(namespaceName, "nothing-claimed");
-            return RunOnceOutcome.NothingClaimed;
+            return RunOnceStatus.NothingClaimed;
         }
 
         _metrics?.RecordClaim(namespaceName, "claimed");
@@ -95,7 +95,7 @@ internal sealed class JobExecutor(
     /// <see cref="ReleaseUnsupportedClaimAsync"/>), because claims are by namespace and a worker is
     /// therefore free to claim work it cannot run.
     /// </summary>
-    public async Task<RunOnceOutcome> ExecuteClaimedJobAsync(
+    public async Task<RunOnceStatus> ExecuteClaimedJobAsync(
         ClaimedJob job,
         string namespaceName,
         int namespaceId,
@@ -115,7 +115,7 @@ internal sealed class JobExecutor(
                 namespaceName,
                 job.JobId
             );
-            return RunOnceOutcome.NothingClaimed;
+            return RunOnceStatus.NothingClaimed;
         }
 
         try
@@ -128,7 +128,7 @@ internal sealed class JobExecutor(
         }
     }
 
-    private async Task<RunOnceOutcome> ExecuteOwnedClaimAsync(
+    private async Task<RunOnceStatus> ExecuteOwnedClaimAsync(
         ClaimedJob job,
         string namespaceName,
         int namespaceId,
@@ -346,7 +346,7 @@ internal sealed class JobExecutor(
     /// healthy, and <c>extend_worker_leases</c> renews every row this worker leases from database
     /// state alone, so the lease never lapses and <c>sys.recovery</c> never reclaims it.</para>
     /// </summary>
-    private async Task<RunOnceOutcome> ReleaseUnsupportedClaimAsync(
+    private async Task<RunOnceStatus> ReleaseUnsupportedClaimAsync(
         ClaimedJob job,
         string namespaceName,
         int workerId,
@@ -515,7 +515,7 @@ internal sealed class JobExecutor(
         );
     }
 
-    private async Task<RunOnceOutcome> ReleaseClaimAsync(
+    private async Task<RunOnceStatus> ReleaseClaimAsync(
         ClaimedJob job,
         int workerId,
         bool alreadyStarted,
@@ -548,7 +548,7 @@ internal sealed class JobExecutor(
                     $"definition_id {job.DefinitionId}",
                     start.ToString()
                 );
-                return RunOnceOutcome.NothingClaimed;
+                return RunOnceStatus.NothingClaimed;
             }
         }
 
@@ -580,6 +580,6 @@ internal sealed class JobExecutor(
             ct,
             _metrics
         );
-        return complete.Action == CompleteExecutionAction.Completed ? RunOnceOutcome.Rearmed : RunOnceOutcome.NothingClaimed;
+        return complete.Action == CompleteExecutionAction.Completed ? RunOnceStatus.Rearmed : RunOnceStatus.NothingClaimed;
     }
 }

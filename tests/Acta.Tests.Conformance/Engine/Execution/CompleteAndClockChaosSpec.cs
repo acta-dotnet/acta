@@ -44,7 +44,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         // --- 2. Reclaim and rerun converge to one Succeeded finish; the handler ran twice.
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
@@ -61,7 +61,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         // A dropped connection on the write, not a crash: the same attempt repeats the write and lands,
         // so nothing waits for a lease to lapse, the handler ran once, and no recovery event exists.
         _faults.ThrowProviderErrorBeforeCompleteOnce();
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
@@ -80,11 +80,11 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         // compare-and-swap, finds the row already terminal, and reports that as a settled write rather
         // than an anomaly, which is the reconciliation the Retried flag exists for.
         _faults.ThrowAfterCompleteOnce();
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         // --- 2. A retry finds nothing to claim; the handler ran exactly once.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);

@@ -20,7 +20,7 @@ public sealed class JobExecutionOwnershipTests
         var outcome = await harness.RunAsync();
 
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
@@ -55,7 +55,7 @@ public sealed class JobExecutionOwnershipTests
         );
 
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
@@ -73,7 +73,7 @@ public sealed class JobExecutionOwnershipTests
         var outcome = await harness.RunAsync();
 
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Failed, outcome);
+        Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
@@ -120,7 +120,7 @@ public sealed class JobExecutionOwnershipTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.Empty(harness.Applied);
         Assert.Equal((byte)ExecutionStatusCode.Rescheduled, harness.Completion.RescheduleStatusCode);
     }

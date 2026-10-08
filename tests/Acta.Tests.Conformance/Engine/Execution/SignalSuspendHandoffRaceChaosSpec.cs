@@ -68,7 +68,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
 
         // The attempt asked to suspend - Rearmed is what a suspend reports - and the routine overruled
         // it off the slot.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -88,7 +88,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
 
         // And the wake is not the claim: the next tick replays the handler over the Set slot and
         // finishes with the payload the raise carried, so nothing was consumed by the race.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
@@ -102,12 +102,12 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
 
         // The slot re-read is a decision, not a path that always lands Ready. Without it asserted here,
         // the fact above would pass just as well against a completion that ignored the suspend.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, job.Status);
         Assert.Null(job.NextRunAtUtc);
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(events, e => e.EventCode == EventCode.JobSuspended);

@@ -10,7 +10,7 @@ namespace Acta.Testing;
 /// activity on the shared ready index can momentarily hide a freshly-committed row; production
 /// tolerates this by ticking again (its batch loop never depends on one tick), so these reproduce that
 /// for the deterministic single-shot test primitives. Retry up to a short budget, then return the last
-/// result so a genuinely unclaimable job still surfaces <see cref="RunOnceOutcome.NothingClaimed"/> /
+/// result so a genuinely unclaimable job still surfaces <see cref="RunOnceStatus.NothingClaimed"/> /
 /// an empty claim. The retry lives here (test code), never in the production claim path.
 /// </summary>
 /// <remarks>
@@ -41,7 +41,7 @@ internal static class TestRunners
     /// <summary>
     /// Convenience overload taking the enqueue result directly: <c>Runtime.RunOnceAsync(enqueued, ct)</c>.
     /// </summary>
-    internal static Task<RunOnceOutcome> RunOnceAsync(this WorkerRuntime runtime, JobEnqueueResponse enqueued, CancellationToken ct) =>
+    internal static Task<RunOnceStatus> RunOnceAsync(this WorkerRuntime runtime, JobEnqueueResponse enqueued, CancellationToken ct) =>
         runtime.RunOnceAsync(enqueued.JobId, ct);
 
     /// <summary>
@@ -50,7 +50,7 @@ internal static class TestRunners
     /// Retries only NothingClaimed: any settled outcome ends the loop, including Rearmed from an
     /// concurrency-key bounce, so a test that expects completion past a held key must tick again itself.
     /// </summary>
-    internal static async Task<RunOnceOutcome> RunOnceAsync(this WorkerRuntime runtime, long jobId, CancellationToken ct)
+    internal static async Task<RunOnceStatus> RunOnceAsync(this WorkerRuntime runtime, long jobId, CancellationToken ct)
     {
         var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
         s_facades.TryGetValue(runtime, out var jobs);
@@ -63,7 +63,7 @@ internal static class TestRunners
         {
             var outcome = await runtime.RunOnceAsync(jobNamespace, jobId, ct);
             elapsed ??= Stopwatch.StartNew();
-            if (outcome != RunOnceOutcome.NothingClaimed || elapsed.Elapsed > Budget)
+            if (outcome != RunOnceStatus.NothingClaimed || elapsed.Elapsed > Budget)
             {
                 return outcome;
             }

@@ -44,6 +44,6 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
             inspect.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@id", System.Data.SqlDbType.BigInt) { Value = jobId });
             Assert.Equal(jobRef, (Guid)(await inspect.ExecuteScalarAsync(ct))!);
         }
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, jobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, jobId, ct));
     }
 }

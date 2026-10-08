@@ -311,7 +311,7 @@ internal sealed class CliCommandRunner(
             }
             var outcome = await runTask;
 
-            if (outcome == RunOnceOutcome.NothingClaimed)
+            if (outcome == RunOnceStatus.NothingClaimed)
             {
                 await error.WriteLineAsync(
                     $"job {jobRef} was not claimable (a worker may hold or have taken it, its row was transiently locked, or it is not due)."
@@ -321,7 +321,7 @@ internal sealed class CliCommandRunner(
 
             var baselineFailures = restarted ? 0 : snapshot.FailureCount;
             var final = await jobs.GetAsync(JobLookup.ById(jobId), ct);
-            var attemptFailed = outcome == RunOnceOutcome.Failed || (final is not null && final.FailureCount > baselineFailures);
+            var attemptFailed = outcome == RunOnceStatus.Failed || (final is not null && final.FailureCount > baselineFailures);
 
             CliOutput.WriteDebugRun(output, jobRef, outcome.ToString(), final?.Status, json);
             return attemptFailed ? ExitRejected : ExitOk;

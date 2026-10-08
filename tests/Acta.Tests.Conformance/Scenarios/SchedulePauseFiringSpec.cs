@@ -50,7 +50,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, result.Action);
 
         // The lone schedule paused -> the slot is system-paused, so a tick claims nothing.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
     }
 
@@ -67,7 +67,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
 
         // The scheduler reaches the pause expiry: the slot wakes, the schedule auto-resumes and fires once.
         Clock.AdvanceTo(until);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
 
         {
@@ -92,7 +92,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
 
         Clock.AdvanceTo(until);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
         var schedule = await ScheduleAsync(Db, slotId, ct);
         Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
@@ -101,7 +101,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
 
         // The occurrence the pause never covered fires on time, once.
         Clock.AdvanceTo(occurrence);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
     }
 
@@ -117,13 +117,13 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
 
         Clock.AdvanceTo(until);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
         var next = missed.AddMinutes(5);
         Assert.Equal(next, (await ScheduleAsync(Db, slotId, ct)).NextRunAtUtc);
 
         Clock.AdvanceTo(next);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
     }
 

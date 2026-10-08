@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>What one recovery pass changed, for the caller that wants to assert on a single pass.</summary>
-internal readonly record struct RecoveryPassOutcome(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches, int RepairedLanes);
+internal readonly record struct RecoveryPassReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches, int RepairedLanes);
 
 /// <summary>
 /// One recovery pass, and the only implementation of one: the <c>sys.recovery</c> handler and the
@@ -40,7 +40,7 @@ internal sealed class RecoveryPass(
     /// re-arms a resolved wait uncharged - and nothing else will announce them, so a live worker should
     /// pick them up without waiting out the safety poll.
     /// </summary>
-    public async Task<RecoveryPassOutcome> RunAsync(int namespaceId, string namespaceName, CancellationToken ct)
+    public async Task<RecoveryPassReport> RunAsync(int namespaceId, string namespaceName, CancellationToken ct)
     {
         var deadWorkers = await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct);
         var result = await execution.ReclaimStuckJobsAsync(namespaceId, ct);
@@ -76,6 +76,6 @@ internal sealed class RecoveryPass(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return new RecoveryPassOutcome(deadWorkers, result.Reclaimed, released, result.RepairedLanes);
+        return new RecoveryPassReport(deadWorkers, result.Reclaimed, released, result.RepairedLanes);
     }
 }

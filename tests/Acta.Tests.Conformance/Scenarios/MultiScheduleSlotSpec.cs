@@ -163,7 +163,7 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
         // Advance clock to T0+60s: fast was due at T0+30s, slow at T0+50s. Both overdue.
         Clock.AdvanceTo(T0 + TimeSpan.FromSeconds(60));
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
 
         // FirstAfter math (anchor-locked, drift-free):
         //   fast: steps = floor(60/30)+1 = 3 → T0+90s
@@ -206,6 +206,6 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
         }
 
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
     }
 }

@@ -54,7 +54,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Dispatched, JobStatusCode.Ready);
 
         // --- 3. A later tick completes the job exactly once.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
@@ -87,7 +87,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
 
         // --- 3. A later tick finishes the job with a single Succeeded execution.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var finished = (await GetEventsByJobId.Run(Services, enqueued.JobId, ct))
             .Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded)
             .ToList();
@@ -111,7 +111,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         // --- 2. Reclaim and rerun; the durable step is not replayed.
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
 
         // --- 3. One orphaned recovery event and one Succeeded finish.
@@ -149,10 +149,10 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         // --- 3. The job completes exactly once: in the same tick, which re-claims the reclaimed row,
         // or in a fresh run when that tick claimed nothing.
         var outcome = await run;
-        Assert.Contains(outcome, new[] { RunOnceOutcome.Completed, RunOnceOutcome.NothingClaimed });
-        if (outcome == RunOnceOutcome.NothingClaimed)
+        Assert.Contains(outcome, new[] { RunOnceStatus.Completed, RunOnceStatus.NothingClaimed });
+        if (outcome == RunOnceStatus.NothingClaimed)
         {
-            Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+            Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         }
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);

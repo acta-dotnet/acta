@@ -45,7 +45,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -76,7 +76,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // extend_worker_leases selects on (leased_by_worker_id, status_code IN (40, 50)) and nothing
         // else, so the only way a job the worker cannot run stops being renewed forever is for the
@@ -99,8 +99,8 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var audited = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
         var quiet = await EnqueueAndForgetDescriptorAsync(FailuresAuditedJob, ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(audited, ct));
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(quiet, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(audited, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(quiet, ct));
 
         var finished = await ReadSingleEventAsync(audited.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(ExecutionStatusCode.Rescheduled, finished.ExecutionStatus);
@@ -128,7 +128,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var definitionId = DefinitionId(AuditedJob);
         var descriptor = Forgotten(definitionId);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // What the bounce is for: the row is claimable again, and a process that carries the handler
         // runs it with no operator intervention and no retry spent. The re-arm delay is short enough
@@ -137,7 +137,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         // handler is a different process, with an empty exclusion set - so the seam clears it here.
         Runtime.Descriptors[definitionId] = descriptor;
         Assert.True(Runtime.ForgetUnsupportedDefinition(definitionId));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job.Status);
@@ -160,8 +160,8 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         // Namespace-level ticks, because the exclusion lives on the scanning claim: the by-id path
         // still hands a named row back.
         var outcomes = await TickUntilNothingClaimedAsync(ct);
-        Assert.Contains(RunOnceOutcome.Rearmed, outcomes);
-        Assert.Contains(RunOnceOutcome.Completed, outcomes);
+        Assert.Contains(RunOnceStatus.Rearmed, outcomes);
+        Assert.Contains(RunOnceStatus.Completed, outcomes);
 
         Assert.Contains(DefinitionId(AuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(supported.JobId, ct)).Status);
@@ -225,13 +225,13 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
     /// and returns what each tick answered. Bounded so a claim that never settles fails the test
     /// instead of hanging it.
     /// </summary>
-    private async Task<IReadOnlyList<RunOnceOutcome>> TickUntilNothingClaimedAsync(CancellationToken ct)
+    private async Task<IReadOnlyList<RunOnceStatus>> TickUntilNothingClaimedAsync(CancellationToken ct)
     {
-        var outcomes = new List<RunOnceOutcome>();
+        var outcomes = new List<RunOnceStatus>();
         for (var tick = 0; tick < 32; tick++)
         {
             var outcome = await Runtime.RunOnceAsync(TestNamespace, ct);
-            if (outcome == RunOnceOutcome.NothingClaimed)
+            if (outcome == RunOnceStatus.NothingClaimed)
             {
                 return outcomes;
             }

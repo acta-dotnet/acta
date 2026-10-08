@@ -62,7 +62,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (parent, child) = await ParentWaitingOnChildAsync(ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child, ct));
 
         Assert.Equal(CheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent, ct)).Status);
         Assert.DoesNotContain(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
@@ -72,7 +72,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
     private async Task<(long Parent, long Child)> ParentWaitingOnChildAsync(CancellationToken ct)
     {
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);

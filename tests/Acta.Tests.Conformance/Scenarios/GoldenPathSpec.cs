@@ -55,7 +55,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         // --- 3. Run one tick. Should claim the row, invoke the handler, and complete with Succeeded.
         var outcome = await Runtime.RunOnceAsync(enqueued, ct);
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
 
         // --- 4. Read the snapshot / timeline / result.
 

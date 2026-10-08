@@ -47,7 +47,7 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
 
         await ReleasedByTwoHeartbeatsAsync(enqueued.JobId, ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
@@ -72,7 +72,7 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
 
         await ReleasedByTwoHeartbeatsAsync(enqueued.JobId, ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }

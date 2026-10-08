@@ -112,7 +112,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         // First run: suspends waiting for signal "go"
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.RaiseSignalAsync(enqueued, "GO", JobPayload.None, ct: ct));
 
@@ -120,7 +120,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(ControlAction.Applied, raise.Action);
 
         // Second run: signal is Set, job completes
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
     }
 
     private JobEnqueueRow Row(string? deduplicationKey = null, string? concurrencyKey = null)

@@ -13,7 +13,7 @@ The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types 
 |------|------|
 | `ActaTestHost.StartAsync(...)` | Stands up the full Acta runtime on a throwaway schema and returns the host; `ActaTestHostOptions` adds services and picks the schema |
 | `IActaTestHost` | `Jobs` (the public `IJobs` surface), `Operations`, `Services`, `Schema`, `RunOnceAsync`, `RunRecoveryOnceAsync`, and the `Force...DueAsync` helpers that make a retry, timer, wait timeout, or the job itself due now, plus `ExpireExecutionLeaseAsync` |
-| `ActaRunOutcome` | What one drive tick did: `NothingClaimed`, `Completed`, `Failed`, `Rearmed` |
+| `ActaRunStatus` | What one drive tick did: `NothingClaimed`, `Completed`, `Failed`, `Rearmed` |
 
 ## The model
 
@@ -110,7 +110,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
         var outcome = await _host.RunOnceAsync(enqueued);
 
-        Assert.Equal(ActaRunOutcome.Completed, outcome);
+        Assert.Equal(ActaRunStatus.Completed, outcome);
         Assert.Equal(JobStatusCode.Succeeded, await _host.Jobs.GetStatusAsync(enqueued));
         var sent = Assert.Single(_email.Sent);
         Assert.Equal(userId, sent.UserId);
@@ -131,7 +131,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
 ## Reading the outcome
 
-`ActaRunOutcome` tells you what the tick did to the row:
+`ActaRunStatus` tells you what the tick did to the row:
 
 | Outcome | Meaning | Row status afterwards |
 |---------|---------|----------------------|
@@ -174,14 +174,14 @@ public async Task Retries_once_then_completes()
     FlakyJobs.Attempts = 0;
     var enqueued = await _host.Jobs.EnqueueAsync(new FlakyStep());
 
-    Assert.Equal(ActaRunOutcome.Rearmed, await _host.RunOnceAsync(enqueued));   // attempt 1 throws
-    Assert.Equal(ActaRunOutcome.Completed, await _host.RunOnceAsync(enqueued)); // attempt 2 succeeds
+    Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(enqueued));   // attempt 1 throws
+    Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(enqueued)); // attempt 2 succeeds
     Assert.Equal(2, FlakyJobs.Attempts);
 }
 ```
 
 With `MaxAttempts = 2`, making both attempts throw turns the second tick into
-`ActaRunOutcome.Failed` and the row terminal.
+`ActaRunStatus.Failed` and the row terminal.
 
 ## Testing orchestration: signals
 
@@ -212,14 +212,14 @@ public async Task Waits_for_the_approval_signal_then_completes()
     var enqueued = await _host.Jobs.EnqueueAsync(new ApproveExpense(42));
 
     // Tick 1: the handler reaches WaitSignalAsync and parks durably.
-    Assert.Equal(ActaRunOutcome.Rearmed, await _host.RunOnceAsync(enqueued));
+    Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(enqueued));
     Assert.Equal(JobStatusCode.Suspended, await _host.Jobs.GetStatusAsync(enqueued));
 
     // Release: the signal moves the job back to Ready, due now.
     await _host.Jobs.RaiseSignalAsync(enqueued, "approval", true);
 
     // Tick 2: the handler resumes past the wait and completes.
-    Assert.Equal(ActaRunOutcome.Completed, await _host.RunOnceAsync(enqueued));
+    Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(enqueued));
     Assert.Equal(JobStatusCode.Succeeded, await _host.Jobs.GetStatusAsync(enqueued));
 }
 ```

@@ -33,7 +33,7 @@ public sealed class JobExecutionAttemptContextTests
             }
         );
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.NotNull(rejected);
 
         // The cap the attempt enforces is the one this host configured, to the byte.
@@ -58,7 +58,7 @@ public sealed class JobExecutionAttemptContextTests
         );
 
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
 
         // Without the running attempt the runner cannot tell a timeout from an external cancel and

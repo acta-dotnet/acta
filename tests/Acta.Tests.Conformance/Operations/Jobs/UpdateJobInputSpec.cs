@@ -65,7 +65,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Terminal Succeeded through the real path via the zero-retention probe, carrying the marker input.
         var oldInput = JobPayload.Json(new PurgeProbe(marker));
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "purge-now", oldInput), ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
         Assert.Equal(ControlAction.Applied, amend.Action);
@@ -152,7 +152,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(ControlAction.Applied, restart.Action);
         Assert.Equal(JobStatusCode.Ready, restart.Status);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued.JobId, ct));
 
         var typed = await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct);
         Assert.NotNull(typed);

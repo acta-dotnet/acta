@@ -20,7 +20,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
 
         var released = harness.Completion;
@@ -59,7 +59,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         // The start CAS is repeated like the completion: one dropped connection must not escape to
         // the worker loop, which would leave the Dispatched row under a lease the heartbeat renews.
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(2, harness.StartAttempts);
         Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
     }
@@ -77,7 +77,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(2, harness.StartAttempts);
         Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
     }
@@ -96,7 +96,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal([1, 2], harness.StartVersions);
         Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
     }
@@ -114,7 +114,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 
-        Assert.Equal(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.Equal(1, harness.StartAttempts);
         Assert.Empty(harness.Submitted);
     }

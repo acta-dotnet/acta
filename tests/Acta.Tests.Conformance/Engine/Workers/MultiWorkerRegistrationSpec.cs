@@ -56,7 +56,7 @@ public sealed class MultiWorkerRegistrationSpec : ActaTestBase<ConformanceFixtur
             var runtime = runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(ns));
             var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(ns, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
-            Assert.Equal(RunOnceOutcome.Completed, await runtime.RunOnceAsync(enqueued, ct));
+            Assert.Equal(RunOnceStatus.Completed, await runtime.RunOnceAsync(enqueued, ct));
             Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
         }
     }

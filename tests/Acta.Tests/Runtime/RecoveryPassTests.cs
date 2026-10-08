@@ -32,7 +32,7 @@ public sealed class RecoveryPassTests
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassOutcome(0, 0, 0, 0), outcome);
+        Assert.Equal(new RecoveryPassReport(0, 0, 0, 0), outcome);
         Assert.Empty(wakeups.Channels);
     }
 
@@ -53,7 +53,7 @@ public sealed class RecoveryPassTests
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassOutcome(3, 2, 2, 0), outcome);
+        Assert.Equal(new RecoveryPassReport(3, 2, 2, 0), outcome);
         Assert.Equal(
             [WorkerWakeupChannelKind.WorkerNamespace, WorkerWakeupChannelKind.AllWorkerNamespaces],
             wakeups.Channels.Select(c => c.Kind)
@@ -71,7 +71,7 @@ public sealed class RecoveryPassTests
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassOutcome(0, 0, 0, 1), outcome);
+        Assert.Equal(new RecoveryPassReport(0, 0, 0, 1), outcome);
         Assert.Equal([WorkerWakeupChannelKind.WorkerNamespace], wakeups.Channels.Select(c => c.Kind));
     }
 

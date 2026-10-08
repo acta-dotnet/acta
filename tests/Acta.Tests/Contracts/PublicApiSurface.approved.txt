@@ -106,12 +106,12 @@ sealed class Acta.Sqlite.SqliteProviderOptions
     .ctor()
 
 ## Acta.Testing
-sealed class Acta.Testing.ActaRecoveryOutcome
+sealed class Acta.Testing.ActaRecoveryReport
     .ctor(System.Int32 DeadWorkersMarked, System.Int32 ReclaimedJobs, System.Int32 ReleasedChildLatches)
     System.Int32 DeadWorkersMarked { get;init; }
     System.Int32 ReclaimedJobs { get;init; }
     System.Int32 ReleasedChildLatches { get;init; }
-enum Acta.Testing.ActaRunOutcome
+enum Acta.Testing.ActaRunStatus
     Completed = 2
     Failed = 3
     NothingClaimed = 1
@@ -133,10 +133,10 @@ interface Acta.Testing.IActaTestHost
     System.Threading.Tasks.Task ForceStepRetryDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceTimerDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceWaitTimeoutDueAsync(System.Int64 jobId, System.String name = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.ActaRecoveryOutcome> RunRecoveryOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.ActaRunOutcome> RunOnceAsync(Acta.JobEnqueueResponse enqueued, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.ActaRunOutcome> RunOnceAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.ActaRunOutcome> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.ActaRecoveryReport> RunRecoveryOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(Acta.JobEnqueueResponse enqueued, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
 
 ## Acta
 sealed class Acta.AcknowledgeAlertResponse

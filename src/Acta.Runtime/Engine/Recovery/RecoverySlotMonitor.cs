@@ -20,7 +20,7 @@ internal sealed class RecoverySlotMonitor(
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     ILogger log,
-    Func<string, long, CancellationToken, Task<RunOnceOutcome>> runRecovery,
+    Func<string, long, CancellationToken, Task<RunOnceStatus>> runRecovery,
     TimeProvider? time = null
 )
 {
@@ -41,7 +41,7 @@ internal sealed class RecoverySlotMonitor(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log;
     private readonly TimeProvider _time = time ?? TimeProvider.System;
-    private readonly Func<string, long, CancellationToken, Task<RunOnceOutcome>> _runRecovery = runRecovery;
+    private readonly Func<string, long, CancellationToken, Task<RunOnceStatus>> _runRecovery = runRecovery;
 
     /// <summary>
     /// Runs the periodic check until <paramref name="ct"/> stops it hard. <paramref name="drainCt"/> is a

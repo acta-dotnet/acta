@@ -48,7 +48,7 @@ public sealed class AttemptOverlapChaosSpec : ActaRuntimeTestBase<ConformanceFix
         // --- 3. Release the stale attempt so its cleanup runs while the replacement is mid-handler.
         AttemptOverlapProbe.Release(enqueued.JobId, 1);
         var staleOutcome = await staleRun.WaitAsync(Timeout, ct);
-        Assert.Contains(staleOutcome, new[] { RunOnceOutcome.NothingClaimed, RunOnceOutcome.Rearmed });
+        Assert.Contains(staleOutcome, new[] { RunOnceStatus.NothingClaimed, RunOnceStatus.Rearmed });
 
         // --- 4. An external cancel must still reach the replacement attempt through the heartbeat.
         var cancel = await Jobs.CancelAsync(JobLookup.ById(enqueued.JobId), ct: ct);

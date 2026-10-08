@@ -46,7 +46,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         var completed = 0;
         for (var tick = 0; tick < jobs * 8 && completed < jobs; tick++)
         {
-            if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceOutcome.Completed)
+            if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.Completed)
             {
                 completed++;
             }
@@ -116,7 +116,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
                 {
                     while (Volatile.Read(ref completed) < jobs && DateTime.UtcNow < deadline)
                     {
-                        if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceOutcome.Completed)
+                        if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.Completed)
                         {
                             Interlocked.Increment(ref completed);
                         }
@@ -160,7 +160,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
 
         // The claim admits the row (no claim-time gating); execution admission loses the lock race
         // and settles the attempt as a budget-neutral re-arm with the fixed delay.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
 
         var row = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, row.Status);

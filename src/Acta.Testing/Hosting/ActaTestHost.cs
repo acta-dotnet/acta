@@ -7,7 +7,7 @@ namespace Acta.Testing;
 /// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick: the public mirror of the
 /// runtime's internal run outcome, so integrators can assert on what a single drive did.
 /// </summary>
-public enum ActaRunOutcome : byte
+public enum ActaRunStatus : byte
 {
     /// <summary>Nothing was claimable this tick (no Ready job, or a claim lost its row before start).</summary>
     NothingClaimed = 1,
@@ -29,9 +29,9 @@ public enum ActaRunOutcome : byte
 }
 
 /// <summary>
-/// Outcome of one test-driven recovery pass for a namespace.
+/// What one test-driven recovery pass for a namespace changed.
 /// </summary>
-public sealed record ActaRecoveryOutcome(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches);
+public sealed record ActaRecoveryReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches);
 
 /// <summary>
 /// Optional configuration for <see cref="ActaTestHost.StartAsync"/>.
@@ -68,19 +68,19 @@ public interface IActaTestHost : IAsyncDisposable
     IActaOperations Operations { get; }
 
     /// <summary>Claim + execute at most one job in <paramref name="jobNamespace"/>; returns what happened.</summary>
-    Task<ActaRunOutcome> RunOnceAsync(string jobNamespace, CancellationToken ct = default);
+    Task<ActaRunStatus> RunOnceAsync(string jobNamespace, CancellationToken ct = default);
 
     /// <summary>
     /// Claim + execute the specific job <paramref name="jobId"/> (by id), retrying a transient claim
     /// miss under parallel load. Multi-worker hosts route by the job's own namespace.
     /// </summary>
-    Task<ActaRunOutcome> RunOnceAsync(long jobId, CancellationToken ct = default);
+    Task<ActaRunStatus> RunOnceAsync(long jobId, CancellationToken ct = default);
 
     /// <summary>Convenience overload taking the enqueue result directly: <c>RunOnceAsync(enqueued, ct)</c>.</summary>
-    Task<ActaRunOutcome> RunOnceAsync(JobEnqueueResponse enqueued, CancellationToken ct = default);
+    Task<ActaRunStatus> RunOnceAsync(JobEnqueueResponse enqueued, CancellationToken ct = default);
 
     /// <summary>Run one framework recovery pass for <paramref name="jobNamespace"/>.</summary>
-    Task<ActaRecoveryOutcome> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default);
+    Task<ActaRecoveryReport> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default);
 
     /// <summary>Move the job's next-run instant into the past without otherwise changing its state.</summary>
     Task ForceJobDueAsync(long jobId, CancellationToken ct = default);
@@ -175,14 +175,14 @@ public static class ActaTestHost
 
         private IDbSession Db => provider.GetRequiredService<IDbSession>();
 
-        public async Task<ActaRunOutcome> RunOnceAsync(string jobNamespace, CancellationToken ct = default)
+        public async Task<ActaRunStatus> RunOnceAsync(string jobNamespace, CancellationToken ct = default)
         {
             var runtime = ResolveRuntime(jobNamespace);
             var outcome = await runtime.RunOnceAsync(jobNamespace, ct);
-            return (ActaRunOutcome)(byte)outcome;
+            return (ActaRunStatus)(byte)outcome;
         }
 
-        public async Task<ActaRunOutcome> RunOnceAsync(long jobId, CancellationToken ct = default)
+        public async Task<ActaRunStatus> RunOnceAsync(long jobId, CancellationToken ct = default)
         {
             if (runtimes.Length == 0)
             {
@@ -203,13 +203,13 @@ public static class ActaTestHost
                         ).JobNamespace
                     );
             var outcome = await runtime.RunOnceAsync(jobId, ct);
-            return (ActaRunOutcome)(byte)outcome;
+            return (ActaRunStatus)(byte)outcome;
         }
 
-        public Task<ActaRunOutcome> RunOnceAsync(JobEnqueueResponse enqueued, CancellationToken ct = default) =>
+        public Task<ActaRunStatus> RunOnceAsync(JobEnqueueResponse enqueued, CancellationToken ct = default) =>
             RunOnceAsync(enqueued.JobId, ct);
 
-        public async Task<ActaRecoveryOutcome> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default)
+        public async Task<ActaRecoveryReport> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(jobNamespace);
             var runtime = ResolveRuntime(jobNamespace);
@@ -219,7 +219,7 @@ public static class ActaTestHost
             }
 
             var outcome = await provider.GetRequiredService<RecoveryPass>().RunAsync(namespaceId, jobNamespace, ct);
-            return new ActaRecoveryOutcome(outcome.DeadWorkersMarked, outcome.ReclaimedJobs, outcome.ReleasedChildLatches);
+            return new ActaRecoveryReport(outcome.DeadWorkersMarked, outcome.ReclaimedJobs, outcome.ReleasedChildLatches);
         }
 
         public async Task ForceJobDueAsync(long jobId, CancellationToken ct = default)

@@ -56,7 +56,7 @@ SubjectRef;System.String
 Operation;System.String
 
 # How it ended: Succeeded, NothingClaimed, Bounced, Suppressed, Quarantined. PascalCase, mirroring the
-# enum member it usually is - a RunOnceOutcome, a CompleteExecutionAction - and spelled the same way at
+# enum member it usually is - a RunOnceStatus, a CompleteExecutionAction - and spelled the same way at
 # the few sites with no enum behind them. Rendered rather than passed as the enum: an enum's property
 # form is the sink's choice between its name and its numeric value, so leaving it typed makes the
 # stored shape depend on where Acta happens to be hosted. Mirroring beats mapping here, because a

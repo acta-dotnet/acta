@@ -78,7 +78,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         await ChaosSpecHelpers.SetReadyAsync(Db, slot.Id, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, slot.Id, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, slot.Id, ct));
         return slot.Id;
     }
 }

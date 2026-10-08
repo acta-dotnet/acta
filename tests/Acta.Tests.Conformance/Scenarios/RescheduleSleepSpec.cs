@@ -32,7 +32,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         // container's.
         var clock = Services.GetRequiredService<IActaClock>();
         var before = await clock.GetUtcNowAsync(ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var after = await clock.GetUtcNowAsync(ct);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -59,7 +59,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-reschedule-throw", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -74,8 +74,8 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-reschedule-until-past", JobPayload.None), ct);
 
         // The probe re-arms to a past instant on every attempt, so two consecutive ticks both claim it.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
     }
 
     // P0: Sleep
@@ -85,7 +85,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timers = await ReadTimersAsync(enqueued.JobId, ct);
         var nap = Assert.Single(timers);
@@ -108,12 +108,12 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var originalDue = (await ReadTimersAsync(enqueued.JobId, ct)).Single().DueAtUtc;
 
         // Force a re-claim while the timer is still pending in the future (next_run past, due untouched).
         await SetJobNextRunAsync(Db, enqueued.JobId, DateTime.UtcNow.AddMinutes(-1), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timer = Assert.Single(await ReadTimersAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, timer.Status);
@@ -126,14 +126,14 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Drive the timer due: make the Job claimable and move the stored due into the past.
         var past = DateTime.UtcNow.AddMinutes(-1);
         await SetJobNextRunAsync(Db, enqueued.JobId, past, ct);
         await SetTimerDueAsync(Db, enqueued.JobId, "nap", past, ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timer = Assert.Single(await ReadTimersAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Consumed, timer.Status);
@@ -150,7 +150,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-zero", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Empty(await ReadTimersAsync(enqueued.JobId, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -164,7 +164,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-validation", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<SleepValidationResult>(enqueued, ct))!;
         Assert.True(result.InvalidNameRejected);
@@ -184,7 +184,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
         // The duplicate-sleep rejection surfaces as an unhandled exception, so the one-shot retry budget
         // re-arms the Job to Ready (the existing timer is untouched) rather than failing on the first try.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timers = await ReadTimersAsync(enqueued.JobId, ct);
         var only = Assert.Single(timers);
@@ -201,7 +201,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         // An unrecognized JobControlException is a handler exception to the runtime: the attempt fails
         // under the retry budget and re-arms, rather than being translated into a reschedule / suspend
         // or escaping the attempt and leaving the row Executing under a lease the heartbeat renews.
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);

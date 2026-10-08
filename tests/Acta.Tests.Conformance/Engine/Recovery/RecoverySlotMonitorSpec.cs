@@ -295,7 +295,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
             context,
             NullLogger.Instance,
             // Repair only: this fact is about the re-arm, and running the slot is a sibling fact's subject.
-            static (_, _, _) => Task.FromResult(RunOnceOutcome.NothingClaimed),
+            static (_, _, _) => Task.FromResult(RunOnceStatus.NothingClaimed),
             time
         );
 
@@ -333,7 +333,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         // The pass is a stand-in that reports when it starts and finishes only when told to, so the
         // fact can drain while it is running.
         var passStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var finishPass = new TaskCompletionSource<RunOnceOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishPass = new TaskCompletionSource<RunOnceStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new ManualTimeProvider();
         var monitor = new RecoverySlotMonitor(
             Execution,
@@ -361,7 +361,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
         Assert.False(loop.IsCompleted);
 
-        finishPass.SetResult(RunOnceOutcome.Completed);
+        finishPass.SetResult(RunOnceStatus.Completed);
         await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 

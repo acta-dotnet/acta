@@ -18,7 +18,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.Empty(harness.SlotRequests);
     }
 
@@ -31,7 +31,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         var outcome = await harness.RunAsync();
 
         var request = Assert.Single(harness.SlotRequests);
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.Equal("1.sem.customer-1", request.KeyPrefix);
         Assert.Equal(1, request.Limit);
         Assert.Equal(1, harness.SlotReleases);
@@ -69,7 +69,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         var outcome = await harness.RunAsync();
 
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
         Assert.Equal(EventReasonCode.JobConcurrencyKeyHeld, completion.EventReasonCode);
@@ -93,7 +93,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.EndsWith(".sem.sys.recovery", Assert.Single(harness.SlotRequests).KeyPrefix, StringComparison.Ordinal);
     }
 
@@ -108,7 +108,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         // an exception that escaped here would strand it until the process restarts. The attempt
         // bounces like a held slot: budget-neutral, the fixed delay, no handler run.
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
         Assert.Equal(EventReasonCode.Unclassified, completion.EventReasonCode);

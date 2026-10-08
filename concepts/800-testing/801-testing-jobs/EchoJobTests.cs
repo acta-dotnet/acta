@@ -20,7 +20,7 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         var outcome = await Host.RunOnceAsync(enqueued, Ct);
 
-        Assert.Equal(ActaRunOutcome.Completed, outcome);
+        Assert.Equal(ActaRunStatus.Completed, outcome);
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, Ct));
         var result = await Jobs.GetResultAsync<EchoResult>(enqueued, Ct);
         Assert.Equal("hello", result!.Message);
@@ -32,11 +32,11 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
         var enqueued = await Jobs.EnqueueAsync(new Echo("boom"), ct: Ct);
 
         // Attempts 1 and 2 throw; with retries left the job re-arms to Ready (due now), not Failed.
-        Assert.Equal(ActaRunOutcome.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(ActaRunOutcome.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
+        Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
+        Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
 
         // Attempt 3 spends the MaxAttempts budget: terminal Failed.
-        Assert.Equal(ActaRunOutcome.Failed, await Host.RunOnceAsync(enqueued, Ct));
+        Assert.Equal(ActaRunStatus.Failed, await Host.RunOnceAsync(enqueued, Ct));
         Assert.Equal(JobStatusCode.Failed, await Jobs.GetStatusAsync(enqueued, Ct));
     }
 }

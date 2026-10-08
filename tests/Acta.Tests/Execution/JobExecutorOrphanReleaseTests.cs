@@ -19,7 +19,7 @@ public sealed class JobExecutorOrphanReleaseTests
 
         var lateClaim = await harness.ReleaseOrphanWithLateClaimAnswerAsync();
 
-        Assert.Equal(RunOnceOutcome.NothingClaimed, lateClaim);
+        Assert.Equal(RunOnceStatus.NothingClaimed, lateClaim);
         Assert.False(harness.HandlerRan);
         Assert.Equal(1, harness.StartAttempts);
         Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);

@@ -28,7 +28,7 @@ public sealed class LaneControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var last = await StepAsync("c", ct);
 
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(paused, ct: ct)).Action);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
 
         Assert.Equal(JobStatusCode.Paused, await StatusAsync(paused, ct));
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(last, ct));
@@ -53,7 +53,7 @@ public sealed class LaneControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(ControlAction.Applied, (await Jobs.ReprioritizeAsync(follower, JobPriorityCode.Critical, ct: ct)).Action);
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(follower, ct));
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
         Assert.Equal(JobStatusCode.Ready, await StatusAsync(follower, ct));
     }
 
@@ -66,7 +66,7 @@ public sealed class LaneControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var later = DateTime.UtcNow.AddHours(1);
 
         Assert.Equal(JobStatusCode.Blocked, (await Jobs.RescheduleAsync(follower, later, ct: ct)).Status);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
 
         var row = await ReadJobAsync(follower.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, row.Status);

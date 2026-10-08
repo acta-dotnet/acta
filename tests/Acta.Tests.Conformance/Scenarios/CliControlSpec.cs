@@ -128,7 +128,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         var finished = await EnqueueLaneStepAsync("solo", ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
         var runner = CreateRunner(out var output);
 
         var exit = await runner.RunAsync(Parse($"debug {finished.JobId}"), ct);
@@ -145,7 +145,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         var finished = await EnqueueLaneStepAsync("queued", ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
         var follower = await EnqueueLaneStepAsync("queued", ct);
         var runner = CreateRunner(out var output);
 

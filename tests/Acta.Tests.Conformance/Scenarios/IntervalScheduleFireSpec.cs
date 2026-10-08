@@ -146,7 +146,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         Clock.AdvanceTo(now);
 
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
 
         // Exactly one execution despite 3.5 missed periods: Skip coalesces them.
         var slot = await ReadJobAsync(slotId, ct);
@@ -216,6 +216,6 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         }
 
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
     }
 }

@@ -20,7 +20,7 @@ public sealed class JobExecutionRateAdmissionTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.Empty(harness.RateRequests);
     }
 
@@ -32,7 +32,7 @@ public sealed class JobExecutionRateAdmissionTests
         var outcome = await harness.RunAsync();
 
         var request = Assert.Single(harness.RateRequests);
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.True(harness.HandlerRan);
         Assert.Equal("1.rate.harness-job", request.BucketKey);
         Assert.Equal(100, request.IntervalMilliseconds);
@@ -61,7 +61,7 @@ public sealed class JobExecutionRateAdmissionTests
         var outcome = await harness.RunAsync();
 
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
         Assert.Equal(EventReasonCode.JobRateLimited, completion.EventReasonCode);
@@ -88,7 +88,7 @@ public sealed class JobExecutionRateAdmissionTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.True(harness.HandlerRan);
         Assert.Equal(2, harness.RateRequests.Count);
         Assert.Equal(ExecutionOutcome.Succeeded, harness.Completion.Outcome);
@@ -160,7 +160,7 @@ public sealed class JobExecutionRateAdmissionTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Cancelled, harness.Completion.Outcome);
         Assert.Equal(EventReasonCode.JobDeadlineExceeded, harness.Completion.EventReasonCode);
@@ -219,7 +219,7 @@ public sealed class JobExecutionRateAdmissionTests
         // reserved instant, the slot it took goes back, and nothing is charged; a reservation the
         // meter may have booked without answering is honoured when the job returns.
         var completion = harness.Completion;
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(EventReasonCode.Unclassified, completion.EventReasonCode);
         Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
@@ -237,7 +237,7 @@ public sealed class JobExecutionRateAdmissionTests
 
         var outcome = await harness.RunAsync();
 
-        Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Empty(harness.RateRequests);
         Assert.Equal(EventReasonCode.JobConcurrencyKeyHeld, harness.Completion.EventReasonCode);
     }

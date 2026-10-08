@@ -203,7 +203,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Stage a pending, never-completed step slot, then replay through the real runtime.
         await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // The body was never invoked on the replay.
         Assert.False(AtMostOnceStepHandler.BodyInvocations.ContainsKey(enqueued.JobId));
@@ -232,7 +232,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         );
 
         await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body still never ran, but the handler reconciled and the job completed.
         Assert.False(AtMostOnceStepHandler.BodyInvocations.ContainsKey(enqueued.JobId));

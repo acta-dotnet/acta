@@ -41,6 +41,6 @@ public sealed class PgDirectSqlEnqueueTests : ActaRuntimeTestBase<PgConformanceF
             inspect.Parameters.Add(new Npgsql.NpgsqlParameter("id", NpgsqlTypes.NpgsqlDbType.Bigint) { Value = jobId });
             Assert.Equal(jobRef, (Guid)(await inspect.ExecuteScalarAsync(ct))!);
         }
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, jobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, jobId, ct));
     }
 }

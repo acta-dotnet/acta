@@ -25,7 +25,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await StartParentAsync("job-child-quick", ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         // The child latch carries the deadline exactly as a signal slot does, and the Suspended parent
         // caches it so the claim can wake at that instant.
@@ -35,8 +35,8 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(latch.DueAtUtc, (await ReadJobAsync(parent.JobId, ct)).NextRunAtUtc);
 
         var child = await OnlyChildAsync(parent.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
         Assert.NotNull(report);
@@ -58,20 +58,20 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
 
         var failing = await StartParentAsync("job-child-fail", ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(failing, ct));
-        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(await OnlyChildAsync(failing.JobId, ct), ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(failing, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(failing, ct));
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(await OnlyChildAsync(failing.JobId, ct), ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(failing, ct));
         var failed = await Jobs.GetResultAsync<ChildWaitReport>(failing, ct);
         Assert.True(failed!.Completed);
         Assert.Equal(JobStatusCode.Failed, failed.Outcome!.Status);
 
         var cancelled = await StartParentAsync("job-wait-signal", ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(cancelled, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(cancelled, ct));
         var child = await OnlyChildAsync(cancelled.JobId, ct);
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(JobLookup.ById(child), "superseded", ct: ct)).Action);
 
         // The cancel raised the latch, so the parent is Ready without its deadline ever mattering.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(cancelled, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(cancelled, ct));
         var stopped = await Jobs.GetResultAsync<ChildWaitReport>(cancelled, ct);
         Assert.True(stopped!.Completed);
         Assert.Equal(JobStatusCode.Cancelled, stopped.Outcome!.Status);
@@ -85,17 +85,17 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
             new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-subtree", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         var children = await ChildIdsAsync(parent.JobId, ct);
         var slow = children["slow"];
         var sibling = children["sibling"];
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(slow, ct));
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(sibling, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(slow, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(sibling, ct));
         var grandchild = await OnlyChildAsync(slow, ct);
 
         await ExpireChildWaitAsync(Db, parent.JobId, slow, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         // The parent is the one thing a child timeout must never touch: it resumed, ran the code after
         // the wait, and landed terminal on its own terms with an untouched failure budget.
@@ -140,8 +140,8 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var second = (await ChildIdsAsync(parent.JobId, ct))["second"];
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(second, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(second, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
         Assert.True(report!.TimedOut);
@@ -162,15 +162,15 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // Crash-replay the parent from the top: the slot is Expired, so the wait re-derives TimedOut and
         // the cancel runs again against a terminal child, which must add nothing to the ledger.
         await SetJobStatusReadyAsync(Db, parent.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         Assert.Equal(1, await CountEventsAsync(first, EventCode.JobCancelled, ct));
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(first, ct)).Status);
         Assert.Equal(2, (await ChildIdsAsync(parent.JobId, ct)).Count);
 
         var second = (await ChildIdsAsync(parent.JobId, ct))["second"];
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(second, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(second, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.True((await Jobs.GetResultAsync<ChildWaitReport>(parent, ct))!.TimedOut);
         Assert.Equal(1, await CountEventsAsync(first, EventCode.JobCancelled, ct));
     }
@@ -180,14 +180,14 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await StartParentAsync("job-child-quick", ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
 
         // Stage the interleaving the slot lock arbitrates: the parent's wait already flipped the latch
         // Expired, and the child's completion transaction only starts afterwards.
         await ForceLatchExpiredAsync(Db, parent.JobId, child, ct);
         var before = await ReadJobAsync(parent.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child, ct));
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Expired, latch.Status);
@@ -205,7 +205,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Contains("already expired", raised.ReasonMessage ?? "", StringComparison.Ordinal);
 
         // The parent still resolves TimedOut, and its cancel of an already-succeeded child is rejected.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.True((await Jobs.GetResultAsync<ChildWaitReport>(parent, ct))!.TimedOut);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child, ct)).Status);
         Assert.Equal(0, await CountEventsAsync(child, EventCode.JobCancelled, ct));
@@ -216,12 +216,12 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await StartParentAsync("job-wait-signal", ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(child, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(child, ct));
 
         await ExpireChildWaitAsync(Db, parent.JobId, child, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         // The terminal landing is what makes the abandoned child reachable by retention at all; a child
         // left Suspended forever is exactly the leak this slice exists to close.
@@ -244,20 +244,20 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
             new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-then-unbounded", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
 
         // The Try overload resolves TimedOut and the handler parks, so the job is alive and Suspended
         // while its child latch is already Expired.
         await ExpireChildWaitAsync(Db, parent.JobId, child, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         // Releasing the park replays the handler over the same latch with the unbounded overload. The
         // slot cannot say which overload armed it, so the code that re-enters decides what an expiry
         // means, and the unbounded one ends the job rather than returning.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(parent, "hold", JobPayload.None, ct: ct)).Action);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var job = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, job.Status);
@@ -276,7 +276,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var foreign = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(foreign, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(foreign, ct));
 
         var parent = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(
@@ -286,13 +286,13 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
             ),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         // Nothing raises a latch for a job that was never started here, so this wait can do nothing but
         // expire. That makes a caller bug reach the cancel path by construction, which is why the
         // parentage guard exists rather than trusting the id.
         await ExpireChildWaitAsync(Db, parent.JobId, foreign.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var report = await Jobs.GetResultAsync<ChildWaitReport>(parent, ct);
         Assert.True(report!.TimedOut);
@@ -311,7 +311,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal(CheckpointKindCode.ChildLatch, latch.Kind);
@@ -324,7 +324,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         // The claim admits due Suspended rows, but a NULL next run stays Ready-only: an unbounded child
         // wait must park until its child's latch releases it.
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(parent, ct));
     }
 
     private async Task<JobEnqueueResponse> StartParentAsync(string childJobName, CancellationToken ct) =>
@@ -341,12 +341,12 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
             new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-then-retry", JobPayload.None),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var first = (await ChildIdsAsync(parent.JobId, ct))["first"];
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(first, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(first, ct));
 
         await ExpireChildWaitAsync(Db, parent.JobId, first, ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         return (parent, first);
     }
 

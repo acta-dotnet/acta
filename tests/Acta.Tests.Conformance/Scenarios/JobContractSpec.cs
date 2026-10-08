@@ -32,7 +32,7 @@ public sealed class JobContractSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var snapshot = await Jobs.GetAsync(outcome, ct);
         Assert.Equal("add-numbers", snapshot!.JobName);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(outcome, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(outcome, ct));
         var result = await Jobs.GetResultAsync<AddNumbersResult>(outcome, ct);
         Assert.Equal(5, result!.Sum);
     }

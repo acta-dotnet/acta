@@ -109,7 +109,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
   `IAlertTransport.SendAsync` returns, is now `AlertSendStatus`, and `JobHandlerInvocationResult`, what a
   generated handler invoker returns, is now `JobHandlerOutput`; rebuild to regenerate the invokers.
-  `ActaControlDecision`, what an `IActaControlAuthorizer` returns, is now `ActaControlVerdict`.
+  `ActaControlDecision`, what an `IActaControlAuthorizer` returns, is now `ActaControlVerdict`. In
+  `Acta.Testing`, `ActaRunOutcome` and `ActaRecoveryOutcome` are now `ActaRunStatus` and `ActaRecoveryReport`.
   Members and JSON are unchanged.
 
 ### Additions

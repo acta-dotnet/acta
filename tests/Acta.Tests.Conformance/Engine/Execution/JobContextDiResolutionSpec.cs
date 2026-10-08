@@ -32,7 +32,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
             new JobEnqueueRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("hello"))),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // The handler returned the JobContext it was constructor-injected with: identity must match
         // the running job, proving the per-attempt scope resolved a populated JobContext.
@@ -59,7 +59,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
             new JobEnqueueRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantKey: tenantKey),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct);
         Assert.NotNull(result);

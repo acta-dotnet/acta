@@ -102,7 +102,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 3. Releasing the probe lets the original run finish Succeeded.
         ChaosProbes.Release(enqueued.JobId);
-        Assert.Equal(RunOnceOutcome.Completed, await run);
+        Assert.Equal(RunOnceStatus.Completed, await run);
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
     }
 
@@ -124,7 +124,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         await Runtime.RunHeartbeatOnceAsync(ct);
         await ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
 
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await run);
+        Assert.Equal(RunOnceStatus.NothingClaimed, await run);
         Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(enqueued, ct));
 
         // --- 3. Timeline: one start, the Cancelled execution-finished, and the job-cancelled event.
@@ -157,7 +157,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(JobStatusCode.Ready, resume.Status);
 
         // --- 2. The resumed job runs to completion, with paired pause/resume events.
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
             events,

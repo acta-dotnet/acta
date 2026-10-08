@@ -78,7 +78,7 @@ public sealed class LaneSettlePathsSpec : ActaRuntimeTestBase<ConformanceFixture
         await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "b"), "orders"), ct);
         var before = _wakeups.Published.Count;
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
 
         var published = _wakeups.Published.Skip(before).ToList();
         Assert.Contains(published, c => c.Kind == WorkerWakeupChannelKind.WorkerNamespace);
@@ -91,7 +91,7 @@ public sealed class LaneSettlePathsSpec : ActaRuntimeTestBase<ConformanceFixture
         var head = await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "a"), "orders"), ct);
         var before = _wakeups.Published.Count;
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
 
         Assert.DoesNotContain(_wakeups.Published.Skip(before), c => c.Kind == WorkerWakeupChannelKind.WorkerNamespace);
     }

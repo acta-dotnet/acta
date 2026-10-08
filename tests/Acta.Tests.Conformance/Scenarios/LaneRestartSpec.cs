@@ -57,7 +57,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(0, detail.FailureCount);
         Assert.Equal(next.JobRef, detail.BlockedBehindJobRef);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, next.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, next.JobId, ct));
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(head.JobId, ct)).Status);
         var follower = (await Jobs.GetAsync(waiting, ct))!;
@@ -70,7 +70,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     {
         var ct = TestContext.Current.CancellationToken;
         var done = await Jobs.EnqueueAsync(Step("orders", "a"), ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
         var cancelled = await Jobs.EnqueueAsync(Step("billing", "b"), ct);
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(cancelled, ct: ct)).Action);
 
@@ -79,8 +79,8 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         Assert.Equal((ControlAction.Applied, JobStatusCode.Ready), (restartedDone.Action, restartedDone.Status));
         Assert.Equal((ControlAction.Applied, JobStatusCode.Ready), (restartedCancelled.Action, restartedCancelled.Status));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, cancelled.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, cancelled.JobId, ct));
     }
 
     [Fact(DisplayName = "A restart racing the running member's completion leaves exactly one live member")]
@@ -114,7 +114,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     {
         var ct = TestContext.Current.CancellationToken;
         var done = await Jobs.EnqueueAsync(Step("orders", "a"), ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
         var version = (await Jobs.GetAsync(done, ct))!.Version;
 
         var outcomes = await Task.WhenAll(
@@ -136,7 +136,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(Step("", "p"), ct);
         var child = await Jobs.EnqueueAsync(Step("orders", "c") with { ParentJobId = parent.JobId }, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, child.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, child.JobId, ct));
 
         var restarted = await Jobs.RestartAsync(child, ct: ct);
 
@@ -156,7 +156,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var ancestor = await Jobs.EnqueueAsync(Step("orders", "p"), ct);
         var middle = await Jobs.EnqueueAsync(Step("", "c") with { ParentJobId = ancestor.JobId }, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, ancestor.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, ancestor.JobId, ct));
         var head = await Jobs.EnqueueAsync(Step("orders", "x"), ct);
         var descendant = await Jobs.EnqueueAsync(Step("orders", "d") with { ParentJobId = middle.JobId }, ct);
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(descendant.JobId, ct)).Status);
@@ -166,7 +166,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         Assert.Equal((ControlAction.Rejected, JobStatusCode.Succeeded), (restarted.Action, restarted.Status));
         Assert.Equal(finished.Version, (await Jobs.GetAsync(ancestor, ct))!.Version);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, head.JobId, ct));
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(descendant.JobId, ct)).Status);
     }
 
@@ -176,9 +176,9 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var ancestor = await Jobs.EnqueueAsync(Step("orders", "p"), ct);
         var middle = await Jobs.EnqueueAsync(Step("", "c") with { ParentJobId = ancestor.JobId }, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, ancestor.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, ancestor.JobId, ct));
         var descendant = await Jobs.EnqueueAsync(Step("orders", "d") with { ParentJobId = middle.JobId }, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, descendant.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, descendant.JobId, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(ancestor, ct: ct)).Action);
 
         var restarted = await Jobs.RestartAsync(descendant, ct: ct);

@@ -158,7 +158,7 @@ internal sealed class JobExecution(
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
-    public async Task<RunOnceOutcome> RunAsync(
+    public async Task<RunOnceStatus> RunAsync(
         IServiceProvider attemptServices,
         JobDescriptor descriptor,
         ClaimedJob job,
@@ -186,7 +186,7 @@ internal sealed class JobExecution(
                 $"execution number {job.ExecutionNumber}",
                 start.ToString()
             );
-            return RunOnceOutcome.NothingClaimed;
+            return RunOnceStatus.NothingClaimed;
         }
 
         // Admission deadline check: a Strict job that is already past its deadline at the moment
@@ -559,7 +559,7 @@ internal sealed class JobExecution(
                         "WorkerRuntime: job {JobId} interrupted by worker shutdown; left Executing for recovery.",
                         job.JobId
                     );
-                    return RunOnceOutcome.NothingClaimed;
+                    return RunOnceStatus.NothingClaimed;
                 }
 
                 outcome = ExecutionOutcome.Failed;
@@ -943,7 +943,7 @@ internal sealed class JobExecution(
                 complete.Action == CompleteExecutionAction.AlreadyTerminal
                 || retried
                 || jobContext.CancellationToken.IsCancellationRequested
-                ? RunOnceOutcome.NothingClaimed
+                ? RunOnceStatus.NothingClaimed
                 : throw new InvalidOperationException($"CompleteExecution for job {job.JobId} returned {complete.Action}.");
         }
 
@@ -1001,14 +1001,14 @@ internal sealed class JobExecution(
         if (retryRearmed)
         {
             // A failed one-shot that re-armed for another attempt: the row is Ready, not Failed.
-            return RunOnceOutcome.Rearmed;
+            return RunOnceStatus.Rearmed;
         }
 
         return outcome switch
         {
-            ExecutionOutcome.Succeeded or ExecutionOutcome.Cancelled => RunOnceOutcome.Completed,
-            ExecutionOutcome.Rescheduled or ExecutionOutcome.Suspended or ExecutionOutcome.Paused => RunOnceOutcome.Rearmed,
-            _ => RunOnceOutcome.Failed,
+            ExecutionOutcome.Succeeded or ExecutionOutcome.Cancelled => RunOnceStatus.Completed,
+            ExecutionOutcome.Rescheduled or ExecutionOutcome.Suspended or ExecutionOutcome.Paused => RunOnceStatus.Rearmed,
+            _ => RunOnceStatus.Failed,
         };
     }
 

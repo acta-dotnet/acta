@@ -24,7 +24,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await using var host = await StartHostAsync(ct);
 
         var sleep = await host.Jobs.EnqueueAsync(TestJobsManifest.JobSleepBasic, ct: ct);
-        Assert.Equal(ActaRunOutcome.Rearmed, await host.RunOnceAsync(sleep, ct));
+        Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(sleep, ct));
         var timer = Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct));
         Assert.Equal(("nap", CheckpointStatusCode.Pending), (timer.Name, timer.Status));
 
@@ -36,7 +36,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         );
 
         var step = await host.Jobs.EnqueueAsync(TestJobsManifest.JobStepRetry, ct: ct);
-        Assert.Equal(ActaRunOutcome.Rearmed, await host.RunOnceAsync(step, ct));
+        Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(step, ct));
         Assert.Equal(StepStatusCode.Pending, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
 
         await host.ForceStepRetryDueAsync(step.JobId, "flaky", ct);
@@ -74,7 +74,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await using var host = await StartHostAsync(ct);
 
         var parent = await host.Jobs.EnqueueAsync(TestJobsManifest.JobParentTryWaitChild, new TryWaitChildStart("job-wait-signal"), ct: ct);
-        Assert.Equal(ActaRunOutcome.Rearmed, await host.RunOnceAsync(parent, ct));
+        Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(parent, ct));
 
         // The helper reads the awaited slot by kind, so a child latch stages exactly like a signal does;
         // its name is the framework-owned sys.child key rather than anything the handler chose.
@@ -102,7 +102,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             new ChildGroupStart(["job-wait-signal", "job-wait-signal"]),
             ct: ct
         );
-        Assert.Equal(ActaRunOutcome.Rearmed, await host.RunOnceAsync(parent, ct));
+        Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(parent, ct));
 
         // A group spends one stored deadline, so the helper takes no wait name; rewinding one latch by
         // hand would leave the deadline in the future and let the second member start over.

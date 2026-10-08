@@ -67,7 +67,7 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
             Assert.Equal(ControlAction.Applied, paused.Action);
         });
 
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
         // The fire really happened: without this the pause could survive simply because nothing ran.
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
@@ -99,7 +99,7 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), until, reasonMessage: "window", ct: ct)).Action);
         Clock.AdvanceTo(until);
 
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
         var after = await ScheduleAsync(Db, slotId, ct);
         Assert.Equal(ScheduleStatusCode.Active, after.Status);

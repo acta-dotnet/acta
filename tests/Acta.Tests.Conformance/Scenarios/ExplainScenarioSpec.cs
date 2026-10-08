@@ -25,7 +25,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
 
@@ -44,12 +44,12 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(
             ControlAction.Applied,
             (await Jobs.RaiseSignalAsync(JobLookup.ById(enqueued.JobId), "go", JobPayload.None, ct: ct)).Action
         );
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
 
@@ -71,7 +71,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
             ),
             ct
         );
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await Db.From<Acta.Runtime.JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(parent.JobId), ct);
@@ -94,7 +94,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
 

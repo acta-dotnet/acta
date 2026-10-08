@@ -597,7 +597,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
         await AssertNamespaceAgreementAsync(child.JobId, ct);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(one, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(one, ct));
         var restart = await Jobs.RestartAsync(one, ct: ct);
         Assert.Equal(ControlAction.Applied, restart.Action);
         await AssertNamespaceAgreementAsync(one.JobId, ct);

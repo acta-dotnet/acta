@@ -30,9 +30,9 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var childId = Assert.Single(await ChildIdsAsync(parent.JobId, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(childId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(childId, ct));
         await ExpireAsync(childId, ct);
 
         // The parent is Ready, released by the child's latch and not yet replayed: live, not terminal.
@@ -40,7 +40,7 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(ControlAction.Rejected, (await Jobs.PurgeAsync(JobLookup.ById(childId), ct: ct)).Action);
         Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(JobLookup.ById(childId), ct))!.Doubled);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
         Assert.Equal(childId, Assert.Single(await ChildIdsAsync(parent.JobId, ct)));
         Assert.Equal(1, (await Jobs.GetAsync(JobLookup.ById(childId), ct))!.ExecutionNumber);
@@ -68,12 +68,12 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
-        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var childId = Assert.Single(await ChildIdsAsync(parent.JobId, ct));
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(childId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(childId, ct));
         Assert.Equal(ControlAction.Rejected, (await Jobs.PurgeAsync(JobLookup.ById(childId), ct: ct)).Action);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(ControlAction.Rejected, (await Jobs.PurgeAsync(parent, ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(JobLookup.ById(childId), ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(parent, ct: ct)).Action);

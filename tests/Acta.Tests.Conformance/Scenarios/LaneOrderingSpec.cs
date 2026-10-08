@@ -97,8 +97,8 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var next = await EnqueueStepAsync("orders", "b", JobPriorityCode.Normal, ct);
 
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(next, ct));
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, ct));
-        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, next.JobId, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, ct));
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, next.JobId, ct));
 
         // The Blocked member is due now by its own run time, so a horizon that counted it would sit at
         // or before db_now and spin the claim loop at the anti-spin floor.
@@ -268,7 +268,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 return;
             }
 
-            if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceOutcome.NothingClaimed)
+            if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.NothingClaimed)
             {
                 await Task.Delay(25, ct);
             }

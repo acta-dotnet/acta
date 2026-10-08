@@ -252,6 +252,6 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         }
 
         var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceOutcome.NothingClaimed, outcome);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
     }
 }
