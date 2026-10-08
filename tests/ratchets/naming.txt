@@ -1,10 +1,8 @@
 # Known naming violations; entries may only be removed.
-ActaControlDecision (Decision)
 ActaEndpointRouteBuilderExtensions.HeaderedResult (Result)
 ActaProviderInfo (Info)
 ActaRecoveryOutcome (Outcome)
 ActaRunOutcome (Outcome)
-AdminControlResult (Result)
 AlertChannelDecision (Decision)
 ClaimResult (Result)
 CompleteExecutionResult (Result)

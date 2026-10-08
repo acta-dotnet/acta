@@ -12,7 +12,11 @@ namespace Acta.AspNetCore;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
-    Converters = [typeof(CamelCaseJobControlActionConverter), typeof(CamelCaseJobEnqueueActionConverter)],
+    Converters = [
+        typeof(CamelCaseJobControlActionConverter),
+        typeof(CamelCaseJobEnqueueActionConverter),
+        typeof(CamelCaseTagMutationActionConverter),
+    ],
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
@@ -63,7 +67,8 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(ResolveAlertResponse))]
 [JsonSerializable(typeof(UpdateTenantHttpRequest))]
 [JsonSerializable(typeof(UpdateNamespaceHttpRequest))]
-[JsonSerializable(typeof(AdminControlResult))]
+[JsonSerializable(typeof(UpsertTagsResponse))]
+[JsonSerializable(typeof(RemoveTagsResponse))]
 [JsonSerializable(typeof(SuspendTenantResponse))]
 [JsonSerializable(typeof(ResumeTenantResponse))]
 [JsonSerializable(typeof(UpdateTenantResponse))]
@@ -103,3 +108,10 @@ internal sealed class CamelCaseJobControlActionConverter()
 /// </summary>
 internal sealed class CamelCaseJobEnqueueActionConverter()
     : JsonStringEnumConverter<JobEnqueueAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
+
+/// <summary>
+/// Serializes <see cref="TagMutationAction"/> camelCase ("applied", "notFound"), the words the tag writes
+/// answer with like every other control verb.
+/// </summary>
+internal sealed class CamelCaseTagMutationActionConverter()
+    : JsonStringEnumConverter<TagMutationAction>(System.Text.Json.JsonNamingPolicy.CamelCase);

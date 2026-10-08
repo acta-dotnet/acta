@@ -21,11 +21,11 @@ public sealed class ControlAuthorizationTests
     private const string Confirm = "X-Acta-Control";
     private static readonly string Found = FakeJobs.FoundJobRef.ToString();
 
-    private sealed class FakeAuthorizer(Func<ActaControlRequest, ActaControlDecision> decide) : IActaControlAuthorizer
+    private sealed class FakeAuthorizer(Func<ActaControlRequest, ActaControlVerdict> decide) : IActaControlAuthorizer
     {
         public List<ActaControlRequest> Requests { get; } = [];
 
-        public ValueTask<ActaControlDecision> AuthorizeAsync(ActaControlRequest request, CancellationToken ct)
+        public ValueTask<ActaControlVerdict> AuthorizeAsync(ActaControlRequest request, CancellationToken ct)
         {
             Requests.Add(request);
             return ValueTask.FromResult(decide(request));
@@ -44,7 +44,7 @@ public sealed class ControlAuthorizationTests
     public async Task Denying_authorizer_blocks_the_control_and_never_reaches_jobs()
     {
         var fakes = new FakeOperations();
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("not on your shift"));
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Denied("not on your shift"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
@@ -64,7 +64,7 @@ public sealed class ControlAuthorizationTests
     public async Task Allowing_authorizer_lets_the_control_proceed_and_observes_verb_and_actor()
     {
         var fakes = new FakeOperations();
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Allowed);
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Allowed);
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
@@ -106,7 +106,7 @@ public sealed class ControlAuthorizationTests
     public async Task Read_endpoints_are_never_blocked_by_a_denying_authorizer()
     {
         var fakes = new FakeOperations();
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("no reads for you either"));
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Denied("no reads for you either"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
@@ -130,7 +130,7 @@ public sealed class ControlAuthorizationTests
     public async Task Reads_are_never_blocked_by_a_denying_authorizer()
     {
         var fakes = new FakeOperations();
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("no reads for you either"));
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Denied("no reads for you either"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
@@ -155,7 +155,7 @@ public sealed class ControlAuthorizationTests
     public async Task Enqueue_and_amend_are_blocked_by_a_denying_authorizer()
     {
         var fakes = new FakeOperations();
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("not on your shift"));
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Denied("not on your shift"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
@@ -177,7 +177,7 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task Enqueue_route_derives_the_enqueue_verb()
     {
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Allowed);
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Allowed);
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer)
@@ -199,7 +199,7 @@ public sealed class ControlAuthorizationTests
     {
         var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(request =>
-            request.Verb == "outbox.discard" ? ActaControlDecision.Denied("not on your shift") : ActaControlDecision.Allowed
+            request.Verb == "outbox.discard" ? ActaControlVerdict.Denied("not on your shift") : ActaControlVerdict.Allowed
         );
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
@@ -222,7 +222,7 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task Worker_tag_control_route_derives_a_workers_verb()
     {
-        var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Allowed);
+        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Allowed);
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer)

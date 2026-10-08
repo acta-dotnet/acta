@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-  import { api, controlRequest, type AdminControlResult } from '../api.ts';
+  import { api, controlRequest, type TagMutationResponse } from '../api.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import Icon from './Icon.svelte';
 
@@ -39,7 +39,7 @@
     busy = true;
     message = '';
     try {
-      const result = await controlRequest<AdminControlResult>(path, { name, value }, { action: 'notFound', version: null });
+      const result = await controlRequest<TagMutationResponse>(path, { name, value }, { action: 'notFound' });
       if (result.action === 'notFound') {
         message = 'Target not found.';
       } else {
@@ -58,10 +58,10 @@
     busy = true;
     message = '';
     try {
-      const result = await controlRequest<AdminControlResult>(
+      const result = await controlRequest<TagMutationResponse>(
         `${path}/${encodeURIComponent(name)}`,
         undefined,
-        { action: 'notFound', version: null },
+        { action: 'notFound' },
         'DELETE'
       );
       if (result.action === 'notFound') {

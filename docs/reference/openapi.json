@@ -92,7 +92,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -102,7 +102,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -281,7 +281,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -291,7 +291,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -1841,7 +1841,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -1851,7 +1851,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -2030,7 +2030,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -2040,7 +2040,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -2130,7 +2130,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -2140,7 +2140,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -2319,7 +2319,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -2329,7 +2329,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -2757,7 +2757,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -2767,7 +2767,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -2946,7 +2946,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -2956,7 +2956,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -3669,7 +3669,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -3679,7 +3679,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -3858,7 +3858,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -3868,7 +3868,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -4422,7 +4422,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -4432,7 +4432,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -4627,7 +4627,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -4637,7 +4637,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -5085,7 +5085,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -5095,7 +5095,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpsertTagsResponse"
                 }
               }
             }
@@ -5306,7 +5306,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -5316,7 +5316,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/RemoveTagsResponse"
                 }
               }
             }
@@ -8046,28 +8046,6 @@
         "description": "What acknowledging an alert did, and its timestamps after the attempt."
       },
       "ActorCode": { },
-      "AdminControlResult": {
-        "required": [
-          "action",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "$ref": "#/components/schemas/ControlAction"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "Result of an admin control transition: the action plus the row version after the attempt."
-      },
       "AlertDeliveryStatusCode": {
         "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
       },
@@ -11319,6 +11297,18 @@
           }
         }
       },
+      "RemoveTagsResponse": {
+        "required": [
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/TagMutationAction"
+          }
+        },
+        "description": "What removing one tag did: applied, or the target did not exist."
+      },
       "ReprioritizeJobHttpRequest": {
         "required": [
           "priority"
@@ -12005,6 +11995,13 @@
         },
         "description": "One normalized tag attached to a target."
       },
+      "TagMutationAction": {
+        "enum": [
+          "applied",
+          "notFound"
+        ],
+        "description": "What a tag mutation did to its target."
+      },
       "TenantDetail": {
         "required": [
           "tenantKey",
@@ -12354,6 +12351,18 @@
             ]
           }
         }
+      },
+      "UpsertTagsResponse": {
+        "required": [
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/TagMutationAction"
+          }
+        },
+        "description": "What upserting one tag did: applied, or the target did not exist."
       },
       "VersionedControlHttpRequest": {
         "type": "object",

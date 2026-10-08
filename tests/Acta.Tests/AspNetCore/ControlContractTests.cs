@@ -588,7 +588,7 @@ public sealed class ControlContractTests
                 action,
                 pathPrefix + pathSuffix,
                 status,
-                typeof(AdminControlResult),
+                method == "POST" ? typeof(UpsertTagsResponse) : typeof(RemoveTagsResponse),
                 action,
                 body,
                 Stage: status == StatusCodes.Status200OK ? TagApplies : TagTargetMissing

@@ -262,6 +262,11 @@ export interface AdminControlResult {
   version: number | null;
 }
 
+// A tag write answers applied at 200 or notFound at 404, with no version: a tag set is not a versioned record.
+export interface TagMutationResponse {
+  action: 'applied' | 'notFound';
+}
+
 export interface NamespaceListItem {
   jobNamespace: string;
   status: string;

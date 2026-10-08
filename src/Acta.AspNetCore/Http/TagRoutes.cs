@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Http;
 
 namespace Acta.AspNetCore;
@@ -55,7 +56,11 @@ internal static class TagRoutes
 
         return string.IsNullOrWhiteSpace(body!.Name)
             ? ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.")
-            : await MutateAsync(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct: ct));
+            : await MutateAsync(
+                resolve,
+                target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct: ct),
+                DashboardJsonContext.Default.UpsertTagsResponse
+            );
     }
 
     public static async Task<IResult> RemoveAsync(
@@ -68,17 +73,21 @@ internal static class TagRoutes
     ) =>
         ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError
             ? confirmationError
-            : await MutateAsync(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct));
+            : await MutateAsync(
+                resolve,
+                target => operations.Tags.RemoveAsync(target, tagName, ct: ct),
+                DashboardJsonContext.Default.RemoveTagsResponse
+            );
 
-    private static async Task<IResult> MutateAsync<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply)
+    // A tag write is a control verb: it answers with its response on 404 exactly as on 200.
+    private static async Task<IResult> MutateAsync<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply, JsonTypeInfo<T> info)
         where T : ITagMutationResponse
     {
         try
         {
             var response = await apply(resolve());
-            return response.Action == TagMutationAction.Applied
-                ? Results.Json(new AdminControlResult(ControlAction.Applied, null), DashboardJsonContext.Default.AdminControlResult)
-                : MutationNotFound();
+            var status = response.Action == TagMutationAction.Applied ? StatusCodes.Status200OK : StatusCodes.Status404NotFound;
+            return Results.Json(response, info, statusCode: status);
         }
         catch (ArgumentException ex)
         {
@@ -94,16 +103,4 @@ internal static class TagRoutes
     /// there is the plain problem document every other read returns.
     /// </summary>
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found.");
-
-    /// <summary>
-    /// The mutation not-found: a tag mutation is a control verb, so it answers with the family
-    /// envelope on 404 exactly as it does on 200. Version is null because a tag write carries no CAS
-    /// token - the tag set is the row's own, not a versioned catalog record.
-    /// </summary>
-    private static IResult MutationNotFound() =>
-        Results.Json(
-            new AdminControlResult(ControlAction.NotFound, null),
-            DashboardJsonContext.Default.AdminControlResult,
-            statusCode: StatusCodes.Status404NotFound
-        );
 }

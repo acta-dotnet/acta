@@ -91,8 +91,8 @@ internal static class RouteTable
             )
             .AcceptsJson<UpsertTagHttpRequest>()
             .WithSummary($"Add or update one tag on the {entity}.")
-            .Produces<AdminControlResult>(StatusCodes.Status200OK)
-            .Produces<AdminControlResult>(StatusCodes.Status404NotFound)
+            .Produces<UpsertTagsResponse>(StatusCodes.Status200OK)
+            .Produces<UpsertTagsResponse>(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
         controls
             .MapDelete(
@@ -101,8 +101,8 @@ internal static class RouteTable
                     TagRoutes.RemoveAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithSummary($"Remove one tag from the {entity}.")
-            .Produces<AdminControlResult>(StatusCodes.Status200OK)
-            .Produces<AdminControlResult>(StatusCodes.Status404NotFound);
+            .Produces<RemoveTagsResponse>(StatusCodes.Status200OK)
+            .Produces<RemoveTagsResponse>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>

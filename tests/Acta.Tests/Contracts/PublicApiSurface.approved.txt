@@ -3,17 +3,17 @@
 # Every line here is a 1.0 commitment: additive in 1.x, breaking only in 2.0.
 
 ## Acta.AspNetCore
-struct Acta.AspNetCore.ActaControlDecision
-    .ctor(System.Boolean IsAllowed, System.String Reason)
-    Acta.AspNetCore.ActaControlDecision Allowed { get; }
-    Acta.AspNetCore.ActaControlDecision Denied(System.String reason)
-    System.Boolean IsAllowed { get;init; }
-    System.String Reason { get;init; }
 struct Acta.AspNetCore.ActaControlRequest
     .ctor(System.String Verb, Microsoft.AspNetCore.Http.HttpContext HttpContext, System.String ActorKey)
     Microsoft.AspNetCore.Http.HttpContext HttpContext { get;init; }
     System.String ActorKey { get;init; }
     System.String Verb { get;init; }
+struct Acta.AspNetCore.ActaControlVerdict
+    .ctor(System.Boolean IsAllowed, System.String Reason)
+    Acta.AspNetCore.ActaControlVerdict Allowed { get; }
+    Acta.AspNetCore.ActaControlVerdict Denied(System.String reason)
+    System.Boolean IsAllowed { get;init; }
+    System.String Reason { get;init; }
 sealed class Acta.AspNetCore.ActaDashboardOptions
     .ctor()
     System.Boolean AddSecurityHeaders { get;set; }
@@ -36,7 +36,7 @@ static class Acta.AspNetCore.ActaEndpointRouteBuilderExtensions
     Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActaApi(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = default, System.Action<Acta.AspNetCore.ActaEndpointOptions> configure = default)
     System.String ApiVersionSegment = /v1
 interface Acta.AspNetCore.IActaControlAuthorizer
-    System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlDecision> AuthorizeAsync(Acta.AspNetCore.ActaControlRequest request, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlVerdict> AuthorizeAsync(Acta.AspNetCore.ActaControlRequest request, System.Threading.CancellationToken ct)
 
 ## Acta.Postgres
 static class Acta.Postgres.PostgresActaBuilderExtensions
@@ -165,10 +165,6 @@ sealed class Acta.ActorCodeJsonConverter
     .ctor()
     Acta.ActorCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ActorCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.AdminControlResult
-    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
-    Acta.ControlAction Action { get;init; }
-    System.Nullable<System.Int32> Version { get;init; }
 static class Acta.AdminTextLimits
     System.Int32 AlertChannelName = 128
     System.Int32 NamespaceDescription = 512

@@ -30,7 +30,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   its `I*` verb returns, so the `message` text is gone from job, schedule, outbox, and definition
   responses (the dashboard words outcomes itself), a job control no longer echoes `jobRef`, and a
   definition control no longer echoes `jobNamespace` and `jobName`. Status codes are unchanged. A
-  client that showed `message` builds its text from `action` and `status`.
+  client that showed `message` builds its text from `action` and `status`. The tag writes answer with
+  `UpsertTagsResponse` and `RemoveTagsResponse` too, so `AdminControlResult` is gone: the body keeps
+  `action` and loses `version`, which was always null.
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
 - **A command returns its own response.** `ITenants` answers
@@ -107,6 +109,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
   `IAlertTransport.SendAsync` returns, is now `AlertSendStatus`, and `JobHandlerInvocationResult`, what a
   generated handler invoker returns, is now `JobHandlerOutput`; rebuild to regenerate the invokers.
+  `ActaControlDecision`, what an `IActaControlAuthorizer` returns, is now `ActaControlVerdict`.
   Members and JSON are unchanged.
 
 ### Additions
