@@ -23,7 +23,7 @@ public sealed class SqlCommandCatalogTests
             .Select(r => ProviderSqlResources.Stem(r.LogicalPath))
             .ToList();
 
-        Assert.Equal(38, routines.Count);
+        Assert.Equal(37, routines.Count);
         Assert.Equal(
             routines.Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal),
             catalog.Routines().Select(r => r.Name)
