@@ -2,18 +2,18 @@ namespace Acta.Runtime;
 
 /// <summary><see cref="IAlerts"/>, one line per operation.</summary>
 internal sealed class Alerts(
-    AcknowledgeJobAlertHandler acknowledgeJobAlert,
+    AcknowledgeAlertHandler acknowledgeAlert,
     ResolveJobAlertManualHandler resolveJobAlertManual,
     ListAlertsHandler listAlerts,
     GetAlertHandler getAlert
 ) : IAlerts
 {
-    public ValueTask<AcknowledgeJobAlertResponse> AcknowledgeAsync(
+    public ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => acknowledgeJobAlert.HandleAsync(new AcknowledgeJobAlertCommand(alertRef, reasonMessage, actorKey), ct);
+    ) => acknowledgeAlert.HandleAsync(new AcknowledgeAlertCommand(alertRef, reasonMessage, actorKey), ct);
 
     public ValueTask<ResolveJobAlertManualResponse> ResolveAsync(
         AlertRef alertRef,

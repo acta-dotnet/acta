@@ -2154,7 +2154,7 @@
 
 | SQL stem | PostgreSQL | SQL Server | SQLite |
 | --- | --- | --- | --- |
-| `AcknowledgeJobAlert` | yes | yes | yes |
+| `AcknowledgeAlert` | yes | yes | yes |
 | `AcquireLock` | yes | yes | yes |
 | `AcquireSchemaLock` | yes | yes | yes |
 | `AcquireSlot` | yes | yes | yes |

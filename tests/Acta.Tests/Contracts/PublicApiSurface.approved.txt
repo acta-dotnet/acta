@@ -139,7 +139,7 @@ interface Acta.Testing.IActaTestHost
     System.Threading.Tasks.Task<Acta.Testing.ActaRunOutcome> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
 
 ## Acta
-sealed class Acta.AcknowledgeJobAlertResponse
+sealed class Acta.AcknowledgeAlertResponse
     .ctor(Acta.AlertRef AlertRef, Acta.ControlAction Action, System.Nullable<System.DateTime> AcknowledgedAtUtc, System.Nullable<System.DateTime> ResolvedAtUtc)
     Acta.AlertRef AlertRef { get;init; }
     Acta.ControlAction Action { get;init; }
@@ -968,7 +968,7 @@ interface Acta.IAlertTransport
 interface Acta.IAlertTransportRegistry
     Acta.IAlertTransport Resolve(System.String transportKind)
 interface Acta.IAlerts
-    System.Threading.Tasks.ValueTask<Acta.AcknowledgeJobAlertResponse> AcknowledgeAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.AcknowledgeAlertResponse> AcknowledgeAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResolveJobAlertManualResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)

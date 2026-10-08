@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Control",
     Contract = "Acknowledge stamps and audits alert.acknowledged once, repeats without a second event, keeps a due reminder due, and reports NotFound for an unknown ref."
 )]
-public sealed class AcknowledgeJobAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Raises an alert against a freshly-enqueued job, so its auto-increment JobId is guaranteed unique
     // (unlike a fabricated constant) and scopes the alert's audit events precisely even across repeated

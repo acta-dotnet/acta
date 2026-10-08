@@ -1,5 +1,4 @@
 # Known dialect-parity violations; entries may only be removed.
-AcknowledgeJobAlert
 AcquireSlot
 ClaimBatch
 CompleteExecution

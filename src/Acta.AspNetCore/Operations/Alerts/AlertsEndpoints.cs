@@ -78,7 +78,7 @@ internal static class AlertsEndpoints
             options,
             DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid alert command.",
-            ControlStatus.Alert<AcknowledgeJobAlertResponse>(),
+            ControlStatus.Alert<AcknowledgeAlertResponse>(),
             RouteKeys.Alert,
             static (call, alertRef) => call.Operations.Alerts.AcknowledgeAsync(alertRef, call.ReasonMessage, call.ActorKey, call.Ct)
         );

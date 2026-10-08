@@ -106,7 +106,7 @@ public sealed class ControlContractTests
         .. ScheduleOverrides(),
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
-        .. AlertVerb("acknowledge", typeof(AcknowledgeJobAlertResponse)),
+        .. AlertVerb("acknowledge", typeof(AcknowledgeAlertResponse)),
         .. AlertVerb("resolve", typeof(ResolveJobAlertManualResponse)),
         .. OutboxVerb("requeue", typeof(RequeueOutboxResponse)),
         .. OutboxVerb("discard", typeof(DiscardOutboxResponse)),

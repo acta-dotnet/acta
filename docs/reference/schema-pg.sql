@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 35)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 36)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -799,98 +799,6 @@ FROM acta.workers AS w
 JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 -- ===== routines (versionless; always rewritten to this file's definitions) =====
-
-CREATE OR REPLACE FUNCTION acta.acknowledge_job_alert(
-    p_alert_ref UUID,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (out_action SMALLINT, out_acknowledged_at_utc TIMESTAMPTZ, out_resolved_at_utc TIMESTAMPTZ)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_namespace_id INT;
-    v_job_id BIGINT;
-    v_job_ref UUID;
-    v_ack TIMESTAMPTZ;
-    v_resolved TIMESTAMPTZ;
-    v_definition_id INT;
-    v_lineage_root_id BIGINT;
-    v_execution_number INT;
-BEGIN
-    SELECT a.namespace_id, a.job_id, a.job_ref, a.acknowledged_at_utc, a.resolved_at_utc
-    INTO v_namespace_id, v_job_id, v_job_ref, v_ack, v_resolved
-    FROM acta.alerts a
-    WHERE a.alert_ref = p_alert_ref
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ;
-        RETURN;
-    END IF;
-
-    IF v_ack IS NOT NULL THEN
-        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
-        RETURN;
-    END IF;
-
-    SELECT j.definition_id, j.lineage_root_id INTO v_definition_id, v_lineage_root_id
-    FROM acta.jobs j
-    WHERE j.id = v_job_id;
-    SELECT r.execution_number INTO v_execution_number
-    FROM acta.runtimes r
-    WHERE r.job_id = v_job_id;
-
-    v_ack := now();
-
-    UPDATE acta.alerts
-    SET
-        acknowledged_at_utc = v_ack,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE alert_ref = p_alert_ref;
-
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        140 /* EventCode.AlertAcknowledged */,
-        now(),
-        v_namespace_id,
-        p_actor_code,
-        p_actor_key,
-        v_job_id,
-        v_job_ref,
-        v_execution_number,
-        COALESCE(v_lineage_root_id, v_job_id),
-        v_definition_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
-END;
-$$;
 
 CREATE OR REPLACE FUNCTION acta.acquire_lock(
     p_lock_key VARCHAR,
@@ -5693,7 +5601,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.35-1fb9ceed8955903daaad92d2c018fa1b', 'acta');
+VALUES (-1, 'objects-1.36-c8e9f89cef9303e403384645dfac5c8a', 'acta');
 
 COMMIT;
 

@@ -45,7 +45,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   and `RetireAsync` with `SetJobDefinitionOverridesResponse` and `RetireDefinitionResponse` instead
   of `DefinitionControlResult`; each carries the same `Action` and implements the new
   `IDefinitionControlResponse`. `IAlerts` answers `AcknowledgeAsync` and `ResolveAsync` with
-  `AcknowledgeJobAlertResponse` and `ResolveJobAlertManualResponse` instead of `AlertControlResult`;
+  `AcknowledgeAlertResponse` and `ResolveJobAlertManualResponse` instead of `AlertControlResult`;
   each carries the same four members and implements the new `IAlertControlResponse`. `ISchedules`
   answers `PauseAsync`, `ResumeAsync`, `UpdateOverridesAsync`, and `TriggerNowAsync` with
   `PauseScheduleResponse`, `ResumeScheduleResponse`, `SetScheduleOverridesResponse`, and

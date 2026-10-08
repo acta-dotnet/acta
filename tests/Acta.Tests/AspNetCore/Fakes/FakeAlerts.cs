@@ -19,11 +19,11 @@ internal sealed class FakeAlerts : IAlerts
         {
             if (alertRef == default)
             {
-                return ValueTask.FromResult(new AcknowledgeJobAlertResponse(alertRef, ControlAction.NotFound, null, null));
+                return ValueTask.FromResult(new AcknowledgeAlertResponse(alertRef, ControlAction.NotFound, null, null));
             }
 
             AcknowledgeCalls.Add((alertRef, reason, actor));
-            return ValueTask.FromResult(new AcknowledgeJobAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, null));
+            return ValueTask.FromResult(new AcknowledgeAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, null));
         };
         Resolve = (alertRef, reason, actor, _) =>
         {
@@ -43,7 +43,7 @@ internal sealed class FakeAlerts : IAlerts
 
     public List<(AlertRef AlertRef, string? Note, string? ActorKey)> ResolveCalls { get; } = [];
 
-    public Func<AlertRef, string?, string?, CancellationToken, ValueTask<AcknowledgeJobAlertResponse>> Acknowledge { get; set; }
+    public Func<AlertRef, string?, string?, CancellationToken, ValueTask<AcknowledgeAlertResponse>> Acknowledge { get; set; }
 
     public Func<AlertRef, string?, string?, CancellationToken, ValueTask<ResolveJobAlertManualResponse>> Resolve { get; set; }
 
@@ -51,7 +51,7 @@ internal sealed class FakeAlerts : IAlerts
 
     public Func<AlertRef, CancellationToken, ValueTask<AlertDetail?>> Get { get; set; }
 
-    ValueTask<AcknowledgeJobAlertResponse> IAlerts.AcknowledgeAsync(
+    ValueTask<AcknowledgeAlertResponse> IAlerts.AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage,
         string? actorKey,

@@ -3967,7 +3967,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AcknowledgeJobAlertResponse"
+                  "$ref": "#/components/schemas/AcknowledgeAlertResponse"
                 }
               }
             }
@@ -3977,7 +3977,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AcknowledgeJobAlertResponse"
+                  "$ref": "#/components/schemas/AcknowledgeAlertResponse"
                 }
               }
             }
@@ -8013,7 +8013,7 @@
   },
   "components": {
     "schemas": {
-      "AcknowledgeJobAlertResponse": {
+      "AcknowledgeAlertResponse": {
         "required": [
           "alertRef",
           "action",
