@@ -405,6 +405,13 @@ dotnet_naming_style.s_camelcase.capitalization = camel_case
 dotnet_diagnostic.MA0135.severity = warning
 dotnet_diagnostic.MA0124.severity = warning
 
+# The method cap: a method body spans at most 150 lines, comments included; the statement count is not
+# capped. FileLengthTests held the cap with a ratchet until every method fit; the build holds it now.
+[src/**/*.cs]
+dotnet_diagnostic.MA0051.severity = warning
+MA0051.maximum_lines_per_method = 150
+MA0051.maximum_statements_per_method = -1
+
 # Concepts are executable documentation; preserve their intentionally instance-oriented handlers.
 [concepts/**/*.cs]
 dotnet_diagnostic.CA1822.severity = none

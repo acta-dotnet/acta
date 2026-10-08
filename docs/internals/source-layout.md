@@ -63,7 +63,7 @@ tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 | `TypeNamingTests` | the banned suffixes, the `Row` rule, and `Entity` on every table model |
 | `DuplicateShapeTests` | no two types declaring the same property names, except operations' own inputs and responses |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
-| `FileLengthTests` | at most 600 lines per source file and 150 per method body; MA0051 takes over the method cap once its list is empty |
+| `FileLengthTests` | at most 600 lines per source file; the 150-line method cap is MA0051's, in the build |
 | `ArchitectureBoundaryTests` | `Acta` references no implementation, and `Acta.AspNetCore` references only `Acta` |
 
 Each rule but the last starts from a ratchet. `tests/ratchets/<rule>.txt` lists the violations that existed when the rule arrived, and entries may only be removed: a new violation fails the test, and so does an entry that no longer occurs. Entries name files, types, members, and SQL stems rather than folders, so moving code leaves them alone. After fixing violations, delete their entries, or delete the file and run the test: it writes the current list and fails once, so the change shows up in review.
