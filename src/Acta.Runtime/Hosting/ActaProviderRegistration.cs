@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -11,14 +12,15 @@ internal static class ActaProviderRegistration
     /// <summary>
     /// Registers the selected provider: its info, validated options, dialect, session, SQL catalog, and bootstrap.
     /// Each provider package's <c>Use{Provider}</c> is this call with its own types; <paramref name="dialect"/>
-    /// builds a dialect that needs more than its constructor's services.
+    /// builds a dialect that needs more than its constructor's services. The type parameters keep the constructors
+    /// the container activates through them; without the annotations Native AOT trims those constructors and the
+    /// host fails to start.
     /// </summary>
-    public static IActaBuilder Use<TOptions, TDialect, TBootstrap>(
-        IActaBuilder builder,
-        DbProvider provider,
-        Action<TOptions> configure,
-        Func<IServiceProvider, TDialect>? dialect = null
-    )
+    public static IActaBuilder Use<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDialect,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TBootstrap
+    >(IActaBuilder builder, DbProvider provider, Action<TOptions> configure, Func<IServiceProvider, TDialect>? dialect = null)
         where TOptions : SqlProviderOptions
         where TDialect : class, ISqlDialect
         where TBootstrap : class, IProviderBootstrap

@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Trim and AOT analyzers on: a registration that hides a constructor from the trimmer fails the build. -->
+    <IsAotCompatible>true</IsAotCompatible>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>

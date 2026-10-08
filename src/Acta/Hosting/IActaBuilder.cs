@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -78,7 +79,7 @@ public interface IActaBuilder
     /// resolve their serializer at dispatch via
     /// <see cref="IJobPayloadSerializerRegistry"/>.
     /// </summary>
-    IActaBuilder AddPayloadSerializer<TSerializer>()
+    IActaBuilder AddPayloadSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSerializer>()
         where TSerializer : class, IJobPayloadSerializer;
 
     /// <summary>
@@ -104,6 +105,8 @@ public interface IActaBuilder
     /// needing the scoped <see cref="JobContext"/> requires; a stateless behavior with no scoped
     /// dependencies may pass <see cref="ServiceLifetime.Singleton"/> for one process-wide instance.
     /// </remarks>
-    IActaBuilder AddPipelineBehavior<TBehavior>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    IActaBuilder AddPipelineBehavior<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TBehavior>(
+        ServiceLifetime lifetime = ServiceLifetime.Scoped
+    )
         where TBehavior : class, IJobPipelineBehavior;
 }

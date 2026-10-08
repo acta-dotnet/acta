@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -114,7 +115,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         return this;
     }
 
-    public IActaBuilder AddPayloadSerializer<TSerializer>()
+    public IActaBuilder AddPayloadSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSerializer>()
         where TSerializer : class, IJobPayloadSerializer
     {
         Services.AddSingleton<IJobPayloadSerializer, TSerializer>();
@@ -129,7 +130,9 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         return this;
     }
 
-    public IActaBuilder AddPipelineBehavior<TBehavior>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    public IActaBuilder AddPipelineBehavior<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TBehavior>(
+        ServiceLifetime lifetime = ServiceLifetime.Scoped
+    )
         where TBehavior : class, IJobPipelineBehavior
     {
         if (_pipelineBehaviorTypes.Add(typeof(TBehavior)))
