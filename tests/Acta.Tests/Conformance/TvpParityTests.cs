@@ -88,12 +88,12 @@ public sealed partial class TvpParityTests
             declared[block.Groups[1].Value] = columns;
         }
 
-        Assert.Equal(declared.Keys.Order(StringComparer.Ordinal), SqlServerDialect.TvpShapes.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(declared.Keys.Order(StringComparer.Ordinal), SqlServerTableParameters.TvpShapes.Keys.Order(StringComparer.Ordinal));
 
         var failures = new List<string>();
         foreach (var (typeName, columns) in declared)
         {
-            var shape = SqlServerDialect.TvpShapes[typeName];
+            var shape = SqlServerTableParameters.TvpShapes[typeName];
             var expected = columns.Select(c => $"{c.Name} {c.Type}").ToList();
             var actual = shape.Select(m => $"{m.Name} {Render(m)}").ToList();
             if (!expected.SequenceEqual(actual, StringComparer.Ordinal))

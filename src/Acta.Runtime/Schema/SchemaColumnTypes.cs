@@ -83,7 +83,7 @@ internal enum DbDefault
 }
 
 /// <summary>
-/// Generator-emitted scalar parameter descriptor for SQL-only parameters (not bound to a column).
+/// Scalar parameter descriptor for SQL-only parameters (not bound to a column), declared by hand.
 /// <see cref="ActaSchema.Sql"/> exposes these by name; provider code calls <c>DbParams.For</c> to materialize
 /// the bound <c>DbParameterSpec</c>. Enum-backed parameters carry their physical integer
 /// <see cref="DbKind"/> (<see cref="DbKind.Byte"/> / <see cref="DbKind.Int16"/> / <see cref="DbKind.Int32"/>).

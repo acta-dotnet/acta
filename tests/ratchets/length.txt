@@ -1,10 +1,8 @@
 # Known length violations; entries may only be removed.
 ActaManifestGenerator.cs
-ActaSchema.Sql.cs
 ActaSchemaGenerator.cs
 AlertsJob.cs
 CodeGenerator.cs
 DbProjectionGenerator.cs
 JobContext.cs
 RuntimeJobContext.cs
-SqlServerDialect.cs
