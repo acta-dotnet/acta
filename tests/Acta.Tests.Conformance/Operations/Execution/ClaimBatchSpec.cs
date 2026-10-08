@@ -61,7 +61,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var claimed = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
+            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
 
         Assert.Equal(Batch, claimed.Jobs.Count);
         Assert.Null(claimed.Horizon);
@@ -83,7 +83,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
                 () =>
                     Services
                         .GetRequiredService<Acta.Execution>()
-                        .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: 64), leaseTtl, ct),
+                        .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
                 r => r.Jobs.Count > 0 || r.Horizon is not { NextReadyAtUtc: { } due, DbNowUtc: var now } || due > now,
                 ct
             );
@@ -118,7 +118,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             () =>
                 Services
                     .GetRequiredService<Acta.Execution>()
-                    .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct),
+                    .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct),
             r => r.Horizon?.NextReadyAtUtc is { } seen && seen <= dueAt.AddMinutes(1),
             ct
         );
@@ -156,13 +156,13 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         // last-enqueued High row ahead of the Normal one it was enqueued after.
         var firstFiltered = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
 
         Assert.Equal(high.JobId, Assert.Single(firstFiltered.Jobs).JobId);
 
         var restFiltered = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
 
         Assert.Equal(normal.JobId, Assert.Single(restFiltered.Jobs).JobId);
         Assert.DoesNotContain(excludedDefinitionId, restFiltered.Jobs.Select(j => j.DefinitionId));
@@ -171,7 +171,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         // worker that asked not to see it.
         var unfiltered = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
+            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
 
         Assert.Equal(excludedJobs.Order(), unfiltered.Jobs.Select(j => j.JobId).Order());
     }
@@ -198,7 +198,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
                 Services
                     .GetRequiredService<Acta.Execution>()
                     .ClaimBatchAsync(
-                        new ClaimRequest(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]),
+                        new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]),
                         leaseTtl,
                         ct
                     ),
@@ -220,7 +220,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var allWaiting = await WaitingDefinitionIdsAsync(ns, ct);
         var silent = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: allWaiting), leaseTtl, ct);
+            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: allWaiting), leaseTtl, ct);
 
         Assert.Empty(silent.Jobs);
         Assert.Null(Assert.NotNull(silent.Horizon).NextReadyAtUtc);

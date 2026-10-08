@@ -9,8 +9,8 @@ namespace Acta.Tests.Architecture;
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>
 /// and <c>Schema/</c>, every Schema stem in all three dialects, and no stem twice in one dialect. Each operation has a
-/// handler, and no Operations file names a type declared under <c>Engine/</c>. What still differs is listed in the
-/// <c>layout</c> ratchet.
+/// handler, and no Operations file names a type declared under <c>Engine/</c>. A route folder in <c>Acta.AspNetCore</c>
+/// keeps the same depth and file names. What still differs is listed in the <c>layout</c> ratchet.
 /// </summary>
 public sealed class OperationLayoutTests
 {
@@ -30,6 +30,10 @@ public sealed class OperationLayoutTests
         {
             violations.AddRange(CheckOperation(root, operation));
         }
+        foreach (var route in OperationFolders(Path.Combine(root, "src", "Acta.AspNetCore", "Operations")))
+        {
+            violations.AddRange(CheckFolder(root, route));
+        }
 
         Ratchet.Check("layout", violations, "Move the file to match docs/internals/source-layout.md.");
     }
@@ -37,19 +41,31 @@ public sealed class OperationLayoutTests
     private static IEnumerable<string> OperationFolders(string operations) =>
         Directory.Exists(operations) ? Directory.EnumerateDirectories(operations).SelectMany(Directory.EnumerateDirectories) : [];
 
-    private static IEnumerable<string> CheckOperation(string root, string folder)
+    // A route folder holds the route's request, response, and endpoint; it has no handler and no SQL of its own.
+    private static IEnumerable<string> CheckFolder(string root, string folder)
     {
         var name = Path.GetFileName(folder);
         foreach (var nested in Directory.EnumerateDirectories(folder))
         {
             yield return $"depth: {Relative(root, nested)}";
         }
-
-        var files = Directory.EnumerateFiles(folder).Select(Path.GetFileName).ToList();
-        foreach (var file in files.Where(f => !f!.StartsWith(name, StringComparison.Ordinal)))
+        foreach (
+            var file in Directory.EnumerateFiles(folder).Select(Path.GetFileName).Where(f => !f!.StartsWith(name, StringComparison.Ordinal))
+        )
         {
             yield return $"file-name: {Relative(root, folder)}/{file}";
         }
+    }
+
+    private static IEnumerable<string> CheckOperation(string root, string folder)
+    {
+        var name = Path.GetFileName(folder);
+        foreach (var violation in CheckFolder(root, folder))
+        {
+            yield return violation;
+        }
+
+        var files = Directory.EnumerateFiles(folder).Select(Path.GetFileName).ToList();
         if (!files.Contains(name + "Handler.cs"))
         {
             yield return $"handler: {Relative(root, folder)}";

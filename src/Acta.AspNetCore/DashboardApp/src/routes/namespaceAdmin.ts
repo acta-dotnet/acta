@@ -10,7 +10,7 @@ export interface NamespaceDetailsInput {
 }
 
 // Full-set PATCH semantics: a blank field clears that column, matching the backend's
-// UpdateNamespaceHttpRequest contract (null OwnerTeam/Description clears).
+// UpdateNamespaceRequest contract (null OwnerTeam/Description clears).
 export function buildNamespaceDetailsPayload(input: NamespaceDetailsInput): { ownerTeam: string | null; description: string | null } {
   return {
     ownerTeam: input.ownerTeam.trim() || null,

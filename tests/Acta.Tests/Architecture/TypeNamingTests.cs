@@ -29,6 +29,9 @@ public sealed class TypeNamingTests
         "Set",
     ];
 
+    // Banned suffixes of more than one word, which a match on the last word cannot see.
+    private static readonly string[] BannedCompounds = ["PageRequest", "ListItem", "HttpRequest"];
+
     // Outcome stays as a domain noun for how a job, a child, or a wait ended, in handler code.
     private static readonly HashSet<string> DomainOutcomes =
     [
@@ -68,13 +71,14 @@ public sealed class TypeNamingTests
         {
             yield return suffix;
         }
-        if (name.EndsWith("PageRequest", StringComparison.Ordinal))
+        foreach (var compound in BannedCompounds.Where(compound => name.EndsWith(compound, StringComparison.Ordinal)))
         {
-            yield return "PageRequest";
+            yield return compound;
         }
-        if (name.EndsWith("ListItem", StringComparison.Ordinal))
+        // Request names a route's HTTP body; the SDK's one request is the enqueue contract every EnqueueAsync takes.
+        if (suffix == "Request" && type.Assembly.GetName().Name != "Acta.AspNetCore" && name != "EnqueueJobRequest")
         {
-            yield return "ListItem";
+            yield return "Request outside Acta.AspNetCore";
         }
         if (suffix == "Row" && !projected.Contains(type))
         {

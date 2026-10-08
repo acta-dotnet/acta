@@ -3,8 +3,13 @@ using Microsoft.AspNetCore.Http;
 
 namespace Acta.AspNetCore;
 
-/// <summary>Request body for a tag upsert: normalized name plus optional preserved value.</summary>
-internal sealed record UpsertTagHttpRequest(string? Name, string? Value);
+/// <summary>The body of a tag upsert on any target: the tag's name, which is normalized, and its optional value.</summary>
+internal interface IUpsertTagsRequest
+{
+    string? Name { get; }
+
+    string? Value { get; }
+}
 
 /// <summary>
 /// The tag subresource over <see cref="ITags"/>, behind every group's tag routes. One rule decides the target's
@@ -31,24 +36,22 @@ internal static class TagRoutes
         return response is null ? NotFound() : Results.Json(response.Items, DashboardJsonContext.Default.IReadOnlyListGetTagsItem);
     }
 
-    public static async Task<IResult> UpsertAsync(
+    public static async Task<IResult> UpsertAsync<TBody>(
         HttpContext http,
         IActaOperations operations,
         ActaEndpointOptions options,
+        JsonTypeInfo<TBody> json,
         Func<TagTarget> resolve,
         CancellationToken ct
     )
+        where TBody : class, IUpsertTagsRequest
     {
         if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
         {
             return confirmationError;
         }
 
-        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
-            http,
-            DashboardJsonContext.Default.UpsertTagHttpRequest,
-            ct
-        );
+        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, json, ct);
         if (bodyError is not null)
         {
             return bodyError;

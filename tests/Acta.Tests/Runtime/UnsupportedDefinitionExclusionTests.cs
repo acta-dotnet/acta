@@ -14,7 +14,7 @@ public sealed class UnsupportedDefinitionExclusionTests
     [Fact]
     public void A_claim_request_filters_no_definition_by_default()
     {
-        var request = new ClaimRequest(NamespaceId: 1, WorkerId: 2, MaxBatch: 8);
+        var request = new ClaimOptions(NamespaceId: 1, WorkerId: 2, MaxBatch: 8);
 
         Assert.Null(request.ExcludedDefinitionIds);
     }

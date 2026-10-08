@@ -30,7 +30,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertJobTagsRequest"
               }
             }
           },
@@ -319,7 +319,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedControlHttpRequest"
+                "$ref": "#/components/schemas/PauseJobRequest"
               }
             }
           }
@@ -438,7 +438,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedControlHttpRequest"
+                "$ref": "#/components/schemas/ResumeJobRequest"
               }
             }
           }
@@ -557,7 +557,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedControlHttpRequest"
+                "$ref": "#/components/schemas/RestartJobRequest"
               }
             }
           }
@@ -676,7 +676,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedControlHttpRequest"
+                "$ref": "#/components/schemas/CancelJobRequest"
               }
             }
           }
@@ -795,7 +795,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/PurgeJobRequest"
               }
             }
           }
@@ -914,7 +914,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RescheduleJobHttpRequest"
+                "$ref": "#/components/schemas/RescheduleJobRequest"
               }
             }
           },
@@ -1034,7 +1034,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReprioritizeJobHttpRequest"
+                "$ref": "#/components/schemas/ReprioritizeJobRequest"
               }
             }
           },
@@ -1154,7 +1154,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateJobInputHttpRequest"
+                "$ref": "#/components/schemas/UpdateJobInputRequest"
               }
             }
           },
@@ -1342,7 +1342,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EnqueueOneHttpRequest"
+                "$ref": "#/components/schemas/EnqueueJobRequest"
               }
             }
           },
@@ -1779,7 +1779,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertWorkerTagsRequest"
               }
             }
           },
@@ -2068,7 +2068,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertNamespaceTagsRequest"
               }
             }
           },
@@ -2357,7 +2357,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/SuspendNamespaceRequest"
               }
             }
           }
@@ -2466,7 +2466,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/ResumeNamespaceRequest"
               }
             }
           }
@@ -2575,7 +2575,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateNamespaceHttpRequest"
+                "$ref": "#/components/schemas/UpdateNamespaceRequest"
               }
             }
           },
@@ -2695,7 +2695,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertTenantTagsRequest"
               }
             }
           },
@@ -2974,7 +2974,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegisterTenantHttpRequest"
+                "$ref": "#/components/schemas/RegisterTenantRequest"
               }
             }
           },
@@ -3191,7 +3191,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/SuspendTenantRequest"
               }
             }
           }
@@ -3300,7 +3300,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/ResumeTenantRequest"
               }
             }
           }
@@ -3409,7 +3409,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateTenantHttpRequest"
+                "$ref": "#/components/schemas/UpdateTenantRequest"
               }
             }
           },
@@ -3607,7 +3607,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertAlertTagsRequest"
               }
             }
           },
@@ -3896,7 +3896,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/AcknowledgeAlertRequest"
               }
             }
           }
@@ -4005,7 +4005,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/ResolveAlertRequest"
               }
             }
           }
@@ -4114,7 +4114,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutboxControlHttpRequest"
+                "$ref": "#/components/schemas/RequeueOutboxRequest"
               }
             }
           }
@@ -4233,7 +4233,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutboxControlHttpRequest"
+                "$ref": "#/components/schemas/DiscardOutboxRequest"
               }
             }
           }
@@ -4360,7 +4360,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertDefinitionTagsRequest"
               }
             }
           },
@@ -4673,7 +4673,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetDefinitionOverridesHttpRequest"
+                "$ref": "#/components/schemas/SetDefinitionOverridesRequest"
               }
             }
           },
@@ -4887,7 +4887,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RetireDefinitionHttpRequest"
+                "$ref": "#/components/schemas/RetireDefinitionRequest"
               }
             }
           },
@@ -5023,7 +5023,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertTagHttpRequest"
+                "$ref": "#/components/schemas/UpsertScheduleTagsRequest"
               }
             }
           },
@@ -5360,7 +5360,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PauseScheduleHttpRequest"
+                "$ref": "#/components/schemas/PauseScheduleRequest"
               }
             }
           }
@@ -5495,7 +5495,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/ResumeScheduleRequest"
               }
             }
           }
@@ -5630,7 +5630,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ControlHttpRequest"
+                "$ref": "#/components/schemas/TriggerScheduleNowRequest"
               }
             }
           }
@@ -5765,7 +5765,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetScheduleOverridesHttpRequest"
+                "$ref": "#/components/schemas/SetScheduleOverridesRequest"
               }
             }
           },
@@ -8013,6 +8013,17 @@
   },
   "components": {
     "schemas": {
+      "AcknowledgeAlertRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AcknowledgeAlertResponse": {
         "required": [
           "alertRef",
@@ -8058,6 +8069,26 @@
         "description": "Public stable reference for one alert row: \"alr_\" plus 26 lowercase Crockford Base32\ncharacters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert\ntransports address alerts by this value; the numeric alert id stays the internal engine\nidentity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication\nnever re-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": { },
+      "CancelJobRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "CancelJobResponse": {
         "required": [
           "action",
@@ -8188,17 +8219,6 @@
         ],
         "description": "Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings."
       },
-      "ControlHttpRequest": {
-        "type": "object",
-        "properties": {
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
@@ -8297,6 +8317,27 @@
       "DefinitionStatusCode": {
         "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
       },
+      "DiscardOutboxRequest": {
+        "type": "object",
+        "properties": {
+          "outboxIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "DiscardOutboxResponse": {
         "required": [
           "action",
@@ -8324,7 +8365,7 @@
         ],
         "description": "Coarse outcome classifier for one enqueued row."
       },
-      "EnqueueOneHttpRequest": {
+      "EnqueueJobRequest": {
         "type": "object",
         "properties": {
           "jobNamespace": {
@@ -11322,24 +11363,23 @@
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
       },
-      "OutboxControlHttpRequest": {
+      "PauseJobRequest": {
         "type": "object",
         "properties": {
-          "outboxIds": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
           "reasonMessage": {
             "type": [
               "null",
               "string"
             ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -11376,7 +11416,7 @@
         },
         "description": "What pausing a job did, and the job's status and version after the attempt."
       },
-      "PauseScheduleHttpRequest": {
+      "PauseScheduleRequest": {
         "type": "object",
         "properties": {
           "pausedUntilUtc": {
@@ -11505,6 +11545,17 @@
           }
         }
       },
+      "PurgeJobRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PurgeJobResponse": {
         "required": [
           "action",
@@ -11571,7 +11622,18 @@
         },
         "description": "What raising a signal on a job did, and the job's status after the attempt; a raise carries no version."
       },
-      "RegisterTenantHttpRequest": {
+      "RegisterTenantHttpResponse": {
+        "required": [
+          "tenantKey"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterTenantRequest": {
         "type": "object",
         "properties": {
           "tenantKey": {
@@ -11594,17 +11656,6 @@
           }
         }
       },
-      "RegisterTenantHttpResponse": {
-        "required": [
-          "tenantKey"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantKey": {
-            "type": "string"
-          }
-        }
-      },
       "RemoveTagsResponse": {
         "required": [
           "action"
@@ -11617,7 +11668,7 @@
         },
         "description": "What removing one tag did: applied, or the target did not exist."
       },
-      "ReprioritizeJobHttpRequest": {
+      "ReprioritizeJobRequest": {
         "required": [
           "priority"
         ],
@@ -11676,6 +11727,27 @@
         },
         "description": "What reprioritizing a job did, and the job's status and version after the attempt."
       },
+      "RequeueOutboxRequest": {
+        "type": "object",
+        "properties": {
+          "outboxIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "RequeueOutboxResponse": {
         "required": [
           "action",
@@ -11696,7 +11768,7 @@
         },
         "description": "What parking a requeue of a source's quarantined rows did."
       },
-      "RescheduleJobHttpRequest": {
+      "RescheduleJobRequest": {
         "type": "object",
         "properties": {
           "nextRunAtUtc": {
@@ -11753,6 +11825,17 @@
         },
         "description": "What rescheduling a job did, and the job's status and version after the attempt."
       },
+      "ResolveAlertRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ResolveAlertResponse": {
         "required": [
           "alertRef",
@@ -11784,6 +11867,26 @@
           }
         },
         "description": "What resolving an alert did, and its timestamps after the attempt."
+      },
+      "RestartJobRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
       },
       "RestartJobResponse": {
         "required": [
@@ -11818,6 +11921,26 @@
         },
         "description": "What restarting a job did, and the job's status and version after the attempt."
       },
+      "ResumeJobRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "ResumeJobResponse": {
         "required": [
           "action",
@@ -11851,6 +11974,17 @@
         },
         "description": "What resuming a job did, and the job's status and version after the attempt."
       },
+      "ResumeNamespaceRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ResumeNamespaceResponse": {
         "required": [
           "action",
@@ -11872,6 +12006,17 @@
           }
         },
         "description": "What resuming a namespace did, and the namespace's version after the attempt."
+      },
+      "ResumeScheduleRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "ResumeScheduleResponse": {
         "required": [
@@ -11922,6 +12067,17 @@
         },
         "description": "What resuming a schedule did, and the schedule's state after the attempt."
       },
+      "ResumeTenantRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ResumeTenantResponse": {
         "required": [
           "action",
@@ -11944,7 +12100,7 @@
         },
         "description": "What resuming a tenant did, and the tenant's version after the attempt."
       },
-      "RetireDefinitionHttpRequest": {
+      "RetireDefinitionRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -11978,7 +12134,7 @@
       "ScheduleExpressionKindCode": { },
       "ScheduleOriginCode": { },
       "ScheduleStatusCode": { },
-      "SetDefinitionOverridesHttpRequest": {
+      "SetDefinitionOverridesRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -12019,7 +12175,7 @@
         },
         "description": "What setting a definition's policy overrides did."
       },
-      "SetScheduleOverridesHttpRequest": {
+      "SetScheduleOverridesRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -12103,6 +12259,17 @@
       "StepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
+      "SuspendNamespaceRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SuspendNamespaceResponse": {
         "required": [
           "action",
@@ -12124,6 +12291,17 @@
           }
         },
         "description": "What suspending a namespace did, and the namespace's version after the attempt."
+      },
+      "SuspendTenantRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "SuspendTenantResponse": {
         "required": [
@@ -12156,6 +12334,17 @@
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
+      },
+      "TriggerScheduleNowRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "TriggerScheduleNowResponse": {
         "required": [
@@ -12206,7 +12395,7 @@
         },
         "description": "What firing a schedule now did, and the schedule's state after the attempt."
       },
-      "UpdateJobInputHttpRequest": {
+      "UpdateJobInputRequest": {
         "type": "object",
         "properties": {
           "input": { },
@@ -12263,7 +12452,7 @@
         },
         "description": "What amending a job's input did, and the job's status after the attempt; an amend carries no version."
       },
-      "UpdateNamespaceHttpRequest": {
+      "UpdateNamespaceRequest": {
         "type": "object",
         "properties": {
           "ownerTeam": {
@@ -12317,7 +12506,7 @@
         },
         "description": "What updating a namespace did, and the namespace's version after the attempt."
       },
-      "UpdateTenantHttpRequest": {
+      "UpdateTenantRequest": {
         "type": "object",
         "properties": {
           "displayName": {
@@ -12371,7 +12560,91 @@
         },
         "description": "What updating a tenant did, and the tenant's version after the attempt."
       },
-      "UpsertTagHttpRequest": {
+      "UpsertAlertTagsRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UpsertDefinitionTagsRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UpsertJobTagsRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UpsertNamespaceTagsRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UpsertScheduleTagsRequest": {
         "required": [
           "name",
           "value"
@@ -12404,23 +12677,45 @@
         },
         "description": "What upserting one tag did: applied, or the target did not exist."
       },
-      "VersionedControlHttpRequest": {
+      "UpsertTenantTagsRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
         "type": "object",
         "properties": {
-          "reasonMessage": {
+          "name": {
             "type": [
               "null",
               "string"
             ]
           },
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+          "value": {
             "type": [
               "null",
-              "integer",
               "string"
-            ],
-            "format": "int32"
+            ]
+          }
+        }
+      },
+      "UpsertWorkerTagsRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

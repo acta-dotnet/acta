@@ -65,7 +65,7 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
         // runtime's own worker id, so the runtime holds the lease and knows nothing about it.
         var claim = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimRequest(namespaceId, workerId, MaxBatch: 1, StartExecuting: true), 60, ct);
+            .ClaimBatchAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1, StartExecuting: true), 60, ct);
         Assert.Single(claim.Jobs);
         Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 

@@ -42,10 +42,10 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         // --- 1. Two workers race to claim the same Ready row.
         var first = Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimOneAsync(new ClaimRequest(ns, worker1, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
+            .ClaimOneAsync(new ClaimOptions(ns, worker1, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
         var second = Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimOneAsync(new ClaimRequest(ns, worker2, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
+            .ClaimOneAsync(new ClaimOptions(ns, worker2, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
         await Task.WhenAll(first, second);
 
         // --- 2. Exactly one wins; the row is Dispatched to the winner with no events yet.

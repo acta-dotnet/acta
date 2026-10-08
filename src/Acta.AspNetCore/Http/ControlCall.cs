@@ -2,17 +2,14 @@ using Microsoft.AspNetCore.Http;
 
 namespace Acta.AspNetCore;
 
-/// <summary>The body of a control verb; every one may carry the operator's reason.</summary>
+/// <summary>
+/// The body of a control verb; every one may carry the operator's reason. The framework stamps the actor and reason
+/// code itself, so callers cannot forge the audit trail; an absent optional body acts with no reason.
+/// </summary>
 internal interface IControlRequest
 {
     string? ReasonMessage { get; }
 }
-
-/// <summary>
-/// Body of a control verb that takes only the operator's reason. The framework stamps the actor and reason code
-/// itself, so callers cannot forge the audit trail; an absent body acts with no reason.
-/// </summary>
-internal sealed record ControlHttpRequest(string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>One control request as a route table's verb sees it: the parsed body, its trimmed and capped reason, and the operator.</summary>
 internal sealed record ControlCall<TBody>(

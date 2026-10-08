@@ -4,25 +4,6 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of a <c>PATCH /definitions/{jobNamespace}/{jobName}</c> request: the optimistic-concurrency <c>Version</c> the
-/// operator last read, the full override set to apply (a null field clears that override), and an
-/// optional note. The actor is stamped server-side from the authenticated principal; the body never
-/// carries it.
-/// </summary>
-internal sealed record SetDefinitionOverridesHttpRequest(
-    int ExpectedVersion = 0,
-    DefinitionPolicyOverrides? Overrides = null,
-    string? ReasonMessage = null
-) : IControlRequest;
-
-/// <summary>
-/// Body of a <c>POST /definitions/{jobNamespace}/{jobName}/retire</c> request: the
-/// optimistic-concurrency <c>Version</c> the operator last read and an optional note. The actor is
-/// stamped server-side from the authenticated principal; the body never carries it.
-/// </summary>
-internal sealed record RetireDefinitionHttpRequest(int ExpectedVersion = 0, string? ReasonMessage = null) : IControlRequest;
-
-/// <summary>
 /// The Definitions routes: the list, one definition, its tags, the overrides update, and retire. A definition is
 /// addressed by its natural key (namespace and name); an invalid override throws ArgumentException, the 400.
 /// </summary>
@@ -65,7 +46,14 @@ internal static class DefinitionsEndpoints
             DashboardJsonContext.Default.GetDefinitionResponse,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
-        reads.MapTags(controls, "/definitions/{jobNamespace}/{jobName}/tags", "definition", options, static http => TagTarget(http));
+        reads.MapTags(
+            controls,
+            "/definitions/{jobNamespace}/{jobName}/tags",
+            "definition",
+            options,
+            DashboardJsonContext.Default.UpsertDefinitionTagsRequest,
+            static http => TagTarget(http)
+        );
         if (controls is null)
         {
             return;
@@ -75,7 +63,7 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}",
             "Set or clear the definition's operator policy overrides.",
             options,
-            DashboardJsonContext.Default.SetDefinitionOverridesHttpRequest,
+            DashboardJsonContext.Default.SetDefinitionOverridesRequest,
             "Invalid definition overrides.",
             ControlStatus.Definition<SetDefinitionOverridesResponse>(),
             Key,
@@ -94,7 +82,7 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}/retire",
             "Retire the definition and cancel its parked jobs.",
             options,
-            DashboardJsonContext.Default.RetireDefinitionHttpRequest,
+            DashboardJsonContext.Default.RetireDefinitionRequest,
             "Invalid definition key.",
             ControlStatus.Definition<RetireDefinitionResponse>(),
             Key,

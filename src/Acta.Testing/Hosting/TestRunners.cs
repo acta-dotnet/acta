@@ -113,7 +113,7 @@ internal static class TestRunners
         while (true)
         {
             var claim = (
-                await execution.ClaimOneAsync(new ClaimRequest(namespaceId, workerId, MaxBatch: 1), leaseTtlSeconds, jobId, ct)
+                await execution.ClaimOneAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), leaseTtlSeconds, jobId, ct)
             ).Jobs;
             if (claim.Count > 0 || elapsed.Elapsed > Budget)
             {

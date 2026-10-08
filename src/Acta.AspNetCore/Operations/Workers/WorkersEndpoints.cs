@@ -40,6 +40,13 @@ internal static class WorkersEndpoints
             DashboardJsonContext.Default.GetWorkerResponse,
             static (http, call) => call.Operations.Workers.GetAsync(RouteKeys.Worker(http), call.Ct)
         );
-        reads.MapTags(controls, "/workers/{workerRef}/tags", "worker", options, static http => TagTarget.ForWorker(RouteKeys.Worker(http)));
+        reads.MapTags(
+            controls,
+            "/workers/{workerRef}/tags",
+            "worker",
+            options,
+            DashboardJsonContext.Default.UpsertWorkerTagsRequest,
+            static http => TagTarget.ForWorker(RouteKeys.Worker(http))
+        );
     }
 }

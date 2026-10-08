@@ -66,7 +66,14 @@ internal static class AlertsEndpoints
             DashboardJsonContext.Default.GetAlertResponse,
             static (http, call) => call.Operations.Alerts.GetAsync(RouteKeys.Alert(http), call.Ct)
         );
-        reads.MapTags(controls, "/alerts/{alertRef}/tags", "alert", options, static http => TagTarget.ForAlert(RouteKeys.Alert(http)));
+        reads.MapTags(
+            controls,
+            "/alerts/{alertRef}/tags",
+            "alert",
+            options,
+            DashboardJsonContext.Default.UpsertAlertTagsRequest,
+            static http => TagTarget.ForAlert(RouteKeys.Alert(http))
+        );
         if (controls is null)
         {
             return;
@@ -76,7 +83,7 @@ internal static class AlertsEndpoints
             "/alerts/{alertRef}/acknowledge",
             "Acknowledge the alert: an operator has seen it.",
             options,
-            DashboardJsonContext.Default.ControlHttpRequest,
+            DashboardJsonContext.Default.AcknowledgeAlertRequest,
             "Invalid alert command.",
             ControlStatus.Alert<AcknowledgeAlertResponse>(),
             RouteKeys.Alert,
@@ -86,7 +93,7 @@ internal static class AlertsEndpoints
             "/alerts/{alertRef}/resolve",
             "Resolve the alert: its cause is handled.",
             options,
-            DashboardJsonContext.Default.ControlHttpRequest,
+            DashboardJsonContext.Default.ResolveAlertRequest,
             "Invalid alert command.",
             ControlStatus.Alert<ResolveAlertResponse>(),
             RouteKeys.Alert,

@@ -5,13 +5,6 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of a tenant register POST. <see cref="TenantKey"/> is the caller-supplied opaque external
-/// identifier. Registration is insert-or-return-existing: a new tenant is created Active, an
-/// existing one is returned untouched. Status changes go through the suspend/resume endpoints.
-/// </summary>
-internal sealed record RegisterTenantHttpRequest(string? TenantKey = null, string? DisplayName = null, string? Description = null);
-
-/// <summary>
 /// HTTP projection of a registered tenant: the echoed canonical key, which is how every other
 /// endpoint addresses a tenant. The DB-assigned id stays internal.
 /// </summary>
@@ -33,7 +26,7 @@ internal static class RegisterTenantEndpoint
 
                     var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        DashboardJsonContext.Default.RegisterTenantHttpRequest,
+                        DashboardJsonContext.Default.RegisterTenantRequest,
                         ct
                     );
                     if (bodyError is not null)
@@ -87,7 +80,7 @@ internal static class RegisterTenantEndpoint
             // the accurate shape.
             .WithSummary("Register a tenant, or return the existing one.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<RegisterTenantHttpRequest>()
+            .AcceptsJson<RegisterTenantRequest>()
             .Produces<RegisterTenantHttpResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 }

@@ -7,7 +7,7 @@ export interface ScheduleOverridesInput {
 }
 
 // Full-set PATCH semantics: a blank field clears that override (sent as null), matching the
-// backend's SetScheduleOverridesHttpRequest contract (null Expression/TimeZoneId clears).
+// backend's SetScheduleOverridesRequest contract (null Expression/TimeZoneId clears).
 export function buildOverridesPayload(input: ScheduleOverridesInput): { expression: string | null; timeZoneId: string | null } {
   return {
     expression: input.expression.trim() || null,

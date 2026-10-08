@@ -8,19 +8,22 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Fails when two shipped types declare the same set of property names, which is how a row, its outcome, and its
 /// public model end up as three copies of one shape. A type declared in an operation's folder belongs to that
-/// operation, so types of different operations may match on purpose. Copies that predate the rule are listed in the
-/// <c>duplicate-shape</c> ratchet, one entry per copy.
+/// operation, and a route's request to its folder in <c>Acta.AspNetCore</c>, so types of different folders may match
+/// on purpose. Copies that predate the rule are listed in the <c>duplicate-shape</c> ratchet, one entry per copy.
 /// </summary>
 public sealed class DuplicateShapeTests
 {
     // Below three properties, shared names are coincidence rather than copying.
     private const int MinProperties = 3;
 
-    private const string OperationRoot = "src/Acta/Operations/";
-
-    // An HTTP body is the wire copy of a command or model: Acta.AspNetCore sees only the public contract, and its
-    // projection changes a member's representation, so the suffix marks the copy as deliberate.
-    private static readonly string[] WireSuffixes = ["HttpRequest", "HttpResponse"];
+    // Each project's operation folders, by the namespace its types are declared in. A route's folder is its own owner,
+    // apart from the operation of the same name: Acta.AspNetCore sees only the public contract, so a request that
+    // carries a command's members over the wire is the copy it has to be.
+    private static readonly (string Root, string Namespace)[] OperationRoots =
+    [
+        ("src/Acta/Operations/", "Acta"),
+        ("src/Acta.AspNetCore/Operations/", "Acta.AspNetCore"),
+    ];
 
     [Fact]
     public void No_two_types_share_one_shape()
@@ -28,10 +31,7 @@ public sealed class DuplicateShapeTests
         var owners = Owners();
         var copies = ShippedCode
             .Types.Where(type =>
-                !type.IsInterface
-                && !typeof(Attribute).IsAssignableFrom(type)
-                && !typeof(Exception).IsAssignableFrom(type)
-                && !WireSuffixes.Any(suffix => ShippedCode.SimpleName(type).EndsWith(suffix, StringComparison.Ordinal))
+                !type.IsInterface && !typeof(Attribute).IsAssignableFrom(type) && !typeof(Exception).IsAssignableFrom(type)
             )
             .Select(type => (Type: type, Shape: Shape(type)))
             .Where(entry => entry.Shape.Count >= MinProperties)
@@ -69,12 +69,16 @@ public sealed class DuplicateShapeTests
         return owners.GetValueOrDefault($"{outer.Namespace}.{ShippedCode.SimpleName(outer)}");
     }
 
-    // Every top-level type declared in Operations/<Group>/<Operation>/, by namespace-qualified name; Acta has one namespace.
+    // Every top-level type declared in <root>Operations/<Group>/<Operation>/, by namespace-qualified name; each project
+    // has one namespace. The owner is the folder, project included.
     private static Dictionary<string, string> Owners() =>
         ShippedCode
             .SourceFiles("*.cs")
-            .Where(file => file.Relative.StartsWith(OperationRoot, StringComparison.Ordinal))
-            .Select(file => (file.Path, Below: file.Relative[OperationRoot.Length..].Split('/')))
+            .SelectMany(file =>
+                OperationRoots
+                    .Where(root => file.Relative.StartsWith(root.Root, StringComparison.Ordinal))
+                    .Select(root => (file.Path, root.Root, root.Namespace, Below: file.Relative[root.Root.Length..].Split('/')))
+            )
             .Where(file => file.Below.Length == 3)
             .SelectMany(file =>
                 CSharpSyntaxTree
@@ -83,7 +87,9 @@ public sealed class DuplicateShapeTests
                     .DescendantNodes()
                     .OfType<BaseTypeDeclarationSyntax>()
                     .Where(declaration => declaration.Parent is not BaseTypeDeclarationSyntax)
-                    .Select(declaration => (Key: $"Acta.{declaration.Identifier.Text}", Owner: $"{file.Below[0]}/{file.Below[1]}"))
+                    .Select(declaration =>
+                        (Key: $"{file.Namespace}.{declaration.Identifier.Text}", Owner: $"{file.Root}{file.Below[0]}/{file.Below[1]}")
+                    )
             )
             .ToDictionary(entry => entry.Key, entry => entry.Owner, StringComparer.Ordinal);
 

@@ -30,7 +30,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var enqueued = await EnqueueAsync(ct);
         var before = await ReadJobAsync(enqueued.JobId, ct);
 
-        var claimed = Assert.Single(await ClaimUntilTakenAsync(new ClaimRequest(NamespaceId, workerId, MaxBatch: 1), enqueued.JobId, ct));
+        var claimed = Assert.Single(await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1), enqueued.JobId, ct));
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Dispatched, after.Status);
@@ -57,7 +57,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var enqueued = await EnqueueAsync(ct);
 
         var claimed = Assert.Single(
-            await ClaimUntilTakenAsync(new ClaimRequest(NamespaceId, workerId, MaxBatch: 1, StartExecuting: true), enqueued.JobId, ct)
+            await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1, StartExecuting: true), enqueued.JobId, ct)
         );
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
@@ -84,7 +84,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     {
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
-        var request = new ClaimRequest(NamespaceId, workerId, MaxBatch: 1);
+        var request = new ClaimOptions(NamespaceId, workerId, MaxBatch: 1);
         var deadlinePassed = await EnqueueAsync(ct);
         var unbounded = await EnqueueAsync(ct);
         await SuspendAsync(deadlinePassed.JobId, DateTime.UtcNow.AddMinutes(-1), ct);
@@ -103,7 +103,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     {
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
-        var request = new ClaimRequest(NamespaceId, workerId, MaxBatch: 1);
+        var request = new ClaimOptions(NamespaceId, workerId, MaxBatch: 1);
 
         var notDue = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(
@@ -139,11 +139,11 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
         var enqueued = await EnqueueAsync(ct);
-        Assert.Single(await ClaimUntilTakenAsync(new ClaimRequest(NamespaceId, workerId, MaxBatch: 1), enqueued.JobId, ct));
+        Assert.Single(await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1), enqueued.JobId, ct));
         var held = await ReadJobAsync(enqueued.JobId, ct);
 
         Assert.Empty(
-            (await Execution.ClaimOneAsync(new ClaimRequest(NamespaceId, workerId, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct)).Jobs
+            (await Execution.ClaimOneAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct)).Jobs
         );
 
         await AssertUntouchedAsync(held, ct);
@@ -161,7 +161,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             enqueued.Add((await EnqueueAsync(ct)).JobId);
         }
 
-        var claimed = Assert.Single(await ClaimUntilTakenAsync(new ClaimRequest(NamespaceId, workerId, MaxBatch: 3), jobId: null, ct));
+        var claimed = Assert.Single(await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 3), jobId: null, ct));
 
         Assert.Contains(claimed.JobId, enqueued);
         foreach (var other in enqueued.Where(id => id != claimed.JobId))
@@ -178,7 +178,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     /// holds locked, which on the shared schema can briefly hide a claimable one; production's next tick
     /// takes it, and so does the next call here.
     /// </summary>
-    private async Task<IReadOnlyList<ClaimedJob>> ClaimUntilTakenAsync(ClaimRequest request, long? jobId, CancellationToken ct)
+    private async Task<IReadOnlyList<ClaimedJob>> ClaimUntilTakenAsync(ClaimOptions request, long? jobId, CancellationToken ct)
     {
         var elapsed = Stopwatch.StartNew();
         while (true)

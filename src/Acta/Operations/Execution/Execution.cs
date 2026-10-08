@@ -27,16 +27,16 @@ internal sealed class Execution(
     /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED.
     /// Empty claim carries the horizon sentinel.
     /// </summary>
-    public Task<ClaimBatchResponse> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
-        claimBatch.HandleAsync(new ClaimBatchCommand(request, leaseTtlSeconds), ct);
+    public Task<ClaimBatchResponse> ClaimBatchAsync(ClaimOptions options, int leaseTtlSeconds, CancellationToken ct) =>
+        claimBatch.HandleAsync(new ClaimBatchCommand(options, leaseTtlSeconds), ct);
 
     /// <summary>
     /// Claims exactly one job. A null <c>jobId</c> delegates to <see cref="ClaimBatchAsync"/> with a
     /// batch of one; an explicit <c>jobId</c> deterministically claims that specific Ready job for
     /// callers that already know which to run. The only claim API that accepts an explicit id.
     /// </summary>
-    public Task<ClaimOneResponse> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-        claimOne.HandleAsync(new ClaimOneCommand(request, leaseTtlSeconds, jobId), ct);
+    public Task<ClaimOneResponse> ClaimOneAsync(ClaimOptions options, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
+        claimOne.HandleAsync(new ClaimOneCommand(options, leaseTtlSeconds, jobId), ct);
 
     /// <summary>
     /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution-started</c>,

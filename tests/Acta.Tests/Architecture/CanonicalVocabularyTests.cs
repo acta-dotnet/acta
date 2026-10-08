@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -24,7 +25,6 @@ public sealed class CanonicalVocabularyTests
             "Actor" + "Id",
             "actor" + "Id",
             "actor" + "_id",
-            "Job" + "Tag",
             "Job" + "TagInput",
             "Job" + "TagFilter",
             "Sys" + "Setting",
@@ -82,6 +82,10 @@ public sealed class CanonicalVocabularyTests
             "lease_" + "key",
         };
 
+        // The tag type from before tags spanned every target began a word; a route's request names the upsert of a
+        // job's tags with the same letters inside a word (UpsertJobTagsRequest), which is not it.
+        var wordStarts = new[] { new Regex("(?<![a-z])" + "Job" + "Tag", RegexOptions.CultureInvariant) };
+
         var root = IntegrationConfig.FindRepoRoot();
         var failures = new List<string>();
         foreach (var sourceRoot in SourceRoots)
@@ -101,6 +105,10 @@ public sealed class CanonicalVocabularyTests
                     {
                         failures.Add($"{Path.GetRelativePath(root, file)}: {term}");
                     }
+                }
+                foreach (var term in wordStarts.Where(term => term.IsMatch(text)))
+                {
+                    failures.Add($"{Path.GetRelativePath(root, file)}: {term}");
                 }
             }
         }

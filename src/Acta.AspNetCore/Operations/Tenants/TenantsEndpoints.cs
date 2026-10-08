@@ -3,14 +3,6 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>PATCH body for a tenant update. Null field clears it. ExpectedVersion drives the CAS.</summary>
-internal sealed record UpdateTenantHttpRequest(
-    string? DisplayName = null,
-    string? Description = null,
-    int? ExpectedVersion = null,
-    string? ReasonMessage = null
-) : IControlRequest;
-
 /// <summary>The Tenants routes: the list, one tenant, its tags, registration, suspend, resume, and the update.</summary>
 internal static class TenantsEndpoints
 {
@@ -64,7 +56,14 @@ internal static class TenantsEndpoints
                 }
             }
         );
-        reads.MapTags(controls, "/tenants/{tenantKey}/tags", "tenant", options, static http => TagTarget.ForTenant(Key(http)));
+        reads.MapTags(
+            controls,
+            "/tenants/{tenantKey}/tags",
+            "tenant",
+            options,
+            DashboardJsonContext.Default.UpsertTenantTagsRequest,
+            static http => TagTarget.ForTenant(Key(http))
+        );
         if (controls is null)
         {
             return;
@@ -75,7 +74,7 @@ internal static class TenantsEndpoints
             "/tenants/{tenantKey}/suspend",
             "Suspend the tenant: new work is rejected at enqueue.",
             options,
-            DashboardJsonContext.Default.ControlHttpRequest,
+            DashboardJsonContext.Default.SuspendTenantRequest,
             "Invalid tenant key.",
             ControlStatus.Admin<SuspendTenantResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Key,
@@ -85,7 +84,7 @@ internal static class TenantsEndpoints
             "/tenants/{tenantKey}/resume",
             "Resume a suspended tenant.",
             options,
-            DashboardJsonContext.Default.ControlHttpRequest,
+            DashboardJsonContext.Default.ResumeTenantRequest,
             "Invalid tenant key.",
             ControlStatus.Admin<ResumeTenantResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Key,
@@ -96,7 +95,7 @@ internal static class TenantsEndpoints
             "/tenants/{tenantKey}",
             "Update the tenant's display name and description.",
             options,
-            DashboardJsonContext.Default.UpdateTenantHttpRequest,
+            DashboardJsonContext.Default.UpdateTenantRequest,
             "Invalid tenant update.",
             ControlStatus.Admin<UpdateTenantResponse>(
                 StatusCodes.Status200OK,

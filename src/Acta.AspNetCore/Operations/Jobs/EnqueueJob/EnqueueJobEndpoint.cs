@@ -6,29 +6,6 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>
-/// Body of a POST /jobs enqueue. At most one of <c>Input</c> (raw JSON stored as json), <c>Text</c>
-/// (stored as text), or <c>Base64</c> (stored as the binary format named by <c>FormatId</c>, which must
-/// be 2 or 128..255) supplies the input; all absent enqueues a no-input job. <c>Priority</c> accepts the
-/// code string (e.g. "high").
-/// </summary>
-internal sealed record EnqueueOneHttpRequest(
-    string? JobNamespace = null,
-    string? JobName = null,
-    // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
-    // can write as this parameter's default, and an uninitialized JsonElement has nothing to write.
-    JsonElement? Input = null,
-    string? Text = null,
-    string? Base64 = null,
-    byte? FormatId = null,
-    string? DeduplicationKey = null,
-    string? CorrelationKey = null,
-    string? TenantKey = null,
-    JobPriorityCode? Priority = null,
-    int? DelaySeconds = null,
-    DateTime? NextRunAtUtc = null
-);
-
 /// <summary>HTTP projection of an <see cref="EnqueueJobResponse"/>: the public ref and the coarse action.</summary>
 internal sealed record EnqueueOneHttpResponse(JobRef JobRef, EnqueueJobAction Action);
 
@@ -36,7 +13,7 @@ internal sealed record EnqueueOneHttpResponse(JobRef JobRef, EnqueueJobAction Ac
 /// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
 /// EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
 /// </summary>
-internal static class EnqueueOneEndpoint
+internal static class EnqueueJobEndpoint
 {
     public static void Map(RouteGroupBuilder controls, ActaEndpointOptions options) =>
         controls
@@ -51,7 +28,7 @@ internal static class EnqueueOneEndpoint
 
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        DashboardJsonContext.Default.EnqueueOneHttpRequest,
+                        DashboardJsonContext.Default.EnqueueJobRequest,
                         ct
                     );
                     if (error is not null)
@@ -126,7 +103,7 @@ internal static class EnqueueOneEndpoint
                             : JobPayload.None;
                     }
 
-                    var request = new EnqueueJobRequest(
+                    var request = new Acta.EnqueueJobRequest(
                         JobNamespace: body.JobNamespace,
                         JobName: body.JobName,
                         Input: input,
@@ -172,7 +149,7 @@ internal static class EnqueueOneEndpoint
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<EnqueueOneHttpRequest>()
+            .AcceptsJson<EnqueueJobRequest>()
             .Produces<EnqueueOneHttpResponse>(StatusCodes.Status201Created)
             .Produces<EnqueueOneHttpResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)

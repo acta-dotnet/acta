@@ -21,11 +21,11 @@ public sealed class ControlAuthorizationTests
     private const string Confirm = "X-Acta-Control";
     private static readonly string Found = FakeJobs.FoundJobRef.ToString();
 
-    private sealed class FakeAuthorizer(Func<ActaControlRequest, ActaControlVerdict> decide) : IActaControlAuthorizer
+    private sealed class FakeAuthorizer(Func<ActaControlContext, ActaControlVerdict> decide) : IActaControlAuthorizer
     {
-        public List<ActaControlRequest> Requests { get; } = [];
+        public List<ActaControlContext> Requests { get; } = [];
 
-        public ValueTask<ActaControlVerdict> AuthorizeAsync(ActaControlRequest request, CancellationToken ct)
+        public ValueTask<ActaControlVerdict> AuthorizeAsync(ActaControlContext request, CancellationToken ct)
         {
             Requests.Add(request);
             return ValueTask.FromResult(decide(request));

@@ -5,8 +5,8 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ClaimBatchResponse> HandleAsync(ClaimBatchCommand command, CancellationToken ct)
     {
-        var request = command.Request;
-        if (request.MaxBatch <= 0)
+        var options = command.Options;
+        if (options.MaxBatch <= 0)
         {
             return ClaimBatchResponse.Empty;
         }
@@ -15,12 +15,12 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
             new StoreCommand("ClaimBatch"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, request.MaxBatch));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, options.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, options.WorkerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, options.MaxBatch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
-                dialect.BindExcludedDefinitionIds(cmd, request.ExcludedDefinitionIds);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, options.StartExecuting));
+                dialect.BindExcludedDefinitionIds(cmd, options.ExcludedDefinitionIds);
             },
             DbProjectionResolver.Resolve<ClaimBatchRow>(),
             ct

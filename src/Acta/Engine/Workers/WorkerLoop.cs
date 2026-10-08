@@ -167,7 +167,7 @@ internal sealed class WorkerLoop(
             try
             {
                 var result = await _execution.ClaimBatchAsync(
-                    new ClaimRequest(
+                    new ClaimOptions(
                         namespaceId,
                         workerId,
                         MaxBatch: batchSize,
@@ -375,7 +375,7 @@ internal sealed class WorkerLoop(
                 try
                 {
                     result = await _execution.ClaimBatchAsync(
-                        new ClaimRequest(
+                        new ClaimOptions(
                             namespaceId,
                             workerId,
                             MaxBatch: acquired,

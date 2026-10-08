@@ -43,8 +43,8 @@ internal static class ControlAuthorizationFilter
                 }
 
                 var pattern = (http.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "";
-                var request = new ActaControlRequest(DeriveVerb(pattern, http.Request.Method), http, http.User?.Identity?.Name);
-                var decision = await authorizer.AuthorizeAsync(request, http.RequestAborted);
+                var control = new ActaControlContext(DeriveVerb(pattern, http.Request.Method), http, http.User?.Identity?.Name);
+                var decision = await authorizer.AuthorizeAsync(control, http.RequestAborted);
                 return decision.IsAllowed
                     ? await next(context)
                     : Results.Problem(

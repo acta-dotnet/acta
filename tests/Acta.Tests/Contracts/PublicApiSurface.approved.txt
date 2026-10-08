@@ -3,7 +3,7 @@
 # Every line here is a 1.0 commitment: additive in 1.x, breaking only in 2.0.
 
 ## Acta.AspNetCore
-struct Acta.AspNetCore.ActaControlRequest
+struct Acta.AspNetCore.ActaControlContext
     .ctor(System.String Verb, Microsoft.AspNetCore.Http.HttpContext HttpContext, System.String ActorKey)
     Microsoft.AspNetCore.Http.HttpContext HttpContext { get;init; }
     System.String ActorKey { get;init; }
@@ -36,7 +36,7 @@ static class Acta.AspNetCore.ActaEndpointRouteBuilderExtensions
     Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActaApi(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = default, System.Action<Acta.AspNetCore.ActaEndpointOptions> configure = default)
     System.String ApiVersionSegment = /v1
 interface Acta.AspNetCore.IActaControlAuthorizer
-    System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlVerdict> AuthorizeAsync(Acta.AspNetCore.ActaControlRequest request, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlVerdict> AuthorizeAsync(Acta.AspNetCore.ActaControlContext context, System.Threading.CancellationToken ct)
 
 ## Acta.Postgres
 static class Acta.Postgres.PostgresActaBuilderExtensions

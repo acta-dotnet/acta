@@ -21,7 +21,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 public interface IActaControlAuthorizer
 {
-    ValueTask<ActaControlVerdict> AuthorizeAsync(ActaControlRequest request, CancellationToken ct);
+    ValueTask<ActaControlVerdict> AuthorizeAsync(ActaControlContext context, CancellationToken ct);
 }
 
 /// <summary>
@@ -34,7 +34,7 @@ public interface IActaControlAuthorizer
 /// <paramref name="ActorKey"/> is the authenticated principal's name, the same value the control verb
 /// stamps as actor.
 /// </summary>
-public readonly record struct ActaControlRequest(string Verb, HttpContext HttpContext, string? ActorKey);
+public readonly record struct ActaControlContext(string Verb, HttpContext HttpContext, string? ActorKey);
 
 /// <summary>Authorization outcome for a control request: allowed, or denied with a caller-facing reason.</summary>
 public readonly record struct ActaControlVerdict(bool IsAllowed, string? Reason)

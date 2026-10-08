@@ -8,10 +8,10 @@ internal sealed class ClaimOneHandler(ClaimBatchHandler claimBatch, IDbSession s
 {
     public async Task<ClaimOneResponse> HandleAsync(ClaimOneCommand command, CancellationToken ct)
     {
-        var request = command.Request;
+        var options = command.Options;
         if (command.JobId is not { } jobId)
         {
-            var scanned = await claimBatch.HandleAsync(new ClaimBatchCommand(request with { MaxBatch = 1 }, command.LeaseTtlSeconds), ct);
+            var scanned = await claimBatch.HandleAsync(new ClaimBatchCommand(options with { MaxBatch = 1 }, command.LeaseTtlSeconds), ct);
             return new ClaimOneResponse(scanned.Jobs, scanned.Horizon);
         }
 
@@ -19,11 +19,11 @@ internal sealed class ClaimOneHandler(ClaimBatchHandler claimBatch, IDbSession s
             new StoreCommand("ClaimOne"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, request.WorkerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, options.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, options.WorkerId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, options.StartExecuting));
             },
             DbProjectionResolver.Resolve<ClaimOneRow>(),
             ct

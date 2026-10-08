@@ -56,18 +56,20 @@ internal static class RouteTable
             .ProducesProblem(StatusCodes.Status404NotFound);
 
     /// <summary>
-    /// A target's tags: the read, and when controls are mapped the upsert and the remove. A target the resolver cannot
-    /// build is caller input and answers 400; an addressable one with no tag set answers 404, on a mutation with the
-    /// control envelope.
+    /// A target's tags: the read, and when controls are mapped the upsert, whose body is <typeparamref name="TBody"/>, and
+    /// the remove. A target the resolver cannot build is caller input and answers 400; an addressable one with no tag set
+    /// answers 404, on a mutation with the control envelope.
     /// </summary>
-    public static void MapTags(
+    public static void MapTags<TBody>(
         this RouteGroupBuilder reads,
         RouteGroupBuilder? controls,
         string pattern,
         string entity,
         ActaEndpointOptions options,
+        JsonTypeInfo<TBody> upsert,
         Func<HttpContext, TagTarget> target
     )
+        where TBody : class, IUpsertTagsRequest
     {
         reads
             .MapGet(
@@ -88,9 +90,9 @@ internal static class RouteTable
             .MapPost(
                 pattern,
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, options, () => target(http), ct)
+                    TagRoutes.UpsertAsync(http, operations, options, upsert, () => target(http), ct)
             )
-            .AcceptsJson<UpsertTagHttpRequest>()
+            .AcceptsJson<TBody>()
             .WithSummary($"Add or update one tag on the {entity}.")
             .Produces<UpsertTagsResponse>(StatusCodes.Status200OK)
             .Produces<UpsertTagsResponse>(StatusCodes.Status404NotFound)
