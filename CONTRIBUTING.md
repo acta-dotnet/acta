@@ -322,8 +322,8 @@ tools/      Acta.Emit CLI (generated docs, SQL migrations, object packages), Act
 The shortest paths to the design-review-worthy parts:
 
 * **Source-generated dispatch, AOT-clean by construction.** `Acta.Generators` emits a per-assembly manifest (`{Area}JobsManifest`), per-handler invokers, and type-to-descriptor routing; no reflection runs on the dispatch hot path. The one caveat is the default JSON payload path, which uses reflection unless you supply a source-generated `JsonSerializerContext` (`j.UseJsonPayloads(...)`). Typed enqueue is not an escape hatch: it serializes through the same configured serializer.
-* **One handler per operation across three engines.** Each operation's handler in `Acta.Runtime` builds its command and maps its rows once; PostgreSQL, SQL Server, and SQLite each own only a dialect and the operation's executable SQL, held to the same behavior by the conformance suite.
-* **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql`, with the schema commands in `Schema/` and the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Schema/Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
+* **One handler per operation across three engines.** Each operation's handler in `Acta` builds its command and maps its rows once; PostgreSQL, SQL Server, and SQLite each own only a dialect and the operation's executable SQL, held to the same behavior by the conformance suite.
+* **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql`, beside its public types and handler, with the schema commands in `Schema/` and the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Schema/Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
 * **A deliberately small, symmetric data model.** Sixteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/internals/design.md`](./docs/internals/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
 
@@ -331,7 +331,7 @@ The shortest paths to the design-review-worthy parts:
 |---|---|
 | Public-API design | `src/Acta/Operations/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
 | Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
-| Persistence architecture | `src/Acta.Runtime/Operations/` (one handler per operation, its SQL beside it), `src/Acta.Runtime/{Db,Schema}/`, the dialect class in each of `src/Acta.{Postgres,SqlServer,Sqlite}/` |
+| Persistence architecture | `src/Acta/Operations/` (one folder per operation: its public types, handler, and SQL), `src/Acta/{Db,Schema}/`, the dialect class in each of `src/Acta.{Postgres,SqlServer,Sqlite}/` |
 | Provider conformance | `tests/Acta.Tests.Conformance` (specs and test infrastructure); each of `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}` compiles the specs against its own `ConformanceFixture` alias, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |

@@ -37,7 +37,7 @@ phase below is the default.
    each rollover keeps its latest result.
 
 `artifacts/rolling-upgrade/<run>/evidence.json` records the previous and current commits, whether the
-current worktree was dirty when built, the hash of each generation's `Acta.Runtime.dll`, and a row per
+current worktree was dirty when built, the hash of each generation's `Acta.dll`, and a row per
 phase. A dirty worktree is fine for a local check and is not release evidence.
 
 ## What the overlap phase does

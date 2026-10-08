@@ -28,10 +28,10 @@ function ConvertTo-LogicalResource([string]$relativePath) {
 }
 
 function Get-ProviderInventory([string]$token) {
-    $runtimeRoot = Join-Path $repoRoot 'src/Acta.Runtime'
+    $actaRoot = Join-Path $repoRoot 'src/Acta'
     $inventory = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($owner in @('Operations', 'Schema')) {
-        $ownerRoot = Join-Path $runtimeRoot $owner
+        $ownerRoot = Join-Path $actaRoot $owner
         if (-not (Test-Path -LiteralPath $ownerRoot)) { continue }
 
         foreach ($file in Get-ChildItem -LiteralPath $ownerRoot -Recurse -File -Filter "*.$token.sql") {
@@ -67,7 +67,7 @@ if ($List) {
 
 if ($ChangedSince) {
     $range = "$ChangedSince...HEAD"
-    $changedFiles = @(& git -C $repoRoot diff --name-only $range -- src/Acta.Runtime/Operations src/Acta.Runtime/Schema)
+    $changedFiles = @(& git -C $repoRoot diff --name-only $range -- src/Acta/Operations src/Acta/Schema)
     if ($LASTEXITCODE -ne 0) { throw "git diff failed for '$range'." }
 
     $changed = @{}

@@ -33,8 +33,13 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   client that showed `message` builds its text from `action` and `status`. The tag writes answer with
   `UpsertTagsResponse` and `RemoveTagsResponse` too, so `AdminControlResult` is gone: the body keeps
   `action` and loses `version`, which was always null.
-- **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
+- **The `Acta.Relational` package is gone.** Its code ships in `Acta`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
+- **The `Acta.Runtime` package is gone.** Its code ships in `Acta`, which every provider package
+  already brings; a project that referenced `Acta.Runtime` directly drops the reference, and a
+  `using Acta.Runtime;` becomes `using Acta;`. Log categories follow their types, so a log filter on
+  `Acta.Runtime.WorkerRuntime` becomes `Acta.WorkerRuntime`, and the generated system-job manifest
+  `RuntimeJobs` is now `ActaJobs`.
 - **A command returns its own response.** `ITenants` answers
   `SuspendAsync`, `ResumeAsync`, and `UpdateAsync` with `SuspendTenantResponse`,
   `ResumeTenantResponse`, and `UpdateTenantResponse`; and `INamespaces` answers them with

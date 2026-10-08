@@ -12,7 +12,7 @@ tools/sql-compare.ps1 -List
 ```
 
 The resolver maps `EnqueueJobs` to each dialect's
-`src/Acta.Runtime/Operations/Jobs/EnqueueJobs/EnqueueJobs.<dialect>.sql` file and runs pairwise diffs.
+`src/Acta/Operations/Jobs/EnqueueJobs/EnqueueJobs.<dialect>.sql` file and runs pairwise diffs.
 CI emits the same sibling report whenever a SQL file changes in a pull request.
 
 Every run writes two files with the same timestamped basename:

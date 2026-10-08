@@ -10,7 +10,7 @@ dashboard's protected surface stays protected once a proxy and a prefix sit in f
 ```
 
 The consumer restores `Acta.*` only from `artifacts/packages`, so that feed must hold the exact
-packages under test: the `packages` artifact of a CI run, or a local pack of `Acta`, `Acta.Runtime`,
+packages under test: the `packages` artifact of a CI run, or a local pack of `Acta`,
 `Acta.Sqlite`, and `Acta.AspNetCore` with `-c Release -o artifacts/packages`.
 `Acta.AspNetCore` embeds the dashboard at pack time and needs Node, or an existing `dist` with
 `-p:ActaDashboardSkipNpm=true`. Like `tests/PackageSmoke`, this tree builds as an external consumer

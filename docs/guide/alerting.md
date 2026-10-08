@@ -498,12 +498,12 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 
 | Cited as | Path |
 | --- | --- |
-| `AlertsJob.cs` | `src/Acta.Runtime/Engine/Alerts/AlertsJob.cs` |
-| `AlertChannelVerdict.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelVerdict.cs` |
-| `AlertChannelRegistry.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelRegistry.cs` |
-| `AlertRoutingCheck.cs` | `src/Acta.Runtime/Engine/Alerts/AlertRoutingCheck.cs` |
-| `AlertLifecycle.cs` | `src/Acta.Runtime/Operations/Alerts/AlertLifecycle.cs` |
-| `AlertEntity.cs` | `src/Acta.Runtime/Entities/AlertEntity.cs` |
+| `AlertsJob.cs` | `src/Acta/Engine/Alerts/AlertsJob.cs` |
+| `AlertChannelVerdict.cs` | `src/Acta/Engine/Alerts/AlertChannelVerdict.cs` |
+| `AlertChannelRegistry.cs` | `src/Acta/Engine/Alerts/AlertChannelRegistry.cs` |
+| `AlertRoutingCheck.cs` | `src/Acta/Engine/Alerts/AlertRoutingCheck.cs` |
+| `AlertLifecycle.cs` | `src/Acta/Operations/Alerts/AlertLifecycle.cs` |
+| `AlertEntity.cs` | `src/Acta/Entities/AlertEntity.cs` |
 | `AlertProfileCode.cs` | `src/Acta/Codes/AlertProfileCode.cs` |
 | `AlertChannelOptions.cs` | `src/Acta/Hosting/AlertChannelOptions.cs` |
 | `AlertTransportKinds.cs` | `src/Acta/Hosting/AlertTransportKinds.cs` |
@@ -513,12 +513,12 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `JobAttribute.cs` | `src/Acta/Execution/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Execution/JobContext.cs` |
-| `JobExecution.cs` | `src/Acta.Runtime/Engine/Execution/JobExecution.cs` |
+| `JobExecution.cs` | `src/Acta/Engine/Execution/JobExecution.cs` |
 | `EventReasonCode.cs` | `src/Acta/Codes/EventReasonCode.cs` |
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
-| `BackoffSchedule.cs` | `src/Acta.Runtime/Kernel/BackoffSchedule.cs` |
-| `WorkerBuilder.cs` | `src/Acta.Runtime/Hosting/WorkerBuilder.cs` |
-| `*.{pg,mssql,sqlite}.sql` | `src/Acta.Runtime/Operations/{Alerts,Execution,Maintenance}/` and `src/Acta.Runtime/Schema/Views/` (one file per dialect beside each operation; SQLite runs inline what the servers install as routines) |
+| `BackoffSchedule.cs` | `src/Acta/Kernel/BackoffSchedule.cs` |
+| `WorkerBuilder.cs` | `src/Acta/Hosting/WorkerBuilder.cs` |
+| `*.{pg,mssql,sqlite}.sql` | `src/Acta/Operations/{Alerts,Execution,Maintenance}/` and `src/Acta/Schema/Views/` (one file per dialect beside each operation; SQLite runs inline what the servers install as routines) |
 
 Runnable examples: `concepts/400-observability-and-alerts/402-alerts` (manual alert),
 `403-alert-channel` (a declared channel with a severity floor), `405-real-alert-routing` (Slack

@@ -259,7 +259,6 @@ jobs:
         run: |
           $projects = @(
             'src/Acta/Acta.csproj',
-            'src/Acta.Runtime/Acta.Runtime.csproj',
             'src/Acta.AspNetCore/Acta.AspNetCore.csproj',
             'src/Acta.Postgres/Acta.Postgres.csproj',
             'src/Acta.Sqlite/Acta.Sqlite.csproj',

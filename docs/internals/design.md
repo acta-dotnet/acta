@@ -171,18 +171,18 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Packages
 
-- **Package split by surface:** `Acta` (public API and SDK), `Acta.Runtime` (the engine, the operations, and database access), providers, `Acta.AspNetCore`, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
+- **Packages:** `Acta` (the SDK, the operations, the engine, and database access), the providers, `Acta.AspNetCore`, `Acta.Redis`, and `Acta.Testing`. *Reason:* the public-API contract test is the boundary between what a consumer may use and what stays internal, so a second assembly for the engine bought nothing, and one folder per slice is the point: an operation's public types, handler, and SQL read together.
 - **Relational-provider baseline.** SQL Server, PostgreSQL, and SQLite ship side-by-side against one provider-neutral entity model. *Reason:* shipping distributed and embedded providers in lockstep prevents single-provider assumptions.
 - **No in-memory provider.** *Reason:* it would pass tests the real providers fail.
-- **Visibility default is `internal sealed`** outside the `Acta` SDK project. *Reason:* the API boundary is grep-checkable.
+- **Visibility default is `internal sealed`**; a type is public only when it is part of the consumer surface. *Reason:* the API boundary is grep-checkable, and `PublicApiContractTests` pins it.
 
 ### Structure
 
 The terms for internal structure; where each piece lives is [`source-layout.md`](source-layout.md).
 
-- **Operation:** one thing a caller or the engine can do, in one folder, `Operations/<Group>/<Operation>/`: its public types in `Acta`, its command or query, its handler, and its SQL per dialect in `Acta.Runtime`. The same `VerbNoun` names the folder, the SQL stem, and the facade method. *Reason:* one place to read an operation whole, in every dialect.
+- **Operation:** one thing a caller or the engine can do, in one folder, `Operations/<Group>/<Operation>/`: its public types, its command or query, its handler, its row, and its SQL per dialect. The same `VerbNoun` names the folder, the SQL stem, and the facade method. *Reason:* one place to read an operation whole, in every dialect.
 - **Group:** the operations of one subject (Jobs, Schedules, Alerts, ...), with one hand-written facade of one line per operation and the types the group shares. There is no mediator and no layer between facade and handler. *Reason:* a group is a folder, not a boundary; its handlers call what they need directly.
-- **Engine:** `Acta.Runtime/Engine/` runs jobs (workers, execution, recovery, retention, alert projection and delivery, the outbox relay, definition registration) and composes operations by calling their handlers. No operation references the engine. *Reason:* the dependency points one way, so an operation reads on its own.
+- **Engine:** `src/Acta/Engine/` runs jobs (workers, execution, recovery, retention, alert projection and delivery, the outbox relay, definition registration) and composes operations by calling their handlers. No operation references the engine. *Reason:* the dependency points one way, so an operation reads on its own.
 - **Adapter:** a project that connects an external technology: the providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
 - **Manifest:** the generated per-assembly set of job descriptors (`{Area}JobsManifest : IJobManifest`). The word is reserved for that.
 - **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the folder tree.
@@ -192,8 +192,8 @@ The terms for internal structure; where each piece lives is [`source-layout.md`]
 
 - **Provider conformance is one shared spec suite** all three relational providers gate on. *Reason:* one definition of "provider-compliant".
 - **All hot-path writes are semantic operations** whose provider SQL writes the `JobEvent` in the same transaction. *Reason:* one round-trip; audit and state are atomic.
-- **SQL sits beside its operation:** `src/Acta.Runtime/Operations/{Group}/{Operation}/` holds that operation's file for every dialect (`X.pg.sql`, `X.mssql.sql`, `X.sqlite.sql`), the schema commands sit in `Schema/`, and the operator views in `Schema/Views/`. *Reason:* the SQL tree is public-facing in a product whose pitch is inspectable SQL; one folder per operation shows every dialect of it side by side.
-- **Core behavior is implemented once in `Acta.Runtime`.** Each operation's handler owns command building and mapping; providers own only dialects, executable SQL, and bulk binds, with no per-provider handlers. Statically gated by `ArchitectureBoundaryTests`, and `OperationLayoutTests` keeps each operation's SQL beside its handler, in all three dialects. *Reason:* one implementation of provider-independent policy, with SQL and dialects the only provider-specific surface.
+- **SQL sits beside its operation:** `src/Acta/Operations/{Group}/{Operation}/` holds that operation's file for every dialect (`X.pg.sql`, `X.mssql.sql`, `X.sqlite.sql`), the schema commands sit in `Schema/`, and the operator views in `Schema/Views/`. *Reason:* the SQL tree is public-facing in a product whose pitch is inspectable SQL; one folder per operation shows every dialect of it side by side.
+- **Core behavior is implemented once in `Acta`.** Each operation's handler owns command building and mapping; providers own only dialects, executable SQL, and bulk binds, with no per-provider handlers. Statically gated by `ArchitectureBoundaryTests`, and `OperationLayoutTests` keeps each operation's SQL beside its handler, in all three dialects. *Reason:* one implementation of provider-independent policy, with SQL and dialects the only provider-specific surface.
 - **No production raw-session API crosses into feature behavior.** `Acta.Testing` owns the test query DSL and raw ADO helpers. *Reason:* ad-hoc product writes would bypass operation-owned invariants.
 
 ### Handler contract

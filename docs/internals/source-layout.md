@@ -4,77 +4,80 @@ Where code lives in `src/`, and the tests that hold it there.
 
 ## Projects
 
-- `src/Acta` is the public SDK, in one namespace, `Acta`. It reads as the whole public contract: the facade interfaces, the models they return, configuration, and the handler API. It references no implementation project.
-- In `src/Acta`, `Operations/<Group>/` holds a group's facade and what it takes and returns, and the persisted codes sit together in `Codes/`. The rest sits by capability: the handler API in `Execution/`, builders and plug-in seams in `Hosting/`, and `Configuration/`, `Payloads/`, `Primitives/`, `Querying/`.
-- `src/Acta.Runtime` is the implementation, in one namespace, `Acta.Runtime`: operations, the engine, database access, the schema, hosting, and the operator CLI.
+- `src/Acta` is the SDK and the engine, in one namespace, `Acta`: the facade interfaces and the models they return, configuration, the handler API, the operations, the engine, database access, the schema, hosting, and the operator CLI. Its public types are the consumer contract, pinned by `PublicApiContractTests`; everything else is internal.
+- In `src/Acta`, `Operations/<Group>/` holds a group's facade, the types the group shares, and one folder per operation, and `Engine/` runs jobs; the rest sits by capability, in [the other folders](#the-other-folders).
 - `src/Acta.Postgres`, `src/Acta.SqlServer`, and `src/Acta.Sqlite` each hold a dialect class, the `Use{Provider}` registration, options, bootstrap, migrator, and outbox staging at the project root, plus `Schema/Migrations/M001_init.sql`.
-- `src/Acta.AspNetCore` holds `MapActa`, the routes in `Operations/<Group>/`, the `Http/` helpers (route shapes, binding, validation, the JSON context, headers), the capabilities endpoint, and the dashboard. It references only `Acta`.
+- `src/Acta.AspNetCore` holds `MapActa`, the routes in `Operations/<Group>/`, the `Http/` helpers (route shapes, binding, validation, the JSON context, headers), the capabilities endpoint, and the dashboard. It references only `Acta`, and sees only its public types.
 - `src/Acta.Redis` is the Redis wakeup, `src/Acta.Testing` the test host and runners, and `src/Acta.Generators` the source generators.
 
 ## Operations
 
 An operation is one thing a caller or the engine can do: pause a job, list alerts, claim a batch. Each one has a folder, `Operations/<Group>/<Operation>/`, with at most one grouping level above it. Its name is `VerbNoun`, and the same name is its folder, its SQL file stem, and its facade method without `Async`.
 
-One operation, both halves:
+One operation:
 
 ```text
 src/Acta/Operations/Jobs/
   IJobs.cs                           facade interface
-  IJobControlResponse.cs             shared by the group
-  RescheduleJob/RescheduleJobResponse.cs   public types of the operation
-src/Acta.Runtime/Operations/Jobs/
   Jobs.cs                            facade, one line per operation
+  IJobControlResponse.cs             shared by the group
   RescheduleJob/
     RescheduleJobCommand.cs          input record
-    RescheduleJobHandler.cs          HandleAsync(RescheduleJobCommand)
+    RescheduleJobHandler.cs          HandleAsync(RescheduleJobCommand) returns RescheduleJobResponse
+    RescheduleJobResponse.cs         what the facade returns
+    RescheduleJobRow.cs              the row its SQL answers
     RescheduleJob.pg.sql  RescheduleJob.mssql.sql  RescheduleJob.sqlite.sql
 tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 ```
 
-A read, both halves:
+A read:
 
 ```text
 src/Acta/Operations/Jobs/GetJob/
-  GetJobResponse.cs                  the job
-src/Acta.Runtime/Operations/Jobs/GetJob/
   GetJobQuery.cs                     the lookup
   GetJobHandler.cs                   HandleAsync(GetJobQuery) returns GetJobResponse, null when no job matches
+  GetJobResponse.cs                  the job
   GetJob.pg.sql  GetJob.mssql.sql  GetJob.sqlite.sql
 ```
 
-A list, both halves:
+A list:
 
 ```text
 src/Acta/Operations/Ledger/ListJobs/
   ListJobsQuery.cs                   filters and paging
+  ListJobsHandler.cs                 HandleAsync(ListJobsQuery) returns ListJobsResponse
   ListJobsResponse.cs                the page: ListJobsResponse : IPagedResponse<ListJobsItem>
   ListJobsItem.cs                    one job in the page
-src/Acta.Runtime/Operations/Ledger/ListJobs/
-  ListJobsHandler.cs                 HandleAsync(ListJobsQuery) returns ListJobsResponse
   ListJobs.pg.sql  ListJobs.mssql.sql  ListJobs.sqlite.sql
 ```
 
 - A write operation has an `XCommand`, an `XHandler`, and an `XResponse`, public when a facade returns it, or none when it answers nothing. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`; a `GetX` returns its `GetXResponse`, null when nothing is found, and a list `ListX` its `ListXResponse : IPagedResponse<ListXItem>`. The suffixes are in [naming conventions](naming-conventions.md).
-- The public half mirrors the Runtime path: every `src/Acta/Operations/<Group>/<Operation>/` folder has a Runtime operation at the same path. A public query, response, and response element (`ListXItem`, `GetXItem`) sit in their operation's folder, a response's parts beside it as `<Operation><Part>` (`GetJobExplanationWait`), and types a whole group shares sit in the group folder. `Acta` has one namespace, so moving a public type never changes its name.
+- An operation's public and internal types share its folder: its query, response, and response element (`ListXItem`, `GetXItem`) sit beside its command, handler, row, and SQL, a response's parts beside it as `<Operation><Part>` (`GetJobExplanationWait`), and types a whole group shares sit in the group folder. `Acta` has one namespace, so moving a type never changes its name.
 - The facade is hand-written, one line per operation: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator and no partial class.
 - A group's handlers and its facade are registered together in `AddActa`.
 - Every operation has its own input and its own response. Related responses share an interface; operations share no classes.
-- SQL sits beside its handler, one file per dialect, embedded in `Acta.Runtime` and loaded by the dialect token. A file that defines a routine opens with `CREATE OR REPLACE FUNCTION` or `CREATE OR ALTER PROCEDURE` after its leading comments; every other file is inline SQL. A routine keeps its stem, because its installed name is `snake_case(stem)`.
+- SQL sits beside its handler, one file per dialect, embedded in `Acta` and loaded by the dialect token. A file that defines a routine opens with `CREATE OR REPLACE FUNCTION` or `CREATE OR ALTER PROCEDURE` after its leading comments; every other file is inline SQL. A routine keeps its stem, because its installed name is `snake_case(stem)`.
 - Most routes have one of five shapes (paged list, detail, command verb, PATCH update, tags) and are one line in the group's `<Group>Endpoints.cs`, in `src/Acta.AspNetCore/Operations/<Group>/`. A route that fits none of them has its own `XEndpoint.cs` at the operation's path there, as in `Operations/Jobs/GetJob/GetJobDetailEndpoint.cs`.
 - No type under `Operations/` references a type under `Engine/`.
-- Specs mirror the Runtime tree: `tests/Acta.Tests.Conformance/Operations/<Group>/` holds an operation's specs, named `<Operation>Spec` or `<Operation><Facet>Spec`; `Engine/<Area>/` holds the engine's; `Db/` and `Schema/` hold theirs; `Scenarios/` holds the end-to-end specs that run through `ActaTestHost`.
+- Specs mirror `src/Acta`: `tests/Acta.Tests.Conformance/Operations/<Group>/` holds an operation's specs, named `<Operation>Spec` or `<Operation><Facet>Spec`; `Engine/<Area>/` holds the engine's; `Db/` and `Schema/` hold theirs; `Scenarios/` holds the end-to-end specs that run through `ActaTestHost`.
 - [`docs/reference/operations.md`](../reference/operations.md), generated by `OperationsIndexTests`, lists every operation with its facade method, routes, CLI verb, SQL kind per dialect, the tables it writes, and its specs.
 
 ## Engine
 
-`Acta.Runtime/Engine/` runs jobs: workers, execution, recovery, retention, alert projection and delivery, the outbox relay, and definition registration. It composes operations by calling their handlers or a group's class.
+`src/Acta/Engine/` runs jobs: workers, execution, recovery, retention, alert projection and delivery, the outbox relay, and definition registration. It composes operations by calling their handlers or a group's class.
 
-## The other Runtime folders
+## The other folders
 
+- `Codes/`: the persisted code families.
+- `Execution/`: the handler API: `JobContext`, the job attributes, steps, waits, locks, children, and their outcomes.
+- `Configuration/`: `JobsOptions`, `SqlProviderOptions`, `DriverVersionPolicy`, and the options validator.
+- `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
+- `Primitives/`: identifier, duration, and ref syntax, text limits, backoff and rate-limit specs, and the code attributes and manifests.
+- `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
 - `Db/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
 - `Entities/`: the table models, one class per table.
 - `Schema/`: the schema model, the migration runner and installer, baseline stamps, the schema commands, and the operator views in `Schema/Views/`.
-- `Hosting/`: `ActaBuilder`, `AddActa`, provider registration, option validators, what registration builds (the job catalog indexes and the outbox relay registry), and the outbox staging core the provider packages share.
+- `Hosting/`: `ActaBuilder`, `AddActa`, the builder interfaces and plug-in seams, provider registration, option validators, what registration builds (the job catalog indexes and the outbox relay registry), and the outbox staging core the provider packages share.
 - `Kernel/`: what operations and the engine both use: the wakeup publisher, text limits, tag filters, catalog validation and hashing, backoff, and metrics.
 - `Cli/`: the operator CLI, a presenter over the public facades.
 
@@ -82,12 +85,13 @@ src/Acta.Runtime/Operations/Ledger/ListJobs/
 
 | Test | Rule |
 |---|---|
-| `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`; once a group's Runtime folder holds C#, a handler per operation and a Runtime twin for each public operation folder; no `Operations/` file names a type declared under `Engine/` |
+| `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`, a handler per operation; no `Operations/` file names a type declared under `Engine/` |
 | `TypeNamingTests` | the banned suffixes, the `Row` rule, and `Entity` on every table model |
-| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, `HandleAsync(XCommand)` returns `XResponse` or nothing, `HandleAsync(ListXQuery)` returns `ListXResponse`, a public one an `IPagedResponse<ListXItem>`, and a `GetX` handler returns `GetXResponse`; rows, commands, queries, responses, and response elements declared in their slice under its name in both halves, a row named by no other slice, and every other type in a slice but an enum starting with the operation's name |
+| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, `HandleAsync(XCommand)` returns `XResponse` or nothing, `HandleAsync(ListXQuery)` returns `ListXResponse`, a public one an `IPagedResponse<ListXItem>`, and a `GetX` handler returns `GetXResponse`; rows, commands, queries, responses, and response elements declared in their slice under its name, a row named by no other slice, and every other type in a slice but an enum starting with the operation's name |
 | `DuplicateShapeTests` | no two types declaring the same property names, except types of different operations, each owned by the operation folder that declares it |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
 | `FileLengthTests` | at most 600 lines per source file; the 150-line method cap is MA0051's, in the build |
-| `ArchitectureBoundaryTests` | `Acta` references no implementation, and `Acta.AspNetCore` references only `Acta` |
+| `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
+| `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta` |
 
-Each rule but the last starts from a ratchet. `tests/ratchets/<rule>.txt` lists the violations that existed when the rule arrived, and entries may only be removed: a new violation fails the test, and so does an entry that no longer occurs. Entries name files, types, members, and SQL stems rather than folders, so moving code leaves them alone. After fixing violations, delete their entries, or delete the file and run the test: it writes the current list and fails once, so the change shows up in review.
+Each rule but the last two starts from a ratchet. `tests/ratchets/<rule>.txt` lists the violations that existed when the rule arrived, and entries may only be removed: a new violation fails the test, and so does an entry that no longer occurs. Entries name files, types, members, and SQL stems rather than folders, so moving code leaves them alone. After fixing violations, delete their entries, or delete the file and run the test: it writes the current list and fails once, so the change shows up in review.
