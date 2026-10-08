@@ -24,7 +24,7 @@ public sealed class MigrationDeltaEmitterTests
         var sql = MigrationDeltaEmitter.EmitDelta(diff, live, new PostgresDdlDialect(), version: 2, name: "add_priority");
 
         Assert.Contains("ALTER TABLE {{schema}}.runtimes ADD priority_code", sql);
-        Assert.Contains("-- TODO: add the synthetic ck_runtimes_priority_code constraint", sql);
+        Assert.DoesNotContain("ck_runtimes_priority_code", sql);
     }
 
     [Fact]

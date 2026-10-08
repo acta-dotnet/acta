@@ -221,17 +221,11 @@ internal static class EntityChecks
         identifierNames.AddRange(e.Indexes.Select(i => i.Name));
         identifierNames.AddRange(e.Checks.Select(c => c.Name));
         identifierNames.AddRange(e.ForeignKeys.Select(f => f.Name));
-        // Synthetic names mirror SqlSchemaEmitter / provider dialects: coded columns get
-        // ck_{table}_{column}[_code]; plain Byte columns ck_{table}_{column}_byte; Bytes columns
-        // ck_{table}_{column}_bytes.
+        // Synthetic names mirror the provider dialects: plain Byte columns get ck_{table}_{column}_byte and
+        // Bytes columns ck_{table}_{column}_bytes; a code column carries no CHECK.
         foreach (var c in e.Columns)
         {
-            if (c.IsCoded)
-            {
-                var codeSuffix = c.ColumnName.EndsWith("_code", StringComparison.Ordinal) ? "" : "_code";
-                identifierNames.Add($"ck_{tableName}_{c.ColumnName}{codeSuffix}");
-            }
-            else if (c.KindName == "Byte")
+            if (c.KindName == "Byte" && !c.IsCoded)
             {
                 identifierNames.Add($"ck_{tableName}_{c.ColumnName}_byte");
             }

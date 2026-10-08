@@ -49,15 +49,8 @@ internal static class MigrationDeltaEmitter
                 CultureInfo.InvariantCulture,
                 $"ALTER TABLE {SqlDdlDialect.SchemaPlaceholder}.{table} ADD {SqlSchemaEmitter.RenderColumn(col, dialect)};"
             );
-            if (col.IsCoded)
-            {
-                var codeSuffix = col.Name.EndsWith("_code", StringComparison.Ordinal) ? "" : "_code";
-                sb.AppendLine(
-                    CultureInfo.InvariantCulture,
-                    $"-- TODO: add the synthetic ck_{table}_{col.Name}{codeSuffix} constraint (enum IN-list CHECK) for this coded column (see M001)."
-                );
-            }
-            else if (col.Kind is DbKind.Byte or DbKind.Bytes)
+            // A code column carries no CHECK, so only a plain byte or bytes column needs its synthetic one.
+            if (!col.IsCoded && col.Kind is DbKind.Byte or DbKind.Bytes)
             {
                 sb.AppendLine(
                     CultureInfo.InvariantCulture,
