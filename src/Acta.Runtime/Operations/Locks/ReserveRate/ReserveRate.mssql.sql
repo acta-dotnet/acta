@@ -26,7 +26,10 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        DECLARE @now DATETIME2(7);
+        -- Everything is judged at the column's precision: a 7-digit reading rounds when it is stored,
+        -- so a meter read back can sit half a millisecond ahead of an unrounded now and refuse a
+        -- burst's last job. PostgreSQL and SQLite keep one precision in both places by construction.
+        DECLARE @now DATETIME2(3);
         DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
         -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
         -- interval short of a whole period, so the burst-th request lands on now and the next waits.
@@ -34,10 +37,10 @@ BEGIN
         -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
         -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
         DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
-        DECLARE @consumed TABLE (expires_at_utc DATETIME2(7));
-        DECLARE @stored DATETIME2(7);
-        DECLARE @due DATETIME2(7);
-        DECLARE @turn DATETIME2(7);
+        DECLARE @consumed TABLE (expires_at_utc DATETIME2(3));
+        DECLARE @stored DATETIME2(3);
+        DECLARE @due DATETIME2(3);
+        DECLARE @turn DATETIME2(3);
 
         -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
         -- idle meter stops saying anything a missing one would not. A missing meter starts at now.

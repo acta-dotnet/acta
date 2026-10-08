@@ -126,6 +126,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   two routines took the job row `FOR KEY SHARE`, and PostgreSQL's key-share path can join a `FOR UPDATE`
   taken while it rechecks the row instead of waiting for it. They now take `FOR SHARE`. A deadlock was
   retried, so in production this cost a retry rather than an error.
+- **A rate meter on SQL Server no longer refuses the last job of a burst.** `reserve_rate` judged a
+  meter stored at millisecond precision against an unrounded clock reading, and SQL Server rounds when
+  it stores, so three claims inside half a millisecond could see the third turn a hair in the future
+  and book it instead of admitting it. The routine now works at the column's precision; the object
+  package moves to revision 48.
 
 ## 1.0.0-rc.4
 
