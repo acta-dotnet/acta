@@ -110,7 +110,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ListNamespaceItems` | `INamespaces.ListAsync` | · | · | inline | inline | inline | · | `ListNamespaceItemsSpec` |
 | `ListNamespaces` | `INamespaces.ListNamesAsync`<br>`INamespaces.ListAsync` | · | · | inline | inline | inline | · | `ListNamespacesSpec` |
-| `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | routine | routine | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
+| `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | inline | inline | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
 | `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` | · | inline | inline | inline | `events`, `namespaces` | `SuspendNamespaceSpec` |
 | `UpdateNamespace` | `INamespaces.UpdateAsync` | `PATCH /namespaces/{jobNamespace}` | · | routine | routine | inline | `events`, `namespaces` | `UpdateNamespaceSpec` |
 
