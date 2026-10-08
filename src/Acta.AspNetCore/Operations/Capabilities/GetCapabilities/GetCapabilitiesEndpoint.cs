@@ -6,19 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.AspNetCore;
 
-/// <summary>
-/// Minimal read-side capabilities contract the dashboard consumes to show/hide edit UI. Additive.
-/// </summary>
-internal sealed record CapabilitiesResponse(
-    bool ControlsEnabled,
-    string Version,
-    string Provider,
-    string Schema,
-    string ConfirmationHeader
-);
-
-/// <summary>GET /capabilities: what this host's API allows, so the dashboard offers only the controls it can use.</summary>
-internal static class CapabilitiesEndpoint
+/// <summary>GET /capabilities: answers <see cref="GetCapabilitiesResponse"/> from this host's options and provider.</summary>
+internal static class GetCapabilitiesEndpoint
 {
     public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>
         reads
@@ -41,16 +30,16 @@ internal static class CapabilitiesEndpoint
                     // Resolved optionally so a host that maps the API without a registered provider still answers
                     // (the provider package registers SqlProviderOptions); the default matches the option default.
                     var schema = http.RequestServices.GetService<SqlProviderOptions>()?.Schema ?? "acta";
-                    var body = new CapabilitiesResponse(
+                    var body = new GetCapabilitiesResponse(
                         ControlsEnabled: options.EnableControls,
                         Version: version,
                         Provider: provider,
                         Schema: schema,
                         ConfirmationHeader: options.ControlConfirmationHeaderName
                     );
-                    return Results.Json(body, DashboardJsonContext.Default.CapabilitiesResponse);
+                    return Results.Json(body, DashboardJsonContext.Default.GetCapabilitiesResponse);
                 }
             )
             .WithSummary("Read this host's API capabilities.")
-            .Produces<CapabilitiesResponse>(StatusCodes.Status200OK);
+            .Produces<GetCapabilitiesResponse>(StatusCodes.Status200OK);
 }

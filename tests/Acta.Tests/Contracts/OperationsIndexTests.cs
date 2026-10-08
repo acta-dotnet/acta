@@ -11,8 +11,8 @@ namespace Acta.Tests.Contracts;
 
 /// <summary>
 /// Generates and verifies <c>docs/reference/operations.md</c>: one row per operation folder with its facade method, its
-/// HTTP routes, its CLI verb, the SQL kind per dialect, the tables its SQL writes, and its specs. Everything is read
-/// from source, so the index moves with the code and needs no hand upkeep.
+/// HTTP routes, its CLI verb, the SQL kind per dialect, the tables its SQL writes, and its specs, plus one row per
+/// HTTP-only operation. Everything is read from source, so the index moves with the code and needs no hand upkeep.
 /// </summary>
 public sealed partial class OperationsIndexTests
 {
@@ -61,8 +61,10 @@ public sealed partial class OperationsIndexTests
     private static string Generate(string root)
     {
         var operations = Path.Combine(root, "src", "Acta", "Operations");
+        var routeOperations = Path.Combine(root, "src", "Acta.AspNetCore", "Operations");
         var facadeMethods = FacadeMethods(operations);
-        var routes = Routes(Path.Combine(root, "src", "Acta.AspNetCore", "Operations"), facadeMethods);
+        var routes = Routes(routeOperations, facadeMethods);
+        var httpOnly = HttpOnlyOperations(operations, routeOperations);
         var verbs = CliVerbs(Path.Combine(root, "src", "Acta", "Cli", "CliCommandRunner.cs"), facadeMethods);
 
         var sb = new StringBuilder();
@@ -72,17 +74,31 @@ public sealed partial class OperationsIndexTests
         sb.AppendLine("> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.");
         sb.AppendLine();
         sb.AppendLine(
-            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`. **Facade** is the public method that runs it; an operation with none is engine-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
+            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that renders or composes what the facades answer. **Facade** is the public method that runs it; an operation with none is engine-only or HTTP-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
         );
         sb.AppendLine();
 
-        foreach (var group in Directory.EnumerateDirectories(operations).Order(StringComparer.Ordinal))
+        var groups = Directory
+            .EnumerateDirectories(operations)
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .Concat(httpOnly.Select(op => op.Group))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal);
+        foreach (var group in groups)
         {
-            sb.AppendLine(CultureInfo.InvariantCulture, $"## {Path.GetFileName(group)}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"## {group}");
             sb.AppendLine();
             sb.AppendLine("| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |");
             sb.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
-            foreach (var folder in Directory.EnumerateDirectories(group).Order(StringComparer.Ordinal))
+            var folders = Directory.Exists(Path.Combine(operations, group))
+                ? Directory.EnumerateDirectories(Path.Combine(operations, group)).ToList()
+                : [];
+            foreach (
+                var folder in folders
+                    .Concat(httpOnly.Where(op => op.Group == group).Select(op => op.Folder))
+                    .OrderBy(folder => Path.GetFileName(folder), StringComparer.Ordinal)
+            )
             {
                 var operation = Path.GetFileName(folder);
                 var sql = Dialects.ToDictionary(d => d, d => Path.Combine(folder, $"{operation}.{d}.sql"));
@@ -101,7 +117,7 @@ public sealed partial class OperationsIndexTests
                             .Select(t => $"`{t}`"),
                         ", "
                     ),
-                    Cell(Specs(root, Path.GetFileName(group), operation), ", "),
+                    Cell(Specs(root, group, operation), ", "),
                 ];
                 sb.AppendLine("| " + string.Join(" | ", cells) + " |");
             }
@@ -194,6 +210,29 @@ public sealed partial class OperationsIndexTests
     private static HashSet<string> Identifiers(SyntaxNode node) =>
         node.DescendantTokens().Where(t => t.IsKind(SyntaxKind.IdentifierToken)).Select(t => t.Text).ToHashSet(StringComparer.Ordinal);
 
+    // A route folder whose endpoint names no operation of the SDK: the route renders or composes what the facades answer.
+    private static List<(string Group, string Folder)> HttpOnlyOperations(string operations, string routeOperations)
+    {
+        var sdk = Directory
+            .EnumerateDirectories(operations)
+            .SelectMany(Directory.EnumerateDirectories)
+            .Select(Path.GetFileName)
+            .ToHashSet(StringComparer.Ordinal);
+        return
+        [
+            .. Directory
+                .EnumerateDirectories(routeOperations)
+                .SelectMany(group =>
+                    Directory.EnumerateDirectories(group).Select(folder => (Group: Path.GetFileName(group), Folder: folder))
+                )
+                .Where(op =>
+                    !sdk.Contains(Path.GetFileName(op.Folder))
+                    && File.Exists(Path.Combine(op.Folder, Path.GetFileName(op.Folder) + "Endpoint.cs"))
+                ),
+        ];
+    }
+
+    // A route in its own folder belongs to that folder's operation; a route in a group's table, to the facade call it makes.
     private static List<(string Verb, string Pattern, string Operation)> Routes(
         string operations,
         List<(string Facade, string Method, string Operation)> facadeMethods
@@ -202,6 +241,7 @@ public sealed partial class OperationsIndexTests
         var found = new List<(string, string, string)>();
         foreach (var file in Directory.EnumerateFiles(operations, "*Endpoint*.cs", SearchOption.AllDirectories))
         {
+            var own = Path.GetRelativePath(operations, file).Split(Path.DirectorySeparatorChar) is [_, var folder, _] ? folder : null;
             foreach (var map in Parse(file).OfType<InvocationExpressionSyntax>())
             {
                 if (
@@ -228,7 +268,7 @@ public sealed partial class OperationsIndexTests
                     found.Add(("POST", pattern, "UpsertTags"));
                     found.Add(("DELETE", pattern + "/{tagName}", "RemoveTags"));
                 }
-                else if (HttpVerb(name) is { } verb && MainOperation(map, facadeMethods) is { } operation)
+                else if (HttpVerb(name) is { } verb && (own ?? MainOperation(map, facadeMethods)) is { } operation)
                 {
                     found.Add((verb, pattern, operation));
                 }

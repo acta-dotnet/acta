@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, enqueueJob, ApiError, type JobInputTemplate, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
+  import { api, enqueueJob, inputTemplate, ApiError, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed, type EnqueueInputState } from './enqueueTemplate.ts';
@@ -124,15 +124,14 @@
     }
   });
 
-  // Compile-time input shape from the generated manifest (no descriptor on this host -> nulls, and
+  // Compile-time input shape from the generated manifest (no descriptor on this host -> null, and
   // the editor keeps its {} default). Serves both the contract line and the editor seed.
   const templateQuery = createQuery(() => {
     const jobNamespace = namespace.trim();
     const name = jobName.trim();
     return {
       queryKey: keys.detail('enqueue-input-template', `${jobNamespace}/${name}`),
-      queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api<JobInputTemplate>('jobs/input-template', { jobNamespace, jobName: name }, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => inputTemplate(jobNamespace, name, { signal }),
       enabled: canControlNow && jobNamespace.length > 0 && name.length > 0,
       staleTime: Infinity
     };

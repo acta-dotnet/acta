@@ -32,7 +32,7 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Tenants | `Tenants.ListAsync` / `GetAsync` | `GET /tenants`, `GET /tenants/{tenantKey}` | | |
 | Outbox | `Outbox.ListSourcesAsync` / `ListQuarantinedAsync` | `GET /outbox/sources`, `GET /outbox/{jobNamespace}/quarantined` | | the quarantined listing runs only on a host that registered the relay |
 | Tags | `Tags.*` reads | `GET .../tags` per scope | | |
-| Input template | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | | enqueue form shape hint |
+| Input template | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | | enqueue form shape hint; 404 when this host does not know the job |
 | Job input / result / checkpoints | `GetInputAsync` / `GetResultAsync` / `GetCheckpointsAsync` | (in detail) | | payload panels (size-capped); no standalone route |
 | Capabilities | (endpoint options) | `GET /capabilities` | | |
 

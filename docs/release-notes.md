@@ -110,7 +110,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `SignalWaitResult<T>`) are now `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
   `IAlertTransport.SendAsync` returns, is now `AlertSendStatus`, and `JobHandlerInvocationResult`, what a
   generated handler invoker returns, is now `JobHandlerOutput`; rebuild to regenerate the invokers.
-  `ActaControlDecision`, what an `IActaControlAuthorizer` returns, is now `ActaControlVerdict`. In
+  `ActaControlDecision`, what an `IActaControlAuthorizer` returns, is now `ActaControlVerdict`, and
+  `ActaControlRequest`, what it is asked about, is now `ActaControlContext`. In
   `Acta.Testing`, `ActaRunOutcome` and `ActaRecoveryOutcome` are now `ActaRunStatus` and `ActaRecoveryReport`.
   Members and JSON are unchanged.
 - **The enqueue contract is named for its verb.** `JobEnqueueRequest`, `JobEnqueueOutcome`, and
@@ -159,6 +160,22 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `JobInputTemplate` and also carries the `JobNamespace` and `JobName` it was asked for. The facade methods keep
   their names, the renamed read models keep their members, and the JSON is unchanged; the OpenAPI schemas take
   the new names.
+- **Each route takes its own request and answers with the SDK's response.** A route that reads a JSON body
+  reads a record named for it, so the OpenAPI request schemas take new names: `ControlHttpRequest`,
+  `VersionedControlHttpRequest`, `OutboxControlHttpRequest`, and `UpsertTagHttpRequest` split into one per
+  route (`PauseJobRequest`, `PurgeJobRequest`, `RequeueOutboxRequest`, `UpsertJobTagsRequest`, and so on),
+  and every other `*HttpRequest` drops `Http` (`RescheduleJobRequest`, `EnqueueJobRequest`). The HTTP
+  copies of SDK responses are gone: `POST /jobs` answers `EnqueueJobResponse`, `POST /tenants` answers
+  `RegisterTenantResponse`, which gains `TenantKey`, the canonical key the route already returned, and
+  `GET /jobs/input-template` answers `GetInputTemplateResponse`, which gains `InputFormatName`. The routes
+  that render or compose are operations of their own: `GET /jobs/{jobRef}/detail` answers
+  `GetJobDetailResponse`, whose checkpoints are `GetJobDetailCheckpoint`, `GET /jobs/{jobRef}/input` answers
+  `GetJobInputBodyResponse`, and `GET /capabilities` answers `GetCapabilitiesResponse`. A tag read answers
+  `GetTagsResponse`, `{"items": [...]}`, instead of a bare array. The input template changes shape as well:
+  the skeleton arrives as JSON text in `templateJson` instead of inline as `template`, and a job this host does
+  not know answers 404 instead of a 200 with null fields. `EnqueueJobResponse.JobId` and
+  `RegisterTenantResponse.TenantId` stay off the wire like every read model's integer id. Every other JSON
+  member is unchanged.
 
 ### Additions
 

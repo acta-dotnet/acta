@@ -157,7 +157,7 @@ public sealed class ControlContractTests
                 "template",
                 $"{route}?jobNamespace=billing&jobName=send-invoice",
                 StatusCodes.Status200OK,
-                typeof(GetInputTemplateHttpResponse),
+                typeof(GetInputTemplateResponse),
                 null
             ),
             new("jobs", route, "GET", "missingParameter", route, StatusCodes.Status400BadRequest, Problem, null),
@@ -324,17 +324,7 @@ public sealed class ControlContractTests
         };
         return
         [
-            new(
-                "jobs",
-                "/jobs",
-                "POST",
-                "inserted",
-                "/jobs",
-                StatusCodes.Status201Created,
-                typeof(EnqueueOneHttpResponse),
-                "inserted",
-                body
-            ),
+            new("jobs", "/jobs", "POST", "inserted", "/jobs", StatusCodes.Status201Created, typeof(EnqueueJobResponse), "inserted", body),
             // Second request, same deduplication key: the fake matches the first exactly as the store does.
             new(
                 "jobs",
@@ -343,7 +333,7 @@ public sealed class ControlContractTests
                 "deduplicated",
                 "/jobs",
                 StatusCodes.Status200OK,
-                typeof(EnqueueOneHttpResponse),
+                typeof(EnqueueJobResponse),
                 "deduplicated",
                 body
             ),
@@ -570,7 +560,7 @@ public sealed class ControlContractTests
                 "registered",
                 "/tenants",
                 StatusCodes.Status200OK,
-                typeof(RegisterTenantHttpResponse),
+                typeof(RegisterTenantResponse),
                 null,
                 new { tenantKey = "cust-002" }
             ),

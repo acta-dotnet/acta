@@ -19,8 +19,8 @@ export function templateSeed(
   state: { edited: boolean; clonePrefilled: boolean }
 ): unknown | undefined {
   if (state.edited || state.clonePrefilled) return undefined;
-  if (template?.template === null || template?.template === undefined) return undefined;
-  return template.template;
+  if (template?.templateJson === null || template?.templateJson === undefined) return undefined;
+  return JSON.parse(template.templateJson);
 }
 
 // The enqueue form's input, kept format-faithful so a clone round-trips its stored format. v1 handles

@@ -33,7 +33,7 @@ internal static class TagRoutes
             return InvalidTarget(ex);
         }
 
-        return response is null ? NotFound() : Results.Json(response.Items, DashboardJsonContext.Default.IReadOnlyListGetTagsItem);
+        return response is null ? NotFound() : Results.Json(response, DashboardJsonContext.Default.GetTagsResponse);
     }
 
     public static async Task<IResult> UpsertAsync<TBody>(
@@ -102,7 +102,7 @@ internal static class TagRoutes
         ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
 
     /// <summary>
-    /// A read has no envelope to answer with - its 200 is the tag list itself - so an unknown target
+    /// A read has no control envelope to answer with - its 200 is the tags themselves - so an unknown target
     /// there is the plain problem document every other read returns.
     /// </summary>
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found.");

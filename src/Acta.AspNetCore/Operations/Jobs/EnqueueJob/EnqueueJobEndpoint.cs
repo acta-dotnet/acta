@@ -6,9 +6,6 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>HTTP projection of an <see cref="EnqueueJobResponse"/>: the public ref and the coarse action.</summary>
-internal sealed record EnqueueOneHttpResponse(JobRef JobRef, EnqueueJobAction Action);
-
 /// <summary>
 /// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
 /// EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
@@ -130,8 +127,8 @@ internal static class EnqueueJobEndpoint
                         // the Location header points at the job, which is the one thing a client reads a
                         // 201 for and which this endpoint previously omitted.
                         return Results.Json(
-                            new EnqueueOneHttpResponse(outcome.JobRef, outcome.Action),
-                            DashboardJsonContext.Default.EnqueueOneHttpResponse,
+                            outcome,
+                            DashboardJsonContext.Default.EnqueueJobResponse,
                             statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
                         );
                     }
@@ -150,8 +147,8 @@ internal static class EnqueueJobEndpoint
             .WithSummary("Enqueue a job.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<EnqueueJobRequest>()
-            .Produces<EnqueueOneHttpResponse>(StatusCodes.Status201Created)
-            .Produces<EnqueueOneHttpResponse>(StatusCodes.Status200OK)
+            .Produces<EnqueueJobResponse>(StatusCodes.Status201Created)
+            .Produces<EnqueueJobResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 }

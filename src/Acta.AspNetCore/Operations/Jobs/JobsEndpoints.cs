@@ -60,9 +60,26 @@ internal static class JobsEndpoints
             DashboardJsonContext.Default.UpsertJobTagsRequest,
             http => TagTarget.ForJob(RouteKeys.Job(http, options))
         );
-        GetJobInputEndpoint.Map(reads, options);
+        // The enqueue form's shape hint, from this host's manifest. A job this host never registered is the 404, which the
+        // form reads as no template: a dashboard can point at a shared ledger it has no job assembly for.
+        reads
+            .MapDetail(
+                "/jobs/input-template",
+                "Read a job's compile-time input template.",
+                "Input template",
+                DashboardJsonContext.Default.GetInputTemplateResponse,
+                static (http, call) =>
+                    QueryReader.Bind(http.Request, static query => (Namespace: query.Text("jobNamespace"), Name: query.Text("jobName")))
+                        is { Namespace: { } jobNamespace, Name: { } jobName }
+                        ? ValueTask.FromResult(call.Jobs.GetInputTemplate(jobNamespace, jobName))
+                        : throw new InvalidQueryException("jobNamespace and jobName are required.")
+            )
+            .WithQueryParameters([
+                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "The job's namespace.", Required: true),
+                new QueryParameterDoc("jobName", QueryParameterKind.String, "The job's name.", Required: true),
+            ]);
+        GetJobInputBodyEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);
-        GetInputTemplateEndpoint.Map(reads);
         if (controls is not null)
         {
             MapVerbs(controls, options);

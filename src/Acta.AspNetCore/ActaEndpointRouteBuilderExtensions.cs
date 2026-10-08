@@ -142,7 +142,7 @@ public static class ActaEndpointRouteBuilderExtensions
         DefinitionsEndpoints.Map(api, controls, options);
         SchedulesEndpoints.Map(api, controls, options);
         LedgerEndpoints.Map(api, options);
-        CapabilitiesEndpoint.Map(api, options);
+        GetCapabilitiesEndpoint.Map(api, options);
     }
 
     private static void EnsureDashboardJsonContext(IEndpointRouteBuilder endpoints)

@@ -4,12 +4,6 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>
-/// HTTP projection of a registered tenant: the echoed canonical key, which is how every other
-/// endpoint addresses a tenant. The DB-assigned id stays internal.
-/// </summary>
-internal sealed record RegisterTenantHttpResponse(string TenantKey);
-
 /// <summary>POST /tenants: registers a tenant, or returns the existing one, by its canonical key.</summary>
 internal static class RegisterTenantEndpoint
 {
@@ -62,12 +56,13 @@ internal static class RegisterTenantEndpoint
                     try
                     {
                         var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-                        await operations.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
-                        return Results.Json(
-                            new RegisterTenantHttpResponse(canonicalTenantKey),
-                            DashboardJsonContext.Default.RegisterTenantHttpResponse,
-                            statusCode: StatusCodes.Status200OK
+                        var response = await operations.Tenants.RegisterAsync(
+                            canonicalTenantKey,
+                            request.DisplayName,
+                            request.Description,
+                            ct
                         );
+                        return Results.Json(response, DashboardJsonContext.Default.RegisterTenantResponse);
                     }
                     catch (ArgumentException ex)
                     {
@@ -81,6 +76,6 @@ internal static class RegisterTenantEndpoint
             .WithSummary("Register a tenant, or return the existing one.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<RegisterTenantRequest>()
-            .Produces<RegisterTenantHttpResponse>(StatusCodes.Status200OK)
+            .Produces<RegisterTenantResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 }

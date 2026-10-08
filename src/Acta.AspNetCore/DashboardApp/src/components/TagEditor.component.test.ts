@@ -27,7 +27,7 @@ function stubFetch(options: StubOptions = {}) {
       );
     }
     if (url.endsWith('/tags') && method === 'GET') {
-      return new Response(JSON.stringify(options.tags ?? [{ name: 'env', value: 'prod' }, { name: 'team', value: null }]), { status: 200 });
+      return new Response(JSON.stringify({ items: options.tags ?? [{ name: 'env', value: 'prod' }, { name: 'team', value: null }] }), { status: 200 });
     }
     return new Response(JSON.stringify({ action: 'applied', version: null }), { status: 200 });
   });

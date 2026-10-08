@@ -4,6 +4,6 @@ INSERT INTO {{schema}}.tenants (tenant_key, display_name, description, status_co
 VALUES (@p_tenant_key, @p_display_name, @p_description, 10 /* TenantStatusCode.Active */, now(), now(), 0)
 ON CONFLICT (tenant_key) DO NOTHING;
 
-SELECT t.id AS tenant_id
+SELECT t.id AS tenant_id, t.tenant_key
 FROM {{schema}}.tenants t
 WHERE t.tenant_key = @p_tenant_key;

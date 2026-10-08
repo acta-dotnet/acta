@@ -34,9 +34,11 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var key = $"550E8400-{TestKey("tenant-new")}";
         var canonical = key.ToLowerInvariant();
 
-        var id = (await Tenants().RegisterAsync(key, null, "Acme Corp", ct)).TenantId;
+        var registered = await Tenants().RegisterAsync(key, null, "Acme Corp", ct);
+        var id = registered.TenantId;
 
         Assert.True(id > 0);
+        Assert.Equal(canonical, registered.TenantKey); // the response names the tenant by its folded key
         var row = await ReadAsync(canonical, ct); // stored key is the folded form
         Assert.NotNull(row);
         Assert.Equal(id, row!.Id);

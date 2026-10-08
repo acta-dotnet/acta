@@ -180,10 +180,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -1314,7 +1311,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobPayloadHttpResponse"
+                  "$ref": "#/components/schemas/GetJobInputBodyResponse"
                 }
               }
             }
@@ -1404,7 +1401,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnqueueOneHttpResponse"
+                  "$ref": "#/components/schemas/EnqueueJobResponse"
                 }
               }
             }
@@ -1414,7 +1411,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnqueueOneHttpResponse"
+                  "$ref": "#/components/schemas/EnqueueJobResponse"
                 }
               }
             }
@@ -1929,10 +1926,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -2218,10 +2212,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -2845,10 +2836,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -3036,7 +3024,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegisterTenantHttpResponse"
+                  "$ref": "#/components/schemas/RegisterTenantResponse"
                 }
               }
             }
@@ -3757,10 +3745,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -4518,10 +4503,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -5189,10 +5171,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GetTagsItem"
-                  }
+                  "$ref": "#/components/schemas/GetTagsResponse"
                 }
               }
             }
@@ -6035,6 +6014,96 @@
         }
       }
     },
+    "/acta/api/v1/jobs/input-template": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Read a job's compile-time input template.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "The job's namespace.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "query",
+            "description": "The job's name.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetInputTemplateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/acta/api/v1/jobs/{jobRef}/detail": {
       "get": {
         "tags": [
@@ -6097,7 +6166,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetJobDetailHttpResponse"
+                  "$ref": "#/components/schemas/GetJobDetailResponse"
                 }
               }
             }
@@ -6108,82 +6177,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/acta/api/v1/jobs/input-template": {
-      "get": {
-        "tags": [
-          "Jobs"
-        ],
-        "summary": "Read a job's compile-time input template.",
-        "parameters": [
-          {
-            "name": "jobNamespace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "jobName",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetInputTemplateHttpResponse"
                 }
               }
             }
@@ -8002,7 +7995,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                  "$ref": "#/components/schemas/GetCapabilitiesResponse"
                 }
               }
             }
@@ -8121,88 +8114,6 @@
           }
         },
         "description": "What cancelling a job did, and the job's status and version after the attempt."
-      },
-      "CapabilitiesResponse": {
-        "required": [
-          "controlsEnabled",
-          "version",
-          "provider",
-          "schema",
-          "confirmationHeader"
-        ],
-        "type": "object",
-        "properties": {
-          "controlsEnabled": {
-            "type": "boolean"
-          },
-          "version": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "string"
-          },
-          "schema": {
-            "type": "string"
-          },
-          "confirmationHeader": {
-            "type": "string"
-          }
-        }
-      },
-      "CheckpointHttpResponse": {
-        "required": [
-          "kind",
-          "name",
-          "status",
-          "dueAtUtc",
-          "value",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/CheckpointKindCode"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CheckpointStatusCode"
-              }
-            ]
-          },
-          "dueAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "value": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPayloadHttpResponse"
-              }
-            ]
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
       },
       "CheckpointKindCode": {
         "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
@@ -8439,7 +8350,7 @@
           }
         }
       },
-      "EnqueueOneHttpResponse": {
+      "EnqueueJobResponse": {
         "required": [
           "jobRef",
           "action"
@@ -8452,7 +8363,8 @@
           "action": {
             "$ref": "#/components/schemas/EnqueueJobAction"
           }
-        }
+        },
+        "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs."
       },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
@@ -8565,6 +8477,33 @@
           }
         },
         "description": "The single-alert read model returned by ValueTask&lt;GetAlertResponse?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
+      },
+      "GetCapabilitiesResponse": {
+        "required": [
+          "controlsEnabled",
+          "version",
+          "provider",
+          "schema",
+          "confirmationHeader"
+        ],
+        "type": "object",
+        "properties": {
+          "controlsEnabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "confirmationHeader": {
+            "type": "string"
+          }
+        }
       },
       "GetDefinitionResponse": {
         "required": [
@@ -9003,13 +8942,12 @@
         },
         "description": "The whole `definitions` row ValueTask&lt;GetDefinitionResponse?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nListDefinitionsItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
       },
-      "GetInputTemplateHttpResponse": {
+      "GetInputTemplateResponse": {
         "required": [
           "jobNamespace",
           "jobName",
           "inputTypeName",
-          "inputFormatName",
-          "template"
+          "templateJson"
         ],
         "type": "object",
         "properties": {
@@ -9020,27 +8958,80 @@
             "type": "string"
           },
           "inputTypeName": {
+            "type": "string"
+          },
+          "templateJson": {
             "type": [
               "null",
               "string"
             ]
           },
           "inputFormatName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The name of JobPayloadFormat GetInputTemplateResponse.InputFormat, such as `json`, which is how the wire names a format."
+          }
+        },
+        "description": "The input contract of a registered job as operator tooling sees it: the job it was asked for, the CLR input type\nname, the wire format its input serializes to, and (Json inputs only) a compile-time JSON skeleton the enqueue form\ncan seed its editor with. Compile-time facts from the generated manifest; the template is a shape hint, never a\ncontract and never a default value."
+      },
+      "GetJobDetailCheckpoint": {
+        "required": [
+          "kind",
+          "name",
+          "status",
+          "dueAtUtc",
+          "value",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CheckpointKindCode"
+          },
+          "name": {
             "type": "string"
           },
-          "template": {
+          "status": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JsonElement"
+                "$ref": "#/components/schemas/CheckpointStatusCode"
               }
             ]
+          },
+          "dueAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GetJobInputBodyResponse"
+              }
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
-      "GetJobDetailHttpResponse": {
+      "GetJobDetailResponse": {
         "required": [
           "job",
           "input",
@@ -9061,7 +9052,7 @@
             "$ref": "#/components/schemas/GetJobResponse"
           },
           "input": {
-            "$ref": "#/components/schemas/JobPayloadHttpResponse"
+            "$ref": "#/components/schemas/GetJobInputBodyResponse"
           },
           "result": {
             "oneOf": [
@@ -9069,14 +9060,14 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobPayloadHttpResponse"
+                "$ref": "#/components/schemas/GetJobInputBodyResponse"
               }
             ]
           },
           "checkpoints": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CheckpointHttpResponse"
+              "$ref": "#/components/schemas/GetJobDetailCheckpoint"
             }
           },
           "explain": {
@@ -9344,6 +9335,54 @@
           }
         },
         "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
+      },
+      "GetJobInputBodyResponse": {
+        "required": [
+          "formatName",
+          "formatId"
+        ],
+        "type": "object",
+        "properties": {
+          "formatName": {
+            "type": "string"
+          },
+          "formatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "json": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "byteLength": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "truncated": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
       },
       "GetJobLineageMapChild": {
         "required": [
@@ -9845,6 +9884,21 @@
         },
         "description": "One normalized tag attached to a target."
       },
+      "GetTagsResponse": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetTagsItem"
+            }
+          }
+        },
+        "description": "The tags attached to one existing target, returned by ValueTask&lt;GetTagsResponse?&gt; ITags.GetAsync(TagTarget target, CancellationToken ct = default(CancellationToken)): an immutable snapshot ordered by\nnormalized name using ordinal comparison, and empty when the target carries no tags."
+      },
       "GetTenantResponse": {
         "required": [
           "tenantKey",
@@ -9969,54 +10023,6 @@
           }
         },
         "description": "Durable operator detail for one worker process registration."
-      },
-      "JobPayloadHttpResponse": {
-        "required": [
-          "formatName",
-          "formatId"
-        ],
-        "type": "object",
-        "properties": {
-          "formatName": {
-            "type": "string"
-          },
-          "formatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "uint8"
-          },
-          "json": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "byteLength": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "truncated": {
-            "type": [
-              "null",
-              "boolean"
-            ]
-          }
-        }
       },
       "JobPriorityCode": {
         "description": "Claim-priority value for `JobRuntime.Priority`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
@@ -10147,16 +10153,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListAlertsItem"
-            }
+            },
+            "description": "The page's alerts, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more alerts exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10164,6 +10173,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10173,6 +10183,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -10319,16 +10330,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListDefinitionsItem"
-            }
+            },
+            "description": "The page's definitions, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more definitions exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10336,6 +10350,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10345,6 +10360,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -10530,16 +10546,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListEventsItem"
-            }
+            },
+            "description": "The page's events, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more events exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10547,6 +10566,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10556,6 +10576,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -10689,16 +10710,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListJobsItem"
-            }
+            },
+            "description": "The page's jobs, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more jobs exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10706,6 +10730,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10715,6 +10740,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -10773,16 +10799,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListNamespacesItem"
-            }
+            },
+            "description": "The page's namespaces, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more namespaces exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10790,6 +10819,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10799,6 +10829,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -10878,16 +10909,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListOutboxQuarantinedItem"
-            }
+            },
+            "description": "The page's quarantined staging rows, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more quarantined staging rows exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10895,6 +10929,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10904,6 +10939,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -10970,16 +11006,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListOutboxSourcesItem"
-            }
+            },
+            "description": "The page's relay sources, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more relay sources exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10987,6 +11026,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -10996,6 +11036,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -11113,16 +11154,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListSchedulesItem"
-            }
+            },
+            "description": "The page's schedules, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more schedules exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -11130,6 +11174,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -11139,6 +11184,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -11207,16 +11253,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListTenantsItem"
-            }
+            },
+            "description": "The page's tenants, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more tenants exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -11224,6 +11273,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -11233,6 +11283,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -11328,16 +11379,19 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListWorkersItem"
-            }
+            },
+            "description": "The page's workers, at most `PageSize` of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more workers exist beyond this page."
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -11345,6 +11399,7 @@
               "integer",
               "string"
             ],
+            "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -11354,6 +11409,7 @@
               "integer",
               "string"
             ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
           }
         },
@@ -11622,17 +11678,6 @@
         },
         "description": "What raising a signal on a job did, and the job's status after the attempt; a raise carries no version."
       },
-      "RegisterTenantHttpResponse": {
-        "required": [
-          "tenantKey"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantKey": {
-            "type": "string"
-          }
-        }
-      },
       "RegisterTenantRequest": {
         "type": "object",
         "properties": {
@@ -11655,6 +11700,18 @@
             ]
           }
         }
+      },
+      "RegisterTenantResponse": {
+        "required": [
+          "tenantKey"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": "string"
+          }
+        },
+        "description": "The tenant a registration created or found: its stable numeric id, and its canonical key, which is how every other\ncall and route addresses it."
       },
       "RemoveTagsResponse": {
         "required": [

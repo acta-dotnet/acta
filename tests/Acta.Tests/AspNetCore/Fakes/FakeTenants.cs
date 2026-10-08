@@ -18,7 +18,7 @@ internal sealed class FakeTenants : ITenants
             }
 
             RegisterCalls.Add((tenantKey, displayName, description));
-            return ValueTask.FromResult(new RegisterTenantResponse(7));
+            return ValueTask.FromResult(new RegisterTenantResponse(7, tenantKey));
         };
         Get = static (tenantKey, _) =>
             ValueTask.FromResult<GetTenantResponse?>(

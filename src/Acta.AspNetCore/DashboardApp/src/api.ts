@@ -139,7 +139,7 @@ export async function api<T>(
 }
 
 // Confirmation header the backend requires on every control POST/PATCH (value is always the literal
-// string 'true'; see CapabilitiesResponse.ConfirmationHeader). Defaults to the backend's own default
+// string 'true'; see GetCapabilitiesResponse.ConfirmationHeader). Defaults to the backend's own default
 // so a control request fired before capabilities loads still matches an unconfigured server;
 // fetchCapabilities() below keeps this in sync with the live value, the same "module state kept in
 // sync by a fetch" pattern the `online` store above uses.
@@ -275,7 +275,7 @@ export interface NamespaceListItem {
   version: number;
 }
 
-export interface RegisterTenantHttpResponse {
+export interface RegisterTenantResponse {
   tenantKey: string;
 }
 
@@ -286,8 +286,8 @@ export async function registerTenant(
   tenantKey: string,
   displayName?: string | null,
   description?: string | null
-): Promise<RegisterTenantHttpResponse> {
-  const { response, body } = await request<RegisterTenantHttpResponse>({
+): Promise<RegisterTenantResponse> {
+  const { response, body } = await request<RegisterTenantResponse>({
     path: 'tenants',
     method: 'POST',
     headers: controlHeaders(),
@@ -455,15 +455,30 @@ export interface JobCheckpoint {
   modifiedAtUtc: string;
 }
 
-// GET /jobs/input-template: the compile-time shape of a job's input. `template` is raw JSON (the
-// skeleton) and is null when the input is not json-formatted or this host has no descriptor for the
-// job, in which case `inputTypeName` is null and `format` is 'none'.
+// GET /jobs/input-template: the compile-time shape of a job's input. `templateJson` is the skeleton as
+// JSON text, null when the input is not json-formatted. A job this host has no descriptor for is a
+// 404, which inputTemplate() below answers as null.
 export interface JobInputTemplate {
   jobNamespace: string;
   jobName: string;
-  inputTypeName: string | null;
+  inputTypeName: string;
   inputFormatName: string;
-  template: unknown;
+  templateJson: string | null;
+}
+
+// The input template, or null when this host does not know the job: a dashboard can point at a shared
+// ledger it has no job assembly for, and the form then keeps its empty editor.
+export async function inputTemplate(
+  jobNamespace: string,
+  jobName: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<JobInputTemplate | null> {
+  try {
+    return await api<JobInputTemplate>('jobs/input-template', { jobNamespace, jobName }, options);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 // POST /jobs enqueue outcome: the assigned public ref and the coarse action ('inserted' for a fresh

@@ -30,7 +30,7 @@ public sealed class TypeNamingTests
     ];
 
     // Banned suffixes of more than one word, which a match on the last word cannot see.
-    private static readonly string[] BannedCompounds = ["PageRequest", "ListItem", "HttpRequest"];
+    private static readonly string[] BannedCompounds = ["PageRequest", "ListItem", "HttpRequest", "HttpResponse"];
 
     // Outcome stays as a domain noun for how a job, a child, or a wait ended, in handler code.
     private static readonly HashSet<string> DomainOutcomes =

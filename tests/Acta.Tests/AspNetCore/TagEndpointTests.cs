@@ -41,6 +41,7 @@ public sealed class TagEndpointTests
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.StartsWith("{\"items\":[", body);
             Assert.Contains("\"name\":\"env\"", body);
             Assert.Contains("\"value\":\"prod\"", body);
             Assert.Contains("\"name\":\"team\"", body);

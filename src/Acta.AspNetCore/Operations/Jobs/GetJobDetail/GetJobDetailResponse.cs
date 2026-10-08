@@ -1,8 +1,4 @@
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Options;
 
 namespace Acta.AspNetCore;
 
@@ -12,11 +8,11 @@ namespace Acta.AspNetCore;
 /// eligible workers while it is claimable. A missing part is a null or empty field, not an error, and the two capped
 /// collections ship their filter-wide counts. The unbounded event history keeps its own paged route.
 /// </summary>
-internal sealed record GetJobDetailHttpResponse(
+internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
-    JobPayloadHttpResponse Input,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadHttpResponse? Result,
-    IReadOnlyList<CheckpointHttpResponse> Checkpoints,
+    GetJobInputBodyResponse Input,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobInputBodyResponse? Result,
+    IReadOnlyList<GetJobDetailCheckpoint> Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobExplanationResponse? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
     IReadOnlyList<ListSchedulesItem> Schedules,
@@ -43,7 +39,7 @@ internal sealed record GetJobDetailHttpResponse(
     /// GetJobIdAsync. Eligible workers are fetched only while the job is claimable, matching the
     /// dashboard's own <c>status === 'ready'</c> gate.
     /// </summary>
-    public static async Task<GetJobDetailHttpResponse> ComposeAsync(
+    public static async Task<GetJobDetailResponse> ComposeAsync(
         IJobs jobs,
         IActaOperations operations,
         GetJobResponse job,
@@ -79,11 +75,11 @@ internal sealed record GetJobDetailHttpResponse(
                 )
                 : null;
 
-        return new GetJobDetailHttpResponse(
+        return new GetJobDetailResponse(
             job,
-            JobPayloadHttpResponse.From(input ?? JobPayload.None, maxInlineBytes),
-            result is { } produced ? JobPayloadHttpResponse.From(produced, maxInlineBytes) : null,
-            (checkpoints?.Items ?? []).Select(item => CheckpointHttpResponse.From(item, maxInlineBytes)).ToList(),
+            GetJobInputBodyResponse.From(input ?? JobPayload.None, maxInlineBytes),
+            result is { } produced ? GetJobInputBodyResponse.From(produced, maxInlineBytes) : null,
+            (checkpoints?.Items ?? []).Select(item => GetJobDetailCheckpoint.From(item, maxInlineBytes)).ToList(),
             explain,
             lineage,
             schedules.Items,
@@ -94,68 +90,4 @@ internal sealed record GetJobDetailHttpResponse(
             workers?.TotalCount
         );
     }
-}
-
-/// <summary>HTTP projection of one <see cref="GetCheckpointsItem"/>; the value carries the format-dispatched shape.</summary>
-internal sealed record CheckpointHttpResponse(
-    CheckpointKindCode Kind,
-    string Name,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CheckpointStatusCode? Status,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? DueAtUtc,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadHttpResponse? Value,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc
-)
-{
-    public static CheckpointHttpResponse From(GetCheckpointsItem item, int maxInlineBytes) =>
-        new(
-            item.Kind,
-            item.Name,
-            item.Status,
-            item.DueAtUtc,
-            item.Value is { } value ? JobPayloadHttpResponse.From(value, maxInlineBytes) : null,
-            item.CreatedAtUtc,
-            item.ModifiedAtUtc
-        );
-}
-
-/// <summary>GET /jobs/{jobRef}/detail: the job screen in one request, composed by <see cref="GetJobDetailHttpResponse"/>.</summary>
-internal static class GetJobDetailEndpoint
-{
-    public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>
-        reads
-            .MapGet(
-                "/jobs/{jobRef}/detail",
-                async Task<IResult> (
-                    string jobRef,
-                    IJobs jobs,
-                    IActaOperations operations,
-                    IOptions<JobsOptions> jobsOptions,
-                    CancellationToken ct
-                ) =>
-                {
-                    if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
-                    {
-                        return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    var snapshot = await jobs.GetAsync(lookup, ct);
-                    if (snapshot is null)
-                    {
-                        return RouteTable.NotFound("Job");
-                    }
-
-                    var detail = await GetJobDetailHttpResponse.ComposeAsync(
-                        jobs,
-                        operations,
-                        snapshot,
-                        jobsOptions.Value.MaxInlinePayloadBytes,
-                        ct
-                    );
-                    return Results.Json(detail, DashboardJsonContext.Default.GetJobDetailHttpResponse);
-                }
-            )
-            .WithSummary("Read the job's full detail aggregate in one request.")
-            .Produces<GetJobDetailHttpResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
 }

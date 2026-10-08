@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>
@@ -10,6 +12,10 @@ public sealed record GetInputTemplateResponse(
     string JobNamespace,
     string JobName,
     string InputTypeName,
-    JobPayloadFormat InputFormat,
+    [property: JsonIgnore] JobPayloadFormat InputFormat,
     string? TemplateJson
-);
+)
+{
+    /// <summary>The name of <see cref="InputFormat"/>, such as <c>json</c>, which is how the wire names a format.</summary>
+    public string InputFormatName => InputFormat.Name;
+}

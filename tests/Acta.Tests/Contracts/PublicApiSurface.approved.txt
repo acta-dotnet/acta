@@ -881,6 +881,7 @@ sealed class Acta.GetDefinitionResponse
 sealed class Acta.GetInputTemplateResponse
     .ctor(System.String JobNamespace, System.String JobName, System.String InputTypeName, Acta.JobPayloadFormat InputFormat, System.String TemplateJson)
     Acta.JobPayloadFormat InputFormat { get;init; }
+    System.String InputFormatName { get; }
     System.String InputTypeName { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
@@ -2132,8 +2133,9 @@ sealed class Acta.RaiseSignalResponse
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.RegisterTenantResponse
-    .ctor(System.Int32 TenantId)
+    .ctor(System.Int32 TenantId, System.String TenantKey)
     System.Int32 TenantId { get;init; }
+    System.String TenantKey { get;init; }
 sealed class Acta.RemoveTagsResponse
     .ctor(Acta.TagMutationAction Action)
     Acta.TagMutationAction Action { get;init; }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Acta.AspNetCore;
 using Acta.Tests.AspNetCore;
 using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,9 +13,10 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Holds the HTTP surface to "a route's bodies are named for its operation" in <c>docs/internals/naming-conventions.md</c>,
-/// read from what the mapped endpoints declare: a route's JSON body is its own <c>XRequest</c>, declared in
-/// <c>src/Acta.AspNetCore/Operations/Group/X/</c>, and no body serves two routes. What predates the rule is listed in the
-/// <c>route-bodies</c> ratchet.
+/// read from what the mapped endpoints declare: a route's JSON body is its own <c>XRequest</c>, and no body serves two
+/// routes; what it answers is an <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>;
+/// and every request and response record in Acta.AspNetCore sits in the folder named for it. What predates the rule is
+/// listed in the <c>route-bodies</c> ratchet.
 /// </summary>
 public sealed class RouteBodyTests
 {
@@ -40,12 +42,26 @@ public sealed class RouteBodyTests
             violations.Add(($"{shared.Key.Name} (serves {shared.Count()} routes)", string.Join(", ", shared.Select(route => route.Name))));
         }
 
-        // Every request record, whether a route binds it or not, sits in the folder named for it.
-        foreach (var (name, path) in declared.Where(type => type.Name.EndsWith("Request", StringComparison.Ordinal)))
+        // The problem document is the API-wide error model, not an operation's answer.
+        foreach (
+            var (route, response) in routes
+                .SelectMany(route => route.Responses.Select(response => (route.Name, Response: response)))
+                .Where(entry => !typeof(ProblemDetails).IsAssignableFrom(entry.Response))
+                .Where(entry => !IsResponse(entry.Response))
+        )
         {
-            if (!InOwnFolder(name, "Request", path))
+            violations.Add(($"{route} (answers {ShippedCode.SimpleName(response)})", "a route answers an XResponse"));
+        }
+
+        // Every request and response record, whether a route names it or not, sits in the folder named for it.
+        foreach (var role in (string[])["Request", "Response"])
+        {
+            foreach (var (name, path) in declared.Where(type => type.Name.EndsWith(role, StringComparison.Ordinal)))
             {
-                violations.Add(($"{name} (outside its route folder)", $"declared in {path}"));
+                if (!InOwnFolder(name, role, path))
+                {
+                    violations.Add(($"{name} (outside its route folder)", $"declared in {path}"));
+                }
             }
         }
 
@@ -53,9 +69,16 @@ public sealed class RouteBodyTests
         Ratchet.Check(
             "route-bodies",
             violations,
-            "Give the route its own XRequest in src/Acta.AspNetCore/Operations/<Group>/X/, sharing an interface rather than a record."
+            "Give the route its own XRequest in src/Acta.AspNetCore/Operations/<Group>/X/, sharing an interface rather than a record, "
+                + "and answer with the SDK's XResponse, or the route's own when it renders or composes."
         );
     }
+
+    // The SDK's response or the route's own, by name; where the route's own is declared is the folder rule's to check.
+    private static bool IsResponse(Type type) =>
+        !type.IsGenericType
+        && type.Name.EndsWith("Response", StringComparison.Ordinal)
+        && type.Assembly.GetName().Name is "Acta" or "Acta.AspNetCore";
 
     // Operations/<Group>/<Operation>/ below the route root, the operation being the type's name without its role.
     private static bool InOwnFolder(string name, string role, string path) =>
@@ -64,7 +87,7 @@ public sealed class RouteBodyTests
         && operation + role == name;
 
     /// <summary>Every route the API maps with controls on, by method and pattern below the version segment.</summary>
-    private static async Task<List<(string Name, Type? Body)>> RoutesAsync()
+    private static async Task<List<(string Name, Type? Body, IReadOnlyList<Type> Responses)>> RoutesAsync()
     {
         var (app, client) = await TestDashboardHost.StartAsync(options =>
         {
@@ -84,7 +107,15 @@ public sealed class RouteBodyTests
                     (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
                         (
                             Name: $"{method} {endpoint.RoutePattern.RawText![ApiPrefix.Length..]}",
-                            Body: endpoint.Metadata.GetMetadata<RequestBodyDoc>()?.BodyType
+                            Body: endpoint.Metadata.GetMetadata<RequestBodyDoc>()?.BodyType,
+                            Responses: (IReadOnlyList<Type>)
+                                [
+                                    .. endpoint
+                                        .Metadata.OfType<IProducesResponseTypeMetadata>()
+                                        .Select(produces => produces.Type)
+                                        .OfType<Type>()
+                                        .Distinct(),
+                                ]
                         )
                     )
                 ),

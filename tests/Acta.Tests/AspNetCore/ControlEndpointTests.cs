@@ -1165,7 +1165,7 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Input_template_inlines_the_skeleton_as_raw_json()
+    public async Task Input_template_answers_the_type_its_format_name_and_the_skeleton()
     {
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
@@ -1179,13 +1179,15 @@ public sealed class ControlEndpointTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("\"inputTypeName\":\"Billing.SendInvoice\"", body);
         Assert.Contains("\"inputFormatName\":\"json\"", body);
-        Assert.Contains("\"template\":{\"invoiceId\":0,\"note\":null}", body);
+        using var json = JsonDocument.Parse(body);
+        Assert.Equal("""{"invoiceId":0,"note":null}""", json.RootElement.GetProperty("templateJson").GetString());
+        Assert.DoesNotContain(json.RootElement.EnumerateObject(), property => property.Name == "inputFormat");
     }
 
-    // A dashboard can point at a ledger whose job assemblies it never loaded; the form degrades to an
-    // empty editor rather than showing an error.
+    // A dashboard can point at a ledger whose job assemblies it never loaded; the form reads the 404 as no
+    // template and keeps an empty editor.
     [Fact]
-    public async Task Input_template_for_a_job_this_host_does_not_know_is_200_with_a_null_template()
+    public async Task Input_template_for_a_job_this_host_does_not_know_is_404()
     {
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
@@ -1195,10 +1197,7 @@ public sealed class ControlEndpointTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        Assert.Contains("\"template\":null", body);
-        Assert.Contains("\"inputFormatName\":\"none\"", body);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

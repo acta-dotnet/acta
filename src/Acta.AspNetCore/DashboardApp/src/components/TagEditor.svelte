@@ -16,7 +16,7 @@
   const client = useQueryClient();
   const tags = createQuery(() => ({
     queryKey: ['tags', path],
-    queryFn: ({ signal }: { signal: AbortSignal }) => api<Tag[]>(path, {}, { signal })
+    queryFn: async ({ signal }: { signal: AbortSignal }) => (await api<{ items: Tag[] }>(path, {}, { signal })).items
   }));
   const capabilities = createQuery(() => capabilitiesQuery());
   let canEdit = $derived(canControl(capabilities.data));

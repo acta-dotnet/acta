@@ -8,7 +8,7 @@ const addNumbers = {
   jobName: 'add-numbers',
   inputTypeName: 'TestJobs.AddNumbers',
   inputFormatName: 'json',
-  template: { left: 0, right: 0 }
+  templateJson: '{"left":0,"right":0}'
 };
 
 test('inputContractLabel: names the input type and its wire format', () => {
@@ -17,7 +17,6 @@ test('inputContractLabel: names the input type and its wire format', () => {
 
 test('inputContractLabel: a job this host does not know has no label', () => {
   assert.equal(inputContractLabel(null), null);
-  assert.equal(inputContractLabel({ ...addNumbers, inputTypeName: null, inputFormatName: 'none', template: null }), null);
 });
 
 test('templateSeed: an untouched editor with no clone prefill takes the template', () => {
@@ -35,7 +34,7 @@ test('templateSeed: a clone prefill is never overwritten', () => {
 test('templateSeed: no template leaves the editor alone', () => {
   assert.equal(templateSeed(null, { edited: false, clonePrefilled: false }), undefined);
   assert.equal(
-    templateSeed({ ...addNumbers, template: null }, { edited: false, clonePrefilled: false }),
+    templateSeed({ ...addNumbers, templateJson: null }, { edited: false, clonePrefilled: false }),
     undefined
   );
 });

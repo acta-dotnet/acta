@@ -22,7 +22,7 @@ BEGIN TRY
         SET @tenant_id = CAST(SCOPE_IDENTITY() AS INT);
     END;
 
-    SELECT @tenant_id AS tenant_id;
+    SELECT @tenant_id AS tenant_id, @p_tenant_key AS tenant_key;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;
