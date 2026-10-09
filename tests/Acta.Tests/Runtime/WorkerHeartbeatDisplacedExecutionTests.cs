@@ -17,9 +17,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
-        using var staleCts = new CancellationTokenSource();
-        var stale = new RunningAttempt(staleCts) { ExecutionNumber = 1 };
-        var deadlineBefore = stale.JobLeaseGoodUntil;
+        using var stale = new RunningAttempt(leased: false, CancellationToken.None) { ExecutionNumber = 1 };
         context.RunningAttempts[7] = stale;
         context.BufferedClaims[7] = 2;
         var session = new ScriptedSession(_ => new ExtendWorkerLeasesRow(
@@ -44,7 +42,6 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
             """[{"job_id":7,"execution_number":1},{"job_id":7,"execution_number":2}]""",
             Assert.Single(session.Calls).Parameters["p_executions"]
         );
-        Assert.True(staleCts.IsCancellationRequested);
-        Assert.Equal(deadlineBefore, stale.JobLeaseGoodUntil);
+        Assert.True(stale.AttemptToken.IsCancellationRequested);
     }
 }

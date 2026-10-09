@@ -64,7 +64,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         );
 
         // Nothing was registered in flight: the claim never became an attempt, so there is no
-        // cancellation source, no scope, and nothing for the watchdog to measure.
+        // cancellation source, no scope, and no lease deadline.
         Assert.Equal(0, Runtime.InFlightCount);
     }
 

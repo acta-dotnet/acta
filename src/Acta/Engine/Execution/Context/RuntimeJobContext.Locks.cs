@@ -1,6 +1,5 @@
 #nullable enable
 
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Acta;
@@ -9,21 +8,16 @@ internal sealed partial class RuntimeJobContext
 {
     private protected override async Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct)
     {
-        // Capture the request-start BEFORE the acquire: the store stamps the lease no earlier than this
-        // instant, so requestStart + TTL is a conservative lower bound on when the lock actually expires.
-        var requestedAt = Stopwatch.GetTimestamp();
         var token = (await _locks.AcquireLockAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
             // Register so the heartbeat renews this handler-acquired lock for as long as the
             // critical section runs; without it a long action would outlive the lease TTL and the lock
             // could be stolen mid-section.
-            _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
+            _runningAttempt?.TrackLock(held);
         }
         return token?.HoldToken;
     }
-
-    private long LeaseTtlStopwatchTicks() => (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency);
 
     private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
     {
@@ -50,11 +44,10 @@ internal sealed partial class RuntimeJobContext
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
         var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKeyLookup(concurrencyKey, nameof(concurrencyKey))}";
-        var requestedAt = Stopwatch.GetTimestamp();
         var token = (await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
-            _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
+            _runningAttempt?.TrackLock(held);
             _concurrencySlotToken = held;
         }
         return token is not null;

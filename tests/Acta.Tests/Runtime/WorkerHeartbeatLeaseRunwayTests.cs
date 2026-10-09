@@ -7,26 +7,27 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Covers the split renew/enforce design that bounds the heartbeat's fail-open on lease-renewal exceptions. The
-/// <see cref="WorkerHeartbeat"/> renews the job leases and handler-held locks in one call and only <em>feeds</em> each
-/// attempt's monotonic deadlines on a confirmed renewal and cancels outright on a definitive loss; an uncertain renewal
-/// (exception/timeout) feeds nothing. The <see cref="AttemptWatchdog"/> - pure in-memory, so a hung store can never
-/// delay it - cancels an attempt once its earliest deadline is within the unwind margin. Deadlines are monotonic
-/// Stopwatch timestamps, so tests set them relative to <see cref="Stopwatch.GetTimestamp"/> and drive the ticks
-/// directly (no DB).
+/// What one heartbeat tick does to an attempt's lease deadline. The <see cref="WorkerHeartbeat"/> renews the job leases
+/// and handler-held locks in one call, re-arms each attempt's deadline on a confirmed renewal, and cancels outright on a
+/// definitive loss; a call that throws moves nothing, so an outage cancels by the deadline alone. The deadlines are
+/// real timers, so these facts arm them short and wait on the attempt token (no DB).
 /// </summary>
 public sealed class WorkerHeartbeatLeaseRunwayTests
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(45);
     private const int LeaseTtlSeconds = 180;
 
-    // Margin the watchdog cancels within: half the base runway (TTL - interval)/2, matching AttemptWatchdog.
-    private static readonly TimeSpan Margin = TimeSpan.FromSeconds((LeaseTtlSeconds - 45) / 2.0);
+    // Short enough to fire within a fact, long enough that a scripted tick finishes well before it.
+    private static readonly TimeSpan ShortLease = TimeSpan.FromMilliseconds(300);
 
-    private static long TicksFor(TimeSpan span) => (long)(span.TotalSeconds * Stopwatch.Frequency);
+    // How early a timer may fire against the Stopwatch: the timer queue counts in coarse milliseconds.
+    private static readonly TimeSpan TimerSlack = TimeSpan.FromMilliseconds(50);
 
-    private static IOptions<JobsOptions> Options() =>
-        Microsoft.Extensions.Options.Options.Create(new JobsOptions { HeartbeatInterval = Interval, LeaseTtlSeconds = LeaseTtlSeconds });
+    // A hang guard, not a measurement: only a deadline that never fires reaches it.
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+
+    private static IOptions<JobsOptions> Options(TimeSpan interval, int leaseTtlSeconds) =>
+        Microsoft.Extensions.Options.Options.Create(new JobsOptions { HeartbeatInterval = interval, LeaseTtlSeconds = leaseTtlSeconds });
 
     private static WorkerContext Context()
     {
@@ -38,124 +39,118 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     private static readonly WorkerRegistration Registration = new("orders", null, null, [], []);
 
     [Fact]
-    public async Task Worker_heartbeat_feeds_the_job_lease_deadline_on_a_confirmed_renewal()
+    public async Task A_confirmed_renewal_re_arms_the_lease_deadline()
     {
         var context = Context();
-        var heartbeat = Heartbeat(WorkerStore(_ => Lease(1)), context);
-
-        using var cts = new CancellationTokenSource();
-        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5)) };
+        using var attempt = Leased(ShortLease);
         context.RunningAttempts[1] = attempt;
 
-        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => Lease(1)), context).TickAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(ShortLease * 2, TestContext.Current.CancellationToken);
 
-        // A confirmed renewal pushed the deadline out to ~now + TTL, so the runway is full again.
-        Assert.False(cts.IsCancellationRequested);
-        Assert.True(attempt.EarliestLeaseGoodUntil() - Stopwatch.GetTimestamp() > TicksFor(Interval));
+        // The renewal moved the deadline to the runway past its request start, minutes away.
+        Assert.False(attempt.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
-    public async Task Worker_heartbeat_cancels_immediately_when_an_authoritative_refresh_drops_the_job()
+    public async Task A_lease_lapse_cancels_the_attempt_the_margin_before_the_lease_expires()
+    {
+        // A one-second lease on a 10ms beat: the margin is (1000 - 10) / 2 = 495ms, so the renewed deadline falls 505ms
+        // past the renewal's request start, and the attempt is cancelled well before the lease itself lapses at one
+        // second. It also outlives its first deadline, which the renewal replaced.
+        var options = Options(TimeSpan.FromMilliseconds(10), leaseTtlSeconds: 1);
+        var context = Context();
+        using var attempt = Leased(ShortLease);
+        context.RunningAttempts[1] = attempt;
+        var renewedAt = Stopwatch.GetTimestamp();
+
+        await Heartbeat(WorkerStore(_ => Lease(1)), context, options).TickAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, attempt.AttemptToken));
+
+        Assert.InRange(
+            Stopwatch.GetElapsedTime(renewedAt),
+            RunningAttempt.LeaseRunway(options.Value) - TimerSlack,
+            TimeSpan.FromSeconds(1)
+        );
+    }
+
+    [Fact]
+    public async Task An_authoritative_refresh_that_drops_the_execution_cancels_at_once()
     {
         var context = Context();
-        var heartbeat = Heartbeat(WorkerStore(_ => null), context);
-
-        using var cts = new CancellationTokenSource();
-        var attempt = new RunningAttempt(cts)
-        {
-            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)),
-        };
+        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
         context.RunningAttempts[1] = attempt;
 
-        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => null), context).TickAsync(TestContext.Current.CancellationToken);
 
         // The job is absent from an authoritative live set (operator cancel / reclaimed lease) -> stop now.
-        Assert.True(cts.IsCancellationRequested);
+        Assert.True(attempt.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
-    public async Task Worker_heartbeat_keeps_a_skipped_job_running_without_feeding_its_deadline()
+    public async Task A_skipped_row_keeps_running_on_its_unmoved_deadline()
     {
         var context = Context();
-        var heartbeat = Heartbeat(WorkerStore(_ => Lease(1, renewed: false)), context);
-
-        using var cts = new CancellationTokenSource();
-        var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5));
-        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline };
+        using var attempt = Leased(ShortLease);
         context.RunningAttempts[1] = attempt;
+        var armedAt = Stopwatch.GetTimestamp();
 
-        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => Lease(1, renewed: false)), context).TickAsync(TestContext.Current.CancellationToken);
 
-        // Another transaction held the row: it is still this worker's, but its lease did not move.
-        Assert.False(cts.IsCancellationRequested);
-        Assert.Equal(deadline, attempt.JobLeaseGoodUntil);
+        // Another transaction held the row: it is still this worker's, so the tick leaves it running, but its lease
+        // did not move, so neither does its deadline.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, attempt.AttemptToken));
+        Assert.True(Stopwatch.GetElapsedTime(armedAt) >= ShortLease - TimerSlack);
     }
 
     [Fact]
-    public async Task Worker_heartbeat_leaves_the_deadlines_untouched_when_the_refresh_throws()
+    public async Task A_refresh_that_throws_moves_nothing_so_an_outage_cancels_by_the_deadline_alone()
     {
         var context = Context();
-        var heartbeat = Heartbeat(WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault")), context);
-
-        using var cts = new CancellationTokenSource();
-        var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds));
-        // Job lease seeded further out so the lock's deadline is the earliest and observable.
-        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline + TicksFor(TimeSpan.FromSeconds(60)) };
-        attempt.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()), deadline);
+        using var attempt = Leased(ShortLease);
+        attempt.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()));
         context.RunningAttempts[1] = attempt;
+        var armedAt = Stopwatch.GetTimestamp();
 
-        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault")), context)
+            .TickAsync(TestContext.Current.CancellationToken);
 
-        // Uncertain refresh: neither cancel nor feed - the deadlines are left for the watchdog.
-        Assert.False(cts.IsCancellationRequested);
-        Assert.Equal(deadline, attempt.EarliestLeaseGoodUntil());
+        // Neither the job nor its unrenewed lock counts as lost on a call that threw.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, attempt.AttemptToken));
+        Assert.True(Stopwatch.GetElapsedTime(armedAt) >= ShortLease - TimerSlack);
     }
 
     [Fact]
-    public async Task Worker_heartbeat_renews_a_held_lock_in_the_same_call_and_feeds_its_deadline()
+    public async Task Worker_heartbeat_renews_a_held_lock_in_the_same_call()
     {
         var held = new LockToken("orders.a", Guid.NewGuid());
         var context = Context();
         var session = new ScriptedSession(_ => new[] { Lease(1), Lock(held.Key) });
-        var heartbeat = Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>(), context);
-
-        using var cts = new CancellationTokenSource();
-        // Job lease healthy; the lock deadline starts nearly lapsed so the renewal is what pushes it back out.
-        var attempt = new RunningAttempt(cts)
-        {
-            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)),
-        };
-        attempt.TrackLock(held, Stopwatch.GetTimestamp() - TicksFor(TimeSpan.FromSeconds(1)));
+        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
+        attempt.TrackLock(held);
         context.RunningAttempts[1] = attempt;
 
-        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>(), context).TickAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(
             $$"""[{"lock_key":"orders.a","hold_token":"{{held.HoldToken}}"}]""",
             Assert.Single(session.Calls).Parameters["p_locks"]
         );
-        Assert.False(cts.IsCancellationRequested);
-        Assert.True(attempt.EarliestLeaseGoodUntil() - Stopwatch.GetTimestamp() > TicksFor(Interval));
+        Assert.False(attempt.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
     public async Task Worker_heartbeat_cancels_when_a_held_lock_is_not_renewed()
     {
         var context = Context();
-        var heartbeat = Heartbeat(WorkerStore(_ => Lease(1)), context);
-
-        using var cts = new CancellationTokenSource();
-        var attempt = new RunningAttempt(cts);
-        attempt.TrackLock(
-            new LockToken("orders.lost", Guid.NewGuid()),
-            Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds))
-        );
+        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
+        attempt.TrackLock(new LockToken("orders.lost", Guid.NewGuid()));
         context.RunningAttempts[1] = attempt;
 
-        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => Lease(1)), context).TickAsync(TestContext.Current.CancellationToken);
 
         // The hold's token moved: another holder took the key, so the critical section is no longer exclusive.
-        Assert.True(cts.IsCancellationRequested);
+        Assert.True(attempt.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
@@ -163,9 +158,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     {
         var released = new LockToken("orders.released", Guid.NewGuid());
         var context = Context();
-        using var cts = new CancellationTokenSource();
-        var attempt = new RunningAttempt(cts);
-        attempt.TrackLock(released, Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)));
+        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
+        attempt.TrackLock(released);
         context.RunningAttempts[1] = attempt;
 
         // The handler releases (untracks) the lock while the renewal is in flight, so the renewal finds no hold.
@@ -180,121 +174,21 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
         await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
-        Assert.False(cts.IsCancellationRequested);
+        Assert.False(attempt.AttemptToken.IsCancellationRequested);
     }
 
-    [Fact]
-    public Task Watchdog_does_not_cancel_an_attempt_with_runway_beyond_the_margin()
+    private static RunningAttempt Leased(TimeSpan lease)
     {
-        var context = Context();
-        var watchdog = new AttemptWatchdog(Options(), Registration, context, NullLogger.Instance);
-
-        using var cts = new CancellationTokenSource();
-        var attempt = new RunningAttempt(cts)
-        {
-            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)),
-        };
-        context.RunningAttempts[1] = attempt;
-
-        watchdog.TickAsync(TestContext.Current.CancellationToken);
-
-        Assert.False(cts.IsCancellationRequested);
-        return Task.CompletedTask;
+        var attempt = new RunningAttempt(leased: true, CancellationToken.None);
+        attempt.ArmLease(lease);
+        return attempt;
     }
 
-    [Fact]
-    public Task Watchdog_cancels_an_attempt_whose_earliest_deadline_is_within_the_margin()
-    {
-        var context = Context();
-        var watchdog = new AttemptWatchdog(Options(), Registration, context, NullLogger.Instance);
-
-        using var jobCts = new CancellationTokenSource();
-        using var lockCts = new CancellationTokenSource();
-
-        // (a) job lease about to lapse.
-        var byJob = new RunningAttempt(jobCts)
-        {
-            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(Margin) - TicksFor(TimeSpan.FromSeconds(1)),
-        };
-        // (b) job lease fine, but a held lock is about to lapse -> min governs.
-        var byLock = new RunningAttempt(lockCts)
-        {
-            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)),
-        };
-        byLock.TrackLock(
-            new LockToken("orders.stuck", Guid.NewGuid()),
-            Stopwatch.GetTimestamp() + TicksFor(Margin) - TicksFor(TimeSpan.FromSeconds(1))
-        );
-
-        context.RunningAttempts[1] = byJob;
-        context.RunningAttempts[2] = byLock;
-
-        watchdog.TickAsync(TestContext.Current.CancellationToken);
-
-        Assert.True(jobCts.IsCancellationRequested);
-        Assert.True(lockCts.IsCancellationRequested);
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task Watchdog_does_not_cancel_a_healthy_attempt_at_the_tightest_2x_config()
-    {
-        // Regression: the margin must stay below the runway a healthy attempt still has just before each
-        // renewal, even at the validator's floor (LeaseTtl = 2x HeartbeatInterval). There the pre-renewal
-        // runway dips to one interval; a fixed 2x-interval margin would cancel a perfectly healthy job.
-        const int tightTtl = 90; // 2x the 45s interval
-        var options = Microsoft.Extensions.Options.Options.Create(
-            new JobsOptions { HeartbeatInterval = Interval, LeaseTtlSeconds = tightTtl }
-        );
-        var context = Context();
-        var watchdog = new AttemptWatchdog(options, Registration, context, NullLogger.Instance);
-
-        using var cts = new CancellationTokenSource();
-        // Deadline at the healthy pre-renewal dip: TTL - interval = one interval of runway remaining.
-        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(Interval) };
-        context.RunningAttempts[1] = attempt;
-
-        watchdog.TickAsync(TestContext.Current.CancellationToken);
-
-        Assert.False(cts.IsCancellationRequested);
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task Watchdog_worst_scan_phase_preserves_quarter_interval_runway_at_2x_floor()
-    {
-        const int tightTtl = 90;
-        var options = Microsoft.Extensions.Options.Options.Create(
-            new JobsOptions { HeartbeatInterval = Interval, LeaseTtlSeconds = tightTtl }
-        );
-        var context = Context();
-        var margin = TimeSpan.FromSeconds((tightTtl - Interval.TotalSeconds) / 2.0);
-        var cadence = TimeSpan.FromTicks(Interval.Ticks / 4);
-        var deadline = TicksFor(TimeSpan.FromSeconds(100));
-        var threshold = deadline - TicksFor(margin);
-        var now = threshold - 1; // scan immediately before the cancellation threshold is crossed
-        var watchdog = new AttemptWatchdog(options, Registration, context, NullLogger.Instance, () => now);
-
-        using var cts = new CancellationTokenSource();
-        context.RunningAttempts[1] = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline };
-
-        watchdog.TickAsync(TestContext.Current.CancellationToken);
-        Assert.False(cts.IsCancellationRequested);
-
-        // The next on-cadence scan is the worst timer phase. It must cancel with at least I/4 left.
-        now += TicksFor(cadence);
-        watchdog.TickAsync(TestContext.Current.CancellationToken);
-
-        Assert.True(cts.IsCancellationRequested);
-        Assert.True(deadline - now >= TicksFor(cadence));
-        return Task.CompletedTask;
-    }
-
-    private static WorkerHeartbeat Heartbeat(WorkerLifecycle workers, WorkerContext context) =>
+    private static WorkerHeartbeat Heartbeat(WorkerLifecycle workers, WorkerContext context, IOptions<JobsOptions>? options = null) =>
         new(
             workers,
             ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
-            Options(),
+            options ?? Options(Interval, LeaseTtlSeconds),
             Registration,
             context,
             NullLogger.Instance

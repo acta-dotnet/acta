@@ -46,14 +46,13 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         // the new attempt, so it lands squarely in the gap the race exploits.
         await db.Entered.WaitAsync(HangGuard, ct);
 
-        using var lateAttemptCts = new CancellationTokenSource();
-        var lateAttempt = new RunningAttempt(lateAttemptCts);
+        using var lateAttempt = new RunningAttempt(leased: false, CancellationToken.None);
         context.RunningAttempts[2] = lateAttempt;
 
         db.Release();
         await tickTask.WaitAsync(HangGuard, ct);
 
-        Assert.False(lateAttemptCts.IsCancellationRequested);
+        Assert.False(lateAttempt.AttemptToken.IsCancellationRequested);
     }
 
     // Blocks the lease extend on a gate so the test can register a new RunningAttempt while the

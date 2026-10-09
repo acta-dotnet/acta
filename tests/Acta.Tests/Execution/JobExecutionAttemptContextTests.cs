@@ -49,8 +49,8 @@ public sealed class JobExecutionAttemptContextTests
         var outcome = await harness.RunAsync(
             async (_, ct) =>
             {
-                // The watchdog fires the attempt's execution timeout; the handler observes its token the
-                // way a cooperative handler does.
+                // The attempt's execution timeout fires; the handler observes its token the way a
+                // cooperative handler does.
                 harness.TimeOutAttempt();
                 await Task.Delay(Timeout.Infinite, ct);
             }

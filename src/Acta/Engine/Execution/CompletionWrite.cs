@@ -9,7 +9,7 @@ namespace Acta;
 /// again. The write is a compare-and-swap, so repeating is safe, and every failure is repeated, since a defect that
 /// loops loudly costs less than a finished attempt charged and run twice; a write that committed and lost its answer
 /// reads as already cleared on the second try (a retry, not a loss). The token is the host token, never the
-/// attempt's, which the watchdog cancels on that very outage; it bounds only the waits between tries.
+/// attempt's, which its lease deadline cancels on that very outage; it bounds only the waits between tries.
 /// </summary>
 internal static class CompletionWrite
 {

@@ -21,7 +21,6 @@ internal sealed class WorkerRuntime
     private readonly JobExecutor _executor;
     private readonly WorkerLoop _loop;
     private readonly WorkerHeartbeat _heartbeat;
-    private readonly AttemptWatchdog _watchdog;
     private readonly RecoverySlotMonitor _recoveryMonitor;
 
     /// <summary>
@@ -114,7 +113,6 @@ internal sealed class WorkerRuntime
             _context,
             logger
         );
-        _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
         _recoveryMonitor = new RecoverySlotMonitor(
             rootServices.GetRequiredService<Execution>(),
             publisher,
@@ -167,20 +165,19 @@ internal sealed class WorkerRuntime
     public Task StopAsync(CancellationToken ct) => _initializer.StopAsync(ct);
 
     /// <summary>
-    /// Host entry point: runs the claim/dispatch loop, the worker heartbeat, and the lease watchdog concurrently
-    /// under the same <paramref name="ct"/>. The host runs <see cref="InitializeAsync"/> during startup, before this
-    /// is reached. Every loop self-gates on
-    /// <see cref="WorkerRegistration"/>, so enqueue-only deployments fall through immediately.
+    /// Host entry point: runs the claim/dispatch loop and the worker heartbeat concurrently under the same
+    /// <paramref name="ct"/>. The host runs <see cref="InitializeAsync"/> during startup, before this is reached. Every
+    /// loop self-gates on <see cref="WorkerRegistration"/>, so enqueue-only deployments fall through immediately.
     /// </summary>
     public Task RunAsync(CancellationToken ct)
     {
         // The loop's producer and the recovery monitor's checks stop on _drainCts (graceful drain) or ct
-        // (hard stop); the renewers, watchdog and in-flight execution run on ct, so a drain finishes
-        // in-flight work, including a recovery pass the monitor started, before DrainCompletion completes.
+        // (hard stop); the heartbeat and in-flight execution run on ct, so a drain finishes in-flight
+        // work, including a recovery pass the monitor started, before DrainCompletion completes.
         var loop = _loop.RunLoopAsync(ct, _drainCts.Token);
         var monitor = _recoveryMonitor.RunAsync(ct, _drainCts.Token);
         DrainCompletion = Task.WhenAll(loop, monitor);
-        return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct), _watchdog.RunAsync(ct));
+        return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct));
     }
 
     public Task RunLoopAsync(CancellationToken ct) => _loop.RunLoopAsync(ct);
@@ -251,13 +248,8 @@ internal sealed class WorkerRuntime
         _executor.RunOnceAsync(namespaceName, jobId, ct);
 
     /// <summary>
-    /// Run exactly one full heartbeat pass: renew the held job leases and locks and feed their deadlines (worker
-    /// heartbeat), then enforce deadlines (watchdog) - cancelling handlers whose job or lock was lost or whose lease has
-    /// run down. The two loops run independently in production; this drives them in sequence for deterministic tests.
+    /// Run exactly one heartbeat pass: renew the held job leases and locks, re-arm their attempts' lease deadlines, and
+    /// cancel handlers whose job or lock was lost. Drives deterministic tests and the CLI's jobs debug pump.
     /// </summary>
-    public async Task RunHeartbeatOnceAsync(CancellationToken ct)
-    {
-        await _heartbeat.TickAsync(ct);
-        await _watchdog.TickAsync(ct);
-    }
+    public Task RunHeartbeatOnceAsync(CancellationToken ct) => _heartbeat.TickAsync(ct);
 }

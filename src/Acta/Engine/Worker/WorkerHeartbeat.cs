@@ -7,10 +7,10 @@ namespace Acta;
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one
 /// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
-/// hold and execution lease this process holds, so a leased row nothing holds lapses to recovery. It feeds a running
-/// attempt's deadlines on a confirmed renewal, cancels one whose execution or held lock an authoritative refresh drops,
-/// and re-overlays the definitions' effective policy when the namespace's catalog changed. Deadlines on an outage are
-/// <see cref="AttemptWatchdog"/>'s; a no-op in enqueue-only mode.
+/// hold and execution lease this process holds, so a leased row nothing holds lapses to recovery. It re-arms a running
+/// attempt's lease deadline on a confirmed renewal, cancels one whose execution or held lock an authoritative refresh
+/// drops, and re-overlays the definitions' effective policy when the namespace's catalog changed. A call that throws
+/// moves no deadline, so an outage cancels each attempt by its deadline alone; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     WorkerLifecycle workers,
@@ -27,16 +27,10 @@ internal sealed class WorkerHeartbeat(
     private readonly WorkerContext _context = context;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly TimeSpan _leaseRunway = RunningAttempt.LeaseRunway(options.Value);
 
     // The namespace's newest definitions.modified_at_utc at the last overlay. Touched only under the tick gate.
     private DateTime? _definitionsModifiedAtUtc;
-
-    /// <summary>
-    /// Lease TTL as monotonic Stopwatch ticks. The job-lease deadline is measured on Stopwatch, not
-    /// wall time: it cannot jump backward on an NTP/VM correction (which would make a lapsed lease
-    /// look live), and it is readable even while the store is down.
-    /// </summary>
-    private readonly long _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
     private readonly ILogger _log = log;
 
     /// <summary>
@@ -122,8 +116,8 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// One worker-heartbeat pass: renew the leases of the executions this process holds, feed each still-owned
-    /// attempt's job-lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
+    /// One worker-heartbeat pass: renew the leases of the executions this process holds, re-arm each still-owned
+    /// attempt's lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
     /// when it changed. The deterministic single-shot the loop drives per tick; tests drive it via
     /// WorkerRuntime.RunHeartbeatOnceAsync.
     /// </summary>
@@ -142,11 +136,11 @@ internal sealed class WorkerHeartbeat(
             // this one. Without the snapshot, a job claimed+dispatched into RunningAttempts while the
             // extend query for another worker was still in flight would be invisible to this tick's
             // "live" set (it was claimed too late to be extended) yet present when reconciliation
-            // enumerated the live dictionary afterwards, and would be wrongly cancelled. Cancel() on an
+            // enumerated the live dictionary afterwards, and would be wrongly cancelled. Reaching an
             // attempt that has already completed by the time it's reconciled is harmless: JobExecutor
-            // removes the attempt from RunningAttempts before disposing its CancellationTokenSource, so a
-            // late Cancel() either lands on a token nothing reads anymore or hits the already-disposed
-            // source, which RunningAttempt.Cancel() swallows.
+            // removes the attempt from RunningAttempts before disposing it, so a late Cancel() or
+            // ArmLease() either lands on a token nothing reads anymore or hits a disposed source, which
+            // both swallow.
             var snapshot = _context
                 .RunningAttempts.Select(running => (JobId: running.Key, Attempt: running.Value, Locks: running.Value.HeldLocks))
                 .ToArray();
@@ -161,10 +155,9 @@ internal sealed class WorkerHeartbeat(
             // BEFORE the call: the store stamps the renewed expiry no earlier than this instant, so
             // requestStart + TTL is a conservative lower bound on when the lease actually lapses (unlike
             // a post-response `now + TTL`, which overestimates the lease by the round-trip latency). A
-            // transient store fault throws rather than returning: tolerate it (leave `live` null), feed
-            // nothing this tick, and let the watchdog cancel if the outage outlasts the deadline. The
-            // renewal is not deadline-critical (the watchdog enforces on its own loop), so it is not
-            // bounded here beyond the caller's ct.
+            // transient store fault throws rather than returning: tolerate it (leave `live` null) and
+            // move nothing this tick, so the deadlines cancel if the outage outlasts them. The renewal
+            // is not deadline-critical, so it is not bounded here beyond the caller's ct.
             // A row another transaction held is still owned but was not renewed, so it stays live without
             // moving its deadline.
             var renewRequestedAt = Stopwatch.GetTimestamp();
@@ -191,13 +184,10 @@ internal sealed class WorkerHeartbeat(
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
-                // Transient store fault during normal operation: leave `live` non-authoritative and feed
+                // Transient store fault during normal operation: leave `live` non-authoritative and move
                 // nothing. A fault at shutdown (ct cancelled) is not caught here - it flows to the loop's
                 // existing cancellation handling.
-                _log.LogWarning(
-                    ex,
-                    "WorkerRuntime: could not extend worker leases this tick; leaving job-lease deadlines for the watchdog."
-                );
+                _log.LogWarning(ex, "WorkerRuntime: could not extend worker leases this tick; the lease deadlines stand.");
                 live = null;
             }
 
@@ -239,12 +229,11 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// For each attempt in the pre-extend snapshot, matched on job and execution: a renewal feeds its job-lease deadline
-    /// and a renewed lock its lock's; a row skipped because another transaction held it keeps its deadline for the next
-    /// beat; an execution the refresh dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again)
-    /// is cancelled now, and so is one whose held lock was not renewed. <c>live</c> is null when the refresh threw: a
-    /// definitive loss cannot be told from a blip, so nothing is fed or cancelled and the watchdog cancels only once a
-    /// deadline is about to lapse.
+    /// For each attempt in the pre-extend snapshot, matched on job and execution: a renewal re-arms its lease deadline
+    /// from the request start; a row skipped because another transaction held it keeps its deadline; an execution the
+    /// refresh dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again) is cancelled now, and so
+    /// is one still holding a lock the call did not renew. <c>live</c> is null when the refresh threw: a definitive loss
+    /// cannot be told from a blip, so nothing moves and the deadlines decide.
     /// </summary>
     private void FeedLeases(
         (long JobId, RunningAttempt Attempt, IReadOnlyCollection<LockToken> Locks)[] snapshot,
@@ -259,38 +248,26 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        var goodUntil = renewRequestedAt + _ttlStopwatchTicks;
+        var runway = _leaseRunway - Stopwatch.GetElapsedTime(renewRequestedAt);
         foreach (var (jobId, attempt, locks) in snapshot)
         {
             var execution = (jobId, attempt.ExecutionNumber);
-            if (renewed.Contains(execution))
+            if (!live.Contains(execution))
             {
-                // Confirmed renewal: the request-start is a lower bound on the store-stamped expiry.
-                attempt.JobLeaseGoodUntil = goodUntil;
-            }
-            else if (!live.Contains(execution))
-            {
-                // Definitive loss under an authoritative refresh. Stop it now rather than waiting out the
-                // watchdog.
                 attempt.Cancel();
                 continue;
             }
-
-            foreach (var token in locks)
+            if (renewed.Contains(execution))
             {
-                if (renewedLocks.Contains(token.Key))
-                {
-                    // A no-op when the handler released and untracked the lock while the renewal was in flight.
-                    attempt.ExtendLock(token, goodUntil);
-                }
-                else if (attempt.Holds(token))
-                {
-                    // Another holder took a lock the handler still relies on, so its critical section is no
-                    // longer exclusive.
-                    attempt.Cancel();
-                    _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", jobId);
-                    break;
-                }
+                attempt.ArmLease(runway);
+            }
+
+            // A lock the handler released while the renewal was in flight is no longer held, so only a lock it
+            // still relies on, now taken by another holder, ends its critical section.
+            if (locks.Any(token => !renewedLocks.Contains(token.Key) && attempt.Holds(token)))
+            {
+                attempt.Cancel();
+                _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", jobId);
             }
         }
     }

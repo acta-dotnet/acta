@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -7,21 +6,19 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The failure arms of the two loops that keep an attempt alive: the worker heartbeat, which renews its job lease and
-/// held locks, and the lease watchdog. Their happy paths and their single ticks are pinned elsewhere
+/// The failure arms of the loop that keeps an attempt alive: the worker heartbeat, which renews its job lease and
+/// held locks and re-arms its lease deadline. Its single ticks are pinned elsewhere
 /// (<see cref="WorkerHeartbeatLeaseRunwayTests"/> for what one tick decides,
 /// <see cref="LoopTickCancellationFilterTests"/> for the stray-cancellation filter); what is pinned here
-/// is the loop around the tick. Each of these tasks is awaited by the runtime host, so a tick failure
-/// that escapes <c>RunAsync</c> does not stop one renewal - it faults the host's <c>WhenAll</c> and takes
-/// the worker down, at exactly the moment (a database blip) the heartbeat exists to survive.
+/// is the loop around the tick. The task is awaited by the runtime host, so a tick failure that escapes
+/// <c>RunAsync</c> does not stop one renewal - it faults the host's <c>WhenAll</c> and takes the worker
+/// down, at exactly the moment (a database blip) the heartbeat exists to survive.
 /// </summary>
 /// <remarks>
 /// The heartbeat already absorbs a store fault inside its own tick while the token is live, so the way
 /// a fault reaches the loop's arms is the shutdown window: the call cancels the loop's token and then
 /// fails rather than cancelling cleanly, which is what a connection torn down under a running query
-/// looks like. The store here does exactly that, deterministically, with no timing dependence. The
-/// watchdog does no I/O at all, so its tick failure is injected at its clock seam and it is the one loop
-/// whose carry-on is directly observable.
+/// looks like. The store here does exactly that, deterministically, with no timing dependence.
 /// </remarks>
 public sealed class RenewalLoopFailureArmTests
 {
@@ -102,43 +99,32 @@ public sealed class RenewalLoopFailureArmTests
     }
 
     [Fact]
-    public async Task A_watchdog_tick_that_throws_is_logged_and_the_next_tick_still_enforces_the_deadline()
+    public async Task An_outage_that_fails_every_beat_cancels_the_attempt_by_its_deadline_while_the_loop_beats_on()
     {
-        // The watchdog is the fail-safe half of the bounded fail-open: it is what cancels an attempt
-        // whose lease is about to lapse while the renewers are down. If one bad tick ended the loop, the
-        // failure mode is the one the design exists to prevent - a handler still writing after another
-        // worker has reclaimed its job. So the contract is not "logs" but "logs and keeps enforcing".
-        var context = new WorkerContext(Registration);
-        using var attemptCts = new CancellationTokenSource();
-        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await using var registration = attemptCts.Token.Register(() => cancelled.TrySetResult());
-
-        // A fresh attempt's job-lease deadline is 0, i.e. long lapsed on the monotonic clock, so any tick
-        // that actually runs must cancel it.
-        context.RunningAttempts[1] = new RunningAttempt(attemptCts);
-
-        var log = new RecordingLogger();
-        var firstTickThrew = 0;
-        var watchdog = new AttemptWatchdog(
+        // Nothing but the heartbeat moves a deadline and nothing watches it, so a loop whose every call fails must
+        // neither end nor hold the attempt open: the deadline alone stops the handler before its lease can lapse.
+        var context = HeartbeatContext();
+        using var attempt = new RunningAttempt(leased: true, CancellationToken.None);
+        attempt.ArmLease(TimeSpan.FromMilliseconds(100));
+        context.RunningAttempts[1] = attempt;
+        var heartbeat = new WorkerHeartbeat(
+            new ScriptedSession(_ => throw new InvalidOperationException("synthetic database outage"))
+                .Services()
+                .GetRequiredService<WorkerLifecycle>(),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
             LoopOptions(),
             Registration,
             context,
-            log,
-            () =>
-                Interlocked.Exchange(ref firstTickThrew, 1) == 0
-                    ? throw new InvalidOperationException("synthetic watchdog clock fault")
-                    : Stopwatch.GetTimestamp()
+            new RecordingLogger()
         );
 
         using var cts = new CancellationTokenSource();
-        var running = watchdog.RunAsync(cts.Token);
+        var running = heartbeat.RunAsync(cts.Token);
 
-        await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(TimeSpan.FromSeconds(30), attempt.AttemptToken));
+        Assert.False(running.IsCompleted);
+        await cts.CancelAsync();
         await running.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        Assert.Contains(log.Errors, e => e.Message.Contains("lease watchdog tick failed; retrying next tick", StringComparison.Ordinal));
-        Assert.True(attemptCts.IsCancellationRequested);
     }
 
     private static WorkerContext HeartbeatContext()

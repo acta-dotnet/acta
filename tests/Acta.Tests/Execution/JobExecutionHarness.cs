@@ -43,14 +43,11 @@ internal sealed class JobExecutionHarness(
 
     private const int WorkerId = 7;
 
-    private readonly CancellationTokenSource _attemptCts = new();
-
     // The worker token the runner is handed, cancelled by the script when a fact wants a shutdown.
     private readonly CancellationTokenSource _workerCts = new();
 
-    // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
-    // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
-    private readonly CancellationTokenSource _timeoutCts = new();
+    // The attempt RunAsync registers, linked from the worker token as the executor links it.
+    private RunningAttempt? _attempt;
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
@@ -84,18 +81,11 @@ internal sealed class JobExecutionHarness(
     public BoundCompletion Completion => Assert.Single(Submitted);
 
     /// <summary>
-    /// Puts the attempt into the state a fired execution timeout leaves it in: the timeout source is
-    /// cancelled (so <c>RunningAttempt.TimedOut</c> reads true) and the attempt source is cancelled
-    /// after it. The two are cancelled separately because this harness owns them separately, where
-    /// production links the attempt token to the timeout source and gets the second cancel for free.
-    /// Call from inside a handler; the handler must then observe its token, as a cooperative handler
-    /// does in production.
+    /// Fires the attempt's execution timeout now, so <c>RunningAttempt.TimedOut</c> reads true and the linked
+    /// attempt token cancels after it. Call from inside a handler; the handler must then observe its token, as a
+    /// cooperative handler does in production.
     /// </summary>
-    public void TimeOutAttempt()
-    {
-        _timeoutCts.Cancel();
-        _attemptCts.Cancel();
-    }
+    public void TimeOutAttempt() => _attempt!.ArmTimeout(TimeSpan.Zero);
 
     /// <summary>
     /// Runs one attempt. The default handler invokes <c>ctx.RunStepAsync</c> once with a body that
@@ -104,9 +94,11 @@ internal sealed class JobExecutionHarness(
     public async Task<RunOnceStatus> RunAsync(Func<JobContext, CancellationToken, Task>? handler = null)
     {
         handler ??= static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token);
-        _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _attemptCts.Cancel : null;
+        var job = Job(failureCount, concurrencyKey);
+        _attempt = new RunningAttempt(leased: false, _workerCts.Token) { ExecutionNumber = job.ExecutionNumber };
+        _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _attempt.Cancel : null;
         _locks.OnRateRequest =
-            cancelAttemptDuringRateWait ? _attemptCts.Cancel
+            cancelAttemptDuringRateWait ? _attempt.Cancel
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
@@ -118,7 +110,6 @@ internal sealed class JobExecutionHarness(
             options.Value.MaxInlinePayloadBytes = configuredCap;
         }
 
-        var job = Job(failureCount, concurrencyKey);
         var context = new RuntimeJobContext(
             job,
             jobName: jobName,
@@ -132,14 +123,14 @@ internal sealed class JobExecutionHarness(
             executionStore: _store.Execution,
             new HarnessSerializers(),
             _locks.Locks,
-            cancellationToken: _attemptCts.Token,
+            cancellationToken: _attempt.AttemptToken,
             triggeringScheduleNames: [],
             deadlineAtUtc: deadlineAtUtc,
             // The two the production JobExecutor supplies and this harness used to default away:
             // without the cap a handler write is unbounded here but bounded in production, and
             // without the attempt every timeout reads as a plain external cancel.
             maxInlinePayloadBytes: options.Value.MaxInlinePayloadBytes,
-            runningAttempt: new RunningAttempt(_attemptCts, _timeoutCts),
+            runningAttempt: _attempt,
             workerId: WorkerId
         );
 
@@ -180,6 +171,7 @@ internal sealed class JobExecutionHarness(
             namespaceId: 1,
             WorkerId,
             alreadyStarted: false,
+            armLease: false,
             CancellationToken.None
         );
     }

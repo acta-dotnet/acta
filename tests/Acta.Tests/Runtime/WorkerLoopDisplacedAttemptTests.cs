@@ -6,8 +6,8 @@ namespace Acta.Tests.Runtime;
 /// <summary>
 /// A claim that returns a job this process is still running means the running attempt's lease lapsed
 /// and the job was reclaimed. The replacement shares the stale attempt's key in <c>RunningAttempts</c>,
-/// so the heartbeat would renew the stale attempt on the replacement's lease and the watchdog would never
-/// cancel it. Both loop shapes cancel the stale attempt as the claim answers.
+/// so once the entry is replaced the heartbeat would never reach the stale attempt. Both loop shapes
+/// cancel the stale attempt as the claim answers.
 /// </summary>
 public sealed class WorkerLoopDisplacedAttemptTests
 {
@@ -19,8 +19,8 @@ public sealed class WorkerLoopDisplacedAttemptTests
     public async Task A_claim_of_a_job_this_process_still_runs_cancels_the_stale_attempt(ExecutionProfile profile)
     {
         var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        using var staleCts = new CancellationTokenSource();
-        context.RunningAttempts[JobId] = new RunningAttempt(staleCts);
+        using var stale = new RunningAttempt(leased: false, CancellationToken.None);
+        context.RunningAttempts[JobId] = stale;
 
         // The first claim returns the job again; the second stops the loop, so the run ends on its own.
         using var cts = new CancellationTokenSource();
@@ -38,7 +38,7 @@ public sealed class WorkerLoopDisplacedAttemptTests
 
         await loop.RunLoopAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
-        Assert.True(staleCts.IsCancellationRequested);
+        Assert.True(stale.AttemptToken.IsCancellationRequested);
     }
 
     // The claim row for the job again, in its next execution.

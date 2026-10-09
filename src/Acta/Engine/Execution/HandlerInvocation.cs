@@ -300,9 +300,9 @@ internal sealed class HandlerInvocation(
         }
 
         // The attempt token was cancelled without a timeout: an external cancel, a stolen
-        // lease, the watchdog's lease-runway margin, or a lost handler lock. The first two
-        // leave a row this worker no longer owns (the completion CAS no-ops), but the watchdog
-        // and lock-loss cancel while the row is still Executing and still leased here, so
+        // lease, the lease deadline, or a lost handler lock. The first two leave a row this
+        // worker no longer owns (the completion CAS no-ops), but the lease deadline and
+        // lock-loss cancel while the row is still Executing and still leased here, so
         // a reason-less completion would land terminal Failed on a recoverable job. Submit
         // a retryable failure instead: owned rows re-arm under the failure budget, unowned
         // rows still no-op. Writing (not skipping) matters because a skipped write leaves the

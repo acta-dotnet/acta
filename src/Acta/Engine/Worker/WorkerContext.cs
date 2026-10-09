@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 
 namespace Acta;
 
@@ -120,9 +119,8 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 
     /// <summary>
     /// Cancel the attempt this process still runs for a job a claim just returned. The claim means the
-    /// attempt's lease lapsed and the job was reclaimed, and the replacement shares its key here, so the
-    /// heartbeat would renew the stale attempt on the replacement's lease and the watchdog, once the entry
-    /// is replaced, would never see it.
+    /// attempt's lease lapsed and the job was reclaimed, and the replacement shares its key here, so once
+    /// the entry is replaced the heartbeat would never reach the stale attempt.
     /// </summary>
     public void CancelDisplacedAttempt(long jobId)
     {
@@ -172,17 +170,34 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 }
 
 /// <summary>
-/// A job this worker is mid-execution on: the per-attempt linked <see cref="CancellationTokenSource"/> that stops the
-/// handler, plus a conservative monotonic "good until" deadline for every lease it depends on: its job lease and each
-/// lock held through <c>RunWithLock</c> or the concurrency-key mutex. The worker heartbeat feeds the job lease and each
-/// lock, and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
-/// nears the unwind margin. Deadlines are monotonic Stopwatch timestamps, so a clock correction cannot revive a lapsed
-/// lease, and sit behind Volatile and a ConcurrentDictionary because renewers write while the watchdog and handler read.
+/// A job this worker is mid-execution on: the attempt source that stops the handler, linked from the host token, the
+/// execution-timeout source, and the lease source, plus the locks the attempt holds. The lease source is the attempt's
+/// deadline: armed at registration and re-armed by the heartbeat on each confirmed renewal, it cancels the attempt
+/// <see cref="LeaseRunway"/> past the lease's request start, so an outage stops the handler with nothing watching. A
+/// single-shot attempt has no lease source, so a debugger pause never finds it cancelled on resume.
 /// </summary>
-internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTokenSource? timeoutCts = null)
+internal sealed class RunningAttempt : IDisposable
 {
-    private readonly CancellationTokenSource _cts = cts;
-    private readonly CancellationTokenSource? _timeoutCts = timeoutCts;
+    private readonly CancellationTokenSource _timeout = new();
+    private readonly CancellationTokenSource? _lease;
+    private readonly CancellationTokenSource _attempt;
+    private readonly ConcurrentDictionary<LockToken, byte> _heldLocks = new();
+
+    public RunningAttempt(bool leased, CancellationToken hostCt)
+    {
+        _lease = leased ? new CancellationTokenSource() : null;
+        _attempt = CancellationTokenSource.CreateLinkedTokenSource(hostCt, _timeout.Token, _lease?.Token ?? CancellationToken.None);
+        AttemptToken = _attempt.Token;
+    }
+
+    /// <summary>
+    /// How long past a lease's request start an attempt runs: the TTL less an unwind margin of half the base runway
+    /// (TTL - HeartbeatInterval), which is the midpoint of the two. The margin stays below the runway a healthy attempt
+    /// has left before each renewal for every config the validator permits (TTL at least twice the interval), and the
+    /// other half is the handler's window to observe cancellation and unwind before the lease lapses.
+    /// </summary>
+    public static TimeSpan LeaseRunway(JobsOptions options) =>
+        (TimeSpan.FromSeconds(options.LeaseTtlSeconds) + options.HeartbeatInterval) / 2;
 
     /// <summary>
     /// The execution this attempt runs. The heartbeat matches a renewal on job and execution, so a row the
@@ -190,80 +205,47 @@ internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTo
     /// </summary>
     public int ExecutionNumber { get; init; }
 
-    /// <summary>Held lock to the monotonic Stopwatch timestamp its lease is conservatively good until.</summary>
-    private readonly ConcurrentDictionary<LockToken, long> _heldLocks = new();
-
-    /// <summary>
-    /// Job lease's conservative good-until (monotonic Stopwatch timestamp). Written by the worker
-    /// heartbeat, read by the watchdog on another thread - accessed only through Volatile.
-    /// </summary>
-    private long _jobLeaseGoodUntil;
-
-    /// <summary>
-    /// The job lease's conservative good-until as a monotonic <see cref="Stopwatch"/> timestamp. Seeded
-    /// when the attempt is registered and advanced by the worker heartbeat to <c>requestStart + TTL</c> on
-    /// every confirmed renewal (a lower bound on the store-stamped expiry).
-    /// </summary>
-    public long JobLeaseGoodUntil
-    {
-        get => Volatile.Read(ref _jobLeaseGoodUntil);
-        set => Volatile.Write(ref _jobLeaseGoodUntil, value);
-    }
-
-    /// <summary>
-    /// The earliest good-until across the job lease and every held lock: the instant one of this attempt's
-    /// leases first lapses, and so what the watchdog measures its unwind margin against.
-    /// </summary>
-    public long EarliestLeaseGoodUntil()
-    {
-        var earliest = Volatile.Read(ref _jobLeaseGoodUntil);
-        foreach (var goodUntil in _heldLocks.Values)
-        {
-            if (goodUntil < earliest)
-            {
-                earliest = goodUntil;
-            }
-        }
-        return earliest;
-    }
+    public CancellationToken AttemptToken { get; }
 
     /// <summary>
     /// Whether the cancellation came from the execution-timeout source (not an external cancel or
     /// lease steal), so the runner records a timeout distinctly and routes it through the retry budget.
     /// </summary>
-    public bool TimedOut => _timeoutCts is { IsCancellationRequested: true };
+    public bool TimedOut => _timeout.IsCancellationRequested;
 
     /// <summary>
-    /// Register a lock this attempt now holds, conservatively good until <paramref name="goodUntil"/>
-    /// (a monotonic Stopwatch timestamp). Idempotent; a re-acquire refreshes the deadline.
+    /// Cancels the attempt after <paramref name="delay"/>, replacing any earlier deadline, or at once when no runway is
+    /// left; a no-op without a lease source, and after the attempt was disposed under a racing heartbeat.
     /// </summary>
-    public void TrackLock(LockToken token, long goodUntil) => _heldLocks[token] = goodUntil;
-
-    /// <summary>
-    /// Advance a still-held lock's good-until after a confirmed extend. Returns false when the handler
-    /// released and untracked the lock while the extend was in flight, so a stale renewal never re-adds it.
-    /// </summary>
-    public bool ExtendLock(LockToken token, long goodUntil)
+    public void ArmLease(TimeSpan delay)
     {
-        while (_heldLocks.TryGetValue(token, out var current))
+        try
         {
-            if (_heldLocks.TryUpdate(token, goodUntil, current))
+            if (delay <= TimeSpan.Zero)
             {
-                return true;
+                _lease?.Cancel();
+            }
+            else
+            {
+                _lease?.CancelAfter(delay);
             }
         }
-        return false;
+        catch (ObjectDisposedException) { }
     }
 
+    public void ArmTimeout(TimeSpan delay) => _timeout.CancelAfter(delay);
+
+    public void TrackLock(LockToken token) => _heldLocks[token] = 0;
+
     /// <summary>
-    /// Stop tracking a lock the handler released, so no renewer extends it and no lost-extend is mistaken
-    /// for a steal. Called before the store release so the two never race.
+    /// Stop tracking a lock the handler released, so the heartbeat no longer renews it and a release is never
+    /// mistaken for a steal. Called before the store release so the two never race.
     /// </summary>
     public void UntrackLock(LockToken token) => _heldLocks.TryRemove(token, out _);
 
     /// <summary>
     /// Whether the attempt still holds <paramref name="token"/>, used to tell a genuine steal (still
-    /// tracked) from a normal release (already untracked) when an extend fails.
+    /// tracked) from a normal release (already untracked) when a renewal misses it.
     /// </summary>
     public bool Holds(LockToken token) => _heldLocks.ContainsKey(token);
 
@@ -274,15 +256,22 @@ internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTo
     public IReadOnlyCollection<LockToken> HeldLocks => [.. _heldLocks.Keys];
 
     /// <summary>
-    /// Cancel the attempt's token. Swallows <see cref="ObjectDisposedException"/> so a renewer/watchdog
-    /// tick racing the completing attempt's dispose is a no-op rather than a fault.
+    /// Cancel the attempt's token. Swallows <see cref="ObjectDisposedException"/> so a heartbeat tick racing the
+    /// completing attempt's dispose is a no-op rather than a fault.
     /// </summary>
     public void Cancel()
     {
         try
         {
-            _cts.Cancel();
+            _attempt.Cancel();
         }
         catch (ObjectDisposedException) { }
+    }
+
+    public void Dispose()
+    {
+        _attempt.Dispose();
+        _timeout.Dispose();
+        _lease?.Dispose();
     }
 }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,6 +25,7 @@ internal sealed class JobExecutor(
 )
 {
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly TimeSpan _leaseRunway = RunningAttempt.LeaseRunway(options.Value);
     private readonly IServiceProvider _rootServices = rootServices;
     private readonly WorkerContext _context = context;
     private readonly JobExecution _jobExecution = jobExecution;
@@ -90,7 +90,17 @@ internal sealed class JobExecutor(
 
         _metrics?.RecordClaim(namespaceName, "claimed");
 
-        return await ExecuteClaimedJobAsync(claim.Jobs[0], namespaceName, namespaceId, workerId, alreadyStarted: false, ct);
+        // No lease deadline: the CLI's jobs debug run pumps the heartbeat around a handler a debugger may hold
+        // paused past it. The heartbeat still cancels the attempt once its row is gone.
+        return await ExecuteClaimedJobAsync(
+            claim.Jobs[0],
+            namespaceName,
+            namespaceId,
+            workerId,
+            alreadyStarted: false,
+            armLease: false,
+            ct
+        );
     }
 
     /// <summary>
@@ -105,6 +115,7 @@ internal sealed class JobExecutor(
         int namespaceId,
         int workerId,
         bool alreadyStarted,
+        bool armLease,
         CancellationToken ct
     )
     {
@@ -121,7 +132,7 @@ internal sealed class JobExecutor(
             JobLogScope.For(job.JobId, descriptor.JobName, namespaceName, job.ExecutionNumber, workerId, job.CorrelationKey)
         );
 
-        var (attempt, attemptCts, timeoutCts) = RegisterAttempt(job, descriptor, ct);
+        var attempt = RegisterAttempt(job, descriptor, armLease, ct);
         try
         {
             await using var attemptScope = _rootServices.CreateAsyncScope();
@@ -149,17 +160,7 @@ internal sealed class JobExecutor(
                 );
                 throw;
             }
-            var jobContext = _contexts.Create(
-                job,
-                descriptor,
-                namespaceName,
-                namespaceId,
-                workerId,
-                setup,
-                attempt,
-                attemptServices,
-                attemptCts.Token
-            );
+            var jobContext = _contexts.Create(job, descriptor, namespaceName, namespaceId, workerId, setup, attempt, attemptServices);
 
             // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.
             // The handler resolves from this same scope, so the scoped accessor carries the set value.
@@ -172,35 +173,20 @@ internal sealed class JobExecutor(
             // Identity-conditional: a reclaimed job can be re-dispatched in-process while this stale
             // attempt is still unwinding, so removing by key alone would untrack the replacement.
             _context.RunningAttempts.TryRemove(new KeyValuePair<long, RunningAttempt>(job.JobId, attempt));
-            attemptCts.Dispose();
-            timeoutCts.Dispose();
+            attempt.Dispose();
         }
     }
 
     /// <summary>
-    /// Links a per-attempt cancellation source off the worker token AND a dedicated timeout source; the
-    /// heartbeat cancels it when an external cancel or lease steal drops this job from the worker's
-    /// lease set, and the timeout source cancels it when the per-attempt wall-clock cap elapses. The
-    /// separate timeout source lets the execution tell a timeout from an external cancel. Registering the
-    /// attempt also lets the heartbeat extend every lock it holds.
+    /// Registers the attempt with the heartbeat, which renews its lease and every lock it holds and cancels it when an
+    /// external cancel or lease steal drops the job, with its lease deadline and its execution timeout armed.
     /// </summary>
-    private (RunningAttempt Attempt, CancellationTokenSource AttemptCts, CancellationTokenSource TimeoutCts) RegisterAttempt(
-        ClaimedJob job,
-        JobDescriptor descriptor,
-        CancellationToken ct
-    )
+    private RunningAttempt RegisterAttempt(ClaimedJob job, JobDescriptor descriptor, bool armLease, CancellationToken ct)
     {
-        var timeoutCts = new CancellationTokenSource();
-        var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-        var attempt = new RunningAttempt(attemptCts, timeoutCts: timeoutCts)
-        {
-            ExecutionNumber = job.ExecutionNumber,
-            // Seed the monotonic job-lease deadline. The claim stamped the DB lease at most `now` (dispatch
-            // runs after the claim), so now + LeaseTtl is a slight over-estimate of it; the first worker
-            // heartbeat re-seeds it conservatively from that renewal's request-start, and the watchdog's
-            // unwind margin absorbs the seed's slack in the meantime.
-            JobLeaseGoodUntil = Stopwatch.GetTimestamp() + (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency),
-        };
+        var attempt = new RunningAttempt(armLease, ct) { ExecutionNumber = job.ExecutionNumber };
+        // Counted from now in place of the claim's request start: the claim stamped its lease before now, so this
+        // overestimates it slightly until the first heartbeat re-arms the deadline from a renewal's request start.
+        attempt.ArmLease(_leaseRunway);
         // Clamped to CancelAfter's ceiling regardless of where the value came from (descriptor or
         // operator override): an over-limit value would throw right here - after the claim, before the
         // cleanup try - and every reclaim would walk the job straight back into the same throw.
@@ -210,10 +196,10 @@ internal sealed class JobExecutor(
         );
         if (timeoutSeconds > 0)
         {
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+            attempt.ArmTimeout(TimeSpan.FromSeconds(timeoutSeconds));
         }
         _context.RunningAttempts[job.JobId] = attempt;
-        return (attempt, attemptCts, timeoutCts);
+        return attempt;
     }
 
     /// <summary>
