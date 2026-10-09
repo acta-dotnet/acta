@@ -14,13 +14,13 @@ internal readonly record struct JobRoute(string Namespace, string JobName, JobPa
 /// and name and needs no index. When one type is registered under several namespaces or appears as <c>NoInput</c> for
 /// several jobs in one, <see cref="Resolve"/> reports the ambiguity and points the caller at the namespace option or the raw path.
 /// </summary>
-internal sealed class JobTypeIndex
+internal sealed class JobTypeRegistry
 {
     private readonly Dictionary<Type, List<JobRoute>> _routesByType;
 
-    private JobTypeIndex(Dictionary<Type, List<JobRoute>> routesByType) => _routesByType = routesByType;
+    private JobTypeRegistry(Dictionary<Type, List<JobRoute>> routesByType) => _routesByType = routesByType;
 
-    public static JobTypeIndex Build(IEnumerable<JobCatalogRegistration> catalogs)
+    public static JobTypeRegistry Build(IEnumerable<CatalogDeclaration> catalogs)
     {
         var routesByType = new Dictionary<Type, List<JobRoute>>();
 
@@ -52,7 +52,7 @@ internal sealed class JobTypeIndex
             }
         }
 
-        return new JobTypeIndex(routesByType);
+        return new JobTypeRegistry(routesByType);
     }
 
     /// <summary>

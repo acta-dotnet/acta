@@ -148,12 +148,12 @@ public sealed class OutboxRelayBuilderTests
     {
         Assert.Equal(
             ["sys.alerts", "sys.outbox", "sys.recovery"],
-            Acta.FrameworkJobs.For(registerSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal)
+            Acta.SystemJobs.For(registerSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal)
         );
         Assert.Equal(
             ["sys.alerts", "sys.recovery", "sys.retention"],
-            Acta.FrameworkJobs.For(registerSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
+            Acta.SystemJobs.For(registerSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
         );
-        Assert.Empty(Acta.FrameworkJobs.For(registerSystemJobs: false, hasRelay: false));
+        Assert.Empty(Acta.SystemJobs.For(registerSystemJobs: false, hasRelay: false));
     }
 }

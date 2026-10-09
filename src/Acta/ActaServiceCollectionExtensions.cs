@@ -265,17 +265,17 @@ public static class ActaServiceCollectionExtensions
         // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync
         // facade. The raw EnqueueJobRequest path needs no index. Captured here because the namespace
         // is assigned per Reference/Run call, not on the namespace-neutral manifest.
-        var typeIndex = JobTypeIndex.Build(builder.Catalogs);
-        services.AddSingleton(typeIndex);
+        var typeRegistry = JobTypeRegistry.Build(builder.Catalogs);
+        services.AddSingleton(typeRegistry);
 
         // Contract index: (manifest type, job name) -> route, backing the explicit-target
-        // IJobs.EnqueueAsync(JobContract<TInput>, ...) overloads. Same catalogs as JobTypeIndex.
-        var contractIndex = JobContractIndex.Build(builder.Catalogs);
-        services.AddSingleton(contractIndex);
+        // IJobs.EnqueueAsync(JobContract<TInput>, ...) overloads. Same catalogs as JobTypeRegistry.
+        var contractRegistry = JobContractRegistry.Build(builder.Catalogs);
+        services.AddSingleton(contractRegistry);
 
         // Descriptor index: (namespace, job name) -> generated descriptor, backing IJobs.GetInputTemplate.
         // Same catalogs again, so an enqueue-only host answers for every job it references.
-        services.AddSingleton(JobDescriptorIndex.Build(builder.Catalogs));
+        services.AddSingleton(JobDescriptorRegistry.Build(builder.Catalogs));
 
         // Each behavior type was registered scoped by AddPipelineBehavior; this singleton holds only
         // the order and never captures a scope, so per-attempt resolution runs against the attempt

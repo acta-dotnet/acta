@@ -18,15 +18,15 @@ internal readonly record struct JobContractRoute(
 /// Maps a (manifest type, job name) pair to its enqueue route, backing the contract
 /// <c>IJobs.EnqueueAsync(JobContract&lt;TInput&gt;, ...)</c> / <c>RunAndWaitAsync</c> overloads. Built
 /// once at <see cref="ActaServiceCollectionExtensions.UseActa"/> from the declared catalogs
-/// (Reference and Run alike), the sibling of <see cref="JobTypeIndex"/> for the explicit-target path.
+/// (Reference and Run alike), the sibling of <see cref="JobTypeRegistry"/> for the explicit-target path.
 /// </summary>
-internal sealed class JobContractIndex
+internal sealed class JobContractRegistry
 {
     private readonly Dictionary<(Type ManifestType, string JobName), List<JobContractRoute>> _routes;
 
-    private JobContractIndex(Dictionary<(Type, string), List<JobContractRoute>> routes) => _routes = routes;
+    private JobContractRegistry(Dictionary<(Type, string), List<JobContractRoute>> routes) => _routes = routes;
 
-    public static JobContractIndex Build(IEnumerable<JobCatalogRegistration> catalogs)
+    public static JobContractRegistry Build(IEnumerable<CatalogDeclaration> catalogs)
     {
         var routes = new Dictionary<(Type, string), List<JobContractRoute>>();
 
@@ -60,7 +60,7 @@ internal sealed class JobContractIndex
             }
         }
 
-        return new JobContractIndex(routes);
+        return new JobContractRegistry(routes);
     }
 
     public JobContractRoute Resolve(Type manifestType, string jobName, string? namespaceHint)

@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Acta.Tests.FrameworkJobs;
+namespace Acta.Tests.SystemJobs;
 
 public class FrameworkJobPrioritySpec
 {

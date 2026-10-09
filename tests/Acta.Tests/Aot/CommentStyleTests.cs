@@ -76,7 +76,7 @@ public sealed partial class CommentStyleTests
         "src/Acta/Engine/Execution/JobBehaviorPipeline.cs",
         "src/Acta/Engine/Execution/JobLogScope.cs",
         "src/Acta/Engine/Telemetry/ActaMetrics.cs",
-        "src/Acta/Hosting/JobTypeIndex.cs",
+        "src/Acta/Hosting/JobTypeRegistry.cs",
         "src/Acta/Engine/Worker/WorkerContext.cs",
         "src/Acta/Engine/Worker/WorkerHeartbeat.cs",
         "src/Acta/Engine/Worker/WorkerRuntime.cs",

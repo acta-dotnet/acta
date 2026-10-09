@@ -2,7 +2,7 @@ using Xunit;
 
 namespace Acta.Tests.Runtime;
 
-public sealed class JobContractIndexTests
+public sealed class JobContractRegistryTests
 {
     private sealed record PingInput(int N);
 
@@ -19,7 +19,7 @@ public sealed class JobContractIndexTests
     [Fact]
     public void Resolves_route_by_manifest_type_and_job_name()
     {
-        var index = JobContractIndex.Build([Catalog("payments", typeof(ManifestA), Descriptor("ping", typeof(PingInput)))]);
+        var index = JobContractRegistry.Build([Catalog("payments", typeof(ManifestA), Descriptor("ping", typeof(PingInput)))]);
 
         var route = index.Resolve(typeof(ManifestA), "ping", namespaceHint: null);
 
@@ -33,7 +33,7 @@ public sealed class JobContractIndexTests
     [Fact]
     public void Unregistered_manifest_throws_naming_the_type()
     {
-        var index = JobContractIndex.Build([]);
+        var index = JobContractRegistry.Build([]);
 
         var ex = Assert.Throws<InvalidOperationException>(() => index.Resolve(typeof(ManifestA), "ping", null));
 
@@ -43,7 +43,7 @@ public sealed class JobContractIndexTests
     [Fact]
     public void Multiple_namespaces_without_hint_throws_listing_candidates()
     {
-        var index = JobContractIndex.Build([
+        var index = JobContractRegistry.Build([
             Catalog("eu", typeof(ManifestA), Descriptor("ping", typeof(PingInput))),
             Catalog("us", typeof(ManifestA), Descriptor("ping", typeof(PingInput))),
         ]);
@@ -59,7 +59,7 @@ public sealed class JobContractIndexTests
     [Fact]
     public void Non_matching_namespace_hint_throws()
     {
-        var index = JobContractIndex.Build([Catalog("eu", typeof(ManifestA), Descriptor("ping", typeof(PingInput)))]);
+        var index = JobContractRegistry.Build([Catalog("eu", typeof(ManifestA), Descriptor("ping", typeof(PingInput)))]);
 
         var ex = Assert.Throws<InvalidOperationException>(() => index.Resolve(typeof(ManifestA), "ping", namespaceHint: "us"));
         Assert.Contains("eu", ex.Message);
@@ -73,7 +73,7 @@ public sealed class JobContractIndexTests
         Assert.True(string.IsNullOrWhiteSpace(def.JobName));
     }
 
-    private static JobCatalogRegistration Catalog(string ns, Type manifestType, params JobDescriptor[] descriptors) =>
+    private static CatalogDeclaration Catalog(string ns, Type manifestType, params JobDescriptor[] descriptors) =>
         new(ns, [new ManifestRegistration(manifestType, () => new JobDescriptorManifest([.. descriptors]))]);
 
     private static JobDescriptor Descriptor(string jobName, Type inputType) =>

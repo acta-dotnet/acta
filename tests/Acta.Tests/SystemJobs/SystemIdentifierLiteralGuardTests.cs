@@ -1,7 +1,7 @@
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
-namespace Acta.Tests.FrameworkJobs;
+namespace Acta.Tests.SystemJobs;
 
 public sealed class SystemIdentifierLiteralGuardTests
 {

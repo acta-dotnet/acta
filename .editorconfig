@@ -682,7 +682,7 @@ dotnet_diagnostic.CA1031.severity = none
 # row a provider rejects - must cost one interval, not the loop: escaping would end policy reloads for
 # the process lifetime with no way to restart them, leaving every worker on stale definition policy.
 # Logged at error; shutdown leaves through the filtered cancellation arms.
-[src/Acta/Engine/Definitions/DefinitionPolicyReloader.cs]
+[src/Acta/Engine/Catalog/DefinitionPolicyReloader.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: the executor's per-attempt boundary, where an arbitrary user handler's exception becomes a

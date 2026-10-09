@@ -7,7 +7,7 @@ namespace Acta;
 /// <c>sys.alerts</c>, so a relay registers them even when automatic registration is off, and never forces the
 /// unrelated <c>sys.retention</c>.
 /// </summary>
-internal static class FrameworkJobs
+internal static class SystemJobs
 {
     public static IReadOnlySet<string> For(bool registerSystemJobs, bool hasRelay)
     {

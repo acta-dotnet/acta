@@ -8,13 +8,13 @@ namespace Acta;
 /// A host that never registered the job's manifest has no entry and reports null: the descriptor is
 /// in-process compile-time data, never a database read.
 /// </summary>
-internal sealed class JobDescriptorIndex
+internal sealed class JobDescriptorRegistry
 {
     private readonly Dictionary<(string Namespace, string JobName), JobDescriptor> _descriptors;
 
-    private JobDescriptorIndex(Dictionary<(string, string), JobDescriptor> descriptors) => _descriptors = descriptors;
+    private JobDescriptorRegistry(Dictionary<(string, string), JobDescriptor> descriptors) => _descriptors = descriptors;
 
-    public static JobDescriptorIndex Build(IEnumerable<JobCatalogRegistration> catalogs)
+    public static JobDescriptorRegistry Build(IEnumerable<CatalogDeclaration> catalogs)
     {
         var descriptors = new Dictionary<(string, string), JobDescriptor>();
 
@@ -31,7 +31,7 @@ internal sealed class JobDescriptorIndex
             }
         }
 
-        return new JobDescriptorIndex(descriptors);
+        return new JobDescriptorRegistry(descriptors);
     }
 
     public JobDescriptor? Find(string jobNamespace, string jobName) =>

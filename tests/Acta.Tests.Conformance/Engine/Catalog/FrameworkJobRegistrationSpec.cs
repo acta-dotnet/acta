@@ -2,7 +2,7 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Definitions;
+namespace Acta.Tests.Conformance.Engine.Catalog;
 
 /// <summary>
 /// Conformance for system-job auto-registration: <c>InitializeAsync</c> registers the

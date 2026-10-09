@@ -146,7 +146,7 @@ internal sealed class WorkerRuntimeInitializer(
         // descriptors land under this one worker's namespace.
         var manifests = new List<JobDescriptorManifest>();
 
-        var frameworkNames = FrameworkJobs.For(_options.Value.RegisterSystemJobs, registration.Relay is not null);
+        var frameworkNames = SystemJobs.For(_options.Value.RegisterSystemJobs, registration.Relay is not null);
         // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
         // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
         // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it

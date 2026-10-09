@@ -12,7 +12,7 @@ namespace Acta;
 internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
 {
     private readonly List<WorkerRegistration> _workers = [];
-    private readonly List<JobCatalogRegistration> _references = [];
+    private readonly List<CatalogDeclaration> _references = [];
     private readonly List<Func<IServiceProvider, IJobPipelineBehavior>> _pipelineBehaviors = [];
     private readonly HashSet<Type> _pipelineBehaviorTypes = [];
 
@@ -28,10 +28,10 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     /// <summary>
     /// Catalogs visible to typed enqueue: every <c>Reference</c> plus every <c>Run</c> worker's
     /// namespace and manifests. Read by
-    /// <see cref="ActaServiceCollectionExtensions.UseActa"/> to build the JobTypeIndex.
+    /// <see cref="ActaServiceCollectionExtensions.UseActa"/> to build the JobTypeRegistry.
     /// </summary>
-    internal IEnumerable<JobCatalogRegistration> Catalogs =>
-        _references.Concat(_workers.Select(w => new JobCatalogRegistration(w.NamespaceName, w.Manifests)));
+    internal IEnumerable<CatalogDeclaration> Catalogs =>
+        _references.Concat(_workers.Select(w => new CatalogDeclaration(w.NamespaceName, w.Manifests)));
 
     /// <summary>
     /// Pipeline-behavior resolvers in registration order (outermost first). Read by
@@ -109,7 +109,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         )
         {
             _references.Add(
-                new JobCatalogRegistration(namespaceName, [new ManifestRegistration(typeof(TManifest), static () => TManifest.Descriptors)])
+                new CatalogDeclaration(namespaceName, [new ManifestRegistration(typeof(TManifest), static () => TManifest.Descriptors)])
             );
         }
         return this;

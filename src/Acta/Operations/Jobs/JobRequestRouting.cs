@@ -6,14 +6,18 @@ namespace Acta;
 /// <see cref="JobPayload.None"/> with no serializer round-trip. A signal value serializes as JSON, and a typed read
 /// decodes through its payload's own format.
 /// </summary>
-internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializers, JobTypeIndex typeIndex, JobContractIndex contractIndex)
+internal sealed class JobRequestRouting(
+    IJobPayloadSerializerRegistry serializers,
+    JobTypeRegistry typeRegistry,
+    JobContractRegistry contractRegistry
+)
 {
     /// <summary>The request for an input whose CLR type maps to exactly one registered job.</summary>
     public EnqueueJobRequest FromInput<TInput>(TInput input, JobEnqueueOptions? options)
         where TInput : notnull
     {
         ArgumentNullException.ThrowIfNull(input);
-        var route = typeIndex.Resolve(typeof(TInput), options?.JobNamespace);
+        var route = typeRegistry.Resolve(typeof(TInput), options?.JobNamespace);
         return Request(route.Namespace, route.JobName, Serialize(route.InputFormat, input), options);
     }
 
@@ -29,7 +33,7 @@ internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializer
     )
     {
         ArgumentNullException.ThrowIfNull(input);
-        var route = contractIndex.Resolve(ValidateContract(job), job.JobName, options?.JobNamespace);
+        var route = contractRegistry.Resolve(ValidateContract(job), job.JobName, options?.JobNamespace);
         if (route.InputType != typeof(TInput))
         {
             throw new ArgumentException(
