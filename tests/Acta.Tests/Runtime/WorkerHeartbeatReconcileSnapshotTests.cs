@@ -30,7 +30,14 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
-        var heartbeat = new WorkerHeartbeat(db.Lifecycle(), options, registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(
+            db.Lifecycle(),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            options,
+            registration,
+            context,
+            NullLogger.Instance
+        );
 
         var ct = TestContext.Current.CancellationToken;
         var tickTask = heartbeat.TickAsync(ct);
@@ -68,7 +75,9 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
                 {
                     _entered.TrySetResult();
                     await _gate.Task.WaitAsync(ct);
-                    return liveJobIds.Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true)).ToArray();
+                    return liveJobIds
+                        .Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true, DefinitionsModifiedAtUtc: null))
+                        .ToArray();
                 }
             );
             return session.Services().GetRequiredService<WorkerLifecycle>();

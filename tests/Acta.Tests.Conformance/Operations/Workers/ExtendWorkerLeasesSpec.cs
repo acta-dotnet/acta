@@ -46,12 +46,12 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // strictly-greater assertion below is deterministic under load (claim->extend can be sub-ms).
         await Task.Delay(5, ct);
 
-        var extended = (
-            await Services
-                .GetRequiredService<WorkerLifecycle>()
-                .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], ct)
-        ).Leases;
-        Assert.Equal(new ExtendWorkerLeasesRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(extended));
+        var answer = await Services
+            .GetRequiredService<WorkerLifecycle>()
+            .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], ct);
+        Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(answer.Leases));
+        var definitions = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns).ToListAsync(ct);
+        Assert.Equal(definitions.Max(d => d.ModifiedAtUtc), answer.DefinitionsModifiedAtUtc);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Dispatched, job!.Status);
@@ -95,7 +95,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
                 .GetRequiredService<WorkerLifecycle>()
                 .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], ct)
         ).Leases;
-        Assert.Equal(new ExtendWorkerLeasesRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
+        Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
 
         var action = (
             await Services
@@ -143,7 +143,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
                 )
         ).Leases;
 
-        Assert.Equal(new ExtendWorkerLeasesRow(held.JobId, heldClaim.ExecutionNumber, Renewed: true), Assert.Single(extended));
+        Assert.Equal(new ExtendWorkerLeasesLease(held.JobId, heldClaim.ExecutionNumber, Renewed: true), Assert.Single(extended));
         Assert.Equal(lostLease, (await ReadJobAsync(lost.JobId, ct)).LeaseExpiresAtUtc);
 
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, lost.JobId, ct);

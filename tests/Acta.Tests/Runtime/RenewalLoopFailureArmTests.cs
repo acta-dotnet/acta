@@ -137,6 +137,7 @@ public sealed class RenewalLoopFailureArmTests
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
             ScriptedWorkerStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
             LoopOptions(),
             Registration,
             context,
@@ -157,6 +158,7 @@ public sealed class RenewalLoopFailureArmTests
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
             ScriptedWorkerStore(cts, failOn: 3, cancellation: true),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
             LoopOptions(),
             Registration,
             context,
@@ -180,6 +182,7 @@ public sealed class RenewalLoopFailureArmTests
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
             ScriptedWorkerStore(cts, failOn: 0, cancellation: true),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
             LoopOptions(),
             Registration,
             context,

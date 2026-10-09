@@ -5,15 +5,16 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it stamps
-/// <c>workers.last_seen_at_utc</c> and renews the lease of every execution this process holds, running or buffered, via
-/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/>, so a leased row nothing holds lapses to recovery. It feeds a running
-/// attempt's job-lease deadline on a confirmed renewal of its execution and cancels one whose execution an authoritative
-/// refresh drops (operator cancel, a reclaimed lease, or the job claimed again). It neither enforces deadlines on an outage
-/// (<see cref="AttemptWatchdog"/> does) nor renews handler locks (<see cref="LockLeaseHeartbeat"/> does); a no-op in enqueue-only mode.
+/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one
+/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews the lease of
+/// every execution this process holds, so a leased row nothing holds lapses to recovery. It feeds a running attempt's
+/// job-lease deadline on a confirmed renewal, cancels one whose execution an authoritative refresh drops, and re-overlays
+/// the definitions' effective policy when the namespace's catalog changed. Deadlines on an outage are
+/// <see cref="AttemptWatchdog"/>'s and handler locks <see cref="LockLeaseHeartbeat"/>'s; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     WorkerLifecycle workers,
+    GetDefinitionContractsHandler getDefinitionContracts,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -21,10 +22,18 @@ internal sealed class WorkerHeartbeat(
 )
 {
     private readonly WorkerLifecycle _workers = workers;
+    private readonly GetDefinitionContractsHandler _getDefinitionContracts = getDefinitionContracts;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
+    private readonly TimeSpan _safetyPoll = options.Value.SafetyPollInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+
+    // The namespace's newest definitions.modified_at_utc at the last overlay, and when that overlay ran. A row
+    // committed after an overlay's read but stamped at or before the newest value that read saw never moves the
+    // stamp, so the overlay also repeats once SafetyPollInterval has passed. Touched only under the tick gate.
+    private DateTime? _definitionsModifiedAtUtc;
+    private long? _overlaidAt;
 
     /// <summary>
     /// Lease TTL as monotonic Stopwatch ticks. The job-lease deadline is measured on Stopwatch, not
@@ -117,9 +126,9 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// One worker-heartbeat pass: renew the leases of the executions this process holds, then feed each
-    /// still-owned attempt's job-lease deadline and cancel any the refresh authoritatively dropped.
-    /// The deterministic single-shot the loop drives per tick; tests drive it via
+    /// One worker-heartbeat pass: renew the leases of the executions this process holds, feed each still-owned
+    /// attempt's job-lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
+    /// when it changed. The deterministic single-shot the loop drives per tick; tests drive it via
     /// WorkerRuntime.RunHeartbeatOnceAsync.
     /// </summary>
     public async Task TickAsync(CancellationToken ct)
@@ -162,16 +171,19 @@ internal sealed class WorkerHeartbeat(
             var renewRequestedAt = Stopwatch.GetTimestamp();
             HashSet<(long JobId, int ExecutionNumber)>? live = [];
             HashSet<(long JobId, int ExecutionNumber)> renewed = [];
+            DateTime? definitionsModifiedAtUtc = null;
             try
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)
                 {
-                    foreach (var row in (await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, held, ct)).Leases)
+                    var answer = await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, held, ct);
+                    definitionsModifiedAtUtc = answer.DefinitionsModifiedAtUtc;
+                    foreach (var lease in answer.Leases)
                     {
-                        live.Add((row.JobId, row.ExecutionNumber));
-                        if (row.Renewed)
+                        live.Add((lease.JobId, lease.ExecutionNumber));
+                        if (lease.Renewed)
                         {
-                            renewed.Add((row.JobId, row.ExecutionNumber));
+                            renewed.Add((lease.JobId, lease.ExecutionNumber));
                         }
                     }
                 }
@@ -189,11 +201,47 @@ internal sealed class WorkerHeartbeat(
             }
 
             FeedJobLeases(snapshot, live, renewed, renewRequestedAt);
+            if (
+                live is not null
+                && (
+                    _overlaidAt is not { } overlaidAt
+                    || definitionsModifiedAtUtc != _definitionsModifiedAtUtc
+                    || Stopwatch.GetElapsedTime(overlaidAt) > _safetyPoll
+                )
+            )
+            {
+                await OverlayDefinitionsAsync(ct);
+                _definitionsModifiedAtUtc = definitionsModifiedAtUtc;
+                _overlaidAt = Stopwatch.GetTimestamp();
+            }
         }
         finally
         {
             _tickGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Re-reads the namespace's effective policy and re-overlays it onto the live descriptors, so an operator override
+    /// edited in the dashboard reaches the hot path (backoff, timeout, deadline, retention, max attempts) within one
+    /// heartbeat, no restart required.
+    /// </summary>
+    private async Task OverlayDefinitionsAsync(CancellationToken ct)
+    {
+        if (_workerRegistration is not { NamespaceName: var ns } || !_context.NamespaceIds.TryGetValue(ns, out var namespaceId))
+        {
+            return;
+        }
+
+        var catalog = (await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)).Contracts;
+        foreach (var c in catalog)
+        {
+            if (_context.DescriptorByDefinitionId.TryGetValue(c.Id, out var descriptor))
+            {
+                _context.DescriptorByDefinitionId[c.Id] = EffectivePolicyOverlay.Apply(descriptor, c.Effective);
+            }
+        }
+        MeterConsistencyCheck.Check(ns, catalog, _log);
     }
 
     /// <summary>

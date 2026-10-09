@@ -24,7 +24,6 @@ internal sealed class WorkerRuntime
     private readonly LockLeaseHeartbeat _lockHeartbeat;
     private readonly AttemptWatchdog _watchdog;
     private readonly RecoverySlotMonitor _recoveryMonitor;
-    private readonly DefinitionPolicyReloader _policyReloader;
 
     /// <summary>
     /// Cancelled by BeginDrainAsync to stop the claim loop's producer while the heartbeat and
@@ -109,7 +108,14 @@ internal sealed class WorkerRuntime
             logger,
             metrics
         );
-        _heartbeat = new WorkerHeartbeat(rootServices.GetRequiredService<WorkerLifecycle>(), options, workerRegistration, _context, logger);
+        _heartbeat = new WorkerHeartbeat(
+            rootServices.GetRequiredService<WorkerLifecycle>(),
+            rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
+            options,
+            workerRegistration,
+            _context,
+            logger
+        );
         _lockHeartbeat = new LockLeaseHeartbeat(locks, options, workerRegistration, _context, logger);
         _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
         _recoveryMonitor = new RecoverySlotMonitor(
@@ -121,13 +127,6 @@ internal sealed class WorkerRuntime
             // RunOnceAsync claims and executes without taking an executor permit, which is what lets the
             // sweep run on a worker whose executors are all busy.
             (namespaceName, slotJobId, token) => _executor.RunOnceAsync(namespaceName, slotJobId, token)
-        );
-        _policyReloader = new DefinitionPolicyReloader(
-            rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
-            options,
-            workerRegistration,
-            _context,
-            logger
         );
     }
 
@@ -171,8 +170,8 @@ internal sealed class WorkerRuntime
     public Task StopAsync(CancellationToken ct) => _initializer.StopAsync(ct);
 
     /// <summary>
-    /// Host entry point: runs the claim/dispatch loop, the worker heartbeat, the lock-lease heartbeat, the
-    /// lease watchdog, and the policy reloader concurrently under the same <paramref name="ct"/>. The host
+    /// Host entry point: runs the claim/dispatch loop, the worker heartbeat, the lock-lease heartbeat, and the
+    /// lease watchdog concurrently under the same <paramref name="ct"/>. The host
     /// runs <see cref="InitializeAsync"/> during startup, before this is reached. Every loop self-gates on
     /// <see cref="WorkerRegistration"/>, so enqueue-only deployments fall through immediately.
     /// </summary>
@@ -184,13 +183,7 @@ internal sealed class WorkerRuntime
         var loop = _loop.RunLoopAsync(ct, _drainCts.Token);
         var monitor = _recoveryMonitor.RunAsync(ct, _drainCts.Token);
         DrainCompletion = Task.WhenAll(loop, monitor);
-        return Task.WhenAll(
-            DrainCompletion,
-            _heartbeat.RunAsync(ct),
-            _lockHeartbeat.RunAsync(ct),
-            _watchdog.RunAsync(ct),
-            _policyReloader.RunAsync(ct)
-        );
+        return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct), _lockHeartbeat.RunAsync(ct), _watchdog.RunAsync(ct));
     }
 
     public Task RunLoopAsync(CancellationToken ct) => _loop.RunLoopAsync(ct);
@@ -230,7 +223,7 @@ internal sealed class WorkerRuntime
 
     /// <summary>
     /// This runtime's live descriptor index, keyed by <c>definitions.id</c>: what this deployment can
-    /// actually run, which is not what the namespace holds jobs for. The policy reloader rewrites
+    /// actually run, which is not what the namespace holds jobs for. The heartbeat's policy reload rewrites
     /// entries here while executors read them, and an entry a deployment dropped stays dropped.
     /// </summary>
     internal ConcurrentDictionary<int, JobDescriptor> Descriptors => _context.DescriptorByDefinitionId;

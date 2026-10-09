@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -8,7 +7,7 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// Covers findings 3/4 of the 2026-07-09 exception-handling review: <see cref="WorkerHeartbeat.RunAsync"/>
-/// and <see cref="DefinitionPolicyReloader.RunAsync"/> must catch a stray (non-cancellation)
+/// must catch a stray (non-cancellation)
 /// <see cref="OperationCanceledException"/> raised mid-tick the same way the claim loop does - log and
 /// keep looping - rather than let it escape to <c>Task.WhenAll</c> and kill the host. Before the fix, the
 /// inner catch filtered on exception type (<c>ex is not OperationCanceledException</c>), so a stray OCE
@@ -33,7 +32,14 @@ public sealed class LoopTickCancellationFilterTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
-        var heartbeat = new WorkerHeartbeat(Workers(_ => throw failure), options, registration, context, logger);
+        var heartbeat = new WorkerHeartbeat(
+            Workers(_ => throw failure),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            options,
+            registration,
+            context,
+            logger
+        );
 
         using var cts = new CancellationTokenSource();
         var runTask = heartbeat.RunAsync(cts.Token);
@@ -51,17 +57,22 @@ public sealed class LoopTickCancellationFilterTests
     }
 
     [Fact]
-    public async Task DefinitionPolicyReloader_logs_a_stray_OCE_tick_failure_and_keeps_running()
+    public async Task WorkerHeartbeat_logs_a_stray_OCE_from_the_catalog_reload_and_keeps_running()
     {
+        // The lease extend answers; the catalog read behind it fails on every tick, since a failed reload is
+        // retried on the next one.
         var failure = new OperationCanceledException("synthetic provider timeout", NeverCancelled);
         var logger = new RecordingLogger();
         var context = new WorkerContext(null);
         context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
         var registration = new WorkerRegistration("orders", null, null, [], []);
-        var options = Options.Create(new JobsOptions { SafetyPollInterval = TimeSpan.FromMilliseconds(20) });
+        var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
+        var services = new ScriptedSession(call => call.Stem == "GetDefinitionContracts" ? throw failure : null).Services();
 
-        var reloader = new DefinitionPolicyReloader(
-            new GetDefinitionContractsHandler(new ThrowingSession(failure), null!),
+        var heartbeat = new WorkerHeartbeat(
+            services.GetRequiredService<WorkerLifecycle>(),
+            services.GetRequiredService<GetDefinitionContractsHandler>(),
             options,
             registration,
             context,
@@ -69,7 +80,7 @@ public sealed class LoopTickCancellationFilterTests
         );
 
         using var cts = new CancellationTokenSource();
-        var runTask = reloader.RunAsync(cts.Token);
+        var runTask = heartbeat.RunAsync(cts.Token);
 
         // A hang guard, not a measurement: the fact is that the loop keeps ticking after a stray OCE,
         // and the two entries it needs arrive on a 20ms cadence. Only a loop that stopped reaches this.
@@ -78,10 +89,7 @@ public sealed class LoopTickCancellationFilterTests
         cts.Cancel();
         await runTask; // Must complete cleanly, not fault - proves the stray OCE never escaped RunAsync.
 
-        Assert.All(
-            logger.Entries.Where(e => e.Level == LogLevel.Error),
-            e => Assert.Contains("definition-policy reload tick failed", e.Message)
-        );
+        Assert.All(logger.Entries.Where(e => e.Level == LogLevel.Error), e => Assert.Contains("heartbeat tick failed", e.Message));
     }
 
     [Fact]
@@ -95,7 +103,14 @@ public sealed class LoopTickCancellationFilterTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
-        var heartbeat = new WorkerHeartbeat(db, options, registration, context, logger);
+        var heartbeat = new WorkerHeartbeat(
+            db,
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            options,
+            registration,
+            context,
+            logger
+        );
 
         // The immediate first tick hits the DB call, which cancels ct and then throws a non-cancellation
         // exception - the shutdown-window shape the fix must not let escape RunAsync (and Task.WhenAll).
@@ -103,35 +118,6 @@ public sealed class LoopTickCancellationFilterTests
 
         Assert.True(cts.IsCancellationRequested);
         Assert.Contains(logger.Entries, e => e.Level == LogLevel.Error && e.Message.Contains("heartbeat tick failed"));
-    }
-
-    [Fact]
-    public async Task DefinitionPolicyReloader_completes_cleanly_when_a_non_OCE_tick_failure_lands_after_cancellation()
-    {
-        using var cts = new CancellationTokenSource();
-        var logger = new RecordingLogger();
-        var context = new WorkerContext(null);
-        context.NamespaceIds["orders"] = 1;
-        var registration = new WorkerRegistration("orders", null, null, [], []);
-        var options = Options.Create(new JobsOptions { SafetyPollInterval = TimeSpan.FromMilliseconds(20) });
-
-        var reloader = new DefinitionPolicyReloader(
-            new GetDefinitionContractsHandler(
-                new CancelThenThrowSession(cts, new InvalidOperationException("synthetic connection torn down")),
-                null!
-            ),
-            options,
-            registration,
-            context,
-            logger
-        );
-
-        // The first periodic tick hits the DB call, which cancels ct and then throws a non-cancellation
-        // exception - the shutdown-window shape the fix must not let escape RunAsync (and Task.WhenAll).
-        await reloader.RunAsync(cts.Token);
-
-        Assert.True(cts.IsCancellationRequested);
-        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Error && e.Message.Contains("definition-policy reload tick failed"));
     }
 
     private static async Task WaitUntil(Func<bool> condition, TimeSpan timeout)
@@ -196,31 +182,5 @@ public sealed class LoopTickCancellationFilterTests
         }
 
         public sealed record Entry(LogLevel Level, string Message);
-    }
-
-    private sealed class ThrowingSession(Exception failure) : DbSessionStub
-    {
-        public override Task<T> QueryAsync<T>(
-            string stem,
-            Action<DbCommand> bind,
-            Func<DbDataReader, CancellationToken, Task<T>> read,
-            CancellationToken ct
-        ) => throw failure;
-    }
-
-    // Cancels the loop's own token from inside the read, then throws a non-cancellation exception - the
-    // shutdown-window shape RunAsync's catch ordering must swallow.
-    private sealed class CancelThenThrowSession(CancellationTokenSource cts, Exception toThrow) : DbSessionStub
-    {
-        public override Task<T> QueryAsync<T>(
-            string stem,
-            Action<DbCommand> bind,
-            Func<DbDataReader, CancellationToken, Task<T>> read,
-            CancellationToken ct
-        )
-        {
-            cts.Cancel();
-            throw toThrow;
-        }
     }
 }

@@ -41,7 +41,14 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_feeds_the_job_lease_deadline_on_a_confirmed_renewal()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(LiveWorkerStore([1]), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(
+            LiveWorkerStore([1]),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            Options(),
+            Registration,
+            context,
+            NullLogger.Instance
+        );
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5)) };
@@ -58,7 +65,14 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_cancels_immediately_when_an_authoritative_refresh_drops_the_job()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(LiveWorkerStore([]), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(
+            LiveWorkerStore([]),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            Options(),
+            Registration,
+            context,
+            NullLogger.Instance
+        );
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts)
@@ -77,7 +91,14 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_keeps_a_skipped_job_running_without_feeding_its_deadline()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(SkippingWorkerStore(1), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(
+            SkippingWorkerStore(1),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            Options(),
+            Registration,
+            context,
+            NullLogger.Instance
+        );
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5));
@@ -95,7 +116,14 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_leaves_the_deadline_untouched_when_the_refresh_throws()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(ThrowingWorkerStore(), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(
+            ThrowingWorkerStore(),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            Options(),
+            Registration,
+            context,
+            NullLogger.Instance
+        );
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds));
@@ -311,10 +339,14 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         new ScriptedSession(answer).Services().GetRequiredService<WorkerLifecycle>();
 
     private static WorkerLifecycle LiveWorkerStore(IReadOnlyList<long> liveJobIds) =>
-        WorkerStore(_ => liveJobIds.Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true)).ToArray());
+        WorkerStore(_ =>
+            liveJobIds
+                .Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true, DefinitionsModifiedAtUtc: null))
+                .ToArray()
+        );
 
     private static WorkerLifecycle SkippingWorkerStore(long heldJobId) =>
-        WorkerStore(_ => new ExtendWorkerLeasesRow(heldJobId, ExecutionNumber: 0, Renewed: false));
+        WorkerStore(_ => new ExtendWorkerLeasesRow(heldJobId, ExecutionNumber: 0, Renewed: false, DefinitionsModifiedAtUtc: null));
 
     private static WorkerLifecycle ThrowingWorkerStore() =>
         WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault"));

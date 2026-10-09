@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 52)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 53)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -3571,6 +3571,7 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
+        DECLARE @namespace_id INT = (SELECT w.namespace_id FROM acta.workers w WHERE w.id = @p_leased_by_worker_id);
 
         UPDATE acta.workers
         SET
@@ -3623,9 +3624,19 @@ BEGIN
         SELECT
             m.job_id,
             m.execution_number,
-            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed,
+            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc
         FROM @matched m
-        LEFT JOIN @renewed n ON n.job_id = m.job_id;
+        LEFT JOIN @renewed n ON n.job_id = m.job_id
+        UNION ALL
+        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+        SELECT
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS INT) AS execution_number,
+            CAST(0 AS BIT) AS renewed,
+            MAX(d.modified_at_utc) AS definitions_modified_at_utc
+        FROM acta.definitions d
+        WHERE d.namespace_id = @namespace_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -5970,7 +5981,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.52-f438842cea00ee9e4ea3cfa242a0e780', 'acta'
+SELECT -1, 'objects-1.53-b2c4f61151009be6b91d2c221db28435', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO

@@ -22,9 +22,15 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         var deadlineBefore = stale.JobLeaseGoodUntil;
         context.RunningAttempts[7] = stale;
         context.BufferedClaims[7] = 2;
-        var session = new ScriptedSession(_ => new ExtendWorkerLeasesRow(7, ExecutionNumber: 2, Renewed: true));
+        var session = new ScriptedSession(_ => new ExtendWorkerLeasesRow(
+            7,
+            ExecutionNumber: 2,
+            Renewed: true,
+            DefinitionsModifiedAtUtc: null
+        ));
         var heartbeat = new WorkerHeartbeat(
             session.Services().GetRequiredService<WorkerLifecycle>(),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,

@@ -5,11 +5,12 @@ CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
     p_job_ids BIGINT[],
     p_execution_numbers INT[]
 )
-RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN)
+RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN, definitions_modified_at_utc TIMESTAMPTZ)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_expiry TIMESTAMPTZ := now() + (p_lease_ttl_seconds * INTERVAL '1 second');
+    v_namespace_id INT;
 BEGIN
     UPDATE {{schema}}.workers
     SET
@@ -24,7 +25,8 @@ BEGIN
         END,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_leased_by_worker_id;
+    WHERE id = p_leased_by_worker_id
+    RETURNING namespace_id INTO v_namespace_id;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -60,8 +62,14 @@ BEGIN
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
         RETURNING r.job_id
     )
-    SELECT m.job_id, m.execution_number, e.job_id IS NOT NULL
+    SELECT m.job_id, m.execution_number, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ
     FROM matched m
     LEFT JOIN extended e ON e.job_id = m.job_id;
+
+    -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+    RETURN QUERY
+    SELECT NULL::BIGINT, NULL::INT, FALSE, MAX(d.modified_at_utc)
+    FROM {{schema}}.definitions d
+    WHERE d.namespace_id = v_namespace_id;
 END;
 $$;

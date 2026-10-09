@@ -15,6 +15,7 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
+        DECLARE @namespace_id INT = (SELECT w.namespace_id FROM {{schema}}.workers w WHERE w.id = @p_leased_by_worker_id);
 
         UPDATE {{schema}}.workers
         SET
@@ -67,9 +68,19 @@ BEGIN
         SELECT
             m.job_id,
             m.execution_number,
-            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed,
+            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc
         FROM @matched m
-        LEFT JOIN @renewed n ON n.job_id = m.job_id;
+        LEFT JOIN @renewed n ON n.job_id = m.job_id
+        UNION ALL
+        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+        SELECT
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS INT) AS execution_number,
+            CAST(0 AS BIT) AS renewed,
+            MAX(d.modified_at_utc) AS definitions_modified_at_utc
+        FROM {{schema}}.definitions d
+        WHERE d.namespace_id = @namespace_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

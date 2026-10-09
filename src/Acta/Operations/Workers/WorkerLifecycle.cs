@@ -32,8 +32,8 @@ internal sealed class WorkerLifecycle(
     /// Heartbeat lease refresh for one worker: stamps <c>workers.last_seen_at_utc</c> and pushes forward by one TTL
     /// window the lease of each held execution the worker still leases. Answers those executions, each flagged renewed
     /// or skipped because another transaction held the row; a held execution not answered was cancelled, reclaimed, or
-    /// claimed again, and a leased row nothing holds is not renewed, so it lapses. Deliberately does not bump
-    /// <c>runtimes.version</c>.
+    /// claimed again, and a leased row nothing holds is not renewed, so it lapses. Also answers the namespace's newest
+    /// <c>definitions.modified_at_utc</c>. Deliberately does not bump <c>runtimes.version</c>.
     /// </summary>
     public Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(
         int workerId,

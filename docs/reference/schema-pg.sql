@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 52)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 53)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3038,11 +3038,12 @@ CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
     p_job_ids BIGINT[],
     p_execution_numbers INT[]
 )
-RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN)
+RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN, definitions_modified_at_utc TIMESTAMPTZ)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_expiry TIMESTAMPTZ := now() + (p_lease_ttl_seconds * INTERVAL '1 second');
+    v_namespace_id INT;
 BEGIN
     UPDATE acta.workers
     SET
@@ -3057,7 +3058,8 @@ BEGIN
         END,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_leased_by_worker_id;
+    WHERE id = p_leased_by_worker_id
+    RETURNING namespace_id INTO v_namespace_id;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -3093,9 +3095,15 @@ BEGIN
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
         RETURNING r.job_id
     )
-    SELECT m.job_id, m.execution_number, e.job_id IS NOT NULL
+    SELECT m.job_id, m.execution_number, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ
     FROM matched m
     LEFT JOIN extended e ON e.job_id = m.job_id;
+
+    -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+    RETURN QUERY
+    SELECT NULL::BIGINT, NULL::INT, FALSE, MAX(d.modified_at_utc)
+    FROM acta.definitions d
+    WHERE d.namespace_id = v_namespace_id;
 END;
 $$;
 
@@ -5220,7 +5228,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.52-0163de6e216a4e34f0bc64ef803ba1ba', 'acta');
+VALUES (-1, 'objects-1.53-29239e964c1364fc0bff44af08bceb1a', 'acta');
 
 COMMIT;
 
