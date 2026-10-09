@@ -227,8 +227,8 @@ public static class ActaServiceCollectionExtensions
     /// <summary>Metrics, the alert transports, and the ambient JobContext.</summary>
     private static void AddExecutionServices(IServiceCollection services)
     {
-        // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
-        services.TryAddSingleton<JobMetrics>();
+        // Consumers light up the meter with WithMetrics(m => m.AddMeter(ActaMetrics.MeterName)).
+        services.TryAddSingleton<ActaMetrics>();
 
         // Swappable alert transports: the delivery loop resolves one from the channel's transport
         // kind. The log transport is always available for defaults and tests, Slack is the built-in

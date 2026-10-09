@@ -305,7 +305,7 @@ internal static class ChaosServiceCollectionExtensions
             ServiceDescriptor.Singleton(sp => new WorkerWakeupPublisher(
                 sp.GetRequiredService<IWorkerWakeup>(),
                 sp.GetService<Microsoft.Extensions.Logging.ILogger<WorkerWakeupPublisher>>(),
-                sp.GetService<JobMetrics>()
+                sp.GetService<ActaMetrics>()
             ))
         );
         return wakeup;

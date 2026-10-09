@@ -153,7 +153,7 @@ did not.
   argument; a name never restates what the unit already carries.
 - **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason_code`, `result`. Job id
   and execution number are deliberately absent from metrics and live on the log scope and traces
-  instead. `JobMetricsTests` pins instrument names, tag keys, and tag values.
+  instead. `ActaMetricsTests` pins instrument names, tag keys, and tag values.
 
 ## Telemetry: structured log fields
 
@@ -216,7 +216,7 @@ free and it grows with every line anyone adds.
   instead of three.
 - **Log `Outcome` values and metric `outcome` tags diverge on purpose, and neither should be "fixed" to
   match the other.** `ExecutionCompletion.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
-  into `JobMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze
+  into `ActaMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze
   at 1.0; a log field mirrors the C# code and does not freeze. Two surfaces, each internally consistent,
   beats one convention bent across both. Persisted code tokens are a third such surface and stay kebab
   for the same kind of reason - `AlertDeliveryStatusCode.Suppressed` is the C# member and `suppressed`

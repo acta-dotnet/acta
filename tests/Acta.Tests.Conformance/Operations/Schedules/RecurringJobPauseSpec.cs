@@ -1,5 +1,5 @@
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Engine.Workers;
+using Acta.Tests.Conformance.Engine.Worker;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

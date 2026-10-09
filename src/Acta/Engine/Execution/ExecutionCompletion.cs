@@ -12,7 +12,7 @@ internal sealed class ExecutionCompletion(
     CancelJobHandler cancelJob,
     WorkerWakeupPublisher wakeupPublisher,
     ILogger log,
-    JobMetrics? metrics
+    ActaMetrics? metrics
 )
 {
     public async Task<RunOnceStatus> CompleteAsync(

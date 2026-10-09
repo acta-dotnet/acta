@@ -19,7 +19,7 @@ internal sealed class AttemptContextFactory(
     Locks locks,
     IOptions<JobsOptions> options,
     ILogger log,
-    JobMetrics? metrics
+    ActaMetrics? metrics
 )
 {
     public async Task<AttemptSetup> ReadSetupAsync(ClaimedJob job, JobDescriptor descriptor, CancellationToken ct)

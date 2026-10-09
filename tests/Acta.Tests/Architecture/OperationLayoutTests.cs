@@ -9,15 +9,18 @@ namespace Acta.Tests.Architecture;
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>,
 /// <c>Schema/Views/</c>, and a provider's <c>Schema/Migrations/</c>, every view in all three dialects, and no stem twice
-/// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>. A
-/// route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What still differs is listed in the
-/// <c>layout</c> ratchet.
+/// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>
+/// outside <c>Engine/Wakeup/</c>. A route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What
+/// still differs is listed in the <c>layout</c> ratchet.
 /// </summary>
 public sealed class OperationLayoutTests
 {
     private static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
     private static readonly string Views = Path.Combine("Schema", "Views") + Path.DirectorySeparatorChar;
+
+    /// <summary>Operations may name the types under this folder, because a committed write wakes the engine's workers through its publisher.</summary>
+    private const string WakeupSeam = "src/Acta/Engine/Wakeup/";
 
     [Fact]
     public void Operations_follow_the_source_layout()
@@ -114,7 +117,10 @@ public sealed class OperationLayoutTests
     {
         var files = ShippedCode.SourceFiles("*.cs").Where(file => file.Relative.StartsWith("src/Acta/", StringComparison.Ordinal)).ToList();
         var engineTypes = files
-            .Where(file => file.Relative.StartsWith("src/Acta/Engine/", StringComparison.Ordinal))
+            .Where(file =>
+                file.Relative.StartsWith("src/Acta/Engine/", StringComparison.Ordinal)
+                && !file.Relative.StartsWith(WakeupSeam, StringComparison.Ordinal)
+            )
             .SelectMany(file => DeclaredTypes(file.Path))
             .ToHashSet();
         Assert.NotEmpty(engineTypes);

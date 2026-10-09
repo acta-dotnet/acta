@@ -78,7 +78,7 @@ Count;System.Int16;System.Int32;System.Int64
 
 # Any duration, always in milliseconds, so an average over the field means something without a unit
 # lookup - the name carries the unit for exactly that reason. Int32 and Int64 are in use; Double is
-# listed because the metric surface already measures durations as double (JobMetrics.RecordExecution),
+# listed because the metric surface already measures durations as double (ActaMetrics.RecordExecution),
 # and a log line reporting the same measurement should not have to round it to say so.
 DurationMs;System.Int32;System.Int64;System.Double
 

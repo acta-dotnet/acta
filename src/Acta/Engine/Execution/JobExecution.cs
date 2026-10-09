@@ -20,14 +20,14 @@ internal sealed class JobExecution(
     JobBehaviorPipeline pipeline,
     WorkerWakeupPublisher wakeupPublisher,
     ILogger log,
-    JobMetrics? metrics = null
+    ActaMetrics? metrics = null
 )
 {
     private readonly GetJobHandler _getJob = getJob;
     private readonly Execution _execution = execution;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly ILogger _log = log;
-    private readonly JobMetrics? _metrics = metrics;
+    private readonly ActaMetrics? _metrics = metrics;
     private readonly ExecutionAdmission _admission = new(log, options.Value.ConcurrencyKeyBounceDelaySeconds);
     private readonly HandlerInvocation _invocation = new(serializers, pipeline, options.Value.MaxInlinePayloadBytes, log);
     private readonly ExecutionCompletion _completion = new(execution, cancelJob, wakeupPublisher, log, metrics);
@@ -47,7 +47,7 @@ internal sealed class JobExecution(
         int workerId,
         int leaseTtlSeconds,
         ILogger log,
-        JobMetrics? metrics,
+        ActaMetrics? metrics,
         CancellationToken ct
     )
     {
@@ -78,7 +78,7 @@ internal sealed class JobExecution(
         int workerId,
         int leaseTtlSeconds,
         ILogger log,
-        JobMetrics? metrics,
+        ActaMetrics? metrics,
         CancellationToken ct
     )
     {

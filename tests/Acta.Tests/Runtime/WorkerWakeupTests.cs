@@ -286,7 +286,7 @@ public sealed class WorkerWakeupTests
     [Fact]
     public async Task A_throwing_transport_never_breaks_the_publishing_caller()
     {
-        using var metrics = new JobMetrics();
+        using var metrics = new ActaMetrics();
         var publisher = new WorkerWakeupPublisher(new ThrowingWakeup(), metrics: metrics);
         var captured = NewCapture();
         using (CreateListener(metrics, "acta.wakeup.publish.failures", captured))
@@ -319,7 +319,7 @@ public sealed class WorkerWakeupTests
     [Fact]
     public async Task Publisher_records_an_attempt_per_wake()
     {
-        using var metrics = new JobMetrics();
+        using var metrics = new ActaMetrics();
         var publisher = new WorkerWakeupPublisher(new InProcessWakeup(), metrics: metrics);
         var captured = NewCapture();
         using (CreateListener(metrics, "acta.wakeup.publish.attempts", captured))
@@ -340,7 +340,7 @@ public sealed class WorkerWakeupTests
     [Fact]
     public async Task Job_completion_wake_carries_no_namespace_tag()
     {
-        using var metrics = new JobMetrics();
+        using var metrics = new ActaMetrics();
         var publisher = new WorkerWakeupPublisher(new InProcessWakeup(), metrics: metrics);
         var captured = NewCapture();
         using (CreateListener(metrics, "acta.wakeup.publish.attempts", captured))
@@ -400,11 +400,11 @@ public sealed class WorkerWakeupTests
     private static List<(long Value, IReadOnlyDictionary<string, object?> Tags)> NewCapture() => [];
 
     // Captures every measurement the named instrument emits while the listener is alive, mirroring
-    // JobMetricsTests.Collect but disposable so an awaited act can run inside the capture window.
+    // ActaMetricsTests.Collect but disposable so an awaited act can run inside the capture window.
     // Scoped to THIS test's meter instance - parallel test classes share instrument names and tags,
     // so a name-filtered listener would cross-capture their measurements.
     private static MeterListener CreateListener(
-        JobMetrics metrics,
+        ActaMetrics metrics,
         string instrumentName,
         List<(long Value, IReadOnlyDictionary<string, object?> Tags)> captured
     )

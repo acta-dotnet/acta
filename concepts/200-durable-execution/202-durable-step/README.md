@@ -66,5 +66,5 @@ determinism makes the stored result worthwhile.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`durable-step.cs`](./durable-step.cs)
-- [`RuntimeJobContext.cs`](../../../src/Acta/Engine/Execution/RuntimeJobContext.cs)
+- [`RuntimeJobContext.cs`](../../../src/Acta/Engine/Execution/Context/RuntimeJobContext.cs)
 - [`StepAtMostOnceSpec.cs`](../../../tests/Acta.Tests.Conformance/Scenarios/StepAtMostOnceSpec.cs)

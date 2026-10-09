@@ -22,7 +22,7 @@ internal sealed class JobExecutor(
     WorkerContext context,
     JobExecution jobExecution,
     ILogger? log = null,
-    JobMetrics? metrics = null
+    ActaMetrics? metrics = null
 )
 {
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
@@ -31,7 +31,7 @@ internal sealed class JobExecutor(
     private readonly JobExecution _jobExecution = jobExecution;
     private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
-    private readonly JobMetrics? _metrics = metrics;
+    private readonly ActaMetrics? _metrics = metrics;
     private readonly AttemptContextFactory _contexts = new(
         rootServices,
         context,

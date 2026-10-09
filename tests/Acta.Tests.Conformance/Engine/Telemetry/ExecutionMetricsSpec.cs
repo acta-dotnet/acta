@@ -24,7 +24,7 @@ public sealed class ExecutionMetricsSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Succeeded_run_is_counted_once()
     {
         var ct = TestContext.Current.CancellationToken;
-        var meter = Services.GetRequiredService<JobMetrics>().Meter;
+        var meter = Services.GetRequiredService<ActaMetrics>().Meter;
         var executions = new ConcurrentQueue<(long Value, Dictionary<string, object?> Tags)>();
 
         // Scoped to this host's meter instance: parallel hosts publish same-named instruments on meters of the same name.

@@ -32,7 +32,7 @@ internal static class CompletionWrite
         ILogger log,
         long jobId,
         CancellationToken ct,
-        JobMetrics? metrics = null,
+        ActaMetrics? metrics = null,
         TimeSpan? firstDelay = null
     )
     {

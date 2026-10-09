@@ -203,7 +203,7 @@ public sealed class CommandTextCompositionTests
             // host startup by ValidateOnStart before a single command is built.
             ("src/Acta/Hosting/SqlProviderOptionsValidator.cs", "IdentifierSyntax.IsBareIdentifier(options.Schema)"),
             // The external-outbox schema and table, the only physical names an application chooses.
-            ("src/Acta/Hosting/OutboxIdentifier.cs", "IdentifierSyntax.ValidateBareIdentifier(value, kind)"),
+            ("src/Acta/Engine/Outbox/OutboxIdentifier.cs", "IdentifierSyntax.ValidateBareIdentifier(value, kind)"),
             // The routine name each dialect interpolates into its call header.
             ("src/Acta.Postgres/Services/PostgresDialect.cs", "IdentifierSyntax.ValidateBareIdentifier(routineName"),
             ("src/Acta.SqlServer/Services/SqlServerDialect.cs", "IdentifierSyntax.ValidateBareIdentifier(routineName"),
