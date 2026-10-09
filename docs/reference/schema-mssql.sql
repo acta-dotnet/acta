@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 51)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 52)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -3557,7 +3557,8 @@ GO
 CREATE OR ALTER PROCEDURE acta.extend_worker_leases
     @p_leased_by_worker_id INT,
     @p_lease_ttl_seconds INT,
-    @p_draining BIT
+    @p_draining BIT,
+    @p_executions NVARCHAR(MAX)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3569,6 +3570,7 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
 
         UPDATE acta.workers
         SET
@@ -3585,40 +3587,45 @@ BEGIN
             version = version + 1
         WHERE id = @p_leased_by_worker_id;
 
-        /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
-           is not a claim-generation change, so a buffered claim still passes the start CAS. */
-        DECLARE @inflight TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
-
-        -- Read the ids first so the update locks base rows only, never an index key; start_execution
-        -- and complete_execution lock in the other order. See docs/internals/sql-execution-policy.md.
-        -- The read is lock-free under RCSI, so taking it through the heartbeat index is safe.
-        INSERT INTO @inflight (job_id, execution_number)
+        /* The held executions arrive as JSON array text, expanded once into a keyed table. A process can hold two
+           executions of one job: an attempt still unwinding after the job was claimed again. */
+        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number INT NOT NULL, PRIMARY KEY (job_id, execution_number));
+        INSERT INTO @held (job_id, execution_number)
         SELECT job_id, execution_number
-        FROM acta.runtimes
-        WHERE
-            leased_by_worker_id = @p_leased_by_worker_id
-            AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number INT '$.execution_number');
 
-        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-        -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
-        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
-
-        UPDATE r
-        SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
-        OUTPUT INSERTED.job_id, INSERTED.execution_number INTO @renewed (job_id, execution_number)
-        FROM acta.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
-        INNER JOIN @inflight i ON i.job_id = r.job_id
+        /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
+           process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
+           version bump: a lease refresh is not a claim-generation change. */
+        -- Read the matched ids first so the update locks base rows only, never an index key; start_execution
+        -- and complete_execution lock in the other order. See docs/internals/sql-execution-policy.md.
+        DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
+        INSERT INTO @matched (job_id, execution_number)
+        SELECT r.job_id, r.execution_number
+        FROM acta.runtimes r
+        INNER JOIN @held h ON h.job_id = r.job_id AND h.execution_number = r.execution_number
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
             AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
-        -- A renewed row reports the execution it renewed; one another transaction holds, the one it read.
+        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+        -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
+        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+        UPDATE r
+        SET lease_expires_at_utc = @new_expiry
+        OUTPUT INSERTED.job_id INTO @renewed (job_id)
+        FROM acta.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
+        INNER JOIN @matched m ON m.job_id = r.job_id AND m.execution_number = r.execution_number
+        WHERE
+            r.leased_by_worker_id = @p_leased_by_worker_id
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
         SELECT
-            i.job_id,
-            COALESCE(n.execution_number, i.execution_number) AS execution_number,
+            m.job_id,
+            m.execution_number,
             CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
-        FROM @inflight i
-        LEFT JOIN @renewed n ON n.job_id = i.job_id;
+        FROM @matched m
+        LEFT JOIN @renewed n ON n.job_id = m.job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -5963,7 +5970,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.51-4eeb221bf4731f7ac191f47ae5a877f3', 'acta'
+SELECT -1, 'objects-1.52-f438842cea00ee9e4ea3cfa242a0e780', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO

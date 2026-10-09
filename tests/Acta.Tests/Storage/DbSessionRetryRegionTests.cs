@@ -379,6 +379,9 @@ public class DbSessionRetryRegionTests
 
         public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) => throw new NotSupportedException();
 
+        public void BindHeldLeases(DbCommand command, IReadOnlyList<(long JobId, int ExecutionNumber)> executions) =>
+            throw new NotSupportedException();
+
         public void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema) =>
             throw new NotSupportedException();
 

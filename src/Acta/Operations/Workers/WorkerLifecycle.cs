@@ -29,18 +29,19 @@ internal sealed class WorkerLifecycle(
         stopWorker.HandleAsync(new StopWorkerCommand(namespaceId, workerId), ct);
 
     /// <summary>
-    /// Heartbeat lease refresh for one worker: stamps <c>workers.last_seen_at_utc</c> and pushes every
-    /// in-flight job lease this worker holds forward by one TTL window. Returns every in-flight job id it
-    /// read, each flagged renewed or skipped because another transaction held the row; the heartbeat diffs
-    /// the ids against the jobs it is running to detect ones cancelled or stolen externally. Deliberately
-    /// does not bump <c>runtimes.version</c>.
+    /// Heartbeat lease refresh for one worker: stamps <c>workers.last_seen_at_utc</c> and pushes forward by one TTL
+    /// window the lease of each held execution the worker still leases. Answers those executions, each flagged renewed
+    /// or skipped because another transaction held the row; a held execution not answered was cancelled, reclaimed, or
+    /// claimed again, and a leased row nothing holds is not renewed, so it lapses. Deliberately does not bump
+    /// <c>runtimes.version</c>.
     /// </summary>
     public Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(
         int workerId,
         int leaseTtlSeconds,
         bool draining,
+        IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
         CancellationToken ct
-    ) => extendWorkerLeases.HandleAsync(new ExtendWorkerLeasesCommand(workerId, leaseTtlSeconds, draining), ct);
+    ) => extendWorkerLeases.HandleAsync(new ExtendWorkerLeasesCommand(workerId, leaseTtlSeconds, draining, executions), ct);
 
     /// <summary>
     /// Dead-worker sweep across all namespaces: flips Active <c>workers</c> rows whose

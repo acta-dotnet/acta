@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
 /// A child's completion locks its own runtime row and then its parent's, while the lease renewal walks
-/// the worker's in-flight rows in job-id order, parent first. When one worker runs both, the two meet
+/// the rows the worker holds in job-id order, parent first. When one worker runs both, the two meet
 /// in opposite orders. The renewal skips a row another transaction holds and reports it unrenewed, so
 /// it never waits. Deadlock retry is off, so a deadlock fails the test instead of being retried.
 /// SQLite runs one writer at a time, so the two cannot interleave there.
@@ -47,8 +47,8 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
 
         var parent = await Jobs.EnqueueAsync(Step("p"), ct);
         var child = await Jobs.EnqueueAsync(Step("c") with { ParentJobId = parent.JobId }, ct);
-        var (workerId, _) = await StartedAsync(parent, ct);
-        var (_, complete) = await StartedAsync(child, ct);
+        var (workerId, parentExecution, _) = await StartedAsync(parent, ct);
+        var (_, childExecution, complete) = await StartedAsync(child, ct);
         var latch = $"sys.child.{child.JobId}";
         await Db.ExecuteRawAsync(
             "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code) VALUES (@p_id, 50, @p_name, 10)",
@@ -70,7 +70,10 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         // The renewal must finish while the completion still holds the child's row; one that waited for it
         // would hold the parent's row and deadlock with the completion once the gate opened, so it would never
         // return, and the bound is only a hang guard.
-        var rows = (await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, ct).WaitAsync(SpecWaits.Gate, ct)).Leases;
+        var held = new[] { (parent.JobId, parentExecution), (child.JobId, childExecution) };
+        var rows = (
+            await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, held, ct).WaitAsync(SpecWaits.Gate, ct)
+        ).Leases;
         await gate.CommitAsync(ct);
 
         Assert.Equal(CompleteExecutionAction.Completed, (await completion).Action);
@@ -98,7 +101,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<(int WorkerId, Func<Task<CompleteExecutionResponse>> Complete)> StartedAsync(
+    private async Task<(int WorkerId, int ExecutionNumber, Func<Task<CompleteExecutionResponse>> Complete)> StartedAsync(
         EnqueueJobResponse job,
         CancellationToken ct
     )
@@ -115,6 +118,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         );
         return (
             workerId,
+            claimed.ExecutionNumber,
             () =>
                 store.CompleteExecutionAsync(
                     new CompleteExecutionCommand(

@@ -12,6 +12,7 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, command.WorkerId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, command.Draining));
+                    dialect.BindHeldLeases(cmd, command.Executions);
                 },
                 DbProjectionResolver.Resolve<ExtendWorkerLeasesRow>(),
                 ct

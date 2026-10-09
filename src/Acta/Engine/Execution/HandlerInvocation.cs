@@ -266,9 +266,9 @@ internal sealed class HandlerInvocation(
                 );
             default:
                 // A subclass the runtime does not know: the base type is public, so user code can
-                // derive one. Rethrowing it would leave the row Executing under a lease the
-                // heartbeat renews from database state, so it lands as a handler exception instead:
-                // a retried Failed, charged to the budget, with the type in the reason.
+                // derive one. Rethrowing it would leave the row Executing until its lease lapsed,
+                // so it lands as a handler exception instead: a retried Failed, charged to the
+                // budget, with the type in the reason.
                 log.LogWarning(
                     control,
                     "Handler for job ({JobName}) id {JobId} threw a control signal the runtime does not recognize; transitioning to Failed.",
@@ -305,9 +305,8 @@ internal sealed class HandlerInvocation(
         // and lock-loss cancel while the row is still Executing and still leased here, so
         // a reason-less completion would land terminal Failed on a recoverable job. Submit
         // a retryable failure instead: owned rows re-arm under the failure budget, unowned
-        // rows still no-op. Writing (not skipping) matters because a live worker's heartbeat
-        // renews every row it leases, so a skipped write could leave a zombie Executing row
-        // renewed forever.
+        // rows still no-op. Writing (not skipping) matters because a skipped write leaves the
+        // row Executing until its lease lapses.
         log.LogWarning("WorkerRuntime: job {JobId} attempt aborted mid-flight; handler stopped cooperatively.", job.JobId);
         return new AttemptSettlement(CompletionKind.Failed)
         {

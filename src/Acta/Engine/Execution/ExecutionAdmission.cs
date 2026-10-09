@@ -121,10 +121,10 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // An admission error must not escape: the row is Executing under this worker and the
-            // heartbeat renews it from database state alone, so an escaped exception would strand
-            // it until the process restarts. The attempt bounces instead. A slot the acquire may
-            // have committed without answering is untracked and expires with its lease TTL.
+            // An admission error must not escape: the row is Executing under this worker, so an
+            // escaped exception would leave it to lapse and recovery would charge an attempt that
+            // never ran. The attempt bounces instead. A slot the acquire may have committed without
+            // answering is untracked and expires with its lease TTL.
             log.LogWarning(
                 ex,
                 "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the slot acquire for concurrency key ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",

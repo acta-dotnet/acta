@@ -39,9 +39,9 @@ public sealed class ExtendWorkerLeasesReviveSpec : ActaRuntimeTestBase<Conforman
             .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
         await workers.StopWorkerAsync(ns, stoppedId, ct);
 
-        await workers.ExtendWorkerLeasesAsync(revivedId, leaseTtl, false, ct);
-        await workers.ExtendWorkerLeasesAsync(drainingId, leaseTtl, true, ct);
-        await workers.ExtendWorkerLeasesAsync(stoppedId, leaseTtl, false, ct);
+        await workers.ExtendWorkerLeasesAsync(revivedId, leaseTtl, false, [], ct);
+        await workers.ExtendWorkerLeasesAsync(drainingId, leaseTtl, true, [], ct);
+        await workers.ExtendWorkerLeasesAsync(stoppedId, leaseTtl, false, [], ct);
 
         Assert.Equal(WorkerStatusCode.Active, await StatusAsync(revivedId, ct));
         Assert.Equal(WorkerStatusCode.Draining, await StatusAsync(drainingId, ct));

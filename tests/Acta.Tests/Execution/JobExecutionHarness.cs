@@ -225,42 +225,6 @@ internal sealed class JobExecutionHarness(
         );
     }
 
-    /// <summary>
-    /// The heartbeat's orphan release on the row, with the claim's late answer landing while the
-    /// release's start write is in flight: the executor is handed the claimed job inside that window,
-    /// as a Buffered channel or a Direct loop would hand it after a delayed store response. Returns
-    /// the outcome the executor reported for that late claim; the release's own writes are read off
-    /// <see cref="Submitted"/> and <see cref="StartAttempts"/>.
-    /// </summary>
-    public async Task<RunOnceStatus> ReleaseOrphanWithLateClaimAnswerAsync()
-    {
-        var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["harness"] = WorkerId;
-        context.DescriptorByDefinitionId[1] = Descriptor(
-            jobName,
-            static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token),
-            maxAttempts,
-            concurrencyLimit,
-            rateLimit,
-            rateKey
-        );
-        var executor = Executor(context);
-
-        var lateClaim = RunOnceStatus.NothingClaimed;
-        _store.BeforeFirstStart = async () =>
-            lateClaim = await executor.ExecuteClaimedJobAsync(
-                Job(failureCount, concurrencyKey),
-                namespaceName: "harness",
-                namespaceId: 1,
-                WorkerId,
-                alreadyStarted: false,
-                CancellationToken.None
-            );
-
-        await executor.ReleaseOrphanedClaimsAsync([Job(failureCount, concurrencyKey).JobId], "lost answer", CancellationToken.None);
-        return lateClaim;
-    }
-
     private JobExecutor Executor(WorkerContext context)
     {
         var options = Options.Create(new JobsOptions());
@@ -361,8 +325,7 @@ internal sealed class JobExecutionHarness(
         private bool _startFailsOnce = startFailsOnce;
         private Acta.Execution? _execution;
 
-        public Acta.Execution Execution =>
-            _execution ??= new ScriptedSession((call, _) => AnswerAsync(call)).Services().GetRequiredService<Acta.Execution>();
+        public Acta.Execution Execution => _execution ??= new ScriptedSession(Answer).Services().GetRequiredService<Acta.Execution>();
 
         /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
         public int StartAttempts { get; private set; }
@@ -377,14 +340,10 @@ internal sealed class JobExecutionHarness(
         // token the instant the slot is proven stolen.
         public Action? OnStepCompletion { get; set; }
 
-        // Fires once, before the first start write answers, so a test can land another actor's move
-        // inside the window a start is in flight.
-        public Func<Task>? BeforeFirstStart { get; set; }
-
-        private async Task<object?> AnswerAsync(BoundCall call) =>
+        private object? Answer(BoundCall call) =>
             call.Stem switch
             {
-                "StartExecution" => await StartAsync(call.Get(ActaSchema.Runtime.Version)),
+                "StartExecution" => Start(call.Get(ActaSchema.Runtime.Version)),
                 "StartStep" => StartStep(call.Get(ActaSchema.Step.Name)),
                 "CompleteStep" => CompleteStep(),
                 "CompleteExecution" => Complete(BoundCompletion.Read(call)),
@@ -393,14 +352,8 @@ internal sealed class JobExecutionHarness(
                 _ => throw new NotSupportedException(call.Stem),
             };
 
-        private async Task<byte> StartAsync(int expectedVersion)
+        private byte Start(int expectedVersion)
         {
-            if (BeforeFirstStart is { } hook)
-            {
-                BeforeFirstStart = null;
-                await hook();
-            }
-
             StartAttempts++;
             _startVersions.Add(expectedVersion);
             if (_startFailsOnce)

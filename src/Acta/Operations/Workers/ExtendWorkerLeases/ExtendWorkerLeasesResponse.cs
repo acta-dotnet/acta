@@ -1,4 +1,4 @@
 namespace Acta;
 
-/// <summary>Every in-flight job the renewal read, each flagged renewed or skipped.</summary>
+/// <summary>Every held execution this worker still leases, each flagged renewed or skipped.</summary>
 internal readonly record struct ExtendWorkerLeasesResponse(IReadOnlyList<ExtendWorkerLeasesRow> Leases);

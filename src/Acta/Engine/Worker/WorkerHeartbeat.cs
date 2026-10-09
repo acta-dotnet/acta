@@ -5,31 +5,24 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews this worker's
-/// batched job leases and <c>workers.last_seen_at_utc</c> via <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/>,
-/// feeds each running attempt's job-lease deadline on a confirmed renewal of its own execution, and cancels one only
-/// when an authoritative refresh drops its execution (operator cancel, a reclaimed lease, or the job claimed again into
-/// a newer execution). It neither enforces deadlines on an outage (<see cref="AttemptWatchdog"/> does) nor renews handler
-/// locks (<see cref="LockLeaseHeartbeat"/> does, so a lock outage stays apart from a worker-lease one); a no-op in enqueue-only mode.
+/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it stamps
+/// <c>workers.last_seen_at_utc</c> and renews the lease of every execution this process holds, running or buffered, via
+/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/>, so a leased row nothing holds lapses to recovery. It feeds a running
+/// attempt's job-lease deadline on a confirmed renewal of its execution and cancels one whose execution an authoritative
+/// refresh drops (operator cancel, a reclaimed lease, or the job claimed again). It neither enforces deadlines on an outage
+/// (<see cref="AttemptWatchdog"/> does) nor renews handler locks (<see cref="LockLeaseHeartbeat"/> does); a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     WorkerLifecycle workers,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
-    ILogger log,
-    Func<IReadOnlyList<long>, CancellationToken, Task>? releaseOrphanedClaims = null
+    ILogger log
 )
 {
     private readonly WorkerLifecycle _workers = workers;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
-    private readonly Func<IReadOnlyList<long>, CancellationToken, Task>? _releaseOrphanedClaims = releaseOrphanedClaims;
-
-    // The ids the previous authoritative tick renewed with nothing in this process behind them; an id
-    // still unaccounted for on the next tick is released. Touched only under the tick gate.
-    private HashSet<long> _orphanCandidates = [];
-    private Task? _orphanRelease;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
 
@@ -124,7 +117,7 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// One worker-heartbeat pass: renew this worker's batched job leases, then feed each
+    /// One worker-heartbeat pass: renew the leases of the executions this process holds, then feed each
     /// still-owned attempt's job-lease deadline and cancel any the refresh authoritatively dropped.
     /// The deterministic single-shot the loop drives per tick; tests drive it via
     /// WorkerRuntime.RunHeartbeatOnceAsync.
@@ -150,6 +143,11 @@ internal sealed class WorkerHeartbeat(
             // late Cancel() either lands on a token nothing reads anymore or hits the already-disposed
             // source, which RunningAttempt.Cancel() swallows.
             var snapshot = _context.RunningAttempts.ToArray();
+            List<(long JobId, int ExecutionNumber)> held =
+            [
+                .. snapshot.Select(attempt => (attempt.Key, attempt.Value.ExecutionNumber)),
+                .. _context.BufferedClaims.Select(claim => (claim.Key, claim.Value)),
+            ];
 
             // Renew this worker's job leases and union the still-owned ids. Capture the request-start
             // BEFORE the call: the store stamps the renewed expiry no earlier than this instant, so
@@ -168,7 +166,7 @@ internal sealed class WorkerHeartbeat(
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)
                 {
-                    foreach (var row in (await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, ct)).Leases)
+                    foreach (var row in (await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, held, ct)).Leases)
                     {
                         live.Add((row.JobId, row.ExecutionNumber));
                         if (row.Renewed)
@@ -191,69 +189,11 @@ internal sealed class WorkerHeartbeat(
             }
 
             FeedJobLeases(snapshot, live, renewed, renewRequestedAt);
-            ReleaseOrphanedClaims(snapshot, live, ct);
         }
         finally
         {
             _tickGate.Release();
         }
-    }
-
-    /// <summary>
-    /// The rows this tick renewed that no attempt on their execution and no buffered claim of this process accounts
-    /// for: a claim's answer can be lost after the store committed it, the rows are this worker's, the refresh renews
-    /// them from database state, and nothing would ever start or reclaim them. An id must be unaccounted for on two
-    /// consecutive authoritative ticks before it is released, so a claim whose executor has not registered it yet is
-    /// never mistaken for one. The release runs detached: its writes repeat through an outage while the heartbeat beats.
-    /// </summary>
-    private void ReleaseOrphanedClaims(
-        KeyValuePair<long, RunningAttempt>[] snapshot,
-        HashSet<(long JobId, int ExecutionNumber)>? live,
-        CancellationToken ct
-    )
-    {
-        if (live is null || _releaseOrphanedClaims is null)
-        {
-            return;
-        }
-
-        // Only an attempt on the row's own execution accounts for it: the job claimed again into a newer
-        // execution while an older attempt still runs under the same job is a claim nothing will start.
-        var running = snapshot.Concat(_context.RunningAttempts).Select(a => (a.Key, a.Value.ExecutionNumber)).ToHashSet();
-        var unaccounted = live.Where(row => !running.Contains(row)).Select(row => row.JobId).ToHashSet();
-        unaccounted.ExceptWith(_context.BufferedClaims.Keys);
-
-        var confirmed = unaccounted.Where(_orphanCandidates.Contains).ToList();
-        _orphanCandidates = unaccounted;
-        if (confirmed.Count == 0 || _orphanRelease is { IsCompleted: false })
-        {
-            return;
-        }
-
-        _log.LogWarning(
-            "WorkerRuntime: {Count} leased rows have had no attempt on this worker for two heartbeats; returning them to Ready ({Detail}).",
-            confirmed.Count,
-            string.Join(", ", confirmed)
-        );
-        var release = _releaseOrphanedClaims;
-        _orphanRelease = Task.Run(
-            async () =>
-            {
-                try
-                {
-                    await release(confirmed, ct);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    // Shutdown: whatever was not released falls to recovery once its lease lapses.
-                }
-                catch (Exception ex)
-                {
-                    _log.LogError(ex, "WorkerRuntime: releasing leased rows with no attempt failed; the next heartbeat retries.");
-                }
-            },
-            CancellationToken.None
-        );
     }
 
     /// <summary>

@@ -74,6 +74,9 @@ internal interface ISqlDialect
     /// </summary>
     void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds);
 
+    /// <summary>Binds the executions a lease renewal holds in the provider-native shape (typed arrays or JSON array text).</summary>
+    void BindHeldLeases(DbCommand command, IReadOnlyList<(long JobId, int ExecutionNumber)> executions);
+
     /// <summary>Binds a one-row enqueue in the provider-native shape (typed arrays / TVP / JSON).</summary>
     void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema);
 

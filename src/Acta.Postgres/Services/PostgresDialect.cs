@@ -101,6 +101,13 @@ internal sealed class PostgresDialect : ISqlDialect
     public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
         AddArray((NpgsqlCommand)command, "@p_excluded_definition_ids", NpgsqlDbType.Integer, definitionIds ?? []);
 
+    public void BindHeldLeases(DbCommand command, IReadOnlyList<(long JobId, int ExecutionNumber)> executions)
+    {
+        var postgres = (NpgsqlCommand)command;
+        AddArray(postgres, "@p_job_ids", NpgsqlDbType.Bigint, executions.Select(e => e.JobId).ToArray());
+        AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Integer, executions.Select(e => e.ExecutionNumber).ToArray());
+    }
+
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var postgres = (NpgsqlCommand)command;

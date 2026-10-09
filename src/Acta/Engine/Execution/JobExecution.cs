@@ -114,8 +114,8 @@ internal sealed class JobExecution(
                 case JobStatusCode.Executing:
                     return StartExecutionAction.Started;
                 // A lapsed lease moves no version and clears no owner: the row is still this worker's to
-                // progress, and the heartbeat renews it from database state, so the write is paced on the
-                // retry curve until it lands or recovery takes the row and the next read says so.
+                // progress, so the write is paced on the retry curve until it lands or recovery takes the
+                // row and the next read says so.
                 case JobStatusCode.Dispatched when start == StartExecutionAction.LeaseExpired:
                     version = row.Version;
                     await Task.Delay(CompletionWrite.Delay(++expiredRefusals), ct);

@@ -7,17 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// A claim that committed and lost its answer: the rows are leased by this worker, the heartbeat renews
-/// them from database state, and no attempt exists to start, run, or release them. The heartbeat
-/// notices a renewed row that nothing in the process accounts for, waits one more tick so a claim still
-/// on its way to an executor is never mistaken for one, and returns the row to Ready through the same
-/// walk an unsupported claim takes.
+/// A claim that committed and lost its answer: the row is leased by this worker and nothing in the process holds
+/// it. The heartbeat renews only what the process holds, so the lease lapses and recovery returns the row to Ready,
+/// uncharged when it was Dispatched and charged like a crash after start when the claim started it.
 /// </summary>
 [ConformanceSpec(
     "runtime.orphaned-claim",
-    "A claim whose answer was lost is returned to Ready by the heartbeat",
+    "A claim whose answer was lost lapses to recovery",
     Area = "Runtime",
-    Contract = "A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone."
+    Contract = "A row leased by this worker that no attempt or buffered claim holds is not renewed by the heartbeat, and recovery returns it to Ready once its lease lapses."
 )]
 public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -29,8 +27,8 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
         _faults = services.AddStoreFaultInjection();
     }
 
-    [Fact(DisplayName = "A Dispatched row whose claim answer was lost is returned to Ready after two heartbeats and then runs once")]
-    public async Task Lost_claim_answer_on_a_dispatched_row_is_released()
+    [Fact(DisplayName = "A Dispatched row whose claim answer was lost is not renewed, is reclaimed uncharged, and then runs once")]
+    public async Task Lost_claim_answer_on_a_dispatched_row_lapses_uncharged()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
@@ -39,65 +37,54 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
         // worker's lease and nothing in the process knows about it.
         _faults.ThrowAfterClaimOnce();
         await Assert.ThrowsAsync<InjectedProviderError>(() => Runtime.RunOnceAsync(enqueued, ct));
-        var leased = await Jobs.GetAsync(JobLookup.ById(enqueued.JobId), ct);
-        Assert.NotNull(leased);
-        Assert.Equal(JobStatusCode.Dispatched, leased!.Status);
-        Assert.NotNull(leased.LeasedByWorkerId);
+        Assert.Equal(JobStatusCode.Dispatched, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
-        await ReleasedByTwoHeartbeatsAsync(enqueued.JobId, ct);
+        await LapsesToRecoveryAsync(enqueued.JobId, expectedFailures: 0, ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "An Executing row whose combined claim answer was lost is returned to Ready after two heartbeats")]
-    public async Task Lost_claim_answer_on_an_executing_row_is_released()
+    [Fact(
+        DisplayName = "An Executing row whose combined claim answer was lost is not renewed and is reclaimed charged, like a crash after start"
+    )]
+    public async Task Lost_claim_answer_on_an_executing_row_lapses_charged()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
-        await Runtime.InitializeAsync(ct);
         var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, namespaceId, ct);
 
-        // The Direct and Bulk profiles start the execution inside the claim, so a lost answer leaves
-        // the row Executing rather than Dispatched. Staged straight against the store under the
-        // runtime's own worker id, so the runtime holds the lease and knows nothing about it.
+        // The Direct profile starts the execution inside the claim, so a lost answer leaves the row
+        // Executing rather than Dispatched. Staged straight against the store under the runtime's own
+        // worker id, so the runtime holds the lease and knows nothing about it.
         var claim = await Services
             .GetRequiredService<Acta.Execution>()
             .ClaimBatchAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1, StartExecuting: true), 60, ct);
         Assert.Single(claim.Jobs);
         Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
-        await ReleasedByTwoHeartbeatsAsync(enqueued.JobId, ct);
+        await LapsesToRecoveryAsync(enqueued.JobId, expectedFailures: 1, ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
-    // The first tick only notes the row; the second confirms it and hands it to the executor, which
-    // releases it on its own task, so the row is polled until it reads Ready and unleased.
-    private async Task ReleasedByTwoHeartbeatsAsync(long jobId, CancellationToken ct)
+    // A heartbeat leaves the lease where the claim put it; once it lapses, recovery returns the row to Ready.
+    private async Task LapsesToRecoveryAsync(long jobId, int expectedFailures, CancellationToken ct)
     {
+        var claimedLease = (await ReadJobAsync(jobId, ct)).LeaseExpiresAtUtc;
+        await Task.Delay(5, ct);
         await Runtime.RunHeartbeatOnceAsync(ct);
-        var afterOne = await Jobs.GetAsync(JobLookup.ById(jobId), ct);
-        Assert.NotNull(afterOne!.LeasedByWorkerId);
+        Assert.Equal(claimedLease, (await ReadJobAsync(jobId, ct)).LeaseExpiresAtUtc);
 
-        await Runtime.RunHeartbeatOnceAsync(ct);
-        var deadline = DateTime.UtcNow + SpecWaits.Converge;
-        GetJobResponse? row;
-        do
-        {
-            row = await Jobs.GetAsync(JobLookup.ById(jobId), ct);
-            if (row is { Status: JobStatusCode.Ready, LeasedByWorkerId: null })
-            {
-                return;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(50), ct);
-        } while (DateTime.UtcNow < deadline);
-
-        Assert.Fail($"The row was not released: status {row?.Status}, leased by {row?.LeasedByWorkerId}.");
+        await ChaosSpecHelpers.ExpireLeaseAsync(Db, jobId, ct);
+        Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, Runtime.RegisteredNamespaceIds[TestNamespace], ct));
+        var reclaimed = await ReadJobAsync(jobId, ct);
+        Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
+        Assert.Null(reclaimed.LeasedByWorkerId);
+        Assert.Equal(expectedFailures, reclaimed.FailureCount);
     }
 }

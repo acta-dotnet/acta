@@ -86,6 +86,27 @@ internal static class DbParams
         return text.Append(']').ToString();
     }
 
+    /// <summary>
+    /// The held executions as JSON array text (<c>[{"job_id":1,"execution_number":2}]</c>) for the dialects whose
+    /// lease renewal expands them with OPENJSON or json_each.
+    /// </summary>
+    public static string JsonHeldExecutions(IReadOnlyList<(long JobId, int ExecutionNumber)> executions)
+    {
+        var text = new StringBuilder("[");
+        for (var i = 0; i < executions.Count; i++)
+        {
+            if (i > 0)
+            {
+                text.Append(',');
+            }
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"{{\"job_id\":{executions[i].JobId},\"execution_number\":{executions[i].ExecutionNumber}}}"
+            );
+        }
+        return text.Append(']').ToString();
+    }
+
     public static void Validate(DbParameterSpec p)
     {
         if (string.IsNullOrWhiteSpace(p.Name))

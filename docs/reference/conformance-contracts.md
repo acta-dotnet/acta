@@ -890,11 +890,12 @@
   - After one bounce the worker's namespace claims skip that definition and still take the rest of the namespace's work
   - Every unsupported definition in a namespace is bounced once and then excluded, whatever order the claims arrive in
 
-### Heartbeat extends a live lease and stamps last_seen
-- **Contract:** The heartbeat pushes a live lease further out and advances the worker's last_seen without bumping the runtime version, and a reclaim sweep leaves it claimed.
+### Heartbeat extends a held lease and stamps last_seen
+- **Contract:** The heartbeat extends a held lease without a version bump and stamps last_seen, while a leased row the process does not hold lapses to recovery.
 - **Guarantees:**
-  - The heartbeat pushes a live lease further out, advances worker last_seen, and the lease survives a reclaim sweep
+  - The heartbeat pushes a held lease further out, advances worker last_seen, and the lease survives a reclaim sweep
   - The heartbeat does not bump the runtime version, so a buffered claim still passes the start CAS and runs
+  - A leased row the process does not hold is neither renewed nor answered, and recovery reclaims it once its lease lapses
 
 ### A job's child list holds its direct children, finished ones included
 - **Contract:** The child list of a job holds every job enqueued under it, terminal or not, and nothing from further down the lineage.
@@ -1672,17 +1673,17 @@
 
 ## Runtime
 
-### Rows waiting behind a full Buffered channel are not released as orphans
-- **Contract:** A row claimed but not written to a full Buffered channel is left alone by the heartbeat and handed back to Ready by a drain.
+### Rows behind a full Buffered channel stay renewed until a drain drops them
+- **Contract:** A row claimed but not written to a full Buffered channel is renewed by the heartbeat, and a drain stops renewing it.
 - **Guarantees:**
-  - Two heartbeats against a claim loop blocked on a full channel reschedule none of the rows it holds
-  - A drain that lands on a blocked channel write hands the rows it never wrote back to Ready
+  - A heartbeat against a claim loop blocked on a full channel renews every row it holds
+  - A drain that lands on a blocked channel write stops renewing the rows it never wrote
 
-### A claim whose answer was lost is returned to Ready by the heartbeat
-- **Contract:** A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone.
+### A claim whose answer was lost lapses to recovery
+- **Contract:** A row leased by this worker that no attempt or buffered claim holds is not renewed by the heartbeat, and recovery returns it to Ready once its lease lapses.
 - **Guarantees:**
-  - A Dispatched row whose claim answer was lost is returned to Ready after two heartbeats and then runs once
-  - An Executing row whose combined claim answer was lost is returned to Ready after two heartbeats
+  - A Dispatched row whose claim answer was lost is not renewed, is reclaimed uncharged, and then runs once
+  - An Executing row whose combined claim answer was lost is not renewed and is reclaimed charged, like a crash after start
 
 ### Two generations share a namespace and the rollback still runs
 - **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.

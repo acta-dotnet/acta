@@ -8,8 +8,8 @@ namespace Acta.Tests.Conformance.Engine.Execution;
 
 /// <summary>
 /// The window between a claim and its handler: the start write, and the reads the handler needs. A
-/// claimed row is this worker's, and the heartbeat renews every row it holds from database state, so
-/// nothing that goes wrong in this window may end with the row leased and nothing left to progress it.
+/// claimed row is this worker's, and the heartbeat renews it while the attempt holds it, so nothing that
+/// goes wrong in this window may end with the row leased and nothing left to progress it.
 /// The start is reconciled against the row rather than trusted from one answer, because an operator
 /// verb can move the version under a claim and a committed start can lose its answer; the reads are
 /// repeated the way the writes are.
@@ -92,22 +92,19 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
-        var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
-        var workers = Services.GetRequiredService<WorkerLifecycle>();
 
         // The first start answers LeaseExpired on a row that is still this worker's Dispatched execution;
-        // the heartbeat's renewal is staged before the second start and after no recovery pass, the
-        // ordering that used to leave the row leased, renewed on every beat, and progressed by nothing.
-        // Staging it before the second start rather than on a timer means it cannot land before the
-        // first start is refused, so the fact cannot pass without the reconciliation.
+        // the heartbeat, which holds the attempt, is staged before the second start and after no recovery
+        // pass, the ordering that used to leave the row leased, renewed on every beat, and progressed by
+        // nothing. Staging it before the second start rather than on a timer means it cannot land before
+        // the first start is refused, so the fact cannot pass without the reconciliation.
         var renewed = false;
         _faults.RunBeforeStartOnce(async () =>
         {
-            var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, namespaceId, ct);
             await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
             _faults.RunBeforeStartOnce(async () =>
             {
-                await workers.ExtendWorkerLeasesAsync(workerId, 60, false, ct);
+                await Runtime.RunHeartbeatOnceAsync(ct);
                 renewed = true;
             });
         });

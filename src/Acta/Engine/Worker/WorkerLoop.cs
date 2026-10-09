@@ -186,9 +186,8 @@ internal sealed class WorkerLoop(
                 }
 
                 // Every claimed row is registered as buffered before any of them is written: WriteAsync
-                // blocks while the channel is full, and the heartbeat's orphan release treats a renewed
-                // claim that is neither running nor buffered as a lost answer, so a row registered only
-                // when its turn to be written came could be released while it waited for that turn.
+                // blocks while the channel is full, and the heartbeat renews only what this process holds,
+                // so a row registered only when its turn to be written came could lapse while it waited.
                 // The recovery slot starts here as well, ahead of any write that could block it.
                 _context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId);
                 foreach (var claimed in result.Jobs)
@@ -201,7 +200,7 @@ internal sealed class WorkerLoop(
                     }
                     else
                     {
-                        _context.BufferedClaims[claimed.JobId] = 0;
+                        _context.BufferedClaims[claimed.JobId] = claimed.ExecutionNumber;
                     }
                 }
 
@@ -223,20 +222,13 @@ internal sealed class WorkerLoop(
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    // A drain or stop landed mid-batch: the rows still unwritten are claimed by this
-                    // worker and no executor will take them, so they go back to Ready now rather than
-                    // sitting leased through the drain and waiting out the lease after it.
-                    var unwritten = result.Jobs.Skip(written).Select(j => j.JobId).Where(id => id != slotJobId).ToList();
-                    foreach (var jobId in unwritten)
+                    // A drain or stop landed mid-batch: no executor will take the rows still unwritten, so
+                    // they leave the buffer and the heartbeat stops renewing them. They lapse, and recovery
+                    // returns them to Ready uncharged.
+                    foreach (var claimed in result.Jobs.Skip(written))
                     {
-                        _context.BufferedClaims.TryRemove(jobId, out _);
+                        _context.BufferedClaims.TryRemove(claimed.JobId, out _);
                     }
-
-                    await _executor.ReleaseOrphanedClaimsAsync(
-                        unwritten,
-                        "The worker stopped before an executor took the claim; nothing ran, and the job returns to Ready.",
-                        hostCt
-                    );
                     break;
                 }
             }

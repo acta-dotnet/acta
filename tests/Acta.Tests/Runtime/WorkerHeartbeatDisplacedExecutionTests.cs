@@ -6,15 +6,14 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// A job claimed again into a newer execution while an older attempt still runs under it in this process,
-/// the claim's answer lost so no claim loop saw it. The renewal reports the row's execution, so the
-/// heartbeat cancels the older attempt instead of feeding it, and hands the row to the orphan release
-/// instead of counting it as running.
+/// A job claimed again into a newer execution while an older attempt still runs under it in this process. The
+/// heartbeat holds both executions, and the renewal answers only the one the row carries, so the older attempt is
+/// cancelled instead of fed.
 /// </summary>
 public sealed class WorkerHeartbeatDisplacedExecutionTests
 {
     [Fact]
-    public async Task A_renewal_of_a_newer_execution_cancels_the_older_attempt_and_releases_the_row()
+    public async Task A_renewal_of_a_newer_execution_cancels_the_older_attempt()
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
@@ -22,33 +21,23 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         var stale = new RunningAttempt(staleCts) { ExecutionNumber = 1 };
         var deadlineBefore = stale.JobLeaseGoodUntil;
         context.RunningAttempts[7] = stale;
-        var handed = new TaskCompletionSource<IReadOnlyList<long>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        context.BufferedClaims[7] = 2;
+        var session = new ScriptedSession(_ => new ExtendWorkerLeasesRow(7, ExecutionNumber: 2, Renewed: true));
         var heartbeat = new WorkerHeartbeat(
-            RenewingWorkerStore(new ExtendWorkerLeasesRow(7, ExecutionNumber: 2, Renewed: true)),
+            session.Services().GetRequiredService<WorkerLifecycle>(),
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,
-            NullLogger.Instance,
-            (jobIds, _) =>
-            {
-                handed.TrySetResult(jobIds);
-                return Task.CompletedTask;
-            }
+            NullLogger.Instance
         );
-        var ct = TestContext.Current.CancellationToken;
 
-        await heartbeat.TickAsync(ct);
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
+        Assert.Equal(
+            """[{"job_id":7,"execution_number":1},{"job_id":7,"execution_number":2}]""",
+            Assert.Single(session.Calls).Parameters["p_executions"]
+        );
         Assert.True(staleCts.IsCancellationRequested);
         Assert.Equal(deadlineBefore, stale.JobLeaseGoodUntil);
-
-        await heartbeat.TickAsync(ct);
-
-        // A hang guard, not a measurement: the second tick starts the release on its own task.
-        Assert.Equal([7L], await handed.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
     }
-
-    // Every lease extend renews the one row.
-    private static WorkerLifecycle RenewingWorkerStore(ExtendWorkerLeasesRow row) =>
-        new ScriptedSession(_ => row).Services().GetRequiredService<WorkerLifecycle>();
 }

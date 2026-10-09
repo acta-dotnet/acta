@@ -4,12 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace Acta;
 
 /// <summary>
-/// Repeats the one write an attempt cannot afford to lose until it settles or the worker stops: the heartbeat renews
-/// every leased row from database state alone, so an abandoned completion leaves the row Executing under a lease that
-/// never lapses, freed only by a restart or an operator cancel. The write is a compare-and-swap, so repeating is
-/// safe, and every failure is repeated, since a defect that loops loudly costs less than an unreclaimable row; a write
-/// that committed and lost its answer reads as already cleared on the second try (a retry, not a loss). The token is
-/// the host token, never the attempt's, which the watchdog cancels on that very outage; it bounds only the waits between tries.
+/// Repeats the one write an attempt cannot afford to lose until it settles or the worker stops: an abandoned
+/// completion leaves the row Executing until its lease lapses, and recovery then charges a failure and runs the job
+/// again. The write is a compare-and-swap, so repeating is safe, and every failure is repeated, since a defect that
+/// loops loudly costs less than a finished attempt charged and run twice; a write that committed and lost its answer
+/// reads as already cleared on the second try (a retry, not a loss). The token is the host token, never the
+/// attempt's, which the watchdog cancels on that very outage; it bounds only the waits between tries.
 /// </summary>
 internal static class CompletionWrite
 {

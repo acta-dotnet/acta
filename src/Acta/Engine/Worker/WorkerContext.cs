@@ -113,12 +113,11 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public ConcurrentDictionary<long, RunningAttempt> RunningAttempts { get; } = new();
 
     /// <summary>
-    /// Jobs the Buffered claim loop holds between their claim and their executor: registered as the
-    /// claim returns, removed as an executor takes the row. With <see cref="RunningAttempts"/> this is
-    /// every claim this process can account for; a row the heartbeat renews that is in neither is a
-    /// claim whose answer was lost after the store committed it.
+    /// Jobs the Buffered claim loop holds between their claim and their executor, to the execution each claim
+    /// carries: registered as the claim returns, removed as an executor takes the row. With
+    /// <see cref="RunningAttempts"/> this is every execution the heartbeat renews; a row in neither lapses.
     /// </summary>
-    public ConcurrentDictionary<long, byte> BufferedClaims { get; } = new();
+    public ConcurrentDictionary<long, int> BufferedClaims { get; } = new();
 
     /// <summary>
     /// Cancel the attempt this process still runs for a job a claim just returned. The claim means the
@@ -133,16 +132,6 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
             stale.Cancel();
         }
     }
-
-    /// <summary>
-    /// The executions some actor in this process is starting, running, or releasing right now, keyed by job and
-    /// execution number. An executor takes the entry before it registers the attempt and holds it until the attempt
-    /// unwinds; the orphan release takes it once the row has told it the execution and holds it through the
-    /// reschedule. The store's version guard cannot tell the two apart: a start landing after another actor's start
-    /// reads as this worker's own lost answer, both carrying the same worker and execution number, and the row would be
-    /// run by one and rescheduled by the other. Keyed by execution, not job, so a replacement can start while a stale one unwinds.
-    /// </summary>
-    public ConcurrentDictionary<(long JobId, int ExecutionNumber), byte> AttemptOwners { get; } = new();
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
 

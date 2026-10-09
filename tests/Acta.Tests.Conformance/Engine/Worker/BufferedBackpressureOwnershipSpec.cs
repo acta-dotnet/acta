@@ -7,18 +7,18 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The heartbeat's orphan release against a Buffered claim loop that is blocked on a full channel.
-/// A claimed batch is this worker's the moment the claim commits, but the loop hands the rows to the
-/// channel one at a time and a write blocks while every executor is held. The rows behind the blocked
-/// write must already count as buffered, or two heartbeats would take them for a lost claim answer
-/// and return them to Ready while they waited for their turn. A drain that lands while the write is
-/// blocked hands those same rows back, since no executor will ever take them.
+/// The heartbeat against a Buffered claim loop that is blocked on a full channel. A claimed batch is this worker's
+/// the moment the claim commits, but the loop hands the rows to the channel one at a time and a write blocks while
+/// every executor is held. The heartbeat renews only what the process holds, so the rows behind the blocked write
+/// must already count as buffered, or their leases would lapse while they waited for their turn. A drain that lands
+/// while the write is blocked drops those same rows from the buffer, since no executor will ever take them, and
+/// their leases lapse to recovery.
 /// </summary>
 [ConformanceSpec(
     "runtime.buffered-backpressure-ownership",
-    "Rows waiting behind a full Buffered channel are not released as orphans",
+    "Rows behind a full Buffered channel stay renewed until a drain drops them",
     Area = "Runtime",
-    Contract = "A row claimed but not written to a full Buffered channel is left alone by the heartbeat and handed back to Ready by a drain."
+    Contract = "A row claimed but not written to a full Buffered channel is renewed by the heartbeat, and a drain stops renewing it."
 )]
 public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -42,8 +42,8 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         });
     }
 
-    [Fact(DisplayName = "Two heartbeats against a claim loop blocked on a full channel reschedule none of the rows it holds")]
-    public async Task Rows_behind_a_blocked_channel_write_survive_two_heartbeats()
+    [Fact(DisplayName = "A heartbeat against a claim loop blocked on a full channel renews every row it holds")]
+    public async Task Rows_behind_a_blocked_channel_write_are_renewed()
     {
         var ct = TestContext.Current.CancellationToken;
         var (blocking, waiting) = await EnqueueAsync(ct);
@@ -53,13 +53,18 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         {
             await WaitUntilBlockedAsync(blocking, waiting, ct);
 
-            await Runtime.RunHeartbeatOnceAsync(ct);
-            await Runtime.RunHeartbeatOnceAsync(ct);
-
-            // The release runs detached after the second tick, so a wrong release shows up a moment
-            // later as a Rescheduled event on a waiting row. Nothing must appear.
-            var rescheduled = await WaitUntilAsync(() => RescheduledAsync(waiting, ct), TimeSpan.FromSeconds(3), ct);
-            Assert.False(rescheduled, "a row waiting behind the full channel was released as an orphaned claim");
+            var (renewed, unrenewed) = (0, 0);
+            var allRenewed = await WaitUntilAsync(
+                async () =>
+                {
+                    (renewed, unrenewed) = await BeatAsync(waiting, ct);
+                    return unrenewed == 0;
+                },
+                SpecWaits.Converge,
+                ct
+            );
+            Assert.True(allRenewed, $"{unrenewed} rows waiting behind the full channel were not renewed");
+            Assert.Equal(WaitingJobs - 1, renewed);
             Assert.Equal(1, ChaosProbes.CountingInvocations[blocking.JobId]);
         }
         finally
@@ -68,8 +73,8 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         }
     }
 
-    [Fact(DisplayName = "A drain that lands on a blocked channel write hands the rows it never wrote back to Ready")]
-    public async Task A_drain_hands_back_the_rows_behind_a_blocked_write()
+    [Fact(DisplayName = "A drain that lands on a blocked channel write stops renewing the rows it never wrote")]
+    public async Task A_drain_stops_renewing_the_rows_behind_a_blocked_write()
     {
         var ct = TestContext.Current.CancellationToken;
         var (blocking, waiting) = await EnqueueAsync(ct);
@@ -79,47 +84,25 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         {
             await WaitUntilBlockedAsync(blocking, waiting, ct);
 
-            // The drain stops the producer mid-batch. The rows it had claimed and not written are handed
-            // back at once, well inside the two heartbeats the orphan release would otherwise need.
+            // The drain stops the producer mid-batch: the rows it had claimed and not written leave the buffer,
+            // while the channel's rows stay held for the executor the drain lets finish.
             await Runtime.BeginDrainAsync(ct);
-            var rescheduled = await WaitUntilAsync(() => RescheduledAsync(waiting, ct), TimeSpan.FromSeconds(10), ct);
-            Assert.True(rescheduled, "the drain left the rows behind the blocked write leased to a worker that will not run them");
-
-            // Every row is now in one of three states, and only the channel's three keep the lease:
-            // buffered rows stay leased, Dispatched or already Executing, for the executor the drain lets finish, handed-back rows
-            // are Ready and unleased with the reschedule in their ledger, and the row the loop never
-            // reached is Ready with no attempt at all.
-            var buffered = 0;
-            var handedBack = 0;
-            foreach (var jobId in waiting)
-            {
-                var row = await Jobs.GetAsync(JobLookup.ById(jobId), ct);
-                Assert.NotNull(row);
-                var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
-                var wasHandedBack = events.Any(e => e.ExecutionStatus == ExecutionStatusCode.Rescheduled);
-                switch (row!.Status)
+            var (renewed, unrenewed) = (0, 0);
+            var dropped = await WaitUntilAsync(
+                async () =>
                 {
-                    // A buffered row an executor has already started is Executing; either way it stays leased.
-                    case JobStatusCode.Dispatched:
-                    case JobStatusCode.Executing:
-                        Assert.NotNull(row.LeasedByWorkerId);
-                        Assert.False(wasHandedBack, $"job {jobId} was handed back and then re-leased by a draining worker");
-                        buffered++;
-                        break;
-                    case JobStatusCode.Ready:
-                        Assert.Null(row.LeasedByWorkerId);
-                        handedBack += wasHandedBack ? 1 : 0;
-                        break;
-                    default:
-                        Assert.Fail($"job {jobId} is {row.Status} after the drain");
-                        break;
-                }
-            }
+                    (renewed, unrenewed) = await BeatAsync(waiting, ct);
+                    return unrenewed > 0;
+                },
+                SpecWaits.Converge,
+                ct
+            );
+            Assert.True(dropped, "the drain left the rows behind the blocked write renewed by a worker that will not run them");
 
             // How many rows the channel still holds depends on how far the executors got; the contract is that
-            // some rows were handed back and none of them was leased again.
-            Assert.InRange(buffered, 1, WaitingJobs - 1);
-            Assert.InRange(handedBack, 1, WaitingJobs - buffered);
+            // some rows lapse and the channel's rows keep their leases.
+            Assert.Equal(WaitingJobs - 1, renewed + unrenewed);
+            Assert.InRange(renewed, 1, WaitingJobs - 2);
         }
         finally
         {
@@ -147,7 +130,11 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
     private async Task WaitUntilBlockedAsync(EnqueueJobResponse blocking, List<long> waiting, CancellationToken ct)
     {
         await ChaosProbes.WaitStartedAsync(blocking.JobId, ct).WaitAsync(SpecWaits.Gate, ct);
-        var claimed = await WaitUntilAsync(async () => await DispatchedCountAsync(waiting, ct) >= WaitingJobs - 1, SpecWaits.Converge, ct);
+        var claimed = await WaitUntilAsync(
+            async () => (await DispatchedLeasesAsync(waiting, ct)).Count >= WaitingJobs - 1,
+            SpecWaits.Converge,
+            ct
+        );
         Assert.True(claimed, "the claim loop did not fill the channel within the converge budget");
     }
 
@@ -165,33 +152,31 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         }
     }
 
-    private async Task<int> DispatchedCountAsync(List<long> jobIds, CancellationToken ct)
+    // One heartbeat, counting the Dispatched rows whose lease it moved and those it left where it was.
+    private async Task<(int Renewed, int Unrenewed)> BeatAsync(List<long> jobIds, CancellationToken ct)
     {
-        var dispatched = 0;
+        var before = await DispatchedLeasesAsync(jobIds, ct);
+        // lease_expires_at_utc is DATETIME2(3) on SQL Server: the beat must land in a later millisecond to move it.
+        await Task.Delay(5, ct);
+        await Runtime.RunHeartbeatOnceAsync(ct);
+        var after = await DispatchedLeasesAsync(jobIds, ct);
+        var renewed = before.Count(lease => after.TryGetValue(lease.Key, out var now) && now > lease.Value);
+        return (renewed, before.Count - renewed);
+    }
+
+    private async Task<Dictionary<long, DateTime>> DispatchedLeasesAsync(List<long> jobIds, CancellationToken ct)
+    {
+        var leases = new Dictionary<long, DateTime>();
         foreach (var jobId in jobIds)
         {
             var row = await Jobs.GetAsync(JobLookup.ById(jobId), ct);
-            if (row is { Status: JobStatusCode.Dispatched, LeasedByWorkerId: not null })
+            if (row is { Status: JobStatusCode.Dispatched, LeaseExpiresAtUtc: { } lease })
             {
-                dispatched++;
+                leases[jobId] = lease;
             }
         }
 
-        return dispatched;
-    }
-
-    private async Task<bool> RescheduledAsync(List<long> jobIds, CancellationToken ct)
-    {
-        foreach (var jobId in jobIds)
-        {
-            var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
-            if (events.Any(e => e.ExecutionStatus == ExecutionStatusCode.Rescheduled))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return leases;
     }
 
     private static async Task<bool> WaitUntilAsync(Func<Task<bool>> condition, TimeSpan budget, CancellationToken ct)

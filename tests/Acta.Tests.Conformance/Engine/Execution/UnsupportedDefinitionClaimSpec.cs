@@ -13,9 +13,8 @@ namespace Acta.Tests.Conformance.Engine.Execution;
 /// every rolling deploy, where one version of the manifest is live beside another - hands some worker
 /// a job with no handler behind it. The contract is that the claim is handed back: Ready, lease
 /// cleared, retry budget untouched, due again after a short delay. Refusing it by throwing would
-/// strand the row instead, because the claim has already stamped the lease and the heartbeat renews
-/// every leased row from database state alone, so the lease would never lapse for <c>sys.recovery</c>
-/// to reclaim.
+/// leave the row leased instead, because the claim has already stamped the lease, until it lapsed
+/// for <c>sys.recovery</c> to reclaim.
 /// <para>The bounce also teaches the worker: the definition is excluded from its later claims, so the
 /// cost of an incapable deployment is one bounce per definition rather than one per job per
 /// safety-poll interval. The exclusion is per process and reaches the scanning claim only - a caller
@@ -76,17 +75,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var enqueued = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-
-        // extend_worker_leases selects on (leased_by_worker_id, status_code IN (40, 50)) and nothing
-        // else, so the only way a job the worker cannot run stops being renewed forever is for the
-        // worker to have released it. This is the assertion the defect failed.
-        var workerId = await WorkerIdAsync(ct);
-        var renewed = (
-            await Services
-                .GetRequiredService<WorkerLifecycle>()
-                .ExtendWorkerLeasesAsync(workerId, leaseTtlSeconds: 600, draining: false, ct)
-        ).Leases;
-        Assert.DoesNotContain(renewed, r => r.JobId == enqueued.JobId);
+        await Runtime.RunHeartbeatOnceAsync(ct);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -276,13 +265,5 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         Assert.True(Runtime.Descriptors.TryRemove(definitionId, out var removed));
         _forgotten[definitionId] = removed!;
         return enqueued;
-    }
-
-    private async Task<int> WorkerIdAsync(CancellationToken ct)
-    {
-        var ns = NamespaceId;
-        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
-        Assert.NotNull(worker);
-        return worker!.Id;
     }
 }
