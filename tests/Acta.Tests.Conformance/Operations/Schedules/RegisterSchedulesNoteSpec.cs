@@ -171,7 +171,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
         await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "operator drain", ct: ct);
 
         // Re-run the startup catalog reconcile carrying the same declared description, exactly as
-        // WorkerRuntimeInitializer.ReconcileSchedulesAsync does on every worker start.
+        // CatalogRegistrar.ReconcileSchedulesAsync does on every worker start.
         await ReReconcileAsync(db, dialect, defId, jobName, now, ct, description);
 
         var resynced = await ScheduleAsync(Db, jobName, "only", ct);

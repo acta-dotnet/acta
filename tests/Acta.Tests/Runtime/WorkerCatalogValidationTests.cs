@@ -20,7 +20,7 @@ public sealed class WorkerCatalogValidationTests
             Descriptor("unrelated", typeof(HandlerA))
         );
 
-        var ex = Assert.Throws<InvalidOperationException>(() => WorkerRuntimeInitializer.ValidateUniqueJobNames(descriptors));
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateUniqueJobNames(descriptors));
 
         Assert.Contains("send-receipt", ex.Message);
         Assert.Contains(typeof(HandlerA).FullName!, ex.Message);
@@ -33,7 +33,7 @@ public sealed class WorkerCatalogValidationTests
     {
         var descriptors = ImmutableArray.Create(Descriptor("job-one", typeof(HandlerA)), Descriptor("job-two", typeof(HandlerB)));
 
-        WorkerRuntimeInitializer.ValidateUniqueJobNames(descriptors);
+        CatalogRegistrar.ValidateUniqueJobNames(descriptors);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class WorkerCatalogValidationTests
     {
         // A module-less worker with framework jobs disabled would claim namespace jobs it can never
         // dispatch; the claimed rows would rot until lease recovery.
-        var ex = Assert.Throws<InvalidOperationException>(() => WorkerRuntimeInitializer.ValidateHasDescriptors("billing", []));
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateHasDescriptors("billing", []));
 
         Assert.Contains("billing", ex.Message);
     }
@@ -49,7 +49,7 @@ public sealed class WorkerCatalogValidationTests
     [Fact]
     public void A_worker_with_at_least_one_descriptor_passes()
     {
-        WorkerRuntimeInitializer.ValidateHasDescriptors("billing", [Descriptor("job-one", typeof(HandlerA))]);
+        CatalogRegistrar.ValidateHasDescriptors("billing", [Descriptor("job-one", typeof(HandlerA))]);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class WorkerCatalogValidationTests
             ],
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => WorkerRuntimeInitializer.ValidateDeadlineRequirements([scheduled]));
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateDeadlineRequirements([scheduled]));
 
         Assert.Contains("nightly", ex.Message);
         Assert.Contains("Deadline", ex.Message);
@@ -102,7 +102,7 @@ public sealed class WorkerCatalogValidationTests
             ],
         };
 
-        WorkerRuntimeInitializer.ValidateDeadlineRequirements([oneShot, scheduled]);
+        CatalogRegistrar.ValidateDeadlineRequirements([oneShot, scheduled]);
     }
 
     private sealed class HandlerA;

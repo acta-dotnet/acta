@@ -18,7 +18,7 @@ public sealed class RecurringResultCapTests
     public void Scheduled_definition_without_a_cap_is_refused()
     {
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            WorkerRuntimeInitializer.ValidateRecurringResultCaps([Descriptor("nightly", scheduled: true, cap: 0)])
+            CatalogRegistrar.ValidateRecurringResultCaps([Descriptor("nightly", scheduled: true, cap: 0)])
         );
         Assert.Contains("'nightly'", ex.Message, StringComparison.Ordinal);
         Assert.Contains("RecurringResultCap = 0", ex.Message, StringComparison.Ordinal);
@@ -26,11 +26,11 @@ public sealed class RecurringResultCapTests
 
     [Fact(DisplayName = "A scheduled definition keeping at least one result starts")]
     public void Scheduled_definition_with_a_cap_starts() =>
-        WorkerRuntimeInitializer.ValidateRecurringResultCaps([Descriptor("nightly", scheduled: true, cap: 1)]);
+        CatalogRegistrar.ValidateRecurringResultCaps([Descriptor("nightly", scheduled: true, cap: 1)]);
 
     [Fact(DisplayName = "An unscheduled definition carries no cap, because the branch reading it is unreachable")]
     public void Unscheduled_definition_ignores_the_cap() =>
-        WorkerRuntimeInitializer.ValidateRecurringResultCaps([Descriptor("one-shot", scheduled: false, cap: 0)]);
+        CatalogRegistrar.ValidateRecurringResultCaps([Descriptor("one-shot", scheduled: false, cap: 0)]);
 
     // The validator reads the name, the schedules and the cap; every other field is defaulted because it
     // never reaches them, and building a real record keeps the fact honest about what a descriptor is.

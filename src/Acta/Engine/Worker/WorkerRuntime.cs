@@ -11,7 +11,7 @@ namespace Acta;
 /// <c>workers</c>) in <see cref="InitializeAsync"/>, driven by the host during startup, the claim/dispatch poll loop in
 /// <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level <see cref="RunAsync"/> that runs loop and
 /// heartbeat concurrently. A thin facade over <see cref="WorkerContext"/> (shared state), <see cref="WorkerRuntimeInitializer"/>
-/// (catalog upsert), <see cref="JobExecutor"/> with <see cref="JobExecution"/> (claimed-job execution), and
+/// (registration), <see cref="JobExecutor"/> with <see cref="JobExecution"/> (claimed-job execution), and
 /// <see cref="WorkerLoop"/> (the poll loop). An enqueue-only runtime skips the worker row and the loop but still bootstraps.
 /// </summary>
 internal sealed class WorkerRuntime
@@ -66,16 +66,21 @@ internal sealed class WorkerRuntime
         }
 
         _initializer = new WorkerRuntimeInitializer(
-            rootServices.GetRequiredService<RegisterDefinitionsHandler>(),
-            rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
-            rootServices.GetRequiredService<GetScheduleStateHandler>(),
-            rootServices.GetRequiredService<RegisterSchedulesHandler>(),
+            new CatalogRegistrar(
+                rootServices.GetRequiredService<RegisterDefinitionsHandler>(),
+                rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
+                rootServices.GetRequiredService<GetScheduleStateHandler>(),
+                rootServices.GetRequiredService<RegisterSchedulesHandler>(),
+                rootServices.GetRequiredService<Execution>(),
+                clock,
+                serializers,
+                alertRouting,
+                options,
+                _context,
+                logger
+            ),
             rootServices.GetRequiredService<WorkerLifecycle>(),
-            rootServices.GetRequiredService<Execution>(),
-            clock,
             rootServices.GetRequiredService<IServerClock>(),
-            serializers,
-            alertRouting,
             options,
             workerRegistration,
             _context,

@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 /// <summary>
 /// Conformance for the startup schedule-insert path: reading stored cursors, reconciling them against
 /// the declared schedule under its misfire policy, and upserting the result. Mirrors
-/// <c>WorkerRuntimeInitializer.ReconcileSchedulesAsync</c> (GetScheduleState then ScheduleWalker.Reconcile
+/// <c>CatalogRegistrar.ReconcileSchedulesAsync</c> (GetScheduleState then ScheduleWalker.Reconcile
 /// then RegisterSchedules) and asserts the persisted cursor for every (kind x stored-state x misfire)
 /// cell, plus that re-registration upserts the single schedule row rather than duplicating it.
 /// </summary>
@@ -233,7 +233,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
     }
 
     // The startup insert path: read stored cursors, reconcile the declared schedule under its misfire
-    // policy at nowUtc, and upsert. This is exactly WorkerRuntimeInitializer.ReconcileSchedulesAsync.
+    // policy at nowUtc, and upsert. This is exactly CatalogRegistrar.ReconcileSchedulesAsync.
     private async Task<long> ReconcileAndRegisterAsync(
         IDbSession db,
         ISqlDialect dialect,

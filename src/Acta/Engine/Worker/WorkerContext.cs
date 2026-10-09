@@ -5,9 +5,9 @@ namespace Acta;
 
 /// <summary>
 /// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch loop and dispatcher
-/// (readers): populated by <see cref="WorkerRuntimeInitializer"/> at startup and consulted on the hot path for the
-/// worker identity, the descriptor for a claimed job, and whether a claimed job is a recurring slot fire. Every
-/// collection stays empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
+/// (readers): populated by <see cref="WorkerRuntimeInitializer"/> and its <see cref="CatalogRegistrar"/> at startup and
+/// consulted on the hot path for the worker identity, the descriptor for a claimed job, and whether a claimed job is a
+/// recurring slot fire. Every collection stays empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
 /// </summary>
 internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
