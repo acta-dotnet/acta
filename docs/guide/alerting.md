@@ -510,9 +510,9 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `IAlerts.cs` | `src/Acta/Operations/Alerts/IAlerts.cs` |
 | `ListAlertsQuery.cs` | `src/Acta/Operations/Alerts/ListAlertsQuery.cs` |
 | `AlertsEndpoints.cs` | `src/Acta.AspNetCore/Operations/Alerts/AlertsEndpoints.cs` |
-| `JobAttribute.cs` | `src/Acta/Execution/JobAttribute.cs` |
+| `JobAttribute.cs` | `src/Acta/Handlers/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
-| `JobContext.cs` | `src/Acta/Execution/JobContext.cs` |
+| `JobContext.cs` | `src/Acta/Handlers/JobContext.cs` |
 | `JobExecution.cs` | `src/Acta/Engine/Execution/JobExecution.cs` |
 | `EventReasonCode.cs` | `src/Acta/Codes/EventReasonCode.cs` |
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |

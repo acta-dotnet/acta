@@ -81,7 +81,7 @@ src/Acta.AspNetCore/Operations/Jobs/
 ## The other folders
 
 - `Codes/`: the persisted code families.
-- `Execution/`: the handler API: `JobContext`, the job attributes, steps, waits, locks, children, and their outcomes.
+- `Handlers/`: the handler API: `JobContext`, the job attributes, steps, waits, locks, children, and their outcomes.
 - `Configuration/`: `JobsOptions`, `SqlProviderOptions`, `DriverVersionPolicy`, and the options validator.
 - `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
 - `Primitives/`: identifier, duration, and ref syntax, text limits, backoff and rate-limit specs, and the code attributes and manifests.

@@ -434,7 +434,7 @@ dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1822: these control verbs intentionally hang off the current JobContext instance for API fluency.
-[src/Acta/Execution/JobContext.cs]
+[src/Acta/Handlers/JobContext.cs]
 dotnet_diagnostic.CA1822.severity = none
 
 # CA1062: MapAsync's groupName is validated on entry - IdentifierSyntax.ValidateUserKebab reaches
@@ -442,7 +442,7 @@ dotnet_diagnostic.CA1822.severity = none
 # so a null already throws naming the right parameter before the flagged use. CA1062 does not follow
 # validation two frames down, and a local guard would be dead code; the sibling ParallelAsync validates
 # the same way and escapes the rule only because it never dereferences the name.
-[src/Acta/Execution/JobContext.FanOut.cs]
+[src/Acta/Handlers/JobContext.FanOut.cs]
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1031: two catches in the release path of RunWithLockAsync<TResult>. The outer one keeps a failed
@@ -450,7 +450,7 @@ dotnet_diagnostic.CA1062.severity = none
 # completed unit of work into a failure over a cleanup step the lease TTL already covers - and reports
 # it through OnLockReleaseFailure; the inner bare catch guards that observer and is deliberately silent,
 # because a broken observability hook must not alter the outcome either.
-[src/Acta/Execution/JobContext.Locks.cs]
+[src/Acta/Handlers/JobContext.Locks.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1819: SignalSlotState.Value, on the protected record struct WaitSignalCoreAsync returns. It is
@@ -459,7 +459,7 @@ dotnet_diagnostic.CA1031.severity = none
 # byte[]), which takes byte[] because the serializer registry does. Widening it to ReadOnlyMemory
 # would cost a copy at the only two members that ever touch it, and both are on the frozen 1.0.0
 # surface: the record struct is protected on the public abstract class handlers receive.
-[src/Acta/Execution/JobContext.Waits.cs]
+[src/Acta/Handlers/JobContext.Waits.cs]
 dotnet_diagnostic.CA1819.severity = none
 
 #### Scoped analyzer rulings ####
@@ -546,7 +546,7 @@ dotnet_diagnostic.CA2225.severity = none
 # CA1711's reserved-suffix list exists to stop a type borrowing a word it does not earn; this one
 # earns it, and the name distinguishes the dispatch delegate from the generated invoker it points at.
 # Public and frozen at 1.0.0, so a rename is a break.
-[src/Acta/Execution/JobHandlerInvokeDelegate.cs]
+[src/Acta/Handlers/JobHandlerInvokeDelegate.cs]
 dotnet_diagnostic.CA1711.severity = none
 
 # CA2225: the two implicit conversions into JobLookup, from JobRef and from EnqueueJobResponse. The
@@ -567,7 +567,7 @@ dotnet_diagnostic.CA2225.severity = none
 # Acta rename the exact shape the framework it hosts in ships, and readers would meet a middleware
 # chain whose continuation is called something else. Both the delegate and the interface member are
 # public and frozen at 1.0.0.
-[src/Acta/Execution/JobPipelineBehavior.cs]
+[src/Acta/Handlers/JobPipelineBehavior.cs]
 dotnet_diagnostic.CA1711.severity = none
 dotnet_diagnostic.CA1716.severity = none
 
