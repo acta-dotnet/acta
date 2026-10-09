@@ -2095,6 +2095,13 @@
   - At the cap a new name is refused with nothing written, while an existing name still updates
   - A malformed name, a reserved sys name, or an oversize value throws before any write
 
+## Telemetry
+
+### A completed execution is counted once on the Acta meter
+- **Contract:** A job that runs to success adds one acta.executions measurement tagged with its namespace, its job name, and outcome succeeded.
+- **Guarantees:**
+  - A succeeded run adds one acta.executions count tagged namespace, job_name, and outcome succeeded
+
 ## Test ORM
 
 ### IDbSession insert/update-only/delete round-trip on every provider
@@ -2141,6 +2148,13 @@
   - Concurrent get-or-set stores one value and every caller observes the winner
   - Variables round-trip common JSON value shapes including large values
   - A corrupted JSON variable read fails instead of falling back
+
+## Wakeup
+
+### A failed wake publish never fails the write it announces
+- **Contract:** A wake transport that throws costs only the prompt wake: the enqueue still answers, and its job runs to completion.
+- **Guarantees:**
+  - An enqueue whose wake publish throws still answers, and its job runs to completion
 
 ## Workers
 
