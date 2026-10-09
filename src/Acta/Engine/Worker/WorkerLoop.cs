@@ -72,8 +72,8 @@ internal sealed class WorkerLoop(
         // Claim feeds this bounded channel while executor loops drain it concurrently. Capacity holds
         // a full claim batch, or the executor count when larger, so a batch can buffer without the
         // producer blocking mid-batch while leases tick. If a buffered claim's lease expires and is
-        // reclaimed before an executor reaches it, the runtime version changes and start refuses it
-        // as a clean lost-claim skip for the next tick. Over-claiming is wasteful at worst, never
+        // reclaimed before an executor reaches it, the row no longer carries this worker at this
+        // execution and start refuses it as a clean skip. Over-claiming is wasteful at worst, never
         // double execution.
         var channel = Channel.CreateBounded<ClaimedJob>(
             new BoundedChannelOptions(Math.Max(executorCount, claimBatchSize))

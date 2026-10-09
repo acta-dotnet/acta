@@ -7,18 +7,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Execution;
 
 /// <summary>
-/// The window between a claim and its handler: the start write, and the reads the handler needs. A
-/// claimed row is this worker's, and the heartbeat renews it while the attempt holds it, so nothing that
-/// goes wrong in this window may end with the row leased and nothing left to progress it.
-/// The start is reconciled against the row rather than trusted from one answer, because an operator
-/// verb can move the version under a claim and a committed start can lose its answer; the reads are
-/// repeated the way the writes are.
+/// The window between a claim and its handler: the start write, and the reads the handler needs. The start matches
+/// the claim on worker and execution number, so an operator verb that moves the row's version cannot refuse it, and a
+/// start that committed and lost its answer is answered Started again when the write is repeated. A row recovery took
+/// in this window is a clean skip, and the reads are repeated the way the writes are.
 /// </summary>
 [ConformanceSpec(
     "runtime.start-reconciliation",
     "A claim survives what happens between its claim and its handler",
     Area = "Runtime",
-    Contract = "A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated."
+    Contract = "An operator verb does not refuse a start, a replayed start answers Started and runs once, a reclaimed row is a clean skip, and a failing setup read is repeated."
 )]
 public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -30,16 +28,13 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         _faults = services.AddStoreFaultInjection();
     }
 
-    [Fact(
-        DisplayName = "A reprioritize between the claim and the start does not strand the job: the start is retried against the moved version"
-    )]
+    [Fact(DisplayName = "A reprioritize between the claim and the start does not refuse the start")]
     public async Task Reprioritize_between_claim_and_start_is_absorbed()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // The verb bumps runtimes.version on the Dispatched row without touching ownership, so the start
-        // written against the claim's version answers LostClaim while the lease is still this worker's.
+        // The verb bumps runtimes.version on the Dispatched row without touching ownership or the execution.
         _faults.RunBeforeStartOnce(async () => await Jobs.ReprioritizeAsync(enqueued, JobPriorityCode.High, ct: ct));
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -48,16 +43,13 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
 
-    [Fact(
-        DisplayName = "A start that fails before it commits, with a reprioritize in its retry window, is retried against the moved version"
-    )]
+    [Fact(DisplayName = "A start that fails before it commits, with a reprioritize in its retry window, lands on the retry")]
     public async Task Failed_start_then_reprioritize_then_retry_is_absorbed()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // The first start never reaches the store and the version moves while the repeat waits, so the
-        // retry answers LostClaim on a row that is still this worker's and still Dispatched.
+        // The first start never reaches the store and the version moves while the repeat waits.
         _faults.RunBeforeStartOnce(async () =>
         {
             await Jobs.ReprioritizeAsync(enqueued, JobPriorityCode.High, ct: ct);
@@ -70,15 +62,15 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
 
-    [Fact(DisplayName = "A start that commits and loses its answer runs the handler once and writes one started event")]
+    [Fact(
+        DisplayName = "A start that commits and loses its answer is answered Started again, runs the handler once, and writes one started event"
+    )]
     public async Task Start_that_commits_and_loses_its_answer_is_not_made_twice()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // The repeat resubmits the start against the claim's version; the row is already Executing at
-        // the next version, so the answer is LostClaim and the row itself says the attempt is this
-        // worker's to run.
+        // The repeat finds the row already Executing under this worker at this execution.
         _faults.ThrowAfterStartOnce();
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -87,52 +79,21 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
 
-    [Fact(DisplayName = "A lease that lapsed before the start, on a row still this worker's, is started once the heartbeat renews it")]
-    public async Task Expired_lease_at_start_with_the_heartbeat_before_recovery_is_absorbed()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
-
-        // The first start answers LeaseExpired on a row that is still this worker's Dispatched execution;
-        // the heartbeat, which holds the attempt, is staged before the second start and after no recovery
-        // pass, the ordering that used to leave the row leased, renewed on every beat, and progressed by
-        // nothing. Staging it before the second start rather than on a timer means it cannot land before
-        // the first start is refused, so the fact cannot pass without the reconciliation.
-        var renewed = false;
-        _faults.RunBeforeStartOnce(async () =>
-        {
-            await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
-            _faults.RunBeforeStartOnce(async () =>
-            {
-                await Runtime.RunHeartbeatOnceAsync(ct);
-                renewed = true;
-            });
-        });
-
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.True(renewed);
-        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
-        Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
-    }
-
-    [Fact(DisplayName = "A lease that lapsed before the start and was reclaimed by recovery in the retry window is a clean skip")]
-    public async Task Expired_lease_reclaimed_before_start_is_a_clean_skip()
+    [Fact(DisplayName = "A row recovery reclaimed between the claim and the start is a clean skip")]
+    public async Task Row_reclaimed_before_start_is_a_clean_skip()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
 
-        // The positive control: the first start is refused on the lapsed lease and the reconciliation
-        // paces a retry, recovery reclaims the row in that window, and the second start answers NotOwner
-        // on a row that is Ready and unowned, so the attempt is skipped without a read. The run-once
-        // helper then claims the row again within its budget; one handler run and one started event say
-        // the refused starts wrote nothing and the skipped attempt was not made twice.
+        // Recovery takes the row before the start, so the start answers NotOwner on a row that is Ready and
+        // unowned. The run-once helper then claims the row again within its budget; one handler run and one
+        // started event say the refused start wrote nothing.
         var reclaimed = 0;
         _faults.RunBeforeStartOnce(async () =>
         {
             await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
-            _faults.RunBeforeStartOnce(async () => reclaimed = await ChaosSpecHelpers.ReclaimAsync(Services, namespaceId, ct));
+            reclaimed = await ChaosSpecHelpers.ReclaimAsync(Services, namespaceId, ct);
         });
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));

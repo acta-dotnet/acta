@@ -277,17 +277,14 @@ internal sealed class JobExecutor(
         // execution in the claim itself.
         if (!alreadyStarted)
         {
-            var start = await JobExecution.StartReconciledAsync(
-                _execution,
-                _rootServices.GetRequiredService<GetJobHandler>(),
-                job,
-                workerId,
-                _leaseTtlSeconds,
+            var (start, _) = await CompletionWrite.RetryAsync(
+                token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _leaseTtlSeconds, token),
                 _log,
-                _metrics,
-                ct
+                job.JobId,
+                ct,
+                _metrics
             );
-            if (start != StartExecutionAction.Started)
+            if (start.Action != StartExecutionAction.Started)
             {
                 // Reclaimed on lease expiry, reassigned, or moved out of Dispatched by a control verb:
                 // the row is no longer this worker's to release.
@@ -295,7 +292,7 @@ internal sealed class JobExecutor(
                     "WorkerRuntime: lost claim on job {JobId} ({Detail}) before releasing it: ({Outcome}); skipping.",
                     job.JobId,
                     $"definition_id {job.DefinitionId}",
-                    start.ToString()
+                    start.Action.ToString()
                 );
                 return RunOnceStatus.NothingClaimed;
             }

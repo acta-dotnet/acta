@@ -39,23 +39,18 @@ internal sealed class Execution(
         claimOne.HandleAsync(new ClaimOneCommand(options, leaseTtlSeconds, jobId), ct);
 
     /// <summary>
-    /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution-started</c>,
-    /// CAS-guarded on <c>(jobId, workerId, expectedExecutionNumber, expectedVersion, Status=Dispatched)</c>
-    /// plus a live lease. Non-owner, lost-claim, lease-expired, and already-terminal cases return a
-    /// discriminated action instead of throwing.
+    /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution-started</c>, matched on
+    /// <c>(jobId, workerId, expectedExecutionNumber)</c>. A row already Executing under this worker at this execution
+    /// is a start that committed and lost its answer: it answers Started again, refreshes the lease, and writes no
+    /// second event. Non-owner, lost-claim, and already-terminal cases return a discriminated action instead of throwing.
     /// </summary>
     public Task<StartExecutionResponse> StartExecutionAsync(
         long jobId,
         int workerId,
         int expectedExecutionNumber,
-        int expectedVersion,
         int leaseTtlSeconds,
         CancellationToken ct
-    ) =>
-        startExecution.HandleAsync(
-            new StartExecutionCommand(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds),
-            ct
-        );
+    ) => startExecution.HandleAsync(new StartExecutionCommand(jobId, workerId, expectedExecutionNumber, leaseTtlSeconds), ct);
 
     /// <summary>
     /// Finalizes the attempt, CAS-guarded on (job id, worker, execution number): flips the status to terminal or re-arm,

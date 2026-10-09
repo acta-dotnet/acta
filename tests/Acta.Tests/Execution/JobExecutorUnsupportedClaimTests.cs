@@ -7,8 +7,7 @@ namespace Acta.Tests.Execution;
 /// A claim the deployment has no descriptor for. Claims are selected by namespace, so this is not an
 /// exotic state: a manifest that dropped a definition whose jobs remain, and every rolling deploy,
 /// produces it. The contract is that the executor releases the claim instead of refusing it, because
-/// the claim has already stamped the lease and the heartbeat renews leased rows from database state
-/// alone - a refusal strands the job under a healthy worker forever.
+/// the claim has already stamped the lease - a refusal would leave the job waiting out that lease.
 /// </summary>
 public sealed class JobExecutorUnsupportedClaimTests
 {
@@ -57,59 +56,19 @@ public sealed class JobExecutorUnsupportedClaimTests
         var outcome = await harness.RunWithNoDescriptorAsync();
 
         // The start CAS is repeated like the completion: one dropped connection must not escape to
-        // the worker loop, which would leave the Dispatched row under a lease the heartbeat renews.
+        // the worker loop, which would leave the Dispatched row waiting out its lease.
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(2, harness.StartAttempts);
-        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
-    }
-
-    [Fact]
-    public async Task A_start_that_committed_and_lost_its_response_is_still_released()
-    {
-        // The retry resubmits the stale version and hears LostClaim; the row says Executing under this
-        // worker at this execution number, which is a start that committed, so the release lands.
-        var harness = new JobExecutionHarness(
-            startFailsOnce: true,
-            startAfterFailure: StartExecutionAction.LostClaim,
-            rowAfterLostClaim: JobExecutionHarness.Row(JobStatusCode.Executing, version: 2)
-        );
-
-        var outcome = await harness.RunWithNoDescriptorAsync();
-
-        Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(2, harness.StartAttempts);
-        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
-    }
-
-    [Fact]
-    public async Task A_version_moved_under_the_claim_is_retried_against_the_row()
-    {
-        // An operator verb bumped the version of the Dispatched row between the claim and the start, so
-        // the first start hears LostClaim on a row that is still this worker's; the second carries the
-        // version the row holds now and lands.
-        var harness = new JobExecutionHarness(
-            startAction: StartExecutionAction.LostClaim,
-            startAfterFailure: StartExecutionAction.Started,
-            rowAfterLostClaim: JobExecutionHarness.Row(JobStatusCode.Dispatched, version: 2)
-        );
-
-        var outcome = await harness.RunWithNoDescriptorAsync();
-
-        Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal([1, 2], harness.StartVersions);
         Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
     }
 
     [Fact]
     public async Task A_claim_lost_before_the_release_writes_nothing()
     {
-        // The row was reclaimed, reassigned, or moved by a control verb between claim and release: it
-        // reads as another worker's. Submitting a completion for a row this worker no longer owns is
-        // exactly what the start CAS exists to prevent, so the release is abandoned, not forced.
-        var harness = new JobExecutionHarness(
-            startAction: StartExecutionAction.LostClaim,
-            rowAfterLostClaim: JobExecutionHarness.Row(JobStatusCode.Executing, version: 2, leasedByWorkerId: 8)
-        );
+        // The row was reclaimed, reassigned, or moved by a control verb between claim and release.
+        // Submitting a completion for a row this worker no longer owns is exactly what the start CAS
+        // exists to prevent, so the release is abandoned, not forced.
+        var harness = new JobExecutionHarness(startAction: StartExecutionAction.LostClaim);
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 

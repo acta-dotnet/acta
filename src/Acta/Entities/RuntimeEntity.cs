@@ -183,8 +183,8 @@ internal sealed class RuntimeEntity : IEntity<long>
     public DateTime ModifiedAtUtc { get; set; }
 
     /// <summary>
-    /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat, so a
-    /// buffered claim still passes the start CAS. Int32 on purpose, the width of the public <c>expectedVersion</c>: a
+    /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat and a replayed
+    /// start. Int32 on purpose, the width of the public <c>expectedVersion</c>: a
     /// recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on
     /// overflow rather than wrap, so a token never comes back negative.
     /// </summary>

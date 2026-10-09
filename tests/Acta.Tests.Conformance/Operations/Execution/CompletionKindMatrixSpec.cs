@@ -38,7 +38,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var action = (
             await Services
                 .GetRequiredService<Acta.Execution>()
-                .StartExecutionAsync(enqueued.JobId, -workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                .StartExecutionAsync(enqueued.JobId, -workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
         ).Action;
 
         Assert.Equal(StartExecutionAction.NotOwner, action);
@@ -66,7 +66,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             (
                 await Services
                     .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
             ).Action
         );
         Assert.Equal(
@@ -81,7 +81,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var action = (
             await Services
                 .GetRequiredService<Acta.Execution>()
-                .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
         ).Action;
 
         Assert.Equal(StartExecutionAction.AlreadyTerminal, action);
@@ -109,7 +109,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             (
                 await Services
                     .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
             ).Action
         );
 
@@ -142,7 +142,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             (
                 await Services
                     .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                    .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
             ).Action
         );
         var req = MakeCompleteRequest(claimed, workerId);
@@ -186,7 +186,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             (
                 await Services
                     .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(enqueued.JobId, worker1Id, claimed1.ExecutionNumber, claimed1.Version, LiveLeaseTtl, ct)
+                    .StartExecutionAsync(enqueued.JobId, worker1Id, claimed1.ExecutionNumber, LiveLeaseTtl, ct)
             ).Action
         );
 

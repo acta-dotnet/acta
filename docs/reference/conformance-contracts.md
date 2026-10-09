@@ -894,7 +894,7 @@
 - **Contract:** The heartbeat extends a held lease without a version bump and stamps last_seen, while a leased row the process does not hold lapses to recovery.
 - **Guarantees:**
   - The heartbeat pushes a held lease further out, advances worker last_seen, and the lease survives a reclaim sweep
-  - The heartbeat does not bump the runtime version, so a buffered claim still passes the start CAS and runs
+  - The heartbeat leaves the runtime version of a buffered claim alone, and the claim then starts
   - A leased row the process does not hold is neither renewed nor answered, and recovery reclaims it once its lease lapses
 
 ### A job's child list holds its direct children, finished ones included
@@ -960,12 +960,12 @@
 - **Guarantees:**
   - Every enqueued job executes exactly once via the combined loop and the whole backlog drains to completion
 
-### Start execution honors the version CAS and the live-lease guard
-- **Contract:** Start transitions a fresh claim to Executing but refuses a stale-version claim as LostClaim and an expired-lease claim as LeaseExpired.
+### Start execution matches the claim on worker and execution number
+- **Contract:** Start moves this worker's claim at its execution to Executing, answers a replay Started without a second event, and refuses another execution as LostClaim.
 - **Guarantees:**
-  - A fresh matching claim starts execution and the job goes Executing
-  - A stale-version claim is refused as LostClaim and the job stays Dispatched
-  - An expired-lease claim is refused as LeaseExpired with no JobExecutionStarted event
+  - A claim starts, and a replayed start is answered Started without a second event or version bump
+  - A start for an execution the row has moved past is refused as LostClaim and the job stays Dispatched
+  - A claim whose lease lapsed but was not reclaimed starts, and the start renews its lease
 
 ### Starting a step invokes, replays, suspends, or refuses from the slot's state
 - **Contract:** A step start invokes a new or due slot as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted slot.
@@ -1686,13 +1686,12 @@
   - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
 
 ### A claim survives what happens between its claim and its handler
-- **Contract:** A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated.
+- **Contract:** An operator verb does not refuse a start, a replayed start answers Started and runs once, a reclaimed row is a clean skip, and a failing setup read is repeated.
 - **Guarantees:**
-  - A reprioritize between the claim and the start does not strand the job: the start is retried against the moved version
-  - A start that fails before it commits, with a reprioritize in its retry window, is retried against the moved version
-  - A start that commits and loses its answer runs the handler once and writes one started event
-  - A lease that lapsed before the start, on a row still this worker's, is started once the heartbeat renews it
-  - A lease that lapsed before the start and was reclaimed by recovery in the retry window is a clean skip
+  - A reprioritize between the claim and the start does not refuse the start
+  - A start that fails before it commits, with a reprioritize in its retry window, lands on the retry
+  - A start that commits and loses its answer is answered Started again, runs the handler once, and writes one started event
+  - A row recovery reclaimed between the claim and the start is a clean skip
   - A clock read that fails once after the claim is repeated, and the recurring fire completes
 
 ## Scheduling

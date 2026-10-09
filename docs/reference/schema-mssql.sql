@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 54)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 55)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -5539,7 +5539,6 @@ CREATE OR ALTER PROCEDURE acta.start_execution
     @p_id BIGINT,
     @p_leased_by_worker_id INT,
     @p_execution_number INT,
-    @p_version INT,
     @p_lease_ttl_seconds INT
 AS
 BEGIN
@@ -5555,6 +5554,7 @@ BEGIN
         DECLARE @action TINYINT;
         DECLARE @started TABLE (
             id BIGINT NOT NULL,
+            from_status TINYINT NOT NULL,
             job_ref UNIQUEIDENTIFIER NOT NULL,
             namespace_id INT NOT NULL,
             lineage_root_id BIGINT NULL,
@@ -5564,14 +5564,18 @@ BEGIN
             audit_level_code TINYINT NOT NULL
         );
 
+        /* The update locks the row it reads, so Started always comes from the row as it is and never from a
+           snapshot. A start that committed and lost its answer finds the row Executing under this worker at this
+           execution and is answered Started again: the lease is refreshed, the version and the ledger are not touched. */
         UPDATE r
         SET
             status_code = 50 /* JobStatusCode.Executing */,
             lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
             modified_at_utc = @now,
-            version = r.version + 1
+            version = r.version + CASE WHEN r.status_code = 40 /* JobStatusCode.Dispatched */ THEN 1 ELSE 0 END
         OUTPUT
             INSERTED.job_id,
+            DELETED.status_code,
             j.job_ref,
             j.namespace_id,
             j.lineage_root_id,
@@ -5584,11 +5588,9 @@ BEGIN
         INNER JOIN acta.jobs j ON j.id = r.job_id
         WHERE
             r.job_id = @p_id
-            AND r.execution_number = @p_execution_number
-            AND r.version = @p_version
-            AND r.status_code = 40 /* JobStatusCode.Dispatched */
             AND r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.lease_expires_at_utc > @now;
+            AND r.execution_number = @p_execution_number
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
         IF EXISTS (SELECT 1 FROM @started)
             BEGIN
@@ -5624,17 +5626,14 @@ BEGIN
                     NULL,
                     NULL
                 FROM @started st
-                WHERE st.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
+                WHERE st.from_status = 40 /* JobStatusCode.Dispatched */ AND st.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
             END
         ELSE
             BEGIN
-                DECLARE @curWorker INT, @curEn INT, @curStatus TINYINT, @curVersion INT, @curLease DATETIME2(3);
+                DECLARE @curWorker INT, @curStatus TINYINT;
                 SELECT
-                    @curEn = r.execution_number,
                     @curStatus = r.status_code,
-                    @curVersion = r.version,
-                    @curWorker = r.leased_by_worker_id,
-                    @curLease = r.lease_expires_at_utc
+                    @curWorker = r.leased_by_worker_id
                 FROM acta.runtimes r
                 WHERE r.job_id = @p_id;
 
@@ -5649,13 +5648,7 @@ BEGIN
                         THEN 4 /* StartExecutionAction.AlreadyTerminal */
                     WHEN @curWorker <> @p_leased_by_worker_id OR @curWorker IS NULL
                         THEN 2 /* StartExecutionAction.NotOwner */
-                    WHEN @curEn <> @p_execution_number
-                        THEN 3 /* StartExecutionAction.LostClaim */
-                    WHEN @curVersion <> @p_version
-                        THEN 3 /* StartExecutionAction.LostClaim */
-                    WHEN @curStatus = 40 /* JobStatusCode.Dispatched */ AND @curLease <= @now
-                        THEN 5 /* StartExecutionAction.LeaseExpired */
-                    ELSE 4 /* StartExecutionAction.AlreadyTerminal */
+                    ELSE 3 /* StartExecutionAction.LostClaim */
                 END;
             END
 
@@ -5977,7 +5970,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.54-7b96d30e6546f50aa9cf7b3806050ea8', 'acta'
+SELECT -1, 'objects-1.55-eb7f3b239065b13eaa7ef65911b33240', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
 GO

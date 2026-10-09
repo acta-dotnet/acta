@@ -175,9 +175,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(
             StartExecutionAction.Started,
             (
-                await Services
-                    .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
+                await Services.GetRequiredService<Acta.Execution>().StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, LeaseTtl, ct)
             ).Action
         );
 
@@ -186,9 +184,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(
             StartExecutionAction.Started,
             (
-                await Services
-                    .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, c4.Version, LeaseTtl, ct)
+                await Services.GetRequiredService<Acta.Execution>().StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, LeaseTtl, ct)
             ).Action
         );
         var cr4 = await Services

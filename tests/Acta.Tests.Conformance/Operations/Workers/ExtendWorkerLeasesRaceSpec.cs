@@ -114,7 +114,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         var claimed = Assert.Single(await store.ClaimOneAsync(ns, workerId, leaseTtl, job.JobId, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            (await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)).Action
+            (await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)).Action
         );
         return (
             workerId,

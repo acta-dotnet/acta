@@ -6,5 +6,4 @@ internal enum StartExecutionAction : byte
     NotOwner = 2,
     LostClaim = 3,
     AlreadyTerminal = 4,
-    LeaseExpired = 5,
 }

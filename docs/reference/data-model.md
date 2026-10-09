@@ -429,7 +429,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | `lease_expires_at_utc`<a id="column-acta-runtimes--lease-expires-at-utc"></a> | `UtcInstant` | · | yes | · | · | Execution lease expiry instant; the heartbeat pushes it forward without bumping `Version`, and `sys.recovery` reclaims in-flight rows past it. |
 | `retention_until_utc`<a id="column-acta-runtimes--retention-until-utc"></a> | `UtcInstant` | · | yes | · | · | When `sys.retention` deletes the owning job row (this row cascades with it). |
 | `modified_at_utc`<a id="column-acta-runtimes--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the runtime row was last updated. Set server-side on every mutation. |
-| `version`<a id="column-acta-runtimes--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat, so a buffered claim still passes the start CAS. Int32 on purpose, the width of the public `expectedVersion`: a recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on overflow rather than wrap, so a token never comes back negative. |
+| `version`<a id="column-acta-runtimes--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat and a replayed start. Int32 on purpose, the width of the public `expectedVersion`: a recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on overflow rather than wrap, so a token never comes back negative. |
 
 **Indexes**
 

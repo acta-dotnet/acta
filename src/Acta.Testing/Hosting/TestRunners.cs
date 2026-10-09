@@ -53,9 +53,9 @@ internal static class TestRunners
     {
         var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
         s_facades.TryGetValue(runtime, out var jobs);
-        // The budget covers the retries, not the first drive: a drive that reconciles a refused start
-        // paces its own retry and can outlast the budget on a loaded box, and the row it leaves Ready
-        // still deserves the re-claim this loop exists for.
+        // The budget covers the retries, not the first drive: a drive that repeats a failing start or
+        // completion paces its own retry and can outlast the budget on a loaded box, and the row it leaves
+        // Ready still deserves the re-claim this loop exists for.
         Stopwatch? elapsed = null;
         var lastProbe = -ProbeEvery;
         while (true)

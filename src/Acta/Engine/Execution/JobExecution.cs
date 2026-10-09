@@ -12,7 +12,6 @@ namespace Acta;
 /// happens here, and this is the body. "Execution" is the persisted vocabulary, frozen at 1.0; "run" is a scheduled time.
 /// </summary>
 internal sealed class JobExecution(
-    GetJobHandler getJob,
     CancelJobHandler cancelJob,
     Execution execution,
     IJobPayloadSerializerRegistry serializers,
@@ -23,7 +22,6 @@ internal sealed class JobExecution(
     ActaMetrics? metrics = null
 )
 {
-    private readonly GetJobHandler _getJob = getJob;
     private readonly Execution _execution = execution;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly ILogger _log = log;
@@ -31,105 +29,6 @@ internal sealed class JobExecution(
     private readonly ExecutionAdmission _admission = new(log, options.Value.ConcurrencyKeyBounceDelaySeconds);
     private readonly HandlerInvocation _invocation = new(serializers, pipeline, options.Value.MaxInlinePayloadBytes, log);
     private readonly ExecutionCompletion _completion = new(execution, cancelJob, wakeupPublisher, log, metrics);
-
-    /// <summary>
-    /// Moves a claimed row to Executing and answers what the row is, not what one write said. The write is repeated
-    /// like the completion, on the host token, since a failure after the claim would leave the Dispatched row under a
-    /// lease the heartbeat keeps renewing. A LostClaim means only that the version moved, and the row decides what:
-    /// Executing under this worker at this execution number is a start that committed and lost its answer, so the
-    /// attempt proceeds; Dispatched under this worker is an operator verb that bumped the version, and the start is
-    /// made again against the version the row carries now; anything else belongs to another owner, and the claim is gone.
-    /// </summary>
-    internal static async Task<StartExecutionAction> StartReconciledAsync(
-        Execution execution,
-        GetJobHandler getJob,
-        ClaimedJob job,
-        int workerId,
-        int leaseTtlSeconds,
-        ILogger log,
-        ActaMetrics? metrics,
-        CancellationToken ct
-    )
-    {
-        return await StartReconciledAsync(
-            execution,
-            getJob,
-            job.JobId,
-            job.ExecutionNumber,
-            job.Version,
-            workerId,
-            leaseTtlSeconds,
-            log,
-            metrics,
-            ct
-        );
-    }
-
-    /// <summary>
-    /// The reconciliation by identity alone, for a claim this worker holds without a
-    /// <see cref="ClaimedJob"/> to show for it: a claim whose answer was lost after the store committed it.
-    /// </summary>
-    internal static async Task<StartExecutionAction> StartReconciledAsync(
-        Execution execution,
-        GetJobHandler getJob,
-        long jobId,
-        int executionNumber,
-        int claimedVersion,
-        int workerId,
-        int leaseTtlSeconds,
-        ILogger log,
-        ActaMetrics? metrics,
-        CancellationToken ct
-    )
-    {
-        var version = claimedVersion;
-        var expiredRefusals = 0;
-        while (true)
-        {
-            var (response, _) = await CompletionWrite.RetryAsync(
-                token => execution.StartExecutionAsync(jobId, workerId, executionNumber, version, leaseTtlSeconds, token),
-                log,
-                jobId,
-                ct,
-                metrics
-            );
-            var start = response.Action;
-            // AlreadyTerminal is read against the row too: on PostgreSQL a start that waited on a row
-            // lock held by a concurrent verb classifies against its statement snapshot, which still
-            // shows the claim's version, and answers AlreadyTerminal for a row that is Dispatched under
-            // this worker at the version the verb committed.
-            if (start is not (StartExecutionAction.LostClaim or StartExecutionAction.LeaseExpired or StartExecutionAction.AlreadyTerminal))
-            {
-                return start;
-            }
-
-            var (row, _) = await CompletionWrite.RetryAsync(async token => await getJob.ReadAsync(jobId, token), log, jobId, ct, metrics);
-            var lost = start == StartExecutionAction.LeaseExpired ? StartExecutionAction.LostClaim : start;
-            if (row is null || row.LeasedByWorkerId != workerId || row.ExecutionNumber != executionNumber)
-            {
-                return lost;
-            }
-            switch (row.Status)
-            {
-                case JobStatusCode.Executing:
-                    return StartExecutionAction.Started;
-                // A lapsed lease moves no version and clears no owner: the row is still this worker's to
-                // progress, so the write is paced on the retry curve until it lands or recovery takes the
-                // row and the next read says so.
-                case JobStatusCode.Dispatched when start == StartExecutionAction.LeaseExpired:
-                    version = row.Version;
-                    await Task.Delay(CompletionWrite.Delay(++expiredRefusals), ct);
-                    break;
-                // A version the write was just refused at cannot be retried: the row and the refusal
-                // disagree, which is a store that answers inconsistently, and looping on it would never end.
-                case JobStatusCode.Dispatched when row.Version != version:
-                    version = row.Version;
-                    break;
-                default:
-                    return lost;
-            }
-        }
-    }
 
     public async Task<RunOnceStatus> RunAsync(
         IServiceProvider attemptServices,
@@ -173,24 +72,33 @@ internal sealed class JobExecution(
             : await _completion.CompleteAsync(descriptor, job, jobContext, workerId, fire, settlement, ct);
     }
 
+    /// <summary>
+    /// Moves the claimed row to Executing. The write is repeated like the completion, on the host token, since a start
+    /// abandoned after the claim leaves the row to wait out its lease; a start that committed and lost its answer is
+    /// answered Started again.
+    /// </summary>
     private async Task<bool> StartAsync(ClaimedJob job, int workerId, CancellationToken ct)
     {
-        var start = await StartReconciledAsync(_execution, _getJob, job, workerId, _leaseTtlSeconds, _log, _metrics, ct);
-        if (start == StartExecutionAction.Started)
+        var (start, _) = await CompletionWrite.RetryAsync(
+            token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _leaseTtlSeconds, token),
+            _log,
+            job.JobId,
+            ct,
+            _metrics
+        );
+        if (start.Action == StartExecutionAction.Started)
         {
             return true;
         }
 
-        // The claim was lost before execution began: reclaimed by recovery, reassigned, or moved
-        // out of Dispatched by an operator control verb between claim and start. The CAS guard
-        // (incl. the claim-time version) means we mutated nothing, and the reconciliation above
-        // has read that the row is no longer this worker's; clean skip, let the row be re-claimed
-        // next tick.
+        // The claim was lost before execution began: reclaimed by recovery, reassigned, or moved out of
+        // Dispatched by an operator control verb between claim and start. The start mutated nothing; clean
+        // skip, and the row is re-claimed on the next tick.
         _log.LogInformation(
             "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: ({Outcome}); skipping.",
             job.JobId,
             $"execution number {job.ExecutionNumber}",
-            start.ToString()
+            start.Action.ToString()
         );
         return false;
     }

@@ -146,9 +146,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         var claimed = Assert.Single(await Execution.ClaimOneAsync(ns, worker!.Id, leaseTtlSeconds, job, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            (
-                await Execution.StartExecutionAsync(claimed.JobId, worker.Id, claimed.ExecutionNumber, claimed.Version, leaseTtlSeconds, ct)
-            ).Action
+            (await Execution.StartExecutionAsync(claimed.JobId, worker.Id, claimed.ExecutionNumber, leaseTtlSeconds, ct)).Action
         );
     }
 

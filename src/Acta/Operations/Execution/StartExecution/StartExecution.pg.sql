@@ -2,31 +2,36 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_execution(
     p_id BIGINT,
     p_leased_by_worker_id INT,
     p_execution_number INT,
-    p_version INT,
     p_lease_ttl_seconds INT
 )
 RETURNS SMALLINT
 LANGUAGE sql
 AS $$
-    WITH updated AS (
+    WITH claimed AS (
+        /* Locked first, so Started always comes from the row as it is and never from a snapshot. A start that
+           committed and lost its answer finds the row Executing under this worker at this execution and is
+           answered Started again: the lease is refreshed, the version and the ledger are not touched. */
+        SELECT r.job_id, r.status_code AS from_status
+        FROM {{schema}}.runtimes r
+        WHERE
+            r.job_id = p_id
+            AND r.leased_by_worker_id = p_leased_by_worker_id
+            AND r.execution_number = p_execution_number
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        FOR UPDATE
+    ),
+    updated AS (
         UPDATE {{schema}}.runtimes r
         SET
             status_code = 50 /* JobStatusCode.Executing */,
             lease_expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
             modified_at_utc = now(),
-            version = r.version + 1
-        FROM {{schema}}.jobs j
-        WHERE
-            r.job_id = p_id
-            AND j.id = p_id
-            AND r.execution_number = p_execution_number
-            AND r.version = p_version
-            AND r.status_code = 40 /* JobStatusCode.Dispatched */
-            AND r.leased_by_worker_id = p_leased_by_worker_id
-            AND r.lease_expires_at_utc > now()
-        RETURNING r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref
+            version = r.version + CASE WHEN c.from_status = 40 /* JobStatusCode.Dispatched */ THEN 1 ELSE 0 END
+        FROM claimed c
+        INNER JOIN {{schema}}.jobs j ON j.id = c.job_id
+        WHERE r.job_id = c.job_id
+        RETURNING r.job_id AS id, c.from_status, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref
     ),
-
     event_insert AS (
         INSERT INTO {{schema}}.events (
             event_code,
@@ -67,11 +72,11 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+        WHERE u.from_status = 40 /* JobStatusCode.Dispatched */ AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     ),
     current AS (
-        SELECT r.status_code, r.leased_by_worker_id, r.execution_number, r.version, r.lease_expires_at_utc
+        SELECT r.status_code, r.leased_by_worker_id, r.execution_number
         FROM {{schema}}.runtimes r
         WHERE r.job_id = p_id
     )
@@ -84,12 +89,7 @@ AS $$
                 200 /* JobStatusCode.Failed */,
                 220 /* JobStatusCode.Cancelled */
             ) THEN 4 /* StartExecutionAction.AlreadyTerminal */
-            WHEN (SELECT leased_by_worker_id FROM current) <> p_leased_by_worker_id
-              OR (SELECT leased_by_worker_id FROM current) IS NULL THEN 2 /* StartExecutionAction.NotOwner */
-            WHEN (SELECT execution_number FROM current) <> p_execution_number THEN 3 /* StartExecutionAction.LostClaim */
-            WHEN (SELECT version FROM current) <> p_version THEN 3 /* StartExecutionAction.LostClaim */
-            WHEN (SELECT status_code FROM current) = 40 /* JobStatusCode.Dispatched */
-             AND (SELECT lease_expires_at_utc FROM current) <= now() THEN 5 /* StartExecutionAction.LeaseExpired */
-            ELSE 4 /* StartExecutionAction.AlreadyTerminal */
+            WHEN (SELECT leased_by_worker_id FROM current) IS DISTINCT FROM p_leased_by_worker_id THEN 2 /* StartExecutionAction.NotOwner */
+            ELSE 3 /* StartExecutionAction.LostClaim */
         END::SMALLINT AS action;
 $$;

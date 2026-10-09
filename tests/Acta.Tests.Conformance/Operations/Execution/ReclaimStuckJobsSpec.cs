@@ -160,7 +160,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var started = (
             await Services
                 .GetRequiredService<Acta.Execution>()
-                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
         ).Action;
         Assert.Equal(StartExecutionAction.Started, started);
 
@@ -206,7 +206,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var started = (
             await Services
                 .GetRequiredService<Acta.Execution>()
-                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
         ).Action;
         Assert.Equal(StartExecutionAction.Started, started);
 
@@ -248,9 +248,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var claimed = Assert.Single(await execution.ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
         Assert.Equal(
             StartExecutionAction.Started,
-            (
-                await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
-            ).Action
+            (await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)).Action
         );
 
         var armed = await execution.ArmOrConsumeSleepTimerAsync(

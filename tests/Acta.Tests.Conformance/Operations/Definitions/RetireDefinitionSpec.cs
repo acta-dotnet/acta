@@ -117,7 +117,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             (
                 await Services
                     .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+                    .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)
             ).Action
         );
 

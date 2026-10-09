@@ -1,21 +1,31 @@
-DROP TABLE IF EXISTS temp._se_done;
+DROP TABLE IF EXISTS temp._se_claimed;
+
+/* What the row is before the start, captured under SQLite's one writer, so a start that committed and lost its
+   answer finds the row Executing under this worker at this execution and is answered Started again: the lease is
+   refreshed, the version and the ledger are not touched. */
+CREATE TEMP TABLE _se_claimed AS
+SELECT r.status_code AS from_status
+FROM {{schema}}.runtimes r
+WHERE
+    r.job_id = @p_id
+    AND r.leased_by_worker_id = @p_leased_by_worker_id
+    AND r.execution_number = @p_execution_number
+    AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
 UPDATE {{schema}}.runtimes
 SET
     status_code = 50 /* JobStatusCode.Executing */,
     lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000,
     modified_at_utc = {{now}},
-    version = version + 1
+    version = version + CASE WHEN status_code = 40 /* JobStatusCode.Dispatched */ THEN 1 ELSE 0 END
 WHERE
     job_id = @p_id
-    AND execution_number = @p_execution_number
-    AND version = @p_version
-    AND status_code = 40 /* JobStatusCode.Dispatched */
     AND leased_by_worker_id = @p_leased_by_worker_id
-    AND lease_expires_at_utc > {{now}};
+    AND execution_number = @p_execution_number
+    AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
--- What this call moved, and nothing else: a replay of a start that committed and lost its answer finds
--- the row already Executing at the next version, and must answer LostClaim rather than a second start.
+-- What this call moved, and nothing else.
+DROP TABLE IF EXISTS temp._se_done;
 CREATE TEMP TABLE _se_done AS SELECT changes() AS moved;
 
 SELECT
@@ -36,33 +46,8 @@ SELECT
             (
                 SELECT leased_by_worker_id FROM {{schema}}.runtimes
                 WHERE job_id = @p_id
-            ) <> @p_leased_by_worker_id
-            OR (
-                SELECT leased_by_worker_id FROM {{schema}}.runtimes
-                WHERE job_id = @p_id
-            ) IS NULL THEN 2 /* StartExecutionAction.NotOwner */
-        WHEN
-            (
-                SELECT execution_number FROM {{schema}}.runtimes
-                WHERE job_id = @p_id
-            ) <> @p_execution_number
-            THEN 3 /* StartExecutionAction.LostClaim */
-        WHEN (
-            SELECT version FROM {{schema}}.runtimes
-            WHERE job_id = @p_id
-        ) <> @p_version THEN 3 /* StartExecutionAction.LostClaim */
-        WHEN
-            (
-                SELECT status_code FROM {{schema}}.runtimes
-                WHERE job_id = @p_id
-            ) = 40 /* JobStatusCode.Dispatched */
-            AND (
-                SELECT lease_expires_at_utc FROM {{schema}}.runtimes
-                WHERE job_id = @p_id
-            )
-            <= {{now}}
-            THEN 5 /* StartExecutionAction.LeaseExpired */
-        ELSE 4 /* StartExecutionAction.AlreadyTerminal */
+            ) IS NOT @p_leased_by_worker_id THEN 2 /* StartExecutionAction.NotOwner */
+        ELSE 3 /* StartExecutionAction.LostClaim */
     END AS action;
 
 INSERT INTO {{schema}}.events (
@@ -98,4 +83,5 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
     AND (SELECT moved FROM temp._se_done) = 1
+    AND (SELECT from_status FROM temp._se_claimed) = 40 /* JobStatusCode.Dispatched */
     AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;

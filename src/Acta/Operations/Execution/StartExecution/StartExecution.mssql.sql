@@ -2,7 +2,6 @@ CREATE OR ALTER PROCEDURE {{schema}}.start_execution
     @p_id BIGINT,
     @p_leased_by_worker_id INT,
     @p_execution_number INT,
-    @p_version INT,
     @p_lease_ttl_seconds INT
 AS
 BEGIN
@@ -18,6 +17,7 @@ BEGIN
         DECLARE @action TINYINT;
         DECLARE @started TABLE (
             id BIGINT NOT NULL,
+            from_status TINYINT NOT NULL,
             job_ref UNIQUEIDENTIFIER NOT NULL,
             namespace_id INT NOT NULL,
             lineage_root_id BIGINT NULL,
@@ -27,14 +27,18 @@ BEGIN
             audit_level_code TINYINT NOT NULL
         );
 
+        /* The update locks the row it reads, so Started always comes from the row as it is and never from a
+           snapshot. A start that committed and lost its answer finds the row Executing under this worker at this
+           execution and is answered Started again: the lease is refreshed, the version and the ledger are not touched. */
         UPDATE r
         SET
             status_code = 50 /* JobStatusCode.Executing */,
             lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
             modified_at_utc = @now,
-            version = r.version + 1
+            version = r.version + CASE WHEN r.status_code = 40 /* JobStatusCode.Dispatched */ THEN 1 ELSE 0 END
         OUTPUT
             INSERTED.job_id,
+            DELETED.status_code,
             j.job_ref,
             j.namespace_id,
             j.lineage_root_id,
@@ -47,11 +51,9 @@ BEGIN
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
         WHERE
             r.job_id = @p_id
-            AND r.execution_number = @p_execution_number
-            AND r.version = @p_version
-            AND r.status_code = 40 /* JobStatusCode.Dispatched */
             AND r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.lease_expires_at_utc > @now;
+            AND r.execution_number = @p_execution_number
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
         IF EXISTS (SELECT 1 FROM @started)
             BEGIN
@@ -87,17 +89,14 @@ BEGIN
                     NULL,
                     NULL
                 FROM @started st
-                WHERE st.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
+                WHERE st.from_status = 40 /* JobStatusCode.Dispatched */ AND st.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
             END
         ELSE
             BEGIN
-                DECLARE @curWorker INT, @curEn INT, @curStatus TINYINT, @curVersion INT, @curLease DATETIME2(3);
+                DECLARE @curWorker INT, @curStatus TINYINT;
                 SELECT
-                    @curEn = r.execution_number,
                     @curStatus = r.status_code,
-                    @curVersion = r.version,
-                    @curWorker = r.leased_by_worker_id,
-                    @curLease = r.lease_expires_at_utc
+                    @curWorker = r.leased_by_worker_id
                 FROM {{schema}}.runtimes r
                 WHERE r.job_id = @p_id;
 
@@ -112,13 +111,7 @@ BEGIN
                         THEN 4 /* StartExecutionAction.AlreadyTerminal */
                     WHEN @curWorker <> @p_leased_by_worker_id OR @curWorker IS NULL
                         THEN 2 /* StartExecutionAction.NotOwner */
-                    WHEN @curEn <> @p_execution_number
-                        THEN 3 /* StartExecutionAction.LostClaim */
-                    WHEN @curVersion <> @p_version
-                        THEN 3 /* StartExecutionAction.LostClaim */
-                    WHEN @curStatus = 40 /* JobStatusCode.Dispatched */ AND @curLease <= @now
-                        THEN 5 /* StartExecutionAction.LeaseExpired */
-                    ELSE 4 /* StartExecutionAction.AlreadyTerminal */
+                    ELSE 3 /* StartExecutionAction.LostClaim */
                 END;
             END
 

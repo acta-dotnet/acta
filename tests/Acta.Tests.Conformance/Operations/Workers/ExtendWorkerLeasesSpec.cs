@@ -69,7 +69,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(workerId, still.LeasedByWorkerId);
     }
 
-    [Fact(DisplayName = "The heartbeat does not bump the runtime version, so a buffered claim still passes the start CAS and runs")]
+    [Fact(DisplayName = "The heartbeat leaves the runtime version of a buffered claim alone, and the claim then starts")]
     public async Task Buffered_claim_survives_a_heartbeat_then_starts()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -87,20 +87,19 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
             await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct)
         );
 
-        // The worker's own heartbeat refreshes the lease while this claim is still buffered (Dispatched,
-        // not yet started). It must not advance the runtime version, or the claim-time version below
-        // fails the start CAS as LostClaim and the row stalls leased-but-never-run.
+        // A lease refresh is not a claim-generation change: an operator verb's expected version must still hold.
         var extended = (
             await Services
                 .GetRequiredService<WorkerLifecycle>()
                 .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], [], ct)
         ).Leases;
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
+        Assert.Equal(claimed.Version, (await ReadJobAsync(enqueued.JobId, ct)).Version);
 
         var action = (
             await Services
                 .GetRequiredService<Acta.Execution>()
-                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
+                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)
         ).Action;
 
         Assert.Equal(StartExecutionAction.Started, action);

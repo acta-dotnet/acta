@@ -76,7 +76,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
             (
                 await Services
                     .GetRequiredService<Acta.Execution>()
-                    .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, claimed.Version, LeaseTtlSeconds, ct)
+                    .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, LeaseTtlSeconds, ct)
             ).Action
         );
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);

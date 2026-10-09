@@ -23,8 +23,6 @@ internal sealed class JobExecutionHarness(
     int? maxInlinePayloadBytes = null,
     StartExecutionAction startAction = StartExecutionAction.Started,
     bool startFailsOnce = false,
-    StartExecutionAction? startAfterFailure = null,
-    GetJobResponse? rowAfterLostClaim = null,
     string? concurrencyKey = null,
     int? concurrencyLimit = null,
     bool slotGranted = true,
@@ -53,47 +51,9 @@ internal sealed class JobExecutionHarness(
     // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce, startAfterFailure);
-    private readonly GetJobHandler _getJob = new(null!, new RowSession(rowAfterLostClaim), null!);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
-    /// <summary>The row the reconciliation reads after a LostClaim, as a fact stages it; the claim is execution 3 at version 1.</summary>
-    public static GetJobResponse Row(JobStatusCode status, int version, int leasedByWorkerId = WorkerId, int executionNumber = 3) =>
-        new(
-            JobId: 4242,
-            JobRef: new JobRef(Guid.CreateVersion7()),
-            JobNamespace: "harness",
-            DefinitionId: 1,
-            JobName: "harness-job",
-            LineageRootId: null,
-            LineageRootJobRef: null,
-            ParentJobId: null,
-            ParentJobRef: null,
-            TenantId: null,
-            TenantKey: null,
-            DeduplicationKey: null,
-            CorrelationKey: null,
-            ConcurrencyKey: null,
-            InputFormatId: 0,
-            Status: status,
-            Priority: JobPriorityCode.Normal,
-            Lane: null,
-            BlockedBehindJobId: null,
-            BlockedBehindJobRef: null,
-            NextRunAtUtc: null,
-            ExecutionNumber: executionNumber,
-            FailureCount: 0,
-            LeasedByWorkerId: leasedByWorkerId,
-            LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
-            RetentionUntilUtc: null,
-            CreatedAtUtc: DateTime.UtcNow,
-            ModifiedAtUtc: DateTime.UtcNow,
-            LeasedByWorkerRef: null,
-            Version: version
-        );
-
-    /// <summary>The expected version each start write carried, in order.</summary>
-    public IReadOnlyList<int> StartVersions => _store.StartVersions;
     private readonly RecordingLogger _log = new();
 
     /// <summary>Every concurrency-slot acquire the runner issued, in order.</summary>
@@ -184,7 +144,6 @@ internal sealed class JobExecutionHarness(
         );
 
         var execution = new JobExecution(
-            _getJob,
             CancelJob(),
             _store.Execution,
             new HarnessSerializers(),
@@ -233,11 +192,10 @@ internal sealed class JobExecutionHarness(
             _locks.Locks,
             new HarnessClock(),
             serializers,
-            new StoreOnlyServices(_store.Execution, _getJob, CancelJob()),
+            new StoreOnlyServices(_store.Execution, CancelJob()),
             options,
             context,
             new JobExecution(
-                _getJob,
                 CancelJob(),
                 _store.Execution,
                 serializers,
@@ -314,14 +272,12 @@ internal sealed class JobExecutionHarness(
         CompleteStepOutcomeCode stepOutcome,
         CompleteExecutionAction completionAction,
         StartExecutionAction startAction,
-        bool startFailsOnce,
-        StartExecutionAction? startAfterFailure
+        bool startFailsOnce
     )
     {
         private readonly List<BoundCompletion> _submitted = [];
         private readonly List<BoundCompletion> _applied = [];
         private readonly List<string> _startedSteps = [];
-        private readonly List<int> _startVersions = [];
         private bool _startFailsOnce = startFailsOnce;
         private Acta.Execution? _execution;
 
@@ -329,8 +285,6 @@ internal sealed class JobExecutionHarness(
 
         /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
         public int StartAttempts { get; private set; }
-
-        public IReadOnlyList<int> StartVersions => _startVersions;
 
         public IReadOnlyList<BoundCompletion> Submitted => _submitted;
         public IReadOnlyList<BoundCompletion> Applied => _applied;
@@ -343,7 +297,7 @@ internal sealed class JobExecutionHarness(
         private object? Answer(BoundCall call) =>
             call.Stem switch
             {
-                "StartExecution" => Start(call.Get(ActaSchema.Runtime.Version)),
+                "StartExecution" => Start(),
                 "StartStep" => StartStep(call.Get(ActaSchema.Step.Name)),
                 "CompleteStep" => CompleteStep(),
                 "CompleteExecution" => Complete(BoundCompletion.Read(call)),
@@ -352,18 +306,15 @@ internal sealed class JobExecutionHarness(
                 _ => throw new NotSupportedException(call.Stem),
             };
 
-        private byte Start(int expectedVersion)
+        private byte Start()
         {
             StartAttempts++;
-            _startVersions.Add(expectedVersion);
             if (_startFailsOnce)
             {
                 _startFailsOnce = false;
                 throw new ProviderDown();
             }
-            // startAfterFailure models a first try that committed and lost only its response: the retry
-            // resubmits a stale version and the CAS answers LostClaim although this worker holds the row.
-            return (byte)(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
+            return (byte)startAction;
         }
 
         private StartStepResponse StartStep(string name)
@@ -430,18 +381,6 @@ internal sealed class JobExecutionHarness(
     /// <summary>One line the runner wrote: enough to pin an arm whose whole contract is the log.</summary>
     internal sealed record LogEntry(LogLevel Level, string Message);
 
-    // The by-id job read the reconciliation makes after a LostClaim, answered with the staged row; any
-    // other read reaches the stub and throws.
-    private sealed class RowSession(GetJobResponse? row) : DbSessionStub
-    {
-        public override Task<T> QueryAsync<T>(
-            string stem,
-            Action<System.Data.Common.DbCommand> bind,
-            Func<System.Data.Common.DbDataReader, CancellationToken, Task<T>> read,
-            CancellationToken ct
-        ) => stem == "GetJob" ? Task.FromResult((T)(object?)row!) : base.QueryAsync(stem, bind, read, ct);
-    }
-
     // A handler cancel walks the subtree from the scripted store's children, which it never stages.
     private CancelJobHandler CancelJob() =>
         new(null!, new DbSessionStub(), null!, _store.Execution, null!, new WorkerWakeupPublisher(new InProcessWakeup()));
@@ -474,7 +413,7 @@ internal sealed class JobExecutionHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(Acta.Execution store, GetJobHandler getJob, CancelJobHandler cancelJob)
+    private sealed class StoreOnlyServices(Acta.Execution store, CancelJobHandler cancelJob)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -488,7 +427,6 @@ internal sealed class JobExecutionHarness(
 
         public object? GetService(Type serviceType) =>
             serviceType == typeof(Acta.Execution) ? store
-            : serviceType == typeof(GetJobHandler) ? getJob
             : serviceType == typeof(CancelJobHandler) ? cancelJob
             : serviceType == typeof(ResetJobStateHandler) ? _resetJobState
             : serviceType == typeof(IServiceScopeFactory) ? this

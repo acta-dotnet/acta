@@ -8,7 +8,7 @@ public sealed class ConstantCatalogTests
     [Theory]
     [InlineData("JobStatusCode.Ready", 10)]
     [InlineData("TagMutationAction.NotFound", 2)]
-    [InlineData("StartExecutionAction.LeaseExpired", 5)]
+    [InlineData("StartExecutionAction.LostClaim", 3)]
     [InlineData("JobPayloadFormat.Json", 1)]
     public void Resolves_every_supported_constant_shape(string symbol, int expected)
     {
@@ -25,7 +25,7 @@ public sealed class ConstantCatalogTests
     [Fact]
     public void Constant_names_are_case_sensitive()
     {
-        Assert.False(ConstantCatalog.IsKnownCode("startExecutionAction.LeaseExpired"));
+        Assert.False(ConstantCatalog.IsKnownCode("startExecutionAction.LostClaim"));
     }
 
     [Fact]
