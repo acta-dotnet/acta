@@ -15,7 +15,7 @@ internal sealed partial class RuntimeJobContext
         var token = (await _locks.AcquireLockAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
-            // Register so the lock heartbeat extends this handler-acquired lock for as long as the
+            // Register so the heartbeat renews this handler-acquired lock for as long as the
             // critical section runs; without it a long action would outlive the lease TTL and the lock
             // could be stolen mid-section.
             _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());

@@ -94,8 +94,16 @@ internal sealed class SqlServerDialect : ISqlDialect
             (object?)DbParams.JsonIdArray(definitionIds) ?? DBNull.Value
         );
 
-    public void BindHeldLeases(DbCommand command, IReadOnlyList<(long JobId, int ExecutionNumber)> executions) =>
-        AddScalar((SqlCommand)command, "@p_executions", SqlDbType.NVarChar, DbParams.JsonHeldExecutions(executions));
+    public void BindHeldLeases(
+        DbCommand command,
+        IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
+        IReadOnlyList<LockToken> locks
+    )
+    {
+        var sql = (SqlCommand)command;
+        AddScalar(sql, "@p_executions", SqlDbType.NVarChar, DbParams.JsonHeldExecutions(executions));
+        AddScalar(sql, "@p_locks", SqlDbType.NVarChar, DbParams.JsonHeldLocks(locks));
+    }
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {

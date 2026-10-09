@@ -1112,16 +1112,11 @@
   - Simultaneous acquires of a key's one free slot leave exactly one holder
   - A limit below one throws before any slot is written
 
-### A held lock renews while owned and misses after release
-- **Contract:** Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key.
+### One heartbeat renews a handler-held lock and a lost lock cancels the attempt
+- **Contract:** The heartbeat renews every lock an attempt holds with its job lease, and a lost held lock aborts the attempt into a retryable failure within one heartbeat.
 - **Guarantees:**
-  - A held lock extends and blocks rivals, and after release the extend is a CAS miss leaving the key re-acquirable
-
-### Heartbeat extends a handler-held lock and a lost lock cancels the attempt
-- **Contract:** The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock aborts the attempt into a retryable failure.
-- **Guarantees:**
-  - Heartbeat advances a handler-held lock's lease
-  - A lost held lock cancels the attempt
+  - One heartbeat advances both the attempt's job lease and its handler-held lock's lease
+  - A lost held lock cancels the attempt within one heartbeat
 
 ### Release removes the lease row and a stale token misses on version CAS
 - **Contract:** ReleaseLock deletes the leases row when the version matches and returns false when the token's version no longer matches.
@@ -2229,7 +2224,6 @@
 | `EnqueueJobs` | yes | yes | yes |
 | `EnsureMigrations` | yes | yes | yes |
 | `EventsView` | yes | yes | yes |
-| `ExtendLock` | yes | yes | yes |
 | `ExtendWorkerLeases` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertableEvents` | yes | yes | yes |

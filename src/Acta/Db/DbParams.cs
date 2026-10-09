@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace Acta;
 
@@ -102,6 +103,27 @@ internal static class DbParams
             text.Append(
                 CultureInfo.InvariantCulture,
                 $"{{\"job_id\":{executions[i].JobId},\"execution_number\":{executions[i].ExecutionNumber}}}"
+            );
+        }
+        return text.Append(']').ToString();
+    }
+
+    /// <summary>
+    /// The held lock holds as JSON array text (<c>[{"lock_key":"k","hold_token":"..."}]</c>), the token in the "D"
+    /// format SQLite stores it in, for the dialects whose lease renewal expands them with OPENJSON or json_each.
+    /// </summary>
+    public static string JsonHeldLocks(IReadOnlyList<LockToken> locks)
+    {
+        var text = new StringBuilder("[");
+        for (var i = 0; i < locks.Count; i++)
+        {
+            if (i > 0)
+            {
+                text.Append(',');
+            }
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"{{\"lock_key\":\"{JsonEncodedText.Encode(locks[i].Key)}\",\"hold_token\":\"{locks[i].HoldToken:D}\"}}"
             );
         }
         return text.Append(']').ToString();

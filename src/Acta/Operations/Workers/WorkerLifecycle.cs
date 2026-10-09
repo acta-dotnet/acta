@@ -30,18 +30,19 @@ internal sealed class WorkerLifecycle(
 
     /// <summary>
     /// Heartbeat lease refresh for one worker: stamps <c>workers.last_seen_at_utc</c> and pushes forward by one TTL
-    /// window the lease of each held execution the worker still leases. Answers those executions, each flagged renewed
-    /// or skipped because another transaction held the row; a held execution not answered was cancelled, reclaimed, or
-    /// claimed again, and a leased row nothing holds is not renewed, so it lapses. Also answers the namespace's newest
-    /// <c>definitions.modified_at_utc</c>. Deliberately does not bump <c>runtimes.version</c>.
+    /// window each lock hold whose token still holds its key and the lease of each held execution the worker still
+    /// leases. Answers the renewed holds and those executions, each flagged renewed or skipped because another
+    /// transaction held the row; a hold or held execution not answered is gone, and a leased row nothing holds lapses.
+    /// Also answers the namespace's newest <c>definitions.modified_at_utc</c>. Does not bump <c>runtimes.version</c>.
     /// </summary>
     public Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(
         int workerId,
         int leaseTtlSeconds,
         bool draining,
         IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
+        IReadOnlyList<LockToken> locks,
         CancellationToken ct
-    ) => extendWorkerLeases.HandleAsync(new ExtendWorkerLeasesCommand(workerId, leaseTtlSeconds, draining, executions), ct);
+    ) => extendWorkerLeases.HandleAsync(new ExtendWorkerLeasesCommand(workerId, leaseTtlSeconds, draining, executions, locks), ct);
 
     /// <summary>
     /// Dead-worker sweep across all namespaces: flips Active <c>workers</c> rows whose

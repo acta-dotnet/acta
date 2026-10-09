@@ -6,11 +6,11 @@ namespace Acta;
 
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one
-/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews the lease of
-/// every execution this process holds, so a leased row nothing holds lapses to recovery. It feeds a running attempt's
-/// job-lease deadline on a confirmed renewal, cancels one whose execution an authoritative refresh drops, and re-overlays
-/// the definitions' effective policy when the namespace's catalog changed. Deadlines on an outage are
-/// <see cref="AttemptWatchdog"/>'s and handler locks <see cref="LockLeaseHeartbeat"/>'s; a no-op in enqueue-only mode.
+/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
+/// hold and execution lease this process holds, so a leased row nothing holds lapses to recovery. It feeds a running
+/// attempt's deadlines on a confirmed renewal, cancels one whose execution or held lock an authoritative refresh drops,
+/// and re-overlays the definitions' effective policy when the namespace's catalog changed. Deadlines on an outage are
+/// <see cref="AttemptWatchdog"/>'s; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     WorkerLifecycle workers,
@@ -151,14 +151,17 @@ internal sealed class WorkerHeartbeat(
             // removes the attempt from RunningAttempts before disposing its CancellationTokenSource, so a
             // late Cancel() either lands on a token nothing reads anymore or hits the already-disposed
             // source, which RunningAttempt.Cancel() swallows.
-            var snapshot = _context.RunningAttempts.ToArray();
+            var snapshot = _context
+                .RunningAttempts.Select(running => (JobId: running.Key, Attempt: running.Value, Locks: running.Value.HeldLocks))
+                .ToArray();
             List<(long JobId, int ExecutionNumber)> held =
             [
-                .. snapshot.Select(attempt => (attempt.Key, attempt.Value.ExecutionNumber)),
+                .. snapshot.Select(running => (running.JobId, running.Attempt.ExecutionNumber)),
                 .. _context.BufferedClaims.Select(claim => (claim.Key, claim.Value)),
             ];
+            List<LockToken> heldLocks = [.. snapshot.SelectMany(running => running.Locks)];
 
-            // Renew this worker's job leases and union the still-owned ids. Capture the request-start
+            // Renew the held leases and locks and union the still-owned ids. Capture the request-start
             // BEFORE the call: the store stamps the renewed expiry no earlier than this instant, so
             // requestStart + TTL is a conservative lower bound on when the lease actually lapses (unlike
             // a post-response `now + TTL`, which overestimates the lease by the round-trip latency). A
@@ -171,12 +174,14 @@ internal sealed class WorkerHeartbeat(
             var renewRequestedAt = Stopwatch.GetTimestamp();
             HashSet<(long JobId, int ExecutionNumber)>? live = [];
             HashSet<(long JobId, int ExecutionNumber)> renewed = [];
+            HashSet<string> renewedLocks = new(StringComparer.Ordinal);
             DateTime? definitionsModifiedAtUtc = null;
             try
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)
                 {
-                    var answer = await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, held, ct);
+                    var answer = await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, held, heldLocks, ct);
+                    renewedLocks.UnionWith(answer.RenewedLockKeys);
                     definitionsModifiedAtUtc = answer.DefinitionsModifiedAtUtc;
                     foreach (var lease in answer.Leases)
                     {
@@ -200,7 +205,7 @@ internal sealed class WorkerHeartbeat(
                 live = null;
             }
 
-            FeedJobLeases(snapshot, live, renewed, renewRequestedAt);
+            FeedLeases(snapshot, live, renewed, renewedLocks, renewRequestedAt);
             if (
                 live is not null
                 && (
@@ -245,17 +250,18 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// For each attempt this process was running as of the pre-extend snapshot, matched on job and execution: a
-    /// renewal by an authoritative refresh feeds its job-lease deadline forward; a row the refresh reported but skipped
-    /// because another transaction held it keeps its deadline for the next beat; an execution the authoritative refresh
-    /// dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again into a newer execution) is
-    /// cancelled now. <c>live</c> is null when the refresh threw (store unreachable): a definitive gone cannot be told
-    /// from a blip, so nothing is fed or cancelled and the watchdog cancels only once the deadline is about to lapse.
+    /// For each attempt in the pre-extend snapshot, matched on job and execution: a renewal feeds its job-lease deadline
+    /// and a renewed lock its lock's; a row skipped because another transaction held it keeps its deadline for the next
+    /// beat; an execution the refresh dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again)
+    /// is cancelled now, and so is one whose held lock was not renewed. <c>live</c> is null when the refresh threw: a
+    /// definitive loss cannot be told from a blip, so nothing is fed or cancelled and the watchdog cancels only once a
+    /// deadline is about to lapse.
     /// </summary>
-    private void FeedJobLeases(
-        KeyValuePair<long, RunningAttempt>[] snapshot,
+    private void FeedLeases(
+        (long JobId, RunningAttempt Attempt, IReadOnlyCollection<LockToken> Locks)[] snapshot,
         HashSet<(long JobId, int ExecutionNumber)>? live,
         HashSet<(long JobId, int ExecutionNumber)> renewed,
+        HashSet<string> renewedLocks,
         long renewRequestedAt
     )
     {
@@ -265,7 +271,7 @@ internal sealed class WorkerHeartbeat(
         }
 
         var goodUntil = renewRequestedAt + _ttlStopwatchTicks;
-        foreach (var (jobId, attempt) in snapshot)
+        foreach (var (jobId, attempt, locks) in snapshot)
         {
             var execution = (jobId, attempt.ExecutionNumber);
             if (renewed.Contains(execution))
@@ -278,6 +284,24 @@ internal sealed class WorkerHeartbeat(
                 // Definitive loss under an authoritative refresh. Stop it now rather than waiting out the
                 // watchdog.
                 attempt.Cancel();
+                continue;
+            }
+
+            foreach (var token in locks)
+            {
+                if (renewedLocks.Contains(token.Key))
+                {
+                    // A no-op when the handler released and untracked the lock while the renewal was in flight.
+                    attempt.ExtendLock(token, goodUntil);
+                }
+                else if (attempt.Holds(token))
+                {
+                    // Another holder took a lock the handler still relies on, so its critical section is no
+                    // longer exclusive.
+                    attempt.Cancel();
+                    _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", jobId);
+                    break;
+                }
             }
         }
     }

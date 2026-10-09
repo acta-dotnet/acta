@@ -7,19 +7,19 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The failure arms of the three loops that keep an attempt alive: the lock-lease renewer, the worker
-/// heartbeat, and the lease watchdog. Their happy paths and their single ticks are pinned elsewhere
+/// The failure arms of the two loops that keep an attempt alive: the worker heartbeat, which renews its job lease and
+/// held locks, and the lease watchdog. Their happy paths and their single ticks are pinned elsewhere
 /// (<see cref="WorkerHeartbeatLeaseRunwayTests"/> for what one tick decides,
 /// <see cref="LoopTickCancellationFilterTests"/> for the stray-cancellation filter); what is pinned here
 /// is the loop around the tick. Each of these tasks is awaited by the runtime host, so a tick failure
 /// that escapes <c>RunAsync</c> does not stop one renewal - it faults the host's <c>WhenAll</c> and takes
-/// the worker down, at exactly the moment (a database blip) the renewers exist to survive.
+/// the worker down, at exactly the moment (a database blip) the heartbeat exists to survive.
 /// </summary>
 /// <remarks>
-/// Both renewers already absorb a store fault inside their own tick while the token is live, so the way
+/// The heartbeat already absorbs a store fault inside its own tick while the token is live, so the way
 /// a fault reaches the loop's arms is the shutdown window: the call cancels the loop's token and then
 /// fails rather than cancelling cleanly, which is what a connection torn down under a running query
-/// looks like. The stores here do exactly that, deterministically, with no timing dependence. The
+/// looks like. The store here does exactly that, deterministically, with no timing dependence. The
 /// watchdog does no I/O at all, so its tick failure is injected at its clock seam and it is the one loop
 /// whose carry-on is directly observable.
 /// </remarks>
@@ -32,99 +32,6 @@ public sealed class RenewalLoopFailureArmTests
         Options.Create(new JobsOptions { HeartbeatInterval = Interval, LeaseTtlSeconds = LeaseTtlSeconds });
 
     private static readonly WorkerRegistration Registration = new("orders", null, null, [], []);
-
-    [Fact]
-    public async Task A_lock_lease_tick_that_fails_before_the_first_beat_is_logged_and_the_loop_still_exits_cleanly()
-    {
-        // The lock store fails on the immediate startup tick. The loop must record it as an error - a
-        // handler's mutual exclusion is now running on an unrenewed lease - and then leave through its
-        // normal shutdown path rather than propagating into the host.
-        var (context, attempt, token) = Attempt();
-        using var cts = new CancellationTokenSource();
-        var log = new RecordingLogger();
-        var heartbeat = new LockLeaseHeartbeat(
-            ScriptedLockStore(cts, failOn: 1, new InvalidOperationException("synthetic connection torn down")),
-            LoopOptions(),
-            Registration,
-            context,
-            log
-        );
-
-        await heartbeat.RunAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        var error = Assert.Single(log.Errors);
-        Assert.Contains("initial lock-lease tick failed", error.Message, StringComparison.Ordinal);
-
-        // Nothing was fed and nothing was cancelled: an uncertain extend leaves the deadline for the
-        // watchdog, which is the whole reason a failed renewal is survivable.
-        Assert.False(attempt.Cts.IsCancellationRequested);
-        Assert.True(attempt.Attempt.Holds(token));
-    }
-
-    [Fact]
-    public async Task A_periodic_lock_lease_tick_that_fails_is_logged_as_retrying_next_tick()
-    {
-        // The startup tick and a full periodic beat renew normally; the failure lands on the beat after
-        // that, which is the arm with its own message - "retrying next tick" - so an operator reading the
-        // log can tell a worker that never renewed from one that renewed and then lost the store.
-        var (context, attempt, _) = Attempt();
-        using var cts = new CancellationTokenSource();
-        var log = new RecordingLogger();
-        var heartbeat = new LockLeaseHeartbeat(
-            ScriptedLockStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
-            LoopOptions(),
-            Registration,
-            context,
-            log
-        );
-
-        await heartbeat.RunAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        var error = Assert.Single(log.Errors);
-        Assert.Contains("lock-lease tick failed; retrying next tick", error.Message, StringComparison.Ordinal);
-        Assert.False(attempt.Cts.IsCancellationRequested);
-    }
-
-    [Fact]
-    public async Task A_periodic_lock_lease_tick_cancelled_by_shutdown_leaves_without_an_error()
-    {
-        // Cancellation is not a renewal failure. Logging it as one would put an error in every clean
-        // stop, which is how a real one stops being noticed.
-        var (context, _, _) = Attempt();
-        using var cts = new CancellationTokenSource();
-        var log = new RecordingLogger();
-        var heartbeat = new LockLeaseHeartbeat(
-            ScriptedLockStore(cts, failOn: 3, cancellation: true),
-            LoopOptions(),
-            Registration,
-            context,
-            log
-        );
-
-        await heartbeat.RunAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        Assert.Empty(log.Errors);
-    }
-
-    [Fact]
-    public async Task A_shutdown_that_lands_before_the_first_lock_lease_tick_is_not_an_error_either()
-    {
-        var (context, _, _) = Attempt();
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-        var log = new RecordingLogger();
-        var heartbeat = new LockLeaseHeartbeat(
-            ScriptedLockStore(cts, failOn: 0, cancellation: true),
-            LoopOptions(),
-            Registration,
-            context,
-            log
-        );
-
-        await heartbeat.RunAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        Assert.Empty(log.Errors);
-    }
 
     [Fact]
     public async Task A_periodic_worker_heartbeat_tick_that_fails_is_logged_as_retrying_next_tick()
@@ -234,18 +141,6 @@ public sealed class RenewalLoopFailureArmTests
         Assert.True(attemptCts.IsCancellationRequested);
     }
 
-    private static (WorkerContext Context, TrackedAttempt Attempt, LockToken Token) Attempt()
-    {
-        var context = new WorkerContext(Registration);
-        context.WorkerIdByNamespace["orders"] = 1;
-        var cts = new CancellationTokenSource();
-        var attempt = new RunningAttempt(cts);
-        var token = new LockToken("orders.charge", Guid.NewGuid());
-        attempt.TrackLock(token, Stopwatch.GetTimestamp() + (long)(LeaseTtlSeconds * (double)Stopwatch.Frequency));
-        context.RunningAttempts[1] = attempt;
-        return (context, new TrackedAttempt(attempt, cts), token);
-    }
-
     private static WorkerContext HeartbeatContext()
     {
         var context = new WorkerContext(Registration);
@@ -253,37 +148,25 @@ public sealed class RenewalLoopFailureArmTests
         return context;
     }
 
-    private sealed record TrackedAttempt(RunningAttempt Attempt, CancellationTokenSource Cts);
-
-    // The lock extend renews the lock on every call but the scripted one.
-    private static Locks ScriptedLockStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false) =>
-        FailingOn(cts, failOn, failure, cancellation, renewed: true).Services().GetRequiredService<Locks>();
-
     // The lease extend renews no rows on every call but the scripted one.
     private static WorkerLifecycle ScriptedWorkerStore(
         CancellationTokenSource cts,
         int failOn,
         Exception? failure = null,
         bool cancellation = false
-    ) => FailingOn(cts, failOn, failure, cancellation, renewed: null).Services().GetRequiredService<WorkerLifecycle>();
+    ) => FailingOn(cts, failOn, failure, cancellation).Services().GetRequiredService<WorkerLifecycle>();
 
     // Answers the Nth call by cancelling the loop's own token and then failing, which is a connection
     // torn down under a running query at shutdown: the exact state in which a tick failure reaches
     // RunAsync's arms rather than being absorbed inside TickAsync. Every other call renews normally.
-    private static ScriptedSession FailingOn(
-        CancellationTokenSource cts,
-        int failOn,
-        Exception? failure,
-        bool cancellation,
-        object? renewed
-    )
+    private static ScriptedSession FailingOn(CancellationTokenSource cts, int failOn, Exception? failure, bool cancellation)
     {
         var calls = 0;
         return new ScriptedSession(_ =>
         {
             if (Interlocked.Increment(ref calls) != failOn)
             {
-                return renewed;
+                return null;
             }
 
             cts.Cancel();

@@ -48,7 +48,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
 
         var answer = await Services
             .GetRequiredService<WorkerLifecycle>()
-            .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], ct);
+            .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], [], ct);
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(answer.Leases));
         var definitions = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns).ToListAsync(ct);
         Assert.Equal(definitions.Max(d => d.ModifiedAtUtc), answer.DefinitionsModifiedAtUtc);
@@ -93,7 +93,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var extended = (
             await Services
                 .GetRequiredService<WorkerLifecycle>()
-                .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], ct)
+                .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], [], ct)
         ).Leases;
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
 
@@ -139,6 +139,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
                         (held.JobId, heldClaim.ExecutionNumber),
                         (lost.JobId, lostClaim.ExecutionNumber - 1),
                     ],
+                    [],
                     ct
                 )
         ).Leases;

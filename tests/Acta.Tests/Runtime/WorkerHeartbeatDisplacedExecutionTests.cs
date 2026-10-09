@@ -25,6 +25,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         var session = new ScriptedSession(_ => new ExtendWorkerLeasesRow(
             7,
             ExecutionNumber: 2,
+            LockKey: null,
             Renewed: true,
             DefinitionsModifiedAtUtc: null
         ));

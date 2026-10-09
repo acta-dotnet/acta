@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 53)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 54)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3017,28 +3017,16 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.extend_lock(
-    p_lock_key VARCHAR,
-    p_hold_token UUID,
-    p_lease_ttl_seconds INT
-)
-RETURNS TABLE (hold_token UUID)
-LANGUAGE sql
-AS $$
-    UPDATE acta.locks
-    SET expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second')
-    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
-    RETURNING hold_token;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,
     p_draining BOOLEAN,
     p_job_ids BIGINT[],
-    p_execution_numbers INT[]
+    p_execution_numbers INT[],
+    p_lock_keys VARCHAR[],
+    p_hold_tokens UUID[]
 )
-RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN, definitions_modified_at_utc TIMESTAMPTZ)
+RETURNS TABLE (job_id BIGINT, execution_number INT, lock_key VARCHAR, renewed BOOLEAN, definitions_modified_at_utc TIMESTAMPTZ)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -3060,6 +3048,15 @@ BEGIN
         version = version + 1
     WHERE id = p_leased_by_worker_id
     RETURNING namespace_id INTO v_namespace_id;
+
+    -- Lock holds renew first and never skip: no routine locks both locks and runtimes. A hold whose token
+    -- moved is not answered, and the attempt that relied on it stops.
+    RETURN QUERY
+    UPDATE acta.locks k
+    SET expires_at_utc = v_new_expiry
+    FROM unnest(p_lock_keys, p_hold_tokens) AS h (lock_key, hold_token)
+    WHERE k.lock_key = h.lock_key AND k.hold_token = h.hold_token
+    RETURNING NULL::BIGINT, NULL::INT, k.lock_key, TRUE, NULL::TIMESTAMPTZ;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -3095,13 +3092,13 @@ BEGIN
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
         RETURNING r.job_id
     )
-    SELECT m.job_id, m.execution_number, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ
+    SELECT m.job_id, m.execution_number, NULL::VARCHAR, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ
     FROM matched m
     LEFT JOIN extended e ON e.job_id = m.job_id;
 
     -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
     RETURN QUERY
-    SELECT NULL::BIGINT, NULL::INT, FALSE, MAX(d.modified_at_utc)
+    SELECT NULL::BIGINT, NULL::INT, NULL::VARCHAR, FALSE, MAX(d.modified_at_utc)
     FROM acta.definitions d
     WHERE d.namespace_id = v_namespace_id;
 END;
@@ -5228,7 +5225,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.53-29239e964c1364fc0bff44af08bceb1a', 'acta');
+VALUES (-1, 'objects-1.54-d6b22c49ec4ff2d58b42c83f45ca21d2', 'acta');
 
 COMMIT;
 

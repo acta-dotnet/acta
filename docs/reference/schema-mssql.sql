@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 53)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 54)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -3525,40 +3525,12 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.extend_lock
-    @p_lock_key VARCHAR(256),
-    @p_hold_token UNIQUEIDENTIFIER,
-    @p_lease_ttl_seconds INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        UPDATE acta.locks
-        SET expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
-        OUTPUT INSERTED.hold_token
-        WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.extend_worker_leases
     @p_leased_by_worker_id INT,
     @p_lease_ttl_seconds INT,
     @p_draining BIT,
-    @p_executions NVARCHAR(MAX)
+    @p_executions NVARCHAR(MAX),
+    @p_locks NVARCHAR(MAX)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3588,12 +3560,26 @@ BEGIN
             version = version + 1
         WHERE id = @p_leased_by_worker_id;
 
-        /* The held executions arrive as JSON array text, expanded once into a keyed table. A process can hold two
-           executions of one job: an attempt still unwinding after the job was claimed again. */
+        /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
+           can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
         DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number INT NOT NULL, PRIMARY KEY (job_id, execution_number));
         INSERT INTO @held (job_id, execution_number)
         SELECT job_id, execution_number
         FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number INT '$.execution_number');
+
+        DECLARE @lock_held TABLE (lock_key VARCHAR(256) NOT NULL, hold_token UNIQUEIDENTIFIER NOT NULL, PRIMARY KEY (lock_key, hold_token));
+        INSERT INTO @lock_held (lock_key, hold_token)
+        SELECT lock_key, hold_token
+        FROM OPENJSON(@p_locks) WITH (lock_key VARCHAR(256) '$.lock_key', hold_token UNIQUEIDENTIFIER '$.hold_token');
+
+        -- Lock holds renew first and never skip: no routine locks both locks and runtimes. A hold whose token
+        -- moved is not answered, and the attempt that relied on it stops.
+        DECLARE @lock_renewed TABLE (lock_key VARCHAR(256) NOT NULL PRIMARY KEY);
+        UPDATE k
+        SET expires_at_utc = @new_expiry
+        OUTPUT INSERTED.lock_key INTO @lock_renewed (lock_key)
+        FROM acta.locks k
+        INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
 
         /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -3622,10 +3608,19 @@ BEGIN
             AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
         SELECT
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS INT) AS execution_number,
+            l.lock_key,
+            CAST(1 AS BIT) AS renewed,
+            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc
+        FROM @lock_renewed l
+        UNION ALL
+        SELECT
             m.job_id,
             m.execution_number,
-            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed,
-            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc
+            CAST(NULL AS VARCHAR(256)),
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
+            CAST(NULL AS DATETIME2(3))
         FROM @matched m
         LEFT JOIN @renewed n ON n.job_id = m.job_id
         UNION ALL
@@ -3633,6 +3628,7 @@ BEGIN
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
             CAST(NULL AS INT) AS execution_number,
+            CAST(NULL AS VARCHAR(256)) AS lock_key,
             CAST(0 AS BIT) AS renewed,
             MAX(d.modified_at_utc) AS definitions_modified_at_utc
         FROM acta.definitions d
@@ -5981,9 +5977,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.53-b2c4f61151009be6b91d2c221db28435', 'acta'
+SELECT -1, 'objects-1.54-7b96d30e6546f50aa9cf7b3806050ea8', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
 GO
 COMMIT TRANSACTION;
 GO

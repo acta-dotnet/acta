@@ -168,8 +168,15 @@ internal sealed class SqliteDialect : ISqlDialect
     public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
         AddNullableText(command, "@p_excluded_definition_ids", DbParams.JsonIdArray(definitionIds));
 
-    public void BindHeldLeases(DbCommand command, IReadOnlyList<(long JobId, int ExecutionNumber)> executions) =>
+    public void BindHeldLeases(
+        DbCommand command,
+        IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
+        IReadOnlyList<LockToken> locks
+    )
+    {
         AddText(command, "@p_executions", DbParams.JsonHeldExecutions(executions));
+        AddText(command, "@p_locks", DbParams.JsonHeldLocks(locks));
+    }
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {

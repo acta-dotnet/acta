@@ -54,7 +54,7 @@ public sealed partial class MsSqlProvisionScriptSpec
 
             // A body-only replacement must be repaired by bootstrap even with no pending MNNN.
             var changedBody = ProviderSqlResources
-                .Read("mssql", "ExtendLock")
+                .Read("mssql", "ReleaseLock")
                 .ReplaceLineEndings("\n")
                 .Replace("{{schema}}", schema)
                 .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- versionless_body_probe");
@@ -66,7 +66,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             }
             await using (var definition = conn.CreateCommand())
             {
-                definition.CommandText = $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.extend_lock'))";
+                definition.CommandText = $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.release_lock'))";
                 Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
                 await Acta.SqlServer.SqlServerSchemaMigrator.ApplyAsync(conn, schema, ct);
                 Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
@@ -87,7 +87,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             Assert.True(await reader.ReadAsync(ct));
             Assert.Equal(migrations, reader.GetInt32(0));
             Assert.Equal(0, reader.GetInt32(1));
-            Assert.Equal(30, reader.GetInt32(2));
+            Assert.Equal(29, reader.GetInt32(2));
         }
         finally
         {
@@ -149,7 +149,7 @@ public sealed partial class MsSqlProvisionScriptSpec
                 await newer.ExecuteNonQueryAsync(ct);
             }
             var marked = ProviderSqlResources
-                .Read("mssql", "ExtendLock")
+                .Read("mssql", "ReleaseLock")
                 .ReplaceLineEndings("\n")
                 .Replace("{{schema}}", schema)
                 .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
@@ -179,7 +179,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             Assert.True(refused, "the script did not refuse the newer package");
             await using var probe = conn.CreateCommand();
             probe.CommandText =
-                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.extend_lock')), (SELECT name FROM {schema}.migrations WHERE version = -1)";
+                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.release_lock')), (SELECT name FROM {schema}.migrations WHERE version = -1)";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));
             Assert.Contains("newer_release_body", reader.GetString(0));

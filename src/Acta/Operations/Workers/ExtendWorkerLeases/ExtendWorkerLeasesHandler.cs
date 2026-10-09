@@ -12,13 +12,14 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, command.WorkerId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, command.Draining));
-                dialect.BindHeldLeases(cmd, command.Executions);
+                dialect.BindHeldLeases(cmd, command.Executions, command.Locks);
             },
             DbProjectionResolver.Resolve<ExtendWorkerLeasesRow>(),
             ct
         );
 
         List<ExtendWorkerLeasesLease> leases = [];
+        List<string> renewedLockKeys = [];
         DateTime? definitionsModifiedAtUtc = null;
         foreach (var row in rows)
         {
@@ -26,12 +27,16 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
             {
                 leases.Add(new ExtendWorkerLeasesLease(jobId, row.ExecutionNumber!.Value, row.Renewed));
             }
+            else if (row.LockKey is { } lockKey)
+            {
+                renewedLockKeys.Add(lockKey);
+            }
             else
             {
                 definitionsModifiedAtUtc = row.DefinitionsModifiedAtUtc;
             }
         }
 
-        return new ExtendWorkerLeasesResponse(leases, definitionsModifiedAtUtc);
+        return new ExtendWorkerLeasesResponse(leases, renewedLockKeys, definitionsModifiedAtUtc);
     }
 }

@@ -18,7 +18,7 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
         var session = new ScriptedSession(call =>
             call.Stem == "GetDefinitionContracts"
                 ? Array.Empty<StoredDefinitionContract>()
-                : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, Renewed: false, stamp)
+                : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, LockKey: null, Renewed: false, stamp)
         );
         var ct = TestContext.Current.CancellationToken;
 

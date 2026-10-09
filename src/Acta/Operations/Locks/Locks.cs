@@ -10,7 +10,6 @@ internal sealed class Locks(
     AcquireLockHandler acquireLock,
     AcquireSlotHandler acquireSlot,
     ReserveRateHandler reserveRate,
-    ExtendLockHandler extendLock,
     ReleaseLockHandler releaseLock
 )
 {
@@ -44,14 +43,6 @@ internal sealed class Locks(
         int graceSeconds,
         CancellationToken ct
     ) => reserveRate.HandleAsync(new ReserveRateCommand(bucketKey, jobId, intervalMilliseconds, burst, graceSeconds), ct);
-
-    /// <summary>
-    /// CAS on the hold token, which is unchanged so the same token still releases; not extended when the lock
-    /// had been stolen or reacquired. The engine's lock-lease heartbeat calls it to keep a long-running
-    /// handler's locks alive by moving <c>locks.expires_at_utc</c>.
-    /// </summary>
-    public Task<ExtendLockResponse> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) =>
-        extendLock.HandleAsync(new ExtendLockCommand(token, ttl), ct);
 
     /// <summary>CAS on the hold token; not released when it had already been stolen/reacquired.</summary>
     public Task<ReleaseLockResponse> ReleaseLockAsync(LockToken token, CancellationToken ct) =>

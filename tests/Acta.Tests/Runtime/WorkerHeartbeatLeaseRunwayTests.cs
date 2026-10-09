@@ -7,13 +7,13 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Covers the split renew/enforce design that bounds the heartbeat's fail-open on lease-renewal exceptions.
-/// Renewers (<see cref="WorkerHeartbeat"/> for the batched worker/job lease, <see cref="LockLeaseHeartbeat"/>
-/// for handler-held locks) only <em>feed</em> each attempt's monotonic deadline on a confirmed renewal and
-/// cancel outright on a definitive loss; an uncertain renewal (exception/timeout) feeds nothing. The
-/// <see cref="AttemptWatchdog"/> - pure in-memory, so a hung store can never delay it - cancels an attempt
-/// once its earliest deadline is within the unwind margin. Deadlines are monotonic Stopwatch timestamps, so
-/// tests set them relative to <see cref="Stopwatch.GetTimestamp"/> and drive the ticks directly (no DB).
+/// Covers the split renew/enforce design that bounds the heartbeat's fail-open on lease-renewal exceptions. The
+/// <see cref="WorkerHeartbeat"/> renews the job leases and handler-held locks in one call and only <em>feeds</em> each
+/// attempt's monotonic deadlines on a confirmed renewal and cancels outright on a definitive loss; an uncertain renewal
+/// (exception/timeout) feeds nothing. The <see cref="AttemptWatchdog"/> - pure in-memory, so a hung store can never
+/// delay it - cancels an attempt once its earliest deadline is within the unwind margin. Deadlines are monotonic
+/// Stopwatch timestamps, so tests set them relative to <see cref="Stopwatch.GetTimestamp"/> and drive the ticks
+/// directly (no DB).
 /// </summary>
 public sealed class WorkerHeartbeatLeaseRunwayTests
 {
@@ -41,14 +41,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_feeds_the_job_lease_deadline_on_a_confirmed_renewal()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(
-            LiveWorkerStore([1]),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
-            Options(),
-            Registration,
-            context,
-            NullLogger.Instance
-        );
+        var heartbeat = Heartbeat(WorkerStore(_ => Lease(1)), context);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5)) };
@@ -65,14 +58,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_cancels_immediately_when_an_authoritative_refresh_drops_the_job()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(
-            LiveWorkerStore([]),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
-            Options(),
-            Registration,
-            context,
-            NullLogger.Instance
-        );
+        var heartbeat = Heartbeat(WorkerStore(_ => null), context);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts)
@@ -91,14 +77,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_keeps_a_skipped_job_running_without_feeding_its_deadline()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(
-            SkippingWorkerStore(1),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
-            Options(),
-            Registration,
-            context,
-            NullLogger.Instance
-        );
+        var heartbeat = Heartbeat(WorkerStore(_ => Lease(1, renewed: false)), context);
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5));
@@ -113,105 +92,75 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     }
 
     [Fact]
-    public async Task Worker_heartbeat_leaves_the_deadline_untouched_when_the_refresh_throws()
+    public async Task Worker_heartbeat_leaves_the_deadlines_untouched_when_the_refresh_throws()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(
-            ThrowingWorkerStore(),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
-            Options(),
-            Registration,
-            context,
-            NullLogger.Instance
-        );
+        var heartbeat = Heartbeat(WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault")), context);
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds));
-        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline };
+        // Job lease seeded further out so the lock's deadline is the earliest and observable.
+        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline + TicksFor(TimeSpan.FromSeconds(60)) };
+        attempt.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()), deadline);
         context.RunningAttempts[1] = attempt;
 
         await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
-        // Uncertain refresh: neither cancel nor feed - the deadline is left for the watchdog.
+        // Uncertain refresh: neither cancel nor feed - the deadlines are left for the watchdog.
         Assert.False(cts.IsCancellationRequested);
-        Assert.Equal(deadline, attempt.JobLeaseGoodUntil);
+        Assert.Equal(deadline, attempt.EarliestLeaseGoodUntil());
     }
 
     [Fact]
-    public async Task Lock_heartbeat_extends_held_locks_even_when_the_worker_lease_is_failing()
+    public async Task Worker_heartbeat_renews_a_held_lock_in_the_same_call_and_feeds_its_deadline()
     {
-        // The worker-lease store being down must not stop the (independent) lock store from renewing.
-        var lockA = new LockToken("orders.a", Guid.NewGuid());
-        var lockB = new LockToken("orders.b", Guid.NewGuid());
-        var locks = new RecordingLockStore(_ => true);
+        var held = new LockToken("orders.a", Guid.NewGuid());
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(locks.Build(), Options(), Registration, context, NullLogger.Instance);
+        var session = new ScriptedSession(_ => new[] { Lease(1), Lock(held.Key) });
+        var heartbeat = Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>(), context);
 
         using var cts = new CancellationTokenSource();
-        // Job lease healthy (seeded far out); the lock deadlines start nearly lapsed so a successful extend
-        // is what pushes the earliest deadline back out.
+        // Job lease healthy; the lock deadline starts nearly lapsed so the renewal is what pushes it back out.
         var attempt = new RunningAttempt(cts)
         {
             JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)),
         };
-        attempt.TrackLock(lockA, Stopwatch.GetTimestamp() - TicksFor(TimeSpan.FromSeconds(1)));
-        attempt.TrackLock(lockB, Stopwatch.GetTimestamp() - TicksFor(TimeSpan.FromSeconds(1)));
+        attempt.TrackLock(held, Stopwatch.GetTimestamp() - TicksFor(TimeSpan.FromSeconds(1)));
         context.RunningAttempts[1] = attempt;
 
-        await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
+        Assert.Equal(
+            $$"""[{"lock_key":"orders.a","hold_token":"{{held.HoldToken}}"}]""",
+            Assert.Single(session.Calls).Parameters["p_locks"]
+        );
         Assert.False(cts.IsCancellationRequested);
-        Assert.Contains(lockA, locks.Extended);
-        Assert.Contains(lockB, locks.Extended);
-        // Both deadlines advanced to ~now + TTL, so the attempt has a full runway again.
         Assert.True(attempt.EarliestLeaseGoodUntil() - Stopwatch.GetTimestamp() > TicksFor(Interval));
     }
 
     [Fact]
-    public async Task Lock_heartbeat_cancels_immediately_when_a_held_lock_is_lost()
+    public async Task Worker_heartbeat_cancels_when_a_held_lock_is_not_renewed()
     {
-        var lost = new LockToken("orders.lost", Guid.NewGuid());
-        var locks = new RecordingLockStore(_ => false);
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(locks.Build(), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = Heartbeat(WorkerStore(_ => Lease(1)), context);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts);
-        attempt.TrackLock(lost, Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)));
+        attempt.TrackLock(
+            new LockToken("orders.lost", Guid.NewGuid()),
+            Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds))
+        );
         context.RunningAttempts[1] = attempt;
 
-        await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
+        // The hold's token moved: another holder took the key, so the critical section is no longer exclusive.
         Assert.True(cts.IsCancellationRequested);
-        Assert.Single(locks.Extended, lost);
     }
 
     [Fact]
-    public async Task Lock_heartbeat_tolerates_a_transient_throw_without_cancelling_or_feeding()
+    public async Task Worker_heartbeat_ignores_a_lock_released_while_the_renewal_was_in_flight()
     {
-        var flaky = new LockToken("orders.flaky", Guid.NewGuid());
-        var locks = ThrowingLockStore(flaky);
-        var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
-
-        using var cts = new CancellationTokenSource();
-        var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds));
-        // Job lease seeded further out so the flaky lock's deadline is the earliest and observable.
-        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline + TicksFor(TimeSpan.FromSeconds(60)) };
-        attempt.TrackLock(flaky, deadline);
-        context.RunningAttempts[1] = attempt;
-
-        await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
-
-        Assert.False(cts.IsCancellationRequested);
-        Assert.Equal(deadline, attempt.EarliestLeaseGoodUntil()); // not fed
-    }
-
-    [Fact]
-    public async Task Lock_heartbeat_ignores_a_throw_for_a_lock_released_mid_extend()
-    {
-        // Simulate the handler releasing (untracking) the lock while the extend is in flight, then the
-        // extend throwing: the renewer must treat it as a non-failure, not cancel.
         var released = new LockToken("orders.released", Guid.NewGuid());
         var context = Context();
         using var cts = new CancellationTokenSource();
@@ -219,10 +168,17 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         attempt.TrackLock(released, Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)));
         context.RunningAttempts[1] = attempt;
 
-        var locks = ThrowingLockStore(released, onExtend: () => attempt.UntrackLock(released));
-        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
+        // The handler releases (untracks) the lock while the renewal is in flight, so the renewal finds no hold.
+        var heartbeat = Heartbeat(
+            WorkerStore(_ =>
+            {
+                attempt.UntrackLock(released);
+                return Lease(1);
+            }),
+            context
+        );
 
-        await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
         Assert.False(cts.IsCancellationRequested);
     }
@@ -334,45 +290,23 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         return Task.CompletedTask;
     }
 
+    private static WorkerHeartbeat Heartbeat(WorkerLifecycle workers, WorkerContext context) =>
+        new(
+            workers,
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            Options(),
+            Registration,
+            context,
+            NullLogger.Instance
+        );
+
     // The worker lifecycle over a scripted lease extend, the heartbeat's only database call.
     private static WorkerLifecycle WorkerStore(Func<BoundCall, object?> answer) =>
         new ScriptedSession(answer).Services().GetRequiredService<WorkerLifecycle>();
 
-    private static WorkerLifecycle LiveWorkerStore(IReadOnlyList<long> liveJobIds) =>
-        WorkerStore(_ =>
-            liveJobIds
-                .Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true, DefinitionsModifiedAtUtc: null))
-                .ToArray()
-        );
+    private static ExtendWorkerLeasesRow Lease(long jobId, bool renewed = true) =>
+        new(jobId, ExecutionNumber: 0, LockKey: null, renewed, DefinitionsModifiedAtUtc: null);
 
-    private static WorkerLifecycle SkippingWorkerStore(long heldJobId) =>
-        WorkerStore(_ => new ExtendWorkerLeasesRow(heldJobId, ExecutionNumber: 0, Renewed: false, DefinitionsModifiedAtUtc: null));
-
-    private static WorkerLifecycle ThrowingWorkerStore() =>
-        WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault"));
-
-    // The lock group over a scripted extend, the lock heartbeat's only database call: every extend is
-    // recorded as the token it bound, and holds when the script says so.
-    private sealed class RecordingLockStore(Func<LockToken, bool> result)
-    {
-        private readonly ScriptedSession _session = new(call => result(Token(call)) ? true : null);
-
-        public IReadOnlyList<LockToken> Extended => [.. _session.Calls.Select(Token)];
-
-        public Locks Build() => _session.Services().GetRequiredService<Locks>();
-    }
-
-    // Extends every lock but the flaky one, whose extend runs onExtend and then fails.
-    private static Locks ThrowingLockStore(LockToken flaky, Action? onExtend = null) => new ScriptedSession(call =>
-        {
-            if (Token(call) != flaky)
-            {
-                return true;
-            }
-
-            onExtend?.Invoke();
-            throw new InvalidOperationException("synthetic transient lock-store fault");
-        }).Services().GetRequiredService<Locks>();
-
-    private static LockToken Token(BoundCall call) => new(call.Get(ActaSchema.Lock.LockKey), call.Get(ActaSchema.Lock.HoldToken));
+    private static ExtendWorkerLeasesRow Lock(string lockKey) =>
+        new(JobId: null, ExecutionNumber: null, lockKey, Renewed: true, DefinitionsModifiedAtUtc: null);
 }

@@ -76,7 +76,13 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
                     _entered.TrySetResult();
                     await _gate.Task.WaitAsync(ct);
                     return liveJobIds
-                        .Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true, DefinitionsModifiedAtUtc: null))
+                        .Select(id => new ExtendWorkerLeasesRow(
+                            id,
+                            ExecutionNumber: 0,
+                            LockKey: null,
+                            Renewed: true,
+                            DefinitionsModifiedAtUtc: null
+                        ))
                         .ToArray();
                 }
             );

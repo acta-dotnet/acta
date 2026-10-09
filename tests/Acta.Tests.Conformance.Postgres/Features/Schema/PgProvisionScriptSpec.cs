@@ -50,7 +50,7 @@ public sealed partial class PgProvisionScriptSpec
             await using (var alter = conn.CreateCommand())
             {
                 alter.CommandText = ProviderSqlResources
-                    .Read("pg", "ExtendLock")
+                    .Read("pg", "ReleaseLock")
                     .Replace("{{schema}}", schema)
                     .Replace("AS $$", "AS $$\n-- versionless_body_probe");
                 await alter.ExecuteNonQueryAsync(ct);
@@ -58,7 +58,7 @@ public sealed partial class PgProvisionScriptSpec
             await using (var definition = conn.CreateCommand())
             {
                 definition.CommandText =
-                    $"SELECT pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = '{schema}' AND p.proname = 'extend_lock'";
+                    $"SELECT pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = '{schema}' AND p.proname = 'release_lock'";
                 Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
                 await Acta.Postgres.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
                 Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
@@ -79,7 +79,7 @@ public sealed partial class PgProvisionScriptSpec
             Assert.True(await reader.ReadAsync(ct));
             Assert.Equal(migrations, reader.GetInt64(0));
             Assert.Equal(0, reader.GetInt64(1));
-            Assert.Equal(30, reader.GetInt64(2));
+            Assert.Equal(29, reader.GetInt64(2));
         }
         finally
         {

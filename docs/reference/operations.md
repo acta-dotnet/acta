@@ -103,7 +103,6 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcquireLock` | · | · | · | routine | routine | inline | `locks` | `AcquireLockSpec` |
 | `AcquireSlot` | · | · | · | routine | routine | inline | `locks` | `AcquireSlotSpec` |
-| `ExtendLock` | · | · | · | routine | routine | inline | `locks` | `ExtendLockSpec` |
 | `ReleaseLock` | · | · | · | routine | routine | inline | `locks` | `ReleaseLockSpec` |
 | `ReserveRate` | · | · | · | routine | routine | inline | `locks` | `ReserveRateSpec` |
 
@@ -202,7 +201,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ExtendWorkerLeases` | · | · | · | routine | routine | inline | `runtimes`, `workers` | `ExtendWorkerLeasesRaceSpec`, `ExtendWorkerLeasesReviveSpec`, `ExtendWorkerLeasesSpec` |
+| `ExtendWorkerLeases` | · | · | · | routine | routine | inline | `locks`, `runtimes`, `workers` | `ExtendWorkerLeasesRaceSpec`, `ExtendWorkerLeasesReviveSpec`, `ExtendWorkerLeasesSpec` |
 | `GetWorker` | `IWorkers.GetAsync` | `GET /workers/{workerRef}` | · | inline | inline | inline | · | `GetWorkerSpec` |
 | `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` | · | inline | inline | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec` |
 | `MarkDeadWorkers` | · | · | · | routine | routine | inline | `events`, `workers` | `MarkDeadWorkersSpec` |

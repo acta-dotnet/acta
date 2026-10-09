@@ -13,8 +13,20 @@ SET
     version = version + 1
 WHERE id = @p_leased_by_worker_id;
 
--- The answer is the last result set, so the rows to renew are captured before the update.
+-- The answer is the last result set, so the locks and rows to renew are captured before the updates.
+DROP TABLE IF EXISTS temp._ewl_locks;
 DROP TABLE IF EXISTS temp._ewl_renewed;
+
+-- Lock holds renew first: a hold whose token moved is not answered, and the attempt that relied on it stops.
+CREATE TEMP TABLE _ewl_locks AS
+SELECT k.lock_key
+FROM json_each(@p_locks) h
+INNER JOIN {{schema}}.locks k
+    ON k.lock_key = json_extract(h.value, '$.lock_key') AND k.hold_token = json_extract(h.value, '$.hold_token');
+
+UPDATE {{schema}}.locks
+SET expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000
+WHERE lock_key IN (SELECT lock_key FROM temp._ewl_locks);
 
 /* Push the held executions' leases forward. Only a row this worker still leases at the execution the process
    holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no version bump: a
@@ -37,13 +49,17 @@ UPDATE {{schema}}.runtimes
 SET lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000
 WHERE job_id IN (SELECT job_id FROM temp._ewl_renewed);
 
-SELECT n.job_id, n.execution_number, 1 AS renewed, NULL AS definitions_modified_at_utc
+SELECT NULL AS job_id, NULL AS execution_number, l.lock_key, 1 AS renewed, NULL AS definitions_modified_at_utc
+FROM temp._ewl_locks l
+UNION ALL
+SELECT n.job_id, n.execution_number, NULL, 1, NULL
 FROM temp._ewl_renewed n
 UNION ALL
 -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
 SELECT
     NULL AS job_id,
     NULL AS execution_number,
+    NULL AS lock_key,
     0 AS renewed,
     MAX(d.modified_at_utc) AS definitions_modified_at_utc
 FROM {{schema}}.definitions d
