@@ -43,8 +43,13 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
 - **Names at typed entry points optimize for brevity; names in inferred positions may carry full
   qualification.** `JobRequestBuilder.Create(...)` is typed at every call site and stays short;
   `JobEnqueueOptionsBuilder` appears only as an inferred lambda parameter and affords its length.
-- **No `Job` prefix on types that are not jobs.** The prefix marks the job aggregate's own types,
-  not "belongs to Acta".
+- **No `Job` prefix on types that are not jobs.** The prefix marks types whose subject is the job:
+  the aggregate's own types and the engine parts that act on jobs (`JobExecutor`); never a type that
+  merely belongs to Acta.
+- **An `Operations/` group is plural, an `Engine/` box is singular.** A group is the aggregate
+  (`Jobs`, `Workers`, `Alerts`); a box is named for its capability (`Worker` holds one worker's runtime,
+  `Alerting` is the process, `Catalog` is what a deployment declares). A system job's class is
+  `<Sys>Job` (`RecoveryJob`, `OutboxJob`), named for the job, not for what it relays or sweeps.
 
 ## Type names: one suffix per role
 
@@ -65,6 +70,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | Table model, one class per table, named by the table's singular | `Entity` | `JobEntity`, `RuntimeEntity` |
 | Persisted enum, options, fluent builder, error, attribute | `Code`, `Options`, `Builder`, `Exception`, `Attribute` | `JobStatusCode` |
 | How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `SignalWaitOutcome` |
+| An in-memory registry, built at startup or kept by a running worker | `Registry` | `JobDescriptorRegistry`, `IJobPayloadSerializerRegistry` |
 
 - **A `Get` returns its `GetXResponse`, and a `List` returns its page.** `GetX` returns `GetXResponse`, and `null` when nothing is found; a value it answers is the response's one member, as a command's is (`GetJobStatusResponse(JobStatusCode Status)`). `ListX` always returns its own `ListXResponse : IPagedResponse<ListXItem>`, never an unpaged list, and its element `ListXItem` sits in its folder beside the query and the response. `IPagedResponse<T>` is the one paging contract, the interface every list response implements. A response's parts are records of their own beside it, named `<Operation><Part>` (`GetJobExplanationWait`) and never shared with another operation, and a `Get` that answers a list carries it as `Items`, of `GetXItem` (`GetTagsResponse`). The typed `<T>` facade methods (`GetResultAsync<T>`, `RaiseSignalAsync<T>`) are conveniences over the operation, not operations of their own.
 - **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation. A subject's `GetXResponse` and its list's `ListXItem` stay two types for the same reason, even where they match today.
