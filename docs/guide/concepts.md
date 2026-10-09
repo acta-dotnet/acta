@@ -144,7 +144,7 @@ is still the key — the enqueue's `ConcurrencyKey` when the job carries one, ot
 name — so two definitions sharing a key share its slots, and the key's capacity is the largest limit
 among them; a definition with a smaller limit competes for the low slots only and never shrinks
 another participant's share. The limit is an operator-overridable policy slot on the definition, and a
-change reaches each worker on its next policy reload, so a decrease is honored gradually: admissions
+change reaches each worker on its next heartbeat, so a decrease is honored gradually: admissions
 may use the old limit until every worker has seen the new one, and attempts already running finish.
 
 **`RateLimit` caps how often, where the limit caps how many.** `[Job("send-invoice", RateLimit =

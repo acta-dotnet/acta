@@ -159,7 +159,8 @@ An operator overrides a definition's policy without a deploy through
 `IActaOperations.Definitions.UpdateOverridesAsync(namespace, name, expectedVersion, overrides, ...)`,
 `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard's definition page. The write carries
 the whole override set: a null field clears that override, and the definition's `version` guards
-against a concurrent edit. Workers pick the new values up on their next policy reload.
+against a concurrent edit. Workers pick the new values up on their next heartbeat, which reloads the
+namespace's policy whenever a definition changed.
 
 The framework retry defaults (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) mean a persistently
 failing job keeps retrying for roughly 4.4 days before it lands terminal Failed: the
@@ -186,7 +187,7 @@ Two definitions that share a key share its slots, and the key's capacity is the 
 the participants. A definition with the smaller limit competes for the first N slots only, so
 lowering one definition never reduces another participant's capacity.
 
-A changed limit reaches a worker on its next successful definition-policy reload. Until every worker
+A changed limit reaches a worker on its next successful heartbeat. Until every worker
 has observed it, admissions may still use the old limit, and attempts already holding higher slots
 run to completion; the overshoot after a decrease is therefore bounded by the old limit until the
 last worker observes the change, plus one attempt's duration.

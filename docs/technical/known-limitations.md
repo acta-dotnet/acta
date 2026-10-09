@@ -36,6 +36,14 @@ row and carries the difference themselves.
 Acta jobs are at-least-once. A handler can run more than once after a crash, completion-write
 failure, lease expiry, retry, or worker shutdown before completion is recorded.
 
+A worker renews only the executions it holds in memory, so a claim that committed and lost its
+answer on the way back (a Direct claim above all, which is Executing from the claim) is treated like a
+worker that crashed right after claiming: nothing renews it, recovery reclaims it after the lease and
+charges it as a crash at that instant would. A Buffered claim lost the same way was never started and
+is reclaimed uncharged. An operator override reaches a worker on its next heartbeat, read when the
+namespace's newest definition change moved; two edits of one namespace committed within the same
+instant in reverse order can leave one of them unseen until the next edit.
+
 Administrative actions can also make work run again. An operator restart deliberately re-arms a
 job, and a database restore can rewind Acta state to a point where work appears runnable even if
 external side effects already happened.

@@ -5,7 +5,7 @@ everything else through embedded SQL and installed views; SQLite runs every muta
 inside a transaction the session owns.
 
 This is the execution policy referenced by [the design decisions](design.md). The server providers
-each install thirty routines: enqueue, claim, start and complete, the step and slot writes, leases,
+each install twenty-nine routines: enqueue, claim, start and complete, the step and slot writes, leases,
 recovery, retention, alert raise and settlement, outbox signals, and definition and schedule
 registration. Every other operation, control verbs included, is embedded SQL on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
@@ -103,14 +103,16 @@ row and then move the index key; a worker heartbeat that walked that index inste
 and wait for the row, which is the inversion that deadlocks. `ExtendWorkerLeases` therefore reads the
 in-flight ids first and updates through a primary-key seek.
 
-`ExtendWorkerLeases` never waits for a row: it skips one another transaction holds (`READPAST` on SQL
-Server, `SKIP LOCKED` on PostgreSQL) and returns every in-flight id it read with a flag saying whether
-it was renewed. A child's completion locks its own `runtimes` row and then its parent's, the reverse of
-`job_id` order, so a renewal that waited on either would deadlock with it when one worker runs both.
-The caller cancels a running attempt only when its id is missing, and moves the attempt's lease
-deadline only when the row was renewed; a skipped row is renewed on the next beat, well inside the
-lease window. On PostgreSQL batch completion locks its rows in `job_id` order, and the buffered flush
-is sorted by job id before its ordinals are assigned.
+`ExtendWorkerLeases` takes the (job, execution) pairs and the lock holds the process holds, and
+never waits for a row: it skips one another transaction holds (`READPAST` on SQL Server, `SKIP
+LOCKED` on PostgreSQL) and answers each pair it still finds leased by the worker at that execution
+with a flag saying whether it was renewed. A child's completion locks its own `runtimes` row and then
+its parent's, the reverse of `job_id` order, so a renewal that waited on either would deadlock with it
+when one worker runs both. The caller cancels an attempt only when its pair is not answered, and
+moves its lease deadline only when the row was renewed; a skipped row is renewed on the next beat,
+well inside the lease window. The lock holds renew first and without skipping: no routine locks both
+`locks` and `runtimes`, so there is no order to keep against. The answer also carries the namespace's
+newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
 Routines that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
 and `complete_execution` both do. `reset_job_state` takes the `runtimes` row and then deletes the
