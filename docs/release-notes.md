@@ -177,6 +177,43 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `RegisterTenantResponse.TenantId` stay off the wire like every read model's integer id. Every other JSON
   member is unchanged.
 
+### Execution engine
+
+The worker's execution machinery is rebuilt around one rule: the database renews only what the
+process holds. Nothing a consumer calls changes; what changes is how a worker claims, runs, and
+settles, and what an operator sees when it fails.
+
+- **The heartbeat renews only what the process holds.** `extend_worker_leases` used to push every
+  row leased to the worker id forward from database state, so a row the process had lost track of
+  (a claim whose answer was lost after it committed, a buffered claim a drain never wrote) never
+  lapsed and nothing ever ran or reclaimed it; the worker carried an orphan release, a two-beat
+  candidate list, and per-execution owner entries to patch each hole. The call now takes the
+  (job, execution) pairs and the lock holds the process holds and answers each: a row nothing holds
+  lapses, `sys.recovery` takes it, and since a Dispatched reclaim is uncharged that costs the job
+  nothing. A Direct claim whose answer was lost is treated like a worker that crashed right after
+  claiming, which is what it is from the ledger's side. Handler locks and the concurrency slot renew
+  in the same call, so the lock-lease loop and `extend_lock` are gone (twenty-nine routines remain),
+  and a hold the call does not answer cancels the attempt at once. The object package moves through
+  revisions 52 to 55 with these signatures.
+- **Definition policy reloads on the heartbeat.** The call also answers the namespace's newest
+  definition change, and the worker re-reads its effective policy only when that moved: an override
+  reaches every worker within one heartbeat, and the one-second policy-reload loop is gone.
+- **A start is matched by worker and execution number alone.** `start_execution` dropped its
+  version and lease-expiry guards: only a claim bumps `execution_number`, so the pair identifies the
+  claim, and a replayed start (one that committed and lost its answer) finds the row Executing under
+  this worker at that execution and answers Started again, refreshing the lease and writing no
+  event. The read-the-row-back reconciliation and its `LeaseExpired` answer are gone, and an
+  operator verb that bumps a claimed row's version between claim and start no longer refuses it.
+- **An attempt cancels on its own lease deadline.** Each claim carries a deadline armed from the
+  claim's request start and re-armed by the heartbeat on every confirmed renewal, half the base
+  runway before the lease lapses, so a database outage stops the handler with nothing watching; the
+  watchdog loop is gone. A single-shot run (`RunOnceAsync`, the CLI's `jobs debug`) carries no
+  deadline, as before, so a debugger pause never cancels it on resume.
+- **One in-flight registry, keyed by execution.** Every claim the worker holds is one entry, from
+  the claim to its completion write, and the heartbeat renews exactly that set. A stale attempt
+  never shares an entry with the claim that replaced it, so it is never kept alive by the
+  replacement's renewal and is cancelled on the next beat.
+
 ### Additions
 
 - **A ref also parses as a plain Guid.** `JobRef`, `AlertRef`, and `WorkerRef` accept the Guid behind
@@ -341,40 +378,55 @@ child is kept while its parent is live, and three evidence harnesses join the re
   tries and leave the row Executing under a lease the heartbeat kept renewing, which recovery could
   never see; only a restart or an operator cancel freed it. The write is a compare-and-swap, so a
   repeat is safe. The held executor slot is the deliberate cost, and `acta.completions.unsettled`
-  counts writes in that state.
-- **The heartbeat renews only what the process holds.** `extend_worker_leases` used to push every
-  row leased to the worker id forward from database state, so a row the process had lost track of
-  (a claim whose answer was lost after it committed, a buffered claim a drain never wrote) never
-  lapsed and nothing ever ran or reclaimed it; the worker carried an orphan release, a two-beat
-  candidate list, and per-execution owner entries to patch each hole. The call now takes the
-  (job, execution) pairs and the lock holds the process holds and answers each: a row nothing holds
-  lapses, `sys.recovery` takes it, and since a Dispatched reclaim is uncharged that costs the job
-  nothing. Handler locks and the concurrency slot renew in the same call, so the lock-lease loop and
-  `extend_lock` are gone (twenty-nine routines remain), and a hold the call does not answer cancels
-  the attempt at once. The call also answers the namespace's newest definition change, and the
-  worker re-reads its effective policy only when that moved: an override reaches every worker
-  within one heartbeat, and the one-second policy-reload loop is gone. The object package moves
-  through revisions 52 to 55 with these signatures.
-- **A start is matched by worker and execution number alone.** `start_execution` dropped its
-  version and lease-expiry guards: only a claim bumps `execution_number`, so the pair identifies the
-  claim, and a replayed start (one that committed and lost its answer) finds the row Executing under
-  this worker at that execution and answers Started again, refreshing the lease and writing no
-  event. The read-the-row-back reconciliation and its `LeaseExpired` answer are gone, and an
-  operator verb that bumps a claimed row's version between claim and start no longer refuses it.
+  counts writes in that state. Bulk settles its batch entries side by side, so one stuck entry holds
+  up neither its siblings nor their wakeups.
+- A Bulk completion stays owned by its worker until it settles. The executor returns once its result
+  is buffered, and the heartbeat's orphan release used to see a row with no running attempt and
+  reschedule it, so the buffered write lost its compare-and-swap and the handler ran again. The
+  worker now tracks each pending completion by job and execution number, through the batch write
+  and its per-row fallback, and the release leaves that execution alone. An entry for an older
+  execution neither shields nor releases a newer one.
 - The recovery slot monitor, which re-arms a stranded `sys.recovery` every seven minutes, now also
   runs the sweep it re-armed, outside the executor pool. A worker with every executor busy could
   detect the stranded slot and then fail to claim it; the bound on the limitations page covered
   detection and not the pass.
 - A lost completion response is reconciled, not rerun: the repeat finds the lease already cleared,
   reports a settled write, and never advances a recurring slot twice.
-- The start write is repeated like the completion, on the host token, so a start that fails in an
-  outage is retried until it lands or the row is no longer this worker's; on SQLite a replayed start
-  no longer reports a second start or writes a second started event.
+- The start write is repeated the same way and reconciled against the row. An operator verb that
+  bumps the version of a claimed row between its claim and its start, a reprioritize for one, used to
+  make the start answer LostClaim while this worker's heartbeat kept the lease, which stranded the job
+  until the worker restarted. The start now reads the row on LostClaim: Executing under this worker
+  is a start that committed and lost its answer, Dispatched under this worker is retried against the
+  version the row carries now, and anything else is another owner's. A start refused because the
+  claim's lease lapsed in an outage is reconciled the same way: the heartbeat renews every row this
+  worker holds, so the row is still this worker's, and the start is retried, paced on the retry
+  curve, until it lands or recovery takes the row. Before, that refusal was a skip that left the row
+  leased, renewed on every beat, and progressed by nothing until the worker restarted. On SQLite a
+  replayed start no longer reports a second start or writes a second started event.
+- A claim that commits and loses its answer is returned to Ready by the heartbeat. The rows were
+  leased by this worker, renewed on every beat from database state, and progressed by nothing, the
+  `sys.recovery` slot included. The heartbeat now sets the ids it renewed against every attempt and
+  buffered claim the process can account for, and an id unaccounted for on two consecutive beats is
+  walked back to Ready through the same start-then-reschedule an unsupported claim takes. A Buffered
+  claim loop registers every row of a batch as buffered before it writes the first one to its
+  channel: a write blocks while every executor is held, and a row registered only when its turn
+  came could be released as a lost answer while it waited behind the blocked write. A drain that
+  lands on a blocked write hands the rows it never wrote back to Ready at once, instead of leaving
+  them leased to a worker that will not run them until the lease lapses after it exits, and the
+  recovery slot in a batch now starts before any write that could block it. The release and
+  an executor now take a per-execution owner entry in the process before either touches the row,
+  held through the start and the completion: a claim answer that arrived after the heartbeat had begun
+  releasing the row used to reach an executor, whose start read as this worker's own lost answer,
+  so one actor ran the job while the other rescheduled it and a second attempt could claim the row
+  while the first still ran. The late answer is now skipped and the release completes alone.
 - Under the Buffered profile the claim loop claims ahead of its executors into a channel, so the
   `sys.recovery` slot could be buffered behind jobs no executor would take while every executor was
   held, under a lease the heartbeat renewed, and nothing swept until an executor came free. The loop
   now runs the slot on its own task the moment it claims it, so the one job that reclaims what the
   executors hold never waits behind them.
+- On PostgreSQL, a start that waited on a row lock held by a concurrent reprioritize answered
+  AlreadyTerminal for a row that was still this worker's, because the routine classifies against
+  its statement snapshot. That answer is now reconciled against the row like LostClaim.
 - A control signal the runtime does not recognize, a handler's own subclass of the public
   `JobControlException`, used to be rethrown out of the attempt and left the row Executing under a
   renewed lease. It now lands as a handler exception: a retried Failed with the type in the reason.
@@ -384,10 +436,14 @@ child is kept while its parent is live, and three evidence harnesses join the re
   left to progress it.
 - A graceful drain waits for a recovery pass the slot monitor started, so shutdown no longer strands
   the recovery job itself.
-- An attempt whose lease lapsed is cancelled once its job is claimed again, in this process or
-  another. The heartbeat renews by job and execution number, so a stale attempt is never kept alive
-  by its replacement's renewal: the row answers for the new execution only, and the stale one is
-  cancelled on the next beat.
+- An attempt whose lease lapsed is cancelled once its job is claimed again in the same process. A
+  process tracks its attempts by job, so the replacement's lease renewal kept the stale attempt's
+  deadline alive, and once the replacement started nothing tracked the stale one at all: it ran on,
+  holding an executor, although its completion was already fenced off. A claim answer lost after
+  it committed skipped even that cancel, and the heartbeat counted the replacement as running, so
+  nothing started it until the stale attempt ended. `extend_worker_leases` now returns each row's
+  execution number beside its job id, and the heartbeat matches on both: it cancels the stale
+  attempt and hands the replacement to the orphan release, which returns it to Ready.
 - A worker killed mid-drain, or cut off past its host's shutdown budget, stayed Draining forever,
   because the dead-worker sweep took only Active rows. It now takes Draining ones too.
 - A database outage longer than the dead-after window marks every worker Dead, though the processes

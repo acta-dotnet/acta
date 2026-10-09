@@ -24,6 +24,15 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
 - **`pause` stops a runnable thing's progress; `suspend` closes admission of new work.** This is
   why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
   pause rather than suspend.
+- **An execution completes; the finalizer writes the completion.** `CompleteExecution` is the
+  operation, `ExecutionCompletion` is what an attempt leaves for it, and `JobFinalizer` writes it.
+  "Settle" is retired for executions; alert delivery keeps its own settlement vocabulary.
+- **`State` is in memory, `Code` is persisted.** An enum a running process keeps for itself takes
+  `State` (`InFlightJobState`); one the ledger stores takes `Code` (`JobStatusCode`), and the two
+  never share members by accident.
+- **A background loop is named for its agent; a channel for what crosses it.** `JobClaimer`,
+  `JobExecutor`, `JobFinalizer`, `RecoverySlotMonitor`, `WorkerHeartbeat` each name the actor; the
+  channels between them are `Claimed` and `Completed`.
 
 ## Identifier suffixes
 
@@ -157,7 +166,7 @@ did not.
   (`acta.lock.release.failures`, `acta.alert.projection.skips`).
 - **The unit lives in the instrument, not in the name.** `acta.duration` declares `ms` as its unit
   argument; a name never restates what the unit already carries.
-- **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason_code`, `result`. Job id
+- **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason_code`, `result`, `state`. Job id
   and execution number are deliberately absent from metrics and live on the log scope and traces
   instead. `ActaMetricsTests` pins instrument names, tag keys, and tag values.
 
