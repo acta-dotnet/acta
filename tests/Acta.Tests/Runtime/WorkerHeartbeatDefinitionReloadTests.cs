@@ -45,6 +45,7 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,
+            new InFlightJobRegistry(),
             NullLogger.Instance
         );
     }

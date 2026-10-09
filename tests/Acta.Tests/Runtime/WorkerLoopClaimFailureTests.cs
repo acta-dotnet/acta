@@ -112,16 +112,10 @@ public sealed class WorkerLoopClaimFailureTests
             ),
         ];
 
-    internal static WorkerLoop Loop(
-        ClaimStore store,
-        RecordingLogger log,
-        ExecutionProfile profile,
-        TimeSpan safetyPoll,
-        WorkerContext? context = null
-    )
+    internal static WorkerLoop Loop(ClaimStore store, RecordingLogger log, ExecutionProfile profile, TimeSpan safetyPoll)
     {
         var registration = new WorkerRegistration(Namespace, null, null, [], []);
-        context ??= new WorkerContext(registration);
+        var context = new WorkerContext(registration);
         context.NamespaceIds[Namespace] = 1;
         context.WorkerIdByNamespace[Namespace] = 1;
         var options = Options.Create(
@@ -137,7 +131,16 @@ public sealed class WorkerLoopClaimFailureTests
         // The executor is null: these arms claim no row, so a null is the strongest statement that they run
         // before any job is dispatched. A row a claim does return faults on it, which both loops log and
         // swallow, so an arm that only watches the claim answer can still use this loop.
-        return new WorkerLoop(store.Execution(), executor: null!, options, registration, context, new IdleWakeup(), log);
+        return new WorkerLoop(
+            store.Execution(),
+            executor: null!,
+            options,
+            registration,
+            context,
+            new InFlightJobRegistry(),
+            new IdleWakeup(),
+            log
+        );
     }
 
     private static async Task WaitUntil(Func<bool> condition, TimeSpan timeout)

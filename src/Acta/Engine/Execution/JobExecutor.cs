@@ -19,15 +19,16 @@ internal sealed class JobExecutor(
     IServiceProvider rootServices,
     IOptions<JobsOptions> options,
     WorkerContext context,
+    InFlightJobRegistry registry,
     JobExecution jobExecution,
     ILogger? log = null,
     ActaMetrics? metrics = null
 )
 {
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-    private readonly TimeSpan _leaseRunway = RunningAttempt.LeaseRunway(options.Value);
     private readonly IServiceProvider _rootServices = rootServices;
     private readonly WorkerContext _context = context;
+    private readonly InFlightJobRegistry _registry = registry;
     private readonly JobExecution _jobExecution = jobExecution;
     private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
@@ -92,49 +93,61 @@ internal sealed class JobExecutor(
 
         // No lease deadline: the CLI's jobs debug run pumps the heartbeat around a handler a debugger may hold
         // paused past it. The heartbeat still cancels the attempt once its row is gone.
-        return await ExecuteClaimedJobAsync(
-            claim.Jobs[0],
-            namespaceName,
-            namespaceId,
-            workerId,
-            alreadyStarted: false,
-            armLease: false,
-            ct
-        );
+        var entry = new InFlightJob(claim.Jobs[0], leaseRunway: null, ct);
+        _registry.TryAdd(entry);
+        return await ExecuteClaimedJobAsync(entry, namespaceName, namespaceId, workerId, alreadyStarted: false, ct);
     }
 
     /// <summary>
-    /// Runs one claimed job through the attempt lifecycle. A claim whose definition this deployment
-    /// carries no descriptor for is returned to Ready instead (see
+    /// Runs one registered claim through the attempt lifecycle, then removes it from the registry. A claim whose
+    /// definition this deployment carries no descriptor for is returned to Ready instead (see
     /// <see cref="ReleaseUnsupportedClaimAsync"/>), because claims are by namespace and a worker is
     /// therefore free to claim work it cannot run.
     /// </summary>
     public async Task<RunOnceStatus> ExecuteClaimedJobAsync(
-        ClaimedJob job,
+        InFlightJob entry,
         string namespaceName,
         int namespaceId,
         int workerId,
         bool alreadyStarted,
-        bool armLease,
         CancellationToken ct
     )
     {
-        if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
-        {
-            var firstBounce = _context.ExcludeDefinition(job.DefinitionId);
-            return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, alreadyStarted, firstBounce, ct);
-        }
-
-        // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
-        // the factory's external scope provider, so the handler's own ILogger<T> lines inherit these
-        // fields too. Covers the lock, the attempt, and the finally.
-        using var logScope = _log.BeginScope(
-            JobLogScope.For(job.JobId, descriptor.JobName, namespaceName, job.ExecutionNumber, workerId, job.CorrelationKey)
-        );
-
-        var attempt = RegisterAttempt(job, descriptor, armLease, ct);
+        var job = entry.Claim;
         try
         {
+            // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
+            // row is no longer this worker's to run.
+            if (entry.AttemptToken.IsCancellationRequested)
+            {
+                return RunOnceStatus.NothingClaimed;
+            }
+            entry.State = InFlightJobState.Executing;
+            if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
+            {
+                var firstBounce = _context.ExcludeDefinition(job.DefinitionId);
+                return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, alreadyStarted, firstBounce, ct);
+            }
+
+            // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
+            // the factory's external scope provider, so the handler's own ILogger<T> lines inherit these
+            // fields too. Covers the lock and the attempt.
+            using var logScope = _log.BeginScope(
+                JobLogScope.For(job.JobId, descriptor.JobName, namespaceName, job.ExecutionNumber, workerId, job.CorrelationKey)
+            );
+
+            // Clamped to CancelAfter's ceiling regardless of where the value came from (descriptor or
+            // operator override): an over-limit value would throw right here, after the claim, and every
+            // reclaim would walk the job straight back into the same throw.
+            var timeoutSeconds = Math.Min(
+                descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
+                JobDefinitionRegistration.MaxExecutionTimeoutSeconds
+            );
+            if (timeoutSeconds > 0)
+            {
+                entry.ArmTimeout(TimeSpan.FromSeconds(timeoutSeconds));
+            }
+
             await using var attemptScope = _rootServices.CreateAsyncScope();
             var attemptServices = attemptScope.ServiceProvider;
             // The claim is this worker's from here until something settles it, so anything that fails
@@ -160,7 +173,7 @@ internal sealed class JobExecutor(
                 );
                 throw;
             }
-            var jobContext = _contexts.Create(job, descriptor, namespaceName, namespaceId, workerId, setup, attempt, attemptServices);
+            var jobContext = _contexts.Create(job, descriptor, namespaceName, namespaceId, workerId, setup, entry, attemptServices);
 
             // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.
             // The handler resolves from this same scope, so the scoped accessor carries the set value.
@@ -170,36 +183,8 @@ internal sealed class JobExecutor(
         }
         finally
         {
-            // Identity-conditional: a reclaimed job can be re-dispatched in-process while this stale
-            // attempt is still unwinding, so removing by key alone would untrack the replacement.
-            _context.RunningAttempts.TryRemove(new KeyValuePair<long, RunningAttempt>(job.JobId, attempt));
-            attempt.Dispose();
+            _registry.Remove(entry);
         }
-    }
-
-    /// <summary>
-    /// Registers the attempt with the heartbeat, which renews its lease and every lock it holds and cancels it when an
-    /// external cancel or lease steal drops the job, with its lease deadline and its execution timeout armed.
-    /// </summary>
-    private RunningAttempt RegisterAttempt(ClaimedJob job, JobDescriptor descriptor, bool armLease, CancellationToken ct)
-    {
-        var attempt = new RunningAttempt(armLease, ct) { ExecutionNumber = job.ExecutionNumber };
-        // Counted from now in place of the claim's request start: the claim stamped its lease before now, so this
-        // overestimates it slightly until the first heartbeat re-arms the deadline from a renewal's request start.
-        attempt.ArmLease(_leaseRunway);
-        // Clamped to CancelAfter's ceiling regardless of where the value came from (descriptor or
-        // operator override): an over-limit value would throw right here - after the claim, before the
-        // cleanup try - and every reclaim would walk the job straight back into the same throw.
-        var timeoutSeconds = Math.Min(
-            descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
-            JobDefinitionRegistration.MaxExecutionTimeoutSeconds
-        );
-        if (timeoutSeconds > 0)
-        {
-            attempt.ArmTimeout(TimeSpan.FromSeconds(timeoutSeconds));
-        }
-        _context.RunningAttempts[job.JobId] = attempt;
-        return attempt;
     }
 
     /// <summary>
@@ -207,7 +192,7 @@ internal sealed class JobExecutor(
     /// <see cref="JobsOptions.SafetyPollInterval"/>, so a worker that carries the definition can take it (claims are
     /// selected by namespace, so every rolling deploy hands some worker a job it cannot run). The caller has excluded
     /// the definition from this worker's claims, so each costs one bounce rather than one per job per interval. The
-    /// claim was never an attempt: nothing registered, no scope, no handler. Throwing instead would leave the row leased
+    /// claim never becomes an attempt: no scope, no handler. Throwing instead would leave the row leased
     /// until its lease lapsed and recovery took it.
     /// </summary>
     private async Task<RunOnceStatus> ReleaseUnsupportedClaimAsync(

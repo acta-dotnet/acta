@@ -36,11 +36,11 @@ public abstract class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, 
             o.ExecutionProfile = Profile;
 
             // The real mechanism this used to paper over: WorkerHeartbeat.TickAsync built its "live" set
-            // from the extend-leases queries, then reconciled whatever was in RunningAttempts by the time
-            // those queries returned - so a job claimed and dispatched into RunningAttempts mid-tick, after
-            // the extend query had already started, was invisible to that tick's live set and got wrongly
-            // cancelled (Executing -> Failed). Fixed in WorkerHeartbeat by reconciling only a snapshot of
-            // RunningAttempts taken before the extend queries run. A long lease + dead-after window is kept
+            // from the extend-leases queries, then judged whatever was in flight by the time those queries
+            // returned - so a job claimed and dispatched mid-tick, after the extend query had already
+            // started, was invisible to that tick's live set and got wrongly cancelled (Executing ->
+            // Failed). Fixed in WorkerHeartbeat by judging only a snapshot of the in-flight registry taken
+            // before the extend queries run. A long lease + dead-after window is kept
             // here regardless, to absorb unrelated timing noise from the suite's aggressive cross-test
             // parallelism (a starved heartbeat tick could otherwise let a lease lapse and be reclaimed).
             // Test-only; production leases stay short. Invariants: LeaseTtl >= 2x heartbeat, WorkerDeadAfter
@@ -76,7 +76,7 @@ public abstract class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, 
         DrainGate.Release(TestNamespace);
         await WaitForStatusAsync(enqueued.JobId, JobStatusCode.Succeeded, ct);
         // Poll, not an instant assert: the inline-completion profiles write Succeeded to the DB just before the
-        // attempt is removed from RunningAttempts, so the count can lag the committed Succeeded read by a tick.
+        // entry leaves the in-flight registry, so the count can lag the committed Succeeded read by a tick.
         await WaitForInFlightZeroAsync(ct);
 
         // Now stamp Stopped (Draining -> Stopped), then tear down the heartbeat.

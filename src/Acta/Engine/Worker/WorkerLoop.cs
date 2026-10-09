@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,6 +18,7 @@ internal sealed class WorkerLoop(
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
+    InFlightJobRegistry registry,
     IWorkerWakeup wakeup,
     ILogger? log = null,
     ActaMetrics? metrics = null
@@ -24,10 +26,12 @@ internal sealed class WorkerLoop(
 {
     private readonly Execution _execution = execution;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly TimeSpan _leaseRunway = InFlightJob.LeaseRunway(options.Value);
     private readonly JobExecutor _executor = executor;
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
+    private readonly InFlightJobRegistry _registry = registry;
     private readonly IWorkerWakeup _wakeup = wakeup;
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ActaMetrics? _metrics = metrics;
@@ -71,11 +75,10 @@ internal sealed class WorkerLoop(
 
         // Claim feeds this bounded channel while executor loops drain it concurrently. Capacity holds
         // a full claim batch, or the executor count when larger, so a batch can buffer without the
-        // producer blocking mid-batch while leases tick. If a buffered claim's lease expires and is
-        // reclaimed before an executor reaches it, the row no longer carries this worker at this
-        // execution and start refuses it as a clean skip. Over-claiming is wasteful at worst, never
-        // double execution.
-        var channel = Channel.CreateBounded<ClaimedJob>(
+        // producer blocking mid-batch while leases tick. If a buffered claim's lease lapses before an
+        // executor reaches it, its deadline has cancelled the entry and the executor skips it.
+        // Over-claiming is wasteful at worst, never double execution.
+        var channel = Channel.CreateBounded<InFlightJob>(
             new BoundedChannelOptions(Math.Max(executorCount, claimBatchSize))
             {
                 SingleWriter = true,
@@ -115,7 +118,7 @@ internal sealed class WorkerLoop(
     /// executors are all held would otherwise buffer the one job that reclaims what they hold, under a
     /// lease the heartbeat renews, and no sweep could run until an executor came free.
     /// </summary>
-    private void RunRecoveryDetached(ClaimedJob slot, string ns, int namespaceId, int workerId, CancellationToken hostCt)
+    private void RunRecoveryDetached(InFlightJob slot, string ns, int namespaceId, int workerId, CancellationToken hostCt)
     {
         var previous = _detachedRecovery;
         _detachedRecovery = Task.Run(
@@ -124,16 +127,13 @@ internal sealed class WorkerLoop(
                 await previous;
                 try
                 {
-                    var outcome = await _executor.ExecuteClaimedJobAsync(
-                        slot,
+                    var outcome = await _executor.ExecuteClaimedJobAsync(slot, ns, namespaceId, workerId, alreadyStarted: false, hostCt);
+                    _log.LogInformation(
+                        "WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})",
                         ns,
-                        namespaceId,
-                        workerId,
-                        alreadyStarted: false,
-                        armLease: true,
-                        hostCt
+                        slot.Claim.JobId,
+                        outcome.ToString()
                     );
-                    _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, slot.JobId, outcome.ToString());
                 }
                 catch (OperationCanceledException) when (hostCt.IsCancellationRequested)
                 {
@@ -141,7 +141,7 @@ internal sealed class WorkerLoop(
                 }
                 catch (Exception ex)
                 {
-                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", slot.JobId);
+                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", slot.Claim.JobId);
                 }
             },
             CancellationToken.None
@@ -156,7 +156,7 @@ internal sealed class WorkerLoop(
     /// claimable, so idle pickup is signal-latency, not poll-cadence.
     /// </summary>
     private async Task ClaimLoopAsync(
-        ChannelWriter<ClaimedJob> writer,
+        ChannelWriter<InFlightJob> writer,
         string ns,
         int namespaceId,
         int workerId,
@@ -174,6 +174,7 @@ internal sealed class WorkerLoop(
         {
             try
             {
+                var claimedAt = Stopwatch.GetTimestamp();
                 var result = await _execution.ClaimBatchAsync(
                     new ClaimOptions(
                         namespaceId,
@@ -193,22 +194,25 @@ internal sealed class WorkerLoop(
                     continue;
                 }
 
-                // Every claimed row is registered as buffered before any of them is written: WriteAsync
-                // blocks while the channel is full, and the heartbeat renews only what this process holds,
-                // so a row registered only when its turn to be written came could lapse while it waited.
-                // The recovery slot starts here as well, ahead of any write that could block it.
+                // Every claimed row is registered before any of them is written: WriteAsync blocks while the
+                // channel is full, and the heartbeat renews only what this process holds, so a row registered
+                // only when its turn to be written came could lapse while it waited. The recovery slot starts
+                // here as well, ahead of any write that could block it.
+                var runway = _leaseRunway - Stopwatch.GetElapsedTime(claimedAt);
                 _context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId);
+                List<InFlightJob> buffered = [];
                 foreach (var claimed in result.Jobs)
                 {
                     _metrics?.RecordClaim(ns, "claimed");
-                    _context.CancelDisplacedAttempt(claimed.JobId);
+                    var entry = new InFlightJob(claimed, runway, hostCt);
+                    _registry.TryAdd(entry);
                     if (claimed.JobId == slotJobId)
                     {
-                        RunRecoveryDetached(claimed, ns, namespaceId, workerId, hostCt);
+                        RunRecoveryDetached(entry, ns, namespaceId, workerId, hostCt);
                     }
                     else
                     {
-                        _context.BufferedClaims[claimed.JobId] = claimed.ExecutionNumber;
+                        buffered.Add(entry);
                     }
                 }
 
@@ -219,23 +223,19 @@ internal sealed class WorkerLoop(
                 var written = 0;
                 try
                 {
-                    for (; written < result.Jobs.Count; written++)
+                    for (; written < buffered.Count; written++)
                     {
-                        var claimed = result.Jobs[written];
-                        if (claimed.JobId != slotJobId)
-                        {
-                            await writer.WriteAsync(claimed, ct);
-                        }
+                        await writer.WriteAsync(buffered[written], ct);
                     }
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     // A drain or stop landed mid-batch: no executor will take the rows still unwritten, so
-                    // they leave the buffer and the heartbeat stops renewing them. They lapse, and recovery
+                    // they leave the registry and the heartbeat stops renewing them. They lapse, and recovery
                     // returns them to Ready uncharged.
-                    foreach (var claimed in result.Jobs.Skip(written))
+                    foreach (var entry in buffered.Skip(written))
                     {
-                        _context.BufferedClaims.TryRemove(claimed.JobId, out _);
+                        _registry.Remove(entry);
                     }
                     break;
                 }
@@ -305,27 +305,23 @@ internal sealed class WorkerLoop(
     /// loop pulls the next, so live concurrency equals the executor count. A per-job fault is
     /// logged and swallowed so one bad job never tears the executor down.
     /// </summary>
-    private async Task ExecutorLoopAsync(ChannelReader<ClaimedJob> reader, string ns, int namespaceId, int workerId, CancellationToken ct)
+    private async Task ExecutorLoopAsync(ChannelReader<InFlightJob> reader, string ns, int namespaceId, int workerId, CancellationToken ct)
     {
         try
         {
-            await foreach (var job in reader.ReadAllAsync(ct))
+            await foreach (var entry in reader.ReadAllAsync(ct))
             {
-                _context.BufferedClaims.TryRemove(job.JobId, out _);
                 try
                 {
-                    var outcome = await _executor.ExecuteClaimedJobAsync(
-                        job,
-                        ns,
-                        namespaceId,
-                        workerId,
-                        alreadyStarted: false,
-                        armLease: true,
-                        ct
-                    );
+                    var outcome = await _executor.ExecuteClaimedJobAsync(entry, ns, namespaceId, workerId, alreadyStarted: false, ct);
                     if (outcome != RunOnceStatus.NothingClaimed)
                     {
-                        _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, outcome.ToString());
+                        _log.LogInformation(
+                            "WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})",
+                            ns,
+                            entry.Claim.JobId,
+                            outcome.ToString()
+                        );
                     }
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -334,7 +330,7 @@ internal sealed class WorkerLoop(
                 }
                 catch (Exception ex)
                 {
-                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", job.JobId);
+                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", entry.Claim.JobId);
                 }
             }
         }
@@ -380,6 +376,7 @@ internal sealed class WorkerLoop(
                 }
 
                 ClaimBatchResponse result;
+                var claimedAt = Stopwatch.GetTimestamp();
                 try
                 {
                     result = await _execution.ClaimBatchAsync(
@@ -426,13 +423,15 @@ internal sealed class WorkerLoop(
                     continue;
                 }
 
+                var runway = _leaseRunway - Stopwatch.GetElapsedTime(claimedAt);
                 // Execution runs on hostCt, never claimCt: a drain stops claiming but lets every started job
                 // run to completion (the drain below awaits them); only a hard stop cancels in-flight work.
                 foreach (var job in claimed)
                 {
                     _metrics?.RecordClaim(ns, "claimed");
-                    _context.CancelDisplacedAttempt(job.JobId);
-                    _ = RunOneAsync(job, ns, namespaceId, workerId, slots, hostCt);
+                    var entry = new InFlightJob(job, runway, hostCt);
+                    _registry.TryAdd(entry);
+                    _ = RunOneAsync(entry, ns, namespaceId, workerId, slots, hostCt);
                 }
             }
         }
@@ -457,20 +456,20 @@ internal sealed class WorkerLoop(
     /// Runs one already-started job to completion, then releases its slot. A per-job fault is logged and
     /// swallowed so one bad job never tears the coordinator down.
     /// </summary>
-    private async Task RunOneAsync(ClaimedJob job, string ns, int namespaceId, int workerId, SemaphoreSlim slots, CancellationToken ct)
+    private async Task RunOneAsync(InFlightJob entry, string ns, int namespaceId, int workerId, SemaphoreSlim slots, CancellationToken ct)
     {
         try
         {
-            var outcome = await _executor.ExecuteClaimedJobAsync(job, ns, namespaceId, workerId, alreadyStarted: true, armLease: true, ct);
+            var outcome = await _executor.ExecuteClaimedJobAsync(entry, ns, namespaceId, workerId, alreadyStarted: true, ct);
             if (outcome != RunOnceStatus.NothingClaimed)
             {
-                _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, outcome.ToString());
+                _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, entry.Claim.JobId, outcome.ToString());
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", job.JobId);
+            _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", entry.Claim.JobId);
         }
         finally
         {

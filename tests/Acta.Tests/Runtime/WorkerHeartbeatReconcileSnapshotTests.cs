@@ -6,14 +6,10 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Covers the drain-reconcile race: <see cref="WorkerHeartbeat.TickAsync"/> must reconcile only the
-/// running attempts that existed BEFORE the lease-extend queries ran, not whatever is in
-/// <c>RunningAttempts</c> by the time the extend queries return. Before the fix, a job claimed and
-/// dispatched into <c>RunningAttempts</c> while an extend query is still in flight was invisible to
-/// that query's "live" result (it was claimed too late to be extended) but present in the dictionary
-/// <see cref="WorkerHeartbeat.ReconcileAttemptsAsync"/> enumerates afterwards, so it was wrongly
-/// cancelled. The fix snapshots <c>RunningAttempts</c> before the extend loop and reconciles only that
-/// snapshot; an attempt registered mid-tick is simply picked up by the next tick instead.
+/// Covers the drain-reconcile race: <see cref="WorkerHeartbeat.TickAsync"/> must judge only the
+/// <see cref="InFlightJobRegistry"/> entries that existed BEFORE the lease-extend query ran. An entry
+/// registered while the query is in flight is absent from its answer (it was claimed too late to be
+/// extended), so judging it would cancel it wrongly; the next tick picks it up instead.
 /// </summary>
 public sealed class WorkerHeartbeatReconcileSnapshotTests
 {
@@ -22,11 +18,12 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
     private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
 
     [Fact]
-    public async Task TickAsync_does_not_cancel_an_attempt_registered_while_the_extend_query_is_in_flight()
+    public async Task TickAsync_does_not_cancel_an_entry_registered_while_the_extend_query_is_in_flight()
     {
         var db = new GatedWorkerStore(liveJobIds: [1]);
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry();
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
@@ -36,6 +33,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
             options,
             registration,
             context,
+            registry,
             NullLogger.Instance
         );
 
@@ -43,19 +41,19 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         var tickTask = heartbeat.TickAsync(ct);
 
         // Wait until the extend query is actually in flight (blocked on the gate) before registering
-        // the new attempt, so it lands squarely in the gap the race exploits.
+        // the new entry, so it lands squarely in the gap the race exploits.
         await db.Entered.WaitAsync(HangGuard, ct);
 
-        using var lateAttempt = new RunningAttempt(leased: false, CancellationToken.None);
-        context.RunningAttempts[2] = lateAttempt;
+        using var late = WorkerHeartbeatLeaseRunwayTests.Entry(2);
+        registry.TryAdd(late);
 
         db.Release();
         await tickTask.WaitAsync(HangGuard, ct);
 
-        Assert.False(lateAttempt.AttemptToken.IsCancellationRequested);
+        Assert.False(late.AttemptToken.IsCancellationRequested);
     }
 
-    // Blocks the lease extend on a gate so the test can register a new RunningAttempt while the
+    // Blocks the lease extend on a gate so the test can register a new entry while the
     // tick is mid-flight, then releases it to answer a fixed "live" id set. WorkerHeartbeat.TickAsync
     // only ever extends leases.
     private sealed class GatedWorkerStore(IReadOnlyList<long> liveJobIds)

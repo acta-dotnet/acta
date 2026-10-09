@@ -2,13 +2,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
+using static Acta.Tests.Runtime.WorkerHeartbeatLeaseRunwayTests;
 
 namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// A job claimed again into a newer execution while an older attempt still runs under it in this process. The
-/// heartbeat holds both executions, and the renewal answers only the one the row carries, so the older attempt is
-/// cancelled instead of fed.
+/// registry holds both executions as separate entries, and the renewal answers only the one the row carries, so the
+/// older attempt is cancelled and the newer claim is kept.
 /// </summary>
 public sealed class WorkerHeartbeatDisplacedExecutionTests
 {
@@ -17,9 +18,11 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
-        using var stale = new RunningAttempt(leased: false, CancellationToken.None) { ExecutionNumber = 1 };
-        context.RunningAttempts[7] = stale;
-        context.BufferedClaims[7] = 2;
+        var registry = new InFlightJobRegistry();
+        using var stale = Entry(7, executionNumber: 1, state: InFlightJobState.Executing);
+        using var newer = Entry(7, executionNumber: 2);
+        registry.TryAdd(stale);
+        registry.TryAdd(newer);
         var session = new ScriptedSession(_ => new ExtendWorkerLeasesRow(
             7,
             ExecutionNumber: 2,
@@ -33,15 +36,16 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,
+            registry,
             NullLogger.Instance
         );
 
         await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(
-            """[{"job_id":7,"execution_number":1},{"job_id":7,"execution_number":2}]""",
-            Assert.Single(session.Calls).Parameters["p_executions"]
-        );
+        var executions = Assert.IsType<string>(Assert.Single(session.Calls).Parameters["p_executions"]);
+        Assert.Contains("""{"job_id":7,"execution_number":1}""", executions, StringComparison.Ordinal);
+        Assert.Contains("""{"job_id":7,"execution_number":2}""", executions, StringComparison.Ordinal);
         Assert.True(stale.AttemptToken.IsCancellationRequested);
+        Assert.False(newer.AttemptToken.IsCancellationRequested);
     }
 }

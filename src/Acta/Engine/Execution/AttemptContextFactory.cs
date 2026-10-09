@@ -58,7 +58,7 @@ internal sealed class AttemptContextFactory(
         int namespaceId,
         int workerId,
         AttemptSetup setup,
-        RunningAttempt attempt,
+        InFlightJob entry,
         IServiceProvider attemptServices
     ) =>
         new(
@@ -88,9 +88,9 @@ internal sealed class AttemptContextFactory(
             && deadlineSecs > 0
                 ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
                 : (DateTime?)null,
-            attempt.AttemptToken,
+            entry.AttemptToken,
             options.Value.MaxInlinePayloadBytes,
-            attempt,
+            entry,
             setup.StepRetryDefaults,
             log,
             metrics,

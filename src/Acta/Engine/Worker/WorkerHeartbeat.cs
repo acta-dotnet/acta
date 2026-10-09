@@ -18,6 +18,7 @@ internal sealed class WorkerHeartbeat(
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
+    InFlightJobRegistry registry,
     ILogger log
 )
 {
@@ -25,9 +26,10 @@ internal sealed class WorkerHeartbeat(
     private readonly GetDefinitionContractsHandler _getDefinitionContracts = getDefinitionContracts;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
+    private readonly InFlightJobRegistry _registry = registry;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-    private readonly TimeSpan _leaseRunway = RunningAttempt.LeaseRunway(options.Value);
+    private readonly TimeSpan _leaseRunway = InFlightJob.LeaseRunway(options.Value);
 
     // The namespace's newest definitions.modified_at_utc at the last overlay. Touched only under the tick gate.
     private DateTime? _definitionsModifiedAtUtc;
@@ -117,39 +119,27 @@ internal sealed class WorkerHeartbeat(
 
     /// <summary>
     /// One worker-heartbeat pass: renew the leases of the executions this process holds, re-arm each still-owned
-    /// attempt's lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
+    /// entry's lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
     /// when it changed. The deterministic single-shot the loop drives per tick; tests drive it via
     /// WorkerRuntime.RunHeartbeatOnceAsync.
     /// </summary>
     public async Task TickAsync(CancellationToken ct)
     {
-        // Refresh every worker's leases first and union the still-owned ids, THEN feed once. A process can
-        // host several workers but RunningAttempts is shared across them, so feeding per worker would see
-        // another worker's jobs as "dropped" and wrongly cancel them.
+        // Refresh every worker's leases first and union the still-owned ids, THEN feed once: the registry
+        // holds every worker's jobs, so feeding per worker would see another worker's jobs as "dropped" and
+        // wrongly cancel them.
         await _tickGate.WaitAsync(ct);
         try
         {
-            // Snapshot RunningAttempts BEFORE the extend queries run, and reconcile only that snapshot.
-            // An attempt present here was dispatched after its claim committed, so a read-committed
-            // extend query that starts afterwards is guaranteed to see it as live; an attempt that gets
-            // registered mid-tick (after this snapshot) is simply reconciled on the next tick instead of
-            // this one. Without the snapshot, a job claimed+dispatched into RunningAttempts while the
-            // extend query for another worker was still in flight would be invisible to this tick's
-            // "live" set (it was claimed too late to be extended) yet present when reconciliation
-            // enumerated the live dictionary afterwards, and would be wrongly cancelled. Reaching an
-            // attempt that has already completed by the time it's reconciled is harmless: JobExecutor
-            // removes the attempt from RunningAttempts before disposing it, so a late Cancel() or
-            // ArmLease() either lands on a token nothing reads anymore or hits a disposed source, which
-            // both swallow.
-            var snapshot = _context
-                .RunningAttempts.Select(running => (JobId: running.Key, Attempt: running.Value, Locks: running.Value.HeldLocks))
-                .ToArray();
-            List<(long JobId, int ExecutionNumber)> held =
-            [
-                .. snapshot.Select(running => (running.JobId, running.Attempt.ExecutionNumber)),
-                .. _context.BufferedClaims.Select(claim => (claim.Key, claim.Value)),
-            ];
-            List<LockToken> heldLocks = [.. snapshot.SelectMany(running => running.Locks)];
+            // Snapshot the registry BEFORE the extend queries run, and judge only that snapshot. An entry
+            // present here was registered after its claim committed, so an extend query that starts
+            // afterwards sees its row; an entry registered mid-tick is judged on the next tick, where
+            // judging it now would find it unanswered and wrongly cancel it. Judging an entry removed
+            // meanwhile is harmless: the registry disposes it after removing it, so a late Cancel() or
+            // ArmLease() lands on a token nothing reads anymore or a disposed source, which both swallow.
+            var snapshot = _registry.Snapshot().Select(entry => (Entry: entry, Locks: entry.HeldLocks)).ToArray();
+            List<(long JobId, int ExecutionNumber)> held = [.. snapshot.Select(pair => pair.Entry.Key)];
+            List<LockToken> heldLocks = [.. snapshot.SelectMany(pair => pair.Locks)];
 
             // Renew the held leases and locks and union the still-owned ids. Capture the request-start
             // BEFORE the call: the store stamps the renewed expiry no earlier than this instant, so
@@ -229,14 +219,15 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// For each attempt in the pre-extend snapshot, matched on job and execution: a renewal re-arms its lease deadline
+    /// For each entry in the pre-extend snapshot, matched on job and execution: a renewal re-arms its lease deadline
     /// from the request start; a row skipped because another transaction held it keeps its deadline; an execution the
-    /// refresh dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again) is cancelled now, and so
-    /// is one still holding a lock the call did not renew. <c>live</c> is null when the refresh threw: a definitive loss
-    /// cannot be told from a blip, so nothing moves and the deadlines decide.
+    /// refresh dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again) is cancelled now unless
+    /// it is Finalizing, where the completion write's compare-and-swap decides; and an entry still holding a lock the
+    /// call did not renew is cancelled. <c>live</c> is null when the refresh threw: a definitive loss cannot be told
+    /// from a blip, so nothing moves and the deadlines decide.
     /// </summary>
     private void FeedLeases(
-        (long JobId, RunningAttempt Attempt, IReadOnlyCollection<LockToken> Locks)[] snapshot,
+        (InFlightJob Entry, IReadOnlyCollection<LockToken> Locks)[] snapshot,
         HashSet<(long JobId, int ExecutionNumber)>? live,
         HashSet<(long JobId, int ExecutionNumber)> renewed,
         HashSet<string> renewedLocks,
@@ -249,25 +240,24 @@ internal sealed class WorkerHeartbeat(
         }
 
         var runway = _leaseRunway - Stopwatch.GetElapsedTime(renewRequestedAt);
-        foreach (var (jobId, attempt, locks) in snapshot)
+        foreach (var (entry, locks) in snapshot)
         {
-            var execution = (jobId, attempt.ExecutionNumber);
-            if (!live.Contains(execution))
+            if (!live.Contains(entry.Key) && entry.State != InFlightJobState.Finalizing)
             {
-                attempt.Cancel();
+                entry.Cancel();
                 continue;
             }
-            if (renewed.Contains(execution))
+            if (renewed.Contains(entry.Key))
             {
-                attempt.ArmLease(runway);
+                entry.ArmLease(runway);
             }
 
             // A lock the handler released while the renewal was in flight is no longer held, so only a lock it
             // still relies on, now taken by another holder, ends its critical section.
-            if (locks.Any(token => !renewedLocks.Contains(token.Key) && attempt.Holds(token)))
+            if (locks.Any(token => !renewedLocks.Contains(token.Key) && entry.Holds(token)))
             {
-                attempt.Cancel();
-                _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", jobId);
+                entry.Cancel();
+                _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", entry.Claim.JobId);
             }
         }
     }

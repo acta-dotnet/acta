@@ -8,7 +8,7 @@ namespace Acta;
 /// <see cref="ExecutionAdmission"/>, which settles a refused attempt, <see cref="HandlerInvocation"/>, which settles
 /// an admitted one, and <see cref="ExecutionCompletion"/>, which writes the <see cref="AttemptSettlement"/>. The seam
 /// with <see cref="JobExecutor"/> is not "claim versus run" (the worker loop claims; both are per-attempt): the
-/// executor is the frame, four disposal obligations plus the running-attempt registration that unwind whatever
+/// executor is the frame, four disposal obligations plus the in-flight entry's removal that unwind whatever
 /// happens here, and this is the body. "Execution" is the persisted vocabulary, frozen at 1.0; "run" is a scheduled time.
 /// </summary>
 internal sealed class JobExecution(

@@ -28,7 +28,7 @@ internal sealed partial class RuntimeJobContext(
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
     int maxInlinePayloadBytes = int.MaxValue,
-    RunningAttempt? runningAttempt = null,
+    InFlightJob? inFlightJob = null,
     StepRetryDefaults stepRetryDefaults = default,
     ILogger? log = null,
     ActaMetrics? metrics = null,
@@ -50,7 +50,7 @@ internal sealed partial class RuntimeJobContext(
     private readonly int _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;
-    private readonly RunningAttempt? _runningAttempt = runningAttempt;
+    private readonly InFlightJob? _inFlightJob = inFlightJob;
     private readonly StepRetryDefaults _stepRetryDefaults = stepRetryDefaults;
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ActaMetrics? _metrics = metrics;
@@ -61,7 +61,7 @@ internal sealed partial class RuntimeJobContext(
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
     /// cancel, read by <see cref="HandlerInvocation"/> to record the timeout reason, which the retry budget then applies to.
     /// </summary>
-    internal bool AttemptTimedOut => _runningAttempt?.TimedOut ?? false;
+    internal bool AttemptTimedOut => _inFlightJob?.TimedOut ?? false;
 
     public override long JobId { get; } = job.JobId;
     public override string JobNamespace { get; } = namespaceName;

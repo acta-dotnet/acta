@@ -46,8 +46,8 @@ internal sealed class JobExecutionHarness(
     // The worker token the runner is handed, cancelled by the script when a fact wants a shutdown.
     private readonly CancellationTokenSource _workerCts = new();
 
-    // The attempt RunAsync registers, linked from the worker token as the executor links it.
-    private RunningAttempt? _attempt;
+    // The entry RunAsync runs, linked from the worker token as the executor links it.
+    private InFlightJob? _entry;
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
@@ -81,11 +81,11 @@ internal sealed class JobExecutionHarness(
     public BoundCompletion Completion => Assert.Single(Submitted);
 
     /// <summary>
-    /// Fires the attempt's execution timeout now, so <c>RunningAttempt.TimedOut</c> reads true and the linked
+    /// Fires the attempt's execution timeout now, so <c>InFlightJob.TimedOut</c> reads true and the linked
     /// attempt token cancels after it. Call from inside a handler; the handler must then observe its token, as a
     /// cooperative handler does in production.
     /// </summary>
-    public void TimeOutAttempt() => _attempt!.ArmTimeout(TimeSpan.Zero);
+    public void TimeOutAttempt() => _entry!.ArmTimeout(TimeSpan.Zero);
 
     /// <summary>
     /// Runs one attempt. The default handler invokes <c>ctx.RunStepAsync</c> once with a body that
@@ -95,10 +95,10 @@ internal sealed class JobExecutionHarness(
     {
         handler ??= static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token);
         var job = Job(failureCount, concurrencyKey);
-        _attempt = new RunningAttempt(leased: false, _workerCts.Token) { ExecutionNumber = job.ExecutionNumber };
-        _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _attempt.Cancel : null;
+        _entry = new InFlightJob(job, leaseRunway: null, _workerCts.Token);
+        _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _entry.Cancel : null;
         _locks.OnRateRequest =
-            cancelAttemptDuringRateWait ? _attempt.Cancel
+            cancelAttemptDuringRateWait ? _entry.Cancel
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
@@ -123,14 +123,14 @@ internal sealed class JobExecutionHarness(
             executionStore: _store.Execution,
             new HarnessSerializers(),
             _locks.Locks,
-            cancellationToken: _attempt.AttemptToken,
+            cancellationToken: _entry.AttemptToken,
             triggeringScheduleNames: [],
             deadlineAtUtc: deadlineAtUtc,
             // The two the production JobExecutor supplies and this harness used to default away:
             // without the cap a handler write is unbounded here but bounded in production, and
             // without the attempt every timeout reads as a plain external cancel.
             maxInlinePayloadBytes: options.Value.MaxInlinePayloadBytes,
-            runningAttempt: _attempt,
+            inFlightJob: _entry,
             workerId: WorkerId
         );
 
@@ -166,12 +166,11 @@ internal sealed class JobExecutionHarness(
     {
         var executor = Executor(new WorkerContext(null));
         return await executor.ExecuteClaimedJobAsync(
-            Job(failureCount, concurrencyKey),
+            new InFlightJob(Job(failureCount, concurrencyKey), leaseRunway: null, CancellationToken.None),
             namespaceName: "harness",
             namespaceId: 1,
             WorkerId,
             alreadyStarted: false,
-            armLease: false,
             CancellationToken.None
         );
     }
@@ -187,6 +186,7 @@ internal sealed class JobExecutionHarness(
             new StoreOnlyServices(_store.Execution, CancelJob()),
             options,
             context,
+            new InFlightJobRegistry(),
             new JobExecution(
                 CancelJob(),
                 _store.Execution,

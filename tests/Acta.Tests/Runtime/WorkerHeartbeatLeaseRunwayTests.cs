@@ -7,10 +7,10 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// What one heartbeat tick does to an attempt's lease deadline. The <see cref="WorkerHeartbeat"/> renews the job leases
-/// and handler-held locks in one call, re-arms each attempt's deadline on a confirmed renewal, and cancels outright on a
-/// definitive loss; a call that throws moves nothing, so an outage cancels by the deadline alone. The deadlines are
-/// real timers, so these facts arm them short and wait on the attempt token (no DB).
+/// What one heartbeat tick does to an entry's lease deadline. The <see cref="WorkerHeartbeat"/> renews the held
+/// executions and handler-held locks in one call, re-arms each entry's deadline on a confirmed renewal, and cancels
+/// outright on a definitive loss; a call that throws moves nothing, so an outage cancels by the deadline alone. The
+/// deadlines are real timers, so these facts arm them short and wait on the attempt token (no DB).
 /// </summary>
 public sealed class WorkerHeartbeatLeaseRunwayTests
 {
@@ -29,27 +29,20 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     private static IOptions<JobsOptions> Options(TimeSpan interval, int leaseTtlSeconds) =>
         Microsoft.Extensions.Options.Options.Create(new JobsOptions { HeartbeatInterval = interval, LeaseTtlSeconds = leaseTtlSeconds });
 
-    private static WorkerContext Context()
-    {
-        var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["orders"] = 1;
-        return context;
-    }
-
     private static readonly WorkerRegistration Registration = new("orders", null, null, [], []);
+
+    private readonly InFlightJobRegistry _registry = new();
 
     [Fact]
     public async Task A_confirmed_renewal_re_arms_the_lease_deadline()
     {
-        var context = Context();
-        using var attempt = Leased(ShortLease);
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1, leaseRunway: ShortLease));
 
-        await Heartbeat(WorkerStore(_ => Lease(1)), context).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => Lease(1))).TickAsync(TestContext.Current.CancellationToken);
         await Task.Delay(ShortLease * 2, TestContext.Current.CancellationToken);
 
         // The renewal moved the deadline to the runway past its request start, minutes away.
-        Assert.False(attempt.AttemptToken.IsCancellationRequested);
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
@@ -59,64 +52,70 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         // past the renewal's request start, and the attempt is cancelled well before the lease itself lapses at one
         // second. It also outlives its first deadline, which the renewal replaced.
         var options = Options(TimeSpan.FromMilliseconds(10), leaseTtlSeconds: 1);
-        var context = Context();
-        using var attempt = Leased(ShortLease);
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1, leaseRunway: ShortLease));
         var renewedAt = Stopwatch.GetTimestamp();
 
-        await Heartbeat(WorkerStore(_ => Lease(1)), context, options).TickAsync(TestContext.Current.CancellationToken);
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, attempt.AttemptToken));
+        await Heartbeat(WorkerStore(_ => Lease(1)), options).TickAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, entry.AttemptToken));
 
-        Assert.InRange(
-            Stopwatch.GetElapsedTime(renewedAt),
-            RunningAttempt.LeaseRunway(options.Value) - TimerSlack,
-            TimeSpan.FromSeconds(1)
-        );
+        Assert.InRange(Stopwatch.GetElapsedTime(renewedAt), InFlightJob.LeaseRunway(options.Value) - TimerSlack, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
-    public async Task An_authoritative_refresh_that_drops_the_execution_cancels_at_once()
+    public async Task An_authoritative_refresh_that_drops_the_execution_cancels_all_but_a_finalizing_entry()
     {
-        var context = Context();
-        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
-        context.RunningAttempts[1] = attempt;
+        using var claimed = Held(Entry(1));
+        using var executing = Held(Entry(2, state: InFlightJobState.Executing));
+        using var finalizing = Held(Entry(3, state: InFlightJobState.Finalizing));
 
-        await Heartbeat(WorkerStore(_ => null), context).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => null)).TickAsync(TestContext.Current.CancellationToken);
 
-        // The job is absent from an authoritative live set (operator cancel / reclaimed lease) -> stop now.
-        Assert.True(attempt.AttemptToken.IsCancellationRequested);
+        // The rows are absent from an authoritative answer (operator cancel / reclaimed lease): a claim or a running
+        // handler stops now, while a finished attempt's completion write is left to its compare-and-swap.
+        Assert.True(claimed.AttemptToken.IsCancellationRequested);
+        Assert.True(executing.AttemptToken.IsCancellationRequested);
+        Assert.False(finalizing.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task A_finalizing_entry_is_held_and_renewed()
+    {
+        using var entry = Held(Entry(1, leaseRunway: ShortLease, state: InFlightJobState.Finalizing));
+        var session = new ScriptedSession(_ => Lease(1));
+
+        await Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>()).TickAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(ShortLease * 2, TestContext.Current.CancellationToken);
+
+        Assert.Equal("""[{"job_id":1,"execution_number":0}]""", Assert.Single(session.Calls).Parameters["p_executions"]);
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
     public async Task A_skipped_row_keeps_running_on_its_unmoved_deadline()
     {
-        var context = Context();
-        using var attempt = Leased(ShortLease);
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1, leaseRunway: ShortLease));
         var armedAt = Stopwatch.GetTimestamp();
 
-        await Heartbeat(WorkerStore(_ => Lease(1, renewed: false)), context).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => Lease(1, renewed: false))).TickAsync(TestContext.Current.CancellationToken);
 
         // Another transaction held the row: it is still this worker's, so the tick leaves it running, but its lease
         // did not move, so neither does its deadline.
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, attempt.AttemptToken));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, entry.AttemptToken));
         Assert.True(Stopwatch.GetElapsedTime(armedAt) >= ShortLease - TimerSlack);
     }
 
     [Fact]
     public async Task A_refresh_that_throws_moves_nothing_so_an_outage_cancels_by_the_deadline_alone()
     {
-        var context = Context();
-        using var attempt = Leased(ShortLease);
-        attempt.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()));
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1, leaseRunway: ShortLease));
+        entry.TrackLock(new LockToken("orders.flaky", Guid.NewGuid()));
         var armedAt = Stopwatch.GetTimestamp();
 
-        await Heartbeat(WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault")), context)
+        await Heartbeat(WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault")))
             .TickAsync(TestContext.Current.CancellationToken);
 
         // Neither the job nor its unrenewed lock counts as lost on a call that threw.
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, attempt.AttemptToken));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(HangGuard, entry.AttemptToken));
         Assert.True(Stopwatch.GetElapsedTime(armedAt) >= ShortLease - TimerSlack);
     }
 
@@ -124,75 +123,105 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_renews_a_held_lock_in_the_same_call()
     {
         var held = new LockToken("orders.a", Guid.NewGuid());
-        var context = Context();
         var session = new ScriptedSession(_ => new[] { Lease(1), Lock(held.Key) });
-        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
-        attempt.TrackLock(held);
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1));
+        entry.TrackLock(held);
 
-        await Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>(), context).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>()).TickAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(
             $$"""[{"lock_key":"orders.a","hold_token":"{{held.HoldToken}}"}]""",
             Assert.Single(session.Calls).Parameters["p_locks"]
         );
-        Assert.False(attempt.AttemptToken.IsCancellationRequested);
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
     public async Task Worker_heartbeat_cancels_when_a_held_lock_is_not_renewed()
     {
-        var context = Context();
-        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
-        attempt.TrackLock(new LockToken("orders.lost", Guid.NewGuid()));
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1));
+        entry.TrackLock(new LockToken("orders.lost", Guid.NewGuid()));
 
-        await Heartbeat(WorkerStore(_ => Lease(1)), context).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(WorkerStore(_ => Lease(1))).TickAsync(TestContext.Current.CancellationToken);
 
         // The hold's token moved: another holder took the key, so the critical section is no longer exclusive.
-        Assert.True(attempt.AttemptToken.IsCancellationRequested);
+        Assert.True(entry.AttemptToken.IsCancellationRequested);
     }
 
     [Fact]
     public async Task Worker_heartbeat_ignores_a_lock_released_while_the_renewal_was_in_flight()
     {
         var released = new LockToken("orders.released", Guid.NewGuid());
-        var context = Context();
-        using var attempt = new RunningAttempt(leased: false, CancellationToken.None);
-        attempt.TrackLock(released);
-        context.RunningAttempts[1] = attempt;
+        using var entry = Held(Entry(1));
+        entry.TrackLock(released);
 
         // The handler releases (untracks) the lock while the renewal is in flight, so the renewal finds no hold.
         var heartbeat = Heartbeat(
             WorkerStore(_ =>
             {
-                attempt.UntrackLock(released);
+                entry.UntrackLock(released);
                 return Lease(1);
-            }),
-            context
+            })
         );
 
         await heartbeat.TickAsync(TestContext.Current.CancellationToken);
 
-        Assert.False(attempt.AttemptToken.IsCancellationRequested);
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
     }
 
-    private static RunningAttempt Leased(TimeSpan lease)
-    {
-        var attempt = new RunningAttempt(leased: true, CancellationToken.None);
-        attempt.ArmLease(lease);
-        return attempt;
-    }
-
-    private static WorkerHeartbeat Heartbeat(WorkerLifecycle workers, WorkerContext context, IOptions<JobsOptions>? options = null) =>
+    /// <summary>An entry for job <paramref name="jobId"/> at <paramref name="executionNumber"/>, unregistered.</summary>
+    internal static InFlightJob Entry(
+        long jobId,
+        int executionNumber = 0,
+        TimeSpan? leaseRunway = null,
+        InFlightJobState state = InFlightJobState.Claimed
+    ) =>
         new(
+            new ClaimedJob(
+                JobId: jobId,
+                JobRef: Guid.CreateVersion7(),
+                NamespaceId: 1,
+                DefinitionId: 1,
+                TenantId: null,
+                ExecutionNumber: executionNumber,
+                DeduplicationKey: null,
+                CorrelationKey: null,
+                ConcurrencyKey: null,
+                InputFormatId: 0,
+                Input: ReadOnlyMemory<byte>.Empty,
+                NextRunAtUtc: null,
+                LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
+                CreatedAtUtc: DateTime.UtcNow,
+                FailureCount: 0,
+                Version: 1
+            ),
+            leaseRunway,
+            CancellationToken.None
+        )
+        {
+            State = state,
+        };
+
+    private InFlightJob Held(InFlightJob entry)
+    {
+        _registry.TryAdd(entry);
+        return entry;
+    }
+
+    private WorkerHeartbeat Heartbeat(WorkerLifecycle workers, IOptions<JobsOptions>? options = null)
+    {
+        var context = new WorkerContext(null);
+        context.WorkerIdByNamespace["orders"] = 1;
+        return new WorkerHeartbeat(
             workers,
             ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
             options ?? Options(Interval, LeaseTtlSeconds),
             Registration,
             context,
+            _registry,
             NullLogger.Instance
         );
+    }
 
     // The worker lifecycle over a scripted lease extend, the heartbeat's only database call.
     private static WorkerLifecycle WorkerStore(Func<BoundCall, object?> answer) =>

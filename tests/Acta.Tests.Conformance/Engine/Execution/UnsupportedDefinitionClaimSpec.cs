@@ -63,8 +63,8 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
             "the re-arm pushed next_run_at_utc by the safety-poll interval"
         );
 
-        // Nothing was registered in flight: the claim never became an attempt, so there is no
-        // cancellation source, no scope, and no lease deadline.
+        // Nothing is left in flight: the claim's entry leaves the registry with the hand-back, and the
+        // claim never became an attempt.
         Assert.Equal(0, Runtime.InFlightCount);
     }
 

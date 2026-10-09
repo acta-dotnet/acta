@@ -45,6 +45,7 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
+            new InFlightJobRegistry(),
             log
         );
 
@@ -66,6 +67,7 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
+            new InFlightJobRegistry(),
             log
         );
 
@@ -90,6 +92,7 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
+            new InFlightJobRegistry(),
             log
         );
 
@@ -104,9 +107,9 @@ public sealed class RenewalLoopFailureArmTests
         // Nothing but the heartbeat moves a deadline and nothing watches it, so a loop whose every call fails must
         // neither end nor hold the attempt open: the deadline alone stops the handler before its lease can lapse.
         var context = HeartbeatContext();
-        using var attempt = new RunningAttempt(leased: true, CancellationToken.None);
-        attempt.ArmLease(TimeSpan.FromMilliseconds(100));
-        context.RunningAttempts[1] = attempt;
+        var registry = new InFlightJobRegistry();
+        using var entry = WorkerHeartbeatLeaseRunwayTests.Entry(1, leaseRunway: TimeSpan.FromMilliseconds(100));
+        registry.TryAdd(entry);
         var heartbeat = new WorkerHeartbeat(
             new ScriptedSession(_ => throw new InvalidOperationException("synthetic database outage"))
                 .Services()
@@ -115,13 +118,14 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
+            registry,
             new RecordingLogger()
         );
 
         using var cts = new CancellationTokenSource();
         var running = heartbeat.RunAsync(cts.Token);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(TimeSpan.FromSeconds(30), attempt.AttemptToken));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Delay(TimeSpan.FromSeconds(30), entry.AttemptToken));
         Assert.False(running.IsCompleted);
         await cts.CancelAsync();
         await running.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);

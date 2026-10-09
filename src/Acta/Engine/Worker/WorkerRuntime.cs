@@ -17,6 +17,7 @@ namespace Acta;
 internal sealed class WorkerRuntime
 {
     private readonly WorkerContext _context;
+    private readonly InFlightJobRegistry _registry = new();
     private readonly WorkerRuntimeInitializer _initializer;
     private readonly JobExecutor _executor;
     private readonly WorkerLoop _loop;
@@ -55,11 +56,11 @@ internal sealed class WorkerRuntime
         var wake = wakeup ?? new InProcessWakeup();
         var publisher = wakeupPublisher ?? new WorkerWakeupPublisher(wake, metrics: metrics);
 
-        // The executing gauge reads this worker's live in-flight count on collection. Enqueue-only
+        // The executing gauge reads this worker's executing entries on collection. Enqueue-only
         // runtimes have no registration and contribute no source.
         if (workerRegistration is { } registration)
         {
-            metrics?.AddExecutingSource(registration.NamespaceName, () => _context.RunningAttempts.Count);
+            metrics?.AddExecutingSource(registration.NamespaceName, () => _registry.Count(InFlightJobState.Executing));
         }
 
         _initializer = new WorkerRuntimeInitializer(
@@ -94,13 +95,14 @@ internal sealed class WorkerRuntime
             logger,
             metrics
         );
-        _executor = new JobExecutor(locks, clock, serializers, rootServices, options, _context, jobExecution, logger, metrics);
+        _executor = new JobExecutor(locks, clock, serializers, rootServices, options, _context, _registry, jobExecution, logger, metrics);
         _loop = new WorkerLoop(
             rootServices.GetRequiredService<Execution>(),
             _executor,
             options,
             workerRegistration,
             _context,
+            _registry,
             wake,
             logger,
             metrics
@@ -111,6 +113,7 @@ internal sealed class WorkerRuntime
             options,
             workerRegistration,
             _context,
+            _registry,
             logger
         );
         _recoveryMonitor = new RecoverySlotMonitor(
@@ -212,8 +215,8 @@ internal sealed class WorkerRuntime
     /// </summary>
     public Task DrainCompletion { get; private set; } = Task.CompletedTask;
 
-    /// <summary>This runtime's live in-flight attempt count; exposed for observability and drain assertions.</summary>
-    public int InFlightCount => _context.RunningAttempts.Count;
+    /// <summary>The claims this runtime holds, from claim to completion write; exposed for observability and drain assertions.</summary>
+    public int InFlightCount => _registry.Count();
 
     /// <summary>
     /// This runtime's live descriptor index, keyed by <c>definitions.id</c>: what this deployment can

@@ -14,7 +14,7 @@ internal sealed partial class RuntimeJobContext
             // Register so the heartbeat renews this handler-acquired lock for as long as the
             // critical section runs; without it a long action would outlive the lease TTL and the lock
             // could be stolen mid-section.
-            _runningAttempt?.TrackLock(held);
+            _inFlightJob?.TrackLock(held);
         }
         return token?.HoldToken;
     }
@@ -24,7 +24,7 @@ internal sealed partial class RuntimeJobContext
         var token = new LockToken(ComposeLockKey(key, scope), holdToken);
         // Untrack before the store release so a heartbeat tick racing this release sees Holds()==false
         // and does not mistake the normal release for a steal.
-        _runningAttempt?.UntrackLock(token);
+        _inFlightJob?.UntrackLock(token);
         return _locks.ReleaseLockAsync(token, ct);
     }
 
@@ -47,7 +47,7 @@ internal sealed partial class RuntimeJobContext
         var token = (await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
-            _runningAttempt?.TrackLock(held);
+            _inFlightJob?.TrackLock(held);
             _concurrencySlotToken = held;
         }
         return token is not null;
@@ -79,7 +79,7 @@ internal sealed partial class RuntimeJobContext
             return;
         }
         _concurrencySlotToken = null;
-        _runningAttempt?.UntrackLock(token);
+        _inFlightJob?.UntrackLock(token);
         try
         {
             await _locks.ReleaseLockAsync(token, ct);
