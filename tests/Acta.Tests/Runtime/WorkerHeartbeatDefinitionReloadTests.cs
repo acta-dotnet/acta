@@ -6,13 +6,13 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The heartbeat re-reads the definition catalog on its first tick, when the namespace's newest definition change
-/// the renewal answers has moved, and once <see cref="JobsOptions.SafetyPollInterval"/> has passed since the last read.
+/// The heartbeat re-reads the definition catalog on its first tick and whenever the namespace's newest definition
+/// change the renewal answers has moved, and otherwise not at all.
 /// </summary>
 public sealed class WorkerHeartbeatDefinitionReloadTests
 {
     [Fact]
-    public async Task The_catalog_is_read_again_only_when_the_stamp_moved_or_the_interval_elapsed()
+    public async Task The_catalog_is_read_again_only_when_the_stamp_moved()
     {
         var stamp = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc);
         var session = new ScriptedSession(call =>
@@ -22,22 +22,18 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
         );
         var ct = TestContext.Current.CancellationToken;
 
-        var hourly = Heartbeat(session, TimeSpan.FromHours(1));
-        await hourly.TickAsync(ct);
-        await hourly.TickAsync(ct);
+        var heartbeat = Heartbeat(session);
+        await heartbeat.TickAsync(ct);
+        await heartbeat.TickAsync(ct);
         Assert.Equal(1, Reads(session));
 
         stamp = stamp.AddSeconds(1);
-        await hourly.TickAsync(ct);
+        await heartbeat.TickAsync(ct);
+        await heartbeat.TickAsync(ct);
         Assert.Equal(2, Reads(session));
-
-        var elapsed = Heartbeat(session, TimeSpan.Zero);
-        await elapsed.TickAsync(ct);
-        await elapsed.TickAsync(ct);
-        Assert.Equal(4, Reads(session));
     }
 
-    private static WorkerHeartbeat Heartbeat(ScriptedSession session, TimeSpan safetyPoll)
+    private static WorkerHeartbeat Heartbeat(ScriptedSession session)
     {
         var context = new WorkerContext(null);
         context.NamespaceIds["orders"] = 1;
@@ -46,7 +42,7 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
         return new WorkerHeartbeat(
             services.GetRequiredService<WorkerLifecycle>(),
             services.GetRequiredService<GetDefinitionContractsHandler>(),
-            Options.Create(new JobsOptions { SafetyPollInterval = safetyPoll }),
+            Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,
             NullLogger.Instance

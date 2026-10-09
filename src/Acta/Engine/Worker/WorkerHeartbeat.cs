@@ -26,14 +26,10 @@ internal sealed class WorkerHeartbeat(
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
-    private readonly TimeSpan _safetyPoll = options.Value.SafetyPollInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
 
-    // The namespace's newest definitions.modified_at_utc at the last overlay, and when that overlay ran. A row
-    // committed after an overlay's read but stamped at or before the newest value that read saw never moves the
-    // stamp, so the overlay also repeats once SafetyPollInterval has passed. Touched only under the tick gate.
+    // The namespace's newest definitions.modified_at_utc at the last overlay. Touched only under the tick gate.
     private DateTime? _definitionsModifiedAtUtc;
-    private long? _overlaidAt;
 
     /// <summary>
     /// Lease TTL as monotonic Stopwatch ticks. The job-lease deadline is measured on Stopwatch, not
@@ -206,18 +202,10 @@ internal sealed class WorkerHeartbeat(
             }
 
             FeedLeases(snapshot, live, renewed, renewedLocks, renewRequestedAt);
-            if (
-                live is not null
-                && (
-                    _overlaidAt is not { } overlaidAt
-                    || definitionsModifiedAtUtc != _definitionsModifiedAtUtc
-                    || Stopwatch.GetElapsedTime(overlaidAt) > _safetyPoll
-                )
-            )
+            if (live is not null && definitionsModifiedAtUtc != _definitionsModifiedAtUtc)
             {
                 await OverlayDefinitionsAsync(ct);
                 _definitionsModifiedAtUtc = definitionsModifiedAtUtc;
-                _overlaidAt = Stopwatch.GetTimestamp();
             }
         }
         finally
@@ -229,7 +217,8 @@ internal sealed class WorkerHeartbeat(
     /// <summary>
     /// Re-reads the namespace's effective policy and re-overlays it onto the live descriptors, so an operator override
     /// edited in the dashboard reaches the hot path (backoff, timeout, deadline, retention, max attempts) within one
-    /// heartbeat, no restart required.
+    /// heartbeat, no restart required. Runs only when the newest definition change moved: two edits of one namespace
+    /// committed within the same instant in reverse order can leave one of them unseen until the next edit.
     /// </summary>
     private async Task OverlayDefinitionsAsync(CancellationToken ct)
     {

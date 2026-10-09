@@ -59,8 +59,8 @@ public sealed class LoopTickCancellationFilterTests
     [Fact]
     public async Task WorkerHeartbeat_logs_a_stray_OCE_from_the_catalog_reload_and_keeps_running()
     {
-        // The lease extend answers; the catalog read behind it fails on every tick, since a failed reload is
-        // retried on the next one.
+        // The lease extend answers a definition stamp; the catalog read behind it fails on every tick, since a
+        // failed reload leaves the stamp unseen and is retried on the next one.
         var failure = new OperationCanceledException("synthetic provider timeout", NeverCancelled);
         var logger = new RecordingLogger();
         var context = new WorkerContext(null);
@@ -68,7 +68,11 @@ public sealed class LoopTickCancellationFilterTests
         context.WorkerIdByNamespace["orders"] = 1;
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
-        var services = new ScriptedSession(call => call.Stem == "GetDefinitionContracts" ? throw failure : null).Services();
+        var services = new ScriptedSession(call =>
+            call.Stem == "GetDefinitionContracts"
+                ? throw failure
+                : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, LockKey: null, Renewed: false, DateTime.UtcNow)
+        ).Services();
 
         var heartbeat = new WorkerHeartbeat(
             services.GetRequiredService<WorkerLifecycle>(),
