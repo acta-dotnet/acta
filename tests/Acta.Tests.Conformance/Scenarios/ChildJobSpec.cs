@@ -21,8 +21,6 @@ namespace Acta.Tests.Conformance.Scenarios;
 )]
 public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    private const int LeaseTtlSeconds = -5;
-
     [Fact(DisplayName = "A terminal child sets a durable sys.child latch that releases the Suspended parent, which reads the child result")]
     public async Task Parent_starts_child_waits_on_latch_and_reads_result()
     {
@@ -247,13 +245,13 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             maxAttempts = def!.MaxAttempts;
         }
 
-        // Burn the child's whole budget through expired leases; the final reclaim lands it Failed and
-        // reports the (child, parent) pair, whose raise (RecoveryJob's follow-up in production)
+        // Burn the child's whole budget through lost started attempts; the final reclaim lands it Failed
+        // and reports the (child, parent) pair, whose raise (RecoveryJob's follow-up in production)
         // must release the parent, or the parent would hang forever.
         var failed = new List<(long ChildId, long ParentId)>();
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            Assert.Single(await Services.GetRequiredService<Execution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, child.Id, ct));
+            await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, child.Id, ct);
             var reclaim = await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct);
             Assert.Equal(1, reclaim.Reclaimed);
             failed.AddRange(reclaim.FailedChildren);

@@ -26,6 +26,24 @@ internal static class ChaosSpecHelpers
         Assert.Equal(1, affected);
     }
 
+    /// <summary>
+    /// Leaves the job as a worker that died mid-handler leaves it: claimed straight to Executing under a
+    /// lease already lapsed. Recovery charges this attempt; a claim that never started is reclaimed uncharged.
+    /// </summary>
+    public static async Task StrandExecutingAsync(
+        IServiceProvider services,
+        int namespaceId,
+        int workerId,
+        long jobId,
+        CancellationToken ct
+    )
+    {
+        var claim = await services
+            .GetRequiredService<Execution>()
+            .ClaimOneAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1, StartExecuting: true), leaseTtlSeconds: -5, jobId, ct);
+        Assert.Equal(jobId, Assert.Single(claim.Jobs).JobId);
+    }
+
     public static async Task SetReadyAsync(IDbSession db, long jobId, CancellationToken ct)
     {
         var affected = await db.From<RuntimeEntity>()

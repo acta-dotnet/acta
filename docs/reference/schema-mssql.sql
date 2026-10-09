@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 50)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 51)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4586,7 +4586,12 @@ BEGIN
             SELECT
                 r.job_id AS id,
                 r.status_code AS from_status,
-                r.failure_count + 1 AS new_failure_count,
+                /* A Dispatched row never started; only an Executing attempt is a failure. */
+                CASE
+                    WHEN r.status_code = 50 /* JobStatusCode.Executing */
+                        THEN r.failure_count + 1
+                    ELSE r.failure_count
+                END AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
                 /* The job was parked on THIS slot: the suspend copied the slot's due into
@@ -5262,7 +5267,12 @@ BEGIN
         SET
             status_code = 10 /* JobStatusCode.Ready */,
             next_run_at_utc = @now,
-            failure_count = r.failure_count + 1,
+            -- A Dispatched row never started; only an Executing attempt is a failure.
+            failure_count = CASE
+                WHEN r.status_code = 50 /* JobStatusCode.Executing */
+                    THEN r.failure_count + 1
+                ELSE r.failure_count
+            END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             modified_at_utc = @now,
@@ -5953,7 +5963,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.50-f7ef378c5b7a4c8f0f1d3405db96bd54', 'acta'
+SELECT -1, 'objects-1.51-4eeb221bf4731f7ac191f47ae5a877f3', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO

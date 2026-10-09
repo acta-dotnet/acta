@@ -207,7 +207,12 @@ BEGIN
             SELECT
                 r.job_id AS id,
                 r.status_code AS from_status,
-                r.failure_count + 1 AS new_failure_count,
+                /* A Dispatched row never started; only an Executing attempt is a failure. */
+                CASE
+                    WHEN r.status_code = 50 /* JobStatusCode.Executing */
+                        THEN r.failure_count + 1
+                    ELSE r.failure_count
+                END AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
                 /* The job was parked on THIS slot: the suspend copied the slot's due into

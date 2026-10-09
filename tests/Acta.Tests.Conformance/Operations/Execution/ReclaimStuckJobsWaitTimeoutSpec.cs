@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
-/// Conformance for the one attempt <c>reclaim_stuck_jobs</c> must not charge: the attempt that woke on a
+/// Conformance for the one started attempt <c>reclaim_stuck_jobs</c> must not charge: the attempt that woke on a
 /// wait deadline, flipped the awaited slot to Expired, and then lost its worker. The surviving path ends
 /// that attempt Cancelled with <c>job.wait-timed-out</c> and no budget spent, so a reclaim that charged
 /// it would let a crash fail a job the deadline had already resolved for free. Reclaim recognizes the
@@ -27,10 +27,6 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 )]
 public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Claim with a negative TTL so the lease lands in the past: the worker that took this attempt is
-    // dead before it can do anything else, with no wall-clock wait and no fault injection.
-    private const int DeadLeaseTtlSeconds = -5;
-
     [Fact(DisplayName = "A crash after the wait expired re-arms the job Suspended on the same deadline with no attempt charged")]
     public async Task Crash_after_the_wait_expired_is_reclaimed_without_charging_the_job()
     {
@@ -46,10 +42,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         // The claim the deadline earned, and then the last thing the lost worker durably did: the same
         // routine its replayed handler calls, flipping the overdue slot to Expired. Everything after
         // that - the throw, the completion - died with the process.
-        var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, DeadLeaseTtlSeconds, enqueued, ct)
-        );
-        Assert.Equal(enqueued.JobId, claimed.JobId);
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
             .GetRequiredService<Acta.Signals>()
             .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
@@ -94,7 +87,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
 
         // The worker died before its replay reached the wait, so the slot never flipped. Nothing has
         // resolved, the replay still has its whole timeout to resolve, and the lost lease is charged.
-        Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, DeadLeaseTtlSeconds, enqueued, ct));
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
 
         var reclaimed = await ReadJobAsync(enqueued.JobId, ct);
@@ -123,7 +116,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
-        Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, DeadLeaseTtlSeconds, enqueued, ct));
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
 
         // A released job, not a job waiting on a deadline: the lost lease is charged like any other.
@@ -190,7 +183,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
     }
 
     // The whole crash-after-the-flip staging, shared by the facts that go on to ask what it looked
-    // like from outside: arm the wait, move it past its deadline, claim it with a lease that is
+    // like from outside: arm the wait, move it past its deadline, start it under a lease that is
     // already dead, make the flip the lost worker made, and sweep.
     private async Task ReclaimAfterResolvedWaitAsync(EnqueueJobResponse enqueued, int ns, CancellationToken ct)
     {
@@ -198,7 +191,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
-        Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, DeadLeaseTtlSeconds, enqueued, ct));
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
             .GetRequiredService<Acta.Signals>()
             .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);

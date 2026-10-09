@@ -119,6 +119,7 @@ SELECT
     s.id,
     s.parent_id,
     s.wait_resolved,
+    s.new_failure_count,
     /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no cost, so
        the job goes back to Suspended on the same past deadline, unclaimed and uncharged, and the replay
        lands whatever outcome the waiting overload chooses. */
@@ -130,7 +131,10 @@ FROM (
     SELECT
         r.job_id AS id,
         j.parent_id,
-        r.failure_count + 1 AS new_failure_count,
+        /* A Dispatched row never started; only an Executing attempt is a failure. */
+        CASE WHEN r.status_code = 50 /* JobStatusCode.Executing */
+            THEN r.failure_count + 1
+            ELSE r.failure_count END AS new_failure_count,
         jd.max_attempts_effective AS max_attempts,
         /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc, so
            the equality names the wait this attempt woke for, and an unbounded wait (NULL due) matches
@@ -210,7 +214,7 @@ SET
     status_code = rj.to_status,
     failure_count = CASE WHEN rj.wait_resolved = 1
         THEN runtimes.failure_count
-        ELSE runtimes.failure_count + 1 END,
+        ELSE rj.new_failure_count END,
     next_run_at_utc = CASE
         WHEN rj.to_status = 10 /* JobStatusCode.Ready */ THEN {{now}}
         ELSE runtimes.next_run_at_utc END,

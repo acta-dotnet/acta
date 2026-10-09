@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 50)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 51)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3977,7 +3977,10 @@ BEGIN
             j.definition_id,
             j.tenant_id,
             j.audit_level_code,
-            r.failure_count + 1 AS new_failure_count,
+            /* A Dispatched row never started; only an Executing attempt is a failure. */
+            CASE WHEN r.status_code = 50 /* JobStatusCode.Executing */
+                THEN r.failure_count + 1
+                ELSE r.failure_count END AS new_failure_count,
             jd.max_attempts_effective AS max_attempts,
             jd.retention_seconds_effective AS retention_seconds,
             /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc,
@@ -4615,7 +4618,10 @@ repaired AS (
     SET
         status_code = 10 /* JobStatusCode.Ready */,
         next_run_at_utc = now(),
-        failure_count = r.failure_count + 1,
+        -- A Dispatched row never started; only an Executing attempt is a failure.
+        failure_count = CASE WHEN r.status_code = 50 /* JobStatusCode.Executing */
+            THEN r.failure_count + 1
+            ELSE r.failure_count END,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         modified_at_utc = now(),
@@ -5207,7 +5213,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.50-486e23839c8396452e759baa802b4096', 'acta');
+VALUES (-1, 'objects-1.51-3e36bc46766e045407f384bdfb73ffd1', 'acta');
 
 COMMIT;
 

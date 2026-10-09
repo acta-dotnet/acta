@@ -195,6 +195,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   it stores, so three claims inside half a millisecond could see the third turn a hair in the future
   and book it instead of admitting it. The routine now works at the column's precision; the object
   package moves to revision 48.
+- **Recovery no longer charges a job for a claim that never started.** `reclaim_stuck_jobs` and
+  `repair_recovery_slot` charge a failure only for an attempt that was Executing, so a Dispatched row whose
+  lease lapsed returns to Ready with its failure count unchanged; the object package moves to revision 51.
 
 ## 1.0.0-rc.4
 

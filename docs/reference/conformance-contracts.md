@@ -375,8 +375,8 @@
 ### Worker crash boundaries recover through one legal final state
 - **Contract:** A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.
 - **Guarantees:**
-  - Claim-only crash recovers with no execution-started event and an orphaned recovery event
-  - Crash after start orphans the started execution before retry and finishes once
+  - Claim-only crash recovers uncharged, with no execution-started event and an orphaned recovery event
+  - Crash after start orphans and charges the started execution before retry and finishes once
   - Crash before CompleteExecution does not replay the durable step on recovery
   - Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once
   - Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed
@@ -863,7 +863,7 @@
 - **Guarantees:**
   - A recovery slot in flight under a live lease is left alone
   - A recovery slot in flight under a lapsed lease is re-armed once, with the lost attempt recorded
-  - A slot claimed but not yet started when its worker died is recorded as lost from Dispatched
+  - A slot claimed but not yet started when its worker died is re-armed uncharged and recorded as lost from Dispatched
   - Two workers repairing the same lapsed slot at once commit one repair and one event
   - A heartbeat renewal that commits while the repair waits on the row wins; the repair declines
   - A recovery slot whose row is gone is reported missing and never recreated
@@ -1569,10 +1569,11 @@
   - A due sys.recovery tick reclaims the stranded job, raises the latch its crashed child never set, and wakes both channels
 
 ### Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts
-- **Contract:** An expired-lease job returns to Ready with failure_count incremented, or lands terminal Failed once MaxAttempts is reached.
+- **Contract:** An expired-lease job returns to Ready, charged a failure only when it was Executing, or lands terminal Failed once MaxAttempts is reached.
 - **Guarantees:**
-  - Expired-lease job returns to Ready with lease cleared, failure_count bumped, and an Orphaned execution-finished event from the system actor
+  - Expired-lease Dispatched job returns to Ready with lease cleared, failure_count unchanged, and an Orphaned execution-finished event from the system actor
   - Job goes terminal Failed once failure_count reaches MaxAttempts
+  - A Dispatched job reclaimed one failure short of MaxAttempts stays Ready uncharged; its next lost started attempt fails it
   - Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped
   - Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event
   - A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone

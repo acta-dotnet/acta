@@ -23,7 +23,10 @@ repaired AS (
     SET
         status_code = 10 /* JobStatusCode.Ready */,
         next_run_at_utc = now(),
-        failure_count = r.failure_count + 1,
+        -- A Dispatched row never started; only an Executing attempt is a failure.
+        failure_count = CASE WHEN r.status_code = 50 /* JobStatusCode.Executing */
+            THEN r.failure_count + 1
+            ELSE r.failure_count END,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         modified_at_utc = now(),

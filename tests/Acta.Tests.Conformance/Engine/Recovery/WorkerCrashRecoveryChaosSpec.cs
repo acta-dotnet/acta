@@ -25,7 +25,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         _faults = services.AddStoreFaultInjection();
     }
 
-    [Fact(DisplayName = "Claim-only crash recovers with no execution-started event and an orphaned recovery event")]
+    [Fact(DisplayName = "Claim-only crash recovers uncharged, with no execution-started event and an orphaned recovery event")]
     public async Task Worker_crashes_after_claim_before_StartExecution()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -41,12 +41,12 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(enqueued.JobId, claimed.JobId);
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
 
-        // --- 2. Reclaim returns the job to Ready, bumping failure_count, with no execution-started event.
+        // --- 2. Reclaim returns the job to Ready, failure_count unchanged, with no execution-started event.
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
         var reclaimed = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(reclaimed);
         Assert.Equal(JobStatusCode.Ready, reclaimed!.Status);
-        Assert.Equal(1, reclaimed.FailureCount);
+        Assert.Equal(0, reclaimed.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobExecutionStarted);
@@ -58,7 +58,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "Crash after start orphans the started execution before retry and finishes once")]
+    [Fact(DisplayName = "Crash after start orphans and charges the started execution before retry and finishes once")]
     public async Task Worker_crashes_after_StartExecution_before_handler_completes()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -81,8 +81,9 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         );
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
 
-        // --- 2. Reclaim orphans the started execution before retry.
+        // --- 2. Reclaim orphans the started execution before retry and charges it.
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
+        Assert.Equal(1, (await Jobs.GetAsync(enqueued, ct))!.FailureCount);
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(events, e => e.EventCode == EventCode.JobExecutionStarted);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
