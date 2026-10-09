@@ -120,7 +120,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ReleaseLockHandler>();
         services.TryAddSingleton<Locks>();
         services.TryAddSingleton<PurgeExpiredDataHandler>();
-        services.TryAddSingleton<RetentionCoordinator>();
         services.TryAddSingleton<TagTargetResolution>();
         services.TryAddSingleton<GetTagsHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();

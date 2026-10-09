@@ -135,10 +135,10 @@ public sealed class RetentionJobWarningTests
     }
 
     private static RetentionJob CreateJob(PurgeExpiredDataHandler purge, ILogger<RetentionJob> logger) =>
-        new(new RetentionCoordinator(purge, new StubClock()), Options.Create(new JobsOptions()), logger);
+        new(purge, new StubClock(), Options.Create(new JobsOptions()), logger);
 
     private static PurgeExpiredDataHandler Purges(Func<RetentionSection, int> execute) =>
-        new RetentionCoordinatorTests.Store(command => execute(command.Section)).Handler;
+        new RetentionJobTests.Store(command => execute(command.Section)).Handler;
 
     // Each section deletes once and then reports empty: three rows anywhere but the undelivered alerts.
     private static PurgeExpiredDataHandler Stub(int undelivered)

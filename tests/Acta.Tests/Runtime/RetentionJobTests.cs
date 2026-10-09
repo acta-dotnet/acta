@@ -1,8 +1,9 @@
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
 
-public sealed class RetentionCoordinatorTests
+public sealed class RetentionJobTests
 {
     private static readonly DateTime Now = new(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc);
     private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2);
@@ -12,10 +13,7 @@ public sealed class RetentionCoordinatorTests
     {
         var clock = new Clock();
         var store = new Store(static _ => 1);
-        var result = await new RetentionCoordinator(store.Handler, clock).PurgeExpiredDataAsync(
-            Sweep,
-            TestContext.Current.CancellationToken
-        );
+        var result = await Job(store.Handler, clock).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(16, store.Calls.Count);
@@ -44,10 +42,7 @@ public sealed class RetentionCoordinatorTests
     public async Task Empty_batch_ends_only_its_section()
     {
         var store = new Store(static _ => 0);
-        var result = await new RetentionCoordinator(store.Handler, new Clock()).PurgeExpiredDataAsync(
-            Sweep,
-            TestContext.Current.CancellationToken
-        );
+        var result = await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
         Assert.Equal(8, store.Calls.Count);
         Assert.Equal(default, result);
     }
@@ -66,7 +61,7 @@ public sealed class RetentionCoordinatorTests
             return 1;
         });
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new RetentionCoordinator(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken)
+            Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken)
         );
         Assert.Equal(2, committed);
         Assert.Equal(3, store.Calls.Count);
@@ -83,7 +78,7 @@ public sealed class RetentionCoordinatorTests
             return 1;
         });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            new RetentionCoordinator(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, cancellation.Token)
+            Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, cancellation.Token)
         );
         Assert.Single(store.Calls);
     }
@@ -96,18 +91,22 @@ public sealed class RetentionCoordinatorTests
         var clock = new Clock();
         var store = new Store(static _ => 0);
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            new RetentionCoordinator(store.Handler, clock).PurgeExpiredDataAsync(
-                Sweep with
-                {
-                    BatchSize = batchSize,
-                    MaxIterations = iterations,
-                },
-                TestContext.Current.CancellationToken
-            )
+            Job(store.Handler, clock)
+                .PurgeExpiredDataAsync(
+                    Sweep with
+                    {
+                        BatchSize = batchSize,
+                        MaxIterations = iterations,
+                    },
+                    TestContext.Current.CancellationToken
+                )
         );
         Assert.Equal(0, clock.Reads);
         Assert.Empty(store.Calls);
     }
+
+    private static RetentionJob Job(PurgeExpiredDataHandler purge, IServerClock clock) =>
+        new(purge, clock, Options.Create(new JobsOptions()));
 
     private sealed class Clock : IServerClock
     {

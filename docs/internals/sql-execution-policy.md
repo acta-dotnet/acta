@@ -79,7 +79,7 @@ immediate transaction. Source reads use the query path. Schema bootstrap and obj
 their separate migration transaction and lock.
 
 `PurgeExpiredData` remains one routine identity, but each invocation purges one selected section's
-bounded batch. `RetentionCoordinator` reads database time once, calculates fixed sweep cutoffs, and
+bounded batch. `RetentionJob` reads database time once, calculates fixed sweep cutoffs, and
 visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, expired locks,
 and unreferenced lanes in that order. Defaults remain 1,000 rows and 50 iterations per section. An empty batch ends its
 section. Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.

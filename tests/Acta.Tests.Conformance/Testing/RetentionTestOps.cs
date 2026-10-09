@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// Test-support entry point into the Retention feature: one bounded purge sweep through
-/// <see cref="RetentionCoordinator"/>, mirroring the production RetentionJob call.
+/// Test-support entry point into the Retention feature: one bounded purge sweep through a
+/// <see cref="RetentionJob"/> built the way the job's generated invoker builds it.
 /// </summary>
 internal static class RetentionTestOps
 {
@@ -18,8 +18,8 @@ internal static class RetentionTestOps
         int maxIterations,
         CancellationToken ct
     ) =>
-        services
-            .GetRequiredService<RetentionCoordinator>()
+        ActivatorUtilities
+            .CreateInstance<RetentionJob>(services)
             .PurgeExpiredDataAsync(
                 new RetentionSweep(namespaceId, eventsRetentionDays, alertRetentionDays, workerRetentionSeconds, batchSize, maxIterations),
                 ct
