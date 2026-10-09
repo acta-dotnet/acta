@@ -278,7 +278,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Paused` | 152 | `paused` | Handler threw PauseJobException. | Active |
 | `Failed` | 200 | `failed` | Handler threw or ctx.Fail called. Charges failure budget. | Active |
 | `Cancelled` | 220 | `cancelled` | Handler ended via cancel; does not charge budget. | Active |
-| `Orphaned` | 230 | `orphaned` | Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget. | Active |
+| `Orphaned` | 230 | `orphaned` | Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget only for an attempt that had started. | Active |
 
 ### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
 
