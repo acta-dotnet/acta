@@ -499,7 +499,7 @@ dotnet_diagnostic.CA2000.severity = none
 # directly instead of through the serializer. The code-generated converters in the same assembly emit
 # the identical unguarded one-line body for this shape, so a throw in these three alone would put them
 # out of step with the generator for no reachable gain.
-[src/Acta/{Operations/Alerts/AlertRef.cs,Operations/Jobs/JobRef.cs,Operations/Workers/WorkerRef.cs}]
+[src/Acta/Domain/{AlertRef.cs,JobRef.cs,WorkerRef.cs}]
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1805: two documented defaults that happen to coincide with the CLR zero. SqlProviderOptions'
@@ -521,7 +521,7 @@ dotnet_diagnostic.CA1805.severity = none
 # and the method is named for it. Renaming the parameter alone would leave one link in that chain
 # calling it something else, which is exactly the drift the naming rules were written to stop - and
 # the member is on the frozen 1.0.0 surface, where a rename is a break, not a cleanup.
-[src/Acta/Operations/Definitions/IDefinitions.cs]
+[src/Acta/Abstractions/IDefinitions.cs]
 dotnet_diagnostic.CA1716.severity = none
 
 # CA1024: GetBehavior(), which CA1024 wants as a property. It is the one member of that extension
@@ -539,7 +539,7 @@ dotnet_diagnostic.CA1024.severity = none
 # could report differently. Adding ToJobContract() would put a second public spelling of a
 # field-for-field copy on a type the manifest generator emits once per declared job, and the type is
 # on the frozen 1.0.0 surface.
-[src/Acta/Operations/Jobs/JobContract.cs]
+[src/Acta/Domain/JobContract.cs]
 dotnet_diagnostic.CA2225.severity = none
 
 # CA1711: JobHandlerInvokeDelegate is a delegate declaration, so the suffix reports what the type is.
@@ -555,7 +555,7 @@ dotnet_diagnostic.CA1711.severity = none
 # ToJobLookup / FromJobRef. Acta names lookup factories By* as a family - ByRef, ById,
 # ByDeduplicationKey - which reads at the call site as the sentence it is, and the type is on the
 # frozen 1.0.0 surface, so a second public name for each would be added and never removed.
-[src/Acta/Operations/Jobs/JobLookup.cs]
+[src/Acta/Domain/JobLookup.cs]
 dotnet_diagnostic.CA2225.severity = none
 
 # CA1711: JobBehaviorDelegate is a delegate declaration, on the same reasoning as

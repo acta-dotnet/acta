@@ -329,7 +329,7 @@ The shortest paths to the design-review-worthy parts:
 
 | Area | Where to look |
 |---|---|
-| Public-API design | `src/Acta/Operations/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
+| Public-API design | `src/Acta/Abstractions/IJobs.cs`, domain interfaces, query records (+ XML docs) |
 | Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
 | Persistence architecture | `src/Acta/Operations/` (one folder per operation: its public types, handler, and SQL), `src/Acta/{Db,Schema}/`, the dialect class in each of `src/Acta.{Postgres,SqlServer,Sqlite}/` |
 | Provider conformance | `tests/Acta.Tests.Conformance` (specs and test infrastructure); each of `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}` compiles the specs against its own `ConformanceFixture` alias, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
