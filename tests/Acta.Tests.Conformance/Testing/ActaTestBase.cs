@@ -25,7 +25,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
 
     /// <summary>
     /// Per-test identity token (12 hex chars, 48 random bits). Suffixes <see cref="TestNamespace"/>
-    /// and every <see cref="TestKey"/>, so all rows a test leaves behind are joinable by one token.
+    /// and every <see cref="Unique"/>, so all rows a test leaves behind are joinable by one token.
     /// </summary>
     protected string TestId { get; private set; } = null!;
 
@@ -70,10 +70,10 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     /// <summary>
     /// Per-test needle: <c>{name}-{TestId}</c>. Mandatory for GLOBAL keyspaces
     /// (e.g. <c>locks.lock_key</c>, which carries no namespace); preferred over ad-hoc Guids
-    /// anywhere a test needs a unique name (deduplication keys, extra namespaces), since the shared token
+    /// anywhere a test needs a unique name or key (deduplication keys, extra namespaces), since the shared token
     /// makes every row a test leaves behind joinable.
     /// </summary>
-    protected string TestKey(string name) => name + "-" + TestId;
+    protected string Unique(string name) => name + "-" + TestId;
 
     /// <summary>
     /// Override to register services in the per-test DI container. Default is an empty container.

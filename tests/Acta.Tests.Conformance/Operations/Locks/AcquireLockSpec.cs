@@ -23,7 +23,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var store = Services.GetRequiredService<LocksOperations>();
-        var key = TestKey("lock-race");
+        var key = Unique("lock-race");
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = Enumerable
             .Range(1, 8)
@@ -47,7 +47,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var key = TestKey("ck.acquire-lock-spec");
+        var key = Unique("ck.acquire-lock-spec");
 
         var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;
         Assert.NotNull(token);
@@ -71,7 +71,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var key = TestKey("ck.steal-on-expiry");
+        var key = Unique("ck.steal-on-expiry");
 
         // Initial acquire: lands a lease row. Owners are negative synthetic ids so they can never
         // collide with a real job identity under the parallel suite.

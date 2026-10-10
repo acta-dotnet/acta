@@ -26,7 +26,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     public async Task Concurrent_overrides_have_one_winner()
     {
         var ct = TestContext.Current.CancellationToken;
-        var name = TestKey("override-race");
+        var name = Unique("override-race");
         var id = await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -101,7 +101,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("set-ovr");
+        var name = Unique("set-ovr");
         await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
@@ -130,7 +130,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("clear-ovr");
+        var name = Unique("clear-ovr");
         await RegisterAsync(name, 4, ct);
 
         var v0 = (await ReadAsync(name, ct)).Version;
@@ -167,7 +167,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("stale");
+        var name = Unique("stale");
         await RegisterAsync(name, 5, ct);
         var before = await ReadAsync(name, ct);
 
@@ -195,7 +195,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, _) = Store();
-        var name = TestKey("bad-backoff");
+        var name = Unique("bad-backoff");
         await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
@@ -232,7 +232,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     )
     {
         var ct = TestContext.Current.CancellationToken;
-        var name = TestKey("out-of-range");
+        var name = Unique("out-of-range");
         await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
@@ -264,7 +264,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     public async Task Boundary_override_values_are_applied()
     {
         var ct = TestContext.Current.CancellationToken;
-        var name = TestKey("boundary-ovr");
+        var name = Unique("boundary-ovr");
         await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
@@ -292,7 +292,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
         var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             TestNamespace,
-            TestKey("ghost-definition"),
+            Unique("ghost-definition"),
             0,
             new DefinitionPolicyOverrides(MaxAttempts: 1),
             Actor,
@@ -308,7 +308,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, _) = Store();
-        var name = TestKey("audit");
+        var name = Unique("audit");
         var id = await RegisterAsync(name, 6, ct);
         var v0 = (await ReadAsync(name, ct)).Version;
 

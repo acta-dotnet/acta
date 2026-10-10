@@ -43,7 +43,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var dedup = TestKey("mixed");
+        var dedup = Unique("mixed");
         await SeedSqliteRowAsync(Guid.NewGuid(), dedup);
 
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.

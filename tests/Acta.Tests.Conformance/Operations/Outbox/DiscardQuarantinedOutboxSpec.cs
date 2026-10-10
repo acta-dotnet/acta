@@ -22,9 +22,9 @@ public sealed class DiscardQuarantinedOutboxSpec : OutboxSpecBase
     public async Task Discard_deletes_quarantined_rows_and_spares_claimed_work()
     {
         var ct = TestContext.Current.CancellationToken;
-        var first = await SeedAndQuarantineAsync(TestKey("dc-a"), "poison a", ct);
-        var second = await SeedAndQuarantineAsync(TestKey("dc-b"), "poison b", ct);
-        var (claimed, _) = await SeedAndClaimAsync(TestKey("dc-claimed"), ct);
+        var first = await SeedAndQuarantineAsync(Unique("dc-a"), "poison a", ct);
+        var second = await SeedAndQuarantineAsync(Unique("dc-b"), "poison b", ct);
+        var (claimed, _) = await SeedAndClaimAsync(Unique("dc-claimed"), ct);
 
         var targeted = (await Store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([first]), ct)).OutboxIds;
         Assert.Equal([first], targeted);

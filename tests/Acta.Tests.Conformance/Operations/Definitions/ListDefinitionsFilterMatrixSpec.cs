@@ -52,12 +52,12 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Fresh namespace so we control exactly which definitions exist and no manifest defs interfere
-        var nsName = TestKey("defs");
+        var nsName = Unique("defs");
         var nsId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(nsName, "test", ct);
 
         // Register def-a and def-b → both Active
-        var defAName = TestKey("def-a");
-        var defBName = TestKey("def-b");
+        var defAName = Unique("def-a");
+        var defBName = Unique("def-b");
         var firstMap = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(defAName), Def(defBName)], ct);
         var defAId = firstMap[defAName];
         var defBId = firstMap[defBName];
@@ -94,16 +94,16 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var nsName = TestKey("defs-contains");
+        var nsName = Unique("defs-contains");
         var nsId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(nsName, "test", ct);
 
         // Two names share an interior term, one does not, so the filter has to partition.
-        var invoiceSend = TestKey("invoice-send");
-        var invoiceVoid = TestKey("invoice-void");
-        var receiptSend = TestKey("receipt-send");
+        var invoiceSend = Unique("invoice-send");
+        var invoiceVoid = Unique("invoice-void");
+        var receiptSend = Unique("receipt-send");
         var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(invoiceSend), Def(invoiceVoid), Def(receiptSend)], ct);
 
-        // TestKey prefixes every name with a run token, so the bare term is deliberately NOT a
+        // Unique prefixes every name with a run token, so the bare term is deliberately NOT a
         // prefix of any name: a starts-with implementation returns nothing here.
         Assert.DoesNotContain("invoice", invoiceSend[..1]);
         var matching = new HashSet<int> { map[invoiceSend], map[invoiceVoid] };
@@ -127,21 +127,21 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Two fresh namespaces so counts are exact and manifest defs do not interfere
-        var ns1Name = TestKey("ns1");
-        var ns2Name = TestKey("ns2");
+        var ns1Name = Unique("ns1");
+        var ns2Name = Unique("ns2");
         var seeder = new ActaTestSeeder(Db);
         var ns1Id = await seeder.SeedJobNamespaceAsync(ns1Name, "test", ct);
         var ns2Id = await seeder.SeedJobNamespaceAsync(ns2Name, "test", ct);
 
         // ns1: 2 definitions
-        var defA1Name = TestKey("def-ns1-a");
-        var defB1Name = TestKey("def-ns1-b");
+        var defA1Name = Unique("def-ns1-a");
+        var defB1Name = Unique("def-ns1-b");
         var ns1Map = await DefinitionTestOps.RegisterAsync(Services, ns1Id, Gen, [Def(defA1Name), Def(defB1Name)], ct);
         var defA1Id = ns1Map[defA1Name];
         var defB1Id = ns1Map[defB1Name];
 
         // ns2: 1 definition
-        var defNs2Name = TestKey("def-ns2");
+        var defNs2Name = Unique("def-ns2");
         var ns2Map = await DefinitionTestOps.RegisterAsync(Services, ns2Id, Gen, [Def(defNs2Name)], ct);
         var defNs2Id = ns2Map[defNs2Name];
 

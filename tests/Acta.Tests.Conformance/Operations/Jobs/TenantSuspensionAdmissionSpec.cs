@@ -42,7 +42,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
     public async Task Inherited_child_lands_after_suspension()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-inherit");
+        var key = Unique("adm-inherit");
         var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
         var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct)).Jobs;
@@ -59,7 +59,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
     public async Task Explicit_child_key_rejects_after_suspension()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-explicit");
+        var key = Unique("adm-explicit");
         await Tenants().RegisterAsync(key, null, null, ct);
 
         var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct)).Jobs;
@@ -74,7 +74,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
     public async Task Overlapping_suspend_and_enqueue_settle_at_the_commit_boundary()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-race");
+        var key = Unique("adm-race");
         var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
         // Overlap a burst of enqueues with the suspend. Interleaving is unconstrained: each enqueue

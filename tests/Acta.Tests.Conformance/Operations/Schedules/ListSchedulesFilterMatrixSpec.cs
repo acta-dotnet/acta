@@ -95,7 +95,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var soon = DateTime.UtcNow.AddMinutes(10);
 
         // Job B: synthetic job alongside the manifest-seeded recurring-ping (job A)
-        var jobBName = TestKey("sched-b");
+        var jobBName = Unique("sched-b");
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
@@ -129,7 +129,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var soon = DateTime.UtcNow.AddMinutes(10);
 
         // Add a second schedule so the namespace has a non-trivial set (all with Origin=Definition)
-        var jobBName = TestKey("sched-src");
+        var jobBName = Unique("sched-src");
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
@@ -156,12 +156,12 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var soon = DateTime.UtcNow.AddMinutes(10);
 
         // Job A: stays live
-        var jobAName = TestKey("live");
+        var jobAName = Unique("live");
         var defAId = await CreateDefinitionAsync(nsId, jobAName, ct);
         await RegisterSchedulesAsync(nsId, defAId, jobAName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
         // Job B: register then orphan by re-registering with no schedules
-        var jobBName = TestKey("orphan");
+        var jobBName = Unique("orphan");
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("gone", soon)], JobStatusCode.Ready, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, null, [], JobStatusCode.Paused, ct);
@@ -203,14 +203,14 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var soon = DateTime.UtcNow.AddMinutes(10);
 
         // Add a synthetic schedule to the primary namespace so TotalCount > 0 is asserted against a pinned count
-        var ns1JobName = TestKey("sched-ns1");
+        var ns1JobName = Unique("sched-ns1");
         var ns1DefId = await CreateDefinitionAsync(nsId, ns1JobName, ct);
         await RegisterSchedulesAsync(nsId, ns1DefId, ns1JobName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
         // Second namespace: one synthetic definition + schedule
-        var ns2 = TestKey("ns2");
+        var ns2 = Unique("ns2");
         var ns2Id = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(ns2, "test", ct);
-        var ns2JobName = TestKey("sched-ns2");
+        var ns2JobName = Unique("sched-ns2");
         var ns2DefId = await CreateDefinitionAsync(ns2Id, ns2JobName, ct);
         await RegisterSchedulesAsync(ns2Id, ns2DefId, ns2JobName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 

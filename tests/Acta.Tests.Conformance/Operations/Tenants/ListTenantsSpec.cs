@@ -23,7 +23,7 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Contains_registered_tenant_with_no_duplicates()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-list");
+        var key = Unique("tenant-list");
         await Tenants.RegisterAsync(key, null, "Acme Corp", ct);
 
         // Keyset paging is self-consistent under the database's own collation (the cursor predicate and
@@ -47,7 +47,7 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Row_carries_row_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-version");
+        var key = Unique("tenant-version");
         await Tenants.RegisterAsync(key, null, "Acme Corp", ct);
 
         // Bump the row version off its default so a broken projection cannot pass by reading a stray 0.
@@ -63,7 +63,7 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Row_carries_display_name_and_description()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-metadata");
+        var key = Unique("tenant-metadata");
         await Tenants.RegisterAsync(key, "Acme Display", "Acme Corp", ct);
 
         var row = await FindAsync(key, ct);
@@ -78,9 +78,9 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
 
         foreach (var (name, special, replacement) in new[] { ("percent", "%", "x"), ("underscore", "_", "x"), ("bracket", "[", "x") })
         {
-            var token = TestKey($"tenant-search-{name}");
-            var matchingKey = TestKey($"tenant-search-{name}-matching");
-            var controlKey = TestKey($"tenant-search-{name}-control");
+            var token = Unique($"tenant-search-{name}");
+            var matchingKey = Unique($"tenant-search-{name}-matching");
+            var controlKey = Unique($"tenant-search-{name}-control");
             await Tenants.RegisterAsync(matchingKey, $"{token}{special}suffix", null, ct);
             await Tenants.RegisterAsync(controlKey, $"{token}{replacement}suffix", null, ct);
 
@@ -95,7 +95,7 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Total_is_opt_in()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Tenants.RegisterAsync(TestKey("tenant-total"), null, null, ct);
+        await Tenants.RegisterAsync(Unique("tenant-total"), null, null, ct);
 
         Assert.Null((await Tenants.ListAsync(new ListTenantsQuery(PageSize: 1), ct)).TotalCount);
 

@@ -36,8 +36,8 @@ public sealed class StartWorkerIdAllocationSpec : ActaStorageTestBase<Conformanc
     public async Task Repeated_starts_against_one_namespace_allocate_no_ids()
     {
         var ct = TestContext.Current.CancellationToken;
-        var first = TestKey("sw-alloc-a");
-        var second = TestKey("sw-alloc-b");
+        var first = Unique("sw-alloc-a");
+        var second = Unique("sw-alloc-b");
 
         var (firstId, _) = await WorkerTestOps.StartAsync(Services, first, "team-a", "desc", "host-0", "v1", null, null, 4000, 4, ct);
 

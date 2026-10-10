@@ -27,7 +27,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var prefix = TestKey("slots");
+        var prefix = Unique("slots");
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
         var first = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)).Token);
@@ -47,7 +47,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var prefix = TestKey("full");
+        var prefix = Unique("full");
         var held = new List<LockToken>();
         for (var i = 0; i < 2; i++)
         {
@@ -68,7 +68,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var prefix = TestKey("steal");
+        var prefix = Unique("steal");
         Assert.Equal($"{prefix}.0", (await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -1, ct)).Token?.Key);
         var lapsed = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, ExpiredTtl, ownerJobId: -2, ct)).Token);
         Assert.Equal($"{prefix}.1", lapsed.Key);
@@ -88,7 +88,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var prefix = TestKey("race");
+        var prefix = Unique("race");
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = Enumerable
             .Range(1, 8)
@@ -112,7 +112,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Limit_below_one_throws(int limit)
     {
         var ct = TestContext.Current.CancellationToken;
-        var prefix = TestKey("no-slots");
+        var prefix = Unique("no-slots");
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await Services

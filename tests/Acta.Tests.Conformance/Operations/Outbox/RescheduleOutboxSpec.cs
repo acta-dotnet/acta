@@ -21,7 +21,7 @@ public sealed class RescheduleOutboxSpec : OutboxSpecBase
     public async Task Reschedule_is_token_cas()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (id, token) = await SeedAndClaimAsync(TestKey("resched"), ct);
+        var (id, token) = await SeedAndClaimAsync(Unique("resched"), ct);
         // A backoff duration, not an absolute instant: the source database computes next_attempt from its
         // own clock (source_db_now + 3600s), so eligibility never depends on the ledger clock.
         const int backoffSeconds = 3600;
@@ -54,7 +54,7 @@ public sealed class RescheduleOutboxSpec : OutboxSpecBase
     public async Task Reschedule_truncates_a_long_error_to_512()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (id, token) = await SeedAndClaimAsync(TestKey("trunc"), ct);
+        var (id, token) = await SeedAndClaimAsync(Unique("trunc"), ct);
         var longError = new string('x', 600);
 
         var valid = new RescheduleOutboxCommand(token, [new OutboxReschedule(id, 1, 3600, longError)]);

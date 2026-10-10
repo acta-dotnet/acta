@@ -219,7 +219,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Register a second namespace for alert isolation
-        var ns2Name = TestKey("ns2");
+        var ns2Name = Unique("ns2");
         var seeder = new ActaTestSeeder(Db);
         await seeder.SeedJobNamespaceAsync(ns2Name, "test", ct);
 

@@ -26,7 +26,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         _ = Services.GetRequiredService<ISqlDialect>();
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
-        var deduplicationKey = TestKey("get-job");
+        var deduplicationKey = Unique("get-job");
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = (
             await EnqueueTestOps.EnqueueBatchAsync(
@@ -72,7 +72,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
-        var tenantName = TestKey("get-job-ten");
+        var tenantName = Unique("get-job-ten");
         var tenantId = (await Operations.Tenants.RegisterAsync(tenantName, null, null, ct)).TenantId;
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));

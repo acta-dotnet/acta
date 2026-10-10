@@ -26,7 +26,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         var ct = TestContext.Current.CancellationToken;
         var signals = Services.GetRequiredService<OutboxOperations>();
         var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
-        var dedup = TestKey("sig-apply");
+        var dedup = Unique("sig-apply");
 
         var row = EchoRow(dedup, status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, row);

@@ -62,7 +62,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
     public async Task Requeue_parks_rejects_while_pending_and_the_tick_applies()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = TestKey("facade-rq");
+        var dedup = Unique("facade-rq");
         var row = EchoRow(dedup, status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
         var (slotJobId, _) = await SeedSlotJobAsync("sys.outbox", ct);

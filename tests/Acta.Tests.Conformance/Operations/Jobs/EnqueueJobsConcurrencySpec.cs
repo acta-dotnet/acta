@@ -47,7 +47,7 @@ public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<Conformance
             Assert.Skip("SQLite has one writer: the batch cannot start until the producer commits.");
         }
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("race-key");
+        var key = Unique("race-key");
         await using var conn = await Db.OpenConnectionAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
         var winner = await Jobs.EnqueueAsync(

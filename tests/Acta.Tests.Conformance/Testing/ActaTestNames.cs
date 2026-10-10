@@ -14,7 +14,7 @@ public static class ActaTestNames
     /// truncated to satisfy the 64-char <c>namespaces.name</c> column and checked by
     /// <see cref="NameSyntax.Canonicalize"/> with the <c>sys</c> reservation. The token is the test's <c>TestId</c>
     /// (see <c>ActaTestBase</c>), so a test's namespace rows and its global-key rows
-    /// (<c>TestKey</c>) share one needle.
+    /// (<c>Unique</c>) share one needle.
     /// </summary>
     public static string CreateNamespace(Type testType, string? methodName, string testId)
     {

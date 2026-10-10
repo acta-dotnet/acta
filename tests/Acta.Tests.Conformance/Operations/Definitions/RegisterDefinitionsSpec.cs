@@ -57,7 +57,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("promote");
+        var name = Unique("promote");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 3, typeof(int))], ct);
         var first = await ReadAsync(name, ct);
@@ -75,7 +75,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("no-downgrade");
+        var name = Unique("no-downgrade");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(name, 9, typeof(int))], ct);
         var first = await ReadAsync(name, ct);
@@ -93,7 +93,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("equal-correction");
+        var name = Unique("equal-correction");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 3, typeof(int))], ct);
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 5, typeof(int))], ct);
@@ -107,7 +107,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("idempotent");
+        var name = Unique("idempotent");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(name, 4, typeof(int))], ct);
         var first = await ReadAsync(name, ct);
@@ -122,8 +122,8 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     public async Task A_definition_absent_from_the_manifest_stays_active_with_its_jobs()
     {
         var ct = TestContext.Current.CancellationToken;
-        var keep = TestKey("absent-keep");
-        var absent = TestKey("absent-gone");
+        var keep = Unique("absent-keep");
+        var absent = Unique("absent-gone");
 
         await DefinitionTestOps.RegisterAsync(
             Services,
@@ -153,7 +153,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var job = TestKey("react-job");
+        var job = Unique("react-job");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(job, 1, typeof(int))], ct);
         await RetireAsync(job, ct);
@@ -182,7 +182,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var job = TestKey("fail-block");
+        var job = Unique("fail-block");
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(job, 1, typeof(int))], ct);
         var before = await ReadAsync(job, ct);

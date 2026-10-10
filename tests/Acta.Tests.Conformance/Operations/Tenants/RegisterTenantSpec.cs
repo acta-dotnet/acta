@@ -31,7 +31,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         // A tenant is a name, and names fold to lowercase at write.
-        var key = $"Acme-550E8400-{TestKey("tenant-new")}";
+        var key = $"Acme-550E8400-{Unique("tenant-new")}";
         var canonical = key.ToLowerInvariant();
 
         var registered = await Tenants().RegisterAsync(key, null, "Acme Corp", ct);
@@ -51,7 +51,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Duplicate_key_is_idempotent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-dup");
+        var key = Unique("tenant-dup");
 
         var first = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
         var second = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
@@ -63,7 +63,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Reregister_leaves_existing_row_untouched()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-keep");
+        var key = Unique("tenant-keep");
 
         var id = (await Tenants().RegisterAsync(key, "Acme Corp", "before", ct)).TenantId;
         var before = await ReadAsync(key, ct);
@@ -82,7 +82,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Reregister_does_not_resume_suspended_tenant()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-stays-suspended");
+        var key = Unique("tenant-stays-suspended");
 
         var id = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
         await Tenants().SuspendAsync(key, "hold", null, ct);
@@ -103,7 +103,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Concurrent_registration_converges()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-race");
+        var key = Unique("tenant-race");
 
         // Overlapping insert-or-get calls must all converge on the winner's row; a losing arm
         // returning no row (or a different id) is the failure mode this pins per provider.
@@ -117,7 +117,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task New_tenant_with_display_name_inserts()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tenant-display-name");
+        var key = Unique("tenant-display-name");
 
         await Tenants().RegisterAsync(key, "Acme Corp", null, ct);
 

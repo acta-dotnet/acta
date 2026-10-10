@@ -24,7 +24,7 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Suspend_applies_and_emits()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-suspend");
+        var key = Unique("adm-suspend");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
         var before = await ReadTenantAsync(key, ct);
 
@@ -48,7 +48,7 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Suspend_idempotent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-suspend-idem");
+        var key = Unique("adm-suspend-idem");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
         await Services.GetRequiredService<ITenants>().SuspendAsync(key, null, "op-1", ct);
 
@@ -62,7 +62,7 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Unknown_key_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
-        var outcome = await Services.GetRequiredService<ITenants>().SuspendAsync(TestKey("adm-ghost"), null, "op-1", ct);
+        var outcome = await Services.GetRequiredService<ITenants>().SuspendAsync(Unique("adm-ghost"), null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, outcome.Action);
         Assert.Null(outcome.Version);
     }

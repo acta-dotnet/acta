@@ -23,7 +23,7 @@ public sealed class GetTenantNameSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Id_resolves_to_the_normalized_key()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("Key-Acme");
+        var key = Unique("Key-Acme");
         var id = (await Tenants.RegisterAsync(key, null, null, ct)).TenantId;
 
         Assert.Equal(key.ToLowerInvariant(), await ReadAsync(id, ct));
@@ -33,7 +33,7 @@ public sealed class GetTenantNameSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Suspended_tenant_still_resolves()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("key-held");
+        var key = Unique("key-held");
         var id = (await Tenants.RegisterAsync(key, null, null, ct)).TenantId;
         Assert.Equal(ControlAction.Applied, (await Tenants.SuspendAsync(key, "hold", "op-1", ct)).Action);
 

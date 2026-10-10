@@ -40,7 +40,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         const int jobs = 4;
         var ct = TestContext.Current.CancellationToken;
 
-        await EnqueueSameKeyAsync(TestKey("ck-drain"), jobs, ct);
+        await EnqueueSameKeyAsync(Unique("ck-drain"), jobs, ct);
 
         var completed = 0;
         for (var tick = 0; tick < jobs * 8 && completed < jobs; tick++)
@@ -59,7 +59,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
-        var key = TestKey("ck-admit");
+        var key = Unique("ck-admit");
 
         await EnqueueSameKeyAsync(key, 5, ct);
 
@@ -96,7 +96,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         const int jobs = 4;
         const int workers = 4;
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("ck-race");
+        var key = Unique("ck-race");
 
         ExclusiveProbe.Reset(TestNamespace);
         for (var i = 0; i < jobs; i++)
@@ -135,7 +135,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
     public async Task A_claimed_job_whose_key_lock_is_held_bounces_to_Ready_with_the_delay()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("ck-bounce");
+        var key = Unique("ck-bounce");
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // Hold the key's only execution slot on behalf of a foreign owner, as another worker's live

@@ -20,7 +20,7 @@ public sealed class ListOutboxQuarantinedSpec : OutboxRelayHostBase
         var seeded = new HashSet<Guid>();
         foreach (var key in new[] { "lq-a", "lq-b", "lq-c" })
         {
-            seeded.Add(await SeedQuarantinedAsync(TestKey(key)));
+            seeded.Add(await SeedQuarantinedAsync(Unique(key)));
         }
 
         var first = await Outbox.ListQuarantinedAsync(new ListOutboxQuarantinedQuery(TestNamespace, PageSize: 2), ct);
@@ -46,8 +46,8 @@ public sealed class ListOutboxQuarantinedSpec : OutboxRelayHostBase
     public async Task Total_counts_every_quarantined_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedQuarantinedAsync(TestKey("lq-total-a"));
-        await SeedQuarantinedAsync(TestKey("lq-total-b"));
+        await SeedQuarantinedAsync(Unique("lq-total-a"));
+        await SeedQuarantinedAsync(Unique("lq-total-b"));
 
         var page = await Outbox.ListQuarantinedAsync(new ListOutboxQuarantinedQuery(TestNamespace, PageSize: 1, IncludeTotal: true), ct);
 
@@ -61,7 +61,7 @@ public sealed class ListOutboxQuarantinedSpec : OutboxRelayHostBase
         var ct = TestContext.Current.CancellationToken;
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await Outbox.ListQuarantinedAsync(new ListOutboxQuarantinedQuery(TestKey("no-relay")), ct)
+            await Outbox.ListQuarantinedAsync(new ListOutboxQuarantinedQuery(Unique("no-relay")), ct)
         );
         Assert.Contains("AddOutboxRelay", error.Message);
 

@@ -21,7 +21,7 @@ public sealed class QuarantineOutboxSpec : OutboxSpecBase
     public async Task Quarantine_is_token_cas_and_retained()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (id, token) = await SeedAndClaimAsync(TestKey("quar"), ct);
+        var (id, token) = await SeedAndClaimAsync(Unique("quar"), ct);
 
         await Store.QuarantineAsync(new QuarantineOutboxCommand(Guid.NewGuid(), [new OutboxQuarantine(id, 5, "stale")]), ct);
         Assert.Equal((byte)OutboxStatusCode.Claimed, (await Fixture.ReadOutboxRowAsync(TableName, id)).StatusCode);

@@ -36,7 +36,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
     public async Task Only_alertable_finished_attempts_are_read()
     {
         var ct = TestContext.Current.CancellationToken;
-        var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(TestKey("other-ns"), ct: ct);
+        var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(Unique("other-ns"), ct: ct);
 
         long[] alertable =
         [

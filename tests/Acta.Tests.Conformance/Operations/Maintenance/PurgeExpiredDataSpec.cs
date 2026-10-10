@@ -288,7 +288,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var key = TestKey("retention-incident");
+        var key = Unique("retention-incident");
 
         // One deduplication key raised twice: the second raise collapses onto the open row rather than
         // opening a second, because the partial unique index holds the identity while it is unresolved.
@@ -319,7 +319,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var key = TestKey("retention-delivered-incident");
+        var key = Unique("retention-delivered-incident");
 
         // The sibling of the Pending-arm fact, and the combination neither covered: unresolved, so the
         // partial unique index still holds the key, but delivered, so the hard cap is not what sweeps it.
@@ -408,12 +408,12 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // Per-test keys (TestKey needle): the live row outlives the test by its TTL in the shared
+        // Per-test keys (Unique needle): the live row outlives the test by its TTL in the shared
         // schema, so a constant key would block re-acquisition on the next run; uniqueness also keeps
         // concurrent specs from stealing them. One lock held with a long TTL, one whose negative TTL
         // puts its expiry in the past, making it immediately reapable.
-        var liveKey = TestKey("reap-spec.live");
-        var deadKey = TestKey("reap-spec.dead");
+        var liveKey = Unique("reap-spec.live");
+        var deadKey = Unique("reap-spec.dead");
         var liveToken = (
             await Services.GetRequiredService<LocksOperations>().AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct)
         ).Token;
@@ -547,12 +547,12 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Three immediately-reapable rows (negative TTL) plus one live row. The reap is global, so a
         // concurrent spec's full purge may sweep some dead rows first; the call's OWN count is still
         // deterministically capped by batch x iterations, which is the property under test.
-        string[] deadKeys = [TestKey("lock-batch.d1"), TestKey("lock-batch.d2"), TestKey("lock-batch.d3")];
+        string[] deadKeys = [Unique("lock-batch.d1"), Unique("lock-batch.d2"), Unique("lock-batch.d3")];
         foreach (var key in deadKeys)
         {
             Assert.NotNull((await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)).Token);
         }
-        var liveKey = TestKey("lock-batch.live");
+        var liveKey = Unique("lock-batch.live");
         var liveToken = (await locks.AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct)).Token;
         Assert.NotNull(liveToken);
 

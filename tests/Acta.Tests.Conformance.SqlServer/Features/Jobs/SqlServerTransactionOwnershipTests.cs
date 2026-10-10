@@ -47,7 +47,7 @@ public sealed class SqlServerTransactionOwnershipTests : ActaRuntimeTestBase<Sql
     public async Task Rejection_terminates_the_caller_transaction()
     {
         var ct = TestContext.Current.CancellationToken;
-        var marker = TestKey("mssql-own-reject");
+        var marker = Unique("mssql-own-reject");
 
         await using var conn = new SqlConnection(ConnectionString());
         await conn.OpenAsync(ct);

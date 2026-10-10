@@ -87,7 +87,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
     public async Task Deduplicated_outcomes_are_provisional()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("txn-dedup");
+        var key = Unique("txn-dedup");
 
         await using var conn = await Db.OpenConnectionAsync(ct);
 
@@ -185,12 +185,12 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
     public async Task Enqueue_rejection_requires_full_caller_rollback()
     {
         var ct = TestContext.Current.CancellationToken;
-        var marker = TestKey("txn-reject");
+        var marker = Unique("txn-reject");
 
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
-        var dupKey = TestKey("txn-batch-dup");
+        var dupKey = Unique("txn-batch-dup");
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await InsertBusinessRowAsync(conn, tx, probe, marker, ct);

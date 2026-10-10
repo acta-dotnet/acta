@@ -97,7 +97,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
-        var deduplicationKey = TestKey("fluent-read");
+        var deduplicationKey = Unique("fluent-read");
         _ = Services.GetRequiredService<ISqlDialect>();
         await EnqueueTestOps.EnqueueBatchAsync(
             Services,

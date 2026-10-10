@@ -18,7 +18,7 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<TagTarget> TenantAsync(string name, CancellationToken ct)
     {
-        var key = TestKey(name);
+        var key = Unique(name);
         await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct);
         return TagTarget.ForTenant(key);
     }
@@ -33,7 +33,7 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.NotNull(tags);
         Assert.Empty(tags.Items);
 
-        Assert.Null(await Tags.GetAsync(TagTarget.ForTenant(TestKey("get-missing")), ct));
+        Assert.Null(await Tags.GetAsync(TagTarget.ForTenant(Unique("get-missing")), ct));
     }
 
     [Fact(DisplayName = "Each tag reads back its exact value, and a presence-only tag reads a null value")]
@@ -52,11 +52,11 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Target_addresses_fold_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var tenantName = TestKey("get-case");
+        var tenantName = Unique("get-case");
         await Services.GetRequiredService<ITenants>().RegisterAsync(tenantName, null, null, ct);
         await Tags.UpsertAsync(TagTarget.ForTenant(tenantName), new TagInput("tier", "gold"), ct: ct);
 
-        var jobName = TestKey("get-case-job");
+        var jobName = Unique("get-case-job");
         await Seeder.SeedJobDefinitionAsync(TestNamespaceId, name: jobName, ct: ct);
         await Tags.UpsertAsync(TagTarget.ForDefinition(TestNamespace, jobName), new TagInput("owner", "billing"), ct: ct);
 

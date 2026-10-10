@@ -24,7 +24,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Applies_and_emits()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-meta");
+        var key = Unique("adm-meta");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, "Old", "old-desc", ct)).TenantId;
         var v = (await ReadAsync(key, ct))!.Version;
 
@@ -43,7 +43,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Null_clears()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-meta-clear");
+        var key = Unique("adm-meta-clear");
         await Services.GetRequiredService<ITenants>().RegisterAsync(key, "Old", "old-desc", ct);
         var v = (await ReadAsync(key, ct))!.Version;
 
@@ -58,7 +58,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Stale_version_conflicts()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-meta-cas");
+        var key = Unique("adm-meta-cas");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, "Old", null, ct)).TenantId;
         var v = (await ReadAsync(key, ct))!.Version;
 
@@ -74,7 +74,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Unknown_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
-        var outcome = await Services.GetRequiredService<ITenants>().UpdateAsync(TestKey("adm-meta-ghost"), 0, "x", null, null, "op-1", ct);
+        var outcome = await Services.GetRequiredService<ITenants>().UpdateAsync(Unique("adm-meta-ghost"), 0, "x", null, null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 
@@ -83,7 +83,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var service = Services.GetRequiredService<ITenants>();
-        var key = TestKey("adm-meta-long");
+        var key = Unique("adm-meta-long");
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
             await service.UpdateAsync(key, 0, new string('x', TextLimits.TenantDisplayName + 1), null, null, null, ct)

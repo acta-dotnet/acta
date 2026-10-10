@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 )]
 public sealed class MultiWorkerRegistrationSpec : ActaTestBase<ConformanceFixture>
 {
-    private string[] Namespaces => [TestKey("mw-a"), TestKey("mw-b"), TestKey("mw-c")];
+    private string[] Namespaces => [Unique("mw-a"), Unique("mw-b"), Unique("mw-c")];
 
     private IJobs Jobs => Services.GetRequiredService<IJobs>();
 

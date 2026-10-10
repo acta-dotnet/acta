@@ -24,11 +24,11 @@ public sealed class OutboxListQuarantinedSpec : OutboxSpecBase
         var quarantined = new List<Guid>();
         foreach (var key in new[] { "list-a", "list-b", "list-c" })
         {
-            quarantined.Add(await SeedAndQuarantineAsync(TestKey(key), $"error for {key}", ct));
+            quarantined.Add(await SeedAndQuarantineAsync(Unique(key), $"error for {key}", ct));
         }
 
         // A Pending row proves the status filter: it must appear in neither page nor count.
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("list-pending")));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("list-pending")));
 
         Assert.Equal(3, await Store.CountQuarantinedAsync(ct));
 

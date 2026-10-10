@@ -21,7 +21,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
     public async Task Failure_before_target_enqueue_reclaims_and_delivers_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = TestKey("hb1");
+        var dedup = Unique("hb1");
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
@@ -47,7 +47,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
     public async Task Finalize_failure_after_target_commit_dedupes_to_one_job_and_cleans_up()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = TestKey("hb2");
+        var dedup = Unique("hb2");
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
@@ -80,7 +80,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
     public async Task Retry_after_source_deletion_does_not_recreate_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = TestKey("hb3");
+        var dedup = Unique("hb3");
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
@@ -99,7 +99,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
     public async Task Duplicate_source_rows_coalesce_to_one_job_and_all_delete()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dedup = TestKey("hb4");
+        var dedup = Unique("hb4");
         for (var i = 0; i < 3; i++)
         {
             await Fixture.SeedOutboxRowAsync(SourceTable, EchoRow(dedup));

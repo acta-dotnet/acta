@@ -31,7 +31,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("live-order");
+        var jobName = Unique("live-order");
         var defId = await CreateDefinitionAsync(jobName, ct);
         var slotId = await RegisterAsync(
             defId,
@@ -59,7 +59,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("live-ovr");
+        var jobName = Unique("live-ovr");
         var defId = await CreateDefinitionAsync(jobName, ct);
         var slotId = await RegisterAsync(defId, jobName, [Slot("only", Cron5, now.AddMinutes(5))], ct);
         var before = Assert.Single(await ReadAsync(slotId, ct));
@@ -80,7 +80,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("live-orphan");
+        var jobName = Unique("live-orphan");
         var defId = await CreateDefinitionAsync(jobName, ct);
         await RegisterAsync(defId, jobName, [Slot("kept", Cron5, now.AddMinutes(5)), Slot("gone", Cron5, now.AddMinutes(5))], ct);
 

@@ -112,7 +112,7 @@ public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<Conformanc
         var (_, w2Id) = await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-ns1-b", "v1", null, null, 2001, 1, ct);
 
         // Second namespace: one worker. StartWorker.Run upserts the namespace automatically
-        var ns2Name = TestKey("ns2");
+        var ns2Name = Unique("ns2");
         var (_, w3Id) = await WorkerTestOps.StartAsync(Services, ns2Name, "test", null, "host-ns2", "v1", null, null, 2002, 1, ct);
 
         // Read each namespace independently

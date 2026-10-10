@@ -25,7 +25,7 @@ public sealed class ResolveJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixtu
     public async Task Job_ref_round_trips_and_unknown_ref_returns_null()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = TestKey("ck-resolve-ref");
+        var deduplicationKey = Unique("ck-resolve-ref");
 
         var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
         Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);

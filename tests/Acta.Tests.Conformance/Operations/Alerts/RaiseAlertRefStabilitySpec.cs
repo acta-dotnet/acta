@@ -32,7 +32,7 @@ public sealed class RaiseAlertRefStabilitySpec : ActaStorageTestBase<Conformance
     public async Task Repeat_firings_keep_the_first_minted_alert_ref()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("ref-stability");
+        var key = Unique("ref-stability");
 
         await RaiseAsync(key, "first", ct);
         var first = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
@@ -56,7 +56,7 @@ public sealed class RaiseAlertRefStabilitySpec : ActaStorageTestBase<Conformance
         // The row identity is what carries the ref, not the raise call: a different key is a different
         // alert and gets its own ref. Without this the assertions above would also pass if the raise
         // path minted one ref per namespace.
-        await RaiseAsync(TestKey("ref-stability-other"), "other", ct);
+        await RaiseAsync(Unique("ref-stability-other"), "other", ct);
         var rows = await ReadAlertsAsync(TestNamespaceId, ct);
         Assert.Equal(2, rows.Count);
         Assert.Equal(2, rows.Select(r => r.AlertRef).Distinct().Count());

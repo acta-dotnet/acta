@@ -33,8 +33,8 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
     public async Task Pass_deletes_the_named_rows_and_records_them()
     {
         var ct = TestContext.Current.CancellationToken;
-        var named = await SeedQuarantinedAsync(TestKey("discard-named"));
-        var spared = await SeedQuarantinedAsync(TestKey("discard-spared"));
+        var named = await SeedQuarantinedAsync(Unique("discard-named"));
+        var spared = await SeedQuarantinedAsync(Unique("discard-spared"));
 
         Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, [named], "poison payload", "op-1", ct)).Action);
         var slotId = await RunRelayPassAsync(ct);
@@ -56,8 +56,8 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
     public async Task Null_scope_discards_every_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedQuarantinedAsync(TestKey("discard-all-a"));
-        await SeedQuarantinedAsync(TestKey("discard-all-b"));
+        await SeedQuarantinedAsync(Unique("discard-all-a"));
+        await SeedQuarantinedAsync(Unique("discard-all-b"));
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [], null, null, ct));
 

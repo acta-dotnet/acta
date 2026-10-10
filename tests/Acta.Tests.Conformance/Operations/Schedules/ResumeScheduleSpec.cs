@@ -150,7 +150,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var now = FloorSeconds(await NowAsync(ct));
 
         // Skip: a missed cursor reconciles forward to the next occurrence after now.
-        var skipJob = TestKey("skip");
+        var skipJob = Unique("skip");
         var skipDef = await CreateDefinitionAsync(db, dialect, skipJob, ct);
         await RegisterAsync(
             db,
@@ -169,7 +169,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.True(skipResumed.NextRunAtUtc > now, "Skip resume advances strictly past now");
 
         // CatchUpOnce: the past instant is kept so the slot fires once on resume.
-        var catchJob = TestKey("catch");
+        var catchJob = Unique("catch");
         var catchDef = await CreateDefinitionAsync(db, dialect, catchJob, ct);
         var past = now.AddMinutes(-35); // a real */5 occurrence relative to a 5-minute aligned base is not required here
         await RegisterAsync(

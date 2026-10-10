@@ -146,7 +146,7 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     private async Task<AlertingSubject> SeedAlertingJobAsync(CancellationToken ct)
     {
         var seeder = new ActaTestSeeder(Db);
-        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, TestKey("horizon-probe"), AlertProfileCode.OnTerminal, ct);
+        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("horizon-probe"), AlertProfileCode.OnTerminal, ct);
         var (jobId, _) = await seeder.SeedJobAsync(NamespaceId, definitionId, ct: ct);
         return new AlertingSubject(definitionId, jobId);
     }

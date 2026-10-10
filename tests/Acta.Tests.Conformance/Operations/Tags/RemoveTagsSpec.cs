@@ -18,7 +18,7 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<TagTarget> TenantAsync(string name, CancellationToken ct)
     {
-        var key = TestKey(name);
+        var key = Unique(name);
         await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct);
         return TagTarget.ForTenant(key);
     }
@@ -69,7 +69,7 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Name_is_validated_before_the_target_resolves()
     {
         var ct = TestContext.Current.CancellationToken;
-        var missing = TagTarget.ForTenant(TestKey("remove-missing"));
+        var missing = TagTarget.ForTenant(Unique("remove-missing"));
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Tags.RemoveAsync(missing, "Not Kebab", ct: ct));
         await Assert.ThrowsAsync<ArgumentException>(async () => await Tags.RemoveAsync(missing, "sys.internal", ct: ct));

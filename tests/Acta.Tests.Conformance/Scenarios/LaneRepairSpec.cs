@@ -89,7 +89,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var head = await StepAsync("orders", "a", ct);
         var follower = await StepAsync("orders", "b", ct);
         await SetStatusAsync(head, JobStatusCode.Succeeded, ct);
-        var otherName = TestKey("other");
+        var otherName = Unique("other");
         var otherId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(otherName, "test", ct);
 
         await Services.GetRequiredService<RecoveryPass>().RunAsync(otherId, otherName, ct);

@@ -18,7 +18,7 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<TagTarget> TenantAsync(string name, CancellationToken ct)
     {
-        var key = TestKey(name);
+        var key = Unique(name);
         await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct);
         return TagTarget.ForTenant(key);
     }

@@ -38,8 +38,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var seeder = new ActaTestSeeder(Db);
-        var nsId = await seeder.SeedJobNamespaceAsync(TestKey("defs-ck"), ct: ct);
-        var defId = await seeder.SeedJobDefinitionAsync(nsId, TestKey("defs-ck-def"), ct: ct);
+        var nsId = await seeder.SeedJobNamespaceAsync(Unique("defs-ck"), ct: ct);
+        var defId = await seeder.SeedJobDefinitionAsync(nsId, Unique("defs-ck-def"), ct: ct);
 
         Assert.Equal(
             1,
@@ -182,8 +182,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // ck_runtimes_ready_due is the same shape of rule on the other hot column: a Ready row is due
         // at a known instant, so the claim can walk ix_runtimes_claim_ready instead of sorting.
         var seeder = new ActaTestSeeder(Db);
-        var nsId = await seeder.SeedJobNamespaceAsync(TestKey("ready-due"), ct: ct);
-        var defId = await seeder.SeedJobDefinitionAsync(nsId, TestKey("ready-due-def"), ct: ct);
+        var nsId = await seeder.SeedJobNamespaceAsync(Unique("ready-due"), ct: ct);
+        var defId = await seeder.SeedJobDefinitionAsync(nsId, Unique("ready-due-def"), ct: ct);
 
         async Task<long> InsertRuntimeAsync(JobStatusCode status, DateTime? nextRunAtUtc)
         {

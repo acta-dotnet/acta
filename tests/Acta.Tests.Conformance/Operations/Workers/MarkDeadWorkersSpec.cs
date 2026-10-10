@@ -55,7 +55,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = agedAtA }, ct);
 
         // A worker in a SECOND namespace: StartWorker upserts the namespace and registers the worker.
-        var nsBName = TestKey("mark-dead-ns-b");
+        var nsBName = Unique("mark-dead-ns-b");
         var (nsB, workerBId) = await WorkerTestOps.StartAsync(
             Services,
             nsBName,

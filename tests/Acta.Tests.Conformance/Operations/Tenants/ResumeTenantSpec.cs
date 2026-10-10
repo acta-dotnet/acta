@@ -24,7 +24,7 @@ public sealed class ResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Resume_applies_and_emits()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-resume");
+        var key = Unique("adm-resume");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
         await Services.GetRequiredService<ITenants>().SuspendAsync(key, null, "op-1", ct);
 
@@ -39,7 +39,7 @@ public sealed class ResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Resume_idempotent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-resume-idem");
+        var key = Unique("adm-resume-idem");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
 
         var outcome = await Services.GetRequiredService<ITenants>().ResumeAsync(key, null, "op-1", ct);

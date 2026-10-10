@@ -25,7 +25,7 @@ public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
     public async Task Replicas_initializing_a_new_namespace_at_once_all_start()
     {
         var ct = TestContext.Current.CancellationToken;
-        var ns = TestKey("replicas");
+        var ns = Unique("replicas");
         var providers = Enumerable.Range(0, Replicas).Select(i => Replica(ns, i)).ToList();
         try
         {

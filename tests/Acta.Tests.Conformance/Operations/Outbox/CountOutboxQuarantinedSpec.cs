@@ -25,19 +25,19 @@ public sealed class CountOutboxQuarantinedSpec : OutboxSpecBase
     public async Task Only_quarantined_rows_count()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("due")));
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("later"), minutesAgo: -5));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("due")));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("later"), minutesAgo: -5));
         await Fixture.SeedOutboxRowAsync(
             TableName,
-            DueRow(TestKey("claimed")) with
+            DueRow(Unique("claimed")) with
             {
                 StatusCode = (byte)OutboxStatusCode.Claimed,
                 ClaimToken = Guid.NewGuid(),
                 ClaimUntilUtc = DateTime.UtcNow.AddMinutes(5),
             }
         );
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("stuck-a"), status: (byte)OutboxStatusCode.Quarantined));
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("stuck-b"), status: (byte)OutboxStatusCode.Quarantined));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("stuck-a"), status: (byte)OutboxStatusCode.Quarantined));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("stuck-b"), status: (byte)OutboxStatusCode.Quarantined));
 
         Assert.Equal(2L, await Store.CountQuarantinedAsync(ct));
     }
@@ -46,8 +46,8 @@ public sealed class CountOutboxQuarantinedSpec : OutboxSpecBase
     public async Task Count_follows_the_quarantine()
     {
         var ct = TestContext.Current.CancellationToken;
-        var requeued = await SeedAndQuarantineAsync(TestKey("requeue"), "poison", ct);
-        var discarded = await SeedAndQuarantineAsync(TestKey("discard"), "poison", ct);
+        var requeued = await SeedAndQuarantineAsync(Unique("requeue"), "poison", ct);
+        var discarded = await SeedAndQuarantineAsync(Unique("discard"), "poison", ct);
         Assert.Equal(2L, await Store.CountQuarantinedAsync(ct));
 
         Assert.Equal([requeued], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([requeued]), ct)).OutboxIds);

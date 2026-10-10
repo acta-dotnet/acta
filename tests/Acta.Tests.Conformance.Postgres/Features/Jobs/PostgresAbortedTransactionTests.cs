@@ -21,7 +21,7 @@ public sealed class PostgresAbortedTransactionTests : ActaRuntimeTestBase<PgConf
     public async Task Rejection_aborts_the_transaction_until_rollback()
     {
         var ct = TestContext.Current.CancellationToken;
-        var marker = TestKey("pg-aborted");
+        var marker = Unique("pg-aborted");
 
         await using var conn = new NpgsqlConnection(IntegrationConfig.PostgresConnectionString!);
         await conn.OpenAsync(ct);

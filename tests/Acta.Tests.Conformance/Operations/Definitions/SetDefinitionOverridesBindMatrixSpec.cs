@@ -67,7 +67,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("ovr-matrix");
+        var name = Unique("ovr-matrix");
         await RegisterAsync(name, ct);
         var before = await ReadAsync(name, ct);
 
@@ -147,7 +147,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("ovr-clear");
+        var name = Unique("ovr-clear");
         await RegisterAsync(name, ct);
 
         var v0 = (await ReadAsync(name, ct)).Version;

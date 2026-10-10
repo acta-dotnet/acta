@@ -20,7 +20,7 @@ public sealed class DeleteClaimedOutboxSpec : OutboxSpecBase
     public async Task Delete_is_token_cas()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (id, token) = await SeedAndClaimAsync(TestKey("del"), ct);
+        var (id, token) = await SeedAndClaimAsync(Unique("del"), ct);
 
         await Store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(Guid.NewGuid(), [id]), ct);
         var afterStale = await Fixture.ReadOutboxRowAsync(TableName, id);

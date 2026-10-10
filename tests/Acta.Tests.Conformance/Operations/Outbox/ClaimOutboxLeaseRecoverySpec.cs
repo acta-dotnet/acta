@@ -28,7 +28,7 @@ public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
         );
         var ct = TestContext.Current.CancellationToken;
         var oldToken = Guid.NewGuid();
-        var expired = ClaimedExpiredRow(TestKey("failed-claim"), oldToken);
+        var expired = ClaimedExpiredRow(Unique("failed-claim"), oldToken);
         await Fixture.SeedOutboxRowAsync(TableName, expired);
 
         await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(() => ClaimAsync(Guid.NewGuid(), -1, ct));
@@ -44,7 +44,7 @@ public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
     {
         var ct = TestContext.Current.CancellationToken;
         var staleToken = Guid.NewGuid();
-        var expired = ClaimedExpiredRow(TestKey("expired"), staleToken);
+        var expired = ClaimedExpiredRow(Unique("expired"), staleToken);
         await Fixture.SeedOutboxRowAsync(TableName, expired);
 
         var freshToken = Guid.NewGuid();
@@ -64,7 +64,7 @@ public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
     {
         var ct = TestContext.Current.CancellationToken;
         var owner = Guid.NewGuid();
-        var live = DueRow(TestKey("live")) with
+        var live = DueRow(Unique("live")) with
         {
             StatusCode = (byte)OutboxStatusCode.Claimed,
             ClaimToken = owner,

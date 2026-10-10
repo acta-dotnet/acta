@@ -150,7 +150,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("desc");
+        var jobName = Unique("desc");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         const string description = "Nightly cleanup of stale rows.";
         await RegisterAsync(

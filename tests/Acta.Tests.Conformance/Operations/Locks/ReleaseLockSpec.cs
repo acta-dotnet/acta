@@ -36,7 +36,7 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
-        var key = TestKey("ck.release-lock-spec");
+        var key = Unique("ck.release-lock-spec");
 
         var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;
         Assert.NotNull(token);

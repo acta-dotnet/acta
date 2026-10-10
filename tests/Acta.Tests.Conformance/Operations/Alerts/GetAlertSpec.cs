@@ -93,7 +93,7 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
-        var key = TestKey("incident");
+        var key = Unique("incident");
         var firstRow = await RaiseAsync(job.JobId, key, ct);
         var first = new AlertRef(firstRow.AlertRef);
         Assert.Equal(ControlAction.Applied, (await Operations.Alerts.ResolveAsync(first, ct: ct)).Action);

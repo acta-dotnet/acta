@@ -23,8 +23,8 @@ public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
     public async Task Unknown_route_reschedules_then_delivers_after_later_registration()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lateNs = TestKey("late");
-        var dedup = TestKey("r6");
+        var lateNs = Unique("late");
+        var dedup = Unique("r6");
         var seed = EchoRow(dedup, jobNamespace: lateNs);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 

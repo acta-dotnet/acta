@@ -148,7 +148,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("min");
+        var jobName = Unique("min");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
 
         var soon = now.AddMinutes(10);
@@ -184,7 +184,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("solo");
+        var jobName = Unique("solo");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -218,7 +218,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("timed");
+        var jobName = Unique("timed");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
 
@@ -242,7 +242,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("past");
+        var jobName = Unique("past");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -256,7 +256,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("orphan");
+        var jobName = Unique("orphan");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -273,7 +273,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("redeploy");
+        var jobName = Unique("redeploy");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
 
@@ -298,7 +298,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("orphan-paused");
+        var jobName = Unique("orphan-paused");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
 
@@ -318,7 +318,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("audit");
+        var jobName = Unique("audit");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 

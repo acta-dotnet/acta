@@ -40,7 +40,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     {
         var ct = TestContext.Current.CancellationToken;
         var target = TagTarget.ForNamespace(NameSyntax.ReservedSystemName);
-        var name = TestKey("sys-tag");
+        var name = Unique("sys-tag");
 
         Assert.NotNull(await Operations.Tags.GetAsync(target, ct));
         try
@@ -111,7 +111,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var targets = await CreateTargetsAsync(ct);
         // The facet value is this run's own, so the tenants and namespaces earlier runs left in a long-lived
         // database cannot push this run's off the first page; it is stored upper-case and filtered lower-case.
-        var facet = TestKey("blue");
+        var facet = Unique("blue");
         foreach (var target in targets.All)
         {
             await Operations.Tags.ReplaceAsync(
@@ -185,7 +185,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     public async Task Deduplicated_enqueue_does_not_overwrite_tags()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tag-dedup");
+        var key = Unique("tag-dedup");
         var first = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(
                 TestNamespace,
@@ -316,7 +316,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
     private async Task<TestTargets> CreateTargetsAsync(CancellationToken ct)
     {
-        var tenantName = TestKey("tenant");
+        var tenantName = Unique("tenant");
         await Operations.Tenants.RegisterAsync(tenantName, ct: ct);
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -373,7 +373,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
     private IReadOnlyList<TagTarget> MissingTargets() =>
         [
-            TagTarget.ForTenant(TestKey("missing-tenant")),
+            TagTarget.ForTenant(Unique("missing-tenant")),
             TagTarget.ForNamespace($"missing-{TestId}"),
             TagTarget.ForDefinition(TestNamespace, "missing-definition"),
             TagTarget.ForJob(JobLookup.ById(long.MaxValue)),

@@ -97,7 +97,7 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Resolve_is_scoped_to_the_namespace_and_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(TestKey("other-ns"), ct: ct);
+        var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(Unique("other-ns"), ct: ct);
         var (quietJobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
         await RaiseAsync(JobIdValue, AlertOriginCode.Automatic, AlertKindCode.FinalFailure, sourceEventId: null, ct);
         var raised = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));

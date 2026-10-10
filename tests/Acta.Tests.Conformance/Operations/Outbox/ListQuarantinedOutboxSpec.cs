@@ -20,8 +20,8 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
     public async Task No_quarantined_rows_read_empty()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedAndClaimAsync(TestKey("claimed"), ct);
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("pending")));
+        await SeedAndClaimAsync(Unique("claimed"), ct);
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("pending")));
 
         Assert.Empty(await ListAsync(pageSize: 10, after: null, ct));
     }
@@ -31,13 +31,10 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
     {
         var ct = TestContext.Current.CancellationToken;
         var stagedAt = new DateTime(2021, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-        var seeded = DueRow(TestKey("seeded"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 4) with
-        {
-            CreatedAtUtc = stagedAt,
-        };
+        var seeded = DueRow(Unique("seeded"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 4) with { CreatedAtUtc = stagedAt };
         await Fixture.SeedOutboxRowAsync(TableName, seeded);
-        var relayed = await SeedAndQuarantineAsync(TestKey("relayed"), "poison payload", ct);
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("pending")));
+        var relayed = await SeedAndQuarantineAsync(Unique("relayed"), "poison payload", ct);
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("pending")));
 
         var page = await ListAsync(pageSize: 10, after: null, ct);
 
@@ -107,7 +104,7 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
         var ids = new HashSet<Guid>();
         for (var i = 0; i < count; i++)
         {
-            var row = DueRow(TestKey($"stuck-{i}"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 5);
+            var row = DueRow(Unique($"stuck-{i}"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 5);
             await Fixture.SeedOutboxRowAsync(TableName, row);
             ids.Add(row.OutboxId);
         }

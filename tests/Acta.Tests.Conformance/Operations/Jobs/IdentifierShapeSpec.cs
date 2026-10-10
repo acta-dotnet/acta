@@ -57,7 +57,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task A_lane_folds()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lane = TestKey("ORDER");
+        var lane = Unique("ORDER");
 
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload()) { Lane = lane }, ct);
 
@@ -69,7 +69,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task A_tenant_folds()
     {
         var ct = TestContext.Current.CancellationToken;
-        var tenant = TestKey("ACME");
+        var tenant = Unique("ACME");
 
         var registered = await Operations.Tenants.RegisterAsync(tenant, null, null, ct);
 
@@ -92,7 +92,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Deduplication_keys_keep_their_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("Order");
+        var key = Unique("Order");
 
         var first = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key), ct);
         var second = await Jobs.EnqueueAsync(
@@ -110,7 +110,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Concurrency_keys_keep_their_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("mutex");
+        var key = Unique("mutex");
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // A foreign owner holds the only slot of the uppercase key, composed as the runner does ({ns_id}.sem.{key}).
@@ -136,7 +136,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task A_batch_keeps_key_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("Order");
+        var key = Unique("Order");
         var stored = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key), ct);
 
         var batch = await Jobs.EnqueueBatchAsync(
@@ -161,7 +161,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var key = $"{ns}.lock.{TestKey("Ledger")}";
+        var key = $"{ns}.lock.{Unique("Ledger")}";
         var locks = Services.GetRequiredService<LocksOperations>();
 
         var exact = (await locks.AcquireLockAsync(key, TimeSpan.FromMinutes(5), ownerJobId: long.MaxValue, ct)).Token;

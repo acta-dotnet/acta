@@ -23,9 +23,9 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var ct = TestContext.Current.CancellationToken;
         // One due instant for all three, so only the staging order separates them.
         var due = DateTime.UtcNow.AddMinutes(-5);
-        var low = DueRow(TestKey("low"), priority: 0) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
-        var normal = DueRow(TestKey("normal"), priority: 50) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
-        var high = DueRow(TestKey("high"), priority: 100) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var low = DueRow(Unique("low"), priority: 0) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var normal = DueRow(Unique("normal"), priority: 50) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var high = DueRow(Unique("high"), priority: 100) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
         await Fixture.SeedOutboxRowAsync(TableName, low);
         await Fixture.SeedOutboxRowAsync(TableName, normal);
         await Fixture.SeedOutboxRowAsync(TableName, high);
@@ -49,8 +49,8 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
     public async Task Claim_takes_the_earliest_due_row_first()
     {
         var ct = TestContext.Current.CancellationToken;
-        var older = DueRow(TestKey("older"), minutesAgo: 10);
-        var newer = DueRow(TestKey("newer"), minutesAgo: 2);
+        var older = DueRow(Unique("older"), minutesAgo: 10);
+        var newer = DueRow(Unique("newer"), minutesAgo: 2);
         // Seed newest first so a claim that followed staging order alone would pick wrong.
         await Fixture.SeedOutboxRowAsync(TableName, newer);
         await Fixture.SeedOutboxRowAsync(TableName, older);
@@ -66,7 +66,7 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
     public async Task Two_claims_never_overlap()
     {
         var ct = TestContext.Current.CancellationToken;
-        var rows = new[] { DueRow(TestKey("a")), DueRow(TestKey("b")), DueRow(TestKey("c")) };
+        var rows = new[] { DueRow(Unique("a")), DueRow(Unique("b")), DueRow(Unique("c")) };
         foreach (var row in rows)
         {
             await Fixture.SeedOutboxRowAsync(TableName, row);
@@ -93,7 +93,7 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         var seeded = new List<Guid>(total);
         for (var i = 0; i < total; i++)
         {
-            var row = DueRow(TestKey($"c{i}"));
+            var row = DueRow(Unique($"c{i}"));
             seeded.Add(row.OutboxId);
             await Fixture.SeedOutboxRowAsync(TableName, row);
         }
@@ -122,8 +122,8 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
     public async Task Future_rows_are_not_claimed()
     {
         var ct = TestContext.Current.CancellationToken;
-        var due = DueRow(TestKey("due"));
-        var future = DueRow(TestKey("future")) with { NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(30) };
+        var due = DueRow(Unique("due"));
+        var future = DueRow(Unique("future")) with { NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(30) };
         await Fixture.SeedOutboxRowAsync(TableName, due);
         await Fixture.SeedOutboxRowAsync(TableName, future);
 

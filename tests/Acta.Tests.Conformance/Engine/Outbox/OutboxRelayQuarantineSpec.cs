@@ -23,8 +23,8 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         var ct = TestContext.Current.CancellationToken;
         // A row toward a route that never resolves: the ledger rejects it as a recoverable routing
         // rejection on every tick, so the row accrues one real failure per tick.
-        var unknownNs = TestKey("q7-unknown");
-        var seed = EchoRow(TestKey("q7"), jobNamespace: unknownNs);
+        var unknownNs = Unique("q7-unknown");
+        var seed = EchoRow(Unique("q7"), jobNamespace: unknownNs);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceConnection);
@@ -57,11 +57,11 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
     public async Task Malformed_and_oversize_rows_quarantine_immediately()
     {
         var ct = TestContext.Current.CancellationToken;
-        var malformed = EchoRow(TestKey("q8a"), meta: """{"tags":[{"value":"no-name"}]}""");
-        var oversize = EchoRow(TestKey("q8b"), data: new byte[128]);
+        var malformed = EchoRow(Unique("q8a"), meta: """{"tags":[{"value":"no-name"}]}""");
+        var oversize = EchoRow(Unique("q8b"), data: new byte[128]);
         // A valid-byte but reserved (unsupported) input_format_id: the DDL's 0-255 guard admits it, but the
         // relay's reconstruction rejects it as a contract error, so it quarantines rather than failing the tick.
-        var unsupportedFormat = EchoRow(TestKey("q8c"), inputFormatId: 4);
+        var unsupportedFormat = EchoRow(Unique("q8c"), inputFormatId: 4);
         await Fixture.SeedOutboxRowAsync(SourceTable, malformed);
         await Fixture.SeedOutboxRowAsync(SourceTable, oversize);
         await Fixture.SeedOutboxRowAsync(SourceTable, unsupportedFormat);

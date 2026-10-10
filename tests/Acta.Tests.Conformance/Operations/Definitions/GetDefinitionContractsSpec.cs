@@ -39,8 +39,8 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
     public async Task Definition_reads_back_whole()
     {
         var ct = TestContext.Current.CancellationToken;
-        var first = TestKey("contract-a");
-        var second = TestKey("contract-b");
+        var first = Unique("contract-a");
+        var second = Unique("contract-b");
         var firstId = await RegisterAsync(TestNamespaceId, first, 3, ct);
         var secondId = await RegisterAsync(TestNamespaceId, second, 5, ct);
 
@@ -63,7 +63,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
     public async Task Override_is_the_effective_policy()
     {
         var ct = TestContext.Current.CancellationToken;
-        var name = TestKey("contract-ovr");
+        var name = Unique("contract-ovr");
         var id = await RegisterAsync(TestNamespaceId, name, 3, ct);
 
         await DefinitionTestOps.UpdateOverridesAsync(
@@ -84,7 +84,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
     public async Task Retired_definition_is_listed()
     {
         var ct = TestContext.Current.CancellationToken;
-        var name = TestKey("contract-retired");
+        var name = Unique("contract-retired");
         var id = await RegisterAsync(TestNamespaceId, name, 3, ct);
 
         var retired = await Services
@@ -99,10 +99,10 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
     public async Task Catalog_is_scoped_to_its_namespace()
     {
         var ct = TestContext.Current.CancellationToken;
-        var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(TestKey("contracts-other"), ct: ct);
-        var mine = TestKey("contract-mine");
+        var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(Unique("contracts-other"), ct: ct);
+        var mine = Unique("contract-mine");
         await RegisterAsync(TestNamespaceId, mine, 3, ct);
-        await RegisterAsync(otherNamespaceId, TestKey("contract-theirs"), 3, ct);
+        await RegisterAsync(otherNamespaceId, Unique("contract-theirs"), 3, ct);
 
         Assert.Equal(mine, Assert.Single(await ReadAsync(TestNamespaceId, ct)).Name);
     }

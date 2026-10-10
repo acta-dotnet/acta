@@ -107,7 +107,7 @@ public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFi
     public async Task Jobs_view_resolves_the_tenant_name()
     {
         var ct = TestContext.Current.CancellationToken;
-        var tenantName = TestKey("view-tenant");
+        var tenantName = Unique("view-tenant");
         var tenantId = (await Operations.Tenants.RegisterAsync(tenantName, null, null, ct)).TenantId;
         var scoped = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None, TenantName: tenantName),

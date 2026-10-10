@@ -39,14 +39,14 @@ public sealed class GetInputTemplateSpec : ActaRuntimeTestBase<ConformanceFixtur
     public void Unregistered_job_reads_null()
     {
         Assert.Null(Jobs.GetInputTemplate(TestNamespace, "no-such-job"));
-        Assert.Null(Jobs.GetInputTemplate(TestKey("other-ns"), "add-numbers"));
+        Assert.Null(Jobs.GetInputTemplate(Unique("other-ns"), "add-numbers"));
     }
 
     [Fact(DisplayName = "A definition stored by another host but absent from this manifest reads null")]
     public async Task Stored_definition_alone_reads_null()
     {
         var ct = TestContext.Current.CancellationToken;
-        var jobName = TestKey("stored-only");
+        var jobName = Unique("stored-only");
         await new ActaTestSeeder(Db).SeedJobDefinitionAsync(Runtime.RegisteredNamespaceIds[TestNamespace], name: jobName, ct: ct);
 
         Assert.Null(Jobs.GetInputTemplate(TestNamespace, jobName));

@@ -65,7 +65,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
     public async Task Only_the_named_namespace_is_read()
     {
         var ct = TestContext.Current.CancellationToken;
-        var otherNamespace = TestKey("other-ns");
+        var otherNamespace = Unique("other-ns");
         var otherNamespaceId = await Seeder.SeedJobNamespaceAsync(otherNamespace, ct: ct);
         await RaiseAsync(TestNamespace, jobId: null, ct);
         await RaiseAsync(otherNamespace, jobId: null, ct);
@@ -145,7 +145,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
     /// <summary>One job-less alert settled into <paramref name="status"/> with no retry instant; returns its id.</summary>
     private async Task<long> StageAsync(AlertDeliveryStatusCode status, CancellationToken ct)
     {
-        var key = TestKey("unset-" + status.ToString().ToLowerInvariant());
+        var key = Unique("unset-" + status.ToString().ToLowerInvariant());
         await RaiseAsync(TestNamespace, jobId: null, ct, key);
         var row = Assert.Single(
             await Db.From<AlertEntity>().Where(a => a.NamespaceId == TestNamespaceId && a.DeduplicationKey == key).ToListAsync(ct)

@@ -38,7 +38,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     public async Task Tenant_suspended()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("tax-susp");
+        var key = Unique("tax-susp");
         await Operations.Tenants.RegisterAsync(key, null, null, ct);
         await Operations.Tenants.SuspendAsync(key, null, null, ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(tenantName: key), ct));
@@ -50,7 +50,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-            await Jobs.EnqueueAsync(Request(tenantName: TestKey("tax-ghost")), ct)
+            await Jobs.EnqueueAsync(Request(tenantName: Unique("tax-ghost")), ct)
         );
         Assert.Equal(EnqueueRejectionReason.TenantUnknown, ex.Reason);
     }

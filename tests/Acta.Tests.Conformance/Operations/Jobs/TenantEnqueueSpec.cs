@@ -63,7 +63,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("ten-known");
+        var name = Unique("ten-known");
         var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
         var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name)], ct)).Jobs;
@@ -81,7 +81,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var before = await CountJobsAsync(ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: TestKey("ten-ghost"))], ct)
+            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: Unique("ten-ghost"))], ct)
         );
 
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -92,7 +92,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var name = TestKey("ten-off");
+        var name = Unique("ten-off");
         await Operations.Tenants.RegisterAsync(name, null, null, ct);
         await Operations.Tenants.SuspendAsync(name, null, null, ct);
         var before = await CountJobsAsync(ct);
@@ -110,11 +110,11 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var good = TestKey("ten-good");
+        var good = Unique("ten-good");
         await Operations.Tenants.RegisterAsync(good, null, null, ct);
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueValues[] command = [Row(tenantName: good), Row(tenantName: TestKey("ten-missing"))];
+        JobEnqueueValues[] command = [Row(tenantName: good), Row(tenantName: Unique("ten-missing"))];
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, command, ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -125,7 +125,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var name = TestKey("ten-parent");
+        var name = Unique("ten-parent");
         var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
         var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name)], ct)).Jobs;
@@ -141,8 +141,8 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var parentName = TestKey("ten-p2");
-        var childName = TestKey("ten-c2");
+        var parentName = Unique("ten-p2");
+        var childName = Unique("ten-c2");
         await Operations.Tenants.RegisterAsync(parentName, null, null, ct);
         var childTenantId = (await Operations.Tenants.RegisterAsync(childName, null, null, ct)).TenantId;
 
@@ -165,8 +165,8 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var parentName = TestKey("ten-p3");
-        var childName = TestKey("ten-c3");
+        var parentName = Unique("ten-p3");
+        var childName = Unique("ten-c3");
         await Operations.Tenants.RegisterAsync(parentName, null, null, ct);
         await Operations.Tenants.RegisterAsync(childName, null, null, ct);
 
@@ -187,7 +187,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
-        var childName = TestKey("ten-c4");
+        var childName = Unique("ten-c4");
         var childTenantId = (await Operations.Tenants.RegisterAsync(childName, null, null, ct)).TenantId;
 
         var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: null)], ct)).Jobs;
@@ -203,7 +203,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var name = TestKey("ten-filter");
+        var name = Unique("ten-filter");
         var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
         var enqueued = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name)], ct)).Jobs;

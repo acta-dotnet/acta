@@ -38,7 +38,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("expr");
+        var jobName = Unique("expr");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -85,7 +85,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("stale");
+        var jobName = Unique("stale");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -106,7 +106,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("clear");
+        var jobName = Unique("clear");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -133,7 +133,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("badexpr");
+        var jobName = Unique("badexpr");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -153,7 +153,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("badtz");
+        var jobName = Unique("badtz");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -173,7 +173,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("orphan");
+        var jobName = Unique("orphan");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
@@ -196,7 +196,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("paused");
+        var jobName = Unique("paused");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 

@@ -37,7 +37,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("fire");
+        var jobName = Unique("fire");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
         await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
@@ -76,7 +76,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("paused");
+        var jobName = Unique("paused");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
         await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
@@ -103,7 +103,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("inflight");
+        var jobName = Unique("inflight");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
         await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
@@ -128,7 +128,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("terminal");
+        var jobName = Unique("terminal");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
         await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
@@ -154,7 +154,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
-        var jobName = TestKey("orphan");
+        var jobName = Unique("orphan");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 

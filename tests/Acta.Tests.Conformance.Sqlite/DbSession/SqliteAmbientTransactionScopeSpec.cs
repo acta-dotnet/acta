@@ -21,7 +21,7 @@ public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<Sqli
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
         return await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", payload, DeduplicationKey: TestKey("ambient")),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", payload, DeduplicationKey: Unique("ambient")),
             ct
         );
     }

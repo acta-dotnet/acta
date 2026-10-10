@@ -33,7 +33,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Limit_one_is_the_single_slot_mutex()
     {
         var ct = TestContext.Current.CancellationToken;
-        var prefix = SlotPrefix(TestKey("cl-mutex"));
+        var prefix = SlotPrefix(Unique("cl-mutex"));
         var locks = Locks;
 
         var first = (await locks.AcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: 1, ct)).Token;
@@ -50,7 +50,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Admission_fills_the_lowest_free_slot_and_stops_at_the_limit()
     {
         var ct = TestContext.Current.CancellationToken;
-        var prefix = SlotPrefix(TestKey("cl-fill"));
+        var prefix = SlotPrefix(Unique("cl-fill"));
         var locks = Locks;
 
         var held = new List<LockToken>();
@@ -77,7 +77,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task A_shared_keys_capacity_is_the_largest_limit_among_participants()
     {
         var ct = TestContext.Current.CancellationToken;
-        var prefix = SlotPrefix(TestKey("cl-shared"));
+        var prefix = SlotPrefix(Unique("cl-shared"));
         var locks = Locks;
 
         // The smaller-limit participant competes for slots 0 and 1 only, whatever else is free.
@@ -111,7 +111,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task A_lowered_limit_admits_into_the_low_slots_while_high_holders_run_on()
     {
         var ct = TestContext.Current.CancellationToken;
-        var prefix = SlotPrefix(TestKey("cl-lowered"));
+        var prefix = SlotPrefix(Unique("cl-lowered"));
         var locks = Locks;
 
         // The state a decrease from 4 to 2 leaves behind: slots 2 and 3 held by attempts admitted
@@ -135,7 +135,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task A_slot_whose_lease_expired_is_stolen_by_the_next_admission()
     {
         var ct = TestContext.Current.CancellationToken;
-        var prefix = SlotPrefix(TestKey("cl-expiry"));
+        var prefix = SlotPrefix(Unique("cl-expiry"));
         var locks = Locks;
 
         // Slot 0 is held by an owner whose lease has already run out (the crashed-worker shape), so
@@ -158,7 +158,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         const int jobs = 4;
         const int workers = 4;
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("cl-runtime");
+        var key = Unique("cl-runtime");
         var locks = Locks;
 
         // One of the definition's two slots is held on behalf of a foreign owner, as another worker's

@@ -22,8 +22,8 @@ public sealed class RequeueQuarantinedOutboxSpec : OutboxSpecBase
     public async Task Requeue_resets_budget_keeps_evidence_and_makes_rows_claimable()
     {
         var ct = TestContext.Current.CancellationToken;
-        var first = await SeedAndQuarantineAsync(TestKey("rq-a"), "poison a", ct);
-        var second = await SeedAndQuarantineAsync(TestKey("rq-b"), "poison b", ct);
+        var first = await SeedAndQuarantineAsync(Unique("rq-a"), "poison a", ct);
+        var second = await SeedAndQuarantineAsync(Unique("rq-b"), "poison b", ct);
 
         var targeted = (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([first]), ct)).OutboxIds;
         Assert.Equal([first], targeted);

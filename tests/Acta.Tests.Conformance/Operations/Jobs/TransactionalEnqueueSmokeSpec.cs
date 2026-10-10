@@ -33,7 +33,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
     public async Task Commit_persists_business_row_and_enqueue()
     {
         var ct = TestContext.Current.CancellationToken;
-        var marker = TestKey("commit");
+        var marker = Unique("commit");
 
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
@@ -54,7 +54,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
     public async Task Rollback_discards_business_row_and_enqueue()
     {
         var ct = TestContext.Current.CancellationToken;
-        var marker = TestKey("rollback");
+        var marker = Unique("rollback");
 
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
@@ -79,7 +79,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
         // Commit: two-row batch plus a business row all persist.
-        var committedMarker = TestKey("batch-commit");
+        var committedMarker = Unique("batch-commit");
         string[] committedKeys = [committedMarker + "-a", committedMarker + "-b"];
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
@@ -105,7 +105,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         }
 
         // Rollback: two-row batch plus a business row all vanish.
-        var rolledBackMarker = TestKey("batch-rollback");
+        var rolledBackMarker = Unique("batch-rollback");
         string[] rolledBackKeys = [rolledBackMarker + "-a", rolledBackMarker + "-b"];
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {

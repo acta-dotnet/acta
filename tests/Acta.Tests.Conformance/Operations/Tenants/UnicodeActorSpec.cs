@@ -27,7 +27,7 @@ public sealed class UnicodeActorSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Operator_name_round_trips_intact()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-unicode-actor");
+        var key = Unique("adm-unicode-actor");
         var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
 
         var outcome = await Services.GetRequiredService<ITenants>().SuspendAsync(key, "hold", OperatorName, ct);

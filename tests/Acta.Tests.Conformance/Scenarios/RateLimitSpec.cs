@@ -36,7 +36,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     public async Task A_fresh_meter_admits_its_burst_at_once_and_then_one_per_interval()
     {
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-burst"));
+        var bucket = Bucket(Unique("rl-burst"));
 
         var clock = Stopwatch.StartNew();
         for (var i = 0; i < Burst; i++)
@@ -93,7 +93,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     {
         const long jobId = 1200;
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-booked"));
+        var bucket = Bucket(Unique("rl-booked"));
 
         // Parked thirty days ahead so the first request has to wait, and so the row stays well clear of
         // any concurrent sweep in this shared database: a charge below must be the only thing that
@@ -124,7 +124,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     {
         const long jobId = 1400;
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-ontime"));
+        var bucket = Bucket(Unique("rl-ontime"));
         var reservation = $"{bucket}.{jobId}";
 
         // The meter is parked minutes ahead, so an admission below can only come from the turn. Five
@@ -165,7 +165,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     {
         const long jobId = 1450;
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-stale"));
+        var bucket = Bucket(Unique("rl-stale"));
         var reservation = $"{bucket}.{jobId}";
 
         // A turn that went by while every executor was busy: still inside its grace, so the row is
@@ -188,7 +188,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     {
         const int waiting = Burst + 20;
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-catchup"));
+        var bucket = Bucket(Unique("rl-catchup"));
 
         // Every one of them holds a turn that passed while the fleet was busy, on a meter that has
         // since gone idle. Honouring stale turns would admit all of them in the same instant.
@@ -219,7 +219,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     {
         const long jobId = 1480;
         var ct = TestContext.Current.CancellationToken;
-        var bucket = Bucket(TestKey("rl-grace"));
+        var bucket = Bucket(Unique("rl-grace"));
         var reservation = $"{bucket}.{jobId}";
 
         // A turn whose instant has already gone by but whose grace has not: the row a job that is
@@ -240,7 +240,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     {
         const long jobId = 1500;
         var ct = TestContext.Current.CancellationToken;
-        var reservation = $"{Bucket(TestKey("rl-swept"))}.{jobId}";
+        var reservation = $"{Bucket(Unique("rl-swept"))}.{jobId}";
 
         // A cancelled or reclaimed job leaves its turn behind. Past its grace as well as its instant,
         // so no live job can still be coming back for it and it is ordinary garbage.

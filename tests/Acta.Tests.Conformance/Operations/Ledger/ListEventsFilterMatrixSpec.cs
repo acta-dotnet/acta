@@ -119,7 +119,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Register a second namespace with the test definitions
-        var ns2Name = TestKey("ns2");
+        var ns2Name = Unique("ns2");
         var seeder = new ActaTestSeeder(Db);
         var ns2Id = await seeder.SeedJobNamespaceAsync(ns2Name, "test", ct);
         await DefinitionTestOps.RegisterAsync(Services, ns2Id, DateTime.UtcNow, TestJobsManifest.Descriptors.Descriptors, ct);
@@ -246,8 +246,8 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var queries = Services.GetRequiredService<IActaOperations>();
         var dialect = Services.GetRequiredService<ISqlDialect>();
 
-        var t1Key = TestKey("t1");
-        var t2Key = TestKey("t2");
+        var t1Key = Unique("t1");
+        var t2Key = Unique("t2");
         var t1Id = (await Operations.Tenants.RegisterAsync(t1Key, null, null, ct)).TenantId;
         var t2Id = (await Operations.Tenants.RegisterAsync(t2Key, null, null, ct)).TenantId;
 

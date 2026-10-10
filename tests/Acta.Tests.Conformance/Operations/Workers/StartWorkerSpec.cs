@@ -24,7 +24,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Namespace_upsert_is_idempotent_then_churns_on_metadata_change()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nsName = TestKey("sw-ns");
+        var nsName = Unique("sw-ns");
 
         // Step 1: create namespace with ownerTeam=team-a
         var (nsId, _) = await WorkerTestOps.StartAsync(Services, nsName, "team-a", "desc", "host1", "v1", null, null, 1001, 4, ct);
@@ -53,7 +53,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Worker_insert_is_append_only()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nsName = TestKey("sw-aonly");
+        var nsName = Unique("sw-aonly");
 
         var (nsId, wId1) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host1", "v1", null, null, 1001, 4, ct);
         var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct);
@@ -71,7 +71,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Each_worker_has_exactly_one_WorkerStarted_event_with_correct_actor_fields()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nsName = TestKey("sw-evt");
+        var nsName = Unique("sw-evt");
 
         // The refs are minted here so the expected actor is known independently of the row read: the
         // event carries the worker's public ref as canonical lowercase uuid text, never the numeric id.
@@ -110,7 +110,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Duplicate_host_and_process_id_appends_two_distinct_workers()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nsName = TestKey("sw-dup");
+        var nsName = Unique("sw-dup");
 
         var (nsId, wId1) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "same-host", "v1", null, null, 9999, 4, ct);
         var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "same-host", "v1", null, null, 9999, 4, ct);

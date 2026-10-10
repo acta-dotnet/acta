@@ -21,7 +21,7 @@ public sealed class ReleaseClaimedOutboxSpec : OutboxSpecBase
     public async Task Release_is_token_cas_and_reclaimable()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (id, token) = await SeedAndClaimAsync(TestKey("rel"), ct);
+        var (id, token) = await SeedAndClaimAsync(Unique("rel"), ct);
         var before = await Fixture.ReadOutboxRowAsync(TableName, id);
 
         await Store.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(Guid.NewGuid(), [id]), ct);

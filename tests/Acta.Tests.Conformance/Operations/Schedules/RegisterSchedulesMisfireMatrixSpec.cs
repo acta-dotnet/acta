@@ -54,7 +54,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var jobName = TestKey(label);
+        var jobName = Unique(label);
 
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
 
@@ -76,7 +76,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var jobName = TestKey("upsert");
+        var jobName = Unique("upsert");
 
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
 
@@ -114,7 +114,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var jobName = TestKey("just-due");
+        var jobName = Unique("just-due");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var slotId = await RegisterAsync(
             db,
@@ -152,7 +152,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var jobName = TestKey("override");
+        var jobName = Unique("override");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var slotId = await RegisterAsync(
             db,
@@ -189,7 +189,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
-        var jobName = TestKey("kind-switch");
+        var jobName = Unique("kind-switch");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var slotId = await RegisterAsync(
             db,

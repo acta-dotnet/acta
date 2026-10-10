@@ -25,7 +25,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Pause_resume_round_trip_exits_zero_and_transitions()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-pause"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-pause"), ct);
         var runner = CreateRunner(out var output);
 
         var pauseExit = await runner.RunAsync(Parse($"pause {enqueued.JobId} --reason hold"), ct);
@@ -42,7 +42,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Cancel_applies_and_restart_revives()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-cancel"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-cancel"), ct);
         var runner = CreateRunner(out _);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"cancel {enqueued.JobId} --reason done"), ct));
@@ -56,7 +56,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Illegal_resume_exits_one_missing_job_exits_two()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-bands"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-bands"), ct);
         var runner = CreateRunner(out _);
 
         // Ready job: resume is Rejected.
@@ -69,7 +69,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Signal_applies_on_live_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-signal"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-signal"), ct);
         var runner = CreateRunner(out _);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"signal {enqueued.JobId} approval"), ct));
@@ -79,7 +79,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Info_and_status_print_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-info"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-info"), ct);
         var runner = CreateRunner(out var output);
 
         // Addressed by the public ref, the identity the CLI also prints back.
@@ -95,7 +95,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task DeduplicationKey_lookup_resolves_with_explicit_ns()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("cli-key");
+        var key = Unique("cli-key");
         var enqueued = await EnqueueJobAsync(key, ct);
         var runner = CreateRunner(out _);
 
@@ -107,7 +107,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Debug_runs_the_targeted_job_to_done()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-debug"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-debug"), ct);
         var runner = CreateRunner(out var output);
 
         var exit = await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct);
@@ -162,7 +162,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Events_prints_the_job_timeline_after_a_run()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueJobAsync(TestKey("cli-events"), ct);
+        var enqueued = await EnqueueJobAsync(Unique("cli-events"), ct);
         var runner = CreateRunner(out _);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct));

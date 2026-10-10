@@ -20,18 +20,18 @@ public sealed class CountOutboxBacklogSpec : OutboxSpecBase
     public async Task Backlog_counts_pending_only()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("due")));
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("later"), minutesAgo: -5));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("due")));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("later"), minutesAgo: -5));
         await Fixture.SeedOutboxRowAsync(
             TableName,
-            DueRow(TestKey("claimed")) with
+            DueRow(Unique("claimed")) with
             {
                 StatusCode = (byte)OutboxStatusCode.Claimed,
                 ClaimToken = Guid.NewGuid(),
                 ClaimUntilUtc = DateTime.UtcNow.AddMinutes(5),
             }
         );
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(TestKey("stuck"), status: (byte)OutboxStatusCode.Quarantined));
+        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("stuck"), status: (byte)OutboxStatusCode.Quarantined));
 
         Assert.Equal(2L, await Store.CountBacklogAsync(ct));
     }

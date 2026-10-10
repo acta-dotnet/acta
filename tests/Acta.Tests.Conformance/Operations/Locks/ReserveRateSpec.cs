@@ -26,7 +26,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Idle_meter_admits_its_burst_then_books_a_turn()
     {
         var ct = TestContext.Current.CancellationToken;
-        var bucket = TestKey("rate.burst");
+        var bucket = Unique("rate.burst");
 
         for (var job = 100; job < 100 + Burst; job++)
         {
@@ -51,7 +51,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Early_job_is_not_charged_twice()
     {
         var ct = TestContext.Current.CancellationToken;
-        var bucket = TestKey("rate.early");
+        var bucket = Unique("rate.early");
         await DrainBurstAsync(bucket, ct);
         var booked = await ReserveAsync(bucket, 103, ct);
         var meter = await MeterAsync(bucket, ct);
@@ -72,7 +72,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Late_turn_inside_the_window_is_admitted_once()
     {
         var ct = TestContext.Current.CancellationToken;
-        var bucket = TestKey("rate.late");
+        var bucket = Unique("rate.late");
         await DrainBurstAsync(bucket, ct);
         // Thirty seconds is far past the one-second floor, but a slow meter's window is its whole interval.
         var turn = await StageTurnAsync(bucket, 110, TimeSpan.FromSeconds(-30), ct);
@@ -90,7 +90,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Stale_turn_is_re_metered()
     {
         var ct = TestContext.Current.CancellationToken;
-        var bucket = TestKey("rate.stale");
+        var bucket = Unique("rate.stale");
         await DrainBurstAsync(bucket, ct);
         var stale = await StageTurnAsync(bucket, 120, TimeSpan.FromMinutes(-5), ct);
         var meter = Assert.NotNull(await MeterAsync(bucket, ct));
@@ -107,7 +107,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Idle_meter_refills_its_burst()
     {
         var ct = TestContext.Current.CancellationToken;
-        var bucket = TestKey("rate.idle");
+        var bucket = Unique("rate.idle");
         await DrainBurstAsync(bucket, ct);
         Assert.False((await ReserveAsync(bucket, 103, ct)).Admitted);
 

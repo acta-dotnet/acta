@@ -28,7 +28,7 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Known_key_and_id_return_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("get-ten");
+        var key = Unique("get-ten");
         var id = (await Tenants().RegisterAsync(key, "Acme Corp", "desc", ct)).TenantId;
 
         var byKey = await GetTenant().HandleAsync(new GetTenantQuery(key), ct);
@@ -47,7 +47,7 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Suspended_tenant_resolves()
     {
         var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("get-ten-susp");
+        var key = Unique("get-ten-susp");
         var id = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
         await Tenants().SuspendAsync(key, null, null, ct);
 
@@ -63,7 +63,7 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var row = await GetTenant().HandleAsync(new GetTenantQuery(TestKey("get-ten-ghost")), ct);
+        var row = await GetTenant().HandleAsync(new GetTenantQuery(Unique("get-ten-ghost")), ct);
 
         Assert.Null(row);
     }

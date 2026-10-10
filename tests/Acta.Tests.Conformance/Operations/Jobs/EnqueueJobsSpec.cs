@@ -42,7 +42,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
-        var deduplicationKey = TestKey("single");
+        var deduplicationKey = Unique("single");
         JobEnqueueValues[] command =
         [
             new JobEnqueueValues(

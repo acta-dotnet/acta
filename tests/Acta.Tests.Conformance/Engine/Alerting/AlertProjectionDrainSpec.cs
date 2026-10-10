@@ -165,7 +165,7 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
     private async Task<AlertingSubject> SeedAlertingJobAsync(CancellationToken ct)
     {
         var seeder = new ActaTestSeeder(Db);
-        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, TestKey("drain-probe"), AlertProfileCode.OnTerminal, ct);
+        var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, Unique("drain-probe"), AlertProfileCode.OnTerminal, ct);
         var (jobId, _) = await seeder.SeedJobAsync(NamespaceId, definitionId, ct: ct);
         return new AlertingSubject(definitionId, jobId);
     }

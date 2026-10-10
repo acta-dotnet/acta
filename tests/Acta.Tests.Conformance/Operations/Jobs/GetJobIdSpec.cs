@@ -22,7 +22,7 @@ public sealed class GetJobIdSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Ref_and_deduplication_key_resolve_to_the_id()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = TestKey("get-job-id");
+        var deduplicationKey = Unique("get-job-id");
         var enqueued = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
         var handler = Services.GetRequiredService<GetJobIdHandler>();
 
