@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
 namespace Acta;
@@ -46,6 +47,12 @@ internal sealed partial class JobFinalizer(
     /// </summary>
     public const int MaxBatchBytes = 4 * 1024 * 1024;
 
+    /// <summary>
+    /// How long a batch below the cap waits for more before it is written. Zero writes whatever is waiting the moment
+    /// the finalizer is free, so a completion never waits on others.
+    /// </summary>
+    public static readonly TimeSpan BatchWindow = TimeSpan.Zero;
+
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
@@ -61,14 +68,24 @@ internal sealed partial class JobFinalizer(
             {
                 List<InFlightJob> entries = [first];
                 var bytes = first.Completion!.Result.Length;
-                while (entries.Count < MaxBatch && bytes < MaxBatchBytes && reader.TryRead(out var next))
+                using var window = new CancellationTokenSource(BatchWindow);
+                while (entries.Count < MaxBatch && bytes < MaxBatchBytes)
                 {
-                    entries.Add(next);
-                    bytes += next.Completion!.Result.Length;
+                    if (!reader.TryRead(out var next))
+                    {
+                        if (BatchWindow == TimeSpan.Zero || !await WaitForNextAsync(reader, window.Token))
+                        {
+                            break;
+                        }
+                        reader.TryRead(out next);
+                    }
+                    entries.Add(next!);
+                    bytes += next!.Completion!.Result.Length;
                 }
 
                 try
                 {
+                    metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
                     await FinalizeAsync(entries, hostCt);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
@@ -80,6 +97,19 @@ internal sealed partial class JobFinalizer(
         catch (OperationCanceledException) when (hostCt.IsCancellationRequested)
         {
             // A hard stop: completions still queued re-run after recovery, as an interrupted write does.
+        }
+    }
+
+    /// <summary>Waits for another completion until the window closes or the channel ends; false when nothing more comes.</summary>
+    private static async Task<bool> WaitForNextAsync(ChannelReader<InFlightJob> reader, CancellationToken window)
+    {
+        try
+        {
+            return await reader.WaitToReadAsync(window);
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
     }
 

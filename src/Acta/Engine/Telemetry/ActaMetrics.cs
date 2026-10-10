@@ -31,6 +31,7 @@ internal sealed class ActaMetrics : IDisposable
     private readonly Counter<long> _wakeupPublishFailures;
     private readonly Counter<long> _wakeupWaits;
     private readonly UpDownCounter<long> _unsettledCompletions;
+    private readonly Histogram<int> _completionBatches;
 
     /// <summary>
     /// Each worker registers its namespace's live in-flight count by state; the observable gauge reads them
@@ -78,6 +79,11 @@ internal sealed class ActaMetrics : IDisposable
             "acta.completions.unsettled",
             "{completion}",
             "Completion writes still repeating after a failure."
+        );
+        _completionBatches = Meter.CreateHistogram<int>(
+            "acta.completions.batch",
+            "{completion}",
+            "Completions the finalizer wrote in one call."
         );
         Meter.CreateObservableGauge(
             "acta.jobs.inflight",
@@ -185,6 +191,10 @@ internal sealed class ActaMetrics : IDisposable
     /// tag that would slice it (namespace, job name) is already on the log lines the retry emits.
     /// </summary>
     public void RecordUnsettledCompletion(int delta) => _unsettledCompletions.Add(delta);
+
+    /// <summary>How many completions each finalizer call carried: the batching an operator's load actually gets.</summary>
+    public void RecordCompletionBatch(string @namespace, int count) =>
+        _completionBatches.Record(count, new KeyValuePair<string, object?>("namespace", @namespace));
 
     public void RecordAlertProjectionSkip(string @namespace, string reason) =>
         _alertProjectionSkips.Add(1, new TagList { { "namespace", @namespace }, { "reason", reason } });

@@ -225,6 +225,20 @@ public sealed class ActaMetricsTests
     }
 
     [Fact]
+    public void RecordCompletionBatch_records_the_batch_size_histogram_with_the_namespace_tag()
+    {
+        using var metrics = new ActaMetrics();
+
+        var (Value, Tags) = Assert.Single(
+            Collect<int>(metrics, "acta.completions.batch", () => metrics.RecordCompletionBatch("billing", 37))
+        );
+
+        Assert.Equal(37, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("{completion}", CollectUnit(metrics, "acta.completions.batch"));
+    }
+
+    [Fact]
     public void In_flight_gauge_reports_each_registered_namespace_by_state()
     {
         using var metrics = new ActaMetrics();
