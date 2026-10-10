@@ -90,7 +90,7 @@ public sealed class RecoveryPassTests
 
         return new RecoveryPass(
             signals,
-            workers.Services().GetRequiredService<WorkerLifecycle>(),
+            workers.Services().GetRequiredService<IWorkersOperations>(),
             execution,
             Options.Create(options),
             new WorkerWakeupPublisher(wakeup ?? new())

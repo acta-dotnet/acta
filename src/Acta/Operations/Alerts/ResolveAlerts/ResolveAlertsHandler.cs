@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="AlertLifecycle.ResolveAlertsAsync"/>: one routine call answering an explicit count, so it
+/// <see cref="IAlertsOperations.ResolveAlertsAsync"/>: one routine call answering an explicit count, so it
 /// never depends on driver row-count tokens.
 /// </summary>
 internal sealed class ResolveAlertsHandler(IDbSession session, ISqlDialect dialect)

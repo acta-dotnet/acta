@@ -2,8 +2,8 @@ using System.Data.Common;
 
 namespace Acta;
 
-/// <summary><see cref="IJobs"/>, one line per operation; typed overloads build their request through <see cref="JobRequestRouting"/>.</summary>
-internal sealed class Jobs(
+/// <summary><see cref="IJobsOperations"/>, one line per operation; typed overloads build their request through <see cref="JobRequestRouting"/>.</summary>
+internal sealed class JobsOperations(
     JobRequestRouting routing,
     EnqueueJobHandler enqueueJob,
     EnqueueJobsHandler enqueueJobs,
@@ -25,8 +25,9 @@ internal sealed class Jobs(
     UpdateJobInputHandler updateJobInput,
     PurgeJobHandler purgeJob,
     RaiseSignalHandler raiseSignal,
-    GetInputTemplateHandler getInputTemplate
-) : IJobs
+    GetInputTemplateHandler getInputTemplate,
+    ResetJobStateHandler resetJobState
+) : IJobsOperations
 {
     public ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request), ct);
@@ -238,4 +239,12 @@ internal sealed class Jobs(
 
     public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) =>
         getInputTemplate.Handle(new GetInputTemplateQuery(jobNamespace, jobName));
+
+    public Task CancelDescendantsAsync(long jobId, CancellationToken ct) =>
+        cancelJob.CancelDescendantsAsync(jobId, CancelJobHandler.ParentCancelled, ct);
+
+    public Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
+        cancelJob.CancelTreeAsync(rootJobId, input, ct);
+
+    public Task ResetJobStateAsync(long jobId, CancellationToken ct) => resetJobState.HandleAsync(new ResetJobStateCommand(jobId), ct);
 }

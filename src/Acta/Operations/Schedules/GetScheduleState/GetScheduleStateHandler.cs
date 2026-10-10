@@ -1,9 +1,6 @@
 namespace Acta;
 
-/// <summary>
-/// The namespace's persisted (non-orphaned) per-schedule cursors. Drives startup misfire-aware
-/// reconciliation and the slot-pause decision for definitions that dropped every schedule.
-/// </summary>
+/// <summary><see cref="ISchedulesOperations.GetScheduleStateAsync"/>: one read.</summary>
 internal sealed class GetScheduleStateHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetScheduleStateResponse> HandleAsync(GetScheduleStateQuery query, CancellationToken ct) =>

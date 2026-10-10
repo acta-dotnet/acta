@@ -47,7 +47,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         await Task.Delay(5, ct);
 
         var answer = await Services
-            .GetRequiredService<WorkerLifecycle>()
+            .GetRequiredService<IWorkersOperations>()
             .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], [], ct);
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(answer.Leases));
         var definitions = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns).ToListAsync(ct);
@@ -90,7 +90,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // A lease refresh is not a claim-generation change: an operator verb's expected version must still hold.
         var extended = (
             await Services
-                .GetRequiredService<WorkerLifecycle>()
+                .GetRequiredService<IWorkersOperations>()
                 .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], [], ct)
         ).Leases;
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
@@ -128,7 +128,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // second only at an execution the row has moved past: an attempt still unwinding after its job was claimed again.
         var extended = (
             await Services
-                .GetRequiredService<WorkerLifecycle>()
+                .GetRequiredService<IWorkersOperations>()
                 .ExtendWorkerLeasesAsync(
                     workerId,
                     leaseTtl,

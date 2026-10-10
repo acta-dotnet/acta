@@ -17,10 +17,9 @@ internal sealed partial class RuntimeJobContext(
     string namespaceName,
     int namespaceId,
     int leaseTtlSeconds,
-    CancelJobHandler cancelJob,
-    ResetJobStateHandler resetJobState,
+    IJobsOperations jobOperations,
     ISignalsOperations signals,
-    AlertLifecycle alerts,
+    IAlertsOperations alerts,
     IExecutionOperations executionStore,
     IJobPayloadSerializerRegistry serializers,
     ILocksOperations locks,
@@ -40,10 +39,9 @@ internal sealed partial class RuntimeJobContext(
 {
     private const string ProgressVariableName = "sys.progress";
 
-    private readonly CancelJobHandler _cancelJob = cancelJob;
-    private readonly ResetJobStateHandler _resetJobState = resetJobState;
+    private readonly IJobsOperations _jobOperations = jobOperations;
     private readonly ISignalsOperations _signals = signals;
-    private readonly AlertLifecycle _alerts = alerts;
+    private readonly IAlertsOperations _alerts = alerts;
     private readonly IExecutionOperations _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly ILocksOperations _locks = locks;
@@ -165,8 +163,7 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
         CheckpointSlot.DeleteAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
 
-    private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
-        _resetJobState.HandleAsync(new ResetJobStateCommand(JobId), ct);
+    private protected override Task ResetStateCoreAsync(CancellationToken ct) => _jobOperations.ResetJobStateAsync(JobId, ct);
 
     private protected override async Task SleepCoreAsync(
         string name,
@@ -266,7 +263,7 @@ internal sealed partial class RuntimeJobContext(
 
         // The child's own latch on this job is Expired, so no raise is needed or possible here; the
         // descendants' latches sit on parents this walk has already made terminal.
-        await _cancelJob.CancelTreeAsync(childJobId, input, ct);
+        await _jobOperations.CancelTreeAsync(childJobId, input, ct);
     }
 
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)

@@ -1,14 +1,17 @@
 namespace Acta;
 
-/// <summary><see cref="ISchedules"/>, one line per operation.</summary>
-internal sealed class Schedules(
+/// <summary><see cref="ISchedulesOperations"/>, one line per operation.</summary>
+internal sealed class SchedulesOperations(
     PauseScheduleHandler pauseSchedule,
     ResumeScheduleHandler resumeSchedule,
     SetScheduleOverridesHandler setScheduleOverrides,
     TriggerScheduleNowHandler triggerScheduleNow,
     ListSchedulesHandler listSchedules,
-    PreviewScheduleHandler previewSchedule
-) : ISchedules
+    PreviewScheduleHandler previewSchedule,
+    RegisterSchedulesHandler registerSchedules,
+    GetScheduleStateHandler getScheduleState,
+    GetLiveSchedulesHandler getLiveSchedules
+) : ISchedulesOperations
 {
     public ValueTask<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
@@ -51,4 +54,13 @@ internal sealed class Schedules(
 
     public ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);
+
+    public Task<RegisterSchedulesResponse> RegisterSchedulesAsync(RegisterSchedulesCommand command, CancellationToken ct) =>
+        registerSchedules.HandleAsync(command, ct);
+
+    public Task<GetScheduleStateResponse> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
+        getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
+
+    public Task<GetLiveSchedulesResponse> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
+        getLiveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct);
 }

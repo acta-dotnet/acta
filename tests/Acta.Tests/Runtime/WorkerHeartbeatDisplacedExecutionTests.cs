@@ -31,8 +31,8 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
             DefinitionsModifiedAtUtc: null
         ));
         var heartbeat = new WorkerHeartbeat(
-            session.Services().GetRequiredService<WorkerLifecycle>(),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            session.Services().GetRequiredService<IWorkersOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,

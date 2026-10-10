@@ -91,7 +91,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             maxConcurrency: 1,
             ct
         );
-        await Services.GetRequiredService<WorkerLifecycle>().StopWorkerAsync(nsA, stoppedWorkerId, ct);
+        await Services.GetRequiredService<IWorkersOperations>().StopWorkerAsync(nsA, stoppedWorkerId, ct);
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == stoppedWorkerId)
             .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
@@ -152,7 +152,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         WorkerEntity? afterDraining;
         while (true)
         {
-            await Services.GetRequiredService<WorkerLifecycle>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
+            await Services.GetRequiredService<IWorkersOperations>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
             afterA = await Db.From<WorkerEntity>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
             afterB = await Db.From<WorkerEntity>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);
             afterDraining = await Db.From<WorkerEntity>().Where(w => w.Id == drainingWorkerId).SingleOrDefaultAsync(ct);

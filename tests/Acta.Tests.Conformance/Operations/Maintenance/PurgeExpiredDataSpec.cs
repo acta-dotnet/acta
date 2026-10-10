@@ -168,7 +168,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var workers = Services.GetRequiredService<WorkerLifecycle>();
+        var workers = Services.GetRequiredService<IWorkersOperations>();
 
         // The runtime's own worker is the only row here, and it is Active: read it before seeding the
         // second one so the single-row query still addresses it unambiguously.

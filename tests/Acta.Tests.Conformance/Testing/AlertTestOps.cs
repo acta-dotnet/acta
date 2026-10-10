@@ -32,7 +32,7 @@ internal static class AlertTestOps
         CancellationToken ct
     ) =>
         services
-            .GetRequiredService<AlertLifecycle>()
+            .GetRequiredService<IAlertsOperations>()
             .RaiseAlertAsync(
                 RaiseAlertCommand.Create(
                     jobNamespace,
@@ -82,7 +82,7 @@ internal static class AlertTestOps
         }
 
         var alertsJob = new AlertsJob(
-            services.GetRequiredService<AlertLifecycle>(),
+            services.GetRequiredService<IAlertsOperations>(),
             services.GetRequiredService<IActaClock>(),
             services.GetRequiredService<AlertChannelRegistry>(),
             services.GetRequiredService<IAlertTransportRegistry>(),
@@ -126,7 +126,7 @@ internal static class AlertTestOps
     public static async Task<DateTime> HorizonOfThisMomentAsync(IServiceProvider services, CancellationToken ct) =>
         AlertsJob.SafeHorizon(
             await services.GetRequiredService<IClockOperations>().GetUtcNowAsync(ct),
-            services.GetRequiredService<AlertLifecycle>().SafeHorizonLag
+            services.GetRequiredService<IAlertsOperations>().SafeHorizonLag
         );
 
     /// <summary>
@@ -296,10 +296,9 @@ internal static class AlertTestOps
             namespaceName: jobNamespace,
             namespaceId: namespaceId,
             leaseTtlSeconds: 180,
-            cancelJob: services.GetRequiredService<CancelJobHandler>(),
-            resetJobState: services.GetRequiredService<ResetJobStateHandler>(),
+            jobOperations: services.GetRequiredService<IJobsOperations>(),
             signals: services.GetRequiredService<ISignalsOperations>(),
-            alerts: services.GetRequiredService<AlertLifecycle>(),
+            alerts: services.GetRequiredService<IAlertsOperations>(),
             executionStore: services.GetRequiredService<IExecutionOperations>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: services.GetRequiredService<ILocksOperations>(),

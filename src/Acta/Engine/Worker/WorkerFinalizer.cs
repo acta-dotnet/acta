@@ -13,7 +13,7 @@ namespace Acta;
 /// </summary>
 internal sealed partial class WorkerFinalizer(
     IExecutionOperations execution,
-    CancelJobHandler cancelJob,
+    IJobsOperations jobs,
     WorkerWakeupPublisher wakeupPublisher,
     JobsOptions options,
     WorkerContext context,
@@ -260,7 +260,7 @@ internal sealed partial class WorkerFinalizer(
                 // above already raised this job's own latch in-routine); maintenance is the crash backstop.
                 if (completion.HandlerStatusCode == JobStatusCode.Cancelled)
                 {
-                    await cancelJob.CancelDescendantsAsync(job.JobId, CancelJobHandler.ParentCancelled, hostCt);
+                    await jobs.CancelDescendantsAsync(job.JobId, hostCt);
                 }
 
                 // reason_code is the failure cause's kebab (null on success).
@@ -398,7 +398,10 @@ internal sealed partial class WorkerFinalizer(
 
         // A terminal child's raise flipped its Suspended parent to Ready inside complete_execution;
         // the routine knows only the parent's numeric namespace id, so every worker namespace hears it.
-        await JobControl.WakeWorkersIfAsync(wakeupPublisher, complete.ParentReleased, ct);
+        if (complete.ParentReleased)
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+        }
     }
 
     /// <summary>One entry's write as planned: the completion after the deadline guard, its command, and its status.</summary>

@@ -3,9 +3,8 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// Registers a namespace's whole definitions set: resolves descriptors to rows, then skips the upsert
-/// entirely when nothing is new or changed, so a steady-state restart issues zero writes and takes no
-/// locks. The database keeps the per-row generation/hash gate, so it holds under concurrent registrars.
+/// <see cref="IDefinitionsOperations.RegisterDefinitionsAsync"/>: resolves descriptors to rows, then skips the upsert
+/// entirely when nothing is new or changed.
 /// </summary>
 internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect)
 {

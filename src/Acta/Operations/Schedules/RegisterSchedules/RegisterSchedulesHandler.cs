@@ -1,10 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Registers every definition's recurring slot job and its schedules in one set-based call (ensures each
-/// slot job, refreshes input, audit, status, and cursor, upserts schedules, sweeps orphans). Every host re-registers every slot at startup, so this runs against slots another
-/// host may be executing: it re-asserts the declaration on an idle slot, overwriting an operator
-/// reprioritize, and leaves a Dispatched, Executing, held, or finished slot as it stands.
+/// <see cref="ISchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each slot job, refreshes input, audit, status, and
+/// cursor, upserts schedules, and sweeps orphans.
 /// </summary>
 internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {

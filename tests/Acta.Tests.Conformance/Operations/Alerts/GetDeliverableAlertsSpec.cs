@@ -113,7 +113,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
     public async Task Unset_instant_is_due_only_on_the_retry_arm()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<AlertLifecycle>();
+        var store = Services.GetRequiredService<IAlertsOperations>();
         var retrying = await StageAsync(AlertDeliveryStatusCode.RetryAfter, ct);
         await StageAsync(AlertDeliveryStatusCode.Delivered, ct);
         await StageAsync(AlertDeliveryStatusCode.Failed, ct);
@@ -140,7 +140,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
     }
 
     private Task<IReadOnlyList<DeliverableAlert>> DueAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-        Services.GetRequiredService<AlertLifecycle>().GetDeliverableAlertsAsync(namespaceId, batchSize, ct);
+        Services.GetRequiredService<IAlertsOperations>().GetDeliverableAlertsAsync(namespaceId, batchSize, ct);
 
     /// <summary>One job-less alert settled into <paramref name="status"/> with no retry instant; returns its id.</summary>
     private async Task<long> StageAsync(AlertDeliveryStatusCode status, CancellationToken ct)
@@ -153,7 +153,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
         Assert.True(
             (
                 await Services
-                    .GetRequiredService<AlertLifecycle>()
+                    .GetRequiredService<IAlertsOperations>()
                     .UpdateAlertDeliveryAsync(row.Id, row.Version, status, retryCount: 1, retryAfterUtc: null, ct)
             ).Updated
         );

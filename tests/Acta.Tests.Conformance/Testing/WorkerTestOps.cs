@@ -24,7 +24,7 @@ internal static class WorkerTestOps
         Guid? workerRef = null
     ) =>
         services
-            .GetRequiredService<WorkerLifecycle>()
+            .GetRequiredService<IWorkersOperations>()
             .StartWorkerAsync(
                 StartWorkerCommand.Create(
                     namespaceName,

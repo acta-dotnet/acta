@@ -138,7 +138,7 @@ internal sealed class WorkerExecutorHarness(
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
             _store.Execution,
-            CancelJob(),
+            _store.Jobs,
             new WorkerWakeupPublisher(new InProcessWakeup()),
             options,
             context,
@@ -150,7 +150,7 @@ internal sealed class WorkerExecutorHarness(
             _locks.Locks,
             new HarnessClock(),
             new HarnessSerializers(),
-            new StoreOnlyServices(_store.Execution, CancelJob()),
+            new StoreOnlyServices(_store.Execution, _store.Jobs),
             options,
             new JobBehaviorPipeline([]),
             context,
@@ -234,10 +234,12 @@ internal sealed class WorkerExecutorHarness(
         private readonly List<BoundCompletion> _applied = [];
         private readonly List<string> _startedSteps = [];
         private bool _startFailsOnce = startFailsOnce;
-        private IExecutionOperations? _execution;
+        private ServiceProvider? _services;
 
-        public IExecutionOperations Execution =>
-            _execution ??= new ScriptedSession(Answer).Services().GetRequiredService<IExecutionOperations>();
+        public IExecutionOperations Execution => Services().GetRequiredService<IExecutionOperations>();
+
+        /// <summary>The jobs door over the same session: a handler cancel walks the children the store never stages.</summary>
+        public IJobsOperations Jobs => Services().GetRequiredService<IJobsOperations>();
 
         /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
         public int StartAttempts { get; private set; }
@@ -249,6 +251,8 @@ internal sealed class WorkerExecutorHarness(
         // Fires as complete_step answers, so a test can model the heartbeat cancelling the attempt
         // token the instant the slot is proven stolen.
         public Action? OnStepCompletion { get; set; }
+
+        private ServiceProvider Services() => _services ??= new ScriptedSession(Answer).Services();
 
         private object? Answer(BoundCall call) =>
             call.Stem switch
@@ -337,10 +341,6 @@ internal sealed class WorkerExecutorHarness(
     /// <summary>One line the runner wrote: enough to pin an arm whose whole contract is the log.</summary>
     internal sealed record LogEntry(LogLevel Level, string Message);
 
-    // A handler cancel walks the subtree from the scripted store's children, which it never stages.
-    private CancelJobHandler CancelJob() =>
-        new(null!, new DbSessionStub(), null!, _store.Execution, null!, new WorkerWakeupPublisher(new InProcessWakeup()));
-
     private sealed class RecordingLogger : ILogger
     {
         public List<LogEntry> Entries { get; } = [];
@@ -362,7 +362,7 @@ internal sealed class WorkerExecutorHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(IExecutionOperations store, CancelJobHandler cancelJob)
+    private sealed class StoreOnlyServices(IExecutionOperations store, IJobsOperations jobs)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -370,19 +370,17 @@ internal sealed class WorkerExecutorHarness(
     {
         private readonly WorkerWakeupPublisher _wakeup = new(new InProcessWakeup());
         private readonly JobContextAccessor _accessor = new();
-        private readonly ResetJobStateHandler _resetJobState = new(new DbSessionStub(), null!);
 
         public IServiceProvider ServiceProvider => this;
 
         public object? GetService(Type serviceType) =>
             serviceType == typeof(IExecutionOperations) ? store
-            : serviceType == typeof(CancelJobHandler) ? cancelJob
-            : serviceType == typeof(ResetJobStateHandler) ? _resetJobState
+            : serviceType == typeof(IJobsOperations) ? jobs
             : serviceType == typeof(IServiceScopeFactory) ? this
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
             : serviceType == typeof(ISignalsOperations) ? ScriptedSession.Unreachable.GetRequiredService<ISignalsOperations>()
-            : serviceType == typeof(AlertLifecycle) ? ScriptedSession.Unreachable.GetRequiredService<AlertLifecycle>()
+            : serviceType == typeof(IAlertsOperations) ? ScriptedSession.Unreachable.GetRequiredService<IAlertsOperations>()
             : null;
 
         public IServiceScope CreateScope() => this;

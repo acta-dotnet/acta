@@ -1,16 +1,10 @@
 namespace Acta;
 
 /// <summary>
-/// The alert writes and reads the engine runs: the raise, the <c>sys.alerts</c> generate and deliver
-/// reads, the delivery outcome, and the auto-resolve on success.
+/// <see cref="IAlerts"/> plus the alert writes and reads the engine runs: the raise, the <c>sys.alerts</c> generate and
+/// deliver reads, the delivery outcome, and the auto-resolve on success.
 /// </summary>
-internal sealed class AlertLifecycle(
-    RaiseAlertHandler raiseAlert,
-    GetAlertableEventsHandler getAlertableEvents,
-    GetDeliverableAlertsHandler getDeliverableAlerts,
-    UpdateAlertDeliveryHandler updateAlertDelivery,
-    ResolveAlertsHandler resolveAlerts
-)
+internal interface IAlertsOperations : IAlerts
 {
     /// <summary>
     /// Persists one alert and returns its post-raise occurrence. A null deduplication key always inserts; a
@@ -19,14 +13,14 @@ internal sealed class AlertLifecycle(
     /// resolution, and a replayed <c>SourceEventId</c> neither inflates a count nor reopens an incident. An
     /// unknown job id throws <see cref="ArgumentException"/>.
     /// </summary>
-    public Task<RaiseAlertResponse> RaiseAlertAsync(RaiseAlertCommand command, CancellationToken ct) => raiseAlert.HandleAsync(command, ct);
+    Task<RaiseAlertResponse> RaiseAlertAsync(RaiseAlertCommand command, CancellationToken ct);
 
     /// <summary>
     /// How far behind the database clock the alertable-event read stops, so every alertable row stamped at or
     /// before that instant has committed; the caller sees it as latency between an event landing and the
     /// pass that projects it, and as the instant a short batch may checkpoint to.
     /// </summary>
-    public TimeSpan SafeHorizonLag => getAlertableEvents.SafeHorizonLag;
+    TimeSpan SafeHorizonLag { get; }
 
     /// <summary>
     /// Reads the namespace's alert-relevant <c>events</c> rows past the <c>sys.alerts</c> cursor and stamped
@@ -34,20 +28,14 @@ internal sealed class AlertLifecycle(
     /// pair. Stamps, not ids, order the walk: the stamp is set inside the writing transaction and the id at
     /// insert, so a slow writer commits a low stamp under a high id that an id-only cursor would skip.
     /// </summary>
-    public async Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
+    Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
         int namespaceId,
         DateTime cursorUtc,
         long cursorEventId,
         int batchSize,
         DateTime horizonUtc,
         CancellationToken ct
-    ) =>
-        (
-            await getAlertableEvents.HandleAsync(
-                new GetAlertableEventsQuery(namespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc),
-                ct
-            )
-        ).Events;
+    );
 
     /// <summary>
     /// Reads the namespace's unresolved alerts due for delivery, both arms keyed off <c>retry_after_utc</c>:
@@ -56,8 +44,7 @@ internal sealed class AlertLifecycle(
     /// re-stamps it, so a job failing faster than the reminder interval would never be reminded. Resolved
     /// rows are never sent; an attempt already in flight may still complete.
     /// </summary>
-    public async Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-        (await getDeliverableAlerts.HandleAsync(new GetDeliverableAlertsQuery(namespaceId, batchSize), ct)).Alerts;
+    Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct);
 
     /// <summary>
     /// Records one delivery attempt's outcome (status, retry count, and <c>retry_after_utc</c>: the next retry
@@ -65,14 +52,14 @@ internal sealed class AlertLifecycle(
     /// selected. False means the row moved meanwhile (resolved, or settled by another worker); the newer
     /// state stands. A re-fire after resolution is a different row, so it never loses this race.
     /// </summary>
-    public Task<UpdateAlertDeliveryResponse> UpdateAlertDeliveryAsync(
+    Task<UpdateAlertDeliveryResponse> UpdateAlertDeliveryAsync(
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
         int retryCount,
         DateTime? retryAfterUtc,
         CancellationToken ct
-    ) => updateAlertDelivery.HandleAsync(new UpdateAlertDeliveryCommand(alertId, expectedVersion, status, retryCount, retryAfterUtc), ct);
+    );
 
     /// <summary>
     /// Resolves one job's open automatic failure alerts whose projection mark precedes
@@ -81,6 +68,5 @@ internal sealed class AlertLifecycle(
     /// and RetryAfter become Suppressed and <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or
     /// Suppressed row keeps the status that records what happened.
     /// </summary>
-    public Task<ResolveAlertsResponse> ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        resolveAlerts.HandleAsync(new ResolveAlertsCommand(namespaceId, jobId, sourceEventId), ct);
+    Task<ResolveAlertsResponse> ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct);
 }

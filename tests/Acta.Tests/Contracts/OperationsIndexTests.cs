@@ -157,6 +157,8 @@ public sealed partial class OperationsIndexTests
 
     // A public facade method runs an operation when its body names the operation's handler field, command, or query,
     // directly or through a helper class of the group it holds (JobLookupResolution resolves both ResolveJobId reads).
+    // The facade is the group's door, the class implementing I<Group> or I<Group>Operations, and only the methods
+    // I<Group> declares count: the door's engine calls are not on the public surface.
     private static List<(string Facade, string Method, string Operation)> FacadeMethods(string operations)
     {
         var names = Directory
@@ -174,15 +176,30 @@ public sealed partial class OperationsIndexTests
         var found = new List<(string, string, string)>();
         foreach (var facade in Facades)
         {
-            var file = Directory.EnumerateFiles(operations, facade + ".cs", SearchOption.AllDirectories).SingleOrDefault();
-            var type = file is null ? null : Parse(file).OfType<ClassDeclarationSyntax>().FirstOrDefault(c => c.Identifier.Text == facade);
+            var type = Directory
+                .EnumerateFiles(Path.Combine(operations, facade), "*.cs")
+                .SelectMany(file => Parse(file).OfType<ClassDeclarationSyntax>())
+                .FirstOrDefault(c =>
+                    c.BaseList?.Types.Any(t => t.Type.ToString() == $"I{facade}" || t.Type.ToString() == $"I{facade}Operations") == true
+                );
             if (type is null)
             {
                 continue;
             }
 
+            var declared = Directory
+                .EnumerateFiles(Path.GetDirectoryName(operations)!, $"I{facade}.cs", SearchOption.AllDirectories)
+                .SelectMany(file => Parse(file).OfType<InterfaceDeclarationSyntax>())
+                .Where(i => i.Identifier.Text == $"I{facade}")
+                .SelectMany(i => i.Members.OfType<MethodDeclarationSyntax>())
+                .Select(m => m.Identifier.Text)
+                .ToHashSet(StringComparer.Ordinal);
             var fields = type.ParameterList?.Parameters.ToDictionary(p => p.Identifier.Text, p => p.Type?.ToString() ?? "") ?? [];
-            foreach (var method in type.Members.OfType<MethodDeclarationSyntax>().Where(m => m.Modifiers.Any(SyntaxKind.PublicKeyword)))
+            foreach (
+                var method in type
+                    .Members.OfType<MethodDeclarationSyntax>()
+                    .Where(m => m.Modifiers.Any(SyntaxKind.PublicKeyword) && declared.Contains(m.Identifier.Text))
+            )
             {
                 var tokens = Identifiers(method);
                 foreach (var field in tokens.Where(fields.ContainsKey).ToList())

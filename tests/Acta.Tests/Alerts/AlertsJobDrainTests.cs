@@ -188,7 +188,7 @@ public sealed class AlertsJobDrainTests
         public DateTime HorizonUtc { get; init; } = Stamp(backlog);
 
         /// <summary>The real alert lifecycle over a session that serves the backlog's reads and counts its raises.</summary>
-        public AlertLifecycle Lifecycle() => new ScriptedSession(call =>
+        public IAlertsOperations Lifecycle() => new ScriptedSession(call =>
                 call.Stem switch
                 {
                     "GetAlertableEvents" => Read(
@@ -201,7 +201,7 @@ public sealed class AlertsJobDrainTests
                     "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }
-            ).Services().GetRequiredService<AlertLifecycle>();
+            ).Services().GetRequiredService<IAlertsOperations>();
 
         private AlertableEvent[] Read(DateTime cursorUtc, long cursorEventId, int batchSize, DateTime horizonUtc)
         {

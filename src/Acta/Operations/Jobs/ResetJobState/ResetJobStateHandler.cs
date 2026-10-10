@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><c>ctx.ResetStateAsync</c>: clears a job's durable step and checkpoint state ahead of a fresh attempt.</summary>
+/// <summary><see cref="IJobsOperations.ResetJobStateAsync"/>: one round trip.</summary>
 internal sealed class ResetJobStateHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(ResetJobStateCommand command, CancellationToken ct) =>

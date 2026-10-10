@@ -1,9 +1,6 @@
 namespace Acta;
 
-/// <summary>
-/// The full catalog of every definition in a namespace, for worker startup and the policy reload tick:
-/// identity, generation, hash, status, contract, modification time, and effective policy.
-/// </summary>
+/// <summary><see cref="IDefinitionsOperations.GetDefinitionContractsAsync"/>: one read.</summary>
 internal sealed class GetDefinitionContractsHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetDefinitionContractsResponse> HandleAsync(GetDefinitionContractsQuery query, CancellationToken ct)

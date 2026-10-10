@@ -32,7 +32,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var ledger = Services.GetRequiredService<IActaOperations>().Ledger;
-        var workers = Services.GetRequiredService<WorkerLifecycle>();
+        var workers = Services.GetRequiredService<IWorkersOperations>();
 
         // The ref is minted here so the expected actor key is known without reading the row that this
         // spec is about to delete.

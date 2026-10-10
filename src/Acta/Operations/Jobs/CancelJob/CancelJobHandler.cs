@@ -68,10 +68,7 @@ internal sealed class CancelJobHandler(
         return row;
     }
 
-    /// <summary>
-    /// Cancels a job and then its descendants under one input, waking every worker namespace once if any cancel
-    /// promoted a lane member: a parent abandoning a child whose bounded wait expired.
-    /// </summary>
+    /// <summary><see cref="IJobsOperations.CancelTreeAsync"/>: the root's cancel, then the descendant walk.</summary>
     internal async Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct)
     {
         var root = await CancelAsync(rootJobId, input, ct);

@@ -41,7 +41,7 @@ public sealed class RenewalLoopFailureArmTests
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
             ScriptedWorkerStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             LoopOptions(),
             Registration,
             context,
@@ -63,7 +63,7 @@ public sealed class RenewalLoopFailureArmTests
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
             ScriptedWorkerStore(cts, failOn: 3, cancellation: true),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             LoopOptions(),
             Registration,
             context,
@@ -88,7 +88,7 @@ public sealed class RenewalLoopFailureArmTests
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
             ScriptedWorkerStore(cts, failOn: 0, cancellation: true),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             LoopOptions(),
             Registration,
             context,
@@ -113,8 +113,8 @@ public sealed class RenewalLoopFailureArmTests
         var heartbeat = new WorkerHeartbeat(
             new ScriptedSession(_ => throw new InvalidOperationException("synthetic database outage"))
                 .Services()
-                .GetRequiredService<WorkerLifecycle>(),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+                .GetRequiredService<IWorkersOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             LoopOptions(),
             Registration,
             context,
@@ -139,12 +139,12 @@ public sealed class RenewalLoopFailureArmTests
     }
 
     // The lease extend renews no rows on every call but the scripted one.
-    private static WorkerLifecycle ScriptedWorkerStore(
+    private static IWorkersOperations ScriptedWorkerStore(
         CancellationTokenSource cts,
         int failOn,
         Exception? failure = null,
         bool cancellation = false
-    ) => FailingOn(cts, failOn, failure, cancellation).Services().GetRequiredService<WorkerLifecycle>();
+    ) => FailingOn(cts, failOn, failure, cancellation).Services().GetRequiredService<IWorkersOperations>();
 
     // Answers the Nth call by cancelling the loop's own token and then failing, which is a connection
     // torn down under a running query at shutdown: the exact state in which a tick failure reaches

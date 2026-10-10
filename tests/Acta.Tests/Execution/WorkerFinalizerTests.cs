@@ -187,8 +187,8 @@ public sealed class WorkerFinalizerTests
             metrics: null
         );
         var heartbeat = new WorkerHeartbeat(
-            services.GetRequiredService<WorkerLifecycle>(),
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            services.GetRequiredService<IWorkersOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             Options.Create(options),
             context.WorkerRegistration,
             context,

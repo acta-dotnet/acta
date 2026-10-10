@@ -9,7 +9,7 @@ namespace Acta;
 /// ten thousand webhooks in one tick would turn protecting the database into an outage on the operator's own channel.
 /// </summary>
 internal sealed class AlertDelivery(
-    AlertLifecycle alerts,
+    IAlertsOperations alerts,
     AlertChannelRegistry channels,
     IAlertTransportRegistry transports,
     int maxDeliveryRetries,
@@ -18,7 +18,7 @@ internal sealed class AlertDelivery(
 )
 {
     private const int DeliverBatchSize = 256;
-    private readonly AlertLifecycle _alerts = alerts;
+    private readonly IAlertsOperations _alerts = alerts;
     private readonly AlertChannelRegistry _channels = channels;
     private readonly IAlertTransportRegistry _transports = transports;
     private readonly int _maxDeliveryRetries = maxDeliveryRetries;

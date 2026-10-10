@@ -294,7 +294,8 @@ internal sealed class WorkerExecutor(
         // distinct tenant); the claim projection itself stays join-free.
         var tenantKey = job.TenantId is { } jobTenantId
             ? await WorkerFinalizer.RepeatAsync(
-                async token => await _rootServices.GetRequiredService<TenantKeyCache>().ResolveAsync(jobTenantId, token),
+                async token =>
+                    (await _rootServices.GetRequiredService<ITenantsOperations>().GetTenantKeyAsync(jobTenantId, token))?.TenantKey,
                 _log,
                 job.JobId,
                 ct,
@@ -319,10 +320,9 @@ internal sealed class WorkerExecutor(
             namespaceName,
             namespaceId,
             _options.LeaseTtlSeconds,
-            _rootServices.GetRequiredService<CancelJobHandler>(),
-            _rootServices.GetRequiredService<ResetJobStateHandler>(),
+            _rootServices.GetRequiredService<IJobsOperations>(),
             _rootServices.GetRequiredService<ISignalsOperations>(),
-            _rootServices.GetRequiredService<AlertLifecycle>(),
+            _rootServices.GetRequiredService<IAlertsOperations>(),
             _execution,
             _serializers,
             locks,
@@ -363,9 +363,9 @@ internal sealed class WorkerExecutor(
         }
 
         var nowUtc = await WorkerFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), _log, job.JobId, ct, metrics);
-        var liveSchedules = _rootServices.GetRequiredService<GetLiveSchedulesHandler>();
+        var schedules = _rootServices.GetRequiredService<ISchedulesOperations>();
         var live = await WorkerFinalizer.RepeatAsync(
-            async token => (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token)).Schedules,
+            async token => (await schedules.GetLiveSchedulesAsync(job.JobId, token)).Schedules,
             _log,
             job.JobId,
             ct,

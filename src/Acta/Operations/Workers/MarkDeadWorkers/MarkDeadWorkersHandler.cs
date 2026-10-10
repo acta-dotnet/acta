@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="WorkerLifecycle.MarkDeadWorkersAsync"/>: one round trip.</summary>
+/// <summary><see cref="IWorkersOperations.MarkDeadWorkersAsync"/>: one round trip.</summary>
 internal sealed class MarkDeadWorkersHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<MarkDeadWorkersResponse> HandleAsync(MarkDeadWorkersCommand command, CancellationToken ct)

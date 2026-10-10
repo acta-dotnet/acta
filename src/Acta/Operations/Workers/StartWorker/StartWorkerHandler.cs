@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="WorkerLifecycle.StartWorkerAsync"/>: one round trip.</summary>
+/// <summary><see cref="IWorkersOperations.StartWorkerAsync"/>: one round trip.</summary>
 internal sealed class StartWorkerHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<StartWorkerResponse> HandleAsync(StartWorkerCommand command, CancellationToken ct) =>

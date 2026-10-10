@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="WorkerLifecycle.StopWorkerAsync"/>: one round trip, no result.</summary>
+/// <summary><see cref="IWorkersOperations.StopWorkerAsync"/>: one round trip, no result.</summary>
 internal sealed class StopWorkerHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(StopWorkerCommand command, CancellationToken ct) =>

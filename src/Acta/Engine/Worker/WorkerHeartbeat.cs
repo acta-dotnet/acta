@@ -6,15 +6,15 @@ namespace Acta;
 
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one
-/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
+/// <see cref="IWorkersOperations.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
 /// hold and execution lease this process holds, so a leased row nothing holds lapses to recovery. It re-arms a running
 /// attempt's lease deadline on a confirmed renewal, cancels one whose execution or held lock an authoritative refresh
 /// drops, and re-overlays the definitions' effective policy when the namespace's catalog changed. A call that throws
 /// moves no deadline, so an outage cancels each attempt by its deadline alone; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
-    WorkerLifecycle workers,
-    GetDefinitionContractsHandler getDefinitionContracts,
+    IWorkersOperations workers,
+    IDefinitionsOperations definitions,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -22,8 +22,8 @@ internal sealed class WorkerHeartbeat(
     ILogger log
 )
 {
-    private readonly WorkerLifecycle _workers = workers;
-    private readonly GetDefinitionContractsHandler _getDefinitionContracts = getDefinitionContracts;
+    private readonly IWorkersOperations _workers = workers;
+    private readonly IDefinitionsOperations _definitions = definitions;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly InFlightJobRegistry _registry = registry;
@@ -207,7 +207,7 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        var catalog = (await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)).Contracts;
+        var catalog = (await _definitions.GetDefinitionContractsAsync(namespaceId, ct)).Contracts;
         foreach (var c in catalog)
         {
             if (_context.DescriptorByDefinitionId.TryGetValue(c.Id, out var descriptor))

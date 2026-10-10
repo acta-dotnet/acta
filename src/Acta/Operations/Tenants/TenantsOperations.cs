@@ -1,14 +1,15 @@
 namespace Acta;
 
-/// <summary><see cref="ITenants"/>, one line per operation.</summary>
-internal sealed class Tenants(
+/// <summary><see cref="ITenantsOperations"/>, one line per operation.</summary>
+internal sealed class TenantsOperations(
     RegisterTenantHandler registerTenant,
     GetTenantHandler getTenant,
     ListTenantsHandler listTenants,
     SuspendTenantHandler suspendTenant,
     ResumeTenantHandler resumeTenant,
-    UpdateTenantHandler updateTenant
-) : ITenants
+    UpdateTenantHandler updateTenant,
+    GetTenantKeyHandler getTenantKey
+) : ITenantsOperations
 {
     public ValueTask<RegisterTenantResponse> RegisterAsync(
         string tenantKey,
@@ -50,4 +51,7 @@ internal sealed class Tenants(
             new UpdateTenantCommand(tenantKey, expectedVersion, displayName, description, reasonMessage, actorKey),
             ct
         );
+
+    public ValueTask<GetTenantKeyResponse?> GetTenantKeyAsync(int tenantId, CancellationToken ct) =>
+        getTenantKey.HandleAsync(new GetTenantKeyQuery(tenantId), ct);
 }

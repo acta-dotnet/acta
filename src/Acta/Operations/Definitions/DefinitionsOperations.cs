@@ -1,12 +1,14 @@
 namespace Acta;
 
-/// <summary><see cref="IDefinitions"/>, one line per operation.</summary>
-internal sealed class Definitions(
+/// <summary><see cref="IDefinitionsOperations"/>, one line per operation.</summary>
+internal sealed class DefinitionsOperations(
     SetDefinitionOverridesHandler setDefinitionOverrides,
     RetireDefinitionHandler retireDefinition,
     GetDefinitionHandler getDefinition,
-    ListDefinitionsHandler listDefinitions
-) : IDefinitions
+    ListDefinitionsHandler listDefinitions,
+    RegisterDefinitionsHandler registerDefinitions,
+    GetDefinitionContractsHandler getDefinitionContracts
+) : IDefinitionsOperations
 {
     public ValueTask<SetDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
@@ -36,4 +38,10 @@ internal sealed class Definitions(
 
     public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listDefinitions.HandleAsync(query, ct);
+
+    public Task<RegisterDefinitionsResponse> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct) =>
+        registerDefinitions.HandleAsync(command, ct);
+
+    public Task<GetDefinitionContractsResponse> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
+        getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
 }

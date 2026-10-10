@@ -83,7 +83,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         using var entry = Held(Entry(1, leaseRunway: ShortLease, state: InFlightJobState.Finalizing));
         var session = new ScriptedSession(_ => Lease(1));
 
-        await Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>()).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(session.Services().GetRequiredService<IWorkersOperations>()).TickAsync(TestContext.Current.CancellationToken);
         await Task.Delay(ShortLease * 2, TestContext.Current.CancellationToken);
 
         Assert.Equal("""[{"job_id":1,"execution_number":0}]""", Assert.Single(session.Calls).Parameters["p_executions"]);
@@ -127,7 +127,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         using var entry = Held(Entry(1));
         entry.TrackLock(held);
 
-        await Heartbeat(session.Services().GetRequiredService<WorkerLifecycle>()).TickAsync(TestContext.Current.CancellationToken);
+        await Heartbeat(session.Services().GetRequiredService<IWorkersOperations>()).TickAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(
             $$"""[{"lock_key":"orders.a","hold_token":"{{held.HoldToken}}"}]""",
@@ -208,13 +208,13 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         return entry;
     }
 
-    private WorkerHeartbeat Heartbeat(WorkerLifecycle workers, IOptions<JobsOptions>? options = null)
+    private WorkerHeartbeat Heartbeat(IWorkersOperations workers, IOptions<JobsOptions>? options = null)
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
         return new WorkerHeartbeat(
             workers,
-            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
             options ?? Options(Interval, LeaseTtlSeconds),
             Registration,
             context,
@@ -224,8 +224,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     }
 
     // The worker lifecycle over a scripted lease extend, the heartbeat's only database call.
-    private static WorkerLifecycle WorkerStore(Func<BoundCall, object?> answer) =>
-        new ScriptedSession(answer).Services().GetRequiredService<WorkerLifecycle>();
+    private static IWorkersOperations WorkerStore(Func<BoundCall, object?> answer) =>
+        new ScriptedSession(answer).Services().GetRequiredService<IWorkersOperations>();
 
     private static ExtendWorkerLeasesRow Lease(long jobId, bool renewed = true) =>
         new(jobId, ExecutionNumber: 0, LockKey: null, renewed, DefinitionsModifiedAtUtc: null);

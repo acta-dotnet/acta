@@ -68,10 +68,8 @@ internal sealed class WorkerRuntime
 
         _initializer = new WorkerRuntimeInitializer(
             new CatalogRegistrar(
-                rootServices.GetRequiredService<RegisterDefinitionsHandler>(),
-                rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
-                rootServices.GetRequiredService<GetScheduleStateHandler>(),
-                rootServices.GetRequiredService<RegisterSchedulesHandler>(),
+                rootServices.GetRequiredService<IDefinitionsOperations>(),
+                rootServices.GetRequiredService<ISchedulesOperations>(),
                 rootServices.GetRequiredService<IExecutionOperations>(),
                 clock,
                 serializers,
@@ -80,7 +78,7 @@ internal sealed class WorkerRuntime
                 _context,
                 logger
             ),
-            rootServices.GetRequiredService<WorkerLifecycle>(),
+            rootServices.GetRequiredService<IWorkersOperations>(),
             rootServices.GetRequiredService<IClockOperations>(),
             options,
             workerRegistration,
@@ -90,7 +88,7 @@ internal sealed class WorkerRuntime
 
         _finalizer = new WorkerFinalizer(
             rootServices.GetRequiredService<IExecutionOperations>(),
-            rootServices.GetRequiredService<CancelJobHandler>(),
+            rootServices.GetRequiredService<IJobsOperations>(),
             publisher,
             options.Value,
             _context,
@@ -122,8 +120,8 @@ internal sealed class WorkerRuntime
             metrics
         );
         _heartbeat = new WorkerHeartbeat(
-            rootServices.GetRequiredService<WorkerLifecycle>(),
-            rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
+            rootServices.GetRequiredService<IWorkersOperations>(),
+            rootServices.GetRequiredService<IDefinitionsOperations>(),
             options,
             workerRegistration,
             _context,

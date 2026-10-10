@@ -1,10 +1,6 @@
 namespace Acta;
 
-/// <summary>
-/// The effective (non-orphaned) schedules of one recurring slot, expression and time zone resolved to
-/// override-or-original. Read once per recurring fire for the due set and the recompute, and by every
-/// schedule control verb.
-/// </summary>
+/// <summary><see cref="ISchedulesOperations.GetLiveSchedulesAsync"/>: one read, which every schedule control verb runs too.</summary>
 internal sealed class GetLiveSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetLiveSchedulesResponse> HandleAsync(GetLiveSchedulesQuery query, CancellationToken ct) =>
