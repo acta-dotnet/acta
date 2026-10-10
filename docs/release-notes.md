@@ -239,12 +239,14 @@ settles, and what an operator sees when it fails.
   it takes permits (one per free executor on Direct; a whole batch, held one batch ahead of the
   executors, on Buffered), claims that many rows in one call, and hands each to the executor loops
   through a channel; the `sys.recovery` slot runs on its own task without a permit, so a saturated
-  worker still sweeps. An executor is freed the moment its completion is built: the entry moves to
+  worker still sweeps. On Direct, after a claim that found work, the claimer lets the executors take
+  those rows before it claims again, so the next claim asks for every executor that came free rather
+  than the one or two free at that instant, and claims per job halve. An executor is freed the moment its completion is built: the entry moves to
   the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of results, writes
   the plain ones in one `complete_executions` call and the rest per job at once, repeats a write
-  until it lands, and then wakes whoever waits. Nothing waits to fill a batch: while the finalizer
-  writes one, what arrives is the next, so batches form exactly when the writes fall behind, and a
-  lone completion is written at once. The entry stays renewed while it waits, and the channel
+  until it lands, and then wakes whoever waits. A lone completion is written at once; a batch that
+  finds a backlog waits up to 50 ms for it to fill, so batches form when the writes fall behind and
+  stay full while they do. The entry stays renewed while it waits, and the channel
   between executors and finalizer is bounded, so a failing database fills it, blocks the executors
   on their permits, and stops the claimer: intake stops instead of memory growing. In the engine
   round, PostgreSQL Direct drained 23,349 jobs/s at sixteen workers against 9,333 per job, and SQL
