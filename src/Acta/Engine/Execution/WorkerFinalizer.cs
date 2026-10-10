@@ -32,7 +32,7 @@ internal sealed partial class WorkerFinalizer(
     private const int WarningTries = 3;
 
     // Re-arm delay for a claim handed back unrun, in whole seconds (the store verb's unit).
-    // SafetyPollInterval is the honest unit for it: the option is documented as the bound on how long
+    // SafetyPollInterval is the right unit for it: the option is documented as the bound on how long
     // a Ready row waits to be found by a process this one shares no wakeup transport with, and a
     // process that carries the missing handler is exactly who has to pick this job up. Validation
     // keeps it at or above one second, so the delay never rounds to zero.

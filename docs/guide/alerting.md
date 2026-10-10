@@ -464,7 +464,7 @@ reading the profile name does not tell you what the job will do.
 
 ## Choosing a profile
 
-**One-shot work.** `OnFailure` (the default) is the honest choice. You get a `FirstFailure` warning
+**One-shot work.** Keep `OnFailure`, the default. You get a `FirstFailure` warning
 on the first retryable failure, an `Error` escalation if the same reason recurs to the threshold
 before the job exhausts its retries, and a `FinalFailure` when the budget is exhausted — at most three
 rows, and the sequence ends by itself. Pick `OnTerminal` when the intermediate retries are noise and

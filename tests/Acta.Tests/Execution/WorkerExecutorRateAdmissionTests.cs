@@ -198,7 +198,7 @@ public sealed class WorkerExecutorRateAdmissionTests
     public async Task A_booked_turn_gets_a_fixed_grace_that_no_worker_setting_moves()
     {
         // The turn is decoded as expiry minus grace, so a grace taken from the lease TTL would shift
-        // every booked turn on a fleet-wide heartbeat change; the constant keeps old bookings honest.
+        // every booked turn on a fleet-wide heartbeat change; the constant keeps old bookings valid.
         var harness = new WorkerExecutorHarness(rateLimit: "10/s");
 
         await harness.RunAsync();
