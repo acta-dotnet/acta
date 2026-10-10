@@ -40,6 +40,12 @@ internal sealed partial class JobFinalizer(
     /// <summary>The most completions one call writes; commit cost flattens well before this.</summary>
     public const int MaxBatch = 128;
 
+    /// <summary>
+    /// The most result bytes one call carries, so a batch of large results never makes one huge transaction; a single
+    /// result past it is written alone.
+    /// </summary>
+    public const int MaxBatchBytes = 4 * 1024 * 1024;
+
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
@@ -54,9 +60,11 @@ internal sealed partial class JobFinalizer(
             await foreach (var first in reader.ReadAllAsync(hostCt))
             {
                 List<InFlightJob> entries = [first];
-                while (entries.Count < MaxBatch && reader.TryRead(out var next))
+                var bytes = first.Completion!.Result.Length;
+                while (entries.Count < MaxBatch && bytes < MaxBatchBytes && reader.TryRead(out var next))
                 {
                     entries.Add(next);
+                    bytes += next.Completion!.Result.Length;
                 }
 
                 try
