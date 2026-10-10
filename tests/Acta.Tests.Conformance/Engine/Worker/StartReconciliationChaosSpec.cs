@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// The window between a claim and its handler: the start write, and the reads the handler needs. The start matches

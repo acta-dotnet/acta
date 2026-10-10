@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// Proves <see cref="JobContext"/> is resolvable from the per-attempt DI scope: the

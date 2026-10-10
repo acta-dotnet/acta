@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 [ConformanceSpec(
     "chaos.claim-control-races",

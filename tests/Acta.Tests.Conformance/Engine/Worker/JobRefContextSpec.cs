@@ -4,7 +4,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// Proves the handler sees the same public JobRef that the enqueue outcome carries.

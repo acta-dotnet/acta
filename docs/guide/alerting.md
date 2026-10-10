@@ -513,10 +513,10 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `JobAttribute.cs` | `src/Acta/Handlers/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Handlers/JobContext.cs` |
-| `WorkerFinalizer.cs` | `src/Acta/Engine/Execution/WorkerFinalizer.cs` |
+| `WorkerFinalizer.cs` | `src/Acta/Engine/Worker/WorkerFinalizer.cs` |
 | `EventReasonCode.cs` | `src/Acta/Codes/EventReasonCode.cs` |
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
-| `BackoffSchedule.cs` | `src/Acta/Engine/Execution/BackoffSchedule.cs` |
+| `BackoffSchedule.cs` | `src/Acta/Engine/Worker/BackoffSchedule.cs` |
 | `WorkerBuilder.cs` | `src/Acta/Hosting/WorkerBuilder.cs` |
 | `*.{pg,mssql,sqlite}.sql` | `src/Acta/Operations/{Alerts,Execution,Maintenance}/` and `src/Acta/Schema/Views/` (one file per dialect beside each operation; SQLite runs inline what the servers install as routines) |
 

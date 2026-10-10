@@ -3,7 +3,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// Conformance for whole-job deadlines. A Strict deadline auto-terminates an overdue job at

@@ -4,7 +4,7 @@ using Acta.Tests.Conformance.Testing;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// Proves the handler-facing attempt identity is the ledger's, not a default: the probe notes

@@ -79,8 +79,7 @@ src/Acta.AspNetCore/Operations/Jobs/
 `src/Acta/Engine/` is everything between the Store and the handler. It composes operations by calling their handlers or a group's class, and it is one folder per box, each named for its capability (singular: `Worker` holds one worker's runtime, `Alerting` is the process; an `Operations/` group is the plural aggregate, `Workers`, `Alerts`):
 
 - `Catalog/`: what a deployment declares, written at startup: `CatalogRegistrar` collects and validates the descriptors, registers the definitions, overlays each with its effective policy, and reconciles the definition-sourced schedules; contract drift, the overlay, manifest generation, the meter check, and `SystemJobs` sit beside it.
-- `Worker/`: one worker's runtime: `WorkerRuntime`, its host and startup, `WorkerRuntimeInitializer` (the worker row, clock skew, the Stopped stamp), `WorkerHeartbeat`, and the `WorkerContext` the hot path reads.
-- `Execution/`: the pipeline from a claimed row to its written completion. `Execution/Context/` is what a handler talks to: `RuntimeJobContext`, the checkpoint slot, and the signals a step throws.
+- `Worker/`: one worker's runtime: `WorkerRuntime`, its host and startup, `WorkerRuntimeInitializer` (the worker row, clock skew, the Stopped stamp), the `WorkerContext` the hot path reads, and the worker's agents with what they share: `WorkerClaimer`, `WorkerExecutor`, `WorkerFinalizer`, `WorkerHeartbeat`, and the `InFlightJobRegistry` that holds each claim from its claim to its written completion. `Worker/Context/` is what a handler talks to: `RuntimeJobContext`, the checkpoint slot, and the signals a step throws.
 - `Recovery/`, `Retention/`, `Alerting/`, `Outbox/`: the four system jobs (`sys.recovery`, `sys.retention`, `sys.alerts`, `sys.outbox`) and what they run; `Outbox/` also holds the staging core the provider packages share.
 - `Wakeup/`: the wake transport and publisher.
 - `Telemetry/`: `ActaMetrics`, the one meter.

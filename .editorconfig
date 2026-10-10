@@ -638,7 +638,7 @@ dotnet_diagnostic.CA1031.severity = none
 # repeat exists so a completion write is never abandoned while the worker lives; a metrics listener
 # or a logger that throws must not be the thing that abandons it, so those calls are swallowed and
 # the write's own failure stays the one being handled.
-[src/Acta/Engine/Execution/WorkerFinalizer.cs]
+[src/Acta/Engine/Worker/WorkerFinalizer.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: two catches that tear down a failed attempt and must never become the failure themselves. A
@@ -683,14 +683,14 @@ dotnet_diagnostic.CA1031.severity = none
 # NotSupported) for the completion write to land under the retry budget. Handlers can throw
 # anything, so the catch cannot be narrowed. Escaping would tear down the worker loop and leave the row
 # Executing until its lease expired - a durable job silently turned into a recovery case.
-[src/Acta/Engine/Execution/HandlerInvocation.cs]
+[src/Acta/Engine/Worker/HandlerInvocation.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: best-effort release of the concurrency-key lease, on a path that runs after the attempt's
 # outcome is already decided. Escaping would replace that outcome with a cleanup failure, reporting a
 # job that ran correctly as failed. Recorded through RecordLockReleaseFailure; the lease TTL reclaims
 # the key.
-[src/Acta/Engine/Execution/Context/RuntimeJobContext.Locks.cs]
+[src/Acta/Engine/Worker/Context/RuntimeJobContext.Locks.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1001: the one disposable field is _tickGate, a SemaphoreSlim used purely as an async mutex around

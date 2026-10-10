@@ -3,7 +3,7 @@ using Acta.Tests.Conformance.Testing;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// Conformance for one-shot retry/backoff. A failed one-shot (unhandled exception) re-arms to Ready

@@ -3,7 +3,7 @@ using Acta.Tests.Conformance.Testing;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// Conformance for manual-cancel -> <c>CancellationToken</c> propagation. An external cancel of a running

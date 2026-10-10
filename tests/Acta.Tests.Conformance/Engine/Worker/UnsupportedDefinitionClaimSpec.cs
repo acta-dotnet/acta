@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Execution;
+namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// A worker can claim work it cannot run. Claims are selected by namespace and the descriptor index is
