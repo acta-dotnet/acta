@@ -39,6 +39,7 @@ internal sealed class WorkerClaimer(
             var (namespaceId, workerId) = context.ResolveWorker(ns);
             var direct = options.ExecutionProfile == ExecutionProfile.Direct;
             var minimum = direct ? 1 : options.ClaimBatchSize;
+            var handedOff = false;
             log.LogInformation(
                 "WorkerRuntime: starting claim/dispatch loop with {Count} executors, safety poll {DurationMs}ms ({Detail}).",
                 options.MaxConcurrentExecutors,
@@ -55,10 +56,7 @@ internal sealed class WorkerClaimer(
                     {
                         await registry.Permits.WaitAsync(stop.Token);
                     }
-                    while (permits < options.ClaimBatchSize && registry.Permits.Wait(0))
-                    {
-                        permits++;
-                    }
+                    permits = await TakeFreePermitsAsync(permits, settle: direct && handedOff, stop.Token);
 
                     var claimedAt = Stopwatch.GetTimestamp();
                     result = await execution.ClaimBatchAsync(
@@ -73,6 +71,7 @@ internal sealed class WorkerClaimer(
                         hostCt
                     );
                     var runway = _leaseRunway - Stopwatch.GetElapsedTime(claimedAt);
+                    handedOff = result.Jobs.Count > 0;
                     context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId);
                     foreach (var claimed in result.Jobs)
                     {
@@ -129,6 +128,37 @@ internal sealed class WorkerClaimer(
             registry.Claimed.Writer.TryComplete();
             await _recovery;
         }
+    }
+
+    /// <summary>
+    /// Adds every permit free now to <paramref name="permits"/>. With <paramref name="settle"/>, after a Direct claim
+    /// that handed rows off, it first lets the executors take them and yields while their permits keep coming back, so
+    /// the next claim asks for every executor a quick job frees rather than the first one or two: each claim is a round
+    /// trip and a commit on the drain's one serial path. A yield that frees nothing ends the wait, so long handlers
+    /// cost it one yield.
+    /// </summary>
+    private async Task<int> TakeFreePermitsAsync(int permits, bool settle, CancellationToken ct)
+    {
+        while (settle && registry.Claimed.Reader.Count > 0 && !ct.IsCancellationRequested)
+        {
+            await Task.Yield();
+        }
+
+        int before;
+        do
+        {
+            before = permits;
+            if (settle)
+            {
+                await Task.Yield();
+            }
+            // Never cancelled mid-count: a permit taken here and lost to a throw would never be released.
+            while (permits < options.ClaimBatchSize && registry.Permits.Wait(0, CancellationToken.None))
+            {
+                permits++;
+            }
+        } while (settle && permits > before && permits < options.MaxConcurrentExecutors);
+        return permits;
     }
 
     /// <summary>
