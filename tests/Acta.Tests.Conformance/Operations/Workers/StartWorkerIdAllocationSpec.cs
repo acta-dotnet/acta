@@ -1,5 +1,5 @@
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Db;
+using Acta.Tests.Conformance.Storage;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

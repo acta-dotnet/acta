@@ -3,7 +3,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Db;
+namespace Acta.Tests.Conformance.Storage;
 
 /// <summary>
 /// Conformance: provider registration wires <c>IDbSession</c> with the correct provider discriminator

@@ -647,7 +647,7 @@ dotnet_diagnostic.CA1031.severity = none
 # scope, so a dispose error in a transient's place would abandon a retry that would have succeeded.
 # Silent toward the caller, which rethrows the original failure; each swallowed teardown failure is
 # logged at warning so an operator still sees a connection that never returned to the pool.
-[src/Acta/Db/DbSession.cs]
+[src/Acta/Storage/DbSession.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA2208: RaiseAlertHandler's 'jobId' is not a parameter of that method by accident - it is the

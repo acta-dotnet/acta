@@ -4,7 +4,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Db;
+namespace Acta.Tests.Conformance.Storage;
 
 /// <summary>
 /// Conformance for the test ORM write seam on <see cref="IDbSession"/>: <c>InsertAsync</c> assigns

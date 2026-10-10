@@ -1,4 +1,4 @@
-namespace Acta.Tests.Conformance.Db;
+namespace Acta.Tests.Conformance.Storage;
 
 /// <summary>
 /// Column-pruned projection over <see cref="JobEntity"/>. Constructor parameter names match the

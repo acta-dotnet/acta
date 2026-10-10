@@ -4,7 +4,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Db;
+namespace Acta.Tests.Conformance.Storage;
 
 [ConformanceSpec(
     "session.atomic-command",

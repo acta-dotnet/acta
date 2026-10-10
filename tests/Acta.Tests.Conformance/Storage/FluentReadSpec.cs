@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Db;
+namespace Acta.Tests.Conformance.Storage;
 
 /// <summary>
 /// End-to-end coverage of Acta's reflection-based fluent table reader. Enqueues

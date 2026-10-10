@@ -93,7 +93,7 @@ public sealed partial class AotPolicyTests
         new(
             "C# transaction commit",
             new Regex(@"\bCommitAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta/Schema/SchemaMigrationRunner.cs", "src/Acta/Db/DbSession.cs")
+            Allow("src/Acta/Schema/SchemaMigrationRunner.cs", "src/Acta/Storage/DbSession.cs")
         ),
         new(
             "C# transaction rollback",
