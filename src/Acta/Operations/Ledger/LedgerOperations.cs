@@ -1,8 +1,7 @@
 namespace Acta;
 
-/// <summary><see cref="ILedgerOperations"/>, one line per operation.</summary>
-internal sealed class LedgerOperations(ListJobsHandler listJobs, ListEventsHandler listEvents, GetOverviewHandler getOverview)
-    : ILedgerOperations
+/// <summary><see cref="ILedger"/>, one line per operation.</summary>
+internal sealed class LedgerOperations(ListJobsHandler listJobs, ListEventsHandler listEvents, GetOverviewHandler getOverview) : ILedger
 {
     public ValueTask<ListJobsResponse> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
         listJobs.HandleAsync(query, ct);

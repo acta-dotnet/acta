@@ -12,8 +12,8 @@ namespace Acta;
 /// is free as soon as its completion is built, while the entry stays held, and renewed, until the write commits.
 /// </summary>
 internal sealed partial class WorkerFinalizer(
-    IExecutionOperations execution,
-    IJobsOperations jobs,
+    ExecutionOperations execution,
+    JobsOperations jobs,
     WorkerWakeupPublisher wakeupPublisher,
     JobsOptions options,
     WorkerContext context,

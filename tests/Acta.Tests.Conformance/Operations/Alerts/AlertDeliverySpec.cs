@@ -286,7 +286,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     // --- Helpers ---
 
     private Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct) =>
-        Services.GetRequiredService<IAlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct);
+        Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct);
 
     private async Task<bool> SettleAsync(
         long alertId,
@@ -298,7 +298,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     ) =>
         (
             await Services
-                .GetRequiredService<IAlertsOperations>()
+                .GetRequiredService<AlertsOperations>()
                 .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct)
         ).Updated;
 
@@ -307,7 +307,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     private async Task<int> ResolveAsync(long jobId, CancellationToken ct) =>
         (
             await Services
-                .GetRequiredService<IAlertsOperations>()
+                .GetRequiredService<AlertsOperations>()
                 .ResolveAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct)
         ).Resolved;
 

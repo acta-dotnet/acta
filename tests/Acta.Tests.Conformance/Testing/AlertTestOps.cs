@@ -32,7 +32,7 @@ internal static class AlertTestOps
         CancellationToken ct
     ) =>
         services
-            .GetRequiredService<IAlertsOperations>()
+            .GetRequiredService<AlertsOperations>()
             .RaiseAlertAsync(
                 RaiseAlertCommand.Create(
                     jobNamespace,
@@ -82,7 +82,7 @@ internal static class AlertTestOps
         }
 
         var alertsJob = new AlertsJob(
-            services.GetRequiredService<IAlertsOperations>(),
+            services.GetRequiredService<AlertsOperations>(),
             services.GetRequiredService<IActaClock>(),
             services.GetRequiredService<AlertChannelRegistry>(),
             services.GetRequiredService<IAlertTransportRegistry>(),
@@ -126,7 +126,7 @@ internal static class AlertTestOps
     public static async Task<DateTime> HorizonOfThisMomentAsync(IServiceProvider services, CancellationToken ct) =>
         AlertsJob.SafeHorizon(
             await services.GetRequiredService<IClockOperations>().GetUtcNowAsync(ct),
-            services.GetRequiredService<IAlertsOperations>().SafeHorizonLag
+            services.GetRequiredService<AlertsOperations>().SafeHorizonLag
         );
 
     /// <summary>
@@ -241,7 +241,7 @@ internal static class AlertTestOps
         var db = services.GetRequiredService<IDbSession>();
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(db, namespaceId, ct);
         var claim = await services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
         Assert.Equal(slotId, Assert.Single(claim).JobId);
 
@@ -296,12 +296,12 @@ internal static class AlertTestOps
             namespaceName: jobNamespace,
             namespaceId: namespaceId,
             leaseTtlSeconds: 180,
-            jobOperations: services.GetRequiredService<IJobsOperations>(),
-            signals: services.GetRequiredService<ISignalsOperations>(),
-            alerts: services.GetRequiredService<IAlertsOperations>(),
-            executionStore: services.GetRequiredService<IExecutionOperations>(),
+            jobOperations: services.GetRequiredService<JobsOperations>(),
+            signals: services.GetRequiredService<SignalsOperations>(),
+            alerts: services.GetRequiredService<AlertsOperations>(),
+            executionStore: services.GetRequiredService<ExecutionOperations>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            locks: services.GetRequiredService<ILocksOperations>(),
+            locks: services.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

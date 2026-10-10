@@ -24,7 +24,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
     public async Task Parked_requeue_frees_the_row_and_the_same_pass_relays_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        var signals = Services.GetRequiredService<IOutboxOperations>();
+        var signals = Services.GetRequiredService<OutboxOperations>();
         var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var dedup = TestKey("sig-apply");
 

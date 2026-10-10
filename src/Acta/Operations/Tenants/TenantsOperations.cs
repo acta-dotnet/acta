@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="ITenantsOperations"/>, one line per operation.</summary>
+/// <summary>The Tenants operations: <see cref="ITenants"/> for applications, plus the engine's calls.</summary>
 internal sealed class TenantsOperations(
     RegisterTenantHandler registerTenant,
     GetTenantHandler getTenant,
@@ -9,7 +9,7 @@ internal sealed class TenantsOperations(
     ResumeTenantHandler resumeTenant,
     UpdateTenantHandler updateTenant,
     GetTenantKeyHandler getTenantKey
-) : ITenantsOperations
+) : ITenants
 {
     public ValueTask<RegisterTenantResponse> RegisterAsync(
         string tenantKey,
@@ -52,6 +52,10 @@ internal sealed class TenantsOperations(
             ct
         );
 
-    public ValueTask<GetTenantKeyResponse?> GetTenantKeyAsync(int tenantId, CancellationToken ct) =>
+    /// <summary>
+    /// The key of the tenant with this id, null when no tenant has it. Known keys are cached for the process lifetime:
+    /// a tenant's key never changes and its row is never deleted. A miss is read again on every call.
+    /// </summary>
+    internal ValueTask<GetTenantKeyResponse?> GetTenantKeyAsync(int tenantId, CancellationToken ct) =>
         getTenantKey.HandleAsync(new GetTenantKeyQuery(tenantId), ct);
 }

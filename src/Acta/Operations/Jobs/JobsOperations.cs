@@ -2,7 +2,10 @@ using System.Data.Common;
 
 namespace Acta;
 
-/// <summary><see cref="IJobsOperations"/>, one line per operation; typed overloads build their request through <see cref="JobRequestRouting"/>.</summary>
+/// <summary>
+/// The Jobs operations: <see cref="IJobs"/> for applications, plus the engine's calls. Typed overloads build their request
+/// through <see cref="JobRequestRouting"/>.
+/// </summary>
 internal sealed class JobsOperations(
     JobRequestRouting routing,
     EnqueueJobHandler enqueueJob,
@@ -27,7 +30,7 @@ internal sealed class JobsOperations(
     RaiseSignalHandler raiseSignal,
     GetInputTemplateHandler getInputTemplate,
     ResetJobStateHandler resetJobState
-) : IJobsOperations
+) : IJobs
 {
     public ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request), ct);
@@ -240,11 +243,20 @@ internal sealed class JobsOperations(
     public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) =>
         getInputTemplate.Handle(new GetInputTemplateQuery(jobNamespace, jobName));
 
-    public Task CancelDescendantsAsync(long jobId, CancellationToken ct) =>
+    /// <summary>
+    /// Cancels the non-terminal descendants of a job its own handler cancelled, stamped as an ancestor's cancellation by
+    /// the system actor. Wakes every worker namespace once if a cancel promoted a lane member.
+    /// </summary>
+    internal Task CancelDescendantsAsync(long jobId, CancellationToken ct) =>
         cancelJob.CancelDescendantsAsync(jobId, CancelJobHandler.ParentCancelled, ct);
 
-    public Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
+    /// <summary>
+    /// Cancels a job and then its descendants under one input, waking every worker namespace once if any cancel
+    /// promoted a lane member: a parent abandoning a child whose bounded wait expired.
+    /// </summary>
+    internal Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
         cancelJob.CancelTreeAsync(rootJobId, input, ct);
 
-    public Task ResetJobStateAsync(long jobId, CancellationToken ct) => resetJobState.HandleAsync(new ResetJobStateCommand(jobId), ct);
+    /// <summary>Clears a job's durable step and checkpoint state ahead of a fresh attempt, behind <c>ctx.ResetStateAsync</c>.</summary>
+    internal Task ResetJobStateAsync(long jobId, CancellationToken ct) => resetJobState.HandleAsync(new ResetJobStateCommand(jobId), ct);
 }

@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IExecutionOperations.StartExecutionAsync"/>: one routine call answers the start action.</summary>
+/// <summary><see cref="ExecutionOperations.StartExecutionAsync"/>: one routine call answers the start action.</summary>
 internal sealed class StartExecutionHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<StartExecutionResponse> HandleAsync(StartExecutionCommand command, CancellationToken ct)

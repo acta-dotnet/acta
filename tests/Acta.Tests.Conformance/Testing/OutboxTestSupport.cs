@@ -36,29 +36,34 @@ public readonly record struct OutboxRowState(
     string? LastError
 );
 
+/// <summary>Opens the provider's outbox source over <paramref name="table"/>, the one place the fixture's connection is unboxed.</summary>
+internal static class OutboxFixtureExtensions
+{
+    public static OutboxOperations.Source OpenOutboxSource(this IConformanceFixture fixture, string table) =>
+        OutboxOperations.OpenSource((OutboxSourceConnection)fixture.CreateOutboxConnection(table));
+}
+
 /// <summary>
 /// The real provider source over a session that can inject a failure at a chosen source call (the crash
 /// windows the brief proves) while every call still runs against the real provider database.
 /// </summary>
 internal sealed class HookedOutboxStore
 {
-    public HookedOutboxStore(IServiceProvider services, OutboxSourceConnection inner) =>
-        Source = services
-            .GetRequiredService<IOutboxOperations>()
-            .OpenSource(
-                inner with
-                {
-                    Session = new HookedSession(
-                        inner.Session,
-                        stem => stem == "DeleteClaimedOutbox" && BeforeDelete is { } hook ? hook() : Task.CompletedTask
-                    ),
-                }
-            );
+    public HookedOutboxStore(OutboxSourceConnection inner) =>
+        Source = OutboxOperations.OpenSource(
+            inner with
+            {
+                Session = new HookedSession(
+                    inner.Session,
+                    stem => stem == "DeleteClaimedOutbox" && BeforeDelete is { } hook ? hook() : Task.CompletedTask
+                ),
+            }
+        );
 
     /// <summary>When set, awaited just before the real delete runs (models a crash after the target commit).</summary>
     public Func<Task>? BeforeDelete { get; set; }
 
-    public IOutboxSource Source { get; }
+    public OutboxOperations.Source Source { get; }
 }
 
 /// <summary>
@@ -88,23 +93,7 @@ internal sealed class HookedJobSubmission
     /// <summary>When set, invoked to obtain an exception to throw before the real enqueue runs.</summary>
     public Func<Exception>? FailInstead { get; set; }
 
-    public IJobsOperations Jobs { get; }
-}
-
-/// <summary>Opens a provider's outbox source the way the relay registry does: its connection, opened by the outbox operations.</summary>
-internal static class OutboxSourceOpening
-{
-    /// <summary>
-    /// The outbox operations come from a provider graph built for the call and disposed at once, so a spec whose own
-    /// services hold no ledger keeps none. The opened source holds only its own session and dialect.
-    /// </summary>
-    public static IOutboxSource OpenOutboxSource(this IConformanceFixture fixture, string schemaName, string table)
-    {
-        var services = new ServiceCollection();
-        services.UseActa(j => fixture.ApplyProvider(j, schemaName));
-        using var provider = services.BuildServiceProvider();
-        return provider.GetRequiredService<IOutboxOperations>().OpenSource((OutboxSourceConnection)fixture.CreateOutboxConnection(table));
-    }
+    public JobsOperations Jobs { get; }
 }
 
 /// <summary>A real session that awaits a hook, given the SQL stem, before each named command runs.</summary>

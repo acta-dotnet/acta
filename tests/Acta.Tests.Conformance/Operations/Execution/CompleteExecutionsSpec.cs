@@ -20,7 +20,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
 {
     private const int LeaseTtl = 30;
 
-    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
+    private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
     [Fact(DisplayName = "Two successes and an exhausted failure land the runtime, result, and finished-event rows the per-job write lands")]
     public async Task Batch_lands_the_rows_the_per_job_write_lands()

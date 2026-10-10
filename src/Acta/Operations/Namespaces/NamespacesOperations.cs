@@ -1,13 +1,13 @@
 namespace Acta;
 
-/// <summary><see cref="INamespacesOperations"/>, one line per operation.</summary>
+/// <summary><see cref="INamespaces"/>, one line per operation.</summary>
 internal sealed class NamespacesOperations(
     ListNamespaceNamesHandler listNamespaceNames,
     ListNamespacesHandler listNamespaces,
     SuspendNamespaceHandler suspendNamespace,
     ResumeNamespaceHandler resumeNamespace,
     UpdateNamespaceHandler updateNamespace
-) : INamespacesOperations
+) : INamespaces
 {
     public ValueTask<ListNamespaceNamesResponse> ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default) =>
         listNamespaceNames.HandleAsync(query, ct);

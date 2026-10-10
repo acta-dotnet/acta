@@ -79,7 +79,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
 
         // The facade-minted payload is the applying tick's input: a null id scope targets every
         // quarantined row, the actor rides into the evidence event, and the consume empties the inbox.
-        var signals = Services.GetRequiredService<IOutboxOperations>();
+        var signals = Services.GetRequiredService<OutboxOperations>();
         var (requeued, discarded) = await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct);
         Assert.Equal(1, requeued);
         Assert.Equal(0, discarded);

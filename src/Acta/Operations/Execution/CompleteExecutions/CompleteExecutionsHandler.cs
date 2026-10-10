@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IExecutionOperations.CompleteExecutionsAsync"/>: one routine call writes the whole batch.</summary>
+/// <summary><see cref="ExecutionOperations.CompleteExecutionsAsync"/>: one routine call writes the whole batch.</summary>
 internal sealed class CompleteExecutionsHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<CompleteExecutionsResponse> HandleAsync(CompleteExecutionsCommand command, CancellationToken ct) =>

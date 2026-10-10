@@ -52,7 +52,7 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.True(
             (
                 await Services
-                    .GetRequiredService<IAlertsOperations>()
+                    .GetRequiredService<AlertsOperations>()
                     .UpdateAlertDeliveryAsync(raised.Id, raised.Version, AlertDeliveryStatusCode.RetryAfter, 3, retryAfter, ct)
             ).Updated
         );

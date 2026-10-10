@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
 /// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
-/// <see cref="AccessCheckpointAction"/> through <see cref="IExecutionOperations.AccessCheckpointAsync"/>. Checkpoint
+/// <see cref="AccessCheckpointAction"/> through <see cref="ExecutionOperations.AccessCheckpointAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
 /// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
 /// and typed serialization; this op owns the durable row shape.
@@ -11,7 +11,7 @@ namespace Acta;
 internal static class CheckpointSlot
 {
     public static Task SetAsync(
-        IExecutionOperations store,
+        ExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -24,7 +24,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<CheckpointValue?> GetAsync(
-        IExecutionOperations store,
+        ExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -36,7 +36,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<CheckpointValue> GetOrSetAsync(
-        IExecutionOperations store,
+        ExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -52,7 +52,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<bool> ExistsAsync(
-        IExecutionOperations store,
+        ExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -60,7 +60,7 @@ internal static class CheckpointSlot
     ) => (await Run(store, AccessCheckpointAction.Exists, jobId, kind, name, null, ct)).Found != 0;
 
     public static async Task<bool> DeleteAsync(
-        IExecutionOperations store,
+        ExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -77,7 +77,7 @@ internal static class CheckpointSlot
     }
 
     private static Task<AccessCheckpointResponse> Run(
-        IExecutionOperations store,
+        ExecutionOperations store,
         AccessCheckpointAction action,
         long jobId,
         CheckpointKindCode kind,

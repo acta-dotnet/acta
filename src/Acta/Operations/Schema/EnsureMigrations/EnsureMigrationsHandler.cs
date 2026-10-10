@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace Acta;
 
-/// <summary><see cref="ISchemaOperations.EnsureMigrationsAsync"/>. On the servers it creates the schema too.</summary>
+/// <summary><see cref="SchemaOperations.EnsureMigrationsAsync"/>. On the servers it creates the schema too.</summary>
 internal sealed class EnsureMigrationsHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {
     public async Task HandleAsync(EnsureMigrationsCommand command, CancellationToken ct)

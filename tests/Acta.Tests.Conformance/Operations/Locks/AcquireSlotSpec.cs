@@ -26,7 +26,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Lowest_free_slot_is_taken_with_owner_token_and_lease()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocksOperations>();
+        var locks = Services.GetRequiredService<LocksOperations>();
         var prefix = TestKey("slots");
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
@@ -46,7 +46,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Full_key_returns_null_and_writes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocksOperations>();
+        var locks = Services.GetRequiredService<LocksOperations>();
         var prefix = TestKey("full");
         var held = new List<LockToken>();
         for (var i = 0; i < 2; i++)
@@ -67,7 +67,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Expired_slot_is_stolen_before_a_higher_free_one()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocksOperations>();
+        var locks = Services.GetRequiredService<LocksOperations>();
         var prefix = TestKey("steal");
         Assert.Equal($"{prefix}.0", (await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -1, ct)).Token?.Key);
         var lapsed = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, ExpiredTtl, ownerJobId: -2, ct)).Token);
@@ -87,7 +87,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Concurrent_acquires_have_one_winner()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocksOperations>();
+        var locks = Services.GetRequiredService<LocksOperations>();
         var prefix = TestKey("race");
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = Enumerable
@@ -116,7 +116,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await Services
-                .GetRequiredService<ILocksOperations>()
+                .GetRequiredService<LocksOperations>()
                 .AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)
         );
         Assert.Null(await ReadAsync($"{prefix}.0", ct));

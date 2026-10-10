@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="IAlertsOperations.GetAlertableEventsAsync"/>: one read of the next alertable events, and the
+/// <see cref="AlertsOperations.GetAlertableEventsAsync"/>: one read of the next alertable events, and the
 /// safe horizon that read stops behind: two command timeouts, so it needs no option of its own.
 /// </summary>
 internal sealed class GetAlertableEventsHandler(IDbSession session, ISqlDialect dialect, SqlProviderOptions options)

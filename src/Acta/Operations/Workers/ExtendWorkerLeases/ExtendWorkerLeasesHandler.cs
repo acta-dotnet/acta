@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IWorkersOperations.ExtendWorkerLeasesAsync"/>: one round trip.</summary>
+/// <summary><see cref="WorkersOperations.ExtendWorkerLeasesAsync"/>: one round trip.</summary>
 internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ExtendWorkerLeasesResponse> HandleAsync(ExtendWorkerLeasesCommand command, CancellationToken ct)

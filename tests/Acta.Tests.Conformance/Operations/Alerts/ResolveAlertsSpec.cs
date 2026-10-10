@@ -111,7 +111,7 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
     }
 
     private async Task<int> ResolveAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        (await Services.GetRequiredService<IAlertsOperations>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct)).Resolved;
+        (await Services.GetRequiredService<AlertsOperations>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct)).Resolved;
 
     /// <summary>
     /// A keyless raise, so every call is its own row. The source event id stands in for the failure event the
@@ -125,7 +125,7 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
         CancellationToken ct
     ) =>
         Services
-            .GetRequiredService<IAlertsOperations>()
+            .GetRequiredService<AlertsOperations>()
             .RaiseAlertAsync(
                 RaiseAlertCommand.Create(
                     TestNamespace,

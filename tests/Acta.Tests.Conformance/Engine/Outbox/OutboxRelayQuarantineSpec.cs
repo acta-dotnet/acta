@@ -27,7 +27,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         var seed = EchoRow(TestKey("q7"), jobNamespace: unknownNs);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
-        var store = new HookedOutboxStore(Services, SourceConnection);
+        var store = new HookedOutboxStore(SourceConnection);
 
         // Ticks 1..4: below the default threshold of five, each rejection reschedules quietly (no throw).
         for (var attempt = 1; attempt <= 4; attempt++)
@@ -66,7 +66,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, oversize);
         await Fixture.SeedOutboxRowAsync(SourceTable, unsupportedFormat);
 
-        var store = new HookedOutboxStore(Services, SourceConnection);
+        var store = new HookedOutboxStore(SourceConnection);
         // The target must never be reached for a contract-rejected row; fail loudly if it is.
         var target = new HookedJobSubmission(Services) { FailInstead = () => new InvalidOperationException("target must not be called") };
 

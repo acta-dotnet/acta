@@ -37,7 +37,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
             ct
         );
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var claim = await Services.GetRequiredService<IExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct);
+        var claim = await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct);
         var claimedRow = Assert.Single(claim);
         var leaseAfterClaim = claimedRow.LeaseExpiresAtUtc;
 
@@ -47,7 +47,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         await Task.Delay(5, ct);
 
         var answer = await Services
-            .GetRequiredService<IWorkersOperations>()
+            .GetRequiredService<WorkersOperations>()
             .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], [], ct);
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(answer.Leases));
         var definitions = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns).ToListAsync(ct);
@@ -63,7 +63,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.True(workerAfter!.LastHeartbeatAtUtc > lastSeenBefore, "heartbeat should advance last_seen_at_utc");
 
         // A live (heartbeat-fresh) lease is not stuck - reclaim finds nothing and leaves it claimed.
-        Assert.Equal(0, (await Services.GetRequiredService<IExecutionOperations>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);
+        Assert.Equal(0, (await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);
         var still = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Dispatched, still!.Status);
         Assert.Equal(workerId, still.LeasedByWorkerId);
@@ -84,13 +84,13 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct)
+            await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct)
         );
 
         // A lease refresh is not a claim-generation change: an operator verb's expected version must still hold.
         var extended = (
             await Services
-                .GetRequiredService<IWorkersOperations>()
+                .GetRequiredService<WorkersOperations>()
                 .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], [], ct)
         ).Leases;
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
@@ -98,7 +98,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
 
         var action = (
             await Services
-                .GetRequiredService<IExecutionOperations>()
+                .GetRequiredService<ExecutionOperations>()
                 .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)
         ).Action;
 
@@ -116,7 +116,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var execution = Services.GetRequiredService<IExecutionOperations>();
+        var execution = Services.GetRequiredService<ExecutionOperations>();
         var held = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         var lost = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         var heldClaim = Assert.Single(await execution.ClaimJobAsync(ns, workerId, leaseTtl, held, ct));
@@ -128,7 +128,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // second only at an execution the row has moved past: an attempt still unwinding after its job was claimed again.
         var extended = (
             await Services
-                .GetRequiredService<IWorkersOperations>()
+                .GetRequiredService<WorkersOperations>()
                 .ExtendWorkerLeasesAsync(
                     workerId,
                     leaseTtl,

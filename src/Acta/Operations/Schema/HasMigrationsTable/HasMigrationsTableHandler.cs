@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="ISchemaOperations.HasMigrationsTableAsync"/>: counts the table in the provider's catalog.</summary>
+/// <summary><see cref="SchemaOperations.HasMigrationsTableAsync"/>: counts the table in the provider's catalog.</summary>
 internal sealed class HasMigrationsTableHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {
     public async Task<HasMigrationsTableResponse> HandleAsync(CancellationToken ct)

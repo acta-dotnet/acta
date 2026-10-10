@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IOutboxOperations.GetOutboxSignalAsync"/>: one read.</summary>
+/// <summary><see cref="OutboxOperations.GetOutboxSignalAsync"/>: one read.</summary>
 internal sealed class GetOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetOutboxSignalResponse?> HandleAsync(GetOutboxSignalQuery query, CancellationToken ct) =>

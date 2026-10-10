@@ -14,7 +14,7 @@ public sealed class RuntimeJobContextLockReleaseTests
             call.Stem == "AcquireSlot" ? $"{call.Get(ActaSchema.Sql.LockKeyPrefix)}.0" : throw new TimeoutException("release failed")
         );
         var logger = new RecordingLogger();
-        var ctx = CreateContext(session.Services().GetRequiredService<ILocksOperations>(), logger);
+        var ctx = CreateContext(session.Services().GetRequiredService<LocksOperations>(), logger);
         Assert.True(await ctx.TryAcquireConcurrencySlotAsync("customer-1", limit: 1, CancellationToken.None));
 
         await ctx.ReleaseConcurrencySlotAsync(CancellationToken.None);
@@ -23,7 +23,7 @@ public sealed class RuntimeJobContextLockReleaseTests
         Assert.Equal(LogLevel.Warning, Assert.Single(logger.Levels));
     }
 
-    private static RuntimeJobContext CreateContext(ILocksOperations locks, ILogger logger) =>
+    private static RuntimeJobContext CreateContext(LocksOperations locks, ILogger logger) =>
         new(
             new ClaimedJob(
                 JobId: 42,

@@ -8,10 +8,10 @@ namespace Acta;
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
-/// bounded tick summary all live here; the source is the injected <see cref="IOutboxSource"/> and the target is
+/// bounded tick summary all live here; the source is the injected <see cref="OutboxOperations.Source"/> and the target is
 /// the owned batch enqueue, <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>.
 /// </summary>
-internal sealed class OutboxRelay(IOutboxSource source, IJobsOperations jobs, ILogger<OutboxRelay>? log = null)
+internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations jobs, ILogger<OutboxRelay>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
@@ -22,7 +22,7 @@ internal sealed class OutboxRelay(IOutboxSource source, IJobsOperations jobs, IL
     /// source the tick drains - the registry's 1:1 namespace-to-source invariant is what makes this the
     /// right source for the slot's parked commands.
     /// </summary>
-    internal IOutboxSource Source => source;
+    internal OutboxOperations.Source Source => source;
 
     /// <summary>
     /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the
@@ -33,7 +33,7 @@ internal sealed class OutboxRelay(IOutboxSource source, IJobsOperations jobs, IL
     /// </summary>
     public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(
         long slotJobId,
-        IOutboxOperations outbox,
+        OutboxOperations outbox,
         CancellationToken ct
     )
     {
@@ -42,7 +42,7 @@ internal sealed class OutboxRelay(IOutboxSource source, IJobsOperations jobs, IL
         return (requeued, discarded);
     }
 
-    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, IOutboxOperations outbox, CancellationToken ct)
+    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, OutboxOperations outbox, CancellationToken ct)
     {
         var row = (await outbox.GetOutboxSignalAsync(slotJobId, name, ct))?.Signal;
         if (row is null)

@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IOutboxSource.ReleaseClaimedAsync"/>: one token-CAS release of the named rows.</summary>
+/// <summary><see cref="OutboxOperations.Source.ReleaseClaimedAsync"/>: one token-CAS release of the named rows.</summary>
 internal sealed class ReleaseClaimedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(ReleaseClaimedOutboxCommand command, CancellationToken ct) =>

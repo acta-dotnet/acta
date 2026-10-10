@@ -17,12 +17,12 @@ internal sealed partial class RuntimeJobContext(
     string namespaceName,
     int namespaceId,
     int leaseTtlSeconds,
-    IJobsOperations jobOperations,
-    ISignalsOperations signals,
-    IAlertsOperations alerts,
-    IExecutionOperations executionStore,
+    JobsOperations jobOperations,
+    SignalsOperations signals,
+    AlertsOperations alerts,
+    ExecutionOperations executionStore,
     IJobPayloadSerializerRegistry serializers,
-    ILocksOperations locks,
+    LocksOperations locks,
     IReadOnlyList<string> triggeringScheduleNames,
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
@@ -39,12 +39,12 @@ internal sealed partial class RuntimeJobContext(
 {
     private const string ProgressVariableName = "sys.progress";
 
-    private readonly IJobsOperations _jobOperations = jobOperations;
-    private readonly ISignalsOperations _signals = signals;
-    private readonly IAlertsOperations _alerts = alerts;
-    private readonly IExecutionOperations _executionStore = executionStore;
+    private readonly JobsOperations _jobOperations = jobOperations;
+    private readonly SignalsOperations _signals = signals;
+    private readonly AlertsOperations _alerts = alerts;
+    private readonly ExecutionOperations _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
-    private readonly ILocksOperations _locks = locks;
+    private readonly LocksOperations _locks = locks;
     private readonly int _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;

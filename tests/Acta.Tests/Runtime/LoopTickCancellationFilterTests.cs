@@ -34,7 +34,7 @@ public sealed class LoopTickCancellationFilterTests
 
         var heartbeat = new WorkerHeartbeat(
             Workers(_ => throw failure),
-            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<DefinitionsOperations>(),
             options,
             registration,
             context,
@@ -76,8 +76,8 @@ public sealed class LoopTickCancellationFilterTests
         ).Services();
 
         var heartbeat = new WorkerHeartbeat(
-            services.GetRequiredService<IWorkersOperations>(),
-            services.GetRequiredService<IDefinitionsOperations>(),
+            services.GetRequiredService<WorkersOperations>(),
+            services.GetRequiredService<DefinitionsOperations>(),
             options,
             registration,
             context,
@@ -111,7 +111,7 @@ public sealed class LoopTickCancellationFilterTests
 
         var heartbeat = new WorkerHeartbeat(
             db,
-            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<DefinitionsOperations>(),
             options,
             registration,
             context,
@@ -141,13 +141,13 @@ public sealed class LoopTickCancellationFilterTests
     }
 
     // The worker lifecycle over a scripted session: the heartbeat's only database call is the lease extend.
-    private static IWorkersOperations Workers(Func<BoundCall, object?> answer) =>
-        new ScriptedSession(answer).Services().GetRequiredService<IWorkersOperations>();
+    private static WorkersOperations Workers(Func<BoundCall, object?> answer) =>
+        new ScriptedSession(answer).Services().GetRequiredService<WorkersOperations>();
 
     // Cancels the loop's own token from inside the lease extend, then throws a non-cancellation
     // exception - reproduces "ct already cancelled" at the exact moment TickAsync's exception
     // surfaces to RunAsync's catches.
-    private static IWorkersOperations CancelThenThrowWorkers(CancellationTokenSource cts, Exception toThrow) =>
+    private static WorkersOperations CancelThenThrowWorkers(CancellationTokenSource cts, Exception toThrow) =>
         Workers(_ =>
         {
             cts.Cancel();

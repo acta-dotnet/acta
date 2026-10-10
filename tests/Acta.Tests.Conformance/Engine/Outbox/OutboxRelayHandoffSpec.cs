@@ -25,7 +25,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
-        var store = new HookedOutboxStore(Services, SourceConnection);
+        var store = new HookedOutboxStore(SourceConnection);
         var target = new HookedJobSubmission(Services) { FailInstead = () => new InvalidOperationException("target unavailable") };
 
         // Tick 1: claim commits, then the target enqueue fails -> infrastructure failure that releases the
@@ -52,7 +52,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var failFinalize = true;
-        var store = new HookedOutboxStore(Services, SourceConnection)
+        var store = new HookedOutboxStore(SourceConnection)
         {
             BeforeDelete = () => failFinalize ? throw new InvalidOperationException("source finalize crash") : Task.CompletedTask,
         };
@@ -84,7 +84,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
-        var store = new HookedOutboxStore(Services, SourceConnection);
+        var store = new HookedOutboxStore(SourceConnection);
         await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
@@ -106,7 +106,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         }
         Assert.Equal(3, await Fixture.CountOutboxAsync(SourceTable));
 
-        await Relay(new HookedOutboxStore(Services, SourceConnection).Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        await Relay(new HookedOutboxStore(SourceConnection).Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }

@@ -8,8 +8,8 @@ internal sealed class CancelJobHandler(
     JobLookupResolution lookup,
     IDbSession session,
     ISqlDialect dialect,
-    IExecutionOperations execution,
-    ISignalsOperations signals,
+    ExecutionOperations execution,
+    SignalsOperations signals,
     WorkerWakeupPublisher wakeup
 )
 {
@@ -68,7 +68,7 @@ internal sealed class CancelJobHandler(
         return row;
     }
 
-    /// <summary><see cref="IJobsOperations.CancelTreeAsync"/>: the root's cancel, then the descendant walk.</summary>
+    /// <summary><see cref="JobsOperations.CancelTreeAsync"/>: the root's cancel, then the descendant walk.</summary>
     internal async Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct)
     {
         var root = await CancelAsync(rootJobId, input, ct);

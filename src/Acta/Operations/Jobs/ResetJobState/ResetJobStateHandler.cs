@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IJobsOperations.ResetJobStateAsync"/>: one round trip.</summary>
+/// <summary><see cref="JobsOperations.ResetJobStateAsync"/>: one round trip.</summary>
 internal sealed class ResetJobStateHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(ResetJobStateCommand command, CancellationToken ct) =>

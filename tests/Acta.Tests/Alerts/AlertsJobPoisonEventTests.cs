@@ -80,7 +80,7 @@ public sealed class AlertsJobPoisonEventTests
         public List<long> RaiseAttempts { get; } = [];
 
         /// <summary>The real alert lifecycle over a session that serves the two events and fails the first raise.</summary>
-        public IAlertsOperations Lifecycle() => new ScriptedSession(call =>
+        public AlertsOperations Lifecycle() => new ScriptedSession(call =>
                 call.Stem switch
                 {
                     "GetAlertableEvents" => Events
@@ -91,7 +91,7 @@ public sealed class AlertsJobPoisonEventTests
                     "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }
-            ).Services().GetRequiredService<IAlertsOperations>();
+            ).Services().GetRequiredService<AlertsOperations>();
 
         // A deterministic failure is the provider's unknown-job error, which the raise handler maps to the
         // ArgumentException the projection skips.

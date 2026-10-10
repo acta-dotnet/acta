@@ -12,7 +12,7 @@ internal sealed class RetireDefinitionHandler(
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeupPublisher,
-    ISignalsOperations signals
+    SignalsOperations signals
 )
 {
     public async ValueTask<RetireDefinitionResponse> HandleAsync(RetireDefinitionCommand command, CancellationToken ct)

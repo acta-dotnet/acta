@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IExecutionOperations.ClaimJobsAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
+/// <summary><see cref="ExecutionOperations.ClaimJobsAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
 internal sealed class ClaimJobsHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ClaimJobsResponse> HandleAsync(ClaimJobsCommand command, CancellationToken ct)

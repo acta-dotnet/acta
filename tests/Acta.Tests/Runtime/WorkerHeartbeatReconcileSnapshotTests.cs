@@ -29,7 +29,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         var heartbeat = new WorkerHeartbeat(
             db.Lifecycle(),
-            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<DefinitionsOperations>(),
             options,
             registration,
             context,
@@ -65,7 +65,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         public void Release() => _gate.SetResult();
 
-        public IWorkersOperations Lifecycle()
+        public WorkersOperations Lifecycle()
         {
             var session = new ScriptedSession(
                 async (_, ct) =>
@@ -83,7 +83,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
                         .ToArray();
                 }
             );
-            return session.Services().GetRequiredService<IWorkersOperations>();
+            return session.Services().GetRequiredService<WorkersOperations>();
         }
     }
 }

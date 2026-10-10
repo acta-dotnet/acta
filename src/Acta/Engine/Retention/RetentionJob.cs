@@ -13,7 +13,7 @@ namespace Acta;
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
 /// </summary>
 internal sealed class RetentionJob(
-    IMaintenanceOperations maintenance,
+    MaintenanceOperations maintenance,
     IClockOperations clock,
     IOptions<JobsOptions> options,
     ILogger<RetentionJob>? log = null

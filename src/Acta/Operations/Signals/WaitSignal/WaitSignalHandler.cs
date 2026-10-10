@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="ISignalsOperations.WaitSignalAsync"/>: one routine call answering the wait decision.</summary>
+/// <summary><see cref="SignalsOperations.WaitSignalAsync"/>: one routine call answering the wait decision.</summary>
 internal sealed class WaitSignalHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<WaitSignalResponse> HandleAsync(WaitSignalCommand command, CancellationToken ct) =>

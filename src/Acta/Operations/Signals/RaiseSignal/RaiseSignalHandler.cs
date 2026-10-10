@@ -39,7 +39,7 @@ internal sealed class RaiseSignalHandler(
         return new RaiseSignalResponse(jobId, row.Action, row.Status, null);
     }
 
-    /// <summary><see cref="ISignalsOperations.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
+    /// <summary><see cref="SignalsOperations.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
     internal Task<RaiseSignalRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("RaiseSignal"),

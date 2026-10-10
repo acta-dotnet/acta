@@ -6,15 +6,15 @@ namespace Acta;
 
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one
-/// <see cref="IWorkersOperations.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
+/// <see cref="WorkersOperations.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
 /// hold and execution lease this process holds, so a leased row nothing holds lapses to recovery. It re-arms a running
 /// attempt's lease deadline on a confirmed renewal, cancels one whose execution or held lock an authoritative refresh
 /// drops, and re-overlays the definitions' effective policy when the namespace's catalog changed. A call that throws
 /// moves no deadline, so an outage cancels each attempt by its deadline alone; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
-    IWorkersOperations workers,
-    IDefinitionsOperations definitions,
+    WorkersOperations workers,
+    DefinitionsOperations definitions,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -22,8 +22,8 @@ internal sealed class WorkerHeartbeat(
     ILogger log
 )
 {
-    private readonly IWorkersOperations _workers = workers;
-    private readonly IDefinitionsOperations _definitions = definitions;
+    private readonly WorkersOperations _workers = workers;
+    private readonly DefinitionsOperations _definitions = definitions;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly InFlightJobRegistry _registry = registry;

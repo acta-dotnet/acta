@@ -157,8 +157,8 @@ public sealed partial class OperationsIndexTests
 
     // A public facade method runs an operation when its body names the operation's handler field, command, or query,
     // directly or through a helper class of the group it holds (JobLookupResolution resolves both ResolveJobId reads).
-    // The facade is the group's door, the class implementing I<Group> or I<Group>Operations, and only the methods
-    // I<Group> declares count: the door's engine calls are not on the public surface.
+    // The facade is the group's <Group>Operations class implementing I<Group>, and only the methods I<Group> declares
+    // count: the class's engine calls are not on the public surface.
     private static List<(string Facade, string Method, string Operation)> FacadeMethods(string operations)
     {
         var names = Directory
@@ -180,7 +180,7 @@ public sealed partial class OperationsIndexTests
                 .EnumerateFiles(Path.Combine(operations, facade), "*.cs")
                 .SelectMany(file => Parse(file).OfType<ClassDeclarationSyntax>())
                 .FirstOrDefault(c =>
-                    c.BaseList?.Types.Any(t => t.Type.ToString() == $"I{facade}" || t.Type.ToString() == $"I{facade}Operations") == true
+                    c.Identifier.Text == $"{facade}Operations" && c.BaseList?.Types.Any(t => t.Type.ToString() == $"I{facade}") == true
                 );
             if (type is null)
             {

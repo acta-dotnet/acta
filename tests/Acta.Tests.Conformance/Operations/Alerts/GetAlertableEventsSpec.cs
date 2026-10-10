@@ -152,7 +152,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
         int batchSize = 50
     ) =>
         Services
-            .GetRequiredService<IAlertsOperations>()
+            .GetRequiredService<AlertsOperations>()
             .GetAlertableEventsAsync(TestNamespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc, ct);
 
     private Task<long> StageFailureAsync(DateTime stampUtc, CancellationToken ct) =>

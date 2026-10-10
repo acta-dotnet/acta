@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace Acta;
 
-/// <summary><see cref="ISchemaOperations.LoadAppliedVersionsAsync"/>: one read of the history table.</summary>
+/// <summary><see cref="SchemaOperations.LoadAppliedVersionsAsync"/>: one read of the history table.</summary>
 internal sealed class LoadAppliedVersionsHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {
     public async Task<LoadAppliedVersionsResponse> HandleAsync(LoadAppliedVersionsQuery query, CancellationToken ct)

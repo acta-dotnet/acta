@@ -15,7 +15,7 @@ internal static class RaiseChildLatch
     public const string NamePrefix = "sys.child.";
 
     public static async Task<bool> Run(
-        ISignalsOperations signals,
+        SignalsOperations signals,
         long childJobId,
         long parentJobId,
         JobStatusCode childStatus,

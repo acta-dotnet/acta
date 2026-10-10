@@ -76,8 +76,8 @@ public sealed class RecoveryPassTests
 
     private static RecoveryPass Pass(
         ScriptedSession workers,
-        IExecutionOperations execution,
-        ISignalsOperations signals,
+        ExecutionOperations execution,
+        SignalsOperations signals,
         TimeSpan? deadAfter = null,
         RecordingWakeup? wakeup = null
     )
@@ -90,7 +90,7 @@ public sealed class RecoveryPassTests
 
         return new RecoveryPass(
             signals,
-            workers.Services().GetRequiredService<IWorkersOperations>(),
+            workers.Services().GetRequiredService<WorkersOperations>(),
             execution,
             Options.Create(options),
             new WorkerWakeupPublisher(wakeup ?? new())
@@ -112,18 +112,18 @@ public sealed class RecoveryPassTests
     }
 
     // A raise that releases its parent applies and leaves it Ready; one that does not is rejected unwritten.
-    private static ISignalsOperations SignalStore(bool releases) =>
+    private static SignalsOperations SignalStore(bool releases) =>
         new ScriptedSession(_ =>
             releases ? new RaiseSignalRow(ControlAction.Applied, JobStatusCode.Ready) : new RaiseSignalRow(ControlAction.Rejected, null)
         )
             .Services()
-            .GetRequiredService<ISignalsOperations>();
+            .GetRequiredService<SignalsOperations>();
 
     // The dead-worker sweep, the pass's only worker call, reports how many workers it marked.
     private static ScriptedSession WorkerSweep(int marked = 0) => new(_ => marked);
 
     // The reclaim answers the rows it touched and the latch read its stale latches; nothing else is reached.
-    private static IExecutionOperations ExecutionStore(ReclaimStuckJobsRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
+    private static ExecutionOperations ExecutionStore(ReclaimStuckJobsRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
         new ScriptedSession(call =>
             call.Stem switch
             {
@@ -131,5 +131,5 @@ public sealed class RecoveryPassTests
                 "GetStaleChildLatches" => staleLatches ?? [],
                 _ => throw new NotSupportedException(call.Stem),
             }
-        ).Services().GetRequiredService<IExecutionOperations>();
+        ).Services().GetRequiredService<ExecutionOperations>();
 }

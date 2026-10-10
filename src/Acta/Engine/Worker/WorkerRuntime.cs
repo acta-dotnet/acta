@@ -34,7 +34,7 @@ internal sealed class WorkerRuntime
     private readonly CancellationTokenSource _drainCts = new();
 
     public WorkerRuntime(
-        ILocksOperations locks,
+        LocksOperations locks,
         IActaClock clock,
         IJobPayloadSerializerRegistry serializers,
         IServiceProvider rootServices,
@@ -68,9 +68,9 @@ internal sealed class WorkerRuntime
 
         _initializer = new WorkerRuntimeInitializer(
             new CatalogRegistrar(
-                rootServices.GetRequiredService<IDefinitionsOperations>(),
-                rootServices.GetRequiredService<ISchedulesOperations>(),
-                rootServices.GetRequiredService<IExecutionOperations>(),
+                rootServices.GetRequiredService<DefinitionsOperations>(),
+                rootServices.GetRequiredService<SchedulesOperations>(),
+                rootServices.GetRequiredService<ExecutionOperations>(),
                 clock,
                 serializers,
                 alertRouting,
@@ -78,7 +78,7 @@ internal sealed class WorkerRuntime
                 _context,
                 logger
             ),
-            rootServices.GetRequiredService<IWorkersOperations>(),
+            rootServices.GetRequiredService<WorkersOperations>(),
             rootServices.GetRequiredService<IClockOperations>(),
             options,
             workerRegistration,
@@ -87,8 +87,8 @@ internal sealed class WorkerRuntime
         );
 
         _finalizer = new WorkerFinalizer(
-            rootServices.GetRequiredService<IExecutionOperations>(),
-            rootServices.GetRequiredService<IJobsOperations>(),
+            rootServices.GetRequiredService<ExecutionOperations>(),
+            rootServices.GetRequiredService<JobsOperations>(),
             publisher,
             options.Value,
             _context,
@@ -110,7 +110,7 @@ internal sealed class WorkerRuntime
             metrics
         );
         _claimer = new WorkerClaimer(
-            rootServices.GetRequiredService<IExecutionOperations>(),
+            rootServices.GetRequiredService<ExecutionOperations>(),
             _executor,
             options.Value,
             _context,
@@ -120,8 +120,8 @@ internal sealed class WorkerRuntime
             metrics
         );
         _heartbeat = new WorkerHeartbeat(
-            rootServices.GetRequiredService<IWorkersOperations>(),
-            rootServices.GetRequiredService<IDefinitionsOperations>(),
+            rootServices.GetRequiredService<WorkersOperations>(),
+            rootServices.GetRequiredService<DefinitionsOperations>(),
             options,
             workerRegistration,
             _context,
@@ -129,7 +129,7 @@ internal sealed class WorkerRuntime
             logger
         );
         _recoveryMonitor = new RecoverySlotMonitor(
-            rootServices.GetRequiredService<IExecutionOperations>(),
+            rootServices.GetRequiredService<ExecutionOperations>(),
             publisher,
             workerRegistration,
             _context,
@@ -146,7 +146,7 @@ internal sealed class WorkerRuntime
     /// </summary>
     public static WorkerRuntime Create(IServiceProvider sp, WorkerRegistration worker) =>
         new(
-            sp.GetRequiredService<ILocksOperations>(),
+            sp.GetRequiredService<LocksOperations>(),
             sp.GetRequiredService<IActaClock>(),
             sp.GetRequiredService<IJobPayloadSerializerRegistry>(),
             sp,

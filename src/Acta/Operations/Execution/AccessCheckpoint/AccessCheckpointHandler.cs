@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IExecutionOperations.AccessCheckpointAsync"/>: one routine call per slot action, answering exactly one row.</summary>
+/// <summary><see cref="ExecutionOperations.AccessCheckpointAsync"/>: one routine call per slot action, answering exactly one row.</summary>
 internal sealed class AccessCheckpointHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<AccessCheckpointResponse> HandleAsync(AccessCheckpointCommand command, CancellationToken ct) =>

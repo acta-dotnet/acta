@@ -40,8 +40,8 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
         context.WorkerIdByNamespace["orders"] = 1;
         var services = session.Services();
         return new WorkerHeartbeat(
-            services.GetRequiredService<IWorkersOperations>(),
-            services.GetRequiredService<IDefinitionsOperations>(),
+            services.GetRequiredService<WorkersOperations>(),
+            services.GetRequiredService<DefinitionsOperations>(),
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,

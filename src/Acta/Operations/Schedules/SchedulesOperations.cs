@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="ISchedulesOperations"/>, one line per operation.</summary>
+/// <summary>The Schedules operations: <see cref="ISchedules"/> for applications, plus the engine's calls.</summary>
 internal sealed class SchedulesOperations(
     PauseScheduleHandler pauseSchedule,
     ResumeScheduleHandler resumeSchedule,
@@ -11,7 +11,7 @@ internal sealed class SchedulesOperations(
     RegisterSchedulesHandler registerSchedules,
     GetScheduleStateHandler getScheduleState,
     GetLiveSchedulesHandler getLiveSchedules
-) : ISchedulesOperations
+) : ISchedules
 {
     public ValueTask<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
@@ -55,12 +55,26 @@ internal sealed class SchedulesOperations(
     public ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);
 
-    public Task<RegisterSchedulesResponse> RegisterSchedulesAsync(RegisterSchedulesCommand command, CancellationToken ct) =>
+    /// <summary>
+    /// Registers every definition's recurring slot job and its schedules in one set-based call, answering each slot.
+    /// Every host re-registers every slot at startup, so this runs against slots another host may be executing: it
+    /// re-asserts the declaration on an idle slot, overwriting an operator reprioritize, and leaves a Dispatched,
+    /// Executing, held, or finished slot as it stands.
+    /// </summary>
+    internal Task<RegisterSchedulesResponse> RegisterSchedulesAsync(RegisterSchedulesCommand command, CancellationToken ct) =>
         registerSchedules.HandleAsync(command, ct);
 
-    public Task<GetScheduleStateResponse> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
+    /// <summary>
+    /// The namespace's persisted (non-orphaned) per-schedule cursors. Drives startup misfire-aware reconciliation and the
+    /// slot-pause decision for definitions that dropped every schedule.
+    /// </summary>
+    internal Task<GetScheduleStateResponse> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
         getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
 
-    public Task<GetLiveSchedulesResponse> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
+    /// <summary>
+    /// The effective (non-orphaned) schedules of one recurring slot, expression and time zone resolved to
+    /// override-or-original. Read once per recurring fire for the due set and the recompute.
+    /// </summary>
+    internal Task<GetLiveSchedulesResponse> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
         getLiveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct);
 }

@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IOutboxOperations.RecordOutboxEventAsync"/>: one insert.</summary>
+/// <summary><see cref="OutboxOperations.RecordOutboxEventAsync"/>: one insert.</summary>
 internal sealed class RecordOutboxEventHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(RecordOutboxEventCommand command, CancellationToken ct) =>

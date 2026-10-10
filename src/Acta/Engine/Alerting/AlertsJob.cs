@@ -14,7 +14,7 @@ namespace Acta;
 /// selection, at least once (a crash after send may resend). An alert resolved before selection is not sent, and resolution stops further attempts.
 /// </summary>
 internal sealed class AlertsJob(
-    IAlertsOperations alerts,
+    AlertsOperations alerts,
     IActaClock clock,
     AlertChannelRegistry channels,
     IAlertTransportRegistry transports,
@@ -51,7 +51,7 @@ internal sealed class AlertsJob(
     private const int GenerateMaxBatches = 40;
     private static readonly TimeSpan GenerateTimeBudget = TimeSpan.FromSeconds(30);
 
-    private readonly IAlertsOperations _alerts = alerts;
+    private readonly AlertsOperations _alerts = alerts;
     private readonly IActaClock _clock = clock;
     private readonly int _failureThreshold = options.Value.AlertFailureThreshold;
     private readonly ILogger _log = log ?? NullLogger<AlertsJob>.Instance;

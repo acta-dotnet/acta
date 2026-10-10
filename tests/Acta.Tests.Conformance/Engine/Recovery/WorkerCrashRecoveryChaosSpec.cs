@@ -36,7 +36,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 1. Claim the row, then crash before StartExecution by expiring the lease.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
+            await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
         );
         Assert.Equal(enqueued.JobId, claimed.JobId);
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
@@ -69,13 +69,13 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 1. Claim and start, then crash before the handler completes by expiring the lease.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
+            await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             (
                 await Services
-                    .GetRequiredService<IExecutionOperations>()
+                    .GetRequiredService<ExecutionOperations>()
                     .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, LeaseTtlSeconds, ct)
             ).Action
         );

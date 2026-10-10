@@ -50,10 +50,10 @@ public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<Conforman
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var first = Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobAsync(new ClaimOptions(ns, workers[0].Id, MaxBatch: 1), LeaseTtlSeconds, maintenanceJob.Id, ct);
         var secondClaim = Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobAsync(new ClaimOptions(ns, workers[1].Id, MaxBatch: 1), LeaseTtlSeconds, maintenanceJob.Id, ct);
         await Task.WhenAll(first, secondClaim);
 

@@ -39,7 +39,7 @@ internal static class ChaosSpecHelpers
     )
     {
         var claim = await services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1, StartExecuting: true), leaseTtlSeconds: -5, jobId, ct);
         Assert.Equal(jobId, Assert.Single(claim.Jobs).JobId);
     }

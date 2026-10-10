@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Outbox;
 
 /// <summary>
-/// Provider-neutral relay policy proven against the real <see cref="IOutboxSource"/> over in-memory rows and a spy
+/// Provider-neutral relay policy proven against the real <see cref="OutboxOperations.Source"/> over in-memory rows and a spy
 /// target: coalescing, target deduplication, per-group rejection isolation, backoff, quarantine at
 /// threshold, immediate malformed quarantine, the bounded tick summary, the 20x256 tick bound, and
 /// best-effort cancellation release.
@@ -291,7 +291,7 @@ public sealed class OutboxRelayTests
         public List<IReadOnlyList<Enqueued>> Batches { get; } = [];
         public int Calls { get; private set; }
 
-        public IJobsOperations Jobs() => new ScriptedSession(Answer).Services().GetRequiredService<IJobsOperations>();
+        public JobsOperations Jobs() => new ScriptedSession(Answer).Services().GetRequiredService<JobsOperations>();
 
         // Each enqueue routine answers its own row: one for a single request, one per ordinal for a batch.
         private object Answer(BoundCall call)
@@ -334,10 +334,8 @@ public sealed class OutboxRelayTests
     private sealed record Enqueued(string JobName, string? DeduplicationKey);
 
     // The real outbox source over a scripted session, binding through the SQLite source dialect.
-    private static IOutboxSource Source(Func<BoundCall, object?> answer) =>
-        ScriptedSession
-            .Unreachable.GetRequiredService<IOutboxOperations>()
-            .OpenSource(new(new ScriptedSession(answer), new SqliteOutboxDialect()));
+    private static OutboxOperations.Source Source(Func<BoundCall, object?> answer) =>
+        OutboxOperations.OpenSource(new(new ScriptedSession(answer), new SqliteOutboxDialect()));
 
     /// <summary>
     /// The due rows in memory behind the real source: a claim takes up to the bound batch size in staging
@@ -353,7 +351,7 @@ public sealed class OutboxRelayTests
         public List<Guid> Quarantined { get; } = [];
         public List<Guid> Released { get; } = [];
 
-        public IOutboxSource Source() =>
+        public OutboxOperations.Source Source() =>
             OutboxRelayTests.Source(call =>
                 call.Stem switch
                 {

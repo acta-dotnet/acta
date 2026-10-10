@@ -108,7 +108,7 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Acknowledge_does_not_defer_a_due_reminder()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IAlertsOperations>();
+        var store = Services.GetRequiredService<AlertsOperations>();
         var (alertRef, jobId) = await RaiseAlertAsync(ct);
 
         // A delivered alert whose next notification has come round.

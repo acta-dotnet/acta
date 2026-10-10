@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IMaintenanceOperations.PurgeExpiredDataAsync"/>: one routine call per batch.</summary>
+/// <summary><see cref="MaintenanceOperations.PurgeExpiredDataAsync"/>: one routine call per batch.</summary>
 internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<PurgeExpiredDataResponse> HandleAsync(PurgeExpiredDataCommand command, CancellationToken ct)

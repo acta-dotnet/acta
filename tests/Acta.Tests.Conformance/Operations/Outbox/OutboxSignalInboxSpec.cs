@@ -23,7 +23,7 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
     public async Task Park_admission_and_consume_follow_the_inbox_contract()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IOutboxOperations>();
+        var store = Services.GetRequiredService<OutboxOperations>();
         var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
 

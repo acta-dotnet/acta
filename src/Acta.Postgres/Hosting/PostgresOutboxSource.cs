@@ -2,7 +2,7 @@ namespace Acta.Postgres;
 
 /// <summary>
 /// Builds the PostgreSQL external-outbox source's connection: a per-operation source session, the inline
-/// outbox SQL embedded in this package, and the outbox dialect, which <see cref="IOutboxOperations.OpenSource"/>
+/// outbox SQL embedded in this package, and the outbox dialect, which <see cref="OutboxOperations.OpenSource"/>
 /// opens as the source. The source session is independent of the ledger's <c>IDbSession</c>/<c>ISqlDialect</c>;
 /// a PostgreSQL worker may relay a source on any supported provider.
 /// </summary>

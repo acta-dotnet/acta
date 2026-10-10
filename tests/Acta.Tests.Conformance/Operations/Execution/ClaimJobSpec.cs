@@ -20,7 +20,7 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
+    private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
     [Fact(DisplayName = "The named Ready job goes Dispatched under the worker's lease, one attempt and one version on")]
     public async Task Named_ready_job_is_dispatched_under_the_lease()

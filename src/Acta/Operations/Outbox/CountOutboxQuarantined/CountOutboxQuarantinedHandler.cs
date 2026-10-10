@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="IOutboxSource.CountQuarantinedAsync"/>: one scalar read.</summary>
+/// <summary><see cref="OutboxOperations.Source.CountQuarantinedAsync"/>: one scalar read.</summary>
 internal sealed class CountOutboxQuarantinedHandler(IDbSession session)
 {
     public Task<long> HandleAsync(CancellationToken ct) =>

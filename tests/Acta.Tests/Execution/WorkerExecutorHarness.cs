@@ -236,10 +236,10 @@ internal sealed class WorkerExecutorHarness(
         private bool _startFailsOnce = startFailsOnce;
         private ServiceProvider? _services;
 
-        public IExecutionOperations Execution => Services().GetRequiredService<IExecutionOperations>();
+        public ExecutionOperations Execution => Services().GetRequiredService<ExecutionOperations>();
 
-        /// <summary>The jobs door over the same session: a handler cancel walks the children the store never stages.</summary>
-        public IJobsOperations Jobs => Services().GetRequiredService<IJobsOperations>();
+        /// <summary>The jobs operations over the same session: a handler cancel walks the children the store never stages.</summary>
+        public JobsOperations Jobs => Services().GetRequiredService<JobsOperations>();
 
         /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
         public int StartAttempts { get; private set; }
@@ -362,7 +362,7 @@ internal sealed class WorkerExecutorHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(IExecutionOperations store, IJobsOperations jobs)
+    private sealed class StoreOnlyServices(ExecutionOperations store, JobsOperations jobs)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -374,13 +374,13 @@ internal sealed class WorkerExecutorHarness(
         public IServiceProvider ServiceProvider => this;
 
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(IExecutionOperations) ? store
-            : serviceType == typeof(IJobsOperations) ? jobs
+            serviceType == typeof(ExecutionOperations) ? store
+            : serviceType == typeof(JobsOperations) ? jobs
             : serviceType == typeof(IServiceScopeFactory) ? this
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
-            : serviceType == typeof(ISignalsOperations) ? ScriptedSession.Unreachable.GetRequiredService<ISignalsOperations>()
-            : serviceType == typeof(IAlertsOperations) ? ScriptedSession.Unreachable.GetRequiredService<IAlertsOperations>()
+            : serviceType == typeof(SignalsOperations) ? ScriptedSession.Unreachable.GetRequiredService<SignalsOperations>()
+            : serviceType == typeof(AlertsOperations) ? ScriptedSession.Unreachable.GetRequiredService<AlertsOperations>()
             : null;
 
         public IServiceScope CreateScope() => this;
@@ -426,9 +426,9 @@ internal sealed class WorkerExecutorHarness(
     {
         private readonly List<SlotRequest> _slotRequests = [];
         private readonly List<RateRequest> _rateRequests = [];
-        private ILocksOperations? _locks;
+        private LocksOperations? _locks;
 
-        public ILocksOperations Locks => _locks ??= new ScriptedSession(Answer).Services().GetRequiredService<ILocksOperations>();
+        public LocksOperations Locks => _locks ??= new ScriptedSession(Answer).Services().GetRequiredService<LocksOperations>();
 
         public IReadOnlyList<SlotRequest> SlotRequests => _slotRequests;
 

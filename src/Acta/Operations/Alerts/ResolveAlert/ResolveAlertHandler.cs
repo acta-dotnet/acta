@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="IAlerts.ResolveAsync"/>: one routine call answering the action and the alert's timestamps.
-/// It settles delivery as <see cref="IAlertsOperations.ResolveAlertsAsync"/> does.
+/// It settles delivery as <see cref="AlertsOperations.ResolveAlertsAsync"/> does.
 /// </summary>
 internal sealed class ResolveAlertHandler(IDbSession session, ISqlDialect dialect)
 {

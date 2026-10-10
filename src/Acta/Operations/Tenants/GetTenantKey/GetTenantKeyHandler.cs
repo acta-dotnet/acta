@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace Acta;
 
-/// <summary><see cref="ITenantsOperations.GetTenantKeyAsync"/>: one point read per known tenant, then the cache.</summary>
+/// <summary><see cref="TenantsOperations.GetTenantKeyAsync"/>: one point read per known tenant, then the cache.</summary>
 internal sealed class GetTenantKeyHandler(IDbSession session, ISqlDialect dialect)
 {
     private readonly ConcurrentDictionary<int, GetTenantKeyResponse> _keys = new();

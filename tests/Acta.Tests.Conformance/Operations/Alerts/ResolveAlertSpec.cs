@@ -92,7 +92,7 @@ public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Resolve_settles_the_queued_delivery()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IAlertsOperations>();
+        var store = Services.GetRequiredService<AlertsOperations>();
 
         // One alert parked mid-retry, one already delivered: the two halves of the settlement table the
         // operator verb has to honour.

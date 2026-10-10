@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// <see cref="IDefinitionsOperations.RegisterDefinitionsAsync"/>: resolves descriptors to rows, then skips the upsert
+/// <see cref="DefinitionsOperations.RegisterDefinitionsAsync"/>: resolves descriptors to rows, then skips the upsert
 /// entirely when nothing is new or changed.
 /// </summary>
 internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect)

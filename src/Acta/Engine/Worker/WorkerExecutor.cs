@@ -13,7 +13,7 @@ namespace Acta;
 /// built. A claim this deployment carries no handler for completes as a hand-back to Ready.
 /// </summary>
 internal sealed class WorkerExecutor(
-    ILocksOperations locks,
+    LocksOperations locks,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     IServiceProvider rootServices,
@@ -29,7 +29,7 @@ internal sealed class WorkerExecutor(
     private readonly JobsOptions _options = options;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IServiceProvider _rootServices = rootServices;
-    private readonly IExecutionOperations _execution = rootServices.GetRequiredService<IExecutionOperations>();
+    private readonly ExecutionOperations _execution = rootServices.GetRequiredService<ExecutionOperations>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ExecutionAdmission _admission = new(log ?? NullLogger.Instance, options.ConcurrencyKeyBounceDelaySeconds);
     private readonly HandlerInvocation _invocation = new(serializers, pipeline, options.MaxInlinePayloadBytes, log ?? NullLogger.Instance);
@@ -295,7 +295,7 @@ internal sealed class WorkerExecutor(
         var tenantKey = job.TenantId is { } jobTenantId
             ? await WorkerFinalizer.RepeatAsync(
                 async token =>
-                    (await _rootServices.GetRequiredService<ITenantsOperations>().GetTenantKeyAsync(jobTenantId, token))?.TenantKey,
+                    (await _rootServices.GetRequiredService<TenantsOperations>().GetTenantKeyAsync(jobTenantId, token))?.TenantKey,
                 _log,
                 job.JobId,
                 ct,
@@ -320,9 +320,9 @@ internal sealed class WorkerExecutor(
             namespaceName,
             namespaceId,
             _options.LeaseTtlSeconds,
-            _rootServices.GetRequiredService<IJobsOperations>(),
-            _rootServices.GetRequiredService<ISignalsOperations>(),
-            _rootServices.GetRequiredService<IAlertsOperations>(),
+            _rootServices.GetRequiredService<JobsOperations>(),
+            _rootServices.GetRequiredService<SignalsOperations>(),
+            _rootServices.GetRequiredService<AlertsOperations>(),
             _execution,
             _serializers,
             locks,
@@ -363,7 +363,7 @@ internal sealed class WorkerExecutor(
         }
 
         var nowUtc = await WorkerFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), _log, job.JobId, ct, metrics);
-        var schedules = _rootServices.GetRequiredService<ISchedulesOperations>();
+        var schedules = _rootServices.GetRequiredService<SchedulesOperations>();
         var live = await WorkerFinalizer.RepeatAsync(
             async token => (await schedules.GetLiveSchedulesAsync(job.JobId, token)).Schedules,
             _log,

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -107,33 +106,37 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<SuspendTenantHandler>();
         services.TryAddSingleton<ResumeTenantHandler>();
         services.TryAddSingleton<UpdateTenantHandler>();
-        AddDoor<TenantsOperations, ITenants, ITenantsOperations>(services);
+        services.TryAddSingleton<TenantsOperations>();
+        services.TryAddSingleton<ITenants>(sp => sp.GetRequiredService<TenantsOperations>());
         services.TryAddSingleton<ListNamespaceNamesHandler>();
         services.TryAddSingleton<ListNamespacesHandler>();
         services.TryAddSingleton<SuspendNamespaceHandler>();
         services.TryAddSingleton<ResumeNamespaceHandler>();
         services.TryAddSingleton<UpdateNamespaceHandler>();
-        AddDoor<NamespacesOperations, INamespaces, INamespacesOperations>(services);
+        services.TryAddSingleton<NamespacesOperations>();
+        services.TryAddSingleton<INamespaces>(sp => sp.GetRequiredService<NamespacesOperations>());
         services.TryAddSingleton<AcquireLockHandler>();
         services.TryAddSingleton<AcquireSlotHandler>();
         services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<ReleaseLockHandler>();
-        AddDoor<LocksOperations, ILocksOperations>(services);
+        services.TryAddSingleton<LocksOperations>();
         services.TryAddSingleton<PurgeExpiredDataHandler>();
-        AddDoor<MaintenanceOperations, IMaintenanceOperations>(services);
+        services.TryAddSingleton<MaintenanceOperations>();
         services.TryAddSingleton<TagTargetResolution>();
         services.TryAddSingleton<GetTagsHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();
         services.TryAddSingleton<UpsertTagsHandler>();
         services.TryAddSingleton<RemoveTagsHandler>();
-        AddDoor<TagsOperations, ITags, ITagsOperations>(services);
+        services.TryAddSingleton<TagsOperations>();
+        services.TryAddSingleton<ITags>(sp => sp.GetRequiredService<TagsOperations>());
         services.TryAddSingleton<StartWorkerHandler>();
         services.TryAddSingleton<StopWorkerHandler>();
         services.TryAddSingleton<ExtendWorkerLeasesHandler>();
         services.TryAddSingleton<MarkDeadWorkersHandler>();
         services.TryAddSingleton<GetWorkerHandler>();
         services.TryAddSingleton<ListWorkersHandler>();
-        AddDoor<WorkersOperations, IWorkers, IWorkersOperations>(services);
+        services.TryAddSingleton<WorkersOperations>();
+        services.TryAddSingleton<IWorkers>(sp => sp.GetRequiredService<WorkersOperations>());
         services.TryAddSingleton<GetDefinitionContractsHandler>();
         services.TryAddSingleton<RegisterDefinitionsHandler>();
         services.TryAddSingleton<DefinitionKeyResolution>();
@@ -141,11 +144,13 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListDefinitionsHandler>();
         services.TryAddSingleton<SetDefinitionOverridesHandler>();
         services.TryAddSingleton<RetireDefinitionHandler>();
-        AddDoor<DefinitionsOperations, IDefinitions, IDefinitionsOperations>(services);
+        services.TryAddSingleton<DefinitionsOperations>();
+        services.TryAddSingleton<IDefinitions>(sp => sp.GetRequiredService<DefinitionsOperations>());
         services.TryAddSingleton<ListJobsHandler>();
         services.TryAddSingleton<ListEventsHandler>();
         services.TryAddSingleton<GetOverviewHandler>();
-        AddDoor<LedgerOperations, ILedger, ILedgerOperations>(services);
+        services.TryAddSingleton<LedgerOperations>();
+        services.TryAddSingleton<ILedger>(sp => sp.GetRequiredService<LedgerOperations>());
         services.TryAddSingleton<RaiseAlertHandler>();
         services.TryAddSingleton<GetAlertableEventsHandler>();
         services.TryAddSingleton<GetDeliverableAlertsHandler>();
@@ -155,7 +160,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResolveAlertHandler>();
         services.TryAddSingleton<GetAlertHandler>();
         services.TryAddSingleton<ListAlertsHandler>();
-        AddDoor<AlertsOperations, IAlerts, IAlertsOperations>(services);
+        services.TryAddSingleton<AlertsOperations>();
+        services.TryAddSingleton<IAlerts>(sp => sp.GetRequiredService<AlertsOperations>());
         services.TryAddSingleton<GetLiveSchedulesHandler>();
         services.TryAddSingleton<GetScheduleStateHandler>();
         services.TryAddSingleton<RegisterSchedulesHandler>();
@@ -166,7 +172,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<TriggerScheduleNowHandler>();
         services.TryAddSingleton<ListSchedulesHandler>();
         services.TryAddSingleton<PreviewScheduleHandler>();
-        AddDoor<SchedulesOperations, ISchedules, ISchedulesOperations>(services);
+        services.TryAddSingleton<SchedulesOperations>();
+        services.TryAddSingleton<ISchedules>(sp => sp.GetRequiredService<SchedulesOperations>());
         services.TryAddSingleton<ParkOutboxSignalHandler>();
         services.TryAddSingleton<GetOutboxSignalHandler>();
         services.TryAddSingleton<ConsumeOutboxSignalHandler>();
@@ -175,7 +182,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListOutboxQuarantinedHandler>();
         services.TryAddSingleton<RequeueOutboxHandler>();
         services.TryAddSingleton<DiscardOutboxHandler>();
-        AddDoor<OutboxOperations, IOutbox, IOutboxOperations>(services);
+        services.TryAddSingleton<OutboxOperations>();
+        services.TryAddSingleton<IOutbox>(sp => sp.GetRequiredService<OutboxOperations>());
         services.TryAddSingleton<ResolveJobIdByRefHandler>();
         services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
         services.TryAddSingleton<JobLookupResolution>();
@@ -201,10 +209,11 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetInputTemplateHandler>();
         services.TryAddSingleton<JobRequestRouting>();
         services.TryAddSingleton<JobRunAndWait>();
-        AddDoor<JobsOperations, IJobs, IJobsOperations>(services);
+        services.TryAddSingleton<JobsOperations>();
+        services.TryAddSingleton<IJobs>(sp => sp.GetRequiredService<JobsOperations>());
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
-        AddDoor<SignalsOperations, ISignalsOperations>(services);
+        services.TryAddSingleton<SignalsOperations>();
         services.TryAddSingleton<ClaimJobsHandler>();
         services.TryAddSingleton<ClaimJobHandler>();
         services.TryAddSingleton<StartExecutionHandler>();
@@ -219,33 +228,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetChildJobIdsHandler>();
         services.TryAddSingleton<GetStaleChildLatchesHandler>();
         services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
-        AddDoor<ExecutionOperations, IExecutionOperations>(services);
-    }
-
-    /// <summary>Registers an engine-only group's door once and maps its interface to that instance.</summary>
-    private static void AddDoor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDoor, TOperations>(
-        IServiceCollection services
-    )
-        where TDoor : class, TOperations
-        where TOperations : class
-    {
-        services.TryAddSingleton<TDoor>();
-        services.TryAddSingleton<TOperations>(sp => sp.GetRequiredService<TDoor>());
-    }
-
-    /// <summary>Registers a public group's door once and maps its public and internal interfaces to that one instance.</summary>
-    private static void AddDoor<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDoor,
-        TPublic,
-        TOperations
-    >(IServiceCollection services)
-        where TDoor : class, TOperations
-        where TPublic : class
-        where TOperations : class, TPublic
-    {
-        services.TryAddSingleton<TDoor>();
-        services.TryAddSingleton<TPublic>(sp => sp.GetRequiredService<TDoor>());
-        services.TryAddSingleton<TOperations>(sp => sp.GetRequiredService<TDoor>());
+        services.TryAddSingleton<ExecutionOperations>();
     }
 
     /// <summary>Metrics, the alert transports, and the ambient JobContext.</summary>
@@ -321,8 +304,7 @@ public static class ActaServiceCollectionExtensions
         {
             services.AddSingleton(sp => new OutboxRelayRegistry(
                 builder.Workers,
-                () => sp.GetRequiredService<IOutboxOperations>(),
-                sp.GetRequiredService<IJobsOperations>(),
+                sp.GetRequiredService<JobsOperations>(),
                 sp.GetService<ILoggerFactory>()
             ));
         }

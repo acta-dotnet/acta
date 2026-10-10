@@ -25,7 +25,7 @@ public sealed class ExtendWorkerLeasesReviveSpec : ActaRuntimeTestBase<Conforman
     public async Task Heartbeat_revives_a_dead_worker()
     {
         var ct = TestContext.Current.CancellationToken;
-        var workers = Services.GetRequiredService<IWorkersOperations>();
+        var workers = Services.GetRequiredService<WorkersOperations>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
 
         var (ns, revivedId) = await StartWorkerAsync("revived-host", ct);

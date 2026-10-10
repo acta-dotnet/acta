@@ -11,9 +11,9 @@ namespace Acta;
 /// <see cref="WorkerContext"/> read on the claim/dispatch hot path, and reconciles the definition-sourced recurring slots.
 /// </summary>
 internal sealed class CatalogRegistrar(
-    IDefinitionsOperations definitions,
-    ISchedulesOperations schedules,
-    IExecutionOperations execution,
+    DefinitionsOperations definitions,
+    SchedulesOperations schedules,
+    ExecutionOperations execution,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     AlertRoutingCheck? alertRouting,
@@ -22,9 +22,9 @@ internal sealed class CatalogRegistrar(
     ILogger log
 )
 {
-    private readonly IDefinitionsOperations _definitions = definitions;
-    private readonly ISchedulesOperations _schedules = schedules;
-    private readonly IExecutionOperations _execution = execution;
+    private readonly DefinitionsOperations _definitions = definitions;
+    private readonly SchedulesOperations _schedules = schedules;
+    private readonly ExecutionOperations _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly AlertRoutingCheck? _alertRouting = alertRouting;

@@ -177,7 +177,7 @@ public sealed class WorkerFinalizerTests
         context.WorkerIdByNamespace["orders"] = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
-            services.GetRequiredService<IExecutionOperations>(),
+            services.GetRequiredService<ExecutionOperations>(),
             null!,
             new WorkerWakeupPublisher(new InProcessWakeup()),
             options,
@@ -187,8 +187,8 @@ public sealed class WorkerFinalizerTests
             metrics: null
         );
         var heartbeat = new WorkerHeartbeat(
-            services.GetRequiredService<IWorkersOperations>(),
-            ScriptedSession.Unreachable.GetRequiredService<IDefinitionsOperations>(),
+            services.GetRequiredService<WorkersOperations>(),
+            ScriptedSession.Unreachable.GetRequiredService<DefinitionsOperations>(),
             Options.Create(options),
             context.WorkerRegistration,
             context,
@@ -247,7 +247,7 @@ public sealed class WorkerFinalizerTests
         context.WorkerIdByNamespace["orders"] = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
-            session.Services().GetRequiredService<IExecutionOperations>(),
+            session.Services().GetRequiredService<ExecutionOperations>(),
             null!,
             new WorkerWakeupPublisher(new InProcessWakeup()),
             options,

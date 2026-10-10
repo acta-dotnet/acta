@@ -44,7 +44,7 @@ public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<Conformanc
             1,
             ct
         );
-        await Services.GetRequiredService<IWorkersOperations>().StopWorkerAsync(ns, wStoppedId, ct);
+        await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(ns, wStoppedId, ct);
 
         // W_dead: start, then direct-stamp Dead. Using the global MarkDeadWorkers reaper here is racy on
         // the shared parallel schema: a concurrent global sweep can reap this worker before our own call

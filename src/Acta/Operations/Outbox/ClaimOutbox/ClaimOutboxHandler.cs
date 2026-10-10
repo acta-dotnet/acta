@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IOutboxSource.ClaimDueAsync"/>: one statement claims the batch and returns it.</summary>
+/// <summary><see cref="OutboxOperations.Source.ClaimDueAsync"/>: one statement claims the batch and returns it.</summary>
 internal sealed class ClaimOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ClaimOutboxResponse> HandleAsync(ClaimOutboxCommand command, CancellationToken ct)

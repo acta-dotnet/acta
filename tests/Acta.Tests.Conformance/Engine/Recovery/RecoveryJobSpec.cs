@@ -35,7 +35,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
     private int TestNamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
+    private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

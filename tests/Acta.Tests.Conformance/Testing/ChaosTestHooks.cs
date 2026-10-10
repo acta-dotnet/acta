@@ -251,7 +251,7 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
     }
 }
 
-// Wraps the database clock door, so the GetUtcNow skew and fault reach IActaClock too, which defaults to the door.
+// Wraps the database clock operations, so the GetUtcNow skew and fault reach IActaClock too, which defaults to them.
 internal sealed class FaultInjectingClock(IClockOperations inner, StoreFaultPlan plan) : IClockOperations
 {
     public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>

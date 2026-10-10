@@ -71,7 +71,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         // so the next heartbeat does not renew a lock the handler still relies on.
         var holdToken = await HoldTokenAsync(lockKey, ct);
         Assert.True(
-            (await Services.GetRequiredService<ILocksOperations>().ReleaseLockAsync(new LockToken(lockKey, holdToken), ct)).Released
+            (await Services.GetRequiredService<LocksOperations>().ReleaseLockAsync(new LockToken(lockKey, holdToken), ct)).Released
         );
 
         await Runtime.RunHeartbeatOnceAsync(ct);

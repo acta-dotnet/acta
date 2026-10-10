@@ -60,7 +60,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         }
 
         var claimed = await Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
 
         Assert.Equal(Batch, claimed.Jobs.Count);
@@ -82,7 +82,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             var drained = await ReadClaimUntilAsync(
                 () =>
                     Services
-                        .GetRequiredService<IExecutionOperations>()
+                        .GetRequiredService<ExecutionOperations>()
                         .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
                 r => r.Jobs.Count > 0 || r.Horizon is not { NextReadyAtUtc: { } due, DbNowUtc: var now } || due > now,
                 ct
@@ -117,7 +117,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var delayed = await ReadClaimUntilAsync(
             () =>
                 Services
-                    .GetRequiredService<IExecutionOperations>()
+                    .GetRequiredService<ExecutionOperations>()
                     .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct),
             r => r.Horizon?.NextReadyAtUtc is { } seen && seen <= dueAt.AddMinutes(1),
             ct
@@ -155,13 +155,13 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // The exclusion narrows the candidate set and nothing else: a one-row claim still takes the
         // last-enqueued High row ahead of the Normal one it was enqueued after.
         var firstFiltered = await Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
 
         Assert.Equal(high.JobId, Assert.Single(firstFiltered.Jobs).JobId);
 
         var restFiltered = await Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
 
         Assert.Equal(normal.JobId, Assert.Single(restFiltered.Jobs).JobId);
@@ -170,7 +170,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // Same rows, no filter: the excluded definition was never unclaimable, only invisible to a
         // worker that asked not to see it.
         var unfiltered = await Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
 
         Assert.Equal(excludedJobs.Order(), unfiltered.Jobs.Select(j => j.JobId).Order());
@@ -196,7 +196,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var bounded = await ReadClaimUntilAsync(
             () =>
                 Services
-                    .GetRequiredService<IExecutionOperations>()
+                    .GetRequiredService<ExecutionOperations>()
                     .ClaimJobsAsync(
                         new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]),
                         leaseTtl,
@@ -219,7 +219,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // than an instant it would sleep to for no reason.
         var allWaiting = await WaitingDefinitionIdsAsync(ns, ct);
         var silent = await Services
-            .GetRequiredService<IExecutionOperations>()
+            .GetRequiredService<ExecutionOperations>()
             .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: allWaiting), leaseTtl, ct);
 
         Assert.Empty(silent.Jobs);

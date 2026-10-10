@@ -43,7 +43,7 @@ public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture
             "SQLite serializes the whole batch under its single write lock and reads the clock inside it, so no call can queue with a stale instant."
         );
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocksOperations>();
+        var locks = Services.GetRequiredService<LocksOperations>();
         var key = $"{TestNamespace}.rate.convoy";
 
         // One reservation creates the bucket row and sets its instant.

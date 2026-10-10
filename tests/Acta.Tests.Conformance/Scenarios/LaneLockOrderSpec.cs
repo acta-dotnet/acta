@@ -206,7 +206,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
     private async Task<Func<Task<CompleteExecutionResponse>>> StartedAsync(EnqueueJobResponse job, CancellationToken ct)
     {
-        var store = Services.GetRequiredService<IExecutionOperations>();
+        var store = Services.GetRequiredService<ExecutionOperations>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);

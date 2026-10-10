@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="IAlertsOperations.UpdateAlertDeliveryAsync"/>: one routine call; a returned row means this
+/// <see cref="AlertsOperations.UpdateAlertDeliveryAsync"/>: one routine call; a returned row means this
 /// attempt still owned the version it observed.
 /// </summary>
 internal sealed class UpdateAlertDeliveryHandler(IDbSession session, ISqlDialect dialect)

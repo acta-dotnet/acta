@@ -18,7 +18,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 {
     private const string StepName = "charge";
 
-    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
+    private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
     [Fact(DisplayName = "A first start opens a Pending slot at attempt 1 and invokes it")]
     public async Task First_start_opens_a_pending_slot()

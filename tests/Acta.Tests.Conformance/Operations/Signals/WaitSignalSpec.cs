@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Signals;
 )]
 public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    private ISignalsOperations Slots => Services.GetRequiredService<ISignalsOperations>();
+    private SignalsOperations Slots => Services.GetRequiredService<SignalsOperations>();
 
     private Task<WaitSignalResponse> WaitAsync(long jobId, string name, int? timeoutSeconds, CancellationToken ct) =>
         Slots.WaitSignalAsync(jobId, CheckpointKindCode.Signal, name, timeoutSeconds, ct);

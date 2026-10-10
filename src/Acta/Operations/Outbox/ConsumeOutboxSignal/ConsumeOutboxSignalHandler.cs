@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IOutboxOperations.ConsumeOutboxSignalAsync"/>: one version-CAS delete.</summary>
+/// <summary><see cref="OutboxOperations.ConsumeOutboxSignalAsync"/>: one version-CAS delete.</summary>
 internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ConsumeOutboxSignalResponse> HandleAsync(ConsumeOutboxSignalCommand command, CancellationToken ct)

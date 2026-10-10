@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="ISchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each slot job, refreshes input, audit, status, and
+/// <see cref="SchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each slot job, refreshes input, audit, status, and
 /// cursor, upserts schedules, and sweeps orphans.
 /// </summary>
 internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect dialect)

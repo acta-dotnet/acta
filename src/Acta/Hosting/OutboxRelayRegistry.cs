@@ -13,16 +13,14 @@ namespace Acta;
 /// </summary>
 internal sealed class OutboxRelayRegistry(
     IEnumerable<WorkerRegistration> workers,
-    Func<IOutboxOperations> outbox,
-    IJobsOperations jobs,
+    JobsOperations jobs,
     ILoggerFactory? loggerFactory = null
 )
 {
     private readonly Dictionary<string, OutboxRelayRegistration> _byNamespace = workers
         .Where(w => w.Relay is not null)
         .ToDictionary(w => w.NamespaceName, w => w.Relay!, StringComparer.Ordinal);
-    private readonly Func<IOutboxOperations> _outbox = outbox;
-    private readonly IJobsOperations _jobs = jobs;
+    private readonly JobsOperations _jobs = jobs;
     private readonly ILoggerFactory? _loggerFactory = loggerFactory;
     private readonly ConcurrentDictionary<string, OutboxRelay> _services = new(StringComparer.Ordinal);
 
@@ -39,7 +37,7 @@ internal sealed class OutboxRelayRegistry(
             );
 
     /// <summary>This namespace's outbox source, for the operator reads that run outside the relay.</summary>
-    public IOutboxSource Source(string namespaceName) => Service(namespaceName).Source;
+    public OutboxOperations.Source Source(string namespaceName) => Service(namespaceName).Source;
 
     /// <summary>The relay service bound to this namespace's source; lazily created and cached per namespace.</summary>
     public OutboxRelay Service(string namespaceName) =>
@@ -48,9 +46,7 @@ internal sealed class OutboxRelayRegistry(
             ns =>
             {
                 var registration = Registration(ns);
-                // The outbox operations resolve on first use: their quarantine listing reads this registry, so
-                // taking them in the constructor would be a cycle.
-                var source = _outbox().OpenSource(registration.SourceFactory.Create(registration.Schema, registration.Table));
+                var source = OutboxOperations.OpenSource(registration.SourceFactory.Create(registration.Schema, registration.Table));
                 return new OutboxRelay(source, _jobs, _loggerFactory?.CreateLogger<OutboxRelay>());
             }
         );

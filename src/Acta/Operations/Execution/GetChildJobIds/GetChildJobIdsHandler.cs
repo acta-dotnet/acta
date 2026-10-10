@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IExecutionOperations.GetChildJobIdsAsync"/>: the parent's direct children, terminal ones included.</summary>
+/// <summary><see cref="ExecutionOperations.GetChildJobIdsAsync"/>: the parent's direct children, terminal ones included.</summary>
 internal sealed class GetChildJobIdsHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetChildJobIdsResponse> HandleAsync(GetChildJobIdsQuery query, CancellationToken ct) =>

@@ -3,7 +3,7 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary>
-/// <see cref="ISchemaOperations.AcquireSchemaLockAsync"/>. SQLite names no lock: its immediate migration transaction already
+/// <see cref="SchemaOperations.AcquireSchemaLockAsync"/>. SQLite names no lock: its immediate migration transaction already
 /// holds the one write lock.
 /// </summary>
 internal sealed class AcquireSchemaLockHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)

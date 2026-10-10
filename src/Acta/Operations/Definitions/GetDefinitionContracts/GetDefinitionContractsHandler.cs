@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IDefinitionsOperations.GetDefinitionContractsAsync"/>: one read.</summary>
+/// <summary><see cref="DefinitionsOperations.GetDefinitionContractsAsync"/>: one read.</summary>
 internal sealed class GetDefinitionContractsHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetDefinitionContractsResponse> HandleAsync(GetDefinitionContractsQuery query, CancellationToken ct)

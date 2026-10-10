@@ -90,7 +90,7 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
     ) =>
         (
             await Services
-                .GetRequiredService<IAlertsOperations>()
+                .GetRequiredService<AlertsOperations>()
                 .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct)
         ).Updated;
 

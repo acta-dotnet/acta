@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="IOutboxSource.CountBacklogAsync"/>: one scalar read.</summary>
+/// <summary><see cref="OutboxOperations.Source.CountBacklogAsync"/>: one scalar read.</summary>
 internal sealed class CountOutboxBacklogHandler(IDbSession session)
 {
     public Task<long> HandleAsync(CancellationToken ct) =>

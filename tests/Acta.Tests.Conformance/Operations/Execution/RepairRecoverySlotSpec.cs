@@ -22,7 +22,7 @@ public sealed class RepairRecoverySlotSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
+    private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
     [Fact(DisplayName = "A slot in flight under a lapsed lease is re-armed Ready and due now, with the lost attempt recorded once")]
     public async Task Lapsed_slot_is_re_armed_due_now()
