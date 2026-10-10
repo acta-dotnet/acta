@@ -96,7 +96,7 @@ section { padding: var(--section) 0; scroll-margin-top: 4rem; }
 .page-head { padding-top: clamp(2.4rem, 6vh, 4rem); }
 h1, h2 { font-family: var(--serif); font-weight: 500; line-height: 1.06; margin: 0 0 1rem; text-wrap: balance; }
 h1 { font-size: clamp(2.4rem, 4.2vw, 3.6rem); max-width: 26ch; }
-h2 { font-size: clamp(2.1rem, 3.6vw, 3.2rem); max-width: 24ch; }
+h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .center { text-align: center; }
 .center h2, .center .lede { margin-inline: auto; }
 .lede { color: var(--muted); max-width: 66ch; font-size: 1.04rem; margin: 0; }

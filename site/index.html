@@ -316,7 +316,7 @@
       <h2>How one worker claims, runs, and finalizes a job.</h2>
       <figure class="pipe">
         <div class="pipe-scroll">
-          <svg viewBox="0 0 1000 300" role="img" aria-label="A worker claims due rows from your database, runs handlers in parallel, and finalizes their completions together, up to 128 in one commit; a heartbeat renews only what the worker holds; when the database is slow, finalizing falls behind and claiming waits.">
+          <svg class="pipe-wide" viewBox="0 0 1000 300" role="img" aria-label="A worker claims due rows from your database, runs handlers in parallel, and finalizes their completions together, up to 128 in one commit; a heartbeat renews only what the worker holds; when the database is slow, finalizing falls behind and claiming waits.">
             <defs>
               <marker id="pipe-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
               <marker id="pipe-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
@@ -326,29 +326,29 @@
             <text class="tt" x="48" y="38">Your database</text>
             <text class="tm" x="48" y="57">every job your application enqueued is a row here</text>
 
-            <line class="ln" x1="130" y1="128" x2="130" y2="72" marker-end="url(#pipe-ah)" marker-start="url(#pipe-ah)"/>
-            <text class="tm" x="140" y="100">claims due rows</text>
-            <line class="ln acc" x1="700" y1="128" x2="700" y2="72" marker-end="url(#pipe-ah-acc)"/>
-            <text class="tm acc-t" x="690" y="92" text-anchor="end">commits up to 128</text>
-            <text class="tm acc-t" x="690" y="108" text-anchor="end">completions at once</text>
+            <line class="ln" x1="135" y1="128" x2="135" y2="72" marker-end="url(#pipe-ah)" marker-start="url(#pipe-ah)"/>
+            <text class="tm" x="145" y="100">claims due rows</text>
+            <line class="ln acc" x1="695" y1="128" x2="695" y2="72" marker-end="url(#pipe-ah-acc)"/>
+            <text class="tm acc-t" x="685" y="92" text-anchor="end">commits up to 128</text>
+            <text class="tm acc-t" x="685" y="108" text-anchor="end">completions at once</text>
             <line class="ln" x1="915" y1="128" x2="915" y2="72" marker-end="url(#pipe-ah)"/>
             <text class="tm" x="905" y="100" text-anchor="end">renews what it holds</text>
 
-            <rect class="box" x="30" y="130" width="200" height="70" rx="4"/>
+            <rect class="box" x="30" y="130" width="210" height="70" rx="4"/>
             <text class="tt" x="48" y="160">Claim</text>
-            <text class="tm" x="48" y="182">one call, one row per free hand</text>
-            <line class="ln" x1="230" y1="165" x2="298" y2="165" marker-end="url(#pipe-ah)"/>
+            <text class="tm" x="48" y="182">due rows, in one call</text>
+            <line class="ln" x1="240" y1="165" x2="288" y2="165" marker-end="url(#pipe-ah)"/>
 
-            <rect class="ghost" x="320" y="110" width="200" height="70" rx="4"/>
-            <rect class="ghost" x="310" y="120" width="200" height="70" rx="4"/>
-            <rect class="box" x="300" y="130" width="200" height="70" rx="4"/>
-            <text class="tt" x="318" y="160">Run</text>
-            <text class="tm" x="318" y="182">your handlers, in parallel</text>
-            <line class="ln" x1="500" y1="165" x2="598" y2="165" marker-end="url(#pipe-ah)"/>
+            <rect class="ghost" x="310" y="110" width="200" height="70" rx="4"/>
+            <rect class="ghost" x="300" y="120" width="200" height="70" rx="4"/>
+            <rect class="box" x="290" y="130" width="200" height="70" rx="4"/>
+            <text class="tt" x="308" y="160">Run</text>
+            <text class="tm" x="308" y="182">your handlers, in parallel</text>
+            <line class="ln" x1="510" y1="165" x2="578" y2="165" marker-end="url(#pipe-ah)"/>
 
-            <rect class="box" x="600" y="130" width="200" height="70" rx="4"/>
-            <text class="tt" x="618" y="160">Finalize</text>
-            <text class="tm" x="618" y="182">what waits goes out together</text>
+            <rect class="box" x="580" y="130" width="230" height="70" rx="4"/>
+            <text class="tt" x="598" y="160">Finalize</text>
+            <text class="tm" x="598" y="182">what waits goes out together</text>
 
             <rect class="box" x="850" y="130" width="130" height="70" rx="4"/>
             <text class="tt" x="866" y="160">Heartbeat</text>
@@ -356,6 +356,45 @@
 
             <path class="ln dash warn" d="M 650 202 C 650 262, 180 262, 180 204" marker-end="url(#pipe-ah-warn)"/>
             <text class="t warn-t" x="415" y="286" text-anchor="middle">database slow → finalizing falls behind → claiming waits</text>
+          </svg>
+          <svg class="pipe-tall" viewBox="0 0 360 486" role="img" aria-label="A worker claims due rows from your database, runs handlers in parallel, and finalizes their completions together, up to 128 in one commit; a heartbeat renews only what the worker holds; when the database is slow, finalizing falls behind and claiming waits.">
+            <defs>
+              <marker id="pipe-m-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+              <marker id="pipe-m-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
+              <marker id="pipe-m-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
+            </defs>
+            <rect class="band" x="10" y="10" width="340" height="50" rx="4"/>
+            <text class="tt" x="24" y="32">Your database</text>
+            <text class="tm" x="24" y="50">every job is a row here</text>
+
+            <line class="ln" x1="160" y1="98" x2="160" y2="64" marker-end="url(#pipe-m-ah)" marker-start="url(#pipe-m-ah)"/>
+            <text class="tm" x="170" y="86">claims due rows</text>
+            <rect class="box" x="40" y="100" width="240" height="56" rx="4"/>
+            <text class="tt" x="56" y="124">Claim</text>
+            <text class="tm" x="56" y="145">due rows, in one call</text>
+
+            <line class="ln" x1="160" y1="156" x2="160" y2="180" marker-end="url(#pipe-m-ah)"/>
+            <rect class="ghost" x="52" y="184" width="240" height="56" rx="4"/>
+            <rect class="ghost" x="46" y="190" width="240" height="56" rx="4"/>
+            <rect class="box" x="40" y="196" width="240" height="56" rx="4"/>
+            <text class="tt" x="56" y="220">Run</text>
+            <text class="tm" x="56" y="241">your handlers, in parallel</text>
+
+            <line class="ln" x1="160" y1="252" x2="160" y2="288" marker-end="url(#pipe-m-ah)"/>
+            <rect class="box" x="40" y="290" width="240" height="56" rx="4"/>
+            <text class="tt" x="56" y="314">Finalize</text>
+            <text class="tm" x="56" y="335">what waits goes out together</text>
+            <path class="ln acc" d="M 280 318 H 318 V 64" marker-end="url(#pipe-m-ah-acc)"/>
+            <text class="tm acc-t" x="40" y="368">commits up to 128 completions at once</text>
+
+            <path class="ln dash warn" d="M 40 330 H 20 V 128 H 36" marker-end="url(#pipe-m-ah-warn)"/>
+            <text class="tm warn-t" x="40" y="392">database slow: finalizing falls behind,</text>
+            <text class="tm warn-t" x="40" y="408">claiming waits</text>
+
+            <rect class="box" x="40" y="424" width="240" height="52" rx="4"/>
+            <text class="tt" x="56" y="446">Heartbeat</text>
+            <text class="tm" x="56" y="466">every 45 s, renews what it holds</text>
+            <path class="ln" d="M 280 450 H 340 V 64" marker-end="url(#pipe-m-ah)"/>
           </svg>
         </div>
       </figure>
@@ -374,37 +413,48 @@
         </div>
       </div>
       <p class="hiw-note">Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
-      <div class="actions"><a class="button" href="/engine">Inside a worker: the lease clock and every cap</a></div>
+      <a class="golink" href="/engine">Every cap, inside one worker</a>
     </section>
 
-    <section class="wrap" id="who-runs-next">
-      <p class="record">Claiming</p>
-      <h2>How Acta decides which job runs next.</h2>
-      <p class="lede">Order within each lane, parallel work across lanes, and priority among the eligible jobs. The same order holds upstream: a job can be saved in the shop's own transaction, travel through the outbox relay, and reach the workers in the sequence it was staged.</p>
-      <div class="actions"><a class="button" href="/claiming">Step through it: two lanes, two workers, one claim scan</a></div>
-    </section>
-
-    <section class="wrap" id="admission">
-      <p class="record">Order, limits &amp; pacing</p>
-      <h2>Choose which jobs run in order, how many run at once, and how often they start.</h2>
-      <p class="lede">A lane decides <b>order</b>. A concurrency key or limit decides <b>how many run at once</b>. A rate limit decides <b>how often they start</b>. The gates are independent, so a job passes every one it carries, and a job that carries none is never slowed by them.</p>
-      <div class="admission-axes">
-        <div><i>Order</i><b>Lane</b><p>One job of the lane at a time, in enqueue order, like an SQS FIFO message group. The lane holds through retries.</p><code>o => o.Lane("customer-42")</code></div>
-        <div><i>How many at once · 1</i><b>ConcurrencyKey</b><p>Never two at once per key. Order is not promised: a younger job may take a freed key first.</p><code>o => o.ConcurrencyKey("rebuild:acme")</code></div>
-        <div><i>How many at once · N</i><b>ConcurrencyLimit</b><p>The same gate with N slots, per key when the enqueue names one, otherwise for the whole definition.</p><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code></div>
-        <div><i>How often</i><b>RateLimit</b><p>Starts metered on one clock across the namespace’s workers. Early arrivals are booked a turn and come back for it.</p><code>[Job("send-invoice", RateLimit = "10/s")]</code></div>
+    <section class="wrap" id="walkthroughs">
+      <p class="record">Walkthroughs</p>
+      <h2>Step through how jobs are ordered, limited, and shared across workers.</h2>
+      <p class="lede">Three interactive walkthroughs, each on its own page: a handful of jobs and workers, moved one step at a time, with what the database records at every step.</p>
+      <div class="dives">
+        <article class="dive" id="who-runs-next">
+          <h3>How Acta decides which job runs next.</h3>
+          <p>Only the head of each lane can be claimed, jobs without a lane run in parallel, and any worker can take the next one.</p>
+          <div class="dive-art" aria-hidden="true">
+            <div class="dive-lane"><span>customer-42</span><div class="walk-job ready"><b>A1</b><span>Ready</span></div><div class="walk-job blocked"><b>A2</b><span>Blocked</span></div><div class="walk-job blocked"><b>A3</b><span>Blocked</span></div></div>
+            <div class="dive-lane"><span>customer-73</span><div class="walk-job ready"><b>B1</b><span>Ready</span></div><div class="walk-job blocked"><b>B2</b><span>Blocked</span></div></div>
+            <div class="dive-lane"><span>no lane</span><div class="walk-job ready"><b>C1</b><span>Ready</span></div><div class="walk-job ready"><b>C2</b><span>Ready</span></div></div>
+          </div>
+          <a class="golink" href="/claiming">Step through it</a>
+        </article>
+        <article class="dive" id="admission">
+          <h3>Choose which jobs run in order, how many run at once, and how often they start.</h3>
+          <p>Four independent gates. A job passes every gate it carries, and a job that carries none is never slowed by them.</p>
+          <div class="dive-art dive-gates" aria-hidden="true">
+            <div><b>Lane</b><span>one at a time, in order</span></div>
+            <div><b>ConcurrencyKey</b><span>never two at once</span></div>
+            <div><b>ConcurrencyLimit</b><span>at most N at once</span></div>
+            <div><b>RateLimit</b><span>so many starts a second</span></div>
+          </div>
+          <a class="golink" href="/gates">Step through it</a>
+        </article>
+        <article class="dive" id="fleet">
+          <h3>Add as many workers as you like. They share the work through your database.</h3>
+          <p>Every worker is a peer on the same rows. Add one and it starts claiming; kill one and the work it held comes back to the others.</p>
+          <div class="dive-art dive-workers" aria-hidden="true">
+            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W1</span></div></div>
+            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W2</span></div></div>
+            <div class="walk-worker fleet-worker dead"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W3</span></div></div>
+            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W4</span></div></div>
+            <p>W3 stopped. Nothing renews its rows, so their leases run out and W1, W2, or W4 takes them.</p>
+          </div>
+          <a class="golink" href="/fleet">Step through it</a>
+        </article>
       </div>
-      <div class="actions"><a class="button" href="/gates">Step the same five jobs through each gate</a></div>
-    </section>
-
-    <section class="wrap" id="fleet">
-      <p class="record">Cluster-wide</p>
-      <h2>Add as many workers as you like. They share the work through your database.</h2>
-      <p class="lede">Every worker is a peer: the same process loop, talking to the same rows. There is no control plane to run, no broker to stand up, and nothing to elect. Add a process and it starts claiming. Kill one and the others carry on, and the work it held comes back through a recovery pass any of them can run.</p>
-      <div class="hiw" aria-label="The worker loop">
-        <b>register</b><i>heartbeat</i><b>claim due rows</b><i>lease</i><b>run handlers</b><i>renew</i><b>settle</b><i>repeat</i><b>the same ledger</b>
-      </div>
-      <div class="actions"><a class="button" href="/fleet">Step through a claim, a kill, and a rolling deploy</a></div>
     </section>
 
     <section class="wrap" id="install">
