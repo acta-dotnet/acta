@@ -27,6 +27,7 @@ public sealed class SpecCoverageTests
                     .EnumerateDirectories(Path.Combine(runtime, "Operations", group))
                     .Select(Path.GetFileName)
                     .OfType<string>()
+                    .Where(name => name != "Shared")
             )
             {
                 if (!names.Any(name => IsSpecOf(name, operation)))

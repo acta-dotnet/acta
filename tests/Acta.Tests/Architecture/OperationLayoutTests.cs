@@ -42,8 +42,14 @@ public sealed class OperationLayoutTests
         Ratchet.Check("layout", violations, "Move the file to match docs/internals/source-layout.md.");
     }
 
+    // A group's Shared/ folder holds what several of its operations share; it is not an operation.
     private static IEnumerable<string> OperationFolders(string operations) =>
-        Directory.Exists(operations) ? Directory.EnumerateDirectories(operations).SelectMany(Directory.EnumerateDirectories) : [];
+        Directory.Exists(operations)
+            ? Directory
+                .EnumerateDirectories(operations)
+                .SelectMany(Directory.EnumerateDirectories)
+                .Where(folder => Path.GetFileName(folder) != "Shared")
+            : [];
 
     // A route folder holds the route's request, response, and endpoint; it has no handler and no SQL of its own.
     private static IEnumerable<string> CheckFolder(string root, string folder)

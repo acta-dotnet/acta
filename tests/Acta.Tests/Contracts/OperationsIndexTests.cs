@@ -92,7 +92,7 @@ public sealed partial class OperationsIndexTests
             sb.AppendLine("| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |");
             sb.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
             var folders = Directory.Exists(Path.Combine(operations, group))
-                ? Directory.EnumerateDirectories(Path.Combine(operations, group)).ToList()
+                ? Directory.EnumerateDirectories(Path.Combine(operations, group)).Where(IsOperation).ToList()
                 : [];
             foreach (
                 var folder in folders
@@ -165,12 +165,15 @@ public sealed partial class OperationsIndexTests
         var names = Directory
             .EnumerateDirectories(operations)
             .SelectMany(Directory.EnumerateDirectories)
+            .Where(IsOperation)
             .Select(Path.GetFileName)
             .OfType<string>()
             .ToList();
         var helpers = Directory
             .EnumerateDirectories(operations)
-            .SelectMany(group => Directory.EnumerateFiles(group, "*.cs"))
+            .SelectMany(group =>
+                Directory.EnumerateFiles(group, "*.cs", SearchOption.AllDirectories).Where(file => IsGroupLevel(group, file))
+            )
             .SelectMany(file => Parse(file).OfType<ClassDeclarationSyntax>())
             .GroupBy(c => c.Identifier.Text)
             .ToDictionary(g => g.Key, g => Identifiers(g.First()));
@@ -245,12 +248,20 @@ public sealed partial class OperationsIndexTests
     private static HashSet<string> Identifiers(SyntaxNode node) =>
         node.DescendantTokens().Where(t => t.IsKind(SyntaxKind.IdentifierToken)).Select(t => t.Text).ToHashSet(StringComparer.Ordinal);
 
+    // A group's Shared/ folder holds what several of its operations share; it is not an operation.
+    private static bool IsOperation(string folder) => Path.GetFileName(folder) != "Shared";
+
+    // A file at the group's root or in its Shared/ folder, where the helpers a facade method may call live.
+    private static bool IsGroupLevel(string group, string file) =>
+        Path.GetDirectoryName(file) is { } dir && (dir == group || dir == Path.Combine(group, "Shared"));
+
     // A route folder whose endpoint names no operation of the SDK: the route renders or composes what the facades answer.
     private static List<(string Group, string Folder)> HttpOnlyOperations(string operations, string routeOperations)
     {
         var sdk = Directory
             .EnumerateDirectories(operations)
             .SelectMany(Directory.EnumerateDirectories)
+            .Where(IsOperation)
             .Select(Path.GetFileName)
             .ToHashSet(StringComparer.Ordinal);
         return

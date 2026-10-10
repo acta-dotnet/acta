@@ -125,8 +125,9 @@ public sealed class HandlerResponseTests
         );
     }
 
-    // "Group/Operation" for a file in an operation folder, null for a group-level file; the path is below Operations/.
-    private static string? Slice(string path) => path.Split('/') is [var group, var operation, _] ? $"{group}/{operation}" : null;
+    // "Group/Operation" for a file in an operation folder, null for a group-level or Shared/ file; the path is below Operations/.
+    private static string? Slice(string path) =>
+        path.Split('/') is [var group, var operation, _] && operation != "Shared" ? $"{group}/{operation}" : null;
 
     private static IEnumerable<(string Key, string? Detail)> SliceViolations(string name, string? slice, ILookup<string, string> users)
     {
