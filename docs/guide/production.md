@@ -206,7 +206,7 @@ can have up to 96 handlers in flight before downstream throttles or job-level li
 Tune together:
 
 - `MaxConcurrentExecutors`: handler concurrency per process.
-- `ClaimBatchSize`: ready rows pulled per claim poll.
+- `ClaimBatchSize`: ready rows a `Buffered` claim pulls; a `Direct` claim takes one per free executor.
 - Database connection pool size.
 - Downstream rate limits and idempotency guarantees.
 

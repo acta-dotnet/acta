@@ -183,6 +183,10 @@ public static class BaselineSuite
     private static readonly string[] Providers = ["sqlite", "pg", "mssql"];
     private static readonly ExecutionProfile[] ExecutionProfiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct];
 
+    // A drain worker runs the MaxConcurrentExecutors default of a box with 16 or more logical processors, so the
+    // cell measures the claims a default worker takes. A constant, because the default varies by box and a key must not.
+    private const int DrainExecutors = 64;
+
     /// <summary>
     /// A lanes cell's job count: the preset's shared count, except outside the full matrix, where the two
     /// serial cells, one hot key and one deep lane, run a thousand: they drain one job at a time, so a larger
@@ -279,7 +283,7 @@ public static class BaselineSuite
                     keyProfile: profile,
                     actualProfile: profile,
                     jobs: preset.Jobs,
-                    executors: 16,
+                    executors: DrainExecutors,
                     claimBatch: 32,
                     payloadBytes: 0,
                     workers,
@@ -1043,7 +1047,10 @@ public static class BaselineReport
 
         sb.AppendLine("## Drain: sustained jobs/s (higher is better)");
         sb.AppendLine();
-        sb.AppendLine("A preloaded backlog drained by N worker processes, 16 executors each. Cells are median jobs/s.");
+        sb.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"A preloaded backlog drained by N worker processes, {rows[0].Key.Executors} executors each. Cells are median jobs/s."
+        );
         sb.AppendLine();
         PivotByProfile(
             sb,

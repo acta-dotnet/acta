@@ -47,6 +47,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   handler that already finished. The cost is throughput: in the rc.4 round, PostgreSQL drain at sixteen
   workers ran about 29,000 jobs a second on Bulk and about 10,000 on Direct. The installed routines
   lose `complete_executions_batch`, and the object package moves to revision 8.
+- **`ClaimBatchSize` sets only the Buffered batch.** A Direct claim now takes a row for every free
+  executor, up to `MaxConcurrentExecutors`, instead of stopping at `ClaimBatchSize`. A Direct worker that
+  used `ClaimBatchSize` to keep its claims small lowers `MaxConcurrentExecutors` instead.
 - **`acta.executing` is now `acta.jobs.inflight`.** The gauge reports every job the worker holds, tagged
   `namespace` and `state` (`claimed`, `executing`, `finalizing`); a dashboard that read `acta.executing`
   reads `acta.jobs.inflight` filtered to `state = executing`.
@@ -266,7 +269,9 @@ settles, and what an operator sees when it fails.
   through a channel; the `sys.recovery` slot runs on its own task without a permit, so a saturated
   worker still sweeps. On Direct, after a claim that found work, the claimer lets the executors take
   those rows before it claims again, so the next claim asks for every executor that came free rather
-  than the one or two free at that instant, and claims per job halve. An executor is freed the moment its completion is built: the entry moves to
+  than the one or two free at that instant, and claims per job halve. That claim is not capped by
+  `ClaimBatchSize`: on SQL Server every claim seek walks the ghost records earlier claims left at the
+  head of the claim index, so the fewer claims a drain takes, the fewer walks it pays. An executor is freed the moment its completion is built: the entry moves to
   the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of results, writes
   the plain ones in one `complete_executions` call and the rest per job at once, repeats a write
   until it lands, and then wakes whoever waits. A lone completion is written at once; a batch that

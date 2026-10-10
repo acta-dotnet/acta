@@ -60,7 +60,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | Option | Default | Scope | Notes |
 | --- | --- | --- | --- |
 | `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per process | Maximum in-flight handler executions per worker runtime. |
-| `ClaimBatchSize` | 32 | per process | Ready rows pulled per claim poll. Raise with executor count and DB capacity. |
+| `ClaimBatchSize` | 32 | per process | Ready rows a `Buffered` claim pulls, one batch ahead of the executors. Raise with executor count and DB capacity. `Direct` ignores it and claims a row for every free executor. |
 | `SafetyPollInterval` | 1 second | per process | Idle polling ceiling when no wakeup is received. Must be at least 1 second. |
 | `ExecutionProfile` | `Buffered` | per process | Claim/dispatch strategy. See the execution profile table below. |
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |

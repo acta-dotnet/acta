@@ -63,9 +63,11 @@ public sealed class JobsOptions
     internal TimeSpan ClaimIdleJitterMax { get; set; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
-    /// Per-process maximum number of Ready jobs the claim loop pulls per poll into the dispatch
-    /// channel. Default 32, which amortises the per-poll round-trip under load; excess drains as
-    /// executors free up. Must be positive; startup validation rejects a value below 1.
+    /// Per-process number of Ready jobs a <see cref="ExecutionProfile.Buffered"/> claim pulls into the
+    /// dispatch channel, one batch ahead of the executors. Default 32, which amortises the per-poll
+    /// round-trip under load; excess drains as executors free up. <see cref="ExecutionProfile.Direct"/>
+    /// ignores it: a Direct claim takes a row for every free executor. Must be positive; startup
+    /// validation rejects a value below 1.
     /// </summary>
     public int ClaimBatchSize { get; set; } = 32;
 

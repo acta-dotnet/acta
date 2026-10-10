@@ -5,8 +5,9 @@ namespace Acta.Tests.Benchmarks;
 
 /// <summary>
 /// The lanes cells ride the same matrix as the rest of the suite, and a baseline captured before lanes
-/// existed still reads back and keys its cells as before, so the lanes cells are simply new beside it. Its
-/// Bulk cells are the one exception: that profile is gone.
+/// existed still reads back and keys its cells as before, so the lanes cells are simply new beside it. Two
+/// exceptions: its Bulk cells, because that profile is gone, and its drain cells, which ran 16 executors per
+/// worker where the matrix now runs the default worker's 64.
 /// </summary>
 public sealed class LanesCellTests
 {
@@ -48,12 +49,13 @@ public sealed class LanesCellTests
 
         Assert.All(rc3.Cells, c => Assert.Null(c.Key.Variant));
         var keys = current.Select(s => s.Key).ToHashSet();
-        Assert.All(rc3.Cells.Where(c => c.Key.ExecutionProfile != "Bulk"), c => Assert.Contains(c.Key, keys));
+        Assert.All(rc3.Cells.Where(c => c.Key.ExecutionProfile != "Bulk" && c.Key.Scenario != "drain"), c => Assert.Contains(c.Key, keys));
 
         var old = rc3.Cells.Select(c => c.Key).ToHashSet();
         var added = current.Where(s => !old.Contains(s.Key)).ToList();
         Assert.NotEmpty(added);
-        Assert.All(added, s => Assert.Contains(s.Scenario, (string[])["lanes", "claim-skew"]));
+        Assert.All(added, s => Assert.Contains(s.Scenario, (string[])["lanes", "claim-skew", "drain"]));
+        Assert.All(added.Where(s => s.Scenario == "drain"), s => Assert.Equal(64, s.Key.Executors));
     }
 
     [Fact]

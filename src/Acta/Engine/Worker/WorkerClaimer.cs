@@ -22,6 +22,10 @@ internal sealed class WorkerClaimer(
 {
     private readonly TimeSpan _leaseRunway = InFlightJob.LeaseRunway(options);
 
+    // Direct claims a row for every free executor; Buffered claims one batch ahead of them.
+    private readonly int _maxClaim =
+        options.ExecutionProfile == ExecutionProfile.Direct ? options.MaxConcurrentExecutors : options.ClaimBatchSize;
+
     // The recovery slots this loop claimed, chained so one runs at a time; awaited when the loop ends.
     private Task _recovery = Task.CompletedTask;
 
@@ -44,7 +48,7 @@ internal sealed class WorkerClaimer(
                 "WorkerRuntime: starting claim/dispatch loop with {Count} executors, safety poll {DurationMs}ms ({Detail}).",
                 options.MaxConcurrentExecutors,
                 (long)options.SafetyPollInterval.TotalMilliseconds,
-                $"claim batch {options.ClaimBatchSize}, poll floor {(long)options.MinPollFloor.TotalMilliseconds}ms"
+                $"claim up to {_maxClaim}, poll floor {(long)options.MinPollFloor.TotalMilliseconds}ms"
             );
             while (!stop.IsCancellationRequested)
             {
@@ -153,11 +157,11 @@ internal sealed class WorkerClaimer(
                 await Task.Yield();
             }
             // Never cancelled mid-count: a permit taken here and lost to a throw would never be released.
-            while (permits < options.ClaimBatchSize && registry.Permits.Wait(0, CancellationToken.None))
+            while (permits < _maxClaim && registry.Permits.Wait(0, CancellationToken.None))
             {
                 permits++;
             }
-        } while (settle && permits > before && permits < options.MaxConcurrentExecutors);
+        } while (settle && permits > before && permits < _maxClaim);
         return permits;
     }
 

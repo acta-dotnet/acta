@@ -5,8 +5,8 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// What the claimer does when the claim query itself fails - a database outage, a failover, a connection pool
-/// exhausted - in both profiles, which share the one loop. A failed claim must not tear the loop down and must not
+/// How many rows the claimer asks for in each profile, and what it does when the claim query itself fails - a
+/// database outage, a failover, a connection pool exhausted - in both profiles, which share the one loop. A failed claim must not tear the loop down and must not
 /// retry at the anti-spin poll floor either - the floor exists for deadline races, and hammering a down database at
 /// that cadence spams errors many times a second - so it backs off a full safety interval and says how long it is
 /// waiting. A stop landing during that backoff, or on the claim call itself, must end the loop cleanly rather than
@@ -15,6 +15,26 @@ namespace Acta.Tests.Runtime;
 public sealed class WorkerClaimerTests
 {
     private const string Namespace = "orders";
+
+    [Theory]
+    [InlineData(ExecutionProfile.Direct, 4)]
+    [InlineData(ExecutionProfile.Buffered, 2)]
+    public async Task A_direct_claim_asks_for_every_free_executor_and_a_buffered_claim_for_one_batch(ExecutionProfile profile, int expected)
+    {
+        // Direct starts what it claims, so it asks for a row per free executor whatever the batch size; Buffered
+        // claims one batch ahead of its executors.
+        using var cts = new CancellationTokenSource();
+        var store = new ClaimStore(_ =>
+        {
+            cts.Cancel();
+            return [];
+        });
+        var (claimer, _) = Claimer(store, new RecordingLogger(), profile, TimeSpan.FromMinutes(10), executors: 4, claimBatch: 2);
+
+        await claimer.RunAsync(cts.Token, cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        Assert.Equal([expected], store.Limits);
+    }
 
     [Theory]
     [InlineData(ExecutionProfile.Buffered)]
@@ -91,7 +111,9 @@ public sealed class WorkerClaimerTests
         ClaimStore store,
         RecordingLogger log,
         ExecutionProfile profile,
-        TimeSpan safetyPoll
+        TimeSpan safetyPoll,
+        int executors = 2,
+        int claimBatch = 2
     )
     {
         var context = new WorkerContext(new WorkerRegistration(Namespace, null, null, [], []));
@@ -101,8 +123,8 @@ public sealed class WorkerClaimerTests
         {
             ExecutionProfile = profile,
             SafetyPollInterval = safetyPoll,
-            MaxConcurrentExecutors = 2,
-            ClaimBatchSize = 2,
+            MaxConcurrentExecutors = executors,
+            ClaimBatchSize = claimBatch,
         };
         var registry = new InFlightJobRegistry(options);
         return (new WorkerClaimer(store.Execution(), executor: null!, options, context, registry, new IdleWakeup(), log), registry);
@@ -124,9 +146,21 @@ public sealed class WorkerClaimerTests
     /// <summary>The real execution group over a session whose claim answers the rows the script returns.</summary>
     internal sealed class ClaimStore(Func<CancellationToken, IReadOnlyList<ClaimJobsRow>> onClaim)
     {
+        private readonly List<int> _limits = [];
         private int _calls;
 
         public int Calls => Volatile.Read(ref _calls);
+
+        public IReadOnlyList<int> Limits
+        {
+            get
+            {
+                lock (_limits)
+                {
+                    return [.. _limits];
+                }
+            }
+        }
 
         public ExecutionOperations Execution() => new ScriptedSession(
                 (call, ct) =>
@@ -137,6 +171,10 @@ public sealed class WorkerClaimerTests
                     }
 
                     Interlocked.Increment(ref _calls);
+                    lock (_limits)
+                    {
+                        _limits.Add(call.Get(ActaSchema.Sql.ClaimLimit));
+                    }
                     return Task.FromResult<object?>(onClaim(ct));
                 }
             ).Services().GetRequiredService<ExecutionOperations>();
