@@ -40,8 +40,8 @@ internal sealed class JobFinalizer(
     // keeps it at or above one second, so the delay never rounds to zero.
     private readonly int _handBackDelaySeconds = (int)Math.Ceiling(options.SafetyPollInterval.TotalSeconds);
 
-    // The Completed channel's capacity: a batch never holds more than the executors can have handed over at once.
-    private readonly int _maxBatch = options.MaxConcurrentExecutors;
+    /// <summary>The most completions one call writes: commit cost has sharp diminishing returns past about a hundred.</summary>
+    public const int MaxBatch = 100;
 
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
@@ -57,7 +57,7 @@ internal sealed class JobFinalizer(
             await foreach (var first in reader.ReadAllAsync(hostCt))
             {
                 List<InFlightJob> entries = [first];
-                while (entries.Count < _maxBatch && reader.TryRead(out var next))
+                while (entries.Count < MaxBatch && reader.TryRead(out var next))
                 {
                     entries.Add(next);
                 }
