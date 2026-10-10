@@ -1,7 +1,7 @@
 # Schema migrations
 
 How the database schema is generated, versioned, and evolved. The table models in
-`src/Acta/Entities/` (via `ActaSchema`) are the **only** schema authority; the `tools/Acta.Emit`
+`src/Acta/Domain/Entities/` (via `ActaSchema`) are the **only** schema authority; the `tools/Acta.Emit`
 commands generate and maintain the committed migrations from them.
 
 Migrations own **durable DDL only**: tables, columns, indexes, constraints, provider table types, and
@@ -155,7 +155,7 @@ Routine and operator-view changes never appear here: their bodies are installed 
 
 ## Adding a migration: step by step
 
-1. **Change a table model** in `src/Acta/Entities/`.
+1. **Change a table model** in `src/Acta/Domain/Entities/`.
 2. **Generate the migration** (also regenerates the reference docs, the `schema-*.sql` scripts, and
    `BaselineStamps.g.cs` as a side effect):
    ```

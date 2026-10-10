@@ -503,8 +503,8 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `AlertChannelRegistry.cs` | `src/Acta/Engine/Alerting/AlertChannelRegistry.cs` |
 | `AlertRoutingCheck.cs` | `src/Acta/Engine/Alerting/AlertRoutingCheck.cs` |
 | `AlertsOperations.cs` | `src/Acta/Operations/Alerts/AlertsOperations.cs` |
-| `AlertEntity.cs` | `src/Acta/Entities/AlertEntity.cs` |
-| `AlertProfileCode.cs` | `src/Acta/Codes/AlertProfileCode.cs` |
+| `AlertEntity.cs` | `src/Acta/Domain/Entities/AlertEntity.cs` |
+| `AlertProfileCode.cs` | `src/Acta/Domain/Codes/AlertProfileCode.cs` |
 | `AlertChannelOptions.cs` | `src/Acta/Hosting/AlertChannelOptions.cs` |
 | `AlertTransportKinds.cs` | `src/Acta/Hosting/AlertTransportKinds.cs` |
 | `IAlerts.cs` | `src/Acta/Operations/Alerts/IAlerts.cs` |
@@ -514,8 +514,8 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Handlers/JobContext.cs` |
 | `WorkerFinalizer.cs` | `src/Acta/Engine/Worker/WorkerFinalizer.cs` |
-| `EventReasonCode.cs` | `src/Acta/Codes/EventReasonCode.cs` |
-| `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
+| `EventReasonCode.cs` | `src/Acta/Domain/Codes/EventReasonCode.cs` |
+| `EventCode.cs` | `src/Acta/Domain/Codes/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta/Engine/Worker/BackoffSchedule.cs` |
 | `WorkerBuilder.cs` | `src/Acta/Hosting/WorkerBuilder.cs` |
 | `*.{pg,mssql,sqlite}.sql` | `src/Acta/Operations/{Alerts,Execution,Maintenance}/` and `src/Acta/Schema/Views/` (one file per dialect beside each operation; SQLite runs inline what the servers install as routines) |

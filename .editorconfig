@@ -529,7 +529,7 @@ dotnet_diagnostic.CA1716.severity = none
 # family - and .NET's own property guidance is that a getter should not throw. Its two neighbours,
 # IsTerminal and ChargesFailureBudget, are total over the enum and are properties for exactly that
 # reason; the split follows the guidance rather than ignoring it.
-[src/Acta/Codes/ExecutionStatusCode.cs]
+[src/Acta/Domain/Codes/ExecutionStatusCode.cs]
 dotnet_diagnostic.CA1024.severity = none
 
 # CA2225: the implicit widening from JobContract<TInput, TResult> to JobContract<TInput>, which drops

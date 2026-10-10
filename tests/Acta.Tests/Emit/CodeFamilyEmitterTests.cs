@@ -10,7 +10,7 @@ public sealed class CodeFamilyEmitterTests
     [Fact]
     public void Every_code_family_is_declared_in_the_codes_folder()
     {
-        var codes = Path.Combine(ResolveRepoRoot(), "src", "Acta", "Codes");
+        var codes = Path.Combine(ResolveRepoRoot(), "src", "Acta", "Domain", "Codes");
         var misplaced = CodeFamilyDiscovery
             .DiscoverAll(SchemaModel.Discover())
             .Select(family => family.Name)

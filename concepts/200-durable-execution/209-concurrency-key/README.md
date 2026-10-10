@@ -111,4 +111,4 @@ coordinate too.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`concurrency-key.cs`](./concurrency-key.cs)
 - [`ExecutionAdmission.cs`](../../../src/Acta/Engine/Worker/ExecutionAdmission.cs)
-- [`LockEntity.cs`](../../../src/Acta/Entities/LockEntity.cs)
+- [`LockEntity.cs`](../../../src/Acta/Domain/Entities/LockEntity.cs)

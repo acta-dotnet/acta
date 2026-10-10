@@ -88,14 +88,13 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 
 ## The other folders
 
-- `Codes/`: the persisted code families, with the code attributes and manifests that declare them.
+- `Domain/`: what Acta is made of: `Domain/Codes/`, the persisted code families with the code attributes and manifests that declare them, and `Domain/Entities/`, the table models, one class per table.
 - `Handlers/`: the handler API: `JobContext`, the job attributes, backoff and rate-limit specs, steps, waits, locks, children, and their outcomes.
 - `Configuration/`: `JobsOptions`, `SqlProviderOptions`, and the options validator.
 - `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
 - `Primitives/`: identifier, duration, and ref syntax, text limits, and message truncation.
 - `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
 - `Db/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
-- `Entities/`: the table models, one class per table.
 - `Schema/`: the schema model, the migration runner and installer, the baseline and object package stamps, and the operator views in `Schema/Views/`.
 - `Hosting/`: `ActaBuilder`, `AddActa`, the builder interfaces and plug-in seams, provider registration, option validators, and what registration builds and operations read: `CatalogDeclaration`, the catalog registries (`JobContractRegistry`, `JobDescriptorRegistry`, `JobTypeRegistry`), and `OutboxRelayRegistry`. They stay here rather than in `Engine/` because operations name them.
 - `Cli/`: the operator CLI, a presenter over the public facades.
