@@ -2,14 +2,15 @@ namespace Acta;
 
 /// <summary>
 /// The execution runtime's writes and reads: the claim scan and by-id claim, the start CAS, the per-attempt
-/// completion, the stuck-job reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint
-/// slot CRUD, child-latch reads, sleep-timer arm/consume).
+/// completion and the batch of plain ones, the stuck-job reclaim, the durable step transitions, and the durable-context
+/// subfeatures (checkpoint slot CRUD, child-latch reads, sleep-timer arm/consume).
 /// </summary>
 internal sealed class Execution(
     ClaimBatchHandler claimBatch,
     ClaimOneHandler claimOne,
     StartExecutionHandler startExecution,
     CompleteExecutionHandler completeExecution,
+    CompleteExecutionsHandler completeExecutions,
     ReclaimStuckJobsHandler reclaimStuckJobs,
     RepairRecoverySlotHandler repairRecoverySlot,
     StartStepHandler startStep,
@@ -62,6 +63,15 @@ internal sealed class Execution(
     /// </summary>
     public Task<CompleteExecutionResponse> CompleteExecutionAsync(CompleteExecutionCommand command, CancellationToken ct) =>
         completeExecution.HandleAsync(command, ct);
+
+    /// <summary>
+    /// Writes a batch of plain terminal completions in one transaction, each CAS-guarded on (job id, worker, execution
+    /// number) and landing the rows <see cref="CompleteExecutionAsync"/> lands for it: the status, the result, and the
+    /// finished event. A job with a parent or a lane is answered PerJob and left as it was, and every completion is
+    /// answered.
+    /// </summary>
+    public Task<CompleteExecutionsResponse> CompleteExecutionsAsync(CompleteExecutionsCommand command, CancellationToken ct) =>
+        completeExecutions.HandleAsync(command, ct);
 
     /// <summary>
     /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go Failed at MaxAttempts;

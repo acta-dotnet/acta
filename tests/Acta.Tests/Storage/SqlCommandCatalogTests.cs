@@ -20,6 +20,7 @@ public sealed class SqlCommandCatalogTests
         "ClaimBatch",
         "ClaimOne",
         "CompleteExecution",
+        "CompleteExecutions",
         "CompleteStep",
         "ConsumeOutboxSignal",
         "EnqueueJob",

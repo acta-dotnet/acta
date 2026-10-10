@@ -487,6 +487,24 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, versions);
     }
 
+    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request)
+    {
+        var postgres = (NpgsqlCommand)command;
+        var completions = request.Completions;
+
+        // PostgreSQL routine arguments are positional; this order matches complete_executions.
+        AddArray(postgres, "@p_job_ids", NpgsqlDbType.Bigint, completions.Select(c => c.JobId).ToArray());
+        AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Integer, completions.Select(c => c.ExecutionNumber).ToArray());
+        AddArray(postgres, "@p_succeeded", NpgsqlDbType.Boolean, completions.Select(c => c.Succeeded).ToArray());
+        AddArray(postgres, "@p_result_format_ids", NpgsqlDbType.Smallint, completions.Select(c => (short)c.ResultFormatId).ToArray());
+        AddArray(postgres, "@p_results", NpgsqlDbType.Bytea, completions.Select(c => c.Result.ToArray()).ToArray());
+        AddArray(postgres, "@p_reason_codes", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.EventReasonCode).ToArray());
+        AddArray(postgres, "@p_reason_messages", NpgsqlDbType.Varchar, completions.Select(c => c.ReasonMessage).ToArray());
+        AddArray(postgres, "@p_duration_ms", NpgsqlDbType.Integer, completions.Select(c => c.DurationMs).ToArray());
+        AddArray(postgres, "@p_failure_counts", NpgsqlDbType.Integer, completions.Select(c => c.FailureCount).ToArray());
+        AddArray(postgres, "@p_retention_seconds", NpgsqlDbType.Integer, completions.Select(c => c.RetentionSeconds).ToArray());
+    }
+
     /// <summary>Npgsql parameter primitives the dialect's own binders use to shape command parameters.</summary>
     private static void AddScalar(NpgsqlCommand command, string name, NpgsqlDbType type, object value) =>
         command.Parameters.Add(

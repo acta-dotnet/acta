@@ -844,6 +844,14 @@
 - **Guarantees:**
   - The timeout fires the handler token, the job lands Failed, and the reason is ExecutionTimeout distinct from external cancel
 
+### A batch of plain terminal completions lands what one completion per job lands
+- **Contract:** A plain terminal completion batch writes what one completion per job writes, answers a parented or laned job PerJob, and touches no row it does not complete.
+- **Guarantees:**
+  - Two successes and an exhausted failure land the runtime, result, and finished-event rows the per-job write lands
+  - A job with a parent and a job in a lane are answered PerJob and left Executing
+  - A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched
+  - At the failures-only audit level a success writes a finished event only when it answers a recorded failure
+
 ### A lease renewal never deadlocks with a child's completion
 - **Contract:** A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child.
 - **Guarantees:**
@@ -2216,6 +2224,7 @@
 | `ClaimOne` | yes | yes | yes |
 | `ClaimOutbox` | yes | yes | yes |
 | `CompleteExecution` | yes | yes | yes |
+| `CompleteExecutions` | yes | yes | yes |
 | `CompleteStep` | yes | yes | yes |
 | `ConsumeOutboxSignal` | yes | yes | yes |
 | `CountOutboxBacklog` | yes | yes | yes |

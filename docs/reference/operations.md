@@ -51,6 +51,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ClaimBatch` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimBatchSkewSpec`, `ClaimBatchSpec` |
 | `ClaimOne` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimOneSpec` |
 | `CompleteExecution` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionSchedulesChangedSpec` |
+| `CompleteExecutions` | · | · | · | routine | routine | inline | `events`, `results`, `runtimes` | `CompleteExecutionsSpec` |
 | `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
 | `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |
 | `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | `GetStaleChildLatchesSpec` |

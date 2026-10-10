@@ -129,6 +129,45 @@ internal static class DbParams
         return text.Append(']').ToString();
     }
 
+    /// <summary>
+    /// A batch's completions as JSON array text, each result as base64, for the dialects whose batch completion expands
+    /// them with OPENJSON or json_each.
+    /// </summary>
+    public static string JsonCompletions(IReadOnlyList<CompleteExecutionsValues> completions)
+    {
+        var text = new StringBuilder("[");
+        for (var i = 0; i < completions.Count; i++)
+        {
+            var c = completions[i];
+            if (i > 0)
+            {
+                text.Append(',');
+            }
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"{{\"job_id\":{c.JobId},\"execution_number\":{c.ExecutionNumber},\"succeeded\":{(c.Succeeded ? "true" : "false")},"
+            );
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"\"result_format_id\":{c.ResultFormatId},\"result\":\"{Convert.ToBase64String(c.Result.Span)}\","
+            );
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"\"reason_code\":{JsonNumber((byte?)c.EventReasonCode)},\"reason_message\":{JsonText(c.ReasonMessage)},"
+            );
+            text.Append(
+                CultureInfo.InvariantCulture,
+                $"\"duration_ms\":{JsonNumber(c.DurationMs)},\"failure_count\":{JsonNumber(c.FailureCount)},"
+            );
+            text.Append(CultureInfo.InvariantCulture, $"\"retention_seconds\":{JsonNumber(c.RetentionSeconds)}}}");
+        }
+        return text.Append(']').ToString();
+    }
+
+    private static string JsonNumber(long? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "null";
+
+    private static string JsonText(string? value) => value is null ? "null" : $"\"{JsonEncodedText.Encode(value)}\"";
+
     public static void Validate(DbParameterSpec p)
     {
         if (string.IsNullOrWhiteSpace(p.Name))
