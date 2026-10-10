@@ -66,10 +66,10 @@ job id, and `acta.completions.unsettled` counts the writes in that state. A Buff
 write is repeated the same way, until it lands or the claim's own lease deadline ends it.
 
 The executor is freed as soon as its completion is built; the entry stays held, renewed by the
-heartbeat, until a finalizer loop lands the write. That is still deliberate backpressure, one
-channel later: the finalizer loops are as many as the executors, a write that keeps failing holds
-its loop, the channel between executors and finalizers fills, executors then block on it while they
-still hold their claim permits, and the claimer stops. A failing database stops intake instead of
+heartbeat, until the finalizer lands the write. That is still deliberate backpressure, one channel
+later: there is one finalizer per worker, a write that keeps failing holds it, the channel between
+executors and finalizer fills, executors then block on it while they still hold their claim
+permits, and the claimer stops. A failing database stops intake instead of
 growing memory. Acta keeps the finalization it owes rather than abandoning it to run more handlers
 whose completions would be abandoned in turn. Repairing the underlying database failure lets the
 pending completions land without restarting the worker, as long as each entry still owns its row.

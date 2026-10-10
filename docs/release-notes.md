@@ -198,13 +198,14 @@ settles, and what an operator sees when it fails.
   in the same call, so the lock-lease loop and `extend_lock` are gone, and a hold the call does not
   answer cancels the attempt at once. The object package moves through revisions 52 to 55 with these
   signatures.
-- **Plain completions can land in one call.** `complete_executions` (revision 56, thirty routines
-  again) writes a batch of one-shot executions landing Succeeded or Failed in one transaction: the
-  runtime rows locked in job order, the results, and the finished events under the same audit rule as
-  the per-job write. A row with a parent, in a lane, or on any other shape (recurring, re-arm,
-  suspend, signal, a handler's cancel or pause) is answered "per job" and written through
-  `complete_execution` as before, so every lane hand-off and child latch still runs under its own
-  locks. SQL Server and SQLite take the batch as JSON text, so the schema baseline is unchanged.
+- **Plain completions can land in one call.** `complete_executions` (thirty routines again) writes
+  a batch of one-shot executions landing Succeeded or Failed in one transaction: the runtime rows
+  locked in job order, the results, and the finished events under the same audit rule as the per-job
+  write. A row with a parent, in a lane, or on any other shape (recurring, re-arm, suspend, signal, a
+  handler's cancel or pause) is answered "per job" and written through `complete_execution` as
+  before, so every lane hand-off and child latch still runs under its own locks. PostgreSQL takes
+  the batch as arrays, SQL Server as the table type `complete_executions_batch` (the schema baseline
+  is re-cut for it), and SQLite as JSON text; the object package moves to revision 57.
 - **Definition policy reloads on the heartbeat.** The call also answers the namespace's newest
   definition change, and the worker re-reads its effective policy only when that moved: an override
   reaches every worker within one heartbeat, and the one-second policy-reload loop is gone.
@@ -224,15 +225,20 @@ settles, and what an operator sees when it fails.
   never shares an entry with the claim that replaced it, so it is never kept alive by the
   replacement's renewal and is cancelled on the next beat. `acta.jobs.inflight` reports the entries
   by state.
-- **Three loops: claimer, executors, finalizers.** One claimer serves both profiles: it takes
-  permits (one per free executor on Direct; a whole batch, held one batch ahead of the executors, on
-  Buffered), claims that many rows in one call, and hands each to the executor loops through a
-  channel; the `sys.recovery` slot runs on its own task without a permit, so a saturated worker still
-  sweeps. An executor is freed the moment its completion is built: the entry moves to a finalizer
-  loop, as many as there are executors, which writes the completion, repeats it until it lands, and
-  then wakes whoever waits on it. The entry stays renewed while it waits, and the channel between
-  the two is bounded, so a failing database fills it, blocks the executors on their permits, and
-  stops the claimer: intake stops instead of memory growing. A drain stops the claimer, lets the
+- **Three agents: one claimer, the executors, one finalizer.** The claimer serves both profiles:
+  it takes permits (one per free executor on Direct; a whole batch, held one batch ahead of the
+  executors, on Buffered), claims that many rows in one call, and hands each to the executor loops
+  through a channel; the `sys.recovery` slot runs on its own task without a permit, so a saturated
+  worker still sweeps. An executor is freed the moment its completion is built: the entry moves to
+  the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of results, writes
+  the plain ones in one `complete_executions` call and the rest per job at once, repeats a write
+  until it lands, and then wakes whoever waits. Nothing waits to fill a batch: while the finalizer
+  writes one, what arrives is the next, so batches form exactly when the writes fall behind, and a
+  lone completion is written at once. The entry stays renewed while it waits, and the channel
+  between executors and finalizer is bounded, so a failing database fills it, blocks the executors
+  on their permits, and stops the claimer: intake stops instead of memory growing. In the engine
+  round, PostgreSQL Direct drained 23,349 jobs/s at sixteen workers against 9,333 per job, and SQL
+  Server Buffered 11,392 at thirty-two against 7,034. A drain stops the claimer, lets the
   executors empty their channel (a prefetched Buffered batch included), and lets the finalizers
   land what is left; a hard stop leaves the rows for recovery, the contract an interrupted write had.
   The claim loop, the executing-attempt bookkeeping, the completion writer, and the shutdown-phase
