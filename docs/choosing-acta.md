@@ -164,7 +164,7 @@ Use a scheduled Acta job when the interval matters enough to be durable and visi
 public sealed class CleanupJobs
 {
     [Job("cleanup-expired-sessions")]
-    [JobSchedule("every-5-minutes", "5m")]
+    [JobSchedule("every-5-minutes", "*/5 * * * *")]
     public Task CleanupExpiredSessions(CancellationToken ct)
     {
         return Task.CompletedTask;
@@ -173,7 +173,7 @@ public sealed class CleanupJobs
 ```
 
 During local demos, use a short interval such as `10s` so the run is visible. In production, use the
-business cadence: `5m`, `1h`, or a cron expression.
+business cadence as a cron expression, or as a plain interval such as `5m` or `1h`.
 
 For a runnable first pass, start with [Quickstart](./quickstart.md). For the unusual implementation
 ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence

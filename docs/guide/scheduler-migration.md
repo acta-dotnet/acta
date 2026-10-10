@@ -30,7 +30,7 @@ Move the job to Acta when someone will later ask what happened:
 public sealed class CleanupJobs
 {
     [Job("cleanup-expired-sessions")]
-    [JobSchedule("every-5-minutes", "5m")]
+    [JobSchedule("every-5-minutes", "*/5 * * * *")]
     public Task CleanupExpiredSessions(CancellationToken ct)
     {
         return Task.CompletedTask;
