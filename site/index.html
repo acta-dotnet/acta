@@ -256,6 +256,7 @@
         <nav class="toc" aria-label="What you get">
           <p class="toc-head">What you get</p>
           <a href="#code"><span><span class="t">Durable jobs</span><span class="s">Fire-and-forget, delayed, recurring: they survive crashes, deploys, and restarts.</span></span></a>
+          <a href="#how-it-runs"><span><span class="t">How a worker runs a job</span><span class="s">Claim, run, finalize: every completion committed before anyone is told, up to 128 in one commit.</span></span></a>
           <a href="#recovery"><span><span class="t">Retries &amp; recovery, built in</span><span class="s">Typed backoff; a dead worker's lease lapses and its jobs are reclaimed, leaderless.</span></span></a>
           <a href="#primitives"><span><span class="t">Steps, sleeps &amp; signals</span><span class="s">Recorded step outcomes; wait hours or days without holding a worker thread.</span></span></a>
           <a href="#who-runs-next"><span><span class="t">Who runs next</span><span class="s">Lane heads and unlaned jobs enter the claim scan; blocked jobs wait outside it, and any peer can claim.</span></span></a>
@@ -311,12 +312,69 @@
         </div>
       </div>
 
-      <p class="record" style="margin-top: 3.2rem">How it runs</p>
-      <div class="hiw" aria-label="Execution model">
-        <b>your application</b><i>enqueue</i><b>one SQL ledger</b><i>claim + lease</i><b>peer workers</b><i>record &middot; checkpoint &middot; complete</i><b>the same ledger</b>
+      <p class="record" style="margin-top: 3.2rem" id="how-it-runs">How it runs</p>
+      <h2>Claim, run, finalize. Every step a row.</h2>
+      <figure class="pipe">
+        <div class="pipe-scroll">
+          <svg viewBox="0 0 1000 300" role="img" aria-label="A worker claims due rows from your database, runs handlers in parallel, and finalizes their completions together, up to 128 in one commit, before anyone is told; a heartbeat renews only what the worker holds; when the database is slow, finalizing falls behind and claiming waits.">
+            <defs>
+              <marker id="pipe-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+              <marker id="pipe-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
+              <marker id="pipe-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
+            </defs>
+            <rect class="band" x="30" y="14" width="950" height="54" rx="4"/>
+            <text class="tt" x="48" y="38">Your database</text>
+            <text class="tm" x="48" y="57">every job your application enqueued is a row here</text>
+
+            <line class="ln" x1="130" y1="128" x2="130" y2="72" marker-end="url(#pipe-ah)" marker-start="url(#pipe-ah)"/>
+            <text class="tm" x="140" y="100">claims due rows</text>
+            <line class="ln acc" x1="700" y1="128" x2="700" y2="72" marker-end="url(#pipe-ah-acc)"/>
+            <text class="tm acc-t" x="690" y="92" text-anchor="end">commits up to 128 at once,</text>
+            <text class="tm acc-t" x="690" y="108" text-anchor="end">before anyone is told</text>
+            <line class="ln" x1="915" y1="128" x2="915" y2="72" marker-end="url(#pipe-ah)"/>
+            <text class="tm" x="905" y="100" text-anchor="end">renews what it holds</text>
+
+            <rect class="box" x="30" y="130" width="200" height="70" rx="4"/>
+            <text class="tt" x="48" y="160">Claim</text>
+            <text class="tm" x="48" y="182">one call, one row per free hand</text>
+            <line class="ln" x1="230" y1="165" x2="298" y2="165" marker-end="url(#pipe-ah)"/>
+
+            <rect class="ghost" x="320" y="110" width="200" height="70" rx="4"/>
+            <rect class="ghost" x="310" y="120" width="200" height="70" rx="4"/>
+            <rect class="box" x="300" y="130" width="200" height="70" rx="4"/>
+            <text class="tt" x="318" y="160">Run</text>
+            <text class="tm" x="318" y="182">your handlers, in parallel</text>
+            <line class="ln" x1="500" y1="165" x2="598" y2="165" marker-end="url(#pipe-ah)"/>
+
+            <rect class="box" x="600" y="130" width="200" height="70" rx="4"/>
+            <text class="tt" x="618" y="160">Finalize</text>
+            <text class="tm" x="618" y="182">what waits goes out together</text>
+
+            <rect class="box" x="850" y="130" width="130" height="70" rx="4"/>
+            <text class="tt" x="866" y="160">Heartbeat</text>
+            <text class="tm" x="866" y="182">every 45 s</text>
+
+            <path class="ln dash warn" d="M 650 202 C 650 262, 180 262, 180 204" marker-end="url(#pipe-ah-warn)"/>
+            <text class="t warn-t" x="415" y="286" text-anchor="middle">database slow → finalizing falls behind → claiming waits</text>
+          </svg>
+        </div>
+      </figure>
+      <div class="facts">
+        <div>
+          <b>Committed before anyone is told</b>
+          <p>A job is done when its completion is a committed row, not when the handler returns. A crash before that commit runs the job again; a crash after it never loses it.</p>
+        </div>
+        <div>
+          <b>Durable, and still fast</b>
+          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box drained <em>23,349 jobs a second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc5-engine-drain-20261010.md">Engine round</a></p>
+        </div>
+        <div>
+          <b>Bounded, and it heals</b>
+          <p>A slow database stops intake instead of filling memory. A worker renews only the rows it holds, so when one dies its rows run out their lease and any peer takes them.</p>
+        </div>
       </div>
-      <p class="hiw-note">A dead worker's lease expires; any peer reclaims the job and continues from recorded state. Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
-      <div class="actions"><a class="button" href="/engine">How one worker claims, runs, and finalizes a job</a></div>
+      <p class="hiw-note">Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
+      <div class="actions"><a class="button" href="/engine">Inside a worker: the lease clock and every cap</a></div>
     </section>
 
     <section class="wrap" id="who-runs-next">

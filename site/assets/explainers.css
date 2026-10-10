@@ -221,3 +221,23 @@
   .fleet-shared { grid-template-columns: 1fr; }
   .fleet-bridge { flex-wrap: wrap; gap: 0.6rem 1.4rem; }
 }
+
+/* ---- front-page pipeline figure: every SVG class scoped, since .t and others mean something else on the page ---- */
+.pipe { margin: 1.6rem 0 0; }
+.pipe-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); padding: 1rem; }
+.pipe svg { display: block; width: 100%; min-width: 720px; height: auto; color: var(--muted); font-family: var(--sans); }
+.pipe .box { fill: var(--panel-2); stroke: var(--faint); stroke-width: 1.3; }
+.pipe .ghost { fill: var(--panel-2); stroke: var(--hair); stroke-width: 1.2; }
+.pipe .band { fill: var(--bg); stroke: var(--hair); stroke-width: 1; }
+.pipe .t { fill: var(--text); font-size: 14px; }
+.pipe .tt { fill: var(--text); font-family: var(--serif); font-weight: 600; font-size: 18px; }
+.pipe .tm { fill: var(--muted); font-size: 13px; }
+.pipe .ln { stroke: currentColor; stroke-width: 1.4; fill: none; }
+.pipe .dash { stroke-dasharray: 5 4; }
+.pipe .acc { stroke: var(--verdi); }
+.pipe .acc-t { fill: var(--verdi); }
+.pipe .warn { stroke: var(--oxide); }
+.pipe .warn-t { fill: var(--oxide); }
+.pipe .fill-fg { fill: currentColor; }
+.pipe .fill-acc { fill: var(--verdi); }
+.pipe .fill-warn { fill: var(--oxide); }
