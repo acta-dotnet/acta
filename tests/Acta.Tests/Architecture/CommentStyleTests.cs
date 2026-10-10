@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using Acta.Tests.Architecture;
 using Xunit;
 
-namespace Acta.Tests.Aot;
+namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Mechanical enforcement of the production comment-style policy over the runtime core and the three

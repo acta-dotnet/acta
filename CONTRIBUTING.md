@@ -283,7 +283,7 @@ compressed aphorisms are not.
 **Tests:** comments are spec claims. Keep one-liners stating the contract being proven; delete
 comments that restate the test name or the arrange block.
 
-`Acta.Tests.Aot.CommentStyleTests` mechanically enforces the floor over `src/Acta*`: plain-ASCII
+`Acta.Tests.Architecture.CommentStyleTests` mechanically enforces the floor over `src/Acta*`: plain-ASCII
 comment text (no em dashes, arrows, emoji), XML doc blocks of 8 lines or less (older files are listed in
 `tests/ratchets/doc-length.txt`), no comment that names a date, a release candidate, a review, or a CI run,
 `<remarks>` on internal types only via its allowlist (reserved for concurrency/CAS/provider-difference contracts;

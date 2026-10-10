@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Xunit;
 
-namespace Acta.Tests.Aot;
+namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Mechanical enforcement of <c>docs/internals/design.md</c> § AOT and SQL parameter metadata policy.
