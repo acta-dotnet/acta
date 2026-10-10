@@ -54,7 +54,7 @@ internal sealed class ListDefinitionsHandler(IDbSession session, ISqlDialect dia
     }
 
     /// <summary>
-    /// Binds the list read, which <see cref="DefinitionKeyResolution"/> also runs: <paramref name="nameSearch"/>
+    /// Binds the list read, which <see cref="ResolveDefinitionIdHandler"/> also runs: <paramref name="nameSearch"/>
     /// is a LIKE pattern, and <paramref name="after"/> holds the decoded cursor keys.
     /// </summary>
     internal static void Bind(

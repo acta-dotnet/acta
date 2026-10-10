@@ -1,11 +1,11 @@
 namespace Acta;
 
 /// <summary><see cref="IJobs.PurgeAsync"/>: hard-deletes a terminal job; the surviving events carry its public ref.</summary>
-internal sealed class PurgeJobHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
+internal sealed class PurgeJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<PurgeJobResponse> HandleAsync(PurgeJobCommand command, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new PurgeJobResponse(0, ControlAction.NotFound, null, null);
         }

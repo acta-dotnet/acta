@@ -1,11 +1,11 @@
 namespace Acta;
 
 /// <summary><see cref="IJobs.GetInputAsync"/>: resolves the lookup, then reads the stored input.</summary>
-internal sealed class GetJobInputHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
+internal sealed class GetJobInputHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetJobInputResponse?> HandleAsync(GetJobInputQuery query, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId })
         {
             return null;
         }

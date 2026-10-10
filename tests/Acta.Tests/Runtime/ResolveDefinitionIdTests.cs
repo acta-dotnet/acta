@@ -4,12 +4,12 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Pins <see cref="DefinitionKeyResolution"/>'s second defense, the ordinal name check: the session here
+/// Pins <see cref="ResolveDefinitionIdHandler"/>'s second defense, the ordinal name check: the session here
 /// over-matches, returning every sibling for any query, so only that check can keep the answer right. A
 /// prefix or suffix sibling must never resolve in another's place - picking the wrong row would edit or
 /// read the wrong definition.
 /// </summary>
-public sealed class DefinitionKeyResolutionTests
+public sealed class ResolveDefinitionIdTests
 {
     private const string Namespace = "billing";
 
@@ -39,7 +39,10 @@ public sealed class DefinitionKeyResolutionTests
     // resolver that over- or under-matched in either direction lands on the wrong row.
     private static readonly ListDefinitionsItem[] Catalog = [Row(1, "invoice"), Row(2, "invoice-retry"), Row(3, "bulk-invoice")];
 
-    private static DefinitionKeyResolution Keys(IDbSession session) => new(session, null!);
+    private static ResolveDefinitionIdHandler Resolver(IDbSession session) => new(session, null!);
+
+    private static async Task<int?> ResolveAsync(IDbSession session, string jobName, CancellationToken ct) =>
+        (await Resolver(session).HandleAsync(new ResolveDefinitionIdQuery(Namespace, jobName), ct))?.DefinitionId;
 
     [Theory]
     [InlineData("invoice", 1)]
@@ -47,7 +50,7 @@ public sealed class DefinitionKeyResolutionTests
     [InlineData("bulk-invoice", 3)]
     public async Task A_name_resolves_to_its_own_definition_even_when_the_read_over_matches(string jobName, int expectedId)
     {
-        var id = await Keys(new OverMatchingSession(Catalog)).ResolveAsync(Namespace, jobName, TestContext.Current.CancellationToken);
+        var id = await ResolveAsync(new OverMatchingSession(Catalog), jobName, TestContext.Current.CancellationToken);
 
         Assert.Equal(expectedId, id);
     }
@@ -55,12 +58,12 @@ public sealed class DefinitionKeyResolutionTests
     [Fact]
     public async Task A_name_no_definition_carries_resolves_to_null_rather_than_a_sibling()
     {
-        var keys = Keys(new OverMatchingSession(Catalog));
+        var session = new OverMatchingSession(Catalog);
         var ct = TestContext.Current.CancellationToken;
 
         // "invoic" is a prefix of a registered name and "invoice-retry-2" extends one; neither exists.
-        Assert.Null(await keys.ResolveAsync(Namespace, "invoic", ct));
-        Assert.Null(await keys.ResolveAsync(Namespace, "invoice-retry-2", ct));
+        Assert.Null(await ResolveAsync(session, "invoic", ct));
+        Assert.Null(await ResolveAsync(session, "invoice-retry-2", ct));
     }
 
     [Fact]
@@ -68,7 +71,7 @@ public sealed class DefinitionKeyResolutionTests
     {
         // The stub session throws on any write, so an answer at all proves nothing was written.
         var session = new OverMatchingSession(Catalog);
-        var handler = new SetDefinitionOverridesHandler(Keys(session), session, null!);
+        var handler = new SetDefinitionOverridesHandler(Resolver(session), session, null!);
 
         var outcome = await handler.HandleAsync(
             new SetDefinitionOverridesCommand(

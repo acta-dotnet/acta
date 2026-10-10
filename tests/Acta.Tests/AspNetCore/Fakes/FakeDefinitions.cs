@@ -75,7 +75,7 @@ internal sealed class FakeDefinitions : IDefinitions
         : ControlAction.Applied;
 
     /// <summary>
-    /// Validates the key before it resolves, as DefinitionKeyResolution does, so a non-canonical key (uppercase, a
+    /// Validates the key before it resolves, as ResolveDefinitionId does, so a non-canonical key (uppercase, a
     /// wildcard) is an InvalidQueryException the edge maps to 400, never a miss.
     /// </summary>
     private static GetDefinitionResponse? Detail(string jobNamespace, string jobName)

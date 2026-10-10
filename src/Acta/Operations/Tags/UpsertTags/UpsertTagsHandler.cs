@@ -3,7 +3,7 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary><see cref="ITags.UpsertAsync"/>: normalizes the tag, resolves the target, then one upsert.</summary>
-internal sealed class UpsertTagsHandler(TagTargetResolution targets, IDbSession session, ISqlDialect dialect)
+internal sealed class UpsertTagsHandler(ResolveTagTargetHandler resolveTagTarget, IDbSession session, ISqlDialect dialect)
 {
     // The UpsertTags SQL raises this when a new name would pass the cap.
     private const string CapRaised = "may carry at most 32 tags";
@@ -12,7 +12,7 @@ internal sealed class UpsertTagsHandler(TagTargetResolution targets, IDbSession 
     {
         ArgumentNullException.ThrowIfNull(command.Target, "target");
         var json = TagJson.Write([TagInput.Normalize(command.Tag, "tag")]);
-        var target = await targets.ResolveAsync(command.Target, ct);
+        var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(command.Target), ct);
         if (target is null)
         {
             return new UpsertTagsResponse(TagMutationAction.NotFound);

@@ -1,11 +1,11 @@
 namespace Acta;
 
 /// <summary><see cref="IJobs.GetResultAsync(JobLookup, CancellationToken)"/>: resolves the lookup, then reads the latest result.</summary>
-internal sealed class GetResultHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
+internal sealed class GetResultHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetResultResponse?> HandleAsync(GetResultQuery query, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId })
         {
             return null;
         }

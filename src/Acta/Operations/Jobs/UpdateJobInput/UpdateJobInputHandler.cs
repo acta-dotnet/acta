@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary><see cref="IJobs.UpdateJobInputAsync"/>: caps the payload, then replaces the input of a job that is not in flight.</summary>
 internal sealed class UpdateJobInputHandler(
-    JobLookupResolution lookup,
+    GetJobIdHandler getJobId,
     IDbSession session,
     ISqlDialect dialect,
     IOptions<JobsOptions> options
@@ -20,7 +20,7 @@ internal sealed class UpdateJobInputHandler(
             throw new PayloadTooLargeException("update input", input.Data.Length, _maxInlinePayloadBytes);
         }
 
-        if (await lookup.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new UpdateJobInputResponse(0, ControlAction.NotFound, null, null);
         }

@@ -9,7 +9,7 @@ namespace Acta;
 internal sealed class RaiseSignalHandler(
     IDbSession session,
     ISqlDialect dialect,
-    JobLookupResolution jobs,
+    GetJobIdHandler getJobId,
     WorkerWakeupPublisher wakeup,
     IOptions<JobsOptions> options
 )
@@ -25,7 +25,7 @@ internal sealed class RaiseSignalHandler(
             throw new PayloadTooLargeException($"signal '{name}' value", value.Data.Length, _maxInlinePayloadBytes);
         }
 
-        if (await jobs.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new RaiseSignalResponse(0, ControlAction.NotFound, null, null);
         }

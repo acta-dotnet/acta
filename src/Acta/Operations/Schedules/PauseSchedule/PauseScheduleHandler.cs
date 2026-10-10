@@ -6,7 +6,7 @@ namespace Acta;
 /// the slot job. The schedule's own cursor is left alone.
 /// </summary>
 internal sealed class PauseScheduleHandler(
-    ScheduleTargetResolution targets,
+    ResolveScheduleTargetHandler resolveScheduleTarget,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup
@@ -17,7 +17,7 @@ internal sealed class PauseScheduleHandler(
 
     public async ValueTask<PauseScheduleResponse> HandleAsync(PauseScheduleCommand command, CancellationToken ct)
     {
-        if (await targets.ResolveAsync(command.Schedule, ct) is not { } target)
+        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {
             return NotFound;
         }

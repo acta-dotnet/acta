@@ -39,6 +39,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetDefinitionContracts` | · | · | · | inline | inline | inline | · | `GetDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterDefinitions` | · | · | · | routine | routine | inline | `definitions` | `RegisterDefinitionsSpec` |
+| `ResolveDefinitionId` | · | · | · | · | · | · | · | `ResolveDefinitionIdSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `definitions`, `events`, `runtimes` | `RetireDefinitionSpec` |
 | `SetDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | `definitions`, `events` | `SetDefinitionOverridesBindMatrixSpec`, `SetDefinitionOverridesSpec` |
 
@@ -156,6 +157,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
 | `RegisterSchedules` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterSchedulesMisfireMatrixSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesSpec` |
+| `ResolveScheduleTarget` | · | · | · | · | · | · | · | `ResolveScheduleTargetSpec` |
 | `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `ResumeScheduleSpec` |
 | `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `SetScheduleOverridesSpec` |
 | `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | inline | inline | inline | `events`, `runtimes` | `TriggerScheduleNowSpec` |
@@ -184,6 +186,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetTags` | `ITags.GetAsync` | `GET /alerts/{alertRef}/tags`<br>`GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`GET /tenants/{tenantKey}/tags`<br>`GET /workers/{workerRef}/tags` | · | inline | inline | inline | · | `GetTagsSpec` |
 | `RemoveTags` | `ITags.RemoveAsync` | `DELETE /alerts/{alertRef}/tags/{tagName}`<br>`DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}`<br>`DELETE /jobs/{jobRef}/tags/{tagName}`<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}`<br>`DELETE /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags/{tagName}`<br>`DELETE /tenants/{tenantKey}/tags/{tagName}`<br>`DELETE /workers/{workerRef}/tags/{tagName}` | · | inline | inline | inline | `tags` | `RemoveTagsSpec` |
 | `ReplaceTags` | `ITags.ReplaceAsync` | · | · | inline | inline | inline | `tags` | `ReplaceTagsSpec` |
+| `ResolveTagTarget` | · | · | · | · | · | · | · | `ResolveTagTargetSpec` |
 | `UpsertTags` | `ITags.UpsertAsync` | `POST /alerts/{alertRef}/tags`<br>`POST /definitions/{jobNamespace}/{jobName}/tags`<br>`POST /jobs/{jobRef}/tags`<br>`POST /namespaces/{jobNamespace}/tags`<br>`POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`POST /tenants/{tenantKey}/tags`<br>`POST /workers/{workerRef}/tags` | · | inline | inline | inline | `tags` | `UpsertTagsSpec` |
 
 ## Tenants

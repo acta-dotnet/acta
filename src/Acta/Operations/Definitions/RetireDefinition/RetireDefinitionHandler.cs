@@ -8,7 +8,7 @@ namespace Acta;
 /// definition the operator did not retire.
 /// </summary>
 internal sealed class RetireDefinitionHandler(
-    DefinitionKeyResolution keys,
+    ResolveDefinitionIdHandler resolveDefinitionId,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeupPublisher,
@@ -17,8 +17,10 @@ internal sealed class RetireDefinitionHandler(
 {
     public async ValueTask<RetireDefinitionResponse> HandleAsync(RetireDefinitionCommand command, CancellationToken ct)
     {
-        var definitionId = await keys.ResolveAsync(command.JobNamespace, command.JobName, ct);
-        if (definitionId is null)
+        if (
+            await resolveDefinitionId.HandleAsync(new ResolveDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
+            is not { DefinitionId: var definitionId }
+        )
         {
             return new RetireDefinitionResponse(ControlAction.NotFound);
         }
@@ -27,7 +29,7 @@ internal sealed class RetireDefinitionHandler(
             new StoreCommand("RetireDefinition"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId.Value));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
                 cmd.AddOperatorAudit(dialect, command.ActorKey, command.ReasonMessage);

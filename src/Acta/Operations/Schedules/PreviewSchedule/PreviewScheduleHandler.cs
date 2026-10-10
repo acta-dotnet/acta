@@ -1,11 +1,11 @@
 namespace Acta;
 
 /// <summary><see cref="ISchedules.PreviewAsync"/>: walks the effective expression from the database clock; no SQL of its own.</summary>
-internal sealed class PreviewScheduleHandler(ScheduleTargetResolution targets)
+internal sealed class PreviewScheduleHandler(ResolveScheduleTargetHandler resolveScheduleTarget)
 {
     public async ValueTask<PreviewScheduleResponse?> HandleAsync(PreviewScheduleQuery query, CancellationToken ct)
     {
-        if (await targets.ResolveAsync(query.Schedule, ct) is not { } target)
+        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(query.Schedule), ct) is not { } target)
         {
             return null;
         }

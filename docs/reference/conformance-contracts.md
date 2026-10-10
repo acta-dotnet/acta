@@ -1570,6 +1570,12 @@
   - An unassigned event and reason code read back as Unspecified and serialize as unspecified
   - An unassigned alert kind reads back as Unspecified from list and get and serializes as unspecified
 
+### ResolveDefinitionId finds a definition's catalog id by key, null for no match
+- **Contract:** ResolveDefinitionId returns the catalog id of the definition a namespace and name identify exactly, and null when no definition carries that key.
+- **Guarantees:**
+  - A registered name resolves to its definition's catalog id
+  - An unknown name, a prefix of a registered name, and a name from another namespace resolve to null
+
 ## Recovery
 
 ### One sys.recovery tick reclaims, releases, and wakes
@@ -1751,6 +1757,12 @@
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
   - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
+
+### ResolveScheduleTarget finds a live schedule and its slot job, null when absent
+- **Contract:** ResolveScheduleTarget returns a named live schedule with its slot job, the database clock, and the slot's live set, or null when the job or schedule is absent.
+- **Guarantees:**
+  - A live schedule resolves with its slot job, the database clock, and the slot's live schedules
+  - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
 ### A recurring slot fires repeatedly on one stable id advancing cursors
 - **Contract:** A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events.
@@ -2083,6 +2095,12 @@
   - Replace drops unlisted tags, keeps listed ones with their new values, and a repeat changes nothing
   - An empty list clears every tag and a full list of 32 is accepted
   - Tag limits and duplicate normalized names reject before replacing existing state
+
+### ResolveTagTarget finds the row a tag target names, null for a missing entity
+- **Contract:** ResolveTagTarget resolves a ref or natural-key target to the row the tags table joins on, passes the rest through, and returns null when the entity is missing.
+- **Guarantees:**
+  - Each existing target resolves to its scope and the id or name the tags table joins on
+  - A target whose entity does not exist resolves to null
 
 ### Tags read and mutate all first-class targets and filter typed queries
 - **Contract:** ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.

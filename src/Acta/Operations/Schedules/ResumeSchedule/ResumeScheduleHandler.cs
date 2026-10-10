@@ -6,7 +6,7 @@ namespace Acta;
 /// then one routine call sets both and records <c>schedule.resumed</c> against the slot job.
 /// </summary>
 internal sealed class ResumeScheduleHandler(
-    ScheduleTargetResolution targets,
+    ResolveScheduleTargetHandler resolveScheduleTarget,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup
@@ -16,7 +16,7 @@ internal sealed class ResumeScheduleHandler(
 
     public async ValueTask<ResumeScheduleResponse> HandleAsync(ResumeScheduleCommand command, CancellationToken ct)
     {
-        if (await targets.ResolveAsync(command.Schedule, ct) is not { } target)
+        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {
             return NotFound;
         }

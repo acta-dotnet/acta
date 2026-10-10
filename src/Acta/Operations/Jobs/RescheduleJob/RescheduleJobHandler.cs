@@ -1,17 +1,12 @@
 namespace Acta;
 
 /// <summary><see cref="IJobs.RescheduleAsync"/>: moves a waiting job's next run, re-arming a paused or suspended one.</summary>
-internal sealed class RescheduleJobHandler(
-    JobLookupResolution lookup,
-    IDbSession session,
-    ISqlDialect dialect,
-    WorkerWakeupPublisher wakeup
-)
+internal sealed class RescheduleJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, WorkerWakeupPublisher wakeup)
 {
     public async ValueTask<RescheduleJobResponse> HandleAsync(RescheduleJobCommand command, CancellationToken ct)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(command.NextRunAtUtc, DateTime.MinValue, "nextRunAtUtc");
-        if (await lookup.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new RescheduleJobResponse(0, ControlAction.NotFound, null, null);
         }

@@ -156,7 +156,8 @@ public sealed partial class OperationsIndexTests
     private static bool IsOwnSpec(string name, string operation) => name.Length > operation.Length && char.IsUpper(name[operation.Length]);
 
     // A public facade method runs an operation when its body names the operation's handler field, command, or query,
-    // directly or through a helper class of the group it holds (JobLookupResolution resolves both ResolveJobId reads).
+    // directly, through a helper class of the group it holds or calls, or through another method of the facade that it
+    // or such a helper calls (RunAndWaitAsync runs EnqueueJob through JobRunAndWait, which calls IJobs.EnqueueAsync).
     // The facade is the group's <Group>Operations class implementing I<Group>, and only the methods I<Group> declares
     // count: the class's engine calls are not on the public surface.
     private static List<(string Facade, string Method, string Operation)> FacadeMethods(string operations)
@@ -195,33 +196,50 @@ public sealed partial class OperationsIndexTests
                 .Select(m => m.Identifier.Text)
                 .ToHashSet(StringComparer.Ordinal);
             var fields = type.ParameterList?.Parameters.ToDictionary(p => p.Identifier.Text, p => p.Type?.ToString() ?? "") ?? [];
-            foreach (
-                var method in type
-                    .Members.OfType<MethodDeclarationSyntax>()
-                    .Where(m => m.Modifiers.Any(SyntaxKind.PublicKeyword) && declared.Contains(m.Identifier.Text))
-            )
+            var methods = type
+                .Members.OfType<MethodDeclarationSyntax>()
+                .Where(m => m.Modifiers.Any(SyntaxKind.PublicKeyword) && declared.Contains(m.Identifier.Text))
+                .Select(m => (Name: m.Identifier.Text, Tokens: WithHelpers(Identifiers(m), fields, helpers)))
+                .ToList();
+            foreach (var (name, tokens) in methods)
             {
-                var tokens = Identifiers(method);
-                foreach (var field in tokens.Where(fields.ContainsKey).ToList())
+                var reached = new HashSet<string>(tokens, StringComparer.Ordinal);
+                foreach (var other in methods.Where(other => other.Name != name && tokens.Contains(other.Name)))
                 {
-                    if (helpers.TryGetValue(fields[field], out var helper) && helper != tokens)
-                    {
-                        tokens.UnionWith(helper);
-                    }
+                    reached.UnionWith(other.Tokens);
                 }
 
                 foreach (
                     var operation in names.Where(n =>
-                        tokens.Contains(n + "Command") || tokens.Contains(n + "Query") || tokens.Contains(Camel(n))
+                        reached.Contains(n + "Command") || reached.Contains(n + "Query") || reached.Contains(Camel(n))
                     )
                 )
                 {
-                    found.Add((facade, method.Identifier.Text, operation));
+                    found.Add((facade, name, operation));
                 }
             }
         }
 
         return found;
+    }
+
+    // The method's identifiers plus those of each group helper class it names, as a field's type or by its own name.
+    private static HashSet<string> WithHelpers(
+        HashSet<string> tokens,
+        Dictionary<string, string> fields,
+        Dictionary<string, HashSet<string>> helpers
+    )
+    {
+        var expanded = new HashSet<string>(tokens, StringComparer.Ordinal);
+        foreach (var token in tokens)
+        {
+            if (helpers.TryGetValue(fields.GetValueOrDefault(token, token), out var helper))
+            {
+                expanded.UnionWith(helper);
+            }
+        }
+
+        return expanded;
     }
 
     private static HashSet<string> Identifiers(SyntaxNode node) =>

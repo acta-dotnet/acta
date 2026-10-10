@@ -5,7 +5,7 @@ namespace Acta;
 /// in-flight guards live in the routine alone, so transition legality has one home.
 /// </summary>
 internal sealed class TriggerScheduleNowHandler(
-    ScheduleTargetResolution targets,
+    ResolveScheduleTargetHandler resolveScheduleTarget,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup
@@ -15,7 +15,7 @@ internal sealed class TriggerScheduleNowHandler(
 
     public async ValueTask<TriggerScheduleNowResponse> HandleAsync(TriggerScheduleNowCommand command, CancellationToken ct)
     {
-        if (await targets.ResolveAsync(command.Schedule, ct) is not { } target)
+        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {
             return NotFound;
         }

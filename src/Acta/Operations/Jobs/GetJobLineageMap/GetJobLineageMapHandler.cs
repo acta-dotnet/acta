@@ -4,11 +4,11 @@ namespace Acta;
 /// <see cref="IJobs.GetLineageMapAsync"/>: resolves the lookup, reads the focus, ancestors, steps, checkpoints,
 /// and children in one round trip, and maps them.
 /// </summary>
-internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
+internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetJobLineageMapResponse?> HandleAsync(GetJobLineageMapQuery query, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId })
         {
             return null;
         }

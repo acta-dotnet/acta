@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary><see cref="IJobs.ReprioritizeAsync"/>: changes a non-terminal job's claim priority.</summary>
 internal sealed class ReprioritizeJobHandler(
-    JobLookupResolution lookup,
+    GetJobIdHandler getJobId,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup
@@ -11,7 +11,7 @@ internal sealed class ReprioritizeJobHandler(
     public async ValueTask<ReprioritizeJobResponse> HandleAsync(ReprioritizeJobCommand command, CancellationToken ct)
     {
         RequireDefined(command.Priority);
-        if (await lookup.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new ReprioritizeJobResponse(0, ControlAction.NotFound, null, null);
         }

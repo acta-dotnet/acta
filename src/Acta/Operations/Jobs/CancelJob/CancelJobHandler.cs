@@ -5,7 +5,7 @@ namespace Acta;
 /// non-terminal descendants. The engine cancels by id through the same routine.
 /// </summary>
 internal sealed class CancelJobHandler(
-    JobLookupResolution lookup,
+    GetJobIdHandler getJobId,
     IDbSession session,
     ISqlDialect dialect,
     ExecutionOperations execution,
@@ -25,7 +25,7 @@ internal sealed class CancelJobHandler(
 
     public async ValueTask<CancelJobResponse> HandleAsync(CancelJobCommand command, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new CancelJobResponse(0, ControlAction.NotFound, null, null);
         }

@@ -6,7 +6,7 @@ namespace Acta;
 /// A tag target the SQL can find: its scope plus the row id the tags table joins on, or, for tenants,
 /// namespaces, and schedules, the name it carries.
 /// </summary>
-internal sealed record ResolvedTagTarget(TagScopeCode ScopeCode, long? LookupId, string? LookupName)
+internal sealed record ResolveTagTargetResponse(TagScopeCode ScopeCode, long? LookupId, string? LookupName)
 {
     /// <summary>Binds the target parameters every tag statement takes.</summary>
     public void Bind(DbCommand cmd, ISqlDialect dialect)

@@ -5,13 +5,15 @@ namespace Acta;
 /// then writes only the override columns, version-guarded, with the policy-changed event. When the
 /// definition is on a rate meter, the routine carries the same rate override to every definition sharing it.
 /// </summary>
-internal sealed class SetDefinitionOverridesHandler(DefinitionKeyResolution keys, IDbSession session, ISqlDialect dialect)
+internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler resolveDefinitionId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<SetDefinitionOverridesResponse> HandleAsync(SetDefinitionOverridesCommand command, CancellationToken ct)
     {
         var overrides = Normalize(command.Overrides);
-        var definitionId = await keys.ResolveAsync(command.JobNamespace, command.JobName, ct);
-        if (definitionId is null)
+        if (
+            await resolveDefinitionId.HandleAsync(new ResolveDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
+            is not { DefinitionId: var definitionId }
+        )
         {
             return new SetDefinitionOverridesResponse(ControlAction.NotFound);
         }
@@ -22,7 +24,7 @@ internal sealed class SetDefinitionOverridesHandler(DefinitionKeyResolution keys
             cmd =>
             {
                 // The routine takes its arguments by position, so the order here is its signature's.
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId.Value));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.PriorityCodeOverride, overrides.Priority));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.MaxAttemptsOverride, overrides.MaxAttempts));

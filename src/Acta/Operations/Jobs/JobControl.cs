@@ -47,18 +47,17 @@ internal static class JobControl
     ) => WakeWorkersIfAsync(wakeup, action == ControlAction.Applied && status == JobStatusCode.Ready, ct);
 
     /// <summary>
-    /// Resume and restart are recurring-aware: a recurring slot reruns at its misfire-aware slot MIN, a plain job
-    /// runs now (null). Reject is true when every schedule of the slot has no upcoming run, so a removed slot is
-    /// never resurrected; the verb then answers Rejected before its routine runs, with no version.
+    /// Resume and restart are recurring-aware: a job with <paramref name="live"/> schedules is a recurring slot and
+    /// reruns at its misfire-aware slot MIN, a plain job runs now (null). Reject is true when every schedule of the
+    /// slot has no upcoming run, so a removed slot is never resurrected; the verb then answers Rejected before its
+    /// routine runs, with no version.
     /// </summary>
     public static async Task<(bool Reject, DateTime? NextRunAtUtc)> RecurringNextRunAsync(
-        GetLiveSchedulesHandler liveSchedules,
+        IReadOnlyList<LiveSchedule> live,
         IActaClock clock,
-        long jobId,
         CancellationToken ct
     )
     {
-        var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct)).Schedules;
         if (live.Count == 0)
         {
             return (false, null);

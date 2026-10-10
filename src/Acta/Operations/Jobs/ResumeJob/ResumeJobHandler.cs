@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary><see cref="IJobs.ResumeAsync"/>: moves a paused job to Ready, at its slot's next run when it is recurring.</summary>
 internal sealed class ResumeJobHandler(
-    JobLookupResolution lookup,
+    GetJobIdHandler getJobId,
     GetLiveSchedulesHandler liveSchedules,
     IActaClock clock,
     IDbSession session,
@@ -12,12 +12,13 @@ internal sealed class ResumeJobHandler(
 {
     public async ValueTask<ResumeJobResponse> HandleAsync(ResumeJobCommand command, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(command.Job, ct) is not { } jobId)
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
             return new ResumeJobResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var (reject, nextRun) = await JobControl.RecurringNextRunAsync(liveSchedules, clock, jobId, ct);
+        var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct)).Schedules;
+        var (reject, nextRun) = await JobControl.RecurringNextRunAsync(live, clock, ct);
         if (reject)
         {
             return new ResumeJobResponse(jobId, ControlAction.Rejected, JobStatusCode.Paused, null);

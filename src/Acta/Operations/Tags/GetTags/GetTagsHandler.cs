@@ -1,12 +1,12 @@
 namespace Acta;
 
 /// <summary><see cref="ITags.GetAsync"/>: resolves the target, then reads its tags in name order.</summary>
-internal sealed class GetTagsHandler(TagTargetResolution targets, IDbSession session, ISqlDialect dialect)
+internal sealed class GetTagsHandler(ResolveTagTargetHandler resolveTagTarget, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetTagsResponse?> HandleAsync(GetTagsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query.Target, "target");
-        var target = await targets.ResolveAsync(query.Target, ct);
+        var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(query.Target), ct);
         if (target is null)
         {
             return null;

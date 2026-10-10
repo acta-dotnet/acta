@@ -1,10 +1,10 @@
 namespace Acta;
 
 /// <summary><see cref="IJobs.GetCheckpointsAsync"/>: resolves the lookup, then reads every slot; null for a missing job.</summary>
-internal sealed class GetCheckpointsHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
+internal sealed class GetCheckpointsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetCheckpointsResponse?> HandleAsync(GetCheckpointsQuery query, CancellationToken ct) =>
-        await lookup.ResolveAsync(query.Job, ct) is { } jobId ? await ReadAsync(jobId, ct) : null;
+        await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is { JobId: var jobId } ? await ReadAsync(jobId, ct) : null;
 
     /// <summary>Every checkpoint slot by job id, by kind and then name; empty when the job has none, null when no job has the id.</summary>
     internal Task<GetCheckpointsResponse?> ReadAsync(long jobId, CancellationToken ct)

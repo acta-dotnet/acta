@@ -8,7 +8,7 @@ namespace Acta;
 /// writes the overrides and both cursors, version-guarded.
 /// </summary>
 internal sealed class SetScheduleOverridesHandler(
-    ScheduleTargetResolution targets,
+    ResolveScheduleTargetHandler resolveScheduleTarget,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup
@@ -18,7 +18,7 @@ internal sealed class SetScheduleOverridesHandler(
 
     public async ValueTask<SetScheduleOverridesResponse> HandleAsync(SetScheduleOverridesCommand command, CancellationToken ct)
     {
-        if (await targets.ResolveAsync(command.Schedule, ct) is not { } target)
+        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {
             return NotFound;
         }

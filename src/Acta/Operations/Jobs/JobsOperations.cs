@@ -10,7 +10,7 @@ internal sealed class JobsOperations(
     JobRequestRouting routing,
     EnqueueJobHandler enqueueJob,
     EnqueueJobsHandler enqueueJobs,
-    JobRunAndWait runAndWait,
+    IWorkerWakeup wakeup,
     GetJobIdHandler getJobId,
     GetJobHandler getJob,
     GetJobExplanationHandler getJobExplanation,
@@ -113,7 +113,7 @@ internal sealed class JobsOperations(
     ) => enqueueJobs.HandleAsync(new EnqueueJobsCommand(requests, transaction ?? throw new ArgumentNullException(nameof(transaction))), ct);
 
     public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
-        where TInput : notnull => runAndWait.RunAsync(o => routing.FromInput(input, o), options, ct);
+        where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromInput(input, o), options, ct);
 
     public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         TInput input,
@@ -121,7 +121,7 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     )
         where TInput : notnull
-        where TResult : notnull => runAndWait.RunAsync<TResult>(o => routing.FromInput(input, o), options, ct);
+        where TResult : notnull => JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, o => routing.FromInput(input, o), options, ct);
 
     public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
@@ -131,7 +131,14 @@ internal sealed class JobsOperations(
     )
         where TInput : notnull
         where TResult : notnull =>
-        runAndWait.RunAsync<TResult>(o => routing.FromContract((JobContract<TInput>)job, input, o, typeof(TResult)), options, ct);
+        JobRunAndWait.RunAsync<TResult>(
+            this,
+            wakeup,
+            routing,
+            o => routing.FromContract((JobContract<TInput>)job, input, o, typeof(TResult)),
+            options,
+            ct
+        );
 
     public ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) =>
         getJobId.HandleAsync(new GetJobIdQuery(job), ct);

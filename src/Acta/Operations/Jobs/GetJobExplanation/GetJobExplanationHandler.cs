@@ -7,11 +7,14 @@ namespace Acta;
 /// trip, and narrates them against the database clock, so "lease expired 2m ago" measures against the clock
 /// that stamped the rows rather than this process's.
 /// </summary>
-internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect, IActaClock clock)
+internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, IActaClock clock)
 {
     public async ValueTask<GetJobExplanationResponse?> HandleAsync(GetJobExplanationQuery query, CancellationToken ct)
     {
-        if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId || await ReadAsync(jobId, ct) is not { } data)
+        if (
+            await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId }
+            || await ReadAsync(jobId, ct) is not { } data
+        )
         {
             return null;
         }
