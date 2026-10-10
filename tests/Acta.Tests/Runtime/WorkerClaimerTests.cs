@@ -12,7 +12,7 @@ namespace Acta.Tests.Runtime;
 /// waiting. A stop landing during that backoff, or on the claim call itself, must end the loop cleanly rather than
 /// fault it, because the loop's task is awaited by the host's shutdown, and every permit the claim took comes back.
 /// </summary>
-public sealed class JobClaimerTests
+public sealed class WorkerClaimerTests
 {
     private const string Namespace = "orders";
 
@@ -87,7 +87,7 @@ public sealed class JobClaimerTests
     private static int Capacity(ExecutionProfile profile) => profile == ExecutionProfile.Direct ? 2 : 4;
 
     // The executor is null: these arms claim no row, so a null is the strongest statement that nothing runs.
-    private static (JobClaimer Claimer, InFlightJobRegistry Registry) Claimer(
+    private static (WorkerClaimer Claimer, InFlightJobRegistry Registry) Claimer(
         ClaimStore store,
         RecordingLogger log,
         ExecutionProfile profile,
@@ -105,7 +105,7 @@ public sealed class JobClaimerTests
             ClaimBatchSize = 2,
         };
         var registry = new InFlightJobRegistry(options);
-        return (new JobClaimer(store.Execution(), executor: null!, options, context, registry, new IdleWakeup(), log), registry);
+        return (new WorkerClaimer(store.Execution(), executor: null!, options, context, registry, new IdleWakeup(), log), registry);
     }
 
     private static async Task WaitUntil(Func<bool> condition, TimeSpan timeout)

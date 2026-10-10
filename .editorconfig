@@ -638,7 +638,7 @@ dotnet_diagnostic.CA1031.severity = none
 # repeat exists so a completion write is never abandoned while the worker lives; a metrics listener
 # or a logger that throws must not be the thing that abandons it, so those calls are swallowed and
 # the write's own failure stays the one being handled.
-[src/Acta/Engine/Execution/JobFinalizer.cs]
+[src/Acta/Engine/Execution/WorkerFinalizer.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: two catches that tear down a failed attempt and must never become the failure themselves. A
@@ -708,7 +708,7 @@ dotnet_diagnostic.CA1031.severity = none
 # CA1001: the one disposable field is _drainCts, and disposing it would reclaim nothing. It is a bare
 # CancellationTokenSource - no CancelAfter, so no Timer is ever armed, and nothing in Acta reads
 # Token.WaitHandle, so the lazily-created ManualResetEvent is never materialized. Its only registrations
-# are the linked sources JobClaimer and RecoverySlotMonitor build in RunAsync, each scoped with 'using'. Against
+# are the linked sources WorkerClaimer and RecoverySlotMonitor build in RunAsync, each scoped with 'using'. Against
 # zero benefit, IDisposable costs real safety: the source must stay usable for the whole process because
 # BeginDrain arrives from the host's StopAsync, and the public constructor is a documented direct test
 # seam whose callers would all have to take on a lifecycle they do not otherwise need.

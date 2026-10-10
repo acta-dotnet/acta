@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Outcome of a single <c>JobExecutor.RunOnceAsync</c> tick.
+/// Outcome of a single <c>WorkerExecutor.RunOnceAsync</c> tick.
 /// </summary>
 internal enum RunOnceStatus : byte
 {

@@ -8,11 +8,11 @@ namespace Acta;
 /// Executes one already-claimed job up to its completion: starts a Dispatched claim, resolves the descriptor, opens
 /// the per-attempt DI scope, reads what the attempt needs, builds the <see cref="RuntimeJobContext"/> and publishes it
 /// on the scope, then runs <see cref="ExecutionAdmission"/>, which completes a refused attempt, and
-/// <see cref="HandlerInvocation"/>, which completes an admitted one. Its loops take what <see cref="JobClaimer"/>
-/// claimed and hand each completion to <see cref="JobFinalizer"/>, so an executor is free as soon as the completion is
+/// <see cref="HandlerInvocation"/>, which completes an admitted one. Its loops take what <see cref="WorkerClaimer"/>
+/// claimed and hand each completion to <see cref="WorkerFinalizer"/>, so an executor is free as soon as the completion is
 /// built. A claim this deployment carries no handler for completes as a hand-back to Ready.
 /// </summary>
-internal sealed class JobExecutor(
+internal sealed class WorkerExecutor(
     Locks locks,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
@@ -21,7 +21,7 @@ internal sealed class JobExecutor(
     JobBehaviorPipeline pipeline,
     WorkerContext context,
     InFlightJobRegistry registry,
-    JobFinalizer finalizer,
+    WorkerFinalizer finalizer,
     ILogger? log = null,
     ActaMetrics? metrics = null
 )
@@ -247,7 +247,7 @@ internal sealed class JobExecutor(
     private async Task<bool> StartAsync(InFlightJob entry, int workerId)
     {
         var job = entry.Claim;
-        var start = await JobFinalizer.RepeatAsync(
+        var start = await WorkerFinalizer.RepeatAsync(
             token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _options.LeaseTtlSeconds, token),
             _log,
             job.JobId,
@@ -293,7 +293,7 @@ internal sealed class JobExecutor(
         // Resolve the external tenant key off the process-lifetime cache (one point read per
         // distinct tenant); the claim projection itself stays join-free.
         var tenantKey = job.TenantId is { } jobTenantId
-            ? await JobFinalizer.RepeatAsync(
+            ? await WorkerFinalizer.RepeatAsync(
                 async token => await _rootServices.GetRequiredService<TenantKeyCache>().ResolveAsync(jobTenantId, token),
                 _log,
                 job.JobId,
@@ -362,9 +362,9 @@ internal sealed class JobExecutor(
             return null;
         }
 
-        var nowUtc = await JobFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), _log, job.JobId, ct, metrics);
+        var nowUtc = await WorkerFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), _log, job.JobId, ct, metrics);
         var liveSchedules = _rootServices.GetRequiredService<GetLiveSchedulesHandler>();
-        var live = await JobFinalizer.RepeatAsync(
+        var live = await WorkerFinalizer.RepeatAsync(
             async token => (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token)).Schedules,
             _log,
             job.JobId,

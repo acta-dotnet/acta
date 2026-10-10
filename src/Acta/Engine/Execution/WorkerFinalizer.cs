@@ -11,7 +11,7 @@ namespace Acta;
 /// executors completed and write the plain completions together in one <c>complete_executions</c> call, so an executor
 /// is free as soon as its completion is built, while the entry stays held, and renewed, until the write commits.
 /// </summary>
-internal sealed partial class JobFinalizer(
+internal sealed partial class WorkerFinalizer(
     Execution execution,
     CancelJobHandler cancelJob,
     WorkerWakeupPublisher wakeupPublisher,

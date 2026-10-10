@@ -7,14 +7,14 @@ namespace Acta.Tests.Execution;
 /// its own subclass; rethrowing it out of the attempt would leave the row Executing under a lease the
 /// heartbeat renews from database state, so it lands as a handler exception instead.
 /// </summary>
-public sealed class JobExecutorControlSignalTests
+public sealed class WorkerExecutorControlSignalTests
 {
     private sealed class HomeMadeSignal() : JobControlException("a signal the runtime never defined");
 
     [Fact]
     public async Task An_unrecognized_control_signal_fails_the_attempt_instead_of_escaping()
     {
-        var harness = new JobExecutorHarness();
+        var harness = new WorkerExecutorHarness();
 
         var outcome = await harness.RunAsync(static (_, _) => throw new HomeMadeSignal());
 

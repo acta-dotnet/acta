@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>The completion command math: the retry plan, the command for each completion shape, and the recurring outcome.</summary>
-internal sealed partial class JobFinalizer
+internal sealed partial class WorkerFinalizer
 {
     /// <summary>
     /// One-shot failure retry math, shared by the deadline reschedule guard and the re-arm shape. One-shot only:

@@ -10,17 +10,17 @@ namespace Acta;
 /// Worker-runtime singleton owning everything for its namespace: the catalog upsert in <see cref="InitializeAsync"/>,
 /// the claim/dispatch pipeline in <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level
 /// <see cref="RunAsync"/> that runs pipeline and heartbeat concurrently. A thin facade over <see cref="WorkerContext"/>,
-/// <see cref="WorkerRuntimeInitializer"/>, <see cref="JobClaimer"/>, <see cref="JobExecutor"/>, and
-/// <see cref="JobFinalizer"/>. An enqueue-only runtime skips the worker row and the pipeline but still bootstraps.
+/// <see cref="WorkerRuntimeInitializer"/>, <see cref="WorkerClaimer"/>, <see cref="WorkerExecutor"/>, and
+/// <see cref="WorkerFinalizer"/>. An enqueue-only runtime skips the worker row and the pipeline but still bootstraps.
 /// </summary>
 internal sealed class WorkerRuntime
 {
     private readonly WorkerContext _context;
     private readonly InFlightJobRegistry _registry;
     private readonly WorkerRuntimeInitializer _initializer;
-    private readonly JobExecutor _executor;
-    private readonly JobFinalizer _finalizer;
-    private readonly JobClaimer _claimer;
+    private readonly WorkerExecutor _executor;
+    private readonly WorkerFinalizer _finalizer;
+    private readonly WorkerClaimer _claimer;
     private readonly int _executorCount;
     private readonly WorkerHeartbeat _heartbeat;
     private readonly RecoverySlotMonitor _recoveryMonitor;
@@ -88,7 +88,7 @@ internal sealed class WorkerRuntime
             logger
         );
 
-        _finalizer = new JobFinalizer(
+        _finalizer = new WorkerFinalizer(
             rootServices.GetRequiredService<Execution>(),
             rootServices.GetRequiredService<CancelJobHandler>(),
             publisher,
@@ -98,7 +98,7 @@ internal sealed class WorkerRuntime
             logger,
             metrics
         );
-        _executor = new JobExecutor(
+        _executor = new WorkerExecutor(
             locks,
             clock,
             serializers,
@@ -111,7 +111,7 @@ internal sealed class WorkerRuntime
             logger,
             metrics
         );
-        _claimer = new JobClaimer(
+        _claimer = new WorkerClaimer(
             rootServices.GetRequiredService<Execution>(),
             _executor,
             options.Value,

@@ -7,15 +7,15 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Drives one real attempt end to end through <see cref="JobExecutor.ExecuteAsync"/> and
-/// <see cref="JobFinalizer.FinalizeAsync"/> over the real execution and lock groups on scripted sessions: the
+/// Drives one real attempt end to end through <see cref="WorkerExecutor.ExecuteAsync"/> and
+/// <see cref="WorkerFinalizer.FinalizeAsync"/> over the real execution and lock groups on scripted sessions: the
 /// start CAS, a handler that runs one durable step, and the completion CAS. The script says what
 /// <c>complete_step</c> and <c>complete_execution</c> answer, and the harness
 /// keeps every <see cref="BoundCompletion"/> the runner bound plus the subset the scripted CAS applied, so
 /// a test can assert on the completion shape rather than on a database. Reusable for executor unit tests;
 /// add scripted knobs here, not per test.
 /// </summary>
-internal sealed class JobExecutorHarness(
+internal sealed class WorkerExecutorHarness(
     CompleteStepOutcomeCode stepOutcome = CompleteStepOutcomeCode.Succeeded,
     CompleteExecutionAction completionAction = CompleteExecutionAction.Completed,
     bool cancelAttemptOnStepCompletion = false,
@@ -107,7 +107,7 @@ internal sealed class JobExecutorHarness(
     }
 
     /// <summary>
-    /// Drives one claimed job through the real <see cref="JobExecutor"/> with an EMPTY descriptor
+    /// Drives one claimed job through the real <see cref="WorkerExecutor"/> with an EMPTY descriptor
     /// index: the state a deployment that dropped the definition leaves a worker in. The scripted
     /// store is the same one, so a test reads the released claim off <see cref="Submitted"/> and the
     /// bounce off <see cref="Log"/>.
@@ -117,7 +117,7 @@ internal sealed class JobExecutorHarness(
             .RunInlineAsync(new InFlightJob(Job(), leaseRunway: null, CancellationToken.None), CancellationToken.None);
 
     // The worker this runtime would be: registered for one namespace, with the descriptor the claim names, if any.
-    private JobExecutor Executor(JobDescriptor? descriptor)
+    private WorkerExecutor Executor(JobDescriptor? descriptor)
     {
         var context = new WorkerContext(new WorkerRegistration("harness", null, null, [], []));
         context.NamespaceIds["harness"] = 1;
@@ -136,7 +136,7 @@ internal sealed class JobExecutorHarness(
         }
 
         var registry = new InFlightJobRegistry(options);
-        var finalizer = new JobFinalizer(
+        var finalizer = new WorkerFinalizer(
             _store.Execution,
             CancelJob(),
             new WorkerWakeupPublisher(new InProcessWakeup()),
@@ -146,7 +146,7 @@ internal sealed class JobExecutorHarness(
             _log,
             metrics: null
         );
-        return new JobExecutor(
+        return new WorkerExecutor(
             _locks.Locks,
             new HarnessClock(),
             new HarnessSerializers(),
@@ -192,7 +192,7 @@ internal sealed class JobExecutorHarness(
     ) =>
         new(
             JobName: jobName,
-            HandlerType: typeof(JobExecutorHarness),
+            HandlerType: typeof(WorkerExecutorHarness),
             MethodName: "N/A",
             InputType: typeof(NoInput),
             OutputType: null,

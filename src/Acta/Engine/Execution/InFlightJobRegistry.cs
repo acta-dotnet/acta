@@ -21,7 +21,7 @@ internal sealed class InFlightJobRegistry
         Permits = new SemaphoreSlim(permits, permits);
         Claimed = Channel.CreateBounded<InFlightJob>(permits);
         // Room for a full batch and the executors behind it, so a batch can grow while the finalizers write.
-        Completed = Channel.CreateBounded<InFlightJob>(JobFinalizer.MaxBatch + options.MaxConcurrentExecutors);
+        Completed = Channel.CreateBounded<InFlightJob>(WorkerFinalizer.MaxBatch + options.MaxConcurrentExecutors);
     }
 
     /// <summary>

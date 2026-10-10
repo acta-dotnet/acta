@@ -36,7 +36,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         // The deadline anchor is DB-stamped (job.created_at_utc); comparing it against the worker
         // clock here is deliberate and bounded by the worker-init clock-skew guard, trading a small
         // skew sensitivity for not paying a DB round-trip on every admission.
-        // Recurring slots never reach this branch: JobExecutor builds their context with a null
+        // Recurring slots never reach this branch: WorkerExecutor builds their context with a null
         // DeadlineAtUtc, so the whole-job deadline cannot cancel a slot here or on the retry guard.
         if (PastStrictDeadline(descriptor, jobContext))
         {

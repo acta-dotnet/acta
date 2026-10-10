@@ -9,12 +9,12 @@ namespace Acta.Tests.Execution;
 /// produces it. The contract is that the executor releases the claim instead of refusing it, because
 /// the claim has already stamped the lease - a refusal would leave the job waiting out that lease.
 /// </summary>
-public sealed class JobExecutorUnsupportedClaimTests
+public sealed class WorkerExecutorUnsupportedClaimTests
 {
     [Fact]
     public async Task An_unsupported_claim_is_released_as_a_budget_neutral_rearm()
     {
-        var harness = new JobExecutorHarness();
+        var harness = new WorkerExecutorHarness();
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 
@@ -51,7 +51,7 @@ public sealed class JobExecutorUnsupportedClaimTests
     [Fact]
     public async Task A_provider_error_on_the_start_write_is_retried_before_the_release()
     {
-        var harness = new JobExecutorHarness(startFailsOnce: true);
+        var harness = new WorkerExecutorHarness(startFailsOnce: true);
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 
@@ -68,7 +68,7 @@ public sealed class JobExecutorUnsupportedClaimTests
         // The row was reclaimed, reassigned, or moved by a control verb between claim and release.
         // Submitting a completion for a row this worker no longer owns is exactly what the start CAS
         // exists to prevent, so the release is abandoned, not forced.
-        var harness = new JobExecutorHarness(startAction: StartExecutionAction.LostClaim);
+        var harness = new WorkerExecutorHarness(startAction: StartExecutionAction.LostClaim);
 
         var outcome = await harness.RunWithNoDescriptorAsync();
 

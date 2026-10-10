@@ -4,18 +4,18 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit pins for the step-ownership path through <see cref="JobExecutor.ExecuteAsync"/>, driven by
-/// <see cref="JobExecutorHarness"/>: a <c>complete_step</c> StaleVersion on a job this attempt still
+/// Unit pins for the step-ownership path through <see cref="WorkerExecutor.ExecuteAsync"/>, driven by
+/// <see cref="WorkerExecutorHarness"/>: a <c>complete_step</c> StaleVersion on a job this attempt still
 /// owns re-arms as a retryable abort instead of landing terminal Failed with no reason, no completion
 /// shape ever submits Failed without a reason, and a completion CAS that answers NotOwner writes
 /// nothing at all and is a logged skip.
 /// </summary>
-public sealed class JobExecutorOwnershipTests
+public sealed class WorkerExecutorOwnershipTests
 {
     [Fact]
     public async Task Stale_step_version_on_an_owned_job_re_arms_as_a_retryable_abort()
     {
-        var harness = new JobExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
+        var harness = new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
 
         var outcome = await harness.RunAsync();
 
@@ -23,7 +23,7 @@ public sealed class JobExecutorOwnershipTests
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
-        Assert.Contains(JobExecutorHarness.StepName, completion.ReasonMessage);
+        Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
 
         // The re-arm shape, not a terminal one: the execution row records Rescheduled, the job goes
         // back to Ready with a backoff delay, and the bumped failure count is what the budget reads
@@ -43,12 +43,12 @@ public sealed class JobExecutorOwnershipTests
         // so the business failure is not this attempt's to report - reporting JobUnhandledException here
         // would attribute a failure the ledger never accepted, and burn a retry against a budget the
         // routine never decremented. The abort must win over both the retry signal and exhaustion.
-        var harness = new JobExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
+        var harness = new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
 
         var outcome = await harness.RunAsync(
             static (ctx, token) =>
                 ctx.RunStepAsync(
-                    JobExecutorHarness.StepName,
+                    WorkerExecutorHarness.StepName,
                     static _ => Task.FromException(new InvalidOperationException("boom")),
                     ct: token
                 )
@@ -58,7 +58,7 @@ public sealed class JobExecutorOwnershipTests
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
-        Assert.Contains(JobExecutorHarness.StepName, completion.ReasonMessage);
+        Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
         Assert.DoesNotContain("boom", completion.ReasonMessage, StringComparison.Ordinal);
         Assert.Equal((byte)ExecutionStatusCode.Rescheduled, completion.RescheduleStatusCode);
     }
@@ -68,7 +68,7 @@ public sealed class JobExecutorOwnershipTests
     {
         // Budget of one: the same abort that re-armed above is out of retries, so it lands terminal.
         // The reason must survive that transition, which is the fact the old bug lost.
-        var harness = new JobExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1);
+        var harness = new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1);
 
         var outcome = await harness.RunAsync();
 
@@ -76,7 +76,7 @@ public sealed class JobExecutorOwnershipTests
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
-        Assert.Contains(JobExecutorHarness.StepName, completion.ReasonMessage);
+        Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
         Assert.Null(completion.RescheduleStatusCode);
     }
 
@@ -89,12 +89,12 @@ public sealed class JobExecutorOwnershipTests
         // timeline entry.
         var submitted = new List<BoundCompletion>();
 
-        submitted.AddRange(await Submissions(new JobExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion)));
-        submitted.AddRange(await Submissions(new JobExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1)));
+        submitted.AddRange(await Submissions(new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion)));
+        submitted.AddRange(await Submissions(new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1)));
         submitted.AddRange(
-            await Submissions(new JobExecutorHarness(maxAttempts: 1), static (_, _) => throw new InvalidOperationException("boom"))
+            await Submissions(new WorkerExecutorHarness(maxAttempts: 1), static (_, _) => throw new InvalidOperationException("boom"))
         );
-        submitted.AddRange(await Submissions(new JobExecutorHarness()));
+        submitted.AddRange(await Submissions(new WorkerExecutorHarness()));
 
         Assert.Equal(4, submitted.Count);
         Assert.Contains(submitted, c => c.Outcome == CompletionKind.Succeeded);
@@ -112,7 +112,7 @@ public sealed class JobExecutorOwnershipTests
         // completion CAS matches no row. The runner still submits the retryable re-arm command (an
         // owned row must be re-armed rather than skipped), the store applies none of it, and the
         // attempt reports NothingClaimed.
-        var harness = new JobExecutorHarness(
+        var harness = new WorkerExecutorHarness(
             stepOutcome: CompleteStepOutcomeCode.StaleVersion,
             completionAction: CompleteExecutionAction.NotOwner,
             cancelAttemptOnStepCompletion: true
@@ -130,7 +130,7 @@ public sealed class JobExecutorOwnershipTests
     {
         // The same NotOwner answer with the attempt token still live: a Finalizing entry can outlive its
         // lease while its write waits, so losing the row is a skip the log records, not a fault.
-        var harness = new JobExecutorHarness(
+        var harness = new WorkerExecutorHarness(
             stepOutcome: CompleteStepOutcomeCode.StaleVersion,
             completionAction: CompleteExecutionAction.NotOwner
         );
@@ -145,7 +145,7 @@ public sealed class JobExecutorOwnershipTests
     }
 
     private static async Task<IReadOnlyList<BoundCompletion>> Submissions(
-        JobExecutorHarness harness,
+        WorkerExecutorHarness harness,
         Func<JobContext, CancellationToken, Task>? handler = null
     )
     {

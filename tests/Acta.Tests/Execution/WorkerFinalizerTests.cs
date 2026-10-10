@@ -15,13 +15,13 @@ namespace Acta.Tests.Execution;
 /// worker stops, and a defect is repeated alongside a provider error because a loud loop costs less than a finished
 /// execution run twice. Meanwhile the entry stays held as Finalizing, so the heartbeat keeps renewing its row.
 /// </summary>
-public sealed class JobFinalizerTests
+public sealed class WorkerFinalizerTests
 {
     [Fact(DisplayName = "A failure that clears is repeated until the write lands")]
     public async Task A_failure_that_clears_is_repeated_until_the_write_lands()
     {
         var calls = 0;
-        var result = await JobFinalizer.RepeatAsync<string>(
+        var result = await WorkerFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -43,7 +43,7 @@ public sealed class JobFinalizerTests
     public async Task A_persistent_provider_error_outlives_a_bounded_budget()
     {
         var calls = 0;
-        var result = await JobFinalizer.RepeatAsync<string>(
+        var result = await WorkerFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -63,7 +63,7 @@ public sealed class JobFinalizerTests
     public async Task A_failure_that_is_not_a_provider_error_is_repeated_too()
     {
         var calls = 0;
-        await JobFinalizer.RepeatAsync<string>(
+        await WorkerFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -86,7 +86,7 @@ public sealed class JobFinalizerTests
         var calls = 0;
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            JobFinalizer.RepeatAsync<int>(
+            WorkerFinalizer.RepeatAsync<int>(
                 token =>
                 {
                     calls++;
@@ -112,7 +112,7 @@ public sealed class JobFinalizerTests
         // The stop says why the repeat ended; the failure says why the row is still Executing, and that
         // is what the caller logs.
         await Assert.ThrowsAsync<ProviderDown>(() =>
-            JobFinalizer.RepeatAsync<int>(
+            WorkerFinalizer.RepeatAsync<int>(
                 _ =>
                 {
                     calls++;
@@ -133,7 +133,7 @@ public sealed class JobFinalizerTests
     public async Task A_throwing_logger_does_not_end_the_repeat()
     {
         var calls = 0;
-        var result = await JobFinalizer.RepeatAsync<string>(
+        var result = await WorkerFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -176,7 +176,7 @@ public sealed class JobFinalizerTests
         context.NamespaceIds["orders"] = 1;
         context.WorkerIdByNamespace["orders"] = 1;
         var registry = new InFlightJobRegistry(options);
-        var finalizer = new JobFinalizer(
+        var finalizer = new WorkerFinalizer(
             services.GetRequiredService<Acta.Execution>(),
             null!,
             new WorkerWakeupPublisher(new InProcessWakeup()),
@@ -246,7 +246,7 @@ public sealed class JobFinalizerTests
         context.NamespaceIds["orders"] = 1;
         context.WorkerIdByNamespace["orders"] = 1;
         var registry = new InFlightJobRegistry(options);
-        var finalizer = new JobFinalizer(
+        var finalizer = new WorkerFinalizer(
             session.Services().GetRequiredService<Acta.Execution>(),
             null!,
             new WorkerWakeupPublisher(new InProcessWakeup()),
@@ -278,7 +278,7 @@ public sealed class JobFinalizerTests
     // A one-shot definition: the batch reads only its retention, and the plan its budget and deadline behavior.
     private static readonly JobDescriptor Descriptor = new(
         "receipt",
-        typeof(JobFinalizerTests),
+        typeof(WorkerFinalizerTests),
         MethodName: "Run",
         InputType: typeof(object),
         OutputType: null,

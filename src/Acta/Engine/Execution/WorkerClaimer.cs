@@ -9,9 +9,9 @@ namespace Acta;
 /// claimed <c>sys.recovery</c> slot runs on its own task without a permit, so a worker whose executors are all held
 /// still sweeps. An empty claim sleeps until the claim horizon, cut short by a wakeup.
 /// </summary>
-internal sealed class JobClaimer(
+internal sealed class WorkerClaimer(
     Execution execution,
-    JobExecutor executor,
+    WorkerExecutor executor,
     JobsOptions options,
     WorkerContext context,
     InFlightJobRegistry registry,

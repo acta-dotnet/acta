@@ -25,14 +25,16 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
   why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
   pause rather than suspend.
 - **An execution completes; the finalizer writes the completion.** `CompleteExecution` is the
-  operation, `ExecutionCompletion` is what an attempt leaves for it, and `JobFinalizer` writes it.
+  operation, `ExecutionCompletion` is what an attempt leaves for it, and `WorkerFinalizer` writes it.
   "Settle" is retired for executions; alert delivery keeps its own settlement vocabulary.
 - **`State` is in memory, `Code` is persisted.** An enum a running process keeps for itself takes
   `State` (`InFlightJobState`); one the ledger stores takes `Code` (`JobStatusCode`), and the two
   never share members by accident.
-- **A background loop is named for its agent; a channel for what crosses it.** `JobClaimer`,
-  `JobExecutor`, `JobFinalizer`, `RecoverySlotMonitor`, `WorkerHeartbeat` each name the actor; the
-  channels between them are `Claimed` and `Completed`.
+- **A background loop is named for its agent; a channel for what crosses it.** A worker's own agents
+  take the `Worker` prefix, as its runtime and context do: `WorkerClaimer`, `WorkerExecutor`,
+  `WorkerFinalizer`, `WorkerHeartbeat` (the established word, kept over an invented agent noun). A loop
+  that serves a system job is named for its job's work (`RecoverySlotMonitor`). The channels between the
+  worker's agents are `Claimed` and `Completed`.
 
 ## Identifier suffixes
 
@@ -52,9 +54,9 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
 - **Names at typed entry points optimize for brevity; names in inferred positions may carry full
   qualification.** `JobRequestBuilder.Create(...)` is typed at every call site and stays short;
   `JobEnqueueOptionsBuilder` appears only as an inferred lambda parameter and affords its length.
-- **No `Job` prefix on types that are not jobs.** The prefix marks types whose subject is the job:
-  the aggregate's own types and the engine parts that act on jobs (`JobExecutor`); never a type that
-  merely belongs to Acta.
+- **No `Job` prefix on types that are not jobs.** The prefix marks the job aggregate's own types and
+  what describes one job (`JobStatusCode`, `JobLogScope`, `InFlightJob`); never a type that merely
+  belongs to Acta or acts on many jobs, which a worker's agents do.
 - **An `Operations/` group is plural, an `Engine/` box is singular.** A group is the aggregate
   (`Jobs`, `Workers`, `Alerts`); a box is named for its capability (`Worker` holds one worker's runtime,
   `Alerting` is the process, `Catalog` is what a deployment declares). A system job's class is

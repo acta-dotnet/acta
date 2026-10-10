@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Builds the per-attempt logging-scope state. <see cref="JobExecutor"/> opens it once around an attempt so every
+/// Builds the per-attempt logging-scope state. <see cref="WorkerExecutor"/> opens it once around an attempt so every
 /// framework and handler log line emitted while the job runs carries the job identity; loggers from one factory share
 /// an external scope provider, so opening the scope on the runtime logger also stamps the handler's own
 /// <c>ILogger&lt;T&gt;</c> output. The key strings are the operator-facing log property names a structured-log query

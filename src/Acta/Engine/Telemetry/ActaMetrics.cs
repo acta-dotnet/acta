@@ -5,8 +5,8 @@ namespace Acta;
 
 /// <summary>
 /// Owns the <c>Acta</c> meter and its instruments, a process-wide singleton: one execution measurement per durable
-/// completion in <see cref="Acta.JobFinalizer"/>, one claim measurement per claim attempt in
-/// <see cref="Acta.JobClaimer"/>, and the live in-flight count. Counters are additive, so no running totals
+/// completion in <see cref="Acta.WorkerFinalizer"/>, one claim measurement per claim attempt in
+/// <see cref="Acta.WorkerClaimer"/>, and the live in-flight count. Counters are additive, so no running totals
 /// are kept in process. Tag keys and values are the operator-facing metric surface, pinned by <c>ActaMetricsTests</c>
 /// and kept low-cardinality (namespace, job_name, outcome, reason_code, result, state); the unbounded job id and
 /// execution number stay off metrics and live on the logging scope and traces instead.
