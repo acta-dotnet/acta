@@ -21,9 +21,6 @@ internal sealed class JobFinalizer(
     ActaMetrics? metrics
 )
 {
-    /// <summary>Enough writers to keep a database busy, few enough that a batch forms when the writes fall behind.</summary>
-    public const int LoopCount = 4;
-
     // One second doubling to a thirty-second ceiling, on the runtime's one retry curve: a dropped
     // connection costs almost nothing, and a failover measured in minutes is ridden out without
     // hammering the provider that is coming back. A quarter of jitter keeps a fleet whose writes failed
@@ -46,7 +43,7 @@ internal sealed class JobFinalizer(
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
-    /// One of the worker's finalizer loops: finalizes each completion together with whatever else is already waiting,
+    /// The worker's one finalizer loop: finalizes each completion together with whatever else is already waiting,
     /// until the channel is completed and empty, so a batch forms only when the writes fall behind. A fault ends its batch.
     /// </summary>
     public async Task RunLoopAsync(CancellationToken hostCt)
@@ -98,6 +95,7 @@ internal sealed class JobFinalizer(
         {
             var writes = entries.Select(Plan).ToList();
             var plain = writes.Where(write => write.Plain).ToDictionary(write => write.Entry.Key);
+            var perJob = new List<PlannedWrite>();
             if (plain.Count > 0)
             {
                 var batch = new CompleteExecutionsCommand(
@@ -115,20 +113,24 @@ internal sealed class JobFinalizer(
                 {
                     // Completed, NotOwner, and AlreadyTerminal share their values with the per-job write's answers, and
                     // the batch takes no job with a next run to report or a parent to release.
-                    await LandAsync(
-                        plain[(row.JobId, row.ExecutionNumber)],
-                        row.Action == CompleteExecutionsAction.PerJob
-                            ? null
-                            : new((CompleteExecutionAction)row.Action, row.FinalStatusCode, null, row.DbNowUtc, false),
-                        hostCt
-                    );
+                    var write = plain[(row.JobId, row.ExecutionNumber)];
+                    if (row.Action == CompleteExecutionsAction.PerJob)
+                    {
+                        perJob.Add(write);
+                    }
+                    else
+                    {
+                        await LandAsync(
+                            write,
+                            new((CompleteExecutionAction)row.Action, row.FinalStatusCode, null, row.DbNowUtc, false),
+                            hostCt
+                        );
+                    }
                 }
             }
 
-            foreach (var write in writes.Where(write => !write.Plain))
-            {
-                await LandAsync(write, batched: null, hostCt);
-            }
+            perJob.AddRange(writes.Where(write => !write.Plain));
+            await Task.WhenAll(perJob.Select(write => LandAsync(write, batched: null, hostCt)));
         }
         finally
         {
