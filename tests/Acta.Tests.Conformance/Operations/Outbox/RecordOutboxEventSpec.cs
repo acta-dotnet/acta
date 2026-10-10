@@ -50,7 +50,7 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
         var evidence = Assert.Single(events);
         Assert.Equal(EventCode.OutboxDiscarded, evidence.EventCode);
         Assert.Equal(ActorCode.Operator, evidence.ActorCode);
-        Assert.Equal("marko", evidence.ActorKey);
+        Assert.Equal("marko", evidence.Actor);
         Assert.Equal("poison batch - 2 row(s): [a, b]", evidence.ReasonMessage);
         Assert.Equal(1, evidence.ExecutionNumber);
     }

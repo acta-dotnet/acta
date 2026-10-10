@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// One materialized alert. A non-null <see cref="DedupeKey"/> makes it an incident: the unique
-/// <c>(namespace_id, dedupe_key)</c> index over unresolved rows admits one open row per key, so repeats collapse onto
+/// One materialized alert. A non-null <see cref="DeduplicationKey"/> makes it an incident: the unique
+/// <c>(namespace_id, deduplication_key)</c> index over unresolved rows admits one open row per key, so repeats collapse onto
 /// it (<see cref="OccurrenceCount"/>) while it stays open, and a null key always inserts. <see cref="ResolvedAtUtc"/>
 /// is terminal: once stamped it never clears, and the next firing opens a new incident on the same key.
 /// </summary>
@@ -10,23 +10,23 @@ namespace Acta;
 [DbPrimaryKey(Name = "pk_alerts", Columns = ["id"])]
 [DbUniqueIndex(Name = "ux_alerts_ref", Columns = ["alert_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(
-    Name = "ux_alerts_dedupe",
-    Columns = ["namespace_id", "dedupe_key"],
-    Filter = "dedupe_key IS NOT NULL AND resolved_at_utc IS NULL",
+    Name = "ux_alerts_deduplication_key",
+    Columns = ["namespace_id", "deduplication_key"],
+    Filter = "deduplication_key IS NOT NULL AND resolved_at_utc IS NULL",
     Usage = "uniqueness"
 )]
-// ux_alerts_dedupe covers only the OPEN row of an identity, but the raise also has to see the closed
+// ux_alerts_deduplication_key covers only the OPEN row of an identity, but the raise also has to see the closed
 // ones: its ghost guard asks whether ANY row of the identity already carries a mark at or past the
 // incoming event, and its held-write fallback reads the identity's newest row whatever its resolution.
 // Neither can use the resolved_at_utc arm of that filter, so without this they degrade to a
 // namespace-wide scan on every raise that opens an incident or is blocked from opening one. The
-// dedupe_key arm is kept: an equality on the column implies it, so all three planners still seek, and
+// deduplication_key arm is kept: an equality on the column implies it, so all three planners still seek, and
 // keyless rows - which no raise ever looks up this way - stay out. Two columns is enough: one identity
 // holds a handful of incidents, so the ORDER BY id the fallback adds sorts almost nothing.
 [DbIndex(
-    Name = "ix_alerts_dedupe_identity",
-    Columns = ["namespace_id", "dedupe_key"],
-    Filter = "dedupe_key IS NOT NULL",
+    Name = "ix_alerts_deduplication_key_identity",
+    Columns = ["namespace_id", "deduplication_key"],
+    Filter = "deduplication_key IS NOT NULL",
     Usage = "alert_raise"
 )]
 // Serves the whole delivery read, not just the retry arm: both arms filter on the namespace, then a
@@ -77,7 +77,7 @@ internal sealed class AlertEntity : IEntity<long>
 
     /// <summary>
     /// Scope of the incident identity; at most one unresolved alert exists per
-    /// <c>(namespace_id, dedupe_key)</c>.
+    /// <c>(namespace_id, deduplication_key)</c>.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }
@@ -137,14 +137,13 @@ internal sealed class AlertEntity : IEntity<long>
 
     /// <summary>
     /// Operator-readable semantic grouping string (NOT a cryptographic hash). When non-null it names the
-    /// incident identity: the unique <c>(namespace_id, dedupe_key)</c> index over unresolved rows
-    /// collapses repeats onto the one open row; when null, every call inserts a fresh row. Sized for the
-    /// Automatic-origin default template <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> - wider than
-    /// the caller-supplied <c>jobs.dedupe_key</c> (128) because Acta composes this one; the
-    /// concept is the same deduplication both spell.
+    /// incident identity: the unique <c>(namespace_id, deduplication_key)</c> index over unresolved rows
+    /// collapses repeats onto the one open row; when null, every call inserts a fresh row. As wide as every key,
+    /// <c>jobs.deduplication_key</c> included: the Automatic-origin default template
+    /// <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> stays under 100 characters.
     /// </summary>
-    [DbColumn("dedupe_key", DbKind.AsciiString, Size = 512)]
-    public string? DedupeKey { get; init; }
+    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128)]
+    public string? DeduplicationKey { get; init; }
 
     /// <summary>
     /// How many times this alert condition has fired within THIS incident - since the row opened, not
@@ -168,7 +167,7 @@ internal sealed class AlertEntity : IEntity<long>
     /// When the underlying condition cleared (recovery instant). NULL means the alert is still unresolved
     /// and is the single source of truth for resolution. Set when a previously-failed Job's next
     /// execution succeeds, or by the operator resolve verb. Terminal for the row: no raise ever clears it
-    /// back to NULL - the next failure on the same <see cref="DedupeKey"/> opens a new incident row
+    /// back to NULL - the next failure on the same <see cref="DeduplicationKey"/> opens a new incident row
     /// instead, which is also what frees the filtered unique index for that key again.
     /// </summary>
     [DbColumn("resolved_at_utc", DbKind.UtcInstant)]

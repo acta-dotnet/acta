@@ -54,7 +54,7 @@ public sealed class AlertTransportContractTests
         );
 
         // A bare Guid is the other way an unaddressable identity gets here, and the one this codebase is
-        // actually prone to: alert_ref, worker_ref, and events.actor_key all STORE the uuid, and only
+        // actually prone to: alert_ref, worker_ref, and events.actor all STORE the uuid, and only
         // AlertRef / JobRef render it as the alr_ / job_ handle an operator can paste. A Guid-typed
         // member would pass the integer check and still deliver the stored form.
         var rawGuids = properties
@@ -123,7 +123,7 @@ public sealed class AlertTransportContractTests
         AssertRendersRefsOnly(json, TestAlertRef.ToString());
     }
 
-    // The sentinel is the ref's stored form, in both spellings a leak could take. events.actor_key and
+    // The sentinel is the ref's stored form, in both spellings a leak could take. events.actor and
     // workers.worker_ref hold canonical uuid text, so "renders the ref" and "renders whatever the row
     // holds" look alike in a fixture unless the uuid itself is banned. There is no numeric check here
     // because there is no numeric member to leak: the reflection gate above proves AlertNotification

@@ -6,18 +6,18 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
 /// <summary>
-/// Pins the audit trail's fidelity for an operator whose name is not ASCII: the actor key an
+/// Pins the audit trail's fidelity for an operator whose name is not ASCII: the actor an
 /// operator control stamps on its event reads back byte-identical on every provider. The tenant
 /// verb is the carrier because it needs no job; every control surface stamps the same column
 /// through the same actor type.
 /// </summary>
 [ConformanceSpec(
-    "admin.unicode-actor-key",
+    "admin.unicode-actor",
     "A non-ASCII operator name survives the audit event intact",
     Area = "Admin",
-    Contract = "The actor key stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters."
+    Contract = "The actor stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters."
 )]
-public sealed class UnicodeActorKeySpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class UnicodeActorSpec : ActaStorageTestBase<ConformanceFixture>
 {
     // A diacritic (two bytes in UTF-8, one UTF-16 unit) and an emoji (four bytes, a surrogate pair):
     // the two shapes a varchar column or an ASCII parameter would each mangle differently.
@@ -37,6 +37,6 @@ public sealed class UnicodeActorKeySpec : ActaStorageTestBase<ConformanceFixture
             .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(ev);
-        Assert.Equal(OperatorName, ev.ActorKey);
+        Assert.Equal(OperatorName, ev.Actor);
     }
 }

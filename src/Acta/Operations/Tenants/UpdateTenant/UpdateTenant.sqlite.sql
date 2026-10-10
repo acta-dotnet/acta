@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS temp._update_tenant;
 CREATE TEMP TABLE _update_tenant AS
 SELECT t.id, t.version AS from_version
 FROM {{schema}}.tenants t
-WHERE t.tenant_key = @p_tenant_key;
+WHERE t.tenant_name = @p_tenant_name;
 
 -- namespace_id 1 is the seeded sys namespace (M001).
 INSERT INTO {{schema}}.events (
@@ -11,7 +11,7 @@ INSERT INTO {{schema}}.events (
     created_at_utc,
     namespace_id,
     actor_code,
-    actor_key,
+    actor,
     job_id,
     job_ref,
     execution_number,
@@ -30,7 +30,7 @@ SELECT
     {{now}},
     1,
     @p_actor_code,
-    @p_actor_key,
+    @p_actor,
     NULL,
     NULL,
     NULL,
@@ -50,7 +50,7 @@ WHERE s.from_version = @p_expected_version;
 UPDATE {{schema}}.tenants
 SET display_name = @p_display_name, description = @p_description, modified_at_utc = {{now}}, version = version + 1
 WHERE
-    tenant_key = @p_tenant_key
+    tenant_name = @p_tenant_name
     AND version = @p_expected_version;
 
 SELECT

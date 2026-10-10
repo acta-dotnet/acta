@@ -16,11 +16,11 @@ internal sealed class DefinitionsOperations(
         int expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     ) =>
         setDefinitionOverrides.HandleAsync(
-            new SetDefinitionOverridesCommand(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey),
+            new SetDefinitionOverridesCommand(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor),
             ct
         );
 
@@ -29,9 +29,9 @@ internal sealed class DefinitionsOperations(
         string jobName,
         int expectedVersion,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => retireDefinition.HandleAsync(new RetireDefinitionCommand(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey), ct);
+    ) => retireDefinition.HandleAsync(new RetireDefinitionCommand(jobNamespace, jobName, expectedVersion, reasonMessage, actor), ct);
 
     public ValueTask<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         getDefinition.HandleAsync(new GetDefinitionQuery(jobNamespace, jobName), ct);

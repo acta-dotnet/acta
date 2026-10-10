@@ -149,7 +149,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
     app.Lifetime.ApplicationStopping.Register(() => app.Services.GetRequiredService<WorkerProcessLauncher>().Dispose());
 
     await app.StartAsync();
-    // Registered before spawning workers/seeding: enqueue rejects an unknown tenant key, so the demo
+    // Registered before spawning workers/seeding: enqueue rejects an unknown tenant name, so the demo
     // tenants must exist before any seed can tag jobs with one. RegisterAsync upserts, so this is
     // idempotent across dashboard restarts against the same accumulating schema.
     var jobs = app.Services.GetRequiredService<IJobs>();

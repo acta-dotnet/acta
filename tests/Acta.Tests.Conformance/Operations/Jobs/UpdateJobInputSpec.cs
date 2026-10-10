@@ -38,7 +38,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(newInput.Data.ToArray(), job.Input);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
-        Assert.Equal("spec-actor", evt.ActorKey);
+        Assert.Equal("spec-actor", evt.Actor);
         Assert.Equal("corrected operands", evt.ReasonMessage);
         Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
         Assert.NotNull(evt.Detail);

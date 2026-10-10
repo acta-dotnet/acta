@@ -12,12 +12,12 @@ public interface IAlerts
     /// activity. Re-acknowledging is <see cref="ControlAction.Applied"/> without mutation: the existing timestamp
     /// comes back and no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
     /// <paramref name="reasonMessage"/> is folded into the audit event's reason beside the alert ref, and
-    /// <paramref name="actorKey"/> is recorded on it as the operator identity; null when unknown.
+    /// <paramref name="actor"/> is recorded on it as the operator identity; null when unknown.
     /// </summary>
     ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 
@@ -27,12 +27,12 @@ public interface IAlerts
     /// Re-resolving is <see cref="ControlAction.Applied"/> without mutation: the existing timestamp comes back and
     /// no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
     /// <paramref name="reasonMessage"/> is folded into the audit event's reason beside the alert ref, and
-    /// <paramref name="actorKey"/> is recorded on it as the operator identity; null when unknown.
+    /// <paramref name="actor"/> is recorded on it as the operator identity; null when unknown.
     /// </summary>
     ValueTask<ResolveAlertResponse> ResolveAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 

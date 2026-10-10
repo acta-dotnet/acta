@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS temp._tag_target;
 CREATE TEMP TABLE _tag_target AS
 SELECT t.id AS scope_id, CAST(NULL AS INTEGER) AS namespace_id
 FROM {{schema}}.tenants t
-WHERE @p_scope_code = 20 /* TagScopeCode.Tenant */ AND t.tenant_key = @p_lookup_name
+WHERE @p_scope_code = 20 /* TagScopeCode.Tenant */ AND t.tenant_name = @p_lookup_name
 UNION ALL
 SELECT n.id, n.id
 FROM {{schema}}.namespaces n

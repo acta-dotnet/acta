@@ -12,17 +12,17 @@ BEGIN TRY
     -- Hold the indexed key (or gap) until the operation commits; no unique-error recovery in an aborted transaction.
     SELECT @tenant_id = id
     FROM {{schema}}.tenants WITH (UPDLOCK, HOLDLOCK)
-    WHERE tenant_key = @p_tenant_key;
+    WHERE tenant_name = @p_tenant_name;
 
     IF @tenant_id IS NULL
     BEGIN
         INSERT INTO {{schema}}.tenants
-            (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
-        VALUES (@p_tenant_key, @p_display_name, @p_description, 10 /* TenantStatusCode.Active */, @now, @now, 0);
+            (tenant_name, display_name, description, status_code, created_at_utc, modified_at_utc, version)
+        VALUES (@p_tenant_name, @p_display_name, @p_description, 10 /* TenantStatusCode.Active */, @now, @now, 0);
         SET @tenant_id = CAST(SCOPE_IDENTITY() AS INT);
     END;
 
-    SELECT @tenant_id AS tenant_id, @p_tenant_key AS tenant_key;
+    SELECT @tenant_id AS tenant_id, @p_tenant_name AS tenant_name;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

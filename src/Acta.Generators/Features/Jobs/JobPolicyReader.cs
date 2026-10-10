@@ -60,7 +60,7 @@ internal static class JobPolicyReader
             draft.MaxAttempts,
             draft.ConcurrencyLimit,
             draft.RateLimit,
-            draft.RateKey,
+            draft.RateName,
             draft.Lane,
             draft.AuditLevelName,
             draft.AlertProfileName,
@@ -88,7 +88,7 @@ internal static class JobPolicyReader
         public int MaxAttempts { get; set; } = DefaultMaxAttempts;
         public int? ConcurrencyLimit { get; set; }
         public string? RateLimit { get; set; }
-        public string? RateKey { get; set; }
+        public string? RateName { get; set; }
         public string? Lane { get; set; }
         public string? AuditLevelName { get; set; }
         public string AlertProfileName { get; set; } = DefaultAlertProfileName;
@@ -340,12 +340,12 @@ internal static class JobPolicyReader
     {
         switch (named.Key)
         {
-            case "RateKey":
+            case "RateName":
                 if (named.Value.Value is string rk && !string.IsNullOrWhiteSpace(rk))
                 {
                     if (KebabName.IsValid(rk, maxLength: 128, allowSystemPrefix: false))
                     {
-                        draft.RateKey = rk;
+                        draft.RateName = rk;
                     }
                     else
                     {
@@ -353,7 +353,7 @@ internal static class JobPolicyReader
                             ManifestDiagnostics.InvalidPolicyValue(
                                 named.Key,
                                 $"\"{rk}\"",
-                                "Rate keys are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
+                                "Rate names are lowercase kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars.",
                                 location
                             )
                         );

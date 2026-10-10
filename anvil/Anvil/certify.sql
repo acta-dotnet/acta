@@ -268,19 +268,19 @@ HAVING COUNT(*) >= 0;
 -- ---------------------------------------------------------------------------------------------
 -- The tenant supplied at enqueue is the tenant the handler observed. Deliberately NOT a comparison of
 -- events.tenant_id to jobs.tenant_id: those are two projections of one stored value, so that query
--- passes by construction and proves nothing. The handler notes the TenantKey it actually saw, which
+-- passes by construction and proves nothing. The handler notes the TenantName it actually saw, which
 -- is the far side of enqueue, claim, dispatch and payload decode, and this compares that against the
 -- row the job was stored with.
 --
 -- Not a security claim. docs/guide/concepts.md states plainly that the tenant field is not a security
 -- or isolation boundary; this asserts that the value survives intact, not that it confines anything.
-SELECT 'tenant-context' AS check_name, e.job_id, e.reason_message AS observed, COALESCE(t.tenant_key, '-') AS job_tenant
+SELECT 'tenant-context' AS check_name, e.job_id, e.reason_message AS observed, COALESCE(t.tenant_name, '-') AS job_tenant
 FROM   {s}events e
 JOIN   {s}jobs j ON j.id = e.job_id
 LEFT   JOIN {s}tenants t ON t.id = j.tenant_id
 WHERE  e.event_code = 90
   AND  e.reason_message LIKE 'tenant %'
-  AND  e.reason_message <> CONCAT('tenant ', COALESCE(t.tenant_key, '-'));
+  AND  e.reason_message <> CONCAT('tenant ', COALESCE(t.tenant_name, '-'));
 
 -- ---------------------------------------------------------------------------------------------
 -- 14. the rate meter never over-admitted                 [COMPUTED IN PROCESS: see CertifyVerdict]

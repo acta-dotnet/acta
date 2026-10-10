@@ -13,7 +13,7 @@ SELECT
     jd.concurrency_limit_effective,
     jd.rate_limit_override,
     jd.rate_limit_effective,
-    jd.rate_key,
+    jd.rate_name,
     jd.lane,
     jd.modified_at_utc,
     jd.version

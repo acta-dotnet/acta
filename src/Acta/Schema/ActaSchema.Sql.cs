@@ -24,8 +24,8 @@ internal static partial class ActaSchema
             nullable: false
         );
 
-        public static readonly DbValueSpec<string?> TenantKeyFilter = Sized<string?>(
-            "p_tenant_key",
+        public static readonly DbValueSpec<string?> TenantNameFilter = Sized<string?>(
+            "p_tenant_name",
             DbKind.AsciiString,
             128,
             nullable: true
@@ -357,8 +357,8 @@ internal static partial class ActaSchema
             nullable: true
         );
 
-        public static readonly DbValueSpec<string?> CursorTenantKey = Sized<string?>(
-            "p_cursor_tenant_key",
+        public static readonly DbValueSpec<string?> CursorTenantName = Sized<string?>(
+            "p_cursor_tenant_name",
             DbKind.AsciiString,
             128,
             nullable: true
@@ -422,7 +422,7 @@ internal static partial class ActaSchema
 
         /// <summary>
         /// Tenant list free-text search: non-null is a pre-lowercased '%term%' LIKE pattern matched
-        /// (case-insensitively, via LOWER() on the columns) against tenant_key / display_name /
+        /// (case-insensitively, via LOWER() on the columns) against tenant_name / display_name /
         /// description; NULL matches all. Unicode so it can carry display_name / description text.
         /// </summary>
         public static readonly DbValueSpec<string?> TenantSearch = Sized<string?>("p_search", DbKind.UnicodeString, 512, nullable: true);

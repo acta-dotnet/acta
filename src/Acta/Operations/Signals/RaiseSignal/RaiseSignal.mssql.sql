@@ -5,7 +5,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.raise_signal
     @p_value_format_id TINYINT,
     @p_value VARBINARY(MAX),
     @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
+    @p_actor NVARCHAR(128),
     @p_reason_code TINYINT,
     @p_reason_message NVARCHAR(512)
 AS
@@ -94,7 +94,7 @@ BEGIN
         IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor_key,
+                actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
                 worker_id,
@@ -104,7 +104,7 @@ BEGIN
             )
             VALUES (
                 80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                @p_actor_code, @p_actor_key,
+                @p_actor_code, @p_actor,
                 @p_job_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
                 NULL,
@@ -126,7 +126,7 @@ BEGIN
                 IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
                     INSERT INTO {{schema}}.events (
                         event_code, created_at_utc, namespace_id,
-                        actor_code, actor_key,
+                        actor_code, actor,
                         job_id, job_ref, execution_number,
                         lineage_root_id, definition_id, tenant_id,
                         worker_id,
@@ -136,7 +136,7 @@ BEGIN
                     )
                     VALUES (
                         72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        @p_actor_code, @p_actor_key,
+                        @p_actor_code, @p_actor,
                         @p_job_id, @job_ref, @execution_number,
                         COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
                         NULL,

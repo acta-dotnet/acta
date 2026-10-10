@@ -16,7 +16,7 @@ public interface INamespaces
     ValueTask<SuspendNamespaceResponse> SuspendAsync(
         string name,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 
@@ -24,7 +24,7 @@ public interface INamespaces
     ValueTask<ResumeNamespaceResponse> ResumeAsync(
         string name,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 
@@ -38,7 +38,7 @@ public interface INamespaces
         string? ownerTeam,
         string? description,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 }

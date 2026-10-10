@@ -81,7 +81,7 @@ BEGIN
         IF
             EXISTS (
                 SELECT 1 FROM @p_batch
-                WHERE tenant_key IS NOT NULL
+                WHERE tenant_name IS NOT NULL
             )
             BEGIN
                 UPDATE r
@@ -90,18 +90,18 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 INNER JOIN {{schema}}.tenants t
                     ON
-                        t.tenant_key = b.tenant_key
+                        t.tenant_name = b.tenant_name
                         AND t.status_code = 10 /* TenantStatusCode.Active */
-                WHERE b.tenant_key IS NOT NULL;
+                WHERE b.tenant_name IS NOT NULL;
 
                 IF
                     EXISTS (
                         SELECT 1 FROM @p_batch b
                         WHERE
-                            b.tenant_key IS NOT NULL
+                            b.tenant_name IS NOT NULL
                             AND NOT EXISTS (
                                 SELECT 1 FROM {{schema}}.tenants t
-                                WHERE t.tenant_key = b.tenant_key
+                                WHERE t.tenant_name = b.tenant_name
                             )
                     )
                     BEGIN
@@ -109,8 +109,8 @@ BEGIN
                     END;
                 IF
                     EXISTS (
-                        SELECT 1 FROM @p_batch b JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key
-                        WHERE b.tenant_key IS NOT NULL AND t.status_code <> 10 /* TenantStatusCode.Active */
+                        SELECT 1 FROM @p_batch b JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
+                        WHERE b.tenant_name IS NOT NULL AND t.status_code <> 10 /* TenantStatusCode.Active */
                     )
                     BEGIN
                         THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
@@ -302,7 +302,7 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 WHERE
                     r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
-                    AND b.tenant_key IS NOT NULL
+                    AND b.tenant_name IS NOT NULL
             )
             BEGIN
                 THROW 50008,
@@ -325,7 +325,7 @@ BEGIN
             BEGIN
                 DECLARE
                     @tenant_msg NVARCHAR(2048) = 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a'
-                    + ' TenantKey that differs from the parent tenant without an explicit override.';
+                    + ' TenantName that differs from the parent tenant without an explicit override.';
                 THROW 50009, @tenant_msg, 1;
             END;
 

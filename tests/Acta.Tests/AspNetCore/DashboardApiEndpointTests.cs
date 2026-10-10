@@ -113,7 +113,7 @@ public sealed class DashboardApiEndpointTests
             "/acta/api/v1/events?eventCode=namespace.updated"
                 + $"&jobRef={FakeJobs.FoundJobRef}"
                 + $"&workerRef={FakeWorkers.KnownWorkerRef}"
-                + "&tenantKey=acme",
+                + "&tenantName=acme",
             TestContext.Current.CancellationToken
         );
 
@@ -123,7 +123,7 @@ public sealed class DashboardApiEndpointTests
         // Each ref is edge-resolved to the internal id the ledger indexes on.
         Assert.Equal(42L, fakes.Ledger.LastEventsQuery.JobId);
         Assert.Equal(42, fakes.Ledger.LastEventsQuery.WorkerId);
-        Assert.Equal("acme", fakes.Ledger.LastEventsQuery.TenantKey);
+        Assert.Equal("acme", fakes.Ledger.LastEventsQuery.TenantName);
         Assert.Null(fakes.Ledger.LastEventsQuery.TenantId);
 
         // A divergent wire code (member JobDefinitionOverridesUpdated) binds via its [Code] string, not the member name.
@@ -635,7 +635,7 @@ public sealed class DashboardApiEndpointTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("\"tenantKey\":\"cust-001\"", body);
+        Assert.Contains("\"tenantName\":\"cust-001\"", body);
         Assert.Contains("\"displayName\":\"Acme\"", body);
     }
 
@@ -678,21 +678,21 @@ public sealed class DashboardApiEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
-        Assert.Contains("\"tenantKey\":\"cust-001\"", body);
+        Assert.Contains("\"tenantName\":\"cust-001\"", body);
         Assert.Contains("\"status\":\"active\"", body);
     }
 
     [Fact]
-    public async Task Jobs_accepts_a_tenantKey_filter_and_ignores_the_retired_tenantId()
+    public async Task Jobs_accepts_a_tenantName_filter_and_ignores_the_retired_tenantId()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var ok = await client.GetAsync("/acta/api/v1/jobs?tenantKey=acme", ct);
+        var ok = await client.GetAsync("/acta/api/v1/jobs?tenantName=acme", ct);
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
-        Assert.Equal("acme", fakes.Ledger.LastJobsQuery!.TenantKey);
+        Assert.Equal("acme", fakes.Ledger.LastJobsQuery!.TenantName);
 
         // tenantId left the wire: it is no longer bound, so it neither filters nor 400s.
         var retired = await client.GetAsync("/acta/api/v1/jobs?tenantId=abc", ct);

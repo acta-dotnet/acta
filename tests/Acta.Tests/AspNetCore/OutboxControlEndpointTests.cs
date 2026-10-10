@@ -114,7 +114,7 @@ public sealed class OutboxControlEndpointTests
 
     // The actor is the authenticated principal: a body that names one is refused, not quietly ignored.
     [Fact]
-    public async Task Actor_key_comes_from_the_authenticated_principal_not_the_body()
+    public async Task Actor_comes_from_the_authenticated_principal_not_the_body()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAuthenticatedAsync(
@@ -125,12 +125,12 @@ public sealed class OutboxControlEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var spoofed = await client.SendAsync(Post("requeue", body: new { actorKey = "spoofed" }), ct);
+        var spoofed = await client.SendAsync(Post("requeue", body: new { actor = "spoofed" }), ct);
         var plain = await client.SendAsync(Post("requeue"), ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, spoofed.StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, plain.StatusCode);
-        Assert.Equal("marko", Assert.Single(fakes.Outbox.ControlCalls).ActorKey);
+        Assert.Equal("marko", Assert.Single(fakes.Outbox.ControlCalls).Actor);
     }
 
     [Fact]

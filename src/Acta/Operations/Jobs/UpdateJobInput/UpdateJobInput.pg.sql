@@ -39,10 +39,10 @@ WHERE
 -- The event carries only bounded JSON metadata about the previous payload (format name and byte count), never
 -- the payload itself, so nothing outlives the job's payload retention.
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, tenant_id, detail_format_id, detail, reason_code, reason_message)
 SELECT
-    76 /* EventCode.JobInputAmended */, now(), s.namespace_id, @p_actor_code, @p_actor_key, @p_id, s.job_ref,
+    76 /* EventCode.JobInputAmended */, now(), s.namespace_id, @p_actor_code, @p_actor, @p_id, s.job_ref,
     s.execution_number, COALESCE(s.lineage_root_id, @p_id), s.definition_id, s.tenant_id,
     CASE WHEN s.old_format_id <> 0 /* JobPayloadFormat.None */ THEN 1 /* JobPayloadFormat.Json */ ELSE 0 /* JobPayloadFormat.None */ END,
     CASE WHEN s.old_format_id <> 0 /* JobPayloadFormat.None */ THEN convert_to(

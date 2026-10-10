@@ -21,7 +21,7 @@ internal static class OutboxSignalNames
 /// from "a concurrent command landed" by comparing the stored value. A null <c>OutboxIds</c> targets
 /// every quarantined row of the source.
 /// </summary>
-internal sealed record OutboxSignalPayload(Guid CommandId, string? ActorKey, string? ReasonMessage, IReadOnlyList<Guid>? OutboxIds);
+internal sealed record OutboxSignalPayload(Guid CommandId, string? Actor, string? ReasonMessage, IReadOnlyList<Guid>? OutboxIds);
 
 [JsonSerializable(typeof(OutboxSignalPayload))]
 internal sealed partial class OutboxSignalJsonContext : JsonSerializerContext;

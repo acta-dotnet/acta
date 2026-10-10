@@ -43,7 +43,7 @@ public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.True(after.Version > before.Version);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobReprioritized, ct);
-        Assert.Equal("spec-actor", evt.ActorKey);
+        Assert.Equal("spec-actor", evt.Actor);
     }
 
     [Fact(DisplayName = "ReprioritizeAsync accepts an in-flight job without changing its status")]

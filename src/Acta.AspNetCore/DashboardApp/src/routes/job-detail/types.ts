@@ -6,7 +6,7 @@ export interface JobDetail {
   jobName: string;
   lineageRootJobRef: string | null;
   parentJobRef: string | null;
-  tenantKey: string | null;
+  tenantName: string | null;
   deduplicationKey: string | null;
   correlationKey: string | null;
   concurrencyKey: string | null;

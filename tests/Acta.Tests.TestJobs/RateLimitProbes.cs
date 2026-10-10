@@ -47,14 +47,14 @@ public static class RateLimitProbes
         return Task.CompletedTask;
     }
 
-    [Job("rate-shared-left", RateLimit = SharedRate, RateKey = SharedKey)]
+    [Job("rate-shared-left", RateLimit = SharedRate, RateName = SharedKey)]
     public static Task RunSharedLeft(JobContext ctx, CancellationToken ct)
     {
         Record(ctx.JobNamespace);
         return Task.CompletedTask;
     }
 
-    [Job("rate-shared-right", RateLimit = SharedRate, RateKey = SharedKey)]
+    [Job("rate-shared-right", RateLimit = SharedRate, RateName = SharedKey)]
     public static Task RunSharedRight(JobContext ctx, CancellationToken ct)
     {
         Record(ctx.JobNamespace);
@@ -72,7 +72,7 @@ public static class RateLimitProbes
         return Task.CompletedTask;
     }
 
-    [Job("charge", RateLimit = ChargeRate, RateKey = "stripe")]
+    [Job("charge", RateLimit = ChargeRate, RateName = "stripe")]
     public static Task RunCharge(JobContext ctx, CancellationToken ct)
     {
         Record(ctx.JobNamespace);

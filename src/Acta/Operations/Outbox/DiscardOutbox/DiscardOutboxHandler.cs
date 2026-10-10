@@ -10,7 +10,7 @@ internal sealed class DiscardOutboxHandler(ParkOutboxSignalHandler park)
             command.JobNamespace,
             command.OutboxIds,
             command.ReasonMessage,
-            command.ActorKey,
+            command.Actor,
             ct
         );
         return new DiscardOutboxResponse(action, pendingSinceUtc);

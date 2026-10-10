@@ -125,10 +125,10 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         TagFilter[] mismatch = [new("facet", facet), new("release", "other")];
 
         var tenants = await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: filters), ct);
-        Assert.Contains(tenants.Items, x => x.TenantKey == targets.TenantKey);
+        Assert.Contains(tenants.Items, x => x.TenantName == targets.TenantName);
         Assert.DoesNotContain(
             (await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: mismatch), ct)).Items,
-            x => x.TenantKey == targets.TenantKey
+            x => x.TenantName == targets.TenantName
         );
 
         var namespaces = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: filters), ct);
@@ -316,8 +316,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
     private async Task<TestTargets> CreateTargetsAsync(CancellationToken ct)
     {
-        var tenantKey = TestKey("tenant");
-        await Operations.Tenants.RegisterAsync(tenantKey, ct: ct);
+        var tenantName = TestKey("tenant");
+        await Operations.Tenants.RegisterAsync(tenantName, ct: ct);
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var definition = Assert.Single(
@@ -351,7 +351,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var eventId = events.Max(x => x.Id);
 
         return new TestTargets(
-            tenantKey,
+            tenantName,
             definition.Id,
             job.JobId,
             schedule.Id,
@@ -359,7 +359,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             alert.Id,
             eventId,
             [
-                TagTarget.ForTenant(tenantKey),
+                TagTarget.ForTenant(tenantName),
                 TagTarget.ForNamespace(TestNamespace),
                 TagTarget.ForDefinition(TestNamespace, definition.Name),
                 TagTarget.ForJob(job),
@@ -384,7 +384,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         ];
 
     private sealed record TestTargets(
-        string TenantKey,
+        string TenantName,
         int DefinitionId,
         long JobId,
         long ScheduleId,

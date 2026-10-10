@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Tenants;
 public sealed class ResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private async Task<TenantEntity?> ReadTenantAsync(string key, CancellationToken ct) =>
-        await Db.From<TenantEntity>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
+        await Db.From<TenantEntity>().Where(t => t.TenantName == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int tenantId, EventCode code, CancellationToken ct) =>
         await Db.From<EventEntity>().Where(e => e.TenantId == tenantId && e.EventCode == code).CountAsync(ct);

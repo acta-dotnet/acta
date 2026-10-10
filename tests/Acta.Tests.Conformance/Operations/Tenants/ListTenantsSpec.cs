@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
 /// <summary>
-/// Conformance for <c>ListTenants</c>: a keyset page of tenants ordered tenant_key ascending, with an
+/// Conformance for <c>ListTenants</c>: a keyset page of tenants ordered tenant_name ascending, with an
 /// opt-in filter-wide total, all in one round trip.
 /// </summary>
 [ConformanceSpec(
@@ -34,7 +34,7 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
         do
         {
             var page = await Tenants.ListAsync(new ListTenantsQuery(PageSize: 50, Cursor: cursor), ct);
-            seen.AddRange(page.Items.Select(r => r.TenantKey));
+            seen.AddRange(page.Items.Select(r => r.TenantName));
             cursor = page.NextCursor;
             Assert.True(++pages < 100_000, "pagination did not terminate");
         } while (cursor is not null);
@@ -86,8 +86,8 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
 
             var page = await Tenants.ListAsync(new ListTenantsQuery(NameContains: token + special, PageSize: 100), ct);
 
-            Assert.Contains(page.Items, row => row.TenantKey == matchingKey);
-            Assert.DoesNotContain(page.Items, row => row.TenantKey == controlKey);
+            Assert.Contains(page.Items, row => row.TenantName == matchingKey);
+            Assert.DoesNotContain(page.Items, row => row.TenantName == controlKey);
         }
     }
 
@@ -106,5 +106,5 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
 
     // The key is this run's own, so filtering on it reaches the row in a database holding earlier runs.
     private async Task<ListTenantsItem> FindAsync(string key, CancellationToken ct) =>
-        (await Tenants.ListAsync(new ListTenantsQuery(NameContains: key), ct)).Items.Single(r => r.TenantKey == key);
+        (await Tenants.ListAsync(new ListTenantsQuery(NameContains: key), ct)).Items.Single(r => r.TenantName == key);
 }

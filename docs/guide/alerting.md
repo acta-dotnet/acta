@@ -158,7 +158,7 @@ auto:{DefinitionId}:{JobId}:{kind}:{reasonCode ?? "none"}
 `AlertRetention` is purged even while unresolved, so a condition that has been failing for the
 whole window reopens as a fresh incident counting from one — the ledger's events, not the alert
 row, are the long-horizon record. This key names an **incident**, not a time bucket: `alerts` carries a unique
-index on `(namespace_id, dedupe_key)` filtered to unresolved rows, so at most one OPEN row exists per
+index on `(namespace_id, deduplication_key)` filtered to unresolved rows, so at most one OPEN row exists per
 key at any moment (`JobAlert.cs`). A repeat of the same condition while that row is open folds onto it
 — `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
 (`RaiseAlert.*.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
@@ -395,9 +395,8 @@ expose the two verbs at `POST /alerts/{alertRef}/acknowledge|resolve`, 200 or 40
 both carrying `AlertControlResponse` — behind
 `EnableControls` and the `X-Acta-Control` header (the gate lives in `MapActa`, the header
 name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselves in
-`AlertsEndpoints`). In SQL, `acta.alerts_view` renders the coded columns and aliases
-`dedupe_key` to `deduplication_key` (`AlertsView.*.sql`); see [SQL recipes](./sql-recipes.md) for
-ready queries.
+`AlertsEndpoints`). In SQL, `acta.alerts_view` renders the coded columns beside `deduplication_key`
+(`AlertsView.*.sql`); see [SQL recipes](./sql-recipes.md) for ready queries.
 
 Acknowledge means an operator has seen the alert; resolve means the incident is considered settled.
 Neither changes the job. Acknowledging also does not quiet the alert: a reminder already due still

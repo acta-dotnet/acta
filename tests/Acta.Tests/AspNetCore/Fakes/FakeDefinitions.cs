@@ -51,18 +51,18 @@ internal sealed class FakeDefinitions : IDefinitions
         int expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => UpdateOverrides(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey, ct);
+    ) => UpdateOverrides(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor, ct);
 
     ValueTask<RetireDefinitionResponse> IDefinitions.RetireAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Retire(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey, ct);
+    ) => Retire(jobNamespace, jobName, expectedVersion, reasonMessage, actor, ct);
 
     ValueTask<GetDefinitionResponse?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
         Get(jobNamespace, jobName, ct);
@@ -139,7 +139,7 @@ internal sealed class FakeDefinitions : IDefinitions
         RateLimit: null,
         RateLimitOverride: null,
         RateLimitEffective: null,
-        RateKey: null,
+        RateName: null,
         Lane: null,
         Backoff: "1s..1m x2",
         BackoffOverride: null,

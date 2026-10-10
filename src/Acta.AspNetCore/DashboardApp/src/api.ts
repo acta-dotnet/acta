@@ -239,7 +239,7 @@ export interface AlertDetailView {
 }
 
 export interface TenantListItem {
-  tenantKey: string;
+  tenantName: string;
   displayName: string | null;
   description: string | null;
   status: string;
@@ -276,14 +276,14 @@ export interface NamespaceListItem {
 }
 
 export interface RegisterTenantResponse {
-  tenantKey: string;
+  tenantName: string;
 }
 
 // Tenant register POST. Insert-or-return-existing: a new tenant is created active, an existing one
-// is returned untouched (suspend/resume own status changes). Returns the canonical tenant key; a
-// 400/404 (bad key, or controls disabled) throws with the problem detail.
+// is returned untouched (suspend/resume own status changes). Returns the canonical tenant name; a
+// 400/404 (bad name, or controls disabled) throws with the problem detail.
 export async function registerTenant(
-  tenantKey: string,
+  tenantName: string,
   displayName?: string | null,
   description?: string | null
 ): Promise<RegisterTenantResponse> {
@@ -292,13 +292,13 @@ export async function registerTenant(
     method: 'POST',
     headers: controlHeaders(),
     body: {
-      tenantKey: tenantKey.trim(),
+      tenantName: tenantName.trim(),
       displayName: displayName?.trim() || null,
       description: description?.trim() || null
     }
   });
 
-  if (response.ok && body && typeof body === 'object' && 'tenantKey' in (body as object)) {
+  if (response.ok && body && typeof body === 'object' && 'tenantName' in (body as object)) {
     return body;
   }
 
@@ -436,7 +436,7 @@ export interface JobDetailView {
   schedules: JobScheduleView[];
   // Filter-wide counts: above the array length means this is the first page, not the whole set.
   schedulesTotal: number | null;
-  tenantKey?: string;
+  tenantName?: string;
   // Effective retry budget from the definition; absent when the definition row is gone.
   maxAttemptsEffective?: number;
   workers: JobWorker[] | null;
@@ -495,7 +495,7 @@ export interface EnqueueJobRequest {
   text?: string;
   deduplicationKey?: string | null;
   correlationKey?: string | null;
-  tenantKey?: string | null;
+  tenantName?: string | null;
   priority?: string | null;
   delaySeconds?: number | null;
   nextRunAtUtc?: string | null;
@@ -517,7 +517,7 @@ export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueRes
       text: spec.text ?? undefined,
       deduplicationKey: spec.deduplicationKey?.trim() || null,
       correlationKey: spec.correlationKey?.trim() || null,
-      tenantKey: spec.tenantKey?.trim() || null,
+      tenantName: spec.tenantName?.trim() || null,
       priority: spec.priority || null,
       delaySeconds: spec.delaySeconds ?? null,
       nextRunAtUtc: spec.nextRunAtUtc || null

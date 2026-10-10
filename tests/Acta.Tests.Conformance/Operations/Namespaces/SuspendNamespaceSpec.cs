@@ -39,7 +39,7 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(nsId, ev!.NamespaceId);
-        Assert.Equal("op-1", ev.ActorKey);
+        Assert.Equal("op-1", ev.Actor);
         Assert.Equal("hold", ev.ReasonMessage);
     }
 

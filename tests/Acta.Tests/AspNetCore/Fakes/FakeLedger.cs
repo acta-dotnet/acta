@@ -12,7 +12,7 @@ internal sealed class FakeLedger : ILedger
         JobNamespace: "billing",
         JobName: "send-invoice",
         TenantId: null,
-        TenantKey: null,
+        TenantName: null,
         ParentJobId: null,
         ParentJobRef: null,
         LineageRootId: null,

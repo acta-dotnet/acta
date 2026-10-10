@@ -67,7 +67,7 @@ internal static class OutboxEndpoints
             ControlStatus.Outbox<RequeueOutboxResponse>(),
             Namespace,
             static (call, jobNamespace) =>
-                call.Operations.Outbox.RequeueAsync(jobNamespace, call.Body?.OutboxIds, call.ReasonMessage, call.ActorKey, call.Ct)
+                call.Operations.Outbox.RequeueAsync(jobNamespace, call.Body?.OutboxIds, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/outbox/{jobNamespace}/discard",
@@ -78,7 +78,7 @@ internal static class OutboxEndpoints
             ControlStatus.Outbox<DiscardOutboxResponse>(),
             Namespace,
             static (call, jobNamespace) =>
-                call.Operations.Outbox.DiscardAsync(jobNamespace, call.Body?.OutboxIds, call.ReasonMessage, call.ActorKey, call.Ct)
+                call.Operations.Outbox.DiscardAsync(jobNamespace, call.Body?.OutboxIds, call.ReasonMessage, call.Actor, call.Ct)
         );
     }
 

@@ -3,7 +3,7 @@
 // bits MSB-first, whose two leading pad bits must be zero.
 //
 // The dashboard renders refs and never needs the underlying uuid, with one exception: SQL copied for
-// a human at a prompt, where the stored columns (workers.worker_ref, events.actor_key) hold the
+// a human at a prompt, where the stored columns (workers.worker_ref, events.actor) hold the
 // canonical lowercase uuid text, not the ref string. That is what this decoder is for.
 
 // Crockford's alphabet, minus I, L, O, and U.

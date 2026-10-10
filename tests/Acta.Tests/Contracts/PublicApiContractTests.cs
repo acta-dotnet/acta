@@ -63,7 +63,7 @@ public sealed class PublicApiContractTests
             {
                 var names = m.GetParameters().Select(p => p.Name).ToList();
                 var reason = names.IndexOf("reasonMessage");
-                return reason >= 0 && names.Contains("actorKey") && names.IndexOf("actorKey") != reason + 1;
+                return reason >= 0 && names.Contains("actor") && names.IndexOf("actor") != reason + 1;
             })
             .Select(m => $"{m.DeclaringType!.FullName}.{m.Name}")
             .ToList();

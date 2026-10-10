@@ -12,7 +12,7 @@ public sealed class MeterConsistencyCheckTests
 {
     private const string Namespace = "billing";
 
-    private static StoredDefinitionContract Definition(string name, string? rateKey, string? effectiveRate) =>
+    private static StoredDefinitionContract Definition(string name, string? rateName, string? effectiveRate) =>
         new(
             Name: name,
             ManifestGenerationAtUtc: new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
@@ -26,7 +26,7 @@ public sealed class MeterConsistencyCheckTests
                 MaxAttempts: 15,
                 ConcurrencyLimit: null,
                 RateLimit: effectiveRate,
-                RateKey: rateKey,
+                RateName: rateName,
                 Backoff: "1m..8h x2",
                 ExecutionTimeoutSeconds: 30,
                 DeadlineSeconds: 0,

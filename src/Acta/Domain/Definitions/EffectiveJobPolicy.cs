@@ -11,7 +11,7 @@ internal sealed record EffectiveJobPolicy(
     int MaxAttempts,
     int? ConcurrencyLimit,
     string? RateLimit,
-    string? RateKey,
+    string? RateName,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,

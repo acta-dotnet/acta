@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Tenants;
 public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private async Task<TenantEntity?> ReadAsync(string key, CancellationToken ct) =>
-        await Db.From<TenantEntity>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
+        await Db.From<TenantEntity>().Where(t => t.TenantName == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int id, CancellationToken ct) =>
         await Db.From<EventEntity>().Where(e => e.TenantId == id && e.EventCode == EventCode.TenantUpdated).CountAsync(ct);

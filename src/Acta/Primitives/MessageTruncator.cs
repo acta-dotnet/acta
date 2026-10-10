@@ -73,10 +73,10 @@ internal static class MessageTruncator
 /// </summary>
 internal static class ActaTextLimits
 {
-    public const int ActorKey = 128;
+    public const int Actor = 128;
     public const int ReasonMessage = 512;
     public const int AlertChannelName = 128;
-    public const int AlertDedupeKey = 512;
+    public const int AlertDeduplicationKey = 128;
     public const int AlertTitle = 512;
     public const int AlertMessage = 512;
     public const int DefinitionBackoff = 64;

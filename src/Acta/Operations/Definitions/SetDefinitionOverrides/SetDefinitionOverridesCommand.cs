@@ -7,5 +7,5 @@ internal sealed record SetDefinitionOverridesCommand(
     int ExpectedVersion,
     DefinitionPolicyOverrides Overrides,
     string? ReasonMessage,
-    string? ActorKey
+    string? Actor
 );

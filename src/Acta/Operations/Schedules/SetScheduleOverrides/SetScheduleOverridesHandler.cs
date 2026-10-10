@@ -48,7 +48,7 @@ internal sealed class SetScheduleOverridesHandler(
             }
         );
 
-        var actor = JobControlActor.Operator(command.ActorKey);
+        var actor = JobControlActor.Operator(command.Actor);
         var changeSummary = ChangeSummary(t, effectiveExpression, effectiveTimeZone).Truncate(ActaTextLimits.ReasonMessage);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("SetScheduleOverrides"),
@@ -65,7 +65,7 @@ internal sealed class SetScheduleOverridesHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRun));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleNextRunAtUtc, scheduleNextRun));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, actor.Actor));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChangeSummary, changeSummary));
             },
             DbProjectionResolver.Resolve<SetScheduleOverridesRow>(),

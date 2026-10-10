@@ -58,7 +58,7 @@ public static class PostgresOutboxStagingExtensions
         );
         p.Add(new NpgsqlParameter("@next_run_at_utc", NpgsqlDbType.TimestampTz) { Value = (object?)row.NextRunAtUtc ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@delay_seconds", NpgsqlDbType.Integer) { Value = (object?)row.DelaySeconds ?? DBNull.Value });
-        p.Add(new NpgsqlParameter("@tenant_key", NpgsqlDbType.Varchar) { Value = (object?)row.TenantKey ?? DBNull.Value });
+        p.Add(new NpgsqlParameter("@tenant_name", NpgsqlDbType.Varchar) { Value = (object?)row.TenantName ?? DBNull.Value });
         p.Add(new NpgsqlParameter("@meta", NpgsqlDbType.Jsonb) { Value = (object?)row.Meta ?? DBNull.Value });
 
         await command.ExecuteNonQueryAsync(cancellationToken);

@@ -49,7 +49,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
             DailyCron,
             null,
             reasonMessage: "widen",
-            actorKey: "operator-1",
+            actor: "operator-1",
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, result.Action);
@@ -73,7 +73,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleOverridesUpdated)
             .ToListAsync(ct);
         var changed = Assert.Single(events);
-        Assert.Equal("operator-1", changed.ActorKey);
+        Assert.Equal("operator-1", changed.Actor);
         Assert.Contains("only", changed.ReasonMessage);
         Assert.Contains(Cron5, changed.ReasonMessage);
         Assert.Contains(DailyCron, changed.ReasonMessage);

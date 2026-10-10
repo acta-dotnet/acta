@@ -28,7 +28,7 @@ internal sealed class WorkerExecutorHarness(
     int? concurrencyLimit = null,
     bool slotGranted = true,
     string? rateLimit = null,
-    string? rateKey = null,
+    string? rateName = null,
     DateTime? rateResumeAtUtc = null,
     int? rateWaitMilliseconds = null,
     bool cancelAttemptDuringRateWait = false,
@@ -102,7 +102,7 @@ internal sealed class WorkerExecutorHarness(
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
-        return await Executor(Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateKey, deadlineAtUtc))
+        return await Executor(Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateName, deadlineAtUtc))
             .RunInlineAsync(_entry, _workerCts.Token);
     }
 
@@ -187,7 +187,7 @@ internal sealed class WorkerExecutorHarness(
         int maxAttempts,
         int? concurrencyLimit,
         string? rateLimit,
-        string? rateKey,
+        string? rateName,
         DateTime? deadlineAtUtc
     ) =>
         new(
@@ -216,7 +216,7 @@ internal sealed class WorkerExecutorHarness(
         {
             ConcurrencyLimit = concurrencyLimit,
             RateLimit = rateLimit,
-            RateKey = rateKey,
+            RateName = rateName,
             DeadlineSeconds = deadlineAtUtc is null ? null : 1,
         };
 

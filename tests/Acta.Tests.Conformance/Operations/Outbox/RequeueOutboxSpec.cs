@@ -86,7 +86,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId)).StatusCode);
 
         var evidence = Assert.Single(await Db.From<EventEntity>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
-        Assert.Equal("marko", evidence.ActorKey);
+        Assert.Equal("marko", evidence.Actor);
         Assert.Contains("fixed the target route", evidence.ReasonMessage);
 
         var again = await Outbox.RequeueAsync(TestNamespace, null, null, null, ct);

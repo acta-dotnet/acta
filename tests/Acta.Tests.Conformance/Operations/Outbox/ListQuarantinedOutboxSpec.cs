@@ -47,7 +47,7 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
         Assert.Equal("send", fromSeed.JobName);
         Assert.Equal(seeded.DeduplicationKey, fromSeed.DeduplicationKey);
         Assert.Null(fromSeed.CorrelationKey);
-        Assert.Null(fromSeed.TenantKey);
+        Assert.Null(fromSeed.TenantName);
         Assert.Equal(4, fromSeed.FailureCount);
         Assert.Null(fromSeed.LastError);
         Assert.Equal(stagedAt, fromSeed.CreatedAtUtc);

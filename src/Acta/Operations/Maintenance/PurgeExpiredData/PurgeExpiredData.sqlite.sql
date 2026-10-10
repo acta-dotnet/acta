@@ -73,7 +73,7 @@ DELETE FROM {{schema}}.tags WHERE scope_code = 80 /* TagScopeCode.Alert */ AND s
 DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_alerts);
 
 -- The hard cap: past the window an alert goes whether delivery settled or not, so a stuck row is not
--- immortal. Being an open incident is no shield - ux_alerts_dedupe covers unresolved rows only, so
+-- immortal. Being an open incident is no shield - ux_alerts_deduplication_key covers unresolved rows only, so
 -- the delete frees the identity and the next failure opens a fresh incident.
 CREATE TEMP TABLE _purge_undelivered_alerts AS
 SELECT id

@@ -5,6 +5,6 @@ internal sealed record RescheduleJobCommand(
     JobLookup Job,
     DateTime NextRunAtUtc,
     string? ReasonMessage,
-    string? ActorKey,
+    string? Actor,
     int? ExpectedVersion
 );

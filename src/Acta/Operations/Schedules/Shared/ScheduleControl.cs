@@ -9,12 +9,12 @@ internal static class ScheduleControl
     public static string? RowReason(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.ScheduleReasonMessage);
 
     /// <summary>Binds what pause and resume take after their own arguments: the slot cursor, the operator, and the note.</summary>
-    public static void BindTail(DbCommand cmd, ISqlDialect dialect, DateTime? jobNextRunAtUtc, string? actorKey, string? reasonMessage)
+    public static void BindTail(DbCommand cmd, ISqlDialect dialect, DateTime? jobNextRunAtUtc, string? actor, string? reasonMessage)
     {
-        var actor = JobControlActor.Operator(actorKey);
+        var stamped = JobControlActor.Operator(actor);
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, stamped.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, stamped.Actor));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ReasonMessage, RowReason(reasonMessage)));
     }
 

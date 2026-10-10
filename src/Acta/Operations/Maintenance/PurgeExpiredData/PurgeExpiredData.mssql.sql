@@ -21,7 +21,7 @@ BEGIN
         DECLARE @del TABLE (id BIGINT NOT NULL);
         DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
-        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, dedupe_key VARCHAR(512) NULL);
+        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) NULL);
         DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
 
         IF @p_section = 1
@@ -108,8 +108,8 @@ BEGIN
                 DELETE @alert_del;
                 DELETE @alert_locked;
 
-                INSERT INTO @alert_del (id, dedupe_key)
-                SELECT TOP (@p_batch_size) id, dedupe_key
+                INSERT INTO @alert_del (id, deduplication_key)
+                SELECT TOP (@p_batch_size) id, deduplication_key
                 FROM {{schema}}.alerts WITH (READPAST)
                 WHERE
                     namespace_id = @p_namespace_id
@@ -121,23 +121,23 @@ BEGIN
                     )
                 ORDER BY created_at_utc, id;
 
-                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
                 -- key before the row and the rest by key, skipping a row another transaction holds
                 -- (docs/internals/sql-execution-policy.md, "Alert lock order").
                 INSERT INTO @alert_locked (id)
                 SELECT a.id
                 FROM @alert_del d
-                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
                     ON
                         a.namespace_id = @p_namespace_id
-                        AND a.dedupe_key = d.dedupe_key
+                        AND a.deduplication_key = d.deduplication_key
                         AND a.id = d.id
-                WHERE d.dedupe_key IS NOT NULL;
+                WHERE d.deduplication_key IS NOT NULL;
                 INSERT INTO @alert_locked (id)
                 SELECT a.id
                 FROM @alert_del d
                 INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
-                WHERE d.dedupe_key IS NULL;
+                WHERE d.deduplication_key IS NULL;
 
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
@@ -160,8 +160,8 @@ BEGIN
                 DELETE @alert_del;
                 DELETE @alert_locked;
 
-                INSERT INTO @alert_del (id, dedupe_key)
-                SELECT TOP (@p_batch_size) id, dedupe_key
+                INSERT INTO @alert_del (id, deduplication_key)
+                SELECT TOP (@p_batch_size) id, deduplication_key
                 FROM {{schema}}.alerts WITH (READPAST)
                 WHERE
                     namespace_id = @p_namespace_id
@@ -172,23 +172,23 @@ BEGIN
                     )
                 ORDER BY created_at_utc, id;
 
-                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
                 -- key before the row and the rest by key, skipping a row another transaction holds
                 -- (docs/internals/sql-execution-policy.md, "Alert lock order").
                 INSERT INTO @alert_locked (id)
                 SELECT a.id
                 FROM @alert_del d
-                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
                     ON
                         a.namespace_id = @p_namespace_id
-                        AND a.dedupe_key = d.dedupe_key
+                        AND a.deduplication_key = d.deduplication_key
                         AND a.id = d.id
-                WHERE d.dedupe_key IS NOT NULL;
+                WHERE d.deduplication_key IS NOT NULL;
                 INSERT INTO @alert_locked (id)
                 SELECT a.id
                 FROM @alert_del d
                 INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
-                WHERE d.dedupe_key IS NULL;
+                WHERE d.deduplication_key IS NULL;
 
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);

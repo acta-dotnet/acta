@@ -68,7 +68,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     }
 
     [Fact(
-        DisplayName = "ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved"
+        DisplayName = "ux_alerts_deduplication_key admits one unresolved row per (namespace_id, deduplication_key) and stops filtering once it is resolved"
     )]
     public async Task Alerts_dedupe_index_admits_one_open_incident_per_key()
     {
@@ -97,7 +97,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(
             1,
             await Db.From<AlertEntity>()
-                .Where(a => a.DedupeKey == key && a.Id != openId)
+                .Where(a => a.DeduplicationKey == key && a.Id != openId)
                 .UpdateOnlyAsync(() => new AlertEntity { ResolvedAtUtc = DateTime.UtcNow }, ct)
         );
         Assert.True(await Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
@@ -120,7 +120,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             Title = "schema-hardening check",
             Message = "schema-hardening check",
             ChannelName = "default",
-            DedupeKey = deduplicationKey,
+            DeduplicationKey = deduplicationKey,
             OccurrenceCount = occurrenceCount,
             DeliveryStatusCode = AlertDeliveryStatusCode.Pending,
         };

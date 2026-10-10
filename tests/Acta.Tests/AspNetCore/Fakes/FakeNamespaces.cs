@@ -30,7 +30,7 @@ internal sealed class FakeNamespaces : INamespaces
     }
 
     /// <summary>Applied admin verbs, named suspend, resume, or patch.</summary>
-    public List<(string Verb, string Name, string? ReasonMessage, string? ActorKey)> AdminCalls { get; } = [];
+    public List<(string Verb, string Name, string? ReasonMessage, string? Actor)> AdminCalls { get; } = [];
 
     public Func<ListNamespacesQuery, CancellationToken, ValueTask<ListNamespacesResponse>> List { get; set; }
 
@@ -42,19 +42,11 @@ internal sealed class FakeNamespaces : INamespaces
 
     ValueTask<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(
-        string name,
-        string? reasonMessage,
-        string? actorKey,
-        CancellationToken ct
-    ) => Suspend(name, reasonMessage, actorKey, ct);
+    ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(string name, string? reasonMessage, string? actor, CancellationToken ct) =>
+        Suspend(name, reasonMessage, actor, ct);
 
-    ValueTask<ResumeNamespaceResponse> INamespaces.ResumeAsync(
-        string name,
-        string? reasonMessage,
-        string? actorKey,
-        CancellationToken ct
-    ) => Resume(name, reasonMessage, actorKey, ct);
+    ValueTask<ResumeNamespaceResponse> INamespaces.ResumeAsync(string name, string? reasonMessage, string? actor, CancellationToken ct) =>
+        Resume(name, reasonMessage, actor, ct);
 
     ValueTask<UpdateNamespaceResponse> INamespaces.UpdateAsync(
         string name,
@@ -62,9 +54,9 @@ internal sealed class FakeNamespaces : INamespaces
         string? ownerTeam,
         string? description,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Update(name, expectedVersion, ownerTeam, description, reasonMessage, actorKey, ct);
+    ) => Update(name, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
 
     ValueTask<ListNamespaceNamesResponse> INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct) =>
         throw new NotSupportedException();
@@ -73,7 +65,7 @@ internal sealed class FakeNamespaces : INamespaces
         string verb,
         string name,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         Func<ControlAction, int?, T> response,
         int? expectedVersion = null
     )
@@ -93,7 +85,7 @@ internal sealed class FakeNamespaces : INamespaces
             return ValueTask.FromResult(response(ControlAction.VersionConflict, 5));
         }
 
-        AdminCalls.Add((verb, name, reasonMessage, actorKey));
+        AdminCalls.Add((verb, name, reasonMessage, actor));
         return ValueTask.FromResult(response(ControlAction.Applied, 2));
     }
 }

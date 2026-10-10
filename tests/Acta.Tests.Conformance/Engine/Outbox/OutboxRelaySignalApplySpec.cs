@@ -70,7 +70,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         Assert.Equal(0, discarded);
 
         // The signal row is consumed, the source row is Pending with its budget reset, and the
-        // evidence event carries the operator's actor key, justification, and the applied id.
+        // evidence event carries the operator's actor, justification, and the applied id.
         Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
         var state = await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId);
         Assert.Equal((byte)OutboxStatusCode.Pending, state.StatusCode);
@@ -79,7 +79,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         var evidence = Assert.Single(await Db.From<EventEntity>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
         Assert.Equal(EventCode.OutboxRequeued, evidence.EventCode);
         Assert.Equal(ActorCode.Operator, evidence.ActorCode);
-        Assert.Equal("marko", evidence.ActorKey);
+        Assert.Equal("marko", evidence.Actor);
         Assert.Contains("fixed the target route", evidence.ReasonMessage);
         Assert.Contains(row.OutboxId.ToString(), evidence.ReasonMessage);
 

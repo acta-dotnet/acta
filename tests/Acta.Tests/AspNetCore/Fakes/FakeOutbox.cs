@@ -39,13 +39,8 @@ internal sealed class FakeOutbox : IOutbox
     }
 
     /// <summary>Accepted requeue and discard calls with their scope and audit fields.</summary>
-    public List<(
-        string Verb,
-        string JobNamespace,
-        IReadOnlyList<Guid>? OutboxIds,
-        string? Reason,
-        string? ActorKey
-    )> ControlCalls { get; } = [];
+    public List<(string Verb, string JobNamespace, IReadOnlyList<Guid>? OutboxIds, string? Reason, string? Actor)> ControlCalls { get; } =
+    [];
 
     public Func<ListOutboxSourcesQuery, CancellationToken, ValueTask<ListOutboxSourcesResponse>> ListSources { get; set; }
 
@@ -65,17 +60,17 @@ internal sealed class FakeOutbox : IOutbox
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Requeue(jobNamespace, outboxIds, reasonMessage, actorKey, ct);
+    ) => Requeue(jobNamespace, outboxIds, reasonMessage, actor, ct);
 
     ValueTask<DiscardOutboxResponse> IOutbox.DiscardAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Discard(jobNamespace, outboxIds, reasonMessage, actorKey, ct);
+    ) => Discard(jobNamespace, outboxIds, reasonMessage, actor, ct);
 
     private static readonly ListOutboxSourcesItem Billing = new(
         "billing",
@@ -114,7 +109,7 @@ internal sealed class FakeOutbox : IOutbox
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         Func<ControlAction, DateTime?, T> response
     )
     {
@@ -128,7 +123,7 @@ internal sealed class FakeOutbox : IOutbox
             return ValueTask.FromResult(response(ControlAction.Rejected, PendingSince));
         }
 
-        ControlCalls.Add((verb, jobNamespace, outboxIds, reasonMessage, actorKey));
+        ControlCalls.Add((verb, jobNamespace, outboxIds, reasonMessage, actor));
         return ValueTask.FromResult(response(ControlAction.Accepted, null));
     }
 }

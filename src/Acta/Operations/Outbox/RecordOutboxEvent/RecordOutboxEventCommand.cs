@@ -5,4 +5,4 @@ namespace Acta;
 /// operator and a reason carrying their justification plus the applied row ids, so proof of the action
 /// outlives the source rows it may have deleted.
 /// </summary>
-internal sealed record RecordOutboxEventCommand(long JobId, EventCode EventCode, string? ActorKey, string? ReasonMessage);
+internal sealed record RecordOutboxEventCommand(long JobId, EventCode EventCode, string? Actor, string? ReasonMessage);

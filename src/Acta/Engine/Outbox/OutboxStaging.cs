@@ -19,9 +19,9 @@ internal static class OutboxStaging
     /// </summary>
     private const string InsertColumnsAndValues = """
             (outbox_id, job_namespace, job_name, input_format_id, input, deduplication_key,
-             correlation_key, concurrency_key, lane, priority_code, next_run_at_utc, delay_seconds, tenant_key, meta)
+             correlation_key, concurrency_key, lane, priority_code, next_run_at_utc, delay_seconds, tenant_name, meta)
         VALUES (@outbox_id, @job_namespace, @job_name, @input_format_id, @input, @deduplication_key,
-                @correlation_key, @concurrency_key, @lane, @priority_code, @next_run_at_utc, @delay_seconds, @tenant_key, @meta);
+                @correlation_key, @concurrency_key, @lane, @priority_code, @next_run_at_utc, @delay_seconds, @tenant_name, @meta);
         """;
 
     /// <summary>
@@ -78,7 +78,7 @@ internal static class OutboxStaging
                 // instant would otherwise persist wall-clock as UTC (mssql/sqlite) or be rejected (PG timestamptz).
                 NextRunAtUtc: normalized.NextRunAtUtc is { } next ? DbParams.ToUtc(next) : null,
                 DelaySeconds: normalized.DelaySeconds,
-                TenantKey: normalized.TenantKey,
+                TenantName: normalized.TenantName,
                 Meta: OutboxMetaWriter.Write(normalized.Tags)
             );
     }
@@ -105,7 +105,7 @@ internal readonly record struct OutboxStagingValues(
     byte? PriorityCode,
     DateTime? NextRunAtUtc,
     int? DelaySeconds,
-    string? TenantKey,
+    string? TenantName,
     string? Meta
 );
 

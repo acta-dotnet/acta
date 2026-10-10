@@ -50,8 +50,8 @@
             "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
-            "Name": "dedupe_key",
-            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind="
+            "Name": "deduplication_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "occurrence_count",
@@ -96,8 +96,8 @@
         ],
         "Indexes": [
           {
-            "Name": "ix_alerts_dedupe_identity",
-            "Signature": "I|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL|seq=False"
+            "Name": "ix_alerts_deduplication_key_identity",
+            "Signature": "I|cols=namespace_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL|seq=False"
           },
           {
             "Name": "ix_alerts_delivery_due",
@@ -116,8 +116,8 @@
             "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=resolved_at_utc IS NULL|seq=False"
           },
           {
-            "Name": "ux_alerts_dedupe",
-            "Signature": "U|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL AND resolved_at_utc IS NULL|seq=False"
+            "Name": "ux_alerts_deduplication_key",
+            "Signature": "U|cols=namespace_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND resolved_at_utc IS NULL|seq=False"
           },
           {
             "Name": "ux_alerts_ref",
@@ -304,7 +304,7 @@
             "Signature": "AsciiString|16|0|0|True|None|COALESCE(rate_limit_override, rate_limit)|coded=False|codeKind="
           },
           {
-            "Name": "rate_key",
+            "Name": "rate_name",
             "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
@@ -523,7 +523,7 @@
             "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=actor"
           },
           {
-            "Name": "actor_key",
+            "Name": "actor",
             "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           },
           {
@@ -1253,7 +1253,7 @@
             "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
-            "Name": "tenant_key",
+            "Name": "tenant_name",
             "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
@@ -1283,8 +1283,8 @@
         ],
         "Indexes": [
           {
-            "Name": "ux_tenants_key",
-            "Signature": "U|cols=tenant_key|inc=|desc=|filter=|seq=False"
+            "Name": "ux_tenants_name",
+            "Signature": "U|cols=tenant_name|inc=|desc=|filter=|seq=False"
           }
         ],
         "Checks": [],

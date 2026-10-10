@@ -30,7 +30,7 @@ internal sealed class RaiseSignalHandler(
             return new RaiseSignalResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var input = new JobControlInput(JobControlActor.Operator(command.ActorKey), EventReasonCode.JobSignalReleased, null);
+        var input = new JobControlInput(JobControlActor.Operator(command.Actor), EventReasonCode.JobSignalReleased, null);
         var response = await RaiseSlotAsync(
             new RaiseSignalSlot(jobId, CheckpointKindCode.Signal, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), input),
             ct

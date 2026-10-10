@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     title text NOT NULL,
     message text NOT NULL,
     channel_name text NOT NULL,
-    dedupe_key text NULL,
+    deduplication_key text NULL,
     occurrence_count integer NOT NULL,
     last_projected_event_id integer NULL,
     resolved_at_utc integer NULL,
@@ -34,13 +34,13 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_dedupe_identity ON alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_deduplication_key_identity ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_job ON alerts (job_id, id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_ref ON alerts (alert_ref);
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_dedupe ON alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_deduplication_key ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
 
 -- definitions
 CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     rate_limit text NULL,
     rate_limit_override text NULL,
     rate_limit_effective text AS (COALESCE(rate_limit_override, rate_limit)) STORED,
-    rate_key text NULL,
+    rate_name text NULL,
     lane text NULL,
     backoff text NOT NULL,
     backoff_override text NULL,
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     namespace_id integer NOT NULL,
     actor_code integer NOT NULL,
-    actor_key text NULL,
+    actor text NULL,
     job_id integer NULL,
     job_ref text NULL,
     execution_number integer NULL,
@@ -334,7 +334,7 @@ CREATE INDEX IF NOT EXISTS {{schema}}.ix_tags_namespace_name_value_search ON tag
 -- tenants
 CREATE TABLE IF NOT EXISTS {{schema}}.tenants (
     id integer PRIMARY KEY AUTOINCREMENT,
-    tenant_key text NOT NULL,
+    tenant_name text NOT NULL,
     status_code integer NOT NULL,
     display_name text NULL,
     description text NULL,
@@ -342,7 +342,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.tenants (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
 ) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_tenants_key ON tenants (tenant_key);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_tenants_name ON tenants (tenant_name);
 
 -- workers
 CREATE TABLE IF NOT EXISTS {{schema}}.workers (
@@ -389,7 +389,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-fddb792a8bd1e8d53f73c257ab95d8b4', '{{schema}}')
+VALUES (0, 'baseline-aa31ca36db0adf842bea6998821585b0', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

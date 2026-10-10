@@ -130,7 +130,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 next_run_at_utc   DATETIME2(3)     NULL,
                 delay_seconds     INT              NULL,
                 parent_id         BIGINT           NULL,
-                tenant_key        VARCHAR(128)     NULL,
+                tenant_name       VARCHAR(128)     NULL,
                 tenant_override   BIT              NOT NULL,
                 lane              VARCHAR(128)     NULL,
                 PRIMARY KEY (ordinal)
@@ -177,7 +177,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 max_attempts                         INT           NOT NULL,
                 concurrency_limit                    INT           NULL,
                 rate_limit                           VARCHAR(16)   NULL,
-                rate_key                             VARCHAR(128)  NULL,
+                rate_name                            VARCHAR(128)  NULL,
                 backoff                              NVARCHAR(64)  NOT NULL,
                 execution_timeout_seconds            INT           NOT NULL,
                 deadline_seconds                     INT           NOT NULL,

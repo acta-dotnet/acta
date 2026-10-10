@@ -99,7 +99,7 @@ BEGIN TRY
         BEGIN
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor_key,
+                actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id,
                 worker_id,
@@ -109,7 +109,7 @@ BEGIN TRY
             )
             VALUES (
                 103 /* EventCode.ScheduleOverridesUpdated */, @now, @ns,
-                @p_actor_code, @p_actor_key,
+                @p_actor_code, @p_actor,
                 @p_job_id, @job_ref, @en,
                 COALESCE(@lineage, @p_job_id), @def,
                 NULL,

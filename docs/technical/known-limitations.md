@@ -22,7 +22,7 @@ provider's emitted `M001`, so each provider carries its own. A database provisio
 build refuses to start rather than running on a schema nobody chose. That refusal is the point:
 every `M001` statement is
 existence-guarded, so without it a pre-1.0 database would take a later baseline as a no-op and keep
-`events.actor_key` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
+`events.actor` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
 would keep the old `ix_runtimes_worker_inflight` key and none of the three row-shape constraints.
 
 Reprovisioning is a manual step, and it is destructive: there is no upgrade path from a database

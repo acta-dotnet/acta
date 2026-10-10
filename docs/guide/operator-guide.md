@@ -101,13 +101,13 @@ SELECT namespace, COUNT(*) AS ready
 -- One tenant's work, by the business key the caller enqueued with (keys fold lowercase).
 SELECT job_id, job_ref, namespace, job_name, status
   FROM acta.jobs_view
- WHERE tenant_key = :tenant_key;
+ WHERE tenant_name = :tenant_name;
 
 -- Backlog per tenant, busiest first. Untenanted work groups under NULL.
-SELECT tenant_key, COUNT(*) AS ready
+SELECT tenant_name, COUNT(*) AS ready
   FROM acta.jobs_view
  WHERE status = 'ready'
- GROUP BY tenant_key
+ GROUP BY tenant_name
  ORDER BY ready DESC;
 
 -- In-flight work and who holds it.
@@ -180,7 +180,7 @@ terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
 Cancel, pause, resume, restart, reschedule, and reprioritize also take an optional `expectedVersion`
-after `actorKey`. Left null, the verb writes unconditionally, which is what an operator acting on a
+after `actor`. Left null, the verb writes unconditionally, which is what an operator acting on a
 moving job wants. Pass the `Version` from a `GetJobResponse` (or from a previous control result) and the
 write becomes a compare-and-set: a row that changed underneath you answers `VersionConflict` with its
 current version instead of overwriting someone else's decision.
@@ -254,7 +254,7 @@ Five rules the table cannot show:
 
 Tenants and namespaces carry an operator-controlled status: `active` resolves at enqueue, `suspended`
 withdraws admission. Tenant suspension is admission control, not work closure: new enqueues naming the
-tenant key are rejected once the suspend has committed, while jobs already admitted keep running and a
+tenant name are rejected once the suspend has committed, while jobs already admitted keep running and a
 running workflow may still create children that inherit the suspended tenant (an inherited tenant id
 carries no key to re-check). Suspension is reversible and status-only.
 
@@ -275,7 +275,7 @@ edited. Every applied transition is audited on the events timeline in the admin 
 (`tenant.suspended` 10 through `namespace.updated` 22); tenant events land on the seeded
 `sys` namespace, namespace events on the namespace itself.
 
-A tenant is registered with `ITenants.RegisterAsync(tenantKey, displayName, description)` or
+A tenant is registered with `ITenants.RegisterAsync(tenantName, displayName, description)` or
 `POST /tenants`; an enqueue that names an unregistered tenant is refused.
 
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):

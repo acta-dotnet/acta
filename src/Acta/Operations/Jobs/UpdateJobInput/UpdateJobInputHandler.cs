@@ -25,7 +25,7 @@ internal sealed class UpdateJobInputHandler(
             return new UpdateJobInputResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var control = JobControl.Operator(command.ReasonMessage, command.ActorKey);
+        var control = JobControl.Operator(command.ReasonMessage, command.Actor);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("UpdateJobInput"),
             cmd =>

@@ -34,7 +34,7 @@ public sealed record GetDefinitionResponse(
     string? RateLimit,
     string? RateLimitOverride,
     string? RateLimitEffective,
-    string? RateKey,
+    string? RateName,
     string? Lane,
     string Backoff,
     string? BackoffOverride,

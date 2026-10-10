@@ -14,7 +14,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
     @p_next_run_at_utc DATETIME2(3) = NULL,
     @p_delay_seconds INT = NULL,
     @p_parent_id BIGINT = NULL,
-    @p_tenant_key VARCHAR(128) = NULL,
+    @p_tenant_name VARCHAR(128) = NULL,
     @p_tenant_override BIT = 0,
     @p_tag_batch {{schema}}.enqueue_tags_batch READONLY,
     @p_lane VARCHAR(128) = NULL
@@ -76,13 +76,13 @@ BEGIN
                 THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
             END;
 
-        IF @p_tenant_key IS NOT NULL
+        IF @p_tenant_name IS NOT NULL
             BEGIN
                 SELECT
                     @tenant_id = t.id,
                     @tenant_status = t.status_code
                 FROM {{schema}}.tenants t
-                WHERE t.tenant_key = @p_tenant_key;
+                WHERE t.tenant_name = @p_tenant_name;
 
                 IF @tenant_id IS NULL
                     BEGIN
@@ -95,7 +95,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_key IS NOT NULL
+        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
             BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
@@ -222,7 +222,7 @@ BEGIN
         IF @tenant_id IS NOT NULL AND @parent_tenant IS NOT NULL AND @tenant_id <> @parent_tenant AND @p_tenant_override = 0
             BEGIN
                 THROW 50009,
-                'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantKey differs from the parent tenant without an explicit override.',
+                'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent tenant without an explicit override.',
                 1;
             END;
 

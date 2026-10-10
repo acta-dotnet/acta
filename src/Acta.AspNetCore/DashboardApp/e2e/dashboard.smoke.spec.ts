@@ -13,7 +13,7 @@ const job = {
   correlationKey: 'order-42',
   jobNamespace: 'billing',
   jobName: 'send-invoice',
-  tenantKey: null,
+  tenantName: null,
   status: 'failed',
   priority: 'normal',
   executionNumber: 1,

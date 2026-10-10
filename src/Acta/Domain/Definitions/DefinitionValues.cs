@@ -11,7 +11,7 @@ internal sealed record DefinitionValues(
     int MaxAttempts,
     int? ConcurrencyLimit,
     string? RateLimit,
-    string? RateKey,
+    string? RateName,
     string? Lane,
     string Backoff,
     int ExecutionTimeoutSeconds,

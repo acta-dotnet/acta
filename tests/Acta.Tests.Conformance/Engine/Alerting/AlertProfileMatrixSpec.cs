@@ -119,7 +119,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         var seeded = Assert.Single(alerts, a => a.Kind == AlertKindCode.FinalFailure);
         Assert.Equal(1, seeded.OccurrenceCount);
         Assert.Null(seeded.ResolvedAtUtc);
-        Assert.NotNull(seeded.DedupeKey);
+        Assert.NotNull(seeded.DeduplicationKey);
 
         // Resolve it, standing in for the success event that would close it: an id past every failure
         // event the projector already stamped on the row.
@@ -143,7 +143,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
             seeded.Message,
             seeded.ChannelName,
             AlertDeliveryStatusCode.Pending,
-            seeded.DedupeKey,
+            seeded.DeduplicationKey,
             ct
         );
 

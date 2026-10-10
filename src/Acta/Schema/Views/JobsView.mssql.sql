@@ -12,7 +12,7 @@ SELECT
     COALESCE(j.lineage_root_id, j.id) AS lineage_root_job_id,
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
-    t.tenant_key,
+    t.tenant_name,
     {{decode:job-priority:r.priority_code}} AS priority,
     r.priority_code,
     CASE j.input_format_id

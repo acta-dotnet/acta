@@ -100,7 +100,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<PauseJobResponse>(),
             RouteKeys.JobByRef,
-            static (call, job) => call.Jobs.PauseAsync(job, call.ReasonMessage, call.ActorKey, call.Body?.ExpectedVersion, call.Ct)
+            static (call, job) => call.Jobs.PauseAsync(job, call.ReasonMessage, call.Actor, call.Body?.ExpectedVersion, call.Ct)
         );
         controls.MapCommand(
             "/jobs/{jobRef}/resume",
@@ -110,7 +110,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<ResumeJobResponse>(),
             RouteKeys.JobByRef,
-            static (call, job) => call.Jobs.ResumeAsync(job, call.ReasonMessage, call.ActorKey, call.Body?.ExpectedVersion, call.Ct)
+            static (call, job) => call.Jobs.ResumeAsync(job, call.ReasonMessage, call.Actor, call.Body?.ExpectedVersion, call.Ct)
         );
         controls.MapCommand(
             "/jobs/{jobRef}/restart",
@@ -120,7 +120,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<RestartJobResponse>(),
             RouteKeys.JobByRef,
-            static (call, job) => call.Jobs.RestartAsync(job, call.ReasonMessage, call.ActorKey, call.Body?.ExpectedVersion, call.Ct)
+            static (call, job) => call.Jobs.RestartAsync(job, call.ReasonMessage, call.Actor, call.Body?.ExpectedVersion, call.Ct)
         );
         controls.MapCommand(
             "/jobs/{jobRef}/cancel",
@@ -130,7 +130,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<CancelJobResponse>(),
             RouteKeys.JobByRef,
-            static (call, job) => call.Jobs.CancelAsync(job, call.ReasonMessage, call.ActorKey, call.Body?.ExpectedVersion, call.Ct)
+            static (call, job) => call.Jobs.CancelAsync(job, call.ReasonMessage, call.Actor, call.Body?.ExpectedVersion, call.Ct)
         );
 
         // Purge takes no reason and no version token: its body passes the same confirmation and shape checks as the
@@ -143,7 +143,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<PurgeJobResponse>(),
             RouteKeys.JobByRef,
-            static (call, job) => call.Jobs.PurgeAsync(job, call.ActorKey, call.Ct)
+            static (call, job) => call.Jobs.PurgeAsync(job, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reschedule",
@@ -160,7 +160,7 @@ internal static class JobsEndpoints
                         ? call.Body.NextRunAtUtc
                         : throw new InvalidControlException("Invalid request.", "nextRunAtUtc is required."),
                     call.ReasonMessage,
-                    call.ActorKey,
+                    call.Actor,
                     call.Body.ExpectedVersion,
                     call.Ct
                 ),
@@ -175,14 +175,7 @@ internal static class JobsEndpoints
             ControlStatus.Job<ReprioritizeJobResponse>(),
             RouteKeys.JobByRef,
             static (call, job) =>
-                call.Jobs.ReprioritizeAsync(
-                    job,
-                    call.Body!.Priority,
-                    call.ReasonMessage,
-                    call.ActorKey,
-                    call.Body.ExpectedVersion,
-                    call.Ct
-                ),
+                call.Jobs.ReprioritizeAsync(job, call.Body!.Priority, call.ReasonMessage, call.Actor, call.Body.ExpectedVersion, call.Ct),
             bodyRequired: true
         );
     }

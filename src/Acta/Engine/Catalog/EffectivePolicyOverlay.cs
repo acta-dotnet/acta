@@ -5,7 +5,7 @@ namespace Acta;
 /// descriptor keeps its handler, contract, and invocation metadata, and only the operator-overridable policy fields
 /// are replaced with the DB-computed effective values. The worker holds the overlaid descriptors in
 /// <c>WorkerContext.DescriptorByDefinitionId</c> as its live, reloadable policy view, so the hot path, which reads the
-/// descriptor rather than the DB, honors operator overrides. <c>RateKey</c> is absent on purpose: code-owned, with no
+/// descriptor rather than the DB, honors operator overrides. <c>RateName</c> is absent on purpose: code-owned, with no
 /// override, so the declared value is already the effective one.
 /// </summary>
 internal static class EffectivePolicyOverlay

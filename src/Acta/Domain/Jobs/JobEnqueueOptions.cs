@@ -80,10 +80,10 @@ public class JobEnqueueOptions
     /// tenant rejects the enqueue. <c>null</c> = no tenant for a root Job; a child Job with <c>null</c> here
     /// inherits its parent's tenant.
     /// </summary>
-    public string? TenantKey { get; init; }
+    public string? TenantName { get; init; }
 
     /// <summary>
-    /// Explicit opt-in for a child <see cref="TenantKey"/> that differs from the parent's tenant.
+    /// Explicit opt-in for a child <see cref="TenantName"/> that differs from the parent's tenant.
     /// Without it a cross-tenant child enqueue is rejected, so an accidental mismatch cannot split a
     /// workflow's lineage across tenants silently.
     /// </summary>

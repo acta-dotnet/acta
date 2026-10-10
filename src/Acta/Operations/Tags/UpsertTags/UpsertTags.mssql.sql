@@ -16,7 +16,7 @@ BEGIN TRY
     IF @p_scope_code = 20 /* TagScopeCode.Tenant */
         SELECT @scope_id = CONVERT(BIGINT, t.id), @namespace_id = NULL
         FROM {{schema}}.tenants t WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-        WHERE t.tenant_key = @p_lookup_name;
+        WHERE t.tenant_name = @p_lookup_name;
     ELSE IF @p_scope_code = 30 /* TagScopeCode.Namespace */
         SELECT @scope_id = CONVERT(BIGINT, n.id), @namespace_id = n.id
         FROM {{schema}}.namespaces n WITH (UPDLOCK, HOLDLOCK, ROWLOCK)

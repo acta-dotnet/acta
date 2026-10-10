@@ -29,7 +29,7 @@ public sealed class ResolveDefinitionIdTests
             ConcurrencyLimitEffective: null,
             RateLimitOverride: null,
             RateLimitEffective: null,
-            RateKey: null,
+            RateName: null,
             Lane: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
@@ -80,7 +80,7 @@ public sealed class ResolveDefinitionIdTests
                 ExpectedVersion: 1,
                 new DefinitionPolicyOverrides(MaxAttempts: 9),
                 ReasonMessage: "typo",
-                ActorKey: "tester"
+                Actor: "tester"
             ),
             TestContext.Current.CancellationToken
         );

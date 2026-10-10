@@ -40,7 +40,7 @@ internal sealed class ParkOutboxSignalHandler(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
     )
     {
@@ -58,12 +58,11 @@ internal sealed class ParkOutboxSignalHandler(
 
         // The minted CommandId is what distinguishes "my park landed" from "a concurrent command landed" in
         // the admission read; the actor rides the payload so the applying tick can stamp the evidence event
-        // with the operator captured at park time. This is the only operator path that stamps its actor
-        // without passing through JobControlActor, so its blank-means-unknown fold is repeated here or the
-        // event carries whitespace where every sibling stores NULL.
+        // with the operator captured at park time. The actor is validated here, at park time, because the
+        // applying tick only carries it.
         var payload = new OutboxSignalPayload(
             Guid.NewGuid(),
-            string.IsNullOrWhiteSpace(actorKey) ? null : actorKey.Truncate(ActaTextLimits.ActorKey),
+            JobControlActor.Operator(actor).Actor,
             reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
             outboxIds
         );

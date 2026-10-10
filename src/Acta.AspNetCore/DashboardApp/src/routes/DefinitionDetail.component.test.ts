@@ -24,7 +24,7 @@ const definition = {
   rateLimit: null,
   rateLimitOverride: null,
   rateLimitEffective: null,
-  rateKey: null,
+  rateName: null,
   backoff: 'exponential',
   backoffOverride: null,
   backoffEffective: 'exponential',
@@ -72,7 +72,7 @@ const overrideEvent = {
   eventCode: 'definition.overrides-updated',
   createdAtUtc: '2026-07-14T08:00:00Z',
   actorCode: 'operator',
-  actorKey: 'marko',
+  actor: 'marko',
   reasonMessage: 'Raised max attempts for the holiday backlog'
 };
 
@@ -81,7 +81,7 @@ const retiredEvent = {
   eventCode: 'definition.retired',
   createdAtUtc: '2026-07-15T08:00:00Z',
   actorCode: 'operator',
-  actorKey: 'marko',
+  actor: 'marko',
   reasonMessage: 'Handler left the build'
 };
 
@@ -90,7 +90,7 @@ const executionEvent = {
   eventCode: 'job.execution-finished',
   createdAtUtc: '2026-07-14T09:00:00Z',
   actorCode: 'system',
-  actorKey: null,
+  actor: null,
   reasonMessage: null
 };
 

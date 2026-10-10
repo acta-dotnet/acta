@@ -19,7 +19,7 @@ cleared_results AS (
     DELETE FROM {{schema}}.results WHERE job_id IN (SELECT t.job_id FROM target t)
 )
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code)
 SELECT
     81 /* EventCode.JobStateReset */, now(), t.namespace_id, 50 /* ActorCode.Job */, t.job_id::VARCHAR, t.job_id,

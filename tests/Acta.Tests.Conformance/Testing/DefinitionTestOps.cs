@@ -40,5 +40,5 @@ internal static class DefinitionTestOps
     ) =>
         await services
             .GetRequiredService<IDefinitions>()
-            .UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor.ActorKey, ct);
+            .UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor.Actor, ct);
 }

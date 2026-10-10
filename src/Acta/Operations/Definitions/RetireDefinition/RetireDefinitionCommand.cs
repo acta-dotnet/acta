@@ -6,5 +6,5 @@ internal sealed record RetireDefinitionCommand(
     string JobName,
     int ExpectedVersion,
     string? ReasonMessage,
-    string? ActorKey
+    string? Actor
 );

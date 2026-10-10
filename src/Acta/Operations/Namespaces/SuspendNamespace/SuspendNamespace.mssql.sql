@@ -20,8 +20,8 @@ BEGIN TRY
         WHERE id = @id;
         SET @version = @version + 1;
 
-        INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, reason_message)
-        VALUES (20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key, @p_reason_message);
+        INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor, reason_message)
+        VALUES (20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor, @p_reason_message);
     END;
 
     SELECT

@@ -10,5 +10,5 @@ internal sealed record SetScheduleOverridesCommand(
     string? Expression,
     string? TimeZoneId,
     string? ReasonMessage,
-    string? ActorKey
+    string? Actor
 );

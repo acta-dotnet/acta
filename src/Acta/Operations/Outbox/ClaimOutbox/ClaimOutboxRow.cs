@@ -22,7 +22,7 @@ internal sealed record ClaimOutboxRow(
     byte? PriorityCode,
     DateTime? NextRunAtUtc,
     int? DelaySeconds,
-    string? TenantKey,
+    string? TenantName,
     string? MetaJson,
     DateTime CreatedAtUtc,
     int FailureCount,

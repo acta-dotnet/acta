@@ -13,9 +13,9 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
         QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
-        var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
+        var tenantName = string.IsNullOrWhiteSpace(query.TenantName)
             ? null
-            : NameSyntax.Canonicalize(query.TenantKey, nameof(query.TenantKey), NameSyntax.ExtendedMaxLength);
+            : NameSyntax.Canonicalize(query.TenantName, nameof(query.TenantName), NameSyntax.ExtendedMaxLength);
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
         // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
         var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
@@ -36,7 +36,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 ("name", jobName),
                 ("parent", query.ParentJobId?.ToString(CultureInfo.InvariantCulture)),
                 ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
-                ("tenantKey", tenantKey),
+                ("tenantName", tenantName),
                 ("correlation", query.CorrelationKey),
                 ("tags", tags),
                 ("terminal", terminalOnly is null ? null : "1"),
@@ -55,7 +55,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, query.ParentJobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, query.TenantId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, tenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantNameFilter, tenantName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, query.CorrelationKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, terminalOnly));

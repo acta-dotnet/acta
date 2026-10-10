@@ -8,54 +8,50 @@ internal sealed class TenantsOperations(
     SuspendTenantHandler suspendTenant,
     ResumeTenantHandler resumeTenant,
     UpdateTenantHandler updateTenant,
-    GetTenantKeyHandler getTenantKey
+    GetTenantNameHandler getTenantName
 ) : ITenants
 {
     public ValueTask<RegisterTenantResponse> RegisterAsync(
-        string tenantKey,
+        string tenantName,
         string? displayName = null,
         string? description = null,
         CancellationToken ct = default
-    ) => registerTenant.HandleAsync(new RegisterTenantCommand(tenantKey, displayName, description), ct);
+    ) => registerTenant.HandleAsync(new RegisterTenantCommand(tenantName, displayName, description), ct);
 
-    public ValueTask<GetTenantResponse?> GetAsync(string tenantKey, CancellationToken ct = default) =>
-        getTenant.HandleAsync(new GetTenantQuery(tenantKey), ct);
+    public ValueTask<GetTenantResponse?> GetAsync(string tenantName, CancellationToken ct = default) =>
+        getTenant.HandleAsync(new GetTenantQuery(tenantName), ct);
 
     public ValueTask<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>
         listTenants.HandleAsync(query, ct);
 
     public ValueTask<SuspendTenantResponse> SuspendAsync(
-        string tenantKey,
+        string tenantName,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => suspendTenant.HandleAsync(new SuspendTenantCommand(tenantKey, reasonMessage, actorKey), ct);
+    ) => suspendTenant.HandleAsync(new SuspendTenantCommand(tenantName, reasonMessage, actor), ct);
 
     public ValueTask<ResumeTenantResponse> ResumeAsync(
-        string tenantKey,
+        string tenantName,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => resumeTenant.HandleAsync(new ResumeTenantCommand(tenantKey, reasonMessage, actorKey), ct);
+    ) => resumeTenant.HandleAsync(new ResumeTenantCommand(tenantName, reasonMessage, actor), ct);
 
     public ValueTask<UpdateTenantResponse> UpdateAsync(
-        string tenantKey,
+        string tenantName,
         int expectedVersion,
         string? displayName,
         string? description,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) =>
-        updateTenant.HandleAsync(
-            new UpdateTenantCommand(tenantKey, expectedVersion, displayName, description, reasonMessage, actorKey),
-            ct
-        );
+    ) => updateTenant.HandleAsync(new UpdateTenantCommand(tenantName, expectedVersion, displayName, description, reasonMessage, actor), ct);
 
     /// <summary>
-    /// The key of the tenant with this id, null when no tenant has it. Known keys are cached for the process lifetime:
-    /// a tenant's key never changes and its row is never deleted. A miss is read again on every call.
+    /// The name of the tenant with this id, null when no tenant has it. Known names are cached for the process lifetime:
+    /// a tenant's name never changes and its row is never deleted. A miss is read again on every call.
     /// </summary>
-    internal ValueTask<GetTenantKeyResponse?> GetTenantKeyAsync(int tenantId, CancellationToken ct) =>
-        getTenantKey.HandleAsync(new GetTenantKeyQuery(tenantId), ct);
+    internal ValueTask<GetTenantNameResponse?> GetTenantNameAsync(int tenantId, CancellationToken ct) =>
+        getTenantName.HandleAsync(new GetTenantNameQuery(tenantId), ct);
 }

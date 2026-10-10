@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_jobs(
     p_b_next_run_at_utc TIMESTAMPTZ [],
     p_b_delay_seconds INT [],
     p_b_parent_id BIGINT [],
-    p_b_tenant_key VARCHAR [],
+    p_b_tenant_name VARCHAR [],
     p_b_tenant_override BOOLEAN [],
     p_t_ordinal INT [],
     p_t_name VARCHAR [],
@@ -182,20 +182,20 @@ BEGIN
     END IF;
 
     IF EXISTS (
-        SELECT 1 FROM unnest(p_b_tenant_key) AS b(tenant_key)
+        SELECT 1 FROM unnest(p_b_tenant_name) AS b(tenant_name)
         WHERE
-            b.tenant_key IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM {{schema}}.tenants t WHERE t.tenant_key = b.tenant_key)
+            b.tenant_name IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM {{schema}}.tenants t WHERE t.tenant_name = b.tenant_name)
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.'
             USING ERRCODE = 'P0001';
     END IF;
 
     IF EXISTS (
-        SELECT 1 FROM unnest(p_b_tenant_key) AS b(tenant_key)
-        JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key
+        SELECT 1 FROM unnest(p_b_tenant_name) AS b(tenant_name)
+        JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
         WHERE
-            b.tenant_key IS NOT NULL
+            b.tenant_name IS NOT NULL
             AND t.status_code <> 10 /* TenantStatusCode.Active */
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.'
@@ -204,14 +204,14 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM unnest(p_b_namespace_name, p_b_job_name, p_b_tenant_key, p_b_parent_id)
-            AS b(namespace_name, job_name, tenant_key, parent_id)
+        FROM unnest(p_b_namespace_name, p_b_job_name, p_b_tenant_name, p_b_parent_id)
+            AS b(namespace_name, job_name, tenant_name, parent_id)
         INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
         LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
         WHERE
             jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
-            AND b.tenant_key IS NULL
+            AND b.tenant_name IS NULL
             AND pj.tenant_id IS NULL
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.'
@@ -220,12 +220,12 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM unnest(p_b_namespace_name, p_b_job_name, p_b_tenant_key) AS b(namespace_name, job_name, tenant_key)
+        FROM unnest(p_b_namespace_name, p_b_job_name, p_b_tenant_name) AS b(namespace_name, job_name, tenant_name)
         INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
         WHERE
             jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
-            AND b.tenant_key IS NOT NULL
+            AND b.tenant_name IS NOT NULL
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.'
             USING ERRCODE = 'P0001';
@@ -233,15 +233,15 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM unnest(p_b_tenant_key, p_b_parent_id, p_b_tenant_override) AS b(tenant_key, parent_id, tenant_override)
-        INNER JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key
+        FROM unnest(p_b_tenant_name, p_b_parent_id, p_b_tenant_override) AS b(tenant_name, parent_id, tenant_override)
+        INNER JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
         INNER JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
         WHERE
             NOT b.tenant_override
             AND pj.tenant_id IS NOT NULL
             AND pj.tenant_id <> t.id
     ) THEN
-        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantKey that differs from the parent tenant without an explicit override.'
+        RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantName that differs from the parent tenant without an explicit override.'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -290,11 +290,11 @@ BEGIN
             p_b_ordinal, p_b_job_ref, p_b_namespace_name, p_b_job_name,
             p_b_deduplication_key, p_b_correlation_key, p_b_priority_override,
             p_b_input_format_id, p_b_input, p_b_concurrency_key, p_b_next_run_at_utc,
-            p_b_delay_seconds, p_b_parent_id, p_b_tenant_key, v_lane
+            p_b_delay_seconds, p_b_parent_id, p_b_tenant_name, v_lane
         ) AS b(ordinal, job_ref, namespace_name, job_name,
             deduplication_key, correlation_key, priority_override,
             input_format_id, input, concurrency_key, next_run_at_utc,
-            delay_seconds, parent_id, tenant_key, lane)
+            delay_seconds, parent_id, tenant_name, lane)
     )
     INSERT INTO _enq_batch (
         id,
@@ -339,7 +339,7 @@ BEGIN
     INNER JOIN ranked_ids ri ON ri.rn = b.rn
     INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
-    LEFT JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
+    LEFT JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name AND t.status_code = 10 /* TenantStatusCode.Active */
     LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id;
 
     IF lane_count > 0 THEN

@@ -15,7 +15,7 @@
   import { routes } from '../routes.ts';
 
 
-  // `search` is a case-insensitive server-side contains over tenant key, display name, or description.
+  // `search` is a case-insensitive server-side contains over tenant name, display name, or description.
   const filters = createUrlFilters({ search: 'search', status: 'status', tags: 'tags' }, { search: '', status: '', tags: '' });
   const statuses = ['', 'active', 'suspended'];
 
@@ -29,7 +29,7 @@
   );
 
   const columns = [
-    { key: 'tenantKey', header: 'Tenant key', class: 'mono' },
+    { key: 'tenantName', header: 'Tenant name', class: 'mono' },
     { key: 'displayName', header: 'Display name' },
     { key: 'status', header: 'Status' },
     { key: 'description', header: 'Description', class: 'mobile-hide' },
@@ -38,8 +38,8 @@
     { key: 'actions', header: '', class: 'col-open' }
   ];
 
-  function detailHref(tenant: { tenantKey: string }): string {
-    return routes.tenant(tenant.tenantKey, { namespace: get(scope) });
+  function detailHref(tenant: { tenantName: string }): string {
+    return routes.tenant(tenant.tenantName, { namespace: get(scope) });
   }
 </script>
 
@@ -67,7 +67,7 @@
     </FilterBar>
     <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
 
-    {#snippet tenantCell(tenant: TenantListItem)}<a href={detailHref(tenant)} class="mono">{tenant.tenantKey}</a>{/snippet}
+    {#snippet tenantCell(tenant: TenantListItem)}<a href={detailHref(tenant)} class="mono">{tenant.tenantName}</a>{/snippet}
     {#snippet statusCell(tenant: TenantListItem)}<StatusBadge status={tenant.status} />{/snippet}
     {#snippet createdCell(tenant: TenantListItem)}<RelativeTime value={tenant.createdAtUtc} />{/snippet}
     {#snippet modifiedCell(tenant: TenantListItem)}<RelativeTime value={tenant.modifiedAtUtc} />{/snippet}
@@ -75,12 +75,12 @@
       <a
         class="icon-action"
         href={detailHref(tenant)}
-        title={'Open tenant ' + tenant.tenantKey}
-        aria-label={'Open tenant ' + tenant.tenantKey}><Icon name="chevron-right" /></a>
+        title={'Open tenant ' + tenant.tenantName}
+        aria-label={'Open tenant ' + tenant.tenantName}><Icon name="chevron-right" /></a>
     {/snippet}
 
     <ActaGrid
-      rowKey={(tenant: TenantListItem) => tenant.tenantKey}
+      rowKey={(tenant: TenantListItem) => tenant.tenantName}
       endpoint="tenants"
       mobileCards={true}
       {columns}
@@ -88,6 +88,6 @@
       includeTotal={true}
       loadingText="Loading tenants..."
       emptyText="No tenants match the filters."
-      cells={{ tenantKey: tenantCell, status: statusCell, createdAtUtc: createdCell, modifiedAtUtc: modifiedCell, actions: actionsCell }} />
+      cells={{ tenantName: tenantCell, status: statusCell, createdAtUtc: createdCell, modifiedAtUtc: modifiedCell, actions: actionsCell }} />
   </div>
 </Page>

@@ -21,6 +21,16 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   or carries `_`, `:`, or `/` must be folded or prefixed by the caller. `IdentifierSyntax` and
   `AdminTextLimits` are gone: `NameSyntax.Canonicalize(value, paramName, maxLength, reserveSystem)`,
   `KeySyntax.Canonicalize(value, paramName, maxLength)`, and `TextLimits` replace them.
+- **The columns and the API say which of the three a value is.** A tenant is a name: `tenant_key` is
+  `tenant_name` in the schema, `TenantKey` is `TenantName` on the enqueue request, options, builders,
+  `ITenants`, the job and event items, the `/tenants/{tenantName}` routes and the `tenantName` query and
+  JSON fields, and `jobs_view`. A rate meter is a name: `[Job(RateName = ...)]`, `definitions.rate_name`,
+  `rateName` on the definition responses. An alert's key is `alerts.deduplication_key` (was `dedupe_key`,
+  capped at 128 like every deduplication key). The operator's principal is display text:
+  `events.actor` (was `actor_key`), the `actor` argument of every control verb, `ListEventsItem.Actor`,
+  `ActaControlContext.Actor`, and in `events_view` the decoded code is now `actor_kind`. A producer with
+  an existing outbox table renames its `tenant_key` column to `tenant_name`. The baselines are re-cut and
+  the object package moves to revision 59.
 - **SQL Server table types and three routines are named verb first.** A direct-SQL enqueue on SQL Server
   declares `acta.enqueue_tags_batch` and, for a batch, `acta.enqueue_jobs_batch`, instead of
   `job_enqueue_tag_batch` and `job_enqueue_batch`. The other types follow the routine that takes them

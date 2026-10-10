@@ -45,7 +45,7 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         var evidence = Assert.Single(
             await Db.From<EventEntity>().Where(e => e.JobId == slotId && e.EventCode == EventCode.OutboxDiscarded).ToListAsync(ct)
         );
-        Assert.Equal("op-1", evidence.ActorKey);
+        Assert.Equal("op-1", evidence.Actor);
         Assert.Contains("poison payload", evidence.ReasonMessage);
         Assert.Contains(named.ToString(), evidence.ReasonMessage);
 

@@ -44,18 +44,18 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(enqueued.JobId, typed.JobIdFromContext);
         Assert.Equal("context-probe", typed.JobNameFromContext);
         Assert.Null(typed.TenantIdFromContext);
-        Assert.Null(typed.TenantKeyFromContext);
+        Assert.Null(typed.TenantNameFromContext);
     }
 
     [Fact(DisplayName = "A tenant-scoped job's context carries the tenant id and its external key")]
     public async Task Context_carries_tenant_id_and_key()
     {
         var ct = TestContext.Current.CancellationToken;
-        var tenantKey = TestKey("ctx-tenant");
-        var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, ct: ct)).TenantId;
+        var tenantName = TestKey("ctx-tenant");
+        var tenantId = (await Operations.Tenants.RegisterAsync(tenantName, ct: ct)).TenantId;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantKey: tenantKey),
+            new EnqueueJobRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantName: tenantName),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -67,6 +67,6 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
         );
 
         Assert.Equal(tenantId, typed.TenantIdFromContext);
-        Assert.Equal(tenantKey, typed.TenantKeyFromContext);
+        Assert.Equal(tenantName, typed.TenantNameFromContext);
     }
 }

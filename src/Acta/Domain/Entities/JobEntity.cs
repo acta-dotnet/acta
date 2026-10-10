@@ -83,7 +83,7 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// Optional customer / business entity this Job is <em>about</em>, resolved from the enqueue
-    /// <c>TenantKey</c> against the <c>tenants</c> catalog. NULL when the enqueue supplied no tenant
+    /// <c>TenantName</c> against the <c>tenants</c> catalog. NULL when the enqueue supplied no tenant
     /// (and for system Jobs). Immutable after enqueue; child Jobs inherit the parent's tenant unless
     /// they supply their own. Audit / query / runtime scope only, never a claim or scheduling scope.
     /// </summary>

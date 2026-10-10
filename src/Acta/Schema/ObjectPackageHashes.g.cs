@@ -11,11 +11,11 @@ namespace Acta;
 /// </summary>
 internal static class ObjectPackageHashes
 {
-    internal const string Mssql = "e7d3c985bbf46bd2c96d7ac1a926de6a";
+    internal const string Mssql = "4722bc00fb3c7ae4d8fc890d5649e46a";
 
-    internal const string Pg = "4ef07f8649786b063348bd6d39a0f7c5";
+    internal const string Pg = "f2da913cd31a02136bc68ee7ebec0546";
 
-    internal const string Sqlite = "453df7afd2b658ca3a3ac43fc24ce124";
+    internal const string Sqlite = "19a1cf6658a99e7f0e808fb6685080a5";
 
     /// <summary>The hash for one dialect, named by the token the provider hooks carry.</summary>
     internal static string ForDialect(string dialectToken) =>

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mergeHistory, type HistoryEvent } from './changeHistory.ts';
 
 function event(jobEventId: number, createdAtUtc: string): HistoryEvent {
-  return { jobEventId, eventCode: 'namespace.suspended', createdAtUtc, actorCode: 'operator', actorKey: null, reasonMessage: null };
+  return { jobEventId, eventCode: 'namespace.suspended', createdAtUtc, actorCode: 'operator', actor: null, reasonMessage: null };
 }
 
 test('mergeHistory: merges pages newest-first and breaks timestamp ties by event id', () => {

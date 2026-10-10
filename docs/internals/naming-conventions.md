@@ -42,7 +42,12 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
   (`job_ref`). A plain uuid is never a `_ref` - which is why the staging table's `outbox_id` kept
   its name in the 0.9.0 audit.
 - **`_id`** is a numeric identity or a plain uuid.
-- **`_key`** is a caller-supplied string identity (`deduplication_key`, `tenant_key`, `actor_key`).
+- **`_name`** is a name: Acta's vocabulary, ASCII `dotted.kebab-case`, trimmed and lowercased on input, so it compares
+  equal under any collation (`tenant_name`, `rate_name`, `lanes.name`, `definitions.name`).
+- **`_key`** is a key: the caller's identity, printable ASCII without whitespace, kept exactly as given and compared
+  bytewise (`deduplication_key`, `concurrency_key`, `lock_key`); `correlation_key` is a key Acta carries without
+  comparing. Only a deduplication key reserves `sys.`, because the system jobs' keys share its index.
+- **`display_name`, `value`, `message`, `actor`** are display text: any Unicode within a cap, never compared.
 - **`_token`** is opaque claim evidence (`claim_token`), proof of ownership rather than identity.
 
 ## Composition rules
@@ -118,7 +123,7 @@ The boundary has three sides, and only two of them are inside it:
 
 - **HTTP/JSON and the CLI are inside.** No integer identity appears in a payload, a route, a query
   parameter, or a printed line. Catalog entities - definition, namespace, tenant - are addressed by
-  their natural key (`{jobNamespace}/{jobName}`, `{tenantKey}`) and carry no ref at all.
+  their natural key (`{jobNamespace}/{jobName}`, `{tenantName}`) and carry no ref at all.
 - **The in-process .NET API is outside, by documented exception.** A handler is already running inside
   the engine, so making it round-trip a ref would buy nothing and cost a lookup. These categories are
   the whole list, not a pattern to extend:

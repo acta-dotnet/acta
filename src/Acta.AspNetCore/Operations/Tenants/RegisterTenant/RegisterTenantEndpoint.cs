@@ -28,13 +28,13 @@ internal static class RegisterTenantEndpoint
                         return bodyError;
                     }
 
-                    var tenantKey = request?.TenantKey?.Trim();
-                    if (string.IsNullOrEmpty(tenantKey))
+                    var tenantName = request?.TenantName?.Trim();
+                    if (string.IsNullOrEmpty(tenantName))
                     {
                         return ControlEndpointValidation.Problem(
                             StatusCodes.Status400BadRequest,
                             "Invalid tenant request.",
-                            "tenantKey is required."
+                            "tenantName is required."
                         );
                     }
 
@@ -55,14 +55,14 @@ internal static class RegisterTenantEndpoint
 
                     try
                     {
-                        var canonicalTenantKey = NameSyntax.Canonicalize(
-                            tenantKey,
-                            nameof(tenantKey),
+                        var canonicalTenantName = NameSyntax.Canonicalize(
+                            tenantName,
+                            nameof(tenantName),
                             NameSyntax.ExtendedMaxLength,
                             reserveSystem: true
                         );
                         var response = await operations.Tenants.RegisterAsync(
-                            canonicalTenantKey,
+                            canonicalTenantName,
                             request.DisplayName,
                             request.Description,
                             ct

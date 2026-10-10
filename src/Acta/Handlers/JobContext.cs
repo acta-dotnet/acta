@@ -30,18 +30,18 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Optional tenant this Job is <em>about</em>: the DB-assigned <c>tenants</c> id resolved from the
-    /// enqueue <c>TenantKey</c>, or <c>null</c> when the Job has no tenant (including system Jobs).
+    /// enqueue <c>TenantName</c>, or <c>null</c> when the Job has no tenant (including system Jobs).
     /// Inherited from the parent on child Jobs unless the child supplied its own tenant. Read-only scope
     /// for handler branching; it is not a claim or scheduling key.
     /// </summary>
     public virtual int? TenantId => null;
 
     /// <summary>
-    /// External tenant key of <see cref="TenantId"/> (the opaque enqueue <c>TenantKey</c>), or
+    /// External tenant name of <see cref="TenantId"/> (the enqueue <c>TenantName</c>, a folded kebab-case name), or
     /// <c>null</c> when the Job has no tenant. Resolved once per distinct tenant per process and
     /// cached; the authoritative identity for tenant-aware application services during execution.
     /// </summary>
-    public virtual string? TenantKey => null;
+    public virtual string? TenantName => null;
 
     /// <summary>Descriptor name (kebab).</summary>
     public abstract string JobName { get; }

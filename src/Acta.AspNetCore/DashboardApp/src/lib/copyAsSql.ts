@@ -3,9 +3,10 @@
 // events_view / schedules_view, qualified by the configured schema). Those views are for ad-hoc
 // inspection and learning the schema only, never a stable integration API, so the generated statement
 // is a starting point for a human at a SQL prompt, not a contract. Interpolated string values are
-// single-quote escaped; the code filters go through the decoded text columns (event / actor / reason
-// / status), which is what the kebab-case filter values the dashboard carries actually match (the raw
-// *_code columns are the undecoded numeric codes).
+// single-quote escaped; the code filters go through the decoded text columns (event / actor_kind /
+// reason / status), which is what the kebab-case filter values the dashboard carries actually match (the
+// raw *_code columns are the undecoded numeric codes). Names (namespace, job name, tenant name, lane) are
+// stored lowercase and the API folds their filters, so the copy folds them the same way.
 
 import { refToUuid } from './entityRef.ts';
 
@@ -51,26 +52,29 @@ function text(value: string | null | undefined): string {
   return (value ?? '').trim();
 }
 
+function name(value: string | null | undefined): string {
+  return text(value).toLowerCase();
+}
+
 export interface JobsSqlFilters {
   namespace?: string;
   status?: string;
   jobName?: string;
   correlationKey?: string;
-  tenantKey?: string;
+  tenantName?: string;
   lane?: string;
 }
 
 export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: text(filters.namespace) });
+  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
   // The view's status column is the decoded kebab code (lowercase); the filter carries the display casing.
   if (text(filters.status)) predicates.push({ column: 'status', op: '=', value: text(filters.status).toLowerCase() });
-  if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: text(filters.jobName) });
+  if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: name(filters.jobName) });
   if (text(filters.correlationKey))
     predicates.push({ column: 'correlation_key', op: '=', value: text(filters.correlationKey) });
-  if (text(filters.tenantKey)) predicates.push({ column: 'tenant_key', op: '=', value: text(filters.tenantKey) });
-  // Lane names are stored lowercase and the API folds the filter the same way.
-  if (text(filters.lane)) predicates.push({ column: 'lane', op: '=', value: text(filters.lane).toLowerCase() });
+  if (text(filters.tenantName)) predicates.push({ column: 'tenant_name', op: '=', value: name(filters.tenantName) });
+  if (text(filters.lane)) predicates.push({ column: 'lane', op: '=', value: name(filters.lane) });
   return select(dialect, 'jobs_view', predicates, 'created_at_utc DESC');
 }
 
@@ -87,13 +91,13 @@ export interface EventsSqlFilters {
 
 export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: text(filters.namespace) });
+  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
-  if (text(filters.actorCode)) predicates.push({ column: 'actor', op: '=', value: text(filters.actorCode) });
+  if (text(filters.actorCode)) predicates.push({ column: 'actor_kind', op: '=', value: text(filters.actorCode) });
   if (text(filters.reasonCode)) predicates.push({ column: 'reason', op: '=', value: text(filters.reasonCode) });
   // The acting worker is addressed by its public ref. events_view already joins workers and exposes
   // worker_ref, so this needs no subselect - but note the column stores the ref's canonical uuid text,
-  // which is also what events.actor_key holds for a worker actor: neither ever compares to a wrk_ string.
+  // which is also what events.actor holds for a worker actor: neither ever compares to a wrk_ string.
   // A malformed or absent ref is dropped rather than emitted as a predicate that can never match.
   const workerRef = refToUuid(filters.workerRef);
   if (workerRef !== null) predicates.push({ column: 'worker_ref', op: '=', value: workerRef });
@@ -114,8 +118,8 @@ export interface SchedulesSqlFilters {
 
 export function schedulesListSql(filters: SchedulesSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: text(filters.namespace) });
-  if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: text(filters.jobName) });
+  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
+  if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: name(filters.jobName) });
   // "Live only" is the not-orphaned view the list shows by default; a schedule keeps its origin link.
   if (filters.liveOnly) predicates.push({ raw: 'orphaned_at_utc IS NULL' });
   return select(dialect, 'schedules_view', predicates, 'next_run_at_utc');

@@ -228,7 +228,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             Tags: [new TagInput("demo", "anvil"), new TagInput("run", runId), new TagInput("workload", workload.ToString())],
             // Every sixth of the seeded jobs cycles through a demo tenant so tenant-scoped views have
             // data; the rest stay untenanted so both kinds of jobs exist side by side.
-            TenantKey: index % 6 < AnvilTenants.All.Length ? AnvilTenants.All[index % 6].Key : null
+            TenantName: index % 6 < AnvilTenants.All.Length ? AnvilTenants.All[index % 6].Key : null
         );
 
     private static string FirstLine(string value)

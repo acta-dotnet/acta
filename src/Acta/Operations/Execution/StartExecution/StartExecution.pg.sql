@@ -38,7 +38,7 @@ AS $$
             created_at_utc,
             namespace_id,
             actor_code,
-            actor_key,
+            actor,
             job_id,
             job_ref,
             execution_number,

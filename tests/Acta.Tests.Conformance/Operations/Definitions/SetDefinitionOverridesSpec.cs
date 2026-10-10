@@ -250,7 +250,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
                         JobRetentionSeconds: jobRetentionSeconds
                     ),
                     "out of range",
-                    Actor.ActorKey,
+                    Actor.Actor,
                     ct
                 )
                 .AsTask()
@@ -276,7 +276,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
                 before.Version,
                 new DefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
                 "boundary",
-                Actor.ActorKey,
+                Actor.Actor,
                 ct
             );
 
@@ -330,7 +330,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
         Assert.NotNull(evt);
         Assert.Null(evt!.JobId); // definition-scoped, not a job instance
         Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal("tester", evt.ActorKey);
+        Assert.Equal("tester", evt.Actor);
         Assert.Equal("audited edit", evt.ReasonMessage);
     }
 }

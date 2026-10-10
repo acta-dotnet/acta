@@ -23,10 +23,10 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<TenantEntity?> ReadAsync(string key, CancellationToken ct)
     {
-        return await Db.From<TenantEntity>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
+        return await Db.From<TenantEntity>().Where(t => t.TenantName == key).SingleOrDefaultAsync(ct);
     }
 
-    [Fact(DisplayName = "A new tenant key inserts and returns a positive id with status Active")]
+    [Fact(DisplayName = "A new tenant name inserts and returns a positive id with status Active")]
     public async Task New_tenant_inserts()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -38,11 +38,11 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var id = registered.TenantId;
 
         Assert.True(id > 0);
-        Assert.Equal(canonical, registered.TenantKey); // the response names the tenant by its folded name
+        Assert.Equal(canonical, registered.TenantName); // the response names the tenant by its folded name
         var row = await ReadAsync(canonical, ct); // the stored name is the folded form
         Assert.NotNull(row);
         Assert.Equal(id, row!.Id);
-        Assert.Equal(canonical, row.TenantKey); // the name is lowercased at write
+        Assert.Equal(canonical, row.TenantName); // the name is lowercased at write
         Assert.Equal("Acme Corp", row.Description);
         Assert.Equal(TenantStatusCode.Active, row.Status);
     }
@@ -126,8 +126,8 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal("Acme Corp", row!.DisplayName);
     }
 
-    [Fact(DisplayName = "The bare reserved tenant key 'sys' is rejected")]
-    public async Task Bare_sys_tenant_key_is_rejected()
+    [Fact(DisplayName = "The bare reserved tenant name 'sys' is rejected")]
+    public async Task Bare_sys_tenant_name_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
 

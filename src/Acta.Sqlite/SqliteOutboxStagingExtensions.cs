@@ -66,7 +66,7 @@ public static class SqliteOutboxStagingExtensions
         p.Add(
             new SqliteParameter("@delay_seconds", SqliteType.Integer) { Value = row.DelaySeconds is { } delay ? (long)delay : DBNull.Value }
         );
-        p.Add(new SqliteParameter("@tenant_key", SqliteType.Text) { Value = (object?)row.TenantKey ?? DBNull.Value });
+        p.Add(new SqliteParameter("@tenant_name", SqliteType.Text) { Value = (object?)row.TenantName ?? DBNull.Value });
         p.Add(new SqliteParameter("@meta", SqliteType.Text) { Value = (object?)row.Meta ?? DBNull.Value });
 
         await command.ExecuteNonQueryAsync(cancellationToken);

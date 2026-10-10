@@ -23,7 +23,7 @@
         {#each history as ev (ev.jobEventId)}
           <tr>
             <td><RelativeTime value={ev.createdAtUtc} /></td>
-            <td class="mono">{ev.actorKey ?? ev.actorCode}</td>
+            <td class="mono">{ev.actor ?? ev.actorCode}</td>
             <td class="wrap">{ev.reasonMessage ?? ev.eventCode}</td>
           </tr>
         {/each}

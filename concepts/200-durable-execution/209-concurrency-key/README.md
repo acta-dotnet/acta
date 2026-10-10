@@ -38,7 +38,7 @@ throttles the whole definition. The limit is an operator-overridable policy slot
 express: five a second is not the same shape as five at once. The lab's third handler,
 `ping-endpoint`, declares "5/s". A job that arrives before its turn is booked the next free instant
 and re-arms once at exactly that instant, rather than a crowd re-racing a counter; a turn less than a
-quarter second away is waited out in process instead, with no re-arm. `RateKey` puts several
+quarter second away is waited out in process instead, with no re-arm. `RateName` puts several
 definitions of the namespace on one meter; definitions that share one must declare the same rate.
 
 `ConcurrencyKey` provides admission, not ordering. While workers hold valid leases on all of the key's

@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "enqueue-jobs.tenant-admission-suspension",
     "Tenant suspension is admission control, not work closure",
     Area = "Enqueue",
-    Contract = "Suspension rejects new enqueues naming the tenant key while admitted workflows may expand through inherited children after the suspend commits."
+    Contract = "Suspension rejects new enqueues naming the tenant name while admitted workflows may expand through inherited children after the suspend commits."
 )]
 public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -25,7 +25,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
 
     private ITenants Tenants() => Operations.Tenants;
 
-    private JobEnqueueValues Row(string? tenantKey, long? parentId = null)
+    private JobEnqueueValues Row(string? tenantName, long? parentId = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
@@ -34,7 +34,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
             JobName: "add-numbers",
             Input: payload,
             ParentId: parentId,
-            TenantKey: tenantKey
+            TenantName: tenantName
         );
     }
 
@@ -45,28 +45,28 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         var key = TestKey("adm-inherit");
         var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct)).Jobs;
         await Tenants().SuspendAsync(key, "hold", null, ct);
 
-        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null, parentId: parent[0].JobId)], ct)).Jobs;
+        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: null, parentId: parent[0].JobId)], ct)).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);
         Assert.Equal(tenantId, childJob!.TenantId);
     }
 
-    [Fact(DisplayName = "A child naming the suspended tenant key explicitly is rejected even under a live parent")]
+    [Fact(DisplayName = "A child naming the suspended tenant name explicitly is rejected even under a live parent")]
     public async Task Explicit_child_key_rejects_after_suspension()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-explicit");
         await Tenants().RegisterAsync(key, null, null, ct);
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct)).Jobs;
         await Tenants().SuspendAsync(key, "hold", null, ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key, parentId: parent[0].JobId)], ct)
+            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key, parentId: parent[0].JobId)], ct)
         );
     }
 
@@ -85,7 +85,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
             {
                 try
                 {
-                    await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct);
+                    await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct);
                     return true;
                 }
                 catch (Exception) when (!ct.IsCancellationRequested)
@@ -101,7 +101,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal(landed, stored);
 
         // The commit boundary: any enqueue transaction beginning after the suspend returned rejects.
-        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct));
         Assert.Equal(landed, await Db.From<JobEntity>().Where(j => j.TenantId == tenantId).CountAsync(ct));
     }
 }

@@ -148,7 +148,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
         var key = TestKey("unset-" + status.ToString().ToLowerInvariant());
         await RaiseAsync(TestNamespace, jobId: null, ct, key);
         var row = Assert.Single(
-            await Db.From<AlertEntity>().Where(a => a.NamespaceId == TestNamespaceId && a.DedupeKey == key).ToListAsync(ct)
+            await Db.From<AlertEntity>().Where(a => a.NamespaceId == TestNamespaceId && a.DeduplicationKey == key).ToListAsync(ct)
         );
         Assert.True(
             (

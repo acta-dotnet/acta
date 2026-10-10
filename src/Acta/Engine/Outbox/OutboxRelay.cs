@@ -77,7 +77,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                 : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds;
 
         await outbox.RecordOutboxEventAsync(
-            new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.ActorKey, Evidence(payload.ReasonMessage, affected)),
+            new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.Actor, Evidence(payload.ReasonMessage, affected)),
             ct
         );
         await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Version, ct);

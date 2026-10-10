@@ -36,7 +36,7 @@ internal sealed record RaiseAlertCommand(
         channelName = NameSyntax.Canonicalize(channelName, nameof(channelName), maxLength: ActaTextLimits.AlertChannelName);
         if (deduplicationKey is not null)
         {
-            deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDedupeKey);
+            deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDeduplicationKey);
         }
 
         return new RaiseAlertCommand(
@@ -49,7 +49,7 @@ internal sealed record RaiseAlertCommand(
             message.Truncate(ActaTextLimits.AlertMessage)!,
             channelName,
             deliveryStatus,
-            deduplicationKey.Truncate(ActaTextLimits.AlertDedupeKey),
+            deduplicationKey.Truncate(ActaTextLimits.AlertDeduplicationKey),
             sourceEventId,
             // The candidate public ref is minted here so every caller carries one; the raise consumes it
             // only when the upsert actually inserts, so one incident keeps one ref across every repeat it

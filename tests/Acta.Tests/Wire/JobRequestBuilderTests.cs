@@ -134,26 +134,26 @@ public class JobRequestBuilderTests
     }
 
     [Fact]
-    public void TenantKey_assigns_field()
+    public void TenantName_assigns_field()
     {
-        var built = JobRequestBuilder.Create(Ns, Name).TenantKey("cust-abc").Build();
-        Assert.Equal("cust-abc", built.TenantKey);
+        var built = JobRequestBuilder.Create(Ns, Name).TenantName("cust-abc").Build();
+        Assert.Equal("cust-abc", built.TenantName);
     }
 
     [Fact]
-    public void Default_TenantKey_is_null()
+    public void Default_TenantName_is_null()
     {
         var built = JobRequestBuilder.Create(Ns, Name).Build();
-        Assert.Null(built.TenantKey);
+        Assert.Null(built.TenantName);
     }
 
     [Fact]
-    public void Invalid_TenantKey_throws()
+    public void Invalid_TenantName_throws()
     {
-        Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).TenantKey(null!));
-        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).TenantKey("  "));
+        Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).TenantName(null!));
+        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).TenantName("  "));
         Assert.Throws<ArgumentException>(() =>
-            JobRequestBuilder.Create(Ns, Name).TenantKey(new string('a', NameSyntax.ExtendedMaxLength + 1))
+            JobRequestBuilder.Create(Ns, Name).TenantName(new string('a', NameSyntax.ExtendedMaxLength + 1))
         );
     }
 
@@ -438,7 +438,7 @@ public class JobRequestBuilderTests
             .DeduplicationKey("Order-7")
             .ConcurrencyKey("Mutex-A")
             .Lane("ORDER-1")
-            .TenantKey("ACME")
+            .TenantName("ACME")
             .Build();
 
         Assert.Equal("samples", request.JobNamespace);
@@ -446,7 +446,7 @@ public class JobRequestBuilderTests
         Assert.Equal("Order-7", request.DeduplicationKey);
         Assert.Equal("Mutex-A", request.ConcurrencyKey);
         Assert.Equal("order-1", request.Lane);
-        Assert.Equal("acme", request.TenantKey);
+        Assert.Equal("acme", request.TenantName);
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("SYS.x"));
     }
 

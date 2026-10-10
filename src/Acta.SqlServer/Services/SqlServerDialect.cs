@@ -152,7 +152,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_next_run_at_utc", SqlDbType.DateTime2, row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : DBNull.Value);
         AddScalar(sql, "@p_delay_seconds", SqlDbType.Int, (object?)row.DelaySeconds ?? DBNull.Value);
         AddScalar(sql, "@p_parent_id", SqlDbType.BigInt, (object?)row.ParentId ?? DBNull.Value);
-        AddScalar(sql, "@p_tenant_key", SqlDbType.VarChar, (object?)row.TenantKey ?? DBNull.Value);
+        AddScalar(sql, "@p_tenant_name", SqlDbType.VarChar, (object?)row.TenantName ?? DBNull.Value);
         AddScalar(sql, "@p_tenant_override", SqlDbType.Bit, row.OverrideParentTenant);
         AddScalar(sql, "@p_lane", SqlDbType.VarChar, (object?)row.Lane ?? DBNull.Value);
         sql.Parameters.Add(

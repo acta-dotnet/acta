@@ -24,7 +24,7 @@ internal sealed class RestartJobHandler(
             return new RestartJobResponse(jobId, ControlAction.Rejected, JobStatusCode.Paused, null);
         }
 
-        var input = JobControl.Operator(command.ReasonMessage, command.ActorKey, command.ExpectedVersion);
+        var input = JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion);
         var row = await RestartAsync(jobId, input, nextRun, ct);
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
         return new RestartJobResponse(jobId, row.Action, row.Status, row.Version);

@@ -9,7 +9,7 @@ SELECT TOP (@p_take)
     e.worker_id,
     e.execution_number,
     e.actor_code,
-    e.actor_key,
+    e.actor,
     e.from_status_code AS from_status,
     e.to_status_code AS to_status,
     e.execution_status_code AS execution_status,
@@ -23,7 +23,7 @@ SELECT TOP (@p_take)
     e.detail,
     jd.name AS job_name,
     wkr.worker_ref,
-    t.tenant_key
+    t.tenant_name
 FROM {{schema}}.events e
 JOIN {{schema}}.namespaces ns ON ns.id = e.namespace_id
 LEFT JOIN {{schema}}.jobs rjob ON rjob.id = e.lineage_root_id
@@ -37,7 +37,7 @@ WHERE
     AND (@p_event_code IS NULL OR e.event_code = @p_event_code)
     AND (@p_definition_id IS NULL OR e.definition_id = @p_definition_id)
     AND (@p_tenant_id IS NULL OR e.tenant_id = @p_tenant_id)
-    AND (@p_tenant_key IS NULL OR t.tenant_key = @p_tenant_key)
+    AND (@p_tenant_name IS NULL OR t.tenant_name = @p_tenant_name)
     AND (@p_worker_id IS NULL OR e.worker_id = @p_worker_id)
     AND (@p_actor_code IS NULL OR e.actor_code = @p_actor_code)
     AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)
@@ -77,7 +77,7 @@ SELECT
             AND (@p_event_code IS NULL OR e.event_code = @p_event_code)
             AND (@p_definition_id IS NULL OR e.definition_id = @p_definition_id)
             AND (@p_tenant_id IS NULL OR e.tenant_id = @p_tenant_id)
-            AND (@p_tenant_key IS NULL OR t.tenant_key = @p_tenant_key)
+            AND (@p_tenant_name IS NULL OR t.tenant_name = @p_tenant_name)
             AND (@p_worker_id IS NULL OR e.worker_id = @p_worker_id)
             AND (@p_actor_code IS NULL OR e.actor_code = @p_actor_code)
             AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)

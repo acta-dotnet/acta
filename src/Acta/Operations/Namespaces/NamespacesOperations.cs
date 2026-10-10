@@ -18,16 +18,16 @@ internal sealed class NamespacesOperations(
     public ValueTask<SuspendNamespaceResponse> SuspendAsync(
         string name,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => suspendNamespace.HandleAsync(new SuspendNamespaceCommand(name, reasonMessage, actorKey), ct);
+    ) => suspendNamespace.HandleAsync(new SuspendNamespaceCommand(name, reasonMessage, actor), ct);
 
     public ValueTask<ResumeNamespaceResponse> ResumeAsync(
         string name,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => resumeNamespace.HandleAsync(new ResumeNamespaceCommand(name, reasonMessage, actorKey), ct);
+    ) => resumeNamespace.HandleAsync(new ResumeNamespaceCommand(name, reasonMessage, actor), ct);
 
     public ValueTask<UpdateNamespaceResponse> UpdateAsync(
         string name,
@@ -35,8 +35,7 @@ internal sealed class NamespacesOperations(
         string? ownerTeam,
         string? description,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) =>
-        updateNamespace.HandleAsync(new UpdateNamespaceCommand(name, expectedVersion, ownerTeam, description, reasonMessage, actorKey), ct);
+    ) => updateNamespace.HandleAsync(new UpdateNamespaceCommand(name, expectedVersion, ownerTeam, description, reasonMessage, actor), ct);
 }

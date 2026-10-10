@@ -87,7 +87,7 @@ internal static class AlertsEndpoints
             "Invalid alert command.",
             ControlStatus.Alert<AcknowledgeAlertResponse>(),
             RouteKeys.Alert,
-            static (call, alertRef) => call.Operations.Alerts.AcknowledgeAsync(alertRef, call.ReasonMessage, call.ActorKey, call.Ct)
+            static (call, alertRef) => call.Operations.Alerts.AcknowledgeAsync(alertRef, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/alerts/{alertRef}/resolve",
@@ -97,7 +97,7 @@ internal static class AlertsEndpoints
             "Invalid alert command.",
             ControlStatus.Alert<ResolveAlertResponse>(),
             RouteKeys.Alert,
-            static (call, alertRef) => call.Operations.Alerts.ResolveAsync(alertRef, call.ReasonMessage, call.ActorKey, call.Ct)
+            static (call, alertRef) => call.Operations.Alerts.ResolveAsync(alertRef, call.ReasonMessage, call.Actor, call.Ct)
         );
     }
 }

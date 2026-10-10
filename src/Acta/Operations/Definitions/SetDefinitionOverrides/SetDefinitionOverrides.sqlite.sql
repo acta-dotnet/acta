@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._set_job_def_overrides;
 
 CREATE TEMP TABLE _set_job_def_overrides AS
-SELECT jd.id, jd.namespace_id, jd.version, jd.rate_limit, LOWER(COALESCE(jd.rate_key, jd.name)) AS meter
+SELECT jd.id, jd.namespace_id, jd.version, jd.rate_limit, LOWER(COALESCE(jd.rate_name, jd.name)) AS meter
 FROM {{schema}}.definitions jd
 WHERE jd.id = @p_id;
 
@@ -10,7 +10,7 @@ INSERT INTO {{schema}}.events (
     created_at_utc,
     namespace_id,
     actor_code,
-    actor_key,
+    actor,
     job_id,
     job_ref,
     execution_number,
@@ -28,7 +28,7 @@ SELECT
     {{now}},
     s.namespace_id,
     @p_actor_code,
-    @p_actor_key,
+    @p_actor,
     NULL,
     NULL,
     NULL,
@@ -77,7 +77,7 @@ WHERE
     id <> @p_id
     AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
     AND namespace_id = (SELECT s.namespace_id FROM temp._set_job_def_overrides s)
-    AND LOWER(COALESCE(rate_key, name)) = (
+    AND LOWER(COALESCE(rate_name, name)) = (
         SELECT s.meter FROM temp._set_job_def_overrides s WHERE s.version = @p_version
     );
 

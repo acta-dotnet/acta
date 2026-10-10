@@ -48,19 +48,19 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal([new GetTagsItem("flagged"), new GetTagsItem("region", "EU West / Ljubljana")], tags.Items);
     }
 
-    [Fact(DisplayName = "A tenant key or job name addressed in another case reads the same target")]
+    [Fact(DisplayName = "A tenant name or job name addressed in another case reads the same target")]
     public async Task Target_addresses_fold_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var tenantKey = TestKey("get-case");
-        await Services.GetRequiredService<ITenants>().RegisterAsync(tenantKey, null, null, ct);
-        await Tags.UpsertAsync(TagTarget.ForTenant(tenantKey), new TagInput("tier", "gold"), ct: ct);
+        var tenantName = TestKey("get-case");
+        await Services.GetRequiredService<ITenants>().RegisterAsync(tenantName, null, null, ct);
+        await Tags.UpsertAsync(TagTarget.ForTenant(tenantName), new TagInput("tier", "gold"), ct: ct);
 
         var jobName = TestKey("get-case-job");
         await Seeder.SeedJobDefinitionAsync(TestNamespaceId, name: jobName, ct: ct);
         await Tags.UpsertAsync(TagTarget.ForDefinition(TestNamespace, jobName), new TagInput("owner", "billing"), ct: ct);
 
-        var tenant = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(TagTarget.ForTenant(tenantKey.ToUpperInvariant()), ct));
+        var tenant = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(TagTarget.ForTenant(tenantName.ToUpperInvariant()), ct));
         Assert.Equal([new GetTagsItem("tier", "gold")], tenant.Items);
         var definition = Assert.IsType<GetTagsResponse>(
             await Tags.GetAsync(TagTarget.ForDefinition(TestNamespace, jobName.ToUpperInvariant()), ct)

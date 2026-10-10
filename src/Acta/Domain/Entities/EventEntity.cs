@@ -74,8 +74,8 @@ internal sealed class EventEntity : IEntity<long>
     /// authenticated principal's name, and an audit trail that folds two names differing only by a
     /// diacritic onto one spelling cannot say who acted.
     /// </summary>
-    [DbColumn("actor_key", DbKind.UnicodeString, Size = 128)]
-    public string? ActorKey { get; init; }
+    [DbColumn("actor", DbKind.UnicodeString, Size = 128)]
+    public string? Actor { get; init; }
 
     // No enforced FKs: audit outlives Job and JobAlert retention, so references here are logical only.
 

@@ -24,7 +24,7 @@ internal sealed class ResumeJobHandler(
             return new ResumeJobResponse(jobId, ControlAction.Rejected, JobStatusCode.Paused, null);
         }
 
-        var input = JobControl.Operator(command.ReasonMessage, command.ActorKey, command.ExpectedVersion);
+        var input = JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion);
         var row = await ResumeAsync(jobId, input, nextRun, ct);
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
         return new ResumeJobResponse(jobId, row.Action, row.Status, row.Version);

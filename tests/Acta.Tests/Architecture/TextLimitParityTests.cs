@@ -7,9 +7,7 @@ public sealed class TextLimitParityTests
     /// <summary>
     /// Column names that repeat across tables while meaning genuinely different things, each with the
     /// reason it is exempt from the one-width-per-concept rule. Keep this list short: a new entry is
-    /// usually a sign the column should be renamed instead, which is what happened to the alert dedupe
-    /// key (<c>alerts.dedupe_key</c>, Acta-composed, 512) once it collided with the caller-supplied
-    /// <c>jobs.deduplication_key</c> (128).
+    /// usually a sign the column should be renamed instead.
     /// </summary>
     private static readonly HashSet<string> DistinctConceptsSharingAName = [];
 
@@ -37,11 +35,11 @@ public sealed class TextLimitParityTests
         Assert.Equal(ActaSchema.Tenant.Description.Size, TextLimits.TenantDescription);
         Assert.Equal(ActaSchema.Namespace.OwnerTeam.Size, TextLimits.NamespaceOwnerTeam);
         Assert.Equal(ActaSchema.Namespace.Description.Size, TextLimits.NamespaceDescription);
-        Assert.Equal(ActaSchema.Event.ActorKey.Size, ActaTextLimits.ActorKey);
+        Assert.Equal(ActaSchema.Event.Actor.Size, ActaTextLimits.Actor);
         Assert.Equal(ActaSchema.Event.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
         Assert.Equal(ActaSchema.Step.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
         Assert.Equal(ActaSchema.Alert.ChannelName.Size, ActaTextLimits.AlertChannelName);
-        Assert.Equal(ActaSchema.Alert.DedupeKey.Size, ActaTextLimits.AlertDedupeKey);
+        Assert.Equal(ActaSchema.Alert.DeduplicationKey.Size, ActaTextLimits.AlertDeduplicationKey);
         Assert.Equal(ActaSchema.Alert.Title.Size, ActaTextLimits.AlertTitle);
         Assert.Equal(ActaSchema.Alert.Message.Size, ActaTextLimits.AlertMessage);
         Assert.Equal(ActaSchema.Definition.Backoff.Size, ActaTextLimits.DefinitionBackoff);

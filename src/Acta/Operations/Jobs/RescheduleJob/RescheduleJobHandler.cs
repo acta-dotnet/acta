@@ -11,7 +11,7 @@ internal sealed class RescheduleJobHandler(GetJobIdHandler getJobId, IDbSession 
             return new RescheduleJobResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var input = JobControl.Operator(command.ReasonMessage, command.ActorKey, command.ExpectedVersion);
+        var input = JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("RescheduleJob"),
             cmd =>

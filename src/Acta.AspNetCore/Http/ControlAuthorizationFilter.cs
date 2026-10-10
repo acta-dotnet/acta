@@ -58,7 +58,7 @@ internal static class ControlAuthorizationFilter
 
     /// <summary>
     /// "jobs" is dropped as the implicit default entity (/jobs/{jobRef}/cancel -&gt; "cancel"); other
-    /// families keep their entity prefix (/tenants/{key}/suspend -&gt; "tenants.suspend"). Route parameters
+    /// families keep their entity prefix (/tenants/{tenantName}/suspend -&gt; "tenants.suspend"). Route parameters
     /// are skipped, and where one route carries two mutations the method names which: a tag write is
     /// ".add" or ".remove", a PATCH is ".update", and a POST to a bare entity ".register". A pattern with
     /// no recognized entity or no literal segments left falls back to the HTTP method.

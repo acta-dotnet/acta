@@ -272,7 +272,7 @@ internal sealed class WorkerExecutor(
     }
 
     /// <summary>
-    /// What an attempt needs before its handler runs: the recurring fire plan and the tenant key, each read repeated
+    /// What an attempt needs before its handler runs: the recurring fire plan and the tenant name, each read repeated
     /// like the writes on the host token, then the context, published on the attempt scope so DI-resolved handlers
     /// (e.g. MediatR) inject it from the same scope the handler resolves from.
     /// </summary>
@@ -290,12 +290,12 @@ internal sealed class WorkerExecutor(
         var fire = await PlanFireAsync(job, descriptor, ct);
         var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
 
-        // Resolve the external tenant key off the process-lifetime cache (one point read per
+        // Resolve the external tenant name off the process-lifetime cache (one point read per
         // distinct tenant); the claim projection itself stays join-free.
-        var tenantKey = job.TenantId is { } jobTenantId
+        var tenantName = job.TenantId is { } jobTenantId
             ? await WorkerFinalizer.RepeatAsync(
                 async token =>
-                    (await _rootServices.GetRequiredService<TenantsOperations>().GetTenantKeyAsync(jobTenantId, token))?.TenantKey,
+                    (await _rootServices.GetRequiredService<TenantsOperations>().GetTenantNameAsync(jobTenantId, token))?.TenantName,
                 _log,
                 job.JobId,
                 ct,
@@ -341,7 +341,7 @@ internal sealed class WorkerExecutor(
             _log,
             metrics,
             attemptServices.GetService<IJobs>(),
-            tenantKey,
+            tenantName,
             workerId,
             clock
         );

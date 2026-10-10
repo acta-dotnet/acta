@@ -121,10 +121,10 @@ internal static class UpdateJobInputEndpoint
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
-                    var actorKey = http.User?.Identity?.Name;
+                    var actor = http.User?.Identity?.Name;
                     try
                     {
-                        var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actorKey, ct);
+                        var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actor, ct);
                         return RouteTable.Control(result, status);
                     }
                     catch (PayloadTooLargeException ex)

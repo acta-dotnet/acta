@@ -36,9 +36,9 @@ public sealed class DeduplicationKeyTests
     [InlineData("sys.acme", "invoice-123")]
     [InlineData("bad tenant", "invoice-123")]
     [InlineData("acme", "bad key")]
-    public void ForTenant_rejects_reserved_or_invalid_components(string tenantKey, string businessKey)
+    public void ForTenant_rejects_reserved_or_invalid_components(string tenantName, string businessKey)
     {
-        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForTenant(tenantKey, businessKey));
+        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForTenant(tenantName, businessKey));
     }
 
     [Fact]

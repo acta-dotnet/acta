@@ -65,11 +65,11 @@ internal static class RaiseSignalEndpoint
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the
                     // body; the verb stamps actor = Operator.
-                    var actorKey = http.User?.Identity?.Name;
+                    var actor = http.User?.Identity?.Name;
 
                     try
                     {
-                        var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), signalName, payload, actorKey, ct);
+                        var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), signalName, payload, actor, ct);
                         return RouteTable.Control(result, ControlStatus.Job<RaiseSignalResponse>());
                     }
                     catch (PayloadTooLargeException ex)

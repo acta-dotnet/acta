@@ -90,13 +90,13 @@ const ns = (namespace?: string | null) => namespace || undefined;
 
 export const routes = {
   overview: (options: { namespace?: string | null } = {}) => href('', { ns: ns(options.namespace) }),
-  jobs: (options: { namespace?: string | null; status?: string | null; jobName?: string | null; correlationKey?: string | null; tenantKey?: string | null; lane?: string | null; pageSize?: number | string | null } = {}) =>
-    href('jobs', { ns: ns(options.namespace), status: options.status, jobName: options.jobName, correlationKey: options.correlationKey, tenantKey: options.tenantKey, lane: options.lane, pageSize: options.pageSize }),
+  jobs: (options: { namespace?: string | null; status?: string | null; jobName?: string | null; correlationKey?: string | null; tenantName?: string | null; lane?: string | null; pageSize?: number | string | null } = {}) =>
+    href('jobs', { ns: ns(options.namespace), status: options.status, jobName: options.jobName, correlationKey: options.correlationKey, tenantName: options.tenantName, lane: options.lane, pageSize: options.pageSize }),
   job: (jobRef: string, options: { namespace?: string | null; tab?: string | null; execution?: number | string | null } = {}) =>
     href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace), tab: options.tab, execution: options.execution }),
   enqueue: (options: { namespace?: string | null; jobName?: string | null; from?: string | null } = {}) =>
     href('enqueue', { ns: ns(options.namespace), jobName: options.jobName, from: options.from }),
-  events: (options: { namespace?: string | null; tenantKey?: string | null } = {}) => href('events', { ns: ns(options.namespace), tenantKey: options.tenantKey }),
+  events: (options: { namespace?: string | null; tenantName?: string | null } = {}) => href('events', { ns: ns(options.namespace), tenantName: options.tenantName }),
   workers: (options: { namespace?: string | null; status?: string | null } = {}) => href('workers', { ns: ns(options.namespace), status: options.status }),
   worker: (workerRef: string, options: { namespace?: string | null } = {}) =>
     href(`workers/${encodeURIComponent(workerRef)}`, { ns: ns(options.namespace) }),
@@ -111,6 +111,6 @@ export const routes = {
   namespaces: (options: { namespace?: string | null } = {}) => href('namespaces', { ns: ns(options.namespace) }),
   namespace: (name: string, options: { namespace?: string | null } = {}) => href(`namespaces/${encodeURIComponent(name)}`, { ns: ns(options.namespace) }),
   tenants: (options: { namespace?: string | null } = {}) => href('tenants', { ns: ns(options.namespace) }),
-  tenant: (tenantKey: string, options: { namespace?: string | null } = {}) => href(`tenants/${encodeURIComponent(tenantKey)}`, { ns: ns(options.namespace) }),
+  tenant: (tenantName: string, options: { namespace?: string | null } = {}) => href(`tenants/${encodeURIComponent(tenantName)}`, { ns: ns(options.namespace) }),
   newTenant: (options: { namespace?: string | null } = {}) => href('tenants/new', { ns: ns(options.namespace) })
 };

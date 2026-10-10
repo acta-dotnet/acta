@@ -23,7 +23,7 @@ SELECT
     d.rate_limit_effective AS rate_limit,
     d.rate_limit AS rate_limit_default,
     d.rate_limit_override,
-    d.rate_key,
+    d.rate_name,
     d.backoff_effective AS backoff,
     d.backoff AS backoff_default,
     d.backoff_override,

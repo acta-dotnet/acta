@@ -8,7 +8,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.raise_alert(
     p_message VARCHAR,
     p_channel_name VARCHAR,
     p_delivery_status_code SMALLINT,
-    p_dedupe_key VARCHAR,
+    p_deduplication_key VARCHAR,
     p_source_event_id BIGINT,
     p_alert_ref UUID
 )
@@ -39,7 +39,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF p_dedupe_key IS NULL THEN
+    IF p_deduplication_key IS NULL THEN
         INSERT INTO {{schema}}.alerts (
             namespace_id,
             alert_ref,
@@ -51,7 +51,7 @@ BEGIN
             title,
             message,
             channel_name,
-            dedupe_key,
+            deduplication_key,
             occurrence_count,
             last_projected_event_id,
             delivery_status_code,
@@ -82,7 +82,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- One OPEN row per (namespace_id, dedupe_key) - the incident. INSERT ... SELECT rather than VALUES
+    -- One OPEN row per (namespace_id, deduplication_key) - the incident. INSERT ... SELECT rather than VALUES
     -- so the insert arm can carry the ghost guard below.
     INSERT INTO {{schema}}.alerts (
         namespace_id,
@@ -95,7 +95,7 @@ BEGIN
         title,
         message,
         channel_name,
-        dedupe_key,
+        deduplication_key,
         occurrence_count,
         last_projected_event_id,
         delivery_status_code,
@@ -114,7 +114,7 @@ BEGIN
         p_title,
         p_message,
         p_channel_name,
-        p_dedupe_key,
+        p_deduplication_key,
         1,
         p_source_event_id,
         p_delivery_status_code,
@@ -130,12 +130,12 @@ BEGIN
         FROM {{schema}}.alerts g
         WHERE
             g.namespace_id = v_ns
-            AND g.dedupe_key = p_dedupe_key
+            AND g.deduplication_key = p_deduplication_key
             AND g.last_projected_event_id >= p_source_event_id
     )
     -- The conflict target is the filtered unique index, so a resolved row is invisible to it and the
     -- next failure opens a fresh incident instead of re-opening the closed one.
-    ON CONFLICT (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL
+    ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL
     DO UPDATE SET
         job_id = EXCLUDED.job_id,
         job_ref = EXCLUDED.job_ref,
@@ -164,7 +164,7 @@ BEGIN
         FROM {{schema}}.alerts a
         WHERE
             a.namespace_id = v_ns
-            AND a.dedupe_key = p_dedupe_key
+            AND a.deduplication_key = p_deduplication_key
         ORDER BY a.id DESC
         LIMIT 1;
     END IF;

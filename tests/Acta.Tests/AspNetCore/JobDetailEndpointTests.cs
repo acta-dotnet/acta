@@ -94,11 +94,11 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantKey").GetString());
+        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantName").GetString());
     }
 
     [Fact]
-    public async Task Detail_for_a_tenant_less_job_emits_no_tenant_key()
+    public async Task Detail_for_a_tenant_less_job_emits_no_tenant_name()
     {
         var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
         await using var host = app;
@@ -108,11 +108,11 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(doc.RootElement.TryGetProperty("tenantKey", out _));
+        Assert.False(doc.RootElement.TryGetProperty("tenantName", out _));
     }
 
     [Fact]
-    public async Task Detail_for_an_unresolvable_tenant_id_emits_no_tenant_key()
+    public async Task Detail_for_an_unresolvable_tenant_id_emits_no_tenant_name()
     {
         // A tenant id whose row is gone projects a null key, never an error, so the field is absent.
         var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations { Jobs = { SnapshotTenantId = 999 } });
@@ -123,11 +123,11 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(doc.RootElement.TryGetProperty("tenantKey", out _));
+        Assert.False(doc.RootElement.TryGetProperty("tenantName", out _));
     }
 
     [Fact]
-    public async Task Detail_with_an_unavailable_tenants_surface_still_carries_the_tenant_key()
+    public async Task Detail_with_an_unavailable_tenants_surface_still_carries_the_tenant_name()
     {
         // The key rides the snapshot projection, so a throwing tenants surface no longer affects it.
         var fakes = new FakeOperations { Jobs = { SnapshotTenantId = 1 } };
@@ -140,7 +140,7 @@ public sealed class JobDetailEndpointTests
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantKey").GetString());
+        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantName").GetString());
     }
 
     [Fact]

@@ -42,7 +42,7 @@ public static class PostgresOutboxDdl
                 priority_code smallint NULL,
                 next_run_at_utc timestamptz NULL,
                 delay_seconds integer NULL,
-                tenant_key varchar(128) NULL,
+                tenant_name varchar(128) NULL,
                 meta jsonb NULL,
                 last_error varchar(512) NULL,
                 created_at_utc timestamptz NOT NULL DEFAULT now(),

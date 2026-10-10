@@ -60,7 +60,7 @@ public class CliOutputTests
             JobName: "send-email",
             DefinitionId: 11,
             TenantId: null,
-            TenantKey: null,
+            TenantName: null,
             Status: JobStatusCode.Ready,
             Priority: JobPriorityCode.Normal,
             Lane: null,
@@ -98,7 +98,7 @@ public class CliOutputTests
 
         var json = new StringWriter();
         CliOutput.WriteSnapshot(json, withTenant, json: true);
-        Assert.Contains("\"tenantKey\":\"tenant-42\"", json.ToString());
+        Assert.Contains("\"tenantName\":\"tenant-42\"", json.ToString());
         Assert.DoesNotContain("\"tenantId\"", json.ToString());
 
         var noTenant = Snapshot(JobStatusCode.Ready, tenantId: null);
@@ -108,7 +108,7 @@ public class CliOutputTests
 
         var jsonNull = new StringWriter();
         CliOutput.WriteSnapshot(jsonNull, noTenant, json: true);
-        Assert.Contains("\"tenantKey\":null", jsonNull.ToString());
+        Assert.Contains("\"tenantName\":null", jsonNull.ToString());
     }
 
     private static GetJobResponse Snapshot(JobStatusCode status, int? tenantId) =>
@@ -125,7 +125,7 @@ public class CliOutputTests
             JobName: "send-email",
             DefinitionId: 11,
             TenantId: tenantId,
-            TenantKey: tenantId is null ? null : "tenant-" + tenantId,
+            TenantName: tenantId is null ? null : "tenant-" + tenantId,
             Status: status,
             Priority: JobPriorityCode.Normal,
             Lane: null,
@@ -180,7 +180,7 @@ public class CliOutputTests
             WorkerId: 3,
             ExecutionNumber: 1,
             ActorCode: ActorCode.Worker,
-            ActorKey: null,
+            Actor: null,
             FromStatus: from,
             ToStatus: to,
             ExecutionStatus: null,
@@ -189,7 +189,7 @@ public class CliOutputTests
             ReasonMessage: message,
             DetailText: detail,
             WorkerRef: WorkerRef.New(),
-            TenantKey: null
+            TenantName: null
         );
 
     [Fact]
@@ -279,7 +279,7 @@ public class CliOutputTests
             JobName: "send-email",
             DefinitionId: 11,
             TenantId: null,
-            TenantKey: null,
+            TenantName: null,
             Status: JobStatusCode.Failed,
             Priority: JobPriorityCode.Normal,
             Lane: null,
@@ -496,7 +496,7 @@ public class CliOutputTests
     private static readonly WorkerRef SentinelWorkerRef = new(new Guid("019826f0-0000-7000-8000-0000000000aa"));
     private static readonly JobRef SentinelLineageRootJobRef = new(new Guid("019826f0-0000-7000-8000-0000000000ab"));
     private static readonly JobRef SentinelParentJobRef = new(new Guid("019826f0-0000-7000-8000-0000000000ac"));
-    private const string SentinelTenantKey = "acme-eu";
+    private const string SentinelTenantName = "acme-eu";
     private const string SentinelCursor = "cursor-token";
 
     // The writer surface is walked rather than trusted: a Write* method added tomorrow lands in none of
@@ -581,11 +581,11 @@ public class CliOutputTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Snapshot_output_carries_the_ref_and_tenant_key_but_no_internal_id(bool json)
+    public void Snapshot_output_carries_the_ref_and_tenant_name_but_no_internal_id(bool json)
     {
         var w = new StringWriter();
         CliOutput.WriteSnapshot(w, SentinelSnapshot(), json);
-        AssertRefsOnly(w.ToString(), SampleJobRef.ToString(), SentinelTenantKey);
+        AssertRefsOnly(w.ToString(), SampleJobRef.ToString(), SentinelTenantName);
     }
 
     [Theory]
@@ -632,7 +632,7 @@ public class CliOutputTests
             JobName: "send-email",
             DefinitionId: SentinelDefinitionId,
             TenantId: SentinelTenantId,
-            TenantKey: SentinelTenantKey,
+            TenantName: SentinelTenantName,
             Status: JobStatusCode.Failed,
             Priority: JobPriorityCode.Normal,
             Lane: null,
@@ -670,7 +670,7 @@ public class CliOutputTests
                     WorkerId: SentinelWorkerId,
                     ExecutionNumber: 2,
                     ActorCode: ActorCode.Worker,
-                    ActorKey: SentinelWorkerRef.ToString(),
+                    Actor: SentinelWorkerRef.ToString(),
                     FromStatus: JobStatusCode.Executing,
                     ToStatus: JobStatusCode.Failed,
                     ExecutionStatus: null,
@@ -679,7 +679,7 @@ public class CliOutputTests
                     ReasonMessage: "boom",
                     DetailText: null,
                     WorkerRef: SentinelWorkerRef,
-                    TenantKey: SentinelTenantKey
+                    TenantName: SentinelTenantName
                 ),
             ],
             NextCursor: SentinelCursor,

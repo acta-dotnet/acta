@@ -21,7 +21,7 @@ public sealed record GetJobResponse(
     [property: JsonIgnore] long? ParentJobId,
     JobRef? ParentJobRef,
     [property: JsonIgnore] int? TenantId,
-    string? TenantKey,
+    string? TenantName,
     string? DeduplicationKey,
     string? CorrelationKey,
     string? ConcurrencyKey,

@@ -18,9 +18,9 @@ internal sealed record GetJobDetailResponse(
     IReadOnlyList<ListSchedulesItem> Schedules,
     // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
     long? SchedulesTotal,
-    // Echo of the job row's tenant key at the top level so the summary link needs no nested dig.
+    // Echo of the job row's tenant name at the top level so the summary link needs no nested dig.
     // Absent when the job has no tenant.
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantKey,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantName,
     // Effective retry budget from the definition so the summary can render "n of m consecutive
     // failures" without a second read. Absent when the definition row is gone.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxAttemptsEffective,
@@ -84,7 +84,7 @@ internal sealed record GetJobDetailResponse(
             lineage,
             schedules.Items,
             schedules.TotalCount,
-            job.TenantKey,
+            job.TenantName,
             definition?.MaxAttemptsEffective,
             workers?.Items,
             workers?.TotalCount

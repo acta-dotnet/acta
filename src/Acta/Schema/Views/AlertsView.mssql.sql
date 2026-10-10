@@ -17,7 +17,7 @@ SELECT
     a.title,
     a.message,
     a.channel_name,
-    a.dedupe_key AS deduplication_key,
+    a.deduplication_key,
     a.occurrence_count,
     a.resolved_at_utc,
     a.retry_count,

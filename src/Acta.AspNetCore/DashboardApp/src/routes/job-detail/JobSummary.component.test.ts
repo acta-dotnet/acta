@@ -13,7 +13,7 @@ function job(overrides: Partial<JobDetail>): JobDetail {
     jobName: 'send-invoice',
     lineageRootJobRef: null,
     parentJobRef: null,
-    tenantKey: null,
+    tenantName: null,
     deduplicationKey: null,
     correlationKey: null,
     concurrencyKey: null,

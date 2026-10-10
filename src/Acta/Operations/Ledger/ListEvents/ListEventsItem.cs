@@ -5,8 +5,8 @@ namespace Acta;
 /// <summary>
 /// One audit event row in a <see cref="ILedger.ListEventsAsync"/> page. JSON carries the public refs and hides the
 /// numeric ids. Events outlive their job: <c>JobRef</c> is denormalized on the event row and survives the purge, as
-/// does <c>JobName</c>, resolved from the catalog; <c>LineageRootJobRef</c>, <c>TenantKey</c>, and <c>WorkerRef</c> are
-/// null when absent or purged, and a worker actor's <c>ActorKey</c> is its public ref. <c>DetailText</c> is the
+/// does <c>JobName</c>, resolved from the catalog; <c>LineageRootJobRef</c>, <c>TenantName</c>, and <c>WorkerRef</c> are
+/// null when absent or purged, and a worker actor's <c>Actor</c> is its public ref. <c>DetailText</c> is the
 /// free-form or structured detail decoded to text, null when the event carries none or a non-text format.
 /// </summary>
 public sealed record ListEventsItem(
@@ -24,7 +24,7 @@ public sealed record ListEventsItem(
     [property: JsonIgnore] int? WorkerId,
     int? ExecutionNumber,
     ActorCode ActorCode,
-    string? ActorKey,
+    string? Actor,
     JobStatusCode? FromStatus,
     JobStatusCode? ToStatus,
     ExecutionStatusCode? ExecutionStatus,
@@ -33,5 +33,5 @@ public sealed record ListEventsItem(
     string? ReasonMessage,
     string? DetailText,
     WorkerRef? WorkerRef,
-    string? TenantKey
+    string? TenantName
 );

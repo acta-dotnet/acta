@@ -17,8 +17,8 @@ public sealed class TagTarget
     internal TagScopeCode ScopeCode { get; }
     internal object Lookup { get; }
 
-    public static TagTarget ForTenant(string tenantKey) =>
-        new(TagScopeCode.Tenant, NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength));
+    public static TagTarget ForTenant(string tenantName) =>
+        new(TagScopeCode.Tenant, NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength));
 
     public static TagTarget ForNamespace(string namespaceName) =>
         new(TagScopeCode.Namespace, NameSyntax.Canonicalize(namespaceName, nameof(namespaceName)));

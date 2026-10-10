@@ -15,7 +15,7 @@ INSERT INTO {{schema}}.events (
     event_code,
     namespace_id,
     actor_code,
-    actor_key,
+    actor,
     job_id,
     job_ref,
     execution_number,

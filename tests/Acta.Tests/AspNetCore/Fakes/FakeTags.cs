@@ -40,23 +40,23 @@ internal sealed class FakeTags : ITags
         TagTarget target,
         TagInput tag,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Upsert(target, tag, reasonMessage, actorKey, ct);
+    ) => Upsert(target, tag, reasonMessage, actor, ct);
 
     ValueTask<RemoveTagsResponse> ITags.RemoveAsync(
         TagTarget target,
         string name,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Remove(target, name, reasonMessage, actorKey, ct);
+    ) => Remove(target, name, reasonMessage, actor, ct);
 
     ValueTask<ReplaceTagsResponse> ITags.ReplaceAsync(
         TagTarget target,
         IReadOnlyList<TagInput> tags,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
     ) => throw new NotSupportedException();
 }

@@ -72,7 +72,7 @@ public sealed record JobDescriptor(
     /// Meter this definition's <see cref="RateLimit"/> spends from; null means the definition name.
     /// Code-owned, so unlike the rate it is never overlaid from an operator override.
     /// </summary>
-    public string? RateKey { get; init; }
+    public string? RateName { get; init; }
 
     /// <summary>
     /// Default lane for this definition's jobs, from <c>[Job(Lane = ...)]</c>; null means unlaned.

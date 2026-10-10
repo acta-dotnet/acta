@@ -73,7 +73,7 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Cancel_records_the_authenticated_principal_as_actor_key()
+    public async Task Cancel_records_the_authenticated_principal_as_actor()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAuthenticatedAsync(
@@ -87,7 +87,7 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var call = Assert.Single(fakes.Jobs.ControlCalls);
-        Assert.Equal("test-operator", call.ActorKey);
+        Assert.Equal("test-operator", call.Actor);
     }
 
     [Fact]
@@ -969,7 +969,7 @@ public sealed class ControlEndpointTests
             PostTenant(
                 new
                 {
-                    tenantKey = "Cust-001 ",
+                    tenantName = "Cust-001 ",
                     displayName = "Acme Corp",
                     description = "Acme",
                 }
@@ -981,7 +981,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.DoesNotContain("\"tenantId\"", body);
-        Assert.Contains("\"tenantKey\":\"cust-001\"", body);
+        Assert.Contains("\"tenantName\":\"cust-001\"", body);
         var call = Assert.Single(fakes.Tenants.RegisterCalls);
         Assert.Equal(("cust-001", "Acme Corp", "Acme"), call);
     }
@@ -1005,7 +1005,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(PostTenant(new { tenantKey = "bad key" }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(PostTenant(new { tenantName = "bad key" }), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -1018,7 +1018,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            PostTenant(new { tenantKey = "cust-001" }, confirm: false),
+            PostTenant(new { tenantName = "cust-001" }, confirm: false),
             TestContext.Current.CancellationToken
         );
 
@@ -1033,7 +1033,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
-        var response = await client.SendAsync(PostTenant(new { tenantKey = "cust-001" }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(PostTenant(new { tenantName = "cust-001" }), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Empty(fakes.Tenants.RegisterCalls);

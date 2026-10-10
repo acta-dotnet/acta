@@ -22,7 +22,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             rows.Add(BuildRow(descriptor, command.NamespaceId));
         }
 
-        ValidateSharedRateKeys(rows, command.NamespaceId);
+        ValidateSharedRateNames(rows, command.NamespaceId);
 
         var storedByName = new Dictionary<string, StoredDefinitionContract>(command.Stored.Count, StringComparer.Ordinal);
         foreach (var s in command.Stored)
@@ -96,14 +96,14 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
                 continue;
             }
 
-            var meter = JobDefinitionRegistration.EffectiveRateKey(row.RateKey, row.Name);
+            var meter = JobDefinitionRegistration.EffectiveRateName(row.RateName, row.Name);
             foreach (var stored in storedByName.Values)
             {
                 if (
                     stored.Effective.RateLimit is not { } effective
                     || string.Equals(effective, declared, StringComparison.Ordinal)
                     || !string.Equals(
-                        JobDefinitionRegistration.EffectiveRateKey(stored.Effective.RateKey, stored.Name),
+                        JobDefinitionRegistration.EffectiveRateName(stored.Effective.RateName, stored.Name),
                         meter,
                         StringComparison.Ordinal
                     )
@@ -127,7 +127,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
     /// rate would depend on arrival order rather than on anything declared. Only definitions that
     /// declare a rate take part, because one that declares none never asks the meter anything.
     /// </summary>
-    private static void ValidateSharedRateKeys(List<DefinitionValues> rows, int namespaceId)
+    private static void ValidateSharedRateNames(List<DefinitionValues> rows, int namespaceId)
     {
         var rateByKey = new Dictionary<string, (string Name, string RateLimit)>(StringComparer.Ordinal);
         foreach (var row in rows)
@@ -136,7 +136,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             {
                 continue;
             }
-            var key = JobDefinitionRegistration.EffectiveRateKey(row.RateKey, row.Name);
+            var key = JobDefinitionRegistration.EffectiveRateName(row.RateName, row.Name);
             if (!rateByKey.TryGetValue(key, out var first))
             {
                 rateByKey[key] = (row.Name, rateLimit);
@@ -161,8 +161,8 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         // Stored canonical so two spellings of one rate ("10/s" and " 10/s") are one value on a shared
         // key and one hash. Null stays null: no rate is a real state, not a rate of zero.
         var rateLimit = descriptor.Rate?.Text;
-        var rateKey = descriptor.RateKey is { } declaredRateKey
-            ? NameSyntax.Canonicalize(declaredRateKey, nameof(descriptor.RateKey), JobDefinitionRegistration.MaxRateKeyLength)
+        var rateName = descriptor.RateName is { } declaredRateName
+            ? NameSyntax.Canonicalize(declaredRateName, nameof(descriptor.RateName), JobDefinitionRegistration.MaxRateNameLength)
             : null;
         var lane = descriptor.Lane is { } declaredLane
             ? NameSyntax.Canonicalize(declaredLane, nameof(descriptor.Lane), NameSyntax.ExtendedMaxLength, reserveSystem: true)
@@ -193,7 +193,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             maxAttempts.ToString(c),
             concurrencyLimit?.ToString(c),
             rateLimit,
-            rateKey,
+            rateName,
             backoff,
             executionTimeout.ToString(c),
             deadlineSeconds.ToString(c),
@@ -221,7 +221,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             MaxAttempts: maxAttempts,
             ConcurrencyLimit: concurrencyLimit,
             RateLimit: rateLimit,
-            RateKey: rateKey,
+            RateName: rateName,
             Lane: lane,
             Backoff: backoff,
             ExecutionTimeoutSeconds: executionTimeout,

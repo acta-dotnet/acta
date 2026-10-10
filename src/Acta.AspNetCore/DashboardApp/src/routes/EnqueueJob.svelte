@@ -24,7 +24,7 @@
   let input = $state<EnqueueInputState>({ format: 'json', json: {}, text: '' });
   let deduplicationKey = $state('');
   let correlationKey = $state('');
-  let tenantKey = $state('');
+  let tenantName = $state('');
   let priority = $state('');
   let delaySeconds = $state<number | null>(null);
 
@@ -181,7 +181,7 @@
         ...inputFields.fields,
         deduplicationKey: deduplicationKey || null,
         correlationKey: correlationKey || null,
-        tenantKey: tenantKey || null,
+        tenantName: tenantName || null,
         priority: priority || null,
         delaySeconds: delaySeconds ?? null
       });
@@ -252,8 +252,8 @@
               <input bind:value={correlationKey} maxlength="256" placeholder="Optional trace / request / order id" disabled={busy} />
             </label>
             <label class="detail-field">
-              <span>Tenant key</span>
-              <input bind:value={tenantKey} maxlength="128" placeholder="Optional tenant key" disabled={busy} />
+              <span>Tenant name</span>
+              <input bind:value={tenantName} maxlength="128" placeholder="Optional tenant name" disabled={busy} />
             </label>
             <label class="detail-field">
               <span>Priority</span>

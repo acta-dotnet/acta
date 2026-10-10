@@ -25,15 +25,15 @@ public static class DeduplicationKey
     }
 
     /// <summary>
-    /// Compose a tenant-relative key, <c>&lt;tenantKey&gt;:&lt;businessKey&gt;</c>, so equal business keys under
+    /// Compose a tenant-relative key, <c>&lt;tenantName&gt;:&lt;businessKey&gt;</c>, so equal business keys under
     /// different tenants never collide. Deduplication and concurrency keys are both namespace-scoped opaque strings,
     /// so the same composition serves <see cref="EnqueueJobRequest.ConcurrencyKey"/> values, and the result nests as
     /// the business key of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted. The
     /// tenant part is a name, which never holds <c>:</c>, so two tenants never compose to one key.
     /// </summary>
-    public static string ForTenant(string tenantKey, string businessKey)
+    public static string ForTenant(string tenantName, string businessKey)
     {
-        var tenant = NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        var tenant = NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var business = KeySyntax.Canonicalize(businessKey, nameof(businessKey));
 
         return Canonicalize($"{tenant}:{business}", nameof(businessKey));

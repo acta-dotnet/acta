@@ -44,7 +44,7 @@ internal sealed class WorkerEntity : IEntity<int>
     /// numeric id; rendered externally as "wrk_" plus 26 lowercase Crockford Base32 characters.
     /// Allocated in C# (a UUIDv7 via <see cref="Acta.WorkerRef.New"/>) and passed into the registering
     /// routine, never defaulted by the database. The events timeline stores this value as its worker
-    /// actor key, so an event stays attributable after the retention sweep deletes the worker row.
+    /// actor, so an event stays attributable after the retention sweep deletes the worker row.
     /// </summary>
     [DbColumn("worker_ref", DbKind.Guid)]
     public Guid WorkerRef { get; init; }

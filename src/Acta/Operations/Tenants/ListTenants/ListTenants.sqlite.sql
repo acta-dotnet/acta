@@ -1,6 +1,6 @@
 SELECT
     t.id AS tenant_id,
-    t.tenant_key,
+    t.tenant_name,
     t.display_name,
     t.description,
     t.status_code AS status,
@@ -11,7 +11,7 @@ FROM {{schema}}.tenants t
 WHERE
     (
         @p_search IS NULL
-        OR INSTR(LOWER(t.tenant_key), @p_search) > 0
+        OR INSTR(LOWER(t.tenant_name), @p_search) > 0
         OR INSTR(LOWER(t.display_name), @p_search) > 0
         OR INSTR(LOWER(t.description), @p_search) > 0
     )
@@ -26,8 +26,8 @@ WHERE
                 AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
         )
     ))
-    AND (@p_cursor_tenant_key IS NULL OR t.tenant_key > @p_cursor_tenant_key)
-ORDER BY t.tenant_key ASC
+    AND (@p_cursor_tenant_name IS NULL OR t.tenant_name > @p_cursor_tenant_name)
+ORDER BY t.tenant_name ASC
 LIMIT @p_take;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
@@ -36,7 +36,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     WHERE
         (
             @p_search IS NULL
-            OR INSTR(LOWER(t.tenant_key), @p_search) > 0
+            OR INSTR(LOWER(t.tenant_name), @p_search) > 0
             OR INSTR(LOWER(t.display_name), @p_search) > 0
             OR INSTR(LOWER(t.description), @p_search) > 0
         )

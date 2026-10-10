@@ -20,7 +20,7 @@ CREATE TABLE {{schema}}.alerts (
     title nvarchar(512) NOT NULL,
     message nvarchar(512) NOT NULL,
     channel_name varchar(128) NOT NULL,
-    dedupe_key varchar(512) NULL,
+    deduplication_key varchar(128) NULL,
     occurrence_count int NOT NULL,
     last_projected_event_id bigint NULL,
     resolved_at_utc datetime2(3) NULL,
@@ -35,13 +35,13 @@ CREATE TABLE {{schema}}.alerts (
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
 );
-CREATE INDEX ix_alerts_dedupe_identity ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+CREATE INDEX ix_alerts_deduplication_key_identity ON {{schema}}.alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL;
 CREATE INDEX ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
 CREATE INDEX ix_alerts_job ON {{schema}}.alerts (job_id, id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX ux_alerts_ref ON {{schema}}.alerts (alert_ref);
-CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
+CREATE UNIQUE INDEX ux_alerts_deduplication_key ON {{schema}}.alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
 END
 GO
 
@@ -74,7 +74,7 @@ CREATE TABLE {{schema}}.definitions (
     rate_limit varchar(16) NULL,
     rate_limit_override varchar(16) NULL,
     rate_limit_effective AS (COALESCE(rate_limit_override, rate_limit)) PERSISTED,
-    rate_key varchar(128) NULL,
+    rate_name varchar(128) NULL,
     lane varchar(128) NULL,
     backoff nvarchar(64) NOT NULL,
     backoff_override nvarchar(64) NULL,
@@ -135,7 +135,7 @@ CREATE TABLE {{schema}}.events (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     namespace_id int NOT NULL,
     actor_code tinyint NOT NULL,
-    actor_key nvarchar(128) NULL,
+    actor nvarchar(128) NULL,
     job_id bigint NULL,
     job_ref uniqueidentifier NULL,
     execution_number int NULL,
@@ -390,7 +390,7 @@ IF OBJECT_ID(N'{{schema}}.tenants', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.tenants (
     id int IDENTITY(1,1) NOT NULL,
-    tenant_key varchar(128) NOT NULL,
+    tenant_name varchar(128) NOT NULL,
     status_code tinyint NOT NULL,
     display_name nvarchar(128) NULL,
     description nvarchar(512) NULL,
@@ -399,7 +399,7 @@ CREATE TABLE {{schema}}.tenants (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_tenants PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX ux_tenants_key ON {{schema}}.tenants (tenant_key);
+CREATE UNIQUE INDEX ux_tenants_name ON {{schema}}.tenants (tenant_name);
 END
 GO
 
@@ -473,7 +473,7 @@ EXEC(N'CREATE TYPE {{schema}}.enqueue_jobs_batch AS TABLE (
     next_run_at_utc   DATETIME2(3)     NULL,
     delay_seconds     INT              NULL,
     parent_id         BIGINT           NULL,
-    tenant_key        VARCHAR(128)     NULL,
+    tenant_name       VARCHAR(128)     NULL,
     tenant_override   BIT              NOT NULL,
     lane              VARCHAR(128)     NULL,
     PRIMARY KEY (ordinal)
@@ -520,7 +520,7 @@ EXEC(N'CREATE TYPE {{schema}}.register_definitions_batch AS TABLE (
     max_attempts                         INT           NOT NULL,
     concurrency_limit                    INT           NULL,
     rate_limit                           VARCHAR(16)   NULL,
-    rate_key                             VARCHAR(128)  NULL,
+    rate_name                            VARCHAR(128)  NULL,
     backoff                              NVARCHAR(64)  NOT NULL,
     execution_timeout_seconds            INT           NOT NULL,
     deadline_seconds                     INT           NOT NULL,
@@ -592,7 +592,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-bec8dddcf42467efc4568768783ff7a7', '{{schema}}');
+VALUES (0, 'baseline-663ad2f0a24646aa5df0a7edd1f05ac9', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

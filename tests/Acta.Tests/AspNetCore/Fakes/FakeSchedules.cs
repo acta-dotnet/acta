@@ -37,11 +37,11 @@ internal sealed class FakeSchedules : ISchedules
         string? Expression,
         string? TimeZoneId,
         string? Note,
-        string? ActorKey
+        string? Actor
     )> SetOverridesCalls { get; } = [];
 
     /// <summary>Applied triggers; a staged outcome records nothing.</summary>
-    public List<(string ScheduleName, string? Note, string? ActorKey)> TriggerCalls { get; } = [];
+    public List<(string ScheduleName, string? Note, string? Actor)> TriggerCalls { get; } = [];
 
     public Func<ScheduleLookup, DateTime?, string?, string?, CancellationToken, ValueTask<PauseScheduleResponse>> Pause { get; set; }
 
@@ -68,16 +68,16 @@ internal sealed class FakeSchedules : ISchedules
         ScheduleLookup schedule,
         DateTime? untilUtc,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Pause(schedule, untilUtc, reasonMessage, actorKey, ct);
+    ) => Pause(schedule, untilUtc, reasonMessage, actor, ct);
 
     ValueTask<ResumeScheduleResponse> ISchedules.ResumeAsync(
         ScheduleLookup schedule,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Resume(schedule, reasonMessage, actorKey, ct);
+    ) => Resume(schedule, reasonMessage, actor, ct);
 
     ValueTask<SetScheduleOverridesResponse> ISchedules.UpdateOverridesAsync(
         ScheduleLookup schedule,
@@ -85,16 +85,16 @@ internal sealed class FakeSchedules : ISchedules
         string? expression,
         string? timeZoneId,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => UpdateOverrides(schedule, expectedVersion, expression, timeZoneId, reasonMessage, actorKey, ct);
+    ) => UpdateOverrides(schedule, expectedVersion, expression, timeZoneId, reasonMessage, actor, ct);
 
     ValueTask<TriggerScheduleNowResponse> ISchedules.TriggerNowAsync(
         ScheduleLookup schedule,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => TriggerNow(schedule, reasonMessage, actorKey, ct);
+    ) => TriggerNow(schedule, reasonMessage, actor, ct);
 
     ValueTask<ListSchedulesResponse> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
 
@@ -118,7 +118,7 @@ internal sealed class FakeSchedules : ISchedules
         string? expression,
         string? timeZoneId,
         string? reasonMessage,
-        string? actorKey
+        string? actor
     )
     {
         // Mirror the production guard: an invalid expression surfaces as ArgumentException.
@@ -137,7 +137,7 @@ internal sealed class FakeSchedules : ISchedules
             return new SetScheduleOverridesResponse(ControlAction.Rejected, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 7);
         }
 
-        SetOverridesCalls.Add((schedule.ScheduleName, expectedVersion, expression, timeZoneId, reasonMessage, actorKey));
+        SetOverridesCalls.Add((schedule.ScheduleName, expectedVersion, expression, timeZoneId, reasonMessage, actor));
         return new SetScheduleOverridesResponse(
             ControlAction.Applied,
             ScheduleStatusCode.Active,
@@ -147,14 +147,14 @@ internal sealed class FakeSchedules : ISchedules
         );
     }
 
-    private TriggerScheduleNowResponse Trigger(ScheduleLookup schedule, string? reasonMessage, string? actorKey)
+    private TriggerScheduleNowResponse Trigger(ScheduleLookup schedule, string? reasonMessage, string? actor)
     {
         if (Staged(schedule, static (action, status) => new TriggerScheduleNowResponse(action, status, null, null, null)) is { } staged)
         {
             return staged;
         }
 
-        TriggerCalls.Add((schedule.ScheduleName, reasonMessage, actorKey));
+        TriggerCalls.Add((schedule.ScheduleName, reasonMessage, actor));
         return new TriggerScheduleNowResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 1);
     }
 }

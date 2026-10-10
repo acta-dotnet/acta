@@ -5,21 +5,21 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
-/// <summary>Conformance for the engine's id-to-key read: the stored, normalized key of any tenant, and null for an id no tenant has.</summary>
+/// <summary>Conformance for the engine's id-to-name read: the stored, normalized name of any tenant, and null for an id no tenant has.</summary>
 [ConformanceSpec(
-    "get-tenant-key.by-id",
-    "A tenant id resolves to its stored key",
+    "get-tenant-name.by-id",
+    "A tenant id resolves to its stored name",
     Area = "Admin",
-    Contract = "GetTenantKey returns the normalized key of the tenant with the given id whatever its status, and null when no tenant has that id."
+    Contract = "GetTenantName returns the normalized name of the tenant with the given id whatever its status, and null when no tenant has that id."
 )]
-public sealed class GetTenantKeySpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class GetTenantNameSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private ITenants Tenants => Services.GetRequiredService<ITenants>();
 
     private async Task<string?> ReadAsync(int tenantId, CancellationToken ct) =>
-        (await Services.GetRequiredService<GetTenantKeyHandler>().HandleAsync(new GetTenantKeyQuery(tenantId), ct))?.TenantKey;
+        (await Services.GetRequiredService<GetTenantNameHandler>().HandleAsync(new GetTenantNameQuery(tenantId), ct))?.TenantName;
 
-    [Fact(DisplayName = "A tenant registered with a mixed-case key reads back its lowercase key")]
+    [Fact(DisplayName = "A tenant registered with a mixed-case name reads back its lowercase name")]
     public async Task Id_resolves_to_the_normalized_key()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -29,7 +29,7 @@ public sealed class GetTenantKeySpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(key.ToLowerInvariant(), await ReadAsync(id, ct));
     }
 
-    [Fact(DisplayName = "A suspended tenant still resolves its key")]
+    [Fact(DisplayName = "A suspended tenant still resolves its name")]
     public async Task Suspended_tenant_still_resolves()
     {
         var ct = TestContext.Current.CancellationToken;

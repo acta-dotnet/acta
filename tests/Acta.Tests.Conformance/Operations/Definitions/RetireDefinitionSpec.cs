@@ -21,7 +21,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 )]
 public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    private const string ActorKey = "spec-operator";
+    private const string Actor = "spec-operator";
 
     private const string Reason = "the handler left the build";
 
@@ -67,7 +67,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             var evt = await ReadSingleEventAsync(cancelled.JobId, EventCode.JobCancelled, ct);
             Assert.Equal(EventReasonCode.JobDefinitionRetired, evt.ReasonCode);
             Assert.Equal(ActorCode.Operator, evt.ActorCode);
-            Assert.Equal(ActorKey, evt.ActorKey);
+            Assert.Equal(Actor, evt.Actor);
             Assert.Equal(Reason, evt.ReasonMessage);
             Assert.Equal(JobStatusCode.Cancelled, evt.ToStatus);
         }
@@ -95,7 +95,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(evt);
         Assert.Null(evt!.JobId);
         Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal(ActorKey, evt.ActorKey);
+        Assert.Equal(Actor, evt.Actor);
         Assert.Equal(Reason, evt.ReasonMessage);
     }
 
@@ -190,10 +190,10 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             ct
         );
 
-        var missing = await Operations.Definitions.RetireAsync(TestNamespace, "no-such-job", 0, Reason, ActorKey, ct);
+        var missing = await Operations.Definitions.RetireAsync(TestNamespace, "no-such-job", 0, Reason, Actor, ct);
         Assert.Equal(ControlAction.NotFound, missing.Action);
 
-        var stale = await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", 9999, Reason, ActorKey, ct);
+        var stale = await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", 9999, Reason, Actor, ct);
         Assert.Equal(ControlAction.Rejected, stale.Action);
 
         // Neither call wrote: the row keeps its status and version, its parked job is still Ready, and
@@ -216,7 +216,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var definition = await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct);
         var eventsBefore = await CountDefinitionEventsAsync(definition!.DefinitionId, ct);
 
-        var second = await Operations.Definitions.RetireAsync(TestNamespace, "job-wait-signal", definition.Version, Reason, ActorKey, ct);
+        var second = await Operations.Definitions.RetireAsync(TestNamespace, "job-wait-signal", definition.Version, Reason, Actor, ct);
         Assert.Equal(ControlAction.Applied, second.Action);
 
         Assert.Equal(eventsBefore, await CountDefinitionEventsAsync(definition.DefinitionId, ct));
@@ -253,7 +253,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var definition = await Operations.Definitions.GetAsync(TestNamespace, jobName, ct);
         Assert.NotNull(definition);
-        return await Operations.Definitions.RetireAsync(TestNamespace, jobName, definition!.Version, Reason, ActorKey, ct);
+        return await Operations.Definitions.RetireAsync(TestNamespace, jobName, definition!.Version, Reason, Actor, ct);
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>

@@ -36,7 +36,7 @@ public static class SqliteOutboxDdl
                 priority_code INTEGER NULL,
                 next_run_at_utc TEXT NULL,
                 delay_seconds INTEGER NULL,
-                tenant_key TEXT NULL,
+                tenant_name TEXT NULL,
                 meta TEXT NULL,
                 last_error TEXT NULL,
                 created_at_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),

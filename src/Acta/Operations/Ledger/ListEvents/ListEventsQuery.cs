@@ -15,7 +15,7 @@ public sealed record ListEventsQuery(
     EventCode? EventCode = null,
     int? DefinitionId = null,
     int? TenantId = null,
-    string? TenantKey = null,
+    string? TenantName = null,
     int? WorkerId = null,
     ActorCode? ActorCode = null,
     EventReasonCode? ReasonCode = null,

@@ -92,23 +92,17 @@ internal sealed class FakeJobs : IJobs
     /// tenant row, an id without a key.</summary>
     public int? SnapshotTenantId { get; set; }
 
-    public List<(string Verb, JobRef JobRef, string? Reason, string? ActorKey, int? ExpectedVersion)> ControlCalls { get; } = [];
+    public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, int? ExpectedVersion)> ControlCalls { get; } = [];
 
-    public List<(JobRef JobRef, DateTime NextRunAtUtc, string? Reason, string? ActorKey, int? ExpectedVersion)> RescheduleCalls { get; } =
+    public List<(JobRef JobRef, DateTime NextRunAtUtc, string? Reason, string? Actor, int? ExpectedVersion)> RescheduleCalls { get; } = [];
+
+    public List<(JobRef JobRef, JobPriorityCode Priority, string? Reason, string? Actor, int? ExpectedVersion)> ReprioritizeCalls { get; } =
     [];
 
-    public List<(
-        JobRef JobRef,
-        JobPriorityCode Priority,
-        string? Reason,
-        string? ActorKey,
-        int? ExpectedVersion
-    )> ReprioritizeCalls { get; } = [];
-
-    public List<(JobRef JobRef, string? ActorKey)> PurgeCalls { get; } = [];
+    public List<(JobRef JobRef, string? Actor)> PurgeCalls { get; } = [];
 
     /// <summary>Signal raises with the delivered format and bytes; null bytes is a presence-only signal.</summary>
-    public List<(JobRef JobRef, string Name, byte FormatId, byte[]? Value, string? ActorKey)> SignalCalls { get; } = [];
+    public List<(JobRef JobRef, string Name, byte FormatId, byte[]? Value, string? Actor)> SignalCalls { get; } = [];
 
     /// <summary>The format-resolved payloads the amend endpoint built.</summary>
     public List<JobPayload> InputAmendCalls { get; } = [];
@@ -181,77 +175,77 @@ internal sealed class FakeJobs : IJobs
     ValueTask<PauseJobResponse> IJobs.PauseAsync(
         JobLookup job,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         CancellationToken ct
-    ) => Pause(job, reasonMessage, actorKey, expectedVersion, ct);
+    ) => Pause(job, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<ResumeJobResponse> IJobs.ResumeAsync(
         JobLookup job,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         CancellationToken ct
-    ) => Resume(job, reasonMessage, actorKey, expectedVersion, ct);
+    ) => Resume(job, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<RestartJobResponse> IJobs.RestartAsync(
         JobLookup job,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         CancellationToken ct
-    ) => Restart(job, reasonMessage, actorKey, expectedVersion, ct);
+    ) => Restart(job, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<CancelJobResponse> IJobs.CancelAsync(
         JobLookup job,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         CancellationToken ct
-    ) => Cancel(job, reasonMessage, actorKey, expectedVersion, ct);
+    ) => Cancel(job, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<RescheduleJobResponse> IJobs.RescheduleAsync(
         JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         CancellationToken ct
-    ) => Reschedule(job, nextRunAtUtc, reasonMessage, actorKey, expectedVersion, ct);
+    ) => Reschedule(job, nextRunAtUtc, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<ReprioritizeJobResponse> IJobs.ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         CancellationToken ct
-    ) => Reprioritize(job, priority, reasonMessage, actorKey, expectedVersion, ct);
+    ) => Reprioritize(job, priority, reasonMessage, actor, expectedVersion, ct);
 
     ValueTask<UpdateJobInputResponse> IJobs.UpdateJobInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => UpdateJobInput(job, input, reasonMessage, actorKey, ct);
+    ) => UpdateJobInput(job, input, reasonMessage, actor, ct);
 
-    ValueTask<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? actorKey, CancellationToken ct) => Purge(job, actorKey, ct);
+    ValueTask<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? actor, CancellationToken ct) => Purge(job, actor, ct);
 
     ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => RaiseSignal(job, name, value, actorKey, ct);
+    ) => RaiseSignal(job, name, value, actor, ct);
 
     ValueTask<GetJobStatusResponse?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) => throw new NotSupportedException();
 
     ValueTask<TResult?> IJobs.GetResultAsync<TResult>(JobLookup job, CancellationToken ct)
         where TResult : default => throw new NotSupportedException();
 
-    ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actorKey, CancellationToken ct) =>
+    ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
@@ -405,12 +399,12 @@ internal sealed class FakeJobs : IJobs
         string verb,
         JobLookup job,
         string? reason,
-        string? actorKey,
+        string? actor,
         int? expectedVersion,
         Func<long, ControlAction, JobStatusCode?, int?, T> respond
     )
     {
-        ControlCalls.Add((verb, job.JobRef, reason, actorKey, expectedVersion));
+        ControlCalls.Add((verb, job.JobRef, reason, actor, expectedVersion));
         var (jobId, action, status, version) = ResultFor(job, expectedVersion);
         return ValueTask.FromResult(respond(jobId, action, status, version));
     }
@@ -451,7 +445,7 @@ internal sealed class FakeJobs : IJobs
             JobName: jobName,
             DefinitionId: 5,
             TenantId: tenantId,
-            TenantKey: tenantId == 1 ? "cust-001" : null,
+            TenantName: tenantId == 1 ? "cust-001" : null,
             Status: JobStatusCode.Ready,
             Priority: JobPriorityCode.Normal,
             Lane: null,

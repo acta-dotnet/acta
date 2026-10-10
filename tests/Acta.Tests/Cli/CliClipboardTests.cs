@@ -222,7 +222,7 @@ public class CliRunnerClipboardTests
                         ParentJobId: null,
                         ParentJobRef: null,
                         TenantId: null,
-                        TenantKey: null,
+                        TenantName: null,
                         DeduplicationKey: null,
                         CorrelationKey: null,
                         ConcurrencyKey: null,
@@ -410,7 +410,7 @@ public class CliRunnerClipboardTests
         public ValueTask<CancelJobResponse> CancelAsync(
             JobLookup job,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
@@ -418,7 +418,7 @@ public class CliRunnerClipboardTests
         public ValueTask<PauseJobResponse> PauseAsync(
             JobLookup job,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
@@ -426,7 +426,7 @@ public class CliRunnerClipboardTests
         public ValueTask<ResumeJobResponse> ResumeAsync(
             JobLookup job,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
@@ -434,7 +434,7 @@ public class CliRunnerClipboardTests
         public ValueTask<RestartJobResponse> RestartAsync(
             JobLookup job,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
@@ -443,7 +443,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             DateTime nextRunAtUtc,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
@@ -452,7 +452,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             JobPriorityCode priority,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             int? expectedVersion = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
@@ -461,18 +461,18 @@ public class CliRunnerClipboardTests
             JobLookup job,
             JobPayload input,
             string? reasonMessage = null,
-            string? actorKey = null,
+            string? actor = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default) =>
+        public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actor = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
             JobLookup job,
             string name,
             T value,
-            string? actorKey = null,
+            string? actor = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
@@ -483,7 +483,7 @@ public class CliRunnerClipboardTests
             JobLookup job,
             string name,
             JobPayload value,
-            string? actorKey = null,
+            string? actor = null,
             CancellationToken ct = default
         )
         {

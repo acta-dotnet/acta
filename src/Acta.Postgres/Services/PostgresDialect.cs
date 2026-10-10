@@ -131,7 +131,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var nextRunAtUtcs = new DateTime?[count];
         var delaySeconds = new int?[count];
         var parentIds = new long?[count];
-        var tenantKeys = new string?[count];
+        var tenantNames = new string?[count];
         var tenantOverrides = new bool[count];
 
         for (var i = 0; i < count; i++)
@@ -150,7 +150,7 @@ internal sealed class PostgresDialect : ISqlDialect
             nextRunAtUtcs[i] = row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : null;
             delaySeconds[i] = row.DelaySeconds;
             parentIds[i] = row.ParentId;
-            tenantKeys[i] = row.TenantKey;
+            tenantNames[i] = row.TenantName;
             tenantOverrides[i] = row.OverrideParentTenant;
         }
 
@@ -167,7 +167,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_next_run_at_utc", NpgsqlDbType.TimestampTz, nextRunAtUtcs);
         AddArray(postgres, "@p_b_delay_seconds", NpgsqlDbType.Integer, delaySeconds);
         AddArray(postgres, "@p_b_parent_id", NpgsqlDbType.Bigint, parentIds);
-        AddArray(postgres, "@p_b_tenant_key", NpgsqlDbType.Varchar, tenantKeys);
+        AddArray(postgres, "@p_b_tenant_name", NpgsqlDbType.Varchar, tenantNames);
         AddArray(postgres, "@p_b_tenant_override", NpgsqlDbType.Boolean, tenantOverrides);
 
         var tagCount = rows.Sum(row => row.Tags?.Count ?? 0);
@@ -225,7 +225,7 @@ internal sealed class PostgresDialect : ISqlDialect
         );
         AddScalar(postgres, "@p_delay_seconds", NpgsqlDbType.Integer, (object?)row.DelaySeconds ?? DBNull.Value);
         AddScalar(postgres, "@p_parent_id", NpgsqlDbType.Bigint, (object?)row.ParentId ?? DBNull.Value);
-        AddScalar(postgres, "@p_tenant_key", NpgsqlDbType.Varchar, (object?)row.TenantKey ?? DBNull.Value);
+        AddScalar(postgres, "@p_tenant_name", NpgsqlDbType.Varchar, (object?)row.TenantName ?? DBNull.Value);
         AddScalar(postgres, "@p_tenant_override", NpgsqlDbType.Boolean, row.OverrideParentTenant);
 
         var tagCount = row.Tags?.Count ?? 0;
@@ -260,7 +260,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var maxAttempts = new int[count];
         var concurrencyLimits = new int?[count];
         var rateLimits = new string?[count];
-        var rateKeys = new string?[count];
+        var rateNames = new string?[count];
         var backoff = new string[count];
         var executionTimeout = new int[count];
         var deadlineSeconds = new int[count];
@@ -289,7 +289,7 @@ internal sealed class PostgresDialect : ISqlDialect
             maxAttempts[i] = row.MaxAttempts;
             concurrencyLimits[i] = row.ConcurrencyLimit;
             rateLimits[i] = row.RateLimit;
-            rateKeys[i] = row.RateKey;
+            rateNames[i] = row.RateName;
             backoff[i] = row.Backoff;
             executionTimeout[i] = row.ExecutionTimeoutSeconds;
             deadlineSeconds[i] = row.DeadlineSeconds;
@@ -319,7 +319,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_max_attempts", NpgsqlDbType.Integer, maxAttempts);
         AddArray(postgres, "@p_d_concurrency_limit", NpgsqlDbType.Integer, concurrencyLimits);
         AddArray(postgres, "@p_d_rate_limit", NpgsqlDbType.Varchar, rateLimits);
-        AddArray(postgres, "@p_d_rate_key", NpgsqlDbType.Varchar, rateKeys);
+        AddArray(postgres, "@p_d_rate_name", NpgsqlDbType.Varchar, rateNames);
         AddArray(postgres, "@p_d_backoff", NpgsqlDbType.Varchar, backoff);
         AddArray(postgres, "@p_d_execution_timeout", NpgsqlDbType.Integer, executionTimeout);
         AddArray(postgres, "@p_d_deadline_seconds", NpgsqlDbType.Integer, deadlineSeconds);

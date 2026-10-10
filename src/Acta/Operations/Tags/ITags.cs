@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>Reads and mutates exact searchable metadata attachments.</summary>
 /// <remarks>
-/// The mutation verbs accept <c>actorKey</c> / <c>reasonMessage</c> like every other operator
+/// The mutation verbs accept <c>actor</c> / <c>reasonMessage</c> like every other operator
 /// mutation on the surface. Tag writes are unevented (tags are searchable metadata, not ledger
 /// state), so both values are accepted and unrecorded: the parameters exist because adding them
 /// after the surface freezes is a binary-breaking change, while an audit sink that consumes them
@@ -18,7 +18,7 @@ public interface ITags
         TagTarget target,
         IReadOnlyList<TagInput> tags,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 
@@ -30,7 +30,7 @@ public interface ITags
         TagTarget target,
         TagInput tag,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 
@@ -39,7 +39,7 @@ public interface ITags
         TagTarget target,
         string name,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 }

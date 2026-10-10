@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private JobEnqueueValues AddNumbersRow(
-        string? tenantKey = null,
+        string? tenantName = null,
         long? parentId = null,
         string? correlationKey = null,
         IReadOnlyList<TagInput>? tags = null
@@ -31,7 +31,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
-            TenantKey: tenantKey,
+            TenantName: tenantName,
             ParentId: parentId,
             CorrelationKey: correlationKey,
             Tags: tags
@@ -203,9 +203,9 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         // Two jobs under T1, one under T2
         var t1Outcomes = (
-            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t1Key), AddNumbersRow(tenantKey: t1Key)], ct)
+            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantName: t1Key), AddNumbersRow(tenantName: t1Key)], ct)
         ).Jobs;
-        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t2Key)], ct)).Jobs;
+        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantName: t2Key)], ct)).Jobs;
         var ta = t1Outcomes[0].JobId;
         var tb = t1Outcomes[1].JobId;
         var tc = t2Outcomes[0].JobId;
@@ -220,13 +220,13 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal([tc], t2Page.Items.Select(static i => i.JobId).ToHashSet());
 
         // The key filter selects the same rows as the id filter, and list rows carry the resolved key.
-        var keyPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantKey: t1Key), ct);
+        var keyPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantName: t1Key), ct);
         Assert.Equal([ta, tb], keyPage.Items.Select(static i => i.JobId).ToHashSet());
-        Assert.All(keyPage.Items, i => Assert.Equal(t1Key, i.TenantKey));
+        Assert.All(keyPage.Items, i => Assert.Equal(t1Key, i.TenantName));
 
         // The filter-wide total counts under the same key filter as the page.
         var counted = await queries.Ledger.ListJobsAsync(
-            new ListJobsQuery(JobNamespace: TestNamespace, TenantKey: t1Key, IncludeTotal: true),
+            new ListJobsQuery(JobNamespace: TestNamespace, TenantName: t1Key, IncludeTotal: true),
             ct
         );
         Assert.Equal(2, counted.TotalCount);

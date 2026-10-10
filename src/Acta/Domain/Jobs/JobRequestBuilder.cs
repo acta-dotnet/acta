@@ -23,7 +23,7 @@ public sealed class JobRequestBuilder
     private DateTime? _nextRunAtUtc;
     private int? _delaySeconds;
     private long? _parentId;
-    private string? _tenantKey;
+    private string? _tenantName;
     private bool _overrideParentTenant;
     private readonly Dictionary<string, TagInput> _tags = new(StringComparer.Ordinal);
 
@@ -197,9 +197,9 @@ public sealed class JobRequestBuilder
     /// tenant rejects the enqueue. On a child enqueue a tenant that differs from the parent's is
     /// rejected unless <paramref name="overrideParent"/> explicitly opts into the cross-tenant lineage.
     /// </summary>
-    public JobRequestBuilder TenantKey(string tenantKey, bool overrideParent = false)
+    public JobRequestBuilder TenantName(string tenantName, bool overrideParent = false)
     {
-        _tenantKey = NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        _tenantName = NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         _overrideParentTenant = overrideParent;
         return this;
     }
@@ -265,7 +265,7 @@ public sealed class JobRequestBuilder
             NextRunAtUtc = _nextRunAtUtc,
             DelaySeconds = _delaySeconds,
             ParentJobId = _parentId,
-            TenantKey = _tenantKey,
+            TenantName = _tenantName,
             OverrideParentTenant = _overrideParentTenant,
         };
     }

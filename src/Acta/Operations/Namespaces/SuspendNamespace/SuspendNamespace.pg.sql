@@ -13,8 +13,8 @@ suspended AS (
     RETURNING n.id, n.version
 ),
 audit AS (
-    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, reason_message)
-    SELECT 20 /* EventCode.NamespaceSuspended */, now(), s.id, @p_actor_code, @p_actor_key, @p_reason_message
+    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor, reason_message)
+    SELECT 20 /* EventCode.NamespaceSuspended */, now(), s.id, @p_actor_code, @p_actor, @p_reason_message
     FROM suspended s
 )
 SELECT 1 /* ControlAction.Applied */::SMALLINT AS action, s.version AS version

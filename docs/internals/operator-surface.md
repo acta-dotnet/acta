@@ -29,7 +29,7 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | | |
 | Workers | `Workers.ListAsync` / `GetAsync` | `GET /workers`, `GET /workers/{workerRef}` | | |
 | Alerts | `Alerts.ListAsync` / `GetAsync` | `GET /alerts`, `GET /alerts/{alertRef}` | | |
-| Tenants | `Tenants.ListAsync` / `GetAsync` | `GET /tenants`, `GET /tenants/{tenantKey}` | | |
+| Tenants | `Tenants.ListAsync` / `GetAsync` | `GET /tenants`, `GET /tenants/{tenantName}` | | |
 | Outbox | `Outbox.ListSourcesAsync` / `ListQuarantinedAsync` | `GET /outbox/sources`, `GET /outbox/{jobNamespace}/quarantined` | | the quarantined listing runs only on a host that registered the relay |
 | Tags | `Tags.*` reads | `GET .../tags` per scope | | |
 | Input template | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | | enqueue form shape hint; 404 when this host does not know the job |

@@ -18,7 +18,7 @@
   // reads the same `namespaces` page NamespaceDetail does, and a private copy of the row silently
   // drifted from the wire field name once already.
   interface TenantHit {
-    tenantKey: string;
+    tenantName: string;
     displayName: string | null;
     status: string;
   }
@@ -198,12 +198,12 @@
     }
     for (const hit of tenants.data?.items ?? []) {
       out.push({
-        id: 'tenant:' + hit.tenantKey,
+        id: 'tenant:' + hit.tenantName,
         group: 'Tenants',
         icon: 'person',
-        label: hit.tenantKey,
+        label: hit.tenantName,
         hint: hit.displayName ?? undefined,
-        href: routes.tenant(hit.tenantKey, { namespace: ns })
+        href: routes.tenant(hit.tenantName, { namespace: ns })
       });
     }
     out.push({

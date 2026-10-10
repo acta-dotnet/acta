@@ -47,10 +47,10 @@ WHERE
     AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, reason_message)
 SELECT
-    101 /* EventCode.ScheduleResumed */, now(), j.namespace_id, @p_actor_code, @p_actor_key, j.id, j.job_ref,
+    101 /* EventCode.ScheduleResumed */, now(), j.namespace_id, @p_actor_code, @p_actor, j.id, j.job_ref,
     s.execution_number, COALESCE(j.lineage_root_id, j.id), j.definition_id, @p_name
 FROM {{schema}}.jobs j
 CROSS JOIN _resume_schedule_slot s

@@ -39,25 +39,25 @@ WHERE
 
 SELECT ACTA_ERROR('ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.')
 WHERE
-    @p_tenant_key IS NOT NULL
+    @p_tenant_name IS NOT NULL
     AND NOT EXISTS (
         SELECT 1 FROM {{schema}}.tenants t
-        WHERE t.tenant_key = @p_tenant_key
+        WHERE t.tenant_name = @p_tenant_name
     );
 
 SELECT ACTA_ERROR('ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.')
 WHERE
-    @p_tenant_key IS NOT NULL
+    @p_tenant_name IS NOT NULL
     AND EXISTS (
         SELECT 1 FROM {{schema}}.tenants t
         WHERE
-            t.tenant_key = @p_tenant_key
+            t.tenant_name = @p_tenant_name
             AND t.status_code <> 10 /* TenantStatusCode.Active */
     );
 
 SELECT ACTA_ERROR('ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.')
 WHERE
-    @p_tenant_key IS NULL
+    @p_tenant_name IS NULL
     AND EXISTS (
         SELECT 1 FROM {{schema}}.namespaces ns
         JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
@@ -72,7 +72,7 @@ WHERE
 
 SELECT ACTA_ERROR('ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.')
 WHERE
-    @p_tenant_key IS NOT NULL
+    @p_tenant_name IS NOT NULL
     AND EXISTS (
         SELECT 1 FROM {{schema}}.namespaces ns
         JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
@@ -83,16 +83,16 @@ WHERE
 
 SELECT
     ACTA_ERROR(
-        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantKey differs from the parent'
+        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent'
         || ' tenant without an explicit override.'
     )
 WHERE
     @p_parent_id IS NOT NULL
-    AND @p_tenant_key IS NOT NULL
+    AND @p_tenant_name IS NOT NULL
     AND @p_tenant_override = 0
     AND EXISTS (
         SELECT 1 FROM {{schema}}.jobs pj
-        JOIN {{schema}}.tenants t ON t.tenant_key = @p_tenant_key
+        JOIN {{schema}}.tenants t ON t.tenant_name = @p_tenant_name
         WHERE
             pj.id = @p_parent_id
             AND pj.tenant_id IS NOT NULL
@@ -159,7 +159,7 @@ SELECT
     jd.id,
     (
         SELECT t.id FROM {{schema}}.tenants t
-        WHERE t.tenant_key = @p_tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
+        WHERE t.tenant_name = @p_tenant_name AND t.status_code = 10 /* TenantStatusCode.Active */
     ),
     @p_input_format_id,
     @p_input,
@@ -190,7 +190,7 @@ SELECT
         ELSE COALESCE(
             (
                 SELECT t.id FROM {{schema}}.tenants t
-                WHERE t.tenant_key = @p_tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
+                WHERE t.tenant_name = @p_tenant_name AND t.status_code = 10 /* TenantStatusCode.Active */
             ),
             pj.tenant_id
         )

@@ -42,7 +42,7 @@ public class EntitySchemaTests
         var columns = ActaSchema.For<ScheduleEntity>().Columns.Select(static c => c.Name).ToHashSet(StringComparer.Ordinal);
 
         Assert.DoesNotContain("actor_code", columns);
-        Assert.DoesNotContain("actor_key", columns);
+        Assert.DoesNotContain("actor", columns);
     }
 
     [Fact]
@@ -71,9 +71,9 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void ActorKey_Is_NullableUnicode128()
+    public void Actor_Is_NullableUnicode128()
     {
-        var c = ActaSchema.For<EventEntity>().Column("actor_key");
+        var c = ActaSchema.For<EventEntity>().Column("actor");
 
         Assert.Equal(DbKind.UnicodeString, c.Kind);
         Assert.Equal(128, c.Size);
@@ -293,15 +293,15 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void JobTenant_Catalog_Has_TenantKey_Unique_And_StatusCode()
+    public void JobTenant_Catalog_Has_TenantName_Unique_And_StatusCode()
     {
         var s = ActaSchema.For<TenantEntity>();
 
         Assert.Equal("tenants", s.TableName);
         Assert.Equal("pk_tenants", s.PrimaryKey.Name);
-        Assert.Contains(s.Indexes, i => i.Name == "ux_tenants_key" && i.IsUnique && i.Columns.SequenceEqual(["tenant_key"]));
+        Assert.Contains(s.Indexes, i => i.Name == "ux_tenants_name" && i.IsUnique && i.Columns.SequenceEqual(["tenant_name"]));
 
-        var key = s.Column("tenant_key");
+        var key = s.Column("tenant_name");
         Assert.Equal(DbKind.AsciiString, key.Kind);
         Assert.Equal(128, key.Size);
         Assert.False(key.IsNullable);
@@ -346,11 +346,11 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void Tenant_Status_Immediately_Follows_TenantKey_In_Column_Order()
+    public void Tenant_Status_Immediately_Follows_TenantName_In_Column_Order()
     {
         var columns = ActaSchema.For<TenantEntity>().Columns.Select(c => c.Name).ToList();
 
-        Assert.Equal(["id", "tenant_key", "status_code"], columns.Take(3));
+        Assert.Equal(["id", "tenant_name", "status_code"], columns.Take(3));
     }
 
     [Fact]

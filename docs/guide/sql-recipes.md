@@ -117,7 +117,7 @@ maintenance cadence.
 ## Event Timeline
 
 ```sql
-SELECT event_id, created_at_utc, job_id, job_ref, event, actor, from_status, to_status, execution_status, reason, reason_message, detail_format, detail_text, duration_ms
+SELECT event_id, created_at_utc, job_id, job_ref, event, actor_kind, actor, from_status, to_status, execution_status, reason, reason_message, detail_format, detail_text, duration_ms
   FROM acta.events_view
  WHERE job_id = :job_id
  ORDER BY created_at_utc, event_id;
@@ -323,18 +323,17 @@ scoping to Quarantined makes the intent explicit and the statement idempotent.
 
 ## Identifier Casing In Raw SQL
 
-Acta-owned identifier and key columns store canonical lowercase. Opaque keys (tenant, idempotency,
-concurrency, dedupe, lock) are folded to lowercase at the API boundary; registered names (namespace,
-job, schedule, signal, channel, and other catalog names) are validated as lowercase at registration.
-Column collations stay at the database default: matching is canonical-by-construction, not
-collation-dependent.
+Names (namespace, job, schedule, signal, channel, lane, tenant, rate meter) are stored lowercase: Acta
+trims and lowercases them on input, so a name compares equal under any collation. Keys (deduplication,
+concurrency, lock, correlation) are stored exactly as the caller gave them and compared bytewise; on
+SQL Server the compared key columns carry a binary collation for that, on PostgreSQL and SQLite equality
+is already exact. Display text (`display_name`, `message`, `actor`) is stored verbatim and never compared.
 
-For raw SQL this means: compare with lowercase literals, and if you insert rows out of band, supply
-lowercase, mixed-case values will never match Acta's equality, uniqueness, or joins. The exceptions
-are caller-preserved external values (`correlation_key`, `actor_key`): those are stored verbatim, so
-raw-SQL equality on them is collation-dependent, match the exact casing the caller supplied.
+For raw SQL this means: compare a name with a lowercase literal, and supply lowercase when you insert a
+name out of band, since a mixed-case name never matches Acta's equality, uniqueness, or joins; compare a
+key with the exact casing the caller supplied.
 
 ```sql
--- finds the tenant regardless of how the caller originally cased the key
-SELECT id, tenant_key, description FROM acta.tenants WHERE tenant_key = 'acme-corp';
+-- finds the tenant regardless of how the caller originally cased the name
+SELECT id, tenant_name, description FROM acta.tenants WHERE tenant_name = 'acme-corp';
 ```

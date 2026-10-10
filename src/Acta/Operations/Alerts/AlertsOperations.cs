@@ -16,16 +16,16 @@ internal sealed class AlertsOperations(
     public ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => acknowledgeAlert.HandleAsync(new AcknowledgeAlertCommand(alertRef, reasonMessage, actorKey), ct);
+    ) => acknowledgeAlert.HandleAsync(new AcknowledgeAlertCommand(alertRef, reasonMessage, actor), ct);
 
     public ValueTask<ResolveAlertResponse> ResolveAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => resolveAlert.HandleAsync(new ResolveAlertCommand(alertRef, reasonMessage, actorKey), ct);
+    ) => resolveAlert.HandleAsync(new ResolveAlertCommand(alertRef, reasonMessage, actor), ct);
 
     public ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
         listAlerts.HandleAsync(query, ct);

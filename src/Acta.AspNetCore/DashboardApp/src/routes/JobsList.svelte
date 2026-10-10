@@ -26,7 +26,7 @@
     jobName: string;
     jobNamespace: string;
     status: string;
-    tenantKey: string | null;
+    tenantName: string | null;
     createdAtUtc: string;
     nextRunAtUtc: string | null;
     executionNumber: number;
@@ -36,8 +36,8 @@
   const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Blocked', 'Dispatched', 'Executing', 'Done', 'Failed', 'Cancelled'];
   const initial = hashParams();
   const filters = createUrlFilters(
-    { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantKey: 'tenantKey', lane: 'lane', tags: 'tags', view: 'view' },
-    { status: '', jobName: '', correlationKey: '', tenantKey: '', lane: '', tags: '', view: '' }
+    { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantName: 'tenantName', lane: 'lane', tags: 'tags', view: 'view' },
+    { status: '', jobName: '', correlationKey: '', tenantName: '', lane: '', tags: '', view: '' }
   );
   // Nav-alias views: the sidebar's Recurring jobs / Job history entries are this screen with a
   // baked-in view filter (schedule-attached rows / terminal rows).
@@ -66,7 +66,7 @@
   ];
 
   function clearTenant() {
-    filters.patch({ tenantKey: '' });
+    filters.patch({ tenantName: '' });
   }
 
   // Active-filter chips: the namespace scope reads as a filter here (it narrows the list) and each
@@ -78,7 +78,7 @@
       $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
       $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null,
       $filters.correlationKey.trim() ? { label: 'Correlation', value: $filters.correlationKey.trim(), onRemove: () => filters.patch({ correlationKey: '' }) } : null,
-      $filters.tenantKey ? { label: 'Tenant', value: $filters.tenantKey, onRemove: clearTenant } : null,
+      $filters.tenantName ? { label: 'Tenant', value: $filters.tenantName, onRemove: clearTenant } : null,
       $filters.lane ? { label: 'Lane', value: $filters.lane, onRemove: () => filters.patch({ lane: '' }) } : null,
       $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
@@ -98,7 +98,7 @@
         status: $filters.status,
         jobName: $scope ? $filters.jobName.trim() : '',
         correlationKey: $filters.correlationKey.trim(),
-        tenantKey: $filters.tenantKey,
+        tenantName: $filters.tenantName,
         lane: $filters.lane
       },
       { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
@@ -188,8 +188,8 @@
       <button type="button" class="chip" aria-expanded={showMore} onclick={() => (showMore = !showMore)}>
         {showMore ? 'Fewer filters' : 'More filters'}
       </button>
-      {#if $filters.tenantKey}
-        <button class="chip" onclick={clearTenant} title="Clear tenant filter" aria-label="Clear tenant filter">Tenant: {$filters.tenantKey} <Icon name="x" /></button>
+      {#if $filters.tenantName}
+        <button class="chip" onclick={clearTenant} title="Clear tenant filter" aria-label="Clear tenant filter">Tenant: {$filters.tenantName} <Icon name="x" /></button>
       {/if}
       <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>
@@ -206,7 +206,7 @@
     {/snippet}
     {#snippet statusCell(job: JobRow)}<StatusBadge status={job.status} />{/snippet}
     {#snippet tenantCell(job: JobRow)}
-      {#if job.tenantKey}<a href={routes.tenant(job.tenantKey, { namespace: $scope })} class="mono">{job.tenantKey}</a>{:else}<span class="dim">·</span>{/if}
+      {#if job.tenantName}<a href={routes.tenant(job.tenantName, { namespace: $scope })} class="mono">{job.tenantName}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
     {#snippet ageCell(job: JobRow)}<RelativeTime value={job.createdAtUtc} />{/snippet}
     {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}
@@ -222,7 +222,7 @@
         jobName: $scope ? $filters.jobName.trim() : '',
         correlationKey: $filters.correlationKey.trim(),
         jobNamespace: $scope,
-        tenantKey: $filters.tenantKey,
+        tenantName: $filters.tenantName,
         lane: $filters.lane,
         tag: parseTagTokens($filters.tags),
         terminalOnly: view === 'history' ? 'true' : '',

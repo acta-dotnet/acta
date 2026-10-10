@@ -10,7 +10,7 @@ internal sealed class RequeueOutboxHandler(ParkOutboxSignalHandler park)
             command.JobNamespace,
             command.OutboxIds,
             command.ReasonMessage,
-            command.ActorKey,
+            command.Actor,
             ct
         );
         return new RequeueOutboxResponse(action, pendingSinceUtc);

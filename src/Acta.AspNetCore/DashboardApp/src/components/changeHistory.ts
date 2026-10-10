@@ -5,7 +5,7 @@ export interface HistoryEvent {
   eventCode: string;
   createdAtUtc: string;
   actorCode: string;
-  actorKey: string | null;
+  actor: string | null;
   reasonMessage: string | null;
 }
 

@@ -11,7 +11,7 @@ BEGIN TRY
 
     SELECT @id = t.id, @version = t.version
     FROM {{schema}}.tenants t WITH (UPDLOCK, ROWLOCK)
-    WHERE t.tenant_key = @p_tenant_key;
+    WHERE t.tenant_name = @p_tenant_name;
 
     IF @id IS NOT NULL AND @version = @p_expected_version
     BEGIN
@@ -22,8 +22,8 @@ BEGIN TRY
         SET @applied = 1;
 
         -- namespace_id 1 is the seeded sys namespace (M001).
-        INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, tenant_id, reason_message)
-        VALUES (12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key, @id, @p_reason_message);
+        INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor, tenant_id, reason_message)
+        VALUES (12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor, @id, @p_reason_message);
     END;
 
     SELECT

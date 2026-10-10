@@ -178,7 +178,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// How often attempts of this definition may start, as <c>N/s</c> / <c>N/m</c> / <c>N/h</c>; NULL
-    /// means no rate limit. Metered on <see cref="RateKey"/> through the GCRA bucket row
+    /// means no rate limit. Metered on <see cref="RateName"/> through the GCRA bucket row
     /// <c>{ns_id}.rate.{key}</c> in <c>locks</c>, so no table carries a counter.
     /// </summary>
     [DbColumn("rate_limit", DbKind.AsciiString, Size = 16)]
@@ -198,13 +198,13 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// definitions it competes with, which is a contract change rather than an operator dial.
     /// Definitions sharing a key must declare the same rate, which registration enforces.
     /// </summary>
-    [DbColumn("rate_key", DbKind.AsciiString, Size = 128)]
-    public string? RateKey { get; internal set; }
+    [DbColumn("rate_name", DbKind.AsciiString, Size = 128)]
+    public string? RateName { get; internal set; }
 
     /// <summary>
     /// Default lane for this definition's jobs, used when an enqueue names none; an enqueue lane
     /// overrides it but cannot clear it. NULL means unlaned. Code-owned and deliberately without an
-    /// override triple, like <see cref="RateKey"/>: a lane decides ordering, a contract rather than an
+    /// override triple, like <see cref="RateName"/>: a lane decides ordering, a contract rather than an
     /// operator dial. Stored canonical, like <c>lanes.name</c>.
     /// </summary>
     [DbColumn("lane", DbKind.AsciiString, Size = 128)]

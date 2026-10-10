@@ -72,7 +72,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var registered = await Operations.Tenants.RegisterAsync(tenant, null, null, ct);
 
-        Assert.Equal(tenant.ToLowerInvariant(), registered.TenantKey);
+        Assert.Equal(tenant.ToLowerInvariant(), registered.TenantName);
         Assert.Equal(registered.TenantId, (await Operations.Tenants.RegisterAsync(tenant.ToLowerInvariant(), null, null, ct)).TenantId);
     }
 

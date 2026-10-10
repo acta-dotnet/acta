@@ -47,17 +47,17 @@ SELECT ACTA_ERROR('ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows re
 WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
     WHERE
-        JSON_EXTRACT(r.value, '$.tenant_key') IS NOT NULL
+        JSON_EXTRACT(r.value, '$.tenant_name') IS NOT NULL
         AND NOT EXISTS (
             SELECT 1 FROM {{schema}}.tenants t
-            WHERE t.tenant_key = JSON_EXTRACT(r.value, '$.tenant_key')
+            WHERE t.tenant_name = JSON_EXTRACT(r.value, '$.tenant_name')
         )
 );
 
 SELECT ACTA_ERROR('ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.')
 WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
-    JOIN {{schema}}.tenants t ON t.tenant_key = JSON_EXTRACT(r.value, '$.tenant_key')
+    JOIN {{schema}}.tenants t ON t.tenant_name = JSON_EXTRACT(r.value, '$.tenant_name')
     WHERE t.status_code <> 10 /* TenantStatusCode.Active */
 );
 
@@ -68,7 +68,7 @@ WHERE EXISTS (
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
     WHERE
         jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
-        AND JSON_EXTRACT(r.value, '$.tenant_key') IS NULL
+        AND JSON_EXTRACT(r.value, '$.tenant_name') IS NULL
         AND NOT EXISTS (
             SELECT 1 FROM {{schema}}.jobs pj
             WHERE pj.id = JSON_EXTRACT(r.value, '$.parent_id') AND pj.tenant_id IS NOT NULL
@@ -82,17 +82,17 @@ WHERE EXISTS (
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
     WHERE
         jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
-        AND JSON_EXTRACT(r.value, '$.tenant_key') IS NOT NULL
+        AND JSON_EXTRACT(r.value, '$.tenant_name') IS NOT NULL
 );
 
 SELECT
     ACTA_ERROR(
-        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantKey'
+        'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a TenantName'
         || ' that differs from the parent tenant without an explicit override.'
     )
 WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
-    JOIN {{schema}}.tenants t ON t.tenant_key = JSON_EXTRACT(r.value, '$.tenant_key')
+    JOIN {{schema}}.tenants t ON t.tenant_name = JSON_EXTRACT(r.value, '$.tenant_name')
     JOIN {{schema}}.jobs pj ON pj.id = JSON_EXTRACT(r.value, '$.parent_id')
     WHERE
         JSON_EXTRACT(r.value, '$.tenant_override') = 0
@@ -160,7 +160,7 @@ SELECT
         ELSE COALESCE(
             (
                 SELECT t.id FROM {{schema}}.tenants t
-                WHERE t.tenant_key = JSON_EXTRACT(r.value, '$.tenant_key') AND t.status_code = 10 /* TenantStatusCode.Active */
+                WHERE t.tenant_name = JSON_EXTRACT(r.value, '$.tenant_name') AND t.status_code = 10 /* TenantStatusCode.Active */
             ),
             pj.tenant_id
         )

@@ -17,16 +17,16 @@ internal sealed class SchedulesOperations(
         ScheduleLookup schedule,
         DateTime? untilUtc = null,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => pauseSchedule.HandleAsync(new PauseScheduleCommand(schedule, untilUtc, reasonMessage, actorKey), ct);
+    ) => pauseSchedule.HandleAsync(new PauseScheduleCommand(schedule, untilUtc, reasonMessage, actor), ct);
 
     public ValueTask<ResumeScheduleResponse> ResumeAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => resumeSchedule.HandleAsync(new ResumeScheduleCommand(schedule, reasonMessage, actorKey), ct);
+    ) => resumeSchedule.HandleAsync(new ResumeScheduleCommand(schedule, reasonMessage, actor), ct);
 
     public ValueTask<SetScheduleOverridesResponse> UpdateOverridesAsync(
         ScheduleLookup schedule,
@@ -34,20 +34,20 @@ internal sealed class SchedulesOperations(
         string? expression,
         string? timeZoneId,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     ) =>
         setScheduleOverrides.HandleAsync(
-            new SetScheduleOverridesCommand(schedule, expectedVersion, expression, timeZoneId, reasonMessage, actorKey),
+            new SetScheduleOverridesCommand(schedule, expectedVersion, expression, timeZoneId, reasonMessage, actor),
             ct
         );
 
     public ValueTask<TriggerScheduleNowResponse> TriggerNowAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => triggerScheduleNow.HandleAsync(new TriggerScheduleNowCommand(schedule, reasonMessage, actorKey), ct);
+    ) => triggerScheduleNow.HandleAsync(new TriggerScheduleNowCommand(schedule, reasonMessage, actor), ct);
 
     public ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
         listSchedules.HandleAsync(query, ct);

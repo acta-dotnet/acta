@@ -86,7 +86,7 @@ public sealed class ControlAuthorizationTests
         Assert.Single(fakes.Jobs.ControlCalls);
         var request = Assert.Single(authorizer.Requests);
         Assert.Equal("cancel", request.Verb);
-        Assert.Equal("test-operator", request.ActorKey);
+        Assert.Equal("test-operator", request.Actor);
     }
 
     [Fact]

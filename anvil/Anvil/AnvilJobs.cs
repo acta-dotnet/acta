@@ -92,7 +92,7 @@ public static class SlowSuccessJob
         // Tenant witness, one per attempt. Comparing events.tenant_id to jobs.tenant_id would be
         // tautological - two projections of one stored value - so the only non-circular question is
         // what the HANDLER saw after the whole enqueue, claim and dispatch path, which is this.
-        await ctx.NoteAsync($"tenant {ctx.TenantKey ?? "-"}", ct);
+        await ctx.NoteAsync($"tenant {ctx.TenantName ?? "-"}", ct);
 
         for (var step = 1; step <= input.StepCount; step++)
         {
@@ -193,7 +193,7 @@ public static class AtMostOnceChargeJob
     [Job("at-most-once-charge", MaxAttempts = 3, Backoff = "2s..4s")]
     public static async Task<string> Handle(AtMostOnceCharge input, JobContext ctx, CancellationToken ct)
     {
-        await ctx.NoteAsync($"tenant {ctx.TenantKey ?? "-"}", ct);
+        await ctx.NoteAsync($"tenant {ctx.TenantName ?? "-"}", ct);
         await ctx.RunStepAsync(
             "charge",
             async token =>

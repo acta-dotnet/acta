@@ -113,9 +113,9 @@ public sealed class ControlContractTests
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse)),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume", typeof(ResumeNamespaceResponse)),
         .. AdminPatch("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments", typeof(UpdateNamespaceResponse)),
-        .. AdminVerb("tenants", "/tenants/{tenantKey}", "cust-001", "suspend", typeof(SuspendTenantResponse)),
-        .. AdminVerb("tenants", "/tenants/{tenantKey}", "cust-001", "resume", typeof(ResumeTenantResponse)),
-        .. AdminPatch("tenants", "/tenants/{tenantKey}", "cust-001", "displayName", "Acme", typeof(UpdateTenantResponse)),
+        .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "suspend", typeof(SuspendTenantResponse)),
+        .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "resume", typeof(ResumeTenantResponse)),
+        .. AdminPatch("tenants", "/tenants/{tenantName}", "cust-001", "displayName", "Acme", typeof(UpdateTenantResponse)),
         .. TenantRegistration(),
         .. Tags("/jobs/{jobRef}", $"/jobs/{Found}"),
         .. Tags("/definitions/{jobNamespace}/{jobName}", "/definitions/billing/send-invoice"),
@@ -123,7 +123,7 @@ public sealed class ControlContractTests
         .. Tags("/workers/{workerRef}", $"/workers/{KnownWorker}"),
         .. Tags("/alerts/{alertRef}", $"/alerts/{KnownAlert}"),
         .. Tags("/namespaces/{jobNamespace}", "/namespaces/billing"),
-        .. Tags("/tenants/{tenantKey}", "/tenants/cust-001"),
+        .. Tags("/tenants/{tenantName}", "/tenants/cust-001"),
         .. MalformedRefs(),
         .. InputTemplate(),
         // The body-reading routes all share one JSON-only check, so one row covers the code it
@@ -562,7 +562,7 @@ public sealed class ControlContractTests
                 StatusCodes.Status200OK,
                 typeof(RegisterTenantResponse),
                 null,
-                new { tenantKey = "cust-002" }
+                new { tenantName = "cust-002" }
             ),
         ];
 

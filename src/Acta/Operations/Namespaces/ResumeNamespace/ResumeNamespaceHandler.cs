@@ -12,7 +12,7 @@ internal sealed class ResumeNamespaceHandler(IDbSession session, ISqlDialect dia
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, name));
-                cmd.AddOperatorAudit(dialect, command.ActorKey, command.ReasonMessage);
+                cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<ResumeNamespaceResponse>(),
             ct

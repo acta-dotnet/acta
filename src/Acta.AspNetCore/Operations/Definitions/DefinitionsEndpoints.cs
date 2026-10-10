@@ -74,7 +74,7 @@ internal static class DefinitionsEndpoints
                     call.Body!.ExpectedVersion,
                     call.Body.Overrides ?? new DefinitionPolicyOverrides(),
                     call.ReasonMessage,
-                    call.ActorKey,
+                    call.Actor,
                     call.Ct
                 )
         );
@@ -92,7 +92,7 @@ internal static class DefinitionsEndpoints
                     key.Name,
                     call.Body!.ExpectedVersion,
                     call.ReasonMessage,
-                    call.ActorKey,
+                    call.Actor,
                     call.Ct
                 ),
             bodyRequired: true

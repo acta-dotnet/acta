@@ -22,7 +22,7 @@ internal static class MeterConsistencyCheck
                 continue;
             }
 
-            var meter = JobDefinitionRegistration.EffectiveRateKey(definition.Effective.RateKey, definition.Name);
+            var meter = JobDefinitionRegistration.EffectiveRateName(definition.Effective.RateName, definition.Name);
             if (!byMeter.TryGetValue(meter, out var participants))
             {
                 participants = [];

@@ -193,7 +193,7 @@ last worker observes the change, plus one attempt's duration.
 
 ### Rate limit
 
-`[Job("send-invoice", RateLimit = "10/s", RateKey = "stripe")]` caps how *often* attempts of that
+`[Job("send-invoice", RateLimit = "10/s", RateName = "stripe")]` caps how *often* attempts of that
 definition start, where the concurrency limit caps how *many* run at once. The two are independent
 gates and a job passes both. The format is `N/s`, `N/m`, or `N/h` with `N` a positive whole number,
 and the rate may not exceed 1000 per second: the interval between admissions is the period divided by
@@ -201,13 +201,13 @@ and the rate may not exceed 1000 per second: the interval between admissions is 
 is rejected at build time by the source generator, again at worker startup, and again at the override
 gate. Like every other policy slot the rate has an operator override on the definition row.
 
-`RateKey` names the meter, within the namespace: definitions in different namespaces never share a
+`RateName` names the meter, within the namespace: definitions in different namespaces never share a
 meter, so a quota shared by two services needs its rate split between them. Omit it and the meter is
 the definition name, so a rate alone throttles
 just that definition - and a definition *named* `stripe` is on the same meter as one declaring
-`RateKey = "stripe"`. Definitions that share a meter **must declare the same rate**; worker startup
+`RateName = "stripe"`. Definitions that share a meter **must declare the same rate**; worker startup
 rejects a namespace where two of them disagree, because one meter cannot run at two rates. Unlike the
-rate, the key has no operator override: moving a definition onto another meter changes which
+rate, the meter name has no operator override: moving a definition onto another meter changes which
 definitions it competes with, which is a contract change rather than a dial.
 
 **An override applies to every definition sharing the meter.** Write a `RateLimit` override on one

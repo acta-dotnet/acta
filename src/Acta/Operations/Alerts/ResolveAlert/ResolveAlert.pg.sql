@@ -30,10 +30,10 @@ SET
 WHERE alert_ref = @p_alert_ref AND EXISTS (SELECT 1 FROM _resolve_alert t WHERE NOT t.already_resolved);
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, reason_message)
 SELECT
-    141 /* EventCode.AlertResolved */, now(), t.namespace_id, @p_actor_code, @p_actor_key, t.job_id, t.job_ref,
+    141 /* EventCode.AlertResolved */, now(), t.namespace_id, @p_actor_code, @p_actor, t.job_id, t.job_ref,
     r.execution_number, COALESCE(j.lineage_root_id, t.job_id), j.definition_id, @p_reason_message
 FROM _resolve_alert t
 LEFT JOIN {{schema}}.jobs j ON j.id = t.job_id

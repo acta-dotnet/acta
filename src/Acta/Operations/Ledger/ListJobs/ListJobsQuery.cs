@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Filters and paging for <see cref="ILedger.ListJobsAsync"/>, newest first (created_at_utc, id descending).
-/// <c>JobNamespace</c> is required with <c>JobName</c>; the names (<c>JobNamespace</c>, <c>JobName</c>, <c>TenantKey</c>,
+/// <c>JobNamespace</c> is required with <c>JobName</c>; the names (<c>JobNamespace</c>, <c>JobName</c>, <c>TenantName</c>,
 /// <c>Lane</c>) fold lowercase, <c>CorrelationKey</c> matches verbatim and case-sensitively; <c>TerminalOnly</c> true
 /// restricts to Succeeded, Failed, and Cancelled, and <c>RecurringOnly</c> true to jobs with a live schedule (null or
 /// false skips either); <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c> is the previous page's
@@ -14,7 +14,7 @@ public sealed record ListJobsQuery(
     string? JobName = null,
     long? ParentJobId = null,
     int? TenantId = null,
-    string? TenantKey = null,
+    string? TenantName = null,
     string? CorrelationKey = null,
     int? PageSize = null,
     string? Cursor = null,

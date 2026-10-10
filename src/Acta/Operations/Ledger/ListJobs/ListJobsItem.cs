@@ -14,7 +14,7 @@ public sealed record ListJobsItem(
     string JobNamespace,
     string JobName,
     [property: JsonIgnore] int? TenantId,
-    string? TenantKey,
+    string? TenantName,
     [property: JsonIgnore] long? ParentJobId,
     JobRef? ParentJobRef,
     [property: JsonIgnore] long? LineageRootId,

@@ -8,7 +8,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.raise_alert
     @p_message NVARCHAR(512),
     @p_channel_name VARCHAR(128),
     @p_delivery_status_code TINYINT,
-    @p_dedupe_key VARCHAR(512),
+    @p_deduplication_key VARCHAR(128),
     @p_source_event_id BIGINT,
     @p_alert_ref UNIQUEIDENTIFIER
 AS
@@ -41,12 +41,12 @@ BEGIN
         IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
             THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id', 1;
 
-        IF @p_dedupe_key IS NULL
+        IF @p_deduplication_key IS NULL
             BEGIN
                 INSERT INTO {{schema}}.alerts (
                     namespace_id, alert_ref, job_id, job_ref,
                     origin_code, severity_code, kind_code, title, message, channel_name,
-                    dedupe_key, occurrence_count, last_projected_event_id,
+                    deduplication_key, occurrence_count, last_projected_event_id,
                     delivery_status_code, retry_count,
                     created_at_utc, modified_at_utc, version
                 )
@@ -81,10 +81,10 @@ BEGIN
             modified_at_utc = @now,
             version = ja.version + 1
         OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-        FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+        FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
         WHERE
             ja.namespace_id = @v_ns
-            AND ja.dedupe_key = @p_dedupe_key
+            AND ja.deduplication_key = @p_deduplication_key
             AND ja.resolved_at_utc IS NULL
             AND (
                 @p_source_event_id IS NULL
@@ -100,7 +100,7 @@ BEGIN
                 INSERT INTO {{schema}}.alerts (
                     namespace_id, alert_ref, job_id, job_ref,
                     origin_code, severity_code, kind_code, title, message, channel_name,
-                    dedupe_key, occurrence_count, last_projected_event_id,
+                    deduplication_key, occurrence_count, last_projected_event_id,
                     delivery_status_code, retry_count,
                     created_at_utc, modified_at_utc, version
                 )
@@ -108,7 +108,7 @@ BEGIN
                 SELECT
                     @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
                     @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                    @p_dedupe_key, 1, @p_source_event_id,
+                    @p_deduplication_key, 1, @p_source_event_id,
                     @p_delivery_status_code, 0,
                     @now, @now, 0
                 -- No lock hint: this reads the whole identity, resolved rows included, which the
@@ -119,7 +119,7 @@ BEGIN
                     FROM {{schema}}.alerts AS g
                     WHERE
                         g.namespace_id = @v_ns
-                        AND g.dedupe_key = @p_dedupe_key
+                        AND g.deduplication_key = @p_deduplication_key
                         AND (g.resolved_at_utc IS NULL OR g.last_projected_event_id >= @p_source_event_id)
                 );
 
@@ -133,7 +133,7 @@ BEGIN
                         FROM {{schema}}.alerts AS ja
                         WHERE
                             ja.namespace_id = @v_ns
-                            AND ja.dedupe_key = @p_dedupe_key
+                            AND ja.deduplication_key = @p_deduplication_key
                         ORDER BY ja.id DESC;
                     END
             END

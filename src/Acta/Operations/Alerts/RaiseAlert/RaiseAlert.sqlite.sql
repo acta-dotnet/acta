@@ -9,7 +9,7 @@ WHERE
 INSERT INTO {{schema}}.alerts (
     namespace_id, alert_ref, job_id, job_ref,
     origin_code, severity_code, kind_code, title, message, channel_name,
-    dedupe_key, occurrence_count, last_projected_event_id,
+    deduplication_key, occurrence_count, last_projected_event_id,
     delivery_status_code, retry_count
 )
 SELECT
@@ -23,7 +23,7 @@ SELECT
     @p_title,
     @p_message,
     @p_channel_name,
-    @p_dedupe_key,
+    @p_deduplication_key,
     1,
     @p_source_event_id,
     @p_delivery_status_code,
@@ -40,13 +40,13 @@ WHERE
         FROM {{schema}}.alerts g
         WHERE
             g.namespace_id = ns.id
-            AND g.dedupe_key = @p_dedupe_key
+            AND g.deduplication_key = @p_deduplication_key
             AND g.last_projected_event_id >= @p_source_event_id
     )
--- One OPEN row per (namespace_id, dedupe_key) - the incident. The conflict target is the filtered
+-- One OPEN row per (namespace_id, deduplication_key) - the incident. The conflict target is the filtered
 -- unique index, so a resolved row is invisible to it and the next failure opens a fresh incident
 -- instead of re-opening the closed one.
-ON CONFLICT (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL
+ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL
 DO UPDATE SET
     job_id = excluded.job_id,
     job_ref = excluded.job_ref,
@@ -71,9 +71,9 @@ WHERE
 SELECT a.occurrence_count, a.last_projected_event_id
 FROM {{schema}}.alerts a
 WHERE
-    (@p_dedupe_key IS NULL AND a.alert_ref = @p_alert_ref) -- keyless: the row just minted
+    (@p_deduplication_key IS NULL AND a.alert_ref = @p_alert_ref) -- keyless: the row just minted
     OR (
-        @p_dedupe_key IS NOT NULL
+        @p_deduplication_key IS NOT NULL
         -- MAX(id), not ORDER BY id DESC LIMIT 1: both name the identity's newest row - the open
         -- incident, or the last-resolved one when a guard held the write back - but a top-level OR is
         -- served by a multi-index union that cannot also satisfy an ORDER BY, so sorting cost a b-tree.
@@ -82,6 +82,6 @@ WHERE
             FROM {{schema}}.alerts b
             WHERE
                 b.namespace_id = (SELECT ns.id FROM {{schema}}.namespaces ns WHERE ns.name = @p_namespace_name)
-                AND b.dedupe_key = @p_dedupe_key
+                AND b.deduplication_key = @p_deduplication_key
         )
     );

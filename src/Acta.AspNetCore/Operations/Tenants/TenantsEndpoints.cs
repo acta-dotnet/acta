@@ -31,16 +31,16 @@ internal static class TenantsEndpoints
                 new QueryParameterDoc(
                     "nameContains",
                     QueryParameterKind.String,
-                    "Case-insensitive substring matched against key, display name, or description."
+                    "Case-insensitive substring matched against name, display name, or description."
                 ),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
                 .. QueryParameterDocExtensions.TagFilter,
             ]
         );
-        // A tenant key the facade cannot canonicalize names no tenant, so it reads as not found.
+        // A tenant name the facade cannot canonicalize names no tenant, so it reads as not found.
         reads.MapDetail(
-            "/tenants/{tenantKey}",
+            "/tenants/{tenantName}",
             "Read one tenant.",
             "Tenant",
             DashboardJsonContext.Default.GetTenantResponse,
@@ -48,7 +48,7 @@ internal static class TenantsEndpoints
             {
                 try
                 {
-                    return await call.Operations.Tenants.GetAsync(Key(http), call.Ct);
+                    return await call.Operations.Tenants.GetAsync(Name(http), call.Ct);
                 }
                 catch (ArgumentException)
                 {
@@ -58,11 +58,11 @@ internal static class TenantsEndpoints
         );
         reads.MapTags(
             controls,
-            "/tenants/{tenantKey}/tags",
+            "/tenants/{tenantName}/tags",
             "tenant",
             options,
             DashboardJsonContext.Default.UpsertTenantTagsRequest,
-            static http => TagTarget.ForTenant(Key(http))
+            static http => TagTarget.ForTenant(Name(http))
         );
         if (controls is null)
         {
@@ -71,28 +71,28 @@ internal static class TenantsEndpoints
 
         RegisterTenantEndpoint.Map(controls, options);
         controls.MapCommand(
-            "/tenants/{tenantKey}/suspend",
+            "/tenants/{tenantName}/suspend",
             "Suspend the tenant: new work is rejected at enqueue.",
             options,
             DashboardJsonContext.Default.SuspendTenantRequest,
-            "Invalid tenant key.",
+            "Invalid tenant name.",
             ControlStatus.Admin<SuspendTenantResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
-            Key,
-            static (call, key) => call.Operations.Tenants.SuspendAsync(key, call.ReasonMessage, call.ActorKey, call.Ct)
+            Name,
+            static (call, name) => call.Operations.Tenants.SuspendAsync(name, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
-            "/tenants/{tenantKey}/resume",
+            "/tenants/{tenantName}/resume",
             "Resume a suspended tenant.",
             options,
             DashboardJsonContext.Default.ResumeTenantRequest,
-            "Invalid tenant key.",
+            "Invalid tenant name.",
             ControlStatus.Admin<ResumeTenantResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
-            Key,
-            static (call, key) => call.Operations.Tenants.ResumeAsync(key, call.ReasonMessage, call.ActorKey, call.Ct)
+            Name,
+            static (call, name) => call.Operations.Tenants.ResumeAsync(name, call.ReasonMessage, call.Actor, call.Ct)
         );
         // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries without a re-read.
         controls.MapUpdate(
-            "/tenants/{tenantKey}",
+            "/tenants/{tenantName}",
             "Update the tenant's display name and description.",
             options,
             DashboardJsonContext.Default.UpdateTenantRequest,
@@ -102,8 +102,8 @@ internal static class TenantsEndpoints
                 StatusCodes.Status404NotFound,
                 StatusCodes.Status409Conflict
             ),
-            Key,
-            static (call, key) =>
+            Name,
+            static (call, name) =>
             {
                 var body = call.Body!;
                 var expectedVersion =
@@ -111,17 +111,17 @@ internal static class TenantsEndpoints
                 ControlEndpointValidation.RequireLength(body.DisplayName, "displayName", TextLimits.TenantDisplayName);
                 ControlEndpointValidation.RequireLength(body.Description, "description", TextLimits.TenantDescription);
                 return call.Operations.Tenants.UpdateAsync(
-                    key,
+                    name,
                     expectedVersion,
                     body.DisplayName,
                     body.Description,
                     call.ReasonMessage,
-                    call.ActorKey,
+                    call.Actor,
                     call.Ct
                 );
             }
         );
     }
 
-    private static string Key(HttpContext http) => RouteKeys.Value(http, "tenantKey");
+    private static string Name(HttpContext http) => RouteKeys.Value(http, "tenantName");
 }

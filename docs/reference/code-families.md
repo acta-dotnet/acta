@@ -71,10 +71,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Actor not recognized by this build; the row was written by a newer Acta. | Active |
-| `Sys` | 10 | `sys` | Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey is null. | Active |
-| `Operator` | 20 | `operator` | A human or admin tool acting from outside any job context (endpoint, dashboard, admin script). ActorKey carries the authenticated principal name as-is (e.g. http.User.Identity.Name); null when the host did not authenticate. | Active |
-| `Job` | 50 | `job` | ctx.* throw-to-transition inside a user handler. ActorKey = "{jobId}". | Active |
-| `Worker` | 70 | `worker` | Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey stores the acting worker's public ref as canonical lowercase uuid text; read projections render it as wrk_.... | Active |
+| `Sys` | 10 | `sys` | Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. Actor is null. | Active |
+| `Operator` | 20 | `operator` | A human or admin tool acting from outside any job context (endpoint, dashboard, admin script). Actor carries the authenticated principal name as-is (e.g. http.User.Identity.Name); null when the host did not authenticate. | Active |
+| `Job` | 50 | `job` | ctx.* throw-to-transition inside a user handler. Actor = "{jobId}". | Active |
+| `Worker` | 70 | `worker` | Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). Actor stores the acting worker's public ref as canonical lowercase uuid text; read projections render it as wrk_.... | Active |
 
 ### `AlertChannelStatusCode` · `alert-channel-status` <a id="code-family-alertchannelstatuscode"></a>
 
@@ -184,15 +184,15 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Optional` | 0 | `optional` | Jobs may carry a tenant or not; no enqueue-time tenant rule applies. | Active |
-| `Required` | 10 | `required` | Every enqueue must carry a tenant, by explicit TenantKey or parent inheritance; a tenant-less enqueue is rejected. | Active |
-| `Forbidden` | 20 | `forbidden` | An explicit TenantKey is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
+| `Required` | 10 | `required` | Every enqueue must carry a tenant, by explicit TenantName or parent inheritance; a tenant-less enqueue is rejected. | Active |
+| `Forbidden` | 20 | `forbidden` | An explicit TenantName is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
 
 ### `EventCode` · `event` <a id="code-family-eventcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Event id not recognized by this build; the row was written by a newer Acta. | Active |
-| `TenantSuspended` | 10 | `tenant.suspended` | An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason. | Active |
+| `TenantSuspended` | 10 | `tenant.suspended` | An operator suspended a tenant; the name stops resolving at enqueue. ReasonMessage carries the reason. | Active |
 | `TenantResumed` | 11 | `tenant.resumed` | An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason. | Active |
 | `TenantUpdated` | 12 | `tenant.updated` | An operator changed a tenant display name / description. ReasonMessage carries the reason. | Active |
 | `NamespaceSuspended` | 20 | `namespace.suspended` | An operator suspended a namespace; enqueue into it is rejected. ReasonMessage carries the reason. | Active |
@@ -393,8 +393,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Tenant status not recognized by this build; the row was written by a newer Acta. | Active |
-| `Active` | 10 | `active` | Tenant key resolves at enqueue; enqueue allowed. | Active |
-| `Suspended` | 20 | `suspended` | Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause). | Active |
+| `Active` | 10 | `active` | Tenant name resolves at enqueue; enqueue allowed. | Active |
+| `Suspended` | 20 | `suspended` | Admission suspended: new enqueues naming the tenant name are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause). | Active |
 
 ### `WorkerStatusCode` · `worker-status` <a id="code-family-workerstatuscode"></a>
 

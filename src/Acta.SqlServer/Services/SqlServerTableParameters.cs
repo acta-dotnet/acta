@@ -27,7 +27,7 @@ internal static class SqlServerTableParameters
         new("next_run_at_utc", SqlDbType.DateTime2),
         new("delay_seconds", SqlDbType.Int),
         new("parent_id", SqlDbType.BigInt),
-        new("tenant_key", SqlDbType.VarChar, 128),
+        new("tenant_name", SqlDbType.VarChar, 128),
         new("tenant_override", SqlDbType.Bit),
         new("lane", SqlDbType.VarChar, 128),
     ];
@@ -65,7 +65,7 @@ internal static class SqlServerTableParameters
             {
                 record.SetDBNull(12);
             }
-            SetNullableString(record, 13, row.TenantKey);
+            SetNullableString(record, 13, row.TenantName);
             record.SetBoolean(14, row.OverrideParentTenant);
             SetNullableString(record, 15, row.Lane);
             yield return record;
@@ -160,7 +160,7 @@ internal static class SqlServerTableParameters
         new("max_attempts", SqlDbType.Int),
         new("concurrency_limit", SqlDbType.Int),
         new("rate_limit", SqlDbType.VarChar, 16),
-        new("rate_key", SqlDbType.VarChar, 128),
+        new("rate_name", SqlDbType.VarChar, 128),
         new("backoff", SqlDbType.NVarChar, 64),
         new("execution_timeout_seconds", SqlDbType.Int),
         new("deadline_seconds", SqlDbType.Int),
@@ -197,7 +197,7 @@ internal static class SqlServerTableParameters
                 record.SetInt32(2, row.MaxAttempts);
                 SetNullableInt32(record, 3, row.ConcurrencyLimit);
                 SetNullableString(record, 4, row.RateLimit);
-                SetNullableString(record, 5, row.RateKey);
+                SetNullableString(record, 5, row.RateName);
                 record.SetString(6, row.Backoff);
                 record.SetInt32(7, row.ExecutionTimeoutSeconds);
                 record.SetInt32(8, row.DeadlineSeconds);

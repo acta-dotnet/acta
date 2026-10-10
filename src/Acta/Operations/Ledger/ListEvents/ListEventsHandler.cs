@@ -20,9 +20,9 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
         }
 
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
-        var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
+        var tenantName = string.IsNullOrWhiteSpace(query.TenantName)
             ? null
-            : NameSyntax.Canonicalize(query.TenantKey, nameof(query.TenantKey), NameSyntax.ExtendedMaxLength);
+            : NameSyntax.Canonicalize(query.TenantName, nameof(query.TenantName), NameSyntax.ExtendedMaxLength);
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListEventsQuery));
 
@@ -40,7 +40,7 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
                 ("event", ((byte?)query.EventCode)?.ToString(CultureInfo.InvariantCulture)),
                 ("def", query.DefinitionId?.ToString(CultureInfo.InvariantCulture)),
                 ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
-                ("tenantKey", tenantKey),
+                ("tenantName", tenantName),
                 ("worker", query.WorkerId?.ToString(CultureInfo.InvariantCulture)),
                 ("actor", ((byte?)query.ActorCode)?.ToString(CultureInfo.InvariantCulture)),
                 ("reason", ((byte?)query.ReasonCode)?.ToString(CultureInfo.InvariantCulture)),
@@ -61,7 +61,7 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventCode, query.EventCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DefinitionId, query.DefinitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.TenantId, query.TenantId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, tenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantNameFilter, tenantName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.WorkerId, query.WorkerId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, query.ActorCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, query.ReasonCode));

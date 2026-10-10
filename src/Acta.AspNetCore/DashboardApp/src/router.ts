@@ -9,7 +9,7 @@ export interface Route {
   workerRef?: string;
   alertRef?: string;
   namespaceName?: string;
-  tenantKey?: string;
+  tenantName?: string;
   scheduleNamespace?: string;
   scheduleJobName?: string;
   scheduleName?: string;
@@ -68,7 +68,7 @@ export function parseRouteHash(hash: string): Route {
     case 'tenants':
       if (parts.length === 1) return { name: 'tenants' };
       if (parts.length !== 2) return { name: 'not-found' };
-      return parts[1] === 'new' ? { name: 'tenant-new' } : { name: 'tenant-detail', tenantKey: decoded(parts, 1) };
+      return parts[1] === 'new' ? { name: 'tenant-new' } : { name: 'tenant-detail', tenantName: decoded(parts, 1) };
     default:
       return { name: 'not-found' };
   }

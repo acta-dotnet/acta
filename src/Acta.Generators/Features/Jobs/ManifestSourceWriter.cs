@@ -141,9 +141,9 @@ internal static class ManifestSourceWriter
             policyLines.Add($"RateLimit = {FormatString(rateLimitRaw)},");
         }
 
-        if (j.RateKey is { } rateKeyRaw)
+        if (j.RateName is { } rateNameRaw)
         {
-            policyLines.Add($"RateKey = {FormatString(rateKeyRaw)},");
+            policyLines.Add($"RateName = {FormatString(rateNameRaw)},");
         }
 
         if (j.Lane is { } laneRaw)

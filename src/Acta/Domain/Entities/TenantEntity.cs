@@ -7,12 +7,12 @@ namespace Acta;
 /// </summary>
 [DbTable("tenants")]
 [DbPrimaryKey(Name = "pk_tenants", Columns = ["id"])]
-[DbUniqueIndex(Name = "ux_tenants_key", Columns = ["tenant_key"], Usage = "uniqueness")]
+[DbUniqueIndex(Name = "ux_tenants_name", Columns = ["tenant_name"], Usage = "uniqueness")]
 internal sealed class TenantEntity : IEntity<int>
 {
     /// <summary>
     /// DB-assigned identity. Referenced by <c>job.tenant_id</c> and <c>events.tenant_id</c>. Callers
-    /// never pick the value; the runtime upserts the row by <see cref="TenantKey"/> and reads the id back.
+    /// never pick the value; the runtime upserts the row by <see cref="TenantName"/> and reads the id back.
     /// </summary>
     [DbColumn("id", DbKind.Int32)]
     public int Id { get; init; }
@@ -22,8 +22,8 @@ internal sealed class TenantEntity : IEntity<int>
     /// Trimmed and lowercased, at most 128 chars, never <c>sys</c> or under <c>sys.</c>. Resolved to
     /// <see cref="Id"/> at enqueue; the human label lives in <see cref="DisplayName"/>.
     /// </summary>
-    [DbColumn("tenant_key", DbKind.AsciiString, Size = 128)]
-    public string TenantKey { get; init; } = default!;
+    [DbColumn("tenant_name", DbKind.AsciiString, Size = 128)]
+    public string TenantName { get; init; } = default!;
 
     /// <summary>
     /// Tenant lifecycle status. <see cref="TenantStatusCode.Active"/> resolves at enqueue;

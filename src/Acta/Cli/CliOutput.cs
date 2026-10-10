@@ -50,7 +50,7 @@ internal static class CliOutput
                     w.WriteString("jobRef", snapshot.JobRef.ToString());
                     w.WriteString("namespace", snapshot.JobNamespace);
                     w.WriteString("name", snapshot.JobName);
-                    WriteJsonStringOrNull(w, "tenantKey", snapshot.TenantKey);
+                    WriteJsonStringOrNull(w, "tenantName", snapshot.TenantName);
                     if (snapshot.DeduplicationKey is { } key)
                     {
                         w.WriteString("deduplicationKey", key);
@@ -70,7 +70,7 @@ internal static class CliOutput
         writer.WriteLine($"job: {snapshot.JobRef}");
         writer.WriteLine($"namespace: {snapshot.JobNamespace}");
         writer.WriteLine($"name: {snapshot.JobName}");
-        writer.WriteLine($"tenant: {snapshot.TenantKey ?? "(none)"}");
+        writer.WriteLine($"tenant: {snapshot.TenantName ?? "(none)"}");
         writer.WriteLine($"deduplication-key: {snapshot.DeduplicationKey ?? "(none)"}");
         writer.WriteLine($"status: {snapshot.Status}");
         writer.WriteLine($"created-utc: {snapshot.CreatedAtUtc:O}");

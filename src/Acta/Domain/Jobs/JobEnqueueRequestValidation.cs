@@ -37,9 +37,9 @@ internal static class JobEnqueueRequestValidation
                 ? null
                 : KeySyntax.Canonicalize(request.ConcurrencyKey, Field(paramName, nameof(EnqueueJobRequest.ConcurrencyKey))),
             Lane = request.Lane is null ? null : CanonicalizeName(request.Lane, Field(paramName, nameof(EnqueueJobRequest.Lane))),
-            TenantKey = request.TenantKey is null
+            TenantName = request.TenantName is null
                 ? null
-                : CanonicalizeName(request.TenantKey, Field(paramName, nameof(EnqueueJobRequest.TenantKey))),
+                : CanonicalizeName(request.TenantName, Field(paramName, nameof(EnqueueJobRequest.TenantName))),
             Tags = NormalizeTags(request.Tags, paramName),
         };
     }
@@ -80,10 +80,10 @@ internal static class JobEnqueueRequestValidation
 
         // The override is a cross-tenant CHILD opt-in: without a parent there is no tenant to cross,
         // and without an explicit key there is nothing to override with.
-        if (request.OverrideParentTenant && (request.ParentJobId is null || request.TenantKey is null))
+        if (request.OverrideParentTenant && (request.ParentJobId is null || request.TenantName is null))
         {
             throw new ArgumentException(
-                "OverrideParentTenant requires both a ParentJobId and an explicit TenantKey.",
+                "OverrideParentTenant requires both a ParentJobId and an explicit TenantName.",
                 Field(paramName, nameof(EnqueueJobRequest.OverrideParentTenant))
             );
         }

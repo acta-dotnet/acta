@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.record_outbox_event(
     p_job_id BIGINT,
     p_event_code SMALLINT,
     p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
+    p_actor VARCHAR,
     p_reason_message VARCHAR
 )
 RETURNS VOID
@@ -16,7 +16,7 @@ BEGIN
         created_at_utc,
         namespace_id,
         actor_code,
-        actor_key,
+        actor,
         job_id,
         job_ref,
         execution_number,
@@ -29,7 +29,7 @@ BEGIN
         now(),
         j.namespace_id,
         p_actor_code,
-        p_actor_key,
+        p_actor,
         j.id,
         j.job_ref,
         r.execution_number,

@@ -32,7 +32,7 @@ internal sealed class RetireDefinitionHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
-                cmd.AddOperatorAudit(dialect, command.ActorKey, command.ReasonMessage);
+                cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<RetireDefinitionRow>(),
             ct

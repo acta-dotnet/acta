@@ -207,7 +207,7 @@ namespace Acta.Concepts.ConcurrencyKey
     public sealed class PingEndpointJob
     {
         // RateLimit is the other admission gate: five starts a second across the namespace's workers, metered
-        // on the definition name because no RateKey was given. Like ConcurrencyLimit it is an
+        // on the definition name because no RateName was given. Like ConcurrencyLimit it is an
         // operator-overridable policy slot on the definitions row.
         [Job("ping-endpoint", RateLimit = "5/s")]
         public Task Handle(PingEndpoint input, CancellationToken ct)

@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 )]
 public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    private JobEnqueueValues AddNumbersRow(string? tenantKey = null, long? parentId = null)
+    private JobEnqueueValues AddNumbersRow(string? tenantName = null, long? parentId = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
@@ -27,7 +27,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
-            TenantKey: tenantKey,
+            TenantName: tenantName,
             ParentId: parentId
         );
     }
@@ -253,9 +253,9 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // Two jobs under t1, one under t2
         var t1Outcomes = (
-            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t1Key), AddNumbersRow(tenantKey: t1Key)], ct)
+            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantName: t1Key), AddNumbersRow(tenantName: t1Key)], ct)
         ).Jobs;
-        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t2Key)], ct)).Jobs;
+        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantName: t2Key)], ct)).Jobs;
         var ta = t1Outcomes[0].JobId;
         var tb = t1Outcomes[1].JobId;
         var tc = t2Outcomes[0].JobId;
@@ -287,7 +287,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // The key filter selects the same rows as the id filter.
         var keyPage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(TenantKey: t1Key, JobNamespace: TestNamespace, PageSize: 100),
+            new ListEventsQuery(TenantName: t1Key, JobNamespace: TestNamespace, PageSize: 100),
             ct
         );
         Assert.Equal(taEvents.Union(tbEvents).ToHashSet(), [.. keyPage.Items.Select(e => e.JobEventId)]);

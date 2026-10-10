@@ -64,22 +64,22 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.NotNull(snapshot.NextRunAtUtc);
         Assert.NotEqual(0, snapshot.InputFormatId);
         Assert.Null(snapshot.TenantId);
-        Assert.Null(snapshot.TenantKey);
+        Assert.Null(snapshot.TenantName);
     }
 
     [Fact(DisplayName = "A tenant-scoped job's snapshot carries the tenant id and its external key")]
-    public async Task Snapshot_carries_tenant_key()
+    public async Task Snapshot_carries_tenant_name()
     {
         var ct = TestContext.Current.CancellationToken;
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
-        var tenantKey = TestKey("get-job-ten");
-        var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, null, null, ct)).TenantId;
+        var tenantName = TestKey("get-job-ten");
+        var tenantId = (await Operations.Tenants.RegisterAsync(tenantName, null, null, ct)).TenantId;
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = (
             await EnqueueTestOps.EnqueueBatchAsync(
                 Services,
-                [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantKey: tenantKey)],
+                [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantName: tenantName)],
                 ct
             )
         ).Jobs;
@@ -88,7 +88,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
 
         Assert.NotNull(snapshot);
         Assert.Equal(tenantId, snapshot!.TenantId);
-        Assert.Equal(tenantKey, snapshot.TenantKey);
+        Assert.Equal(tenantName, snapshot.TenantName);
     }
 
     [Fact(DisplayName = "An unknown job id returns null")]

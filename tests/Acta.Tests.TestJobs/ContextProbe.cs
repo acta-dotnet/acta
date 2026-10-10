@@ -8,7 +8,7 @@ public sealed record ContextProbeResult(
     long JobIdFromContext,
     string JobNameFromContext,
     int? TenantIdFromContext,
-    string? TenantKeyFromContext
+    string? TenantNameFromContext
 );
 
 /// <summary>
@@ -20,5 +20,5 @@ public sealed record ContextProbeResult(
 public sealed class ContextProbeHandler(JobContext context)
 {
     [Job("context-probe")]
-    public ContextProbeResult Run(ContextProbe input) => new(context.JobId, context.JobName, context.TenantId, context.TenantKey);
+    public ContextProbeResult Run(ContextProbe input) => new(context.JobId, context.JobName, context.TenantId, context.TenantName);
 }

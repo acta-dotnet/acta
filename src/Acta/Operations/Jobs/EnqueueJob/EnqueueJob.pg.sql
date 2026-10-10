@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
     p_delay_seconds INT DEFAULT NULL,
     p_parent_id BIGINT DEFAULT NULL,
-    p_tenant_key VARCHAR DEFAULT NULL,
+    p_tenant_name VARCHAR DEFAULT NULL,
     p_tenant_override BOOLEAN DEFAULT FALSE,
     p_t_name VARCHAR [] DEFAULT NULL,
     p_t_value VARCHAR [] DEFAULT NULL,
@@ -70,10 +70,10 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF p_tenant_key IS NOT NULL THEN
+    IF p_tenant_name IS NOT NULL THEN
         SELECT t.id, t.status_code INTO v_tenant_id, v_tenant_status
         FROM {{schema}}.tenants t
-        WHERE t.tenant_key = p_tenant_key;
+        WHERE t.tenant_name = p_tenant_name;
 
         IF v_tenant_id IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.'
@@ -86,7 +86,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND p_tenant_key IS NOT NULL THEN
+    IF v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND p_tenant_name IS NOT NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -135,7 +135,7 @@ BEGIN
         END IF;
 
         IF v_tenant_id IS NOT NULL AND v_parent_tenant IS NOT NULL AND v_tenant_id <> v_parent_tenant AND NOT p_tenant_override THEN
-            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantKey differs from the parent tenant without an explicit override.'
+            RAISE EXCEPTION 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent tenant without an explicit override.'
                 USING ERRCODE = 'P0001';
         END IF;
 

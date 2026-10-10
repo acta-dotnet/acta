@@ -10,7 +10,7 @@ internal sealed class PauseJobHandler(GetJobIdHandler getJobId, IDbSession sessi
             return new PauseJobResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var row = await PauseAsync(jobId, JobControl.Operator(command.ReasonMessage, command.ActorKey, command.ExpectedVersion), ct);
+        var row = await PauseAsync(jobId, JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion), ct);
         await JobControl.WakeWorkersIfAsync(wakeup, row.LanePromoted, ct);
         return new PauseJobResponse(jobId, row.Action, row.Status, row.Version);
     }

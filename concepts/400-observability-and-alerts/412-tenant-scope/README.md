@@ -15,14 +15,14 @@ tag can label work, but it cannot reject an unknown or suspended customer atomic
 
 - Use a namespace/queue per tenant.
 - Use a database per tenant for hard isolation.
-- Partition a broker by tenant key.
+- Partition a broker by tenant name.
 - Attach unvalidated tags only.
-- Resolve a tenant key through an Acta-owned catalog.
+- Resolve a tenant name through an Acta-owned catalog.
 
 ## Why this design
 
 Namespace answers “who owns and executes this work?” Tenant answers “who is this work about?” Acta
-resolves an active `TenantKey` to `tenant_id` on insert, stamps events, inherits it to children, exposes
+resolves an active `TenantName` to `tenant_id` on insert, stamps events, inherits it to children, exposes
 tenant filtering, and rejects unknown or suspended tenants.
 
 ## Trade-offs
@@ -42,7 +42,7 @@ dotnet run --project concepts/400-observability-and-alerts/412-tenant-scope
 Run with `--all-columns` to execute the visible `SELECT *` Explore query first. The default Notice
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
-The lab uses `jobs_view` and `events_view`, joining the internal tenant catalog only to decode the key.
+The lab uses `jobs_view` and `events_view`, joining the internal tenant catalog only to decode the tenant name.
 It proves parent/child inheritance and also exercises the operator ledger read `IActaOperations.Ledger.ListJobsAsync` with its tenant filter and a fresh
 correlation key, so repeated runs still report exactly the current parent and child. Application code
 should use `IActaOperations.Tenants` and `IJobs`; the underlying catalog table is not a compatibility contract.

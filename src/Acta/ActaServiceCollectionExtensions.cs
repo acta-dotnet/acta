@@ -192,7 +192,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ITags>(sp => sp.GetRequiredService<TagsOperations>());
 
         services.TryAddSingleton<GetTenantHandler>();
-        services.TryAddSingleton<GetTenantKeyHandler>();
+        services.TryAddSingleton<GetTenantNameHandler>();
         services.TryAddSingleton<ListTenantsHandler>();
         services.TryAddSingleton<RegisterTenantHandler>();
         services.TryAddSingleton<ResumeTenantHandler>();

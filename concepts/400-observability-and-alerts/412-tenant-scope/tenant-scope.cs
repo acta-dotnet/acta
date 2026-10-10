@@ -25,7 +25,7 @@ await operations.Tenants.RegisterAsync("held-customer", "Held customer");
 await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
 var runId = $"tenant-scope-{Guid.CreateVersion7():N}";
-var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantKey("acme").CorrelationKey(runId));
+var parent = await jobs.EnqueueAsync(new ExportAccount("acme"), options => options.TenantName("acme").CorrelationKey(runId));
 var parentTerminal = await WaitForAsync(jobs, parent.JobId, static snapshot => snapshot.Status.IsTerminal, "tenant parent to finish");
 if (parentTerminal.Status != JobStatusCode.Succeeded)
 {
@@ -43,7 +43,7 @@ foreach (var rejectedKey in new[] { "missing-customer", "held-customer" })
 {
     try
     {
-        await jobs.EnqueueAsync(new ExportAccount(rejectedKey), options => options.TenantKey(rejectedKey));
+        await jobs.EnqueueAsync(new ExportAccount(rejectedKey), options => options.TenantName(rejectedKey));
     }
     catch (EnqueueRejectedException rejected)
     {
@@ -55,14 +55,14 @@ if (suspendActive)
 {
     var preExisting = await jobs.EnqueueAsync(
         new TenantLifecycleProbe("acme"),
-        options => options.TenantKey("acme").CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
+        options => options.TenantName("acme").CorrelationKey(runId).Delayed(TimeSpan.FromSeconds(2))
     );
     await operations.Tenants.SuspendAsync("acme", "tenant lifecycle lab", "concept-user");
     try
     {
         try
         {
-            await jobs.EnqueueAsync(new TenantLifecycleProbe("acme"), options => options.TenantKey("acme"));
+            await jobs.EnqueueAsync(new TenantLifecycleProbe("acme"), options => options.TenantName("acme"));
             throw new InvalidOperationException("Expected enqueue for the newly suspended tenant to be rejected.");
         }
         catch (EnqueueRejectedException rejected)
@@ -101,7 +101,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "Namespace owns execution; tenant identifies who the parent and child are about",
     """
-    SELECT j.job_id, j.job_name, j.parent_id, j.lineage_root_job_id, t.tenant_key, j.status
+    SELECT j.job_id, j.job_name, j.parent_id, j.lineage_root_job_id, t.tenant_name, j.status
     FROM jobs_view AS j
     LEFT JOIN {{schema}}.tenants AS t ON t.id = j.tenant_id
     WHERE j.lineage_root_job_id = @rootJobId
@@ -112,7 +112,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Tenant scope is stamped into the append-only execution evidence",
     """
-    SELECT e.job_id, e.job_name, t.tenant_key, e.event, e.to_status
+    SELECT e.job_id, e.job_name, t.tenant_name, e.event, e.to_status
     FROM events_view AS e
     LEFT JOIN {{schema}}.tenants AS t ON t.id = e.tenant_id
     WHERE e.lineage_root_job_id = @rootJobId
@@ -146,26 +146,26 @@ static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJ
 
 namespace Acta.Concepts.TenantScope
 {
-    public sealed record ExportAccount(string TenantKey);
+    public sealed record ExportAccount(string TenantName);
 
-    public sealed record WriteExport(string TenantKey);
+    public sealed record WriteExport(string TenantName);
 
-    public sealed record TenantLifecycleProbe(string TenantKey);
+    public sealed record TenantLifecycleProbe(string TenantName);
 
     public static class ExportAccountJob
     {
         [Job("export-account")]
         public static async Task Handle(ExportAccount input, JobContext context, CancellationToken ct)
         {
-            // No TenantKey override: the child inherits the parent's resolved tenant_id.
-            await context.ExecuteChildAsync("write-export", new WriteExport(input.TenantKey), ct);
+            // No TenantName override: the child inherits the parent's resolved tenant_id.
+            await context.ExecuteChildAsync("write-export", new WriteExport(input.TenantName), ct);
         }
 
         [Job("write-export")]
-        public static void Write(WriteExport input) => Console.WriteLine($"wrote account export for {input.TenantKey}");
+        public static void Write(WriteExport input) => Console.WriteLine($"wrote account export for {input.TenantName}");
 
         [Job("tenant-lifecycle-probe")]
         public static void Probe(TenantLifecycleProbe input) =>
-            Console.WriteLine($"work accepted before suspension still ran for {input.TenantKey}");
+            Console.WriteLine($"work accepted before suspension still ran for {input.TenantName}");
     }
 }

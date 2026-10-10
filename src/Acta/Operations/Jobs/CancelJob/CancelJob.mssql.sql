@@ -157,7 +157,7 @@ BEGIN TRY
                 BEGIN
                     INSERT INTO {{schema}}.events (
                         event_code, created_at_utc, namespace_id,
-                        actor_code, actor_key,
+                        actor_code, actor,
                         job_id, job_ref, execution_number,
                         lineage_root_id, definition_id, tenant_id,
                         worker_id,
@@ -167,7 +167,7 @@ BEGIN TRY
                     )
                     VALUES (
                         41 /* EventCode.JobExecutionFinished */, @now, @namespace_id,
-                        @p_actor_code, @p_actor_key,
+                        @p_actor_code, @p_actor,
                         @p_id, @job_ref, @execution_number,
                         COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
                         @worker_id,
@@ -179,7 +179,7 @@ BEGIN TRY
 
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor_key,
+                actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
                 worker_id,
@@ -189,7 +189,7 @@ BEGIN TRY
             )
             VALUES (
                 70 /* EventCode.JobCancelled */, @now, @namespace_id,
-                @p_actor_code, @p_actor_key,
+                @p_actor_code, @p_actor,
                 @p_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
                 NULL,

@@ -22,7 +22,7 @@ SELECT
     j.created_at_utc,
     r.modified_at_utc,
     j.tenant_id,
-    t.tenant_key,
+    t.tenant_name,
     j.definition_id,
     lw.worker_ref AS leased_by_worker_ref,
     r.version,

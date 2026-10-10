@@ -173,7 +173,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
         var definition = await ReadAsync(name, ct);
         var outcome = await Services
             .GetRequiredService<IDefinitions>()
-            .RetireAsync(TestNamespace, name, definition.Version, actorKey: "tester", ct: ct);
+            .RetireAsync(TestNamespace, name, definition.Version, actor: "tester", ct: ct);
         Assert.Equal(ControlAction.Applied, outcome.Action);
     }
 

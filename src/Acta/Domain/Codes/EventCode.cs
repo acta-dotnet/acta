@@ -21,7 +21,7 @@ public enum EventCode : byte
     [Code("unspecified", "Event id not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("tenant.suspended", "An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason.")]
+    [Code("tenant.suspended", "An operator suspended a tenant; the name stops resolving at enqueue. ReasonMessage carries the reason.")]
     TenantSuspended = 10,
 
     [Code("tenant.resumed", "An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason.")]

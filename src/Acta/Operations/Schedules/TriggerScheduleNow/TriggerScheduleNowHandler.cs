@@ -29,7 +29,7 @@ internal sealed class TriggerScheduleNowHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, name));
                 cmd.AddOperatorAudit(
                     dialect,
-                    command.ActorKey,
+                    command.Actor,
                     command.ReasonMessage is null ? name : $"{name}: {ScheduleControl.RowReason(command.ReasonMessage)}"
                 );
             },

@@ -1,6 +1,6 @@
 SELECT
     t.id AS tenant_id,
-    t.tenant_key,
+    t.tenant_name,
     t.display_name,
     t.description,
     t.status_code AS status,
@@ -8,4 +8,4 @@ SELECT
     t.modified_at_utc,
     t.version
 FROM {{schema}}.tenants t
-WHERE t.tenant_key = @p_tenant_key;
+WHERE t.tenant_name = @p_tenant_name;

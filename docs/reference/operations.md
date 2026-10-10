@@ -183,23 +183,23 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetTags` | `ITags.GetAsync` | `GET /alerts/{alertRef}/tags`<br>`GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`GET /tenants/{tenantKey}/tags`<br>`GET /workers/{workerRef}/tags` | · | inline | inline | inline | · | `GetTagsSpec` |
-| `RemoveTags` | `ITags.RemoveAsync` | `DELETE /alerts/{alertRef}/tags/{tagName}`<br>`DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}`<br>`DELETE /jobs/{jobRef}/tags/{tagName}`<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}`<br>`DELETE /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags/{tagName}`<br>`DELETE /tenants/{tenantKey}/tags/{tagName}`<br>`DELETE /workers/{workerRef}/tags/{tagName}` | · | inline | inline | inline | `tags` | `RemoveTagsSpec` |
+| `GetTags` | `ITags.GetAsync` | `GET /alerts/{alertRef}/tags`<br>`GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`GET /tenants/{tenantName}/tags`<br>`GET /workers/{workerRef}/tags` | · | inline | inline | inline | · | `GetTagsSpec` |
+| `RemoveTags` | `ITags.RemoveAsync` | `DELETE /alerts/{alertRef}/tags/{tagName}`<br>`DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}`<br>`DELETE /jobs/{jobRef}/tags/{tagName}`<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}`<br>`DELETE /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags/{tagName}`<br>`DELETE /tenants/{tenantName}/tags/{tagName}`<br>`DELETE /workers/{workerRef}/tags/{tagName}` | · | inline | inline | inline | `tags` | `RemoveTagsSpec` |
 | `ReplaceTags` | `ITags.ReplaceAsync` | · | · | inline | inline | inline | `tags` | `ReplaceTagsSpec` |
 | `ResolveTagTarget` | · | · | · | · | · | · | · | `ResolveTagTargetSpec` |
-| `UpsertTags` | `ITags.UpsertAsync` | `POST /alerts/{alertRef}/tags`<br>`POST /definitions/{jobNamespace}/{jobName}/tags`<br>`POST /jobs/{jobRef}/tags`<br>`POST /namespaces/{jobNamespace}/tags`<br>`POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`POST /tenants/{tenantKey}/tags`<br>`POST /workers/{workerRef}/tags` | · | inline | inline | inline | `tags` | `UpsertTagsSpec` |
+| `UpsertTags` | `ITags.UpsertAsync` | `POST /alerts/{alertRef}/tags`<br>`POST /definitions/{jobNamespace}/{jobName}/tags`<br>`POST /jobs/{jobRef}/tags`<br>`POST /namespaces/{jobNamespace}/tags`<br>`POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`POST /tenants/{tenantName}/tags`<br>`POST /workers/{workerRef}/tags` | · | inline | inline | inline | `tags` | `UpsertTagsSpec` |
 
 ## Tenants
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantKey}` | · | inline | inline | inline | · | `GetTenantKeySpec`, `GetTenantSpec` |
-| `GetTenantKey` | · | · | · | inline | inline | inline | · | `GetTenantKeySpec` |
+| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantName}` | · | inline | inline | inline | · | `GetTenantNameSpec`, `GetTenantSpec` |
+| `GetTenantName` | · | · | · | inline | inline | inline | · | `GetTenantNameSpec` |
 | `ListTenants` | `ITenants.ListAsync` | `GET /tenants` | · | inline | inline | inline | · | `ListTenantsSpec` |
 | `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` | · | inline | inline | inline | `tenants` | `RegisterTenantSpec` |
-| `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantKey}/resume` | · | inline | inline | inline | `events`, `tenants` | `ResumeTenantSpec` |
-| `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantKey}/suspend` | · | inline | inline | inline | `events`, `tenants` | `SuspendTenantSpec` |
-| `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantKey}` | · | inline | inline | inline | `events`, `tenants` | `UpdateTenantSpec` |
+| `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantName}/resume` | · | inline | inline | inline | `events`, `tenants` | `ResumeTenantSpec` |
+| `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantName}/suspend` | · | inline | inline | inline | `events`, `tenants` | `SuspendTenantSpec` |
+| `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantName}` | · | inline | inline | inline | `events`, `tenants` | `UpdateTenantSpec` |
 
 ## Workers
 

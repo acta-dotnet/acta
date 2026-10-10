@@ -10,7 +10,7 @@ internal sealed class PurgeJobHandler(GetJobIdHandler getJobId, IDbSession sessi
             return new PurgeJobResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var input = JobControl.Operator(null, command.ActorKey);
+        var input = JobControl.Operator(null, command.Actor);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("PurgeJob"),
             cmd =>

@@ -13,7 +13,7 @@ INSERT INTO {{schema}}.events (
     event_code,
     namespace_id,
     actor_code,
-    actor_key,
+    actor,
     job_id,
     execution_number,
     lineage_root_id,

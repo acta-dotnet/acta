@@ -66,7 +66,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(TestNamespaceId, row.NamespaceId);
         Assert.Equal(JobIdValue, row.JobId);
         Assert.Equal(1, row.OccurrenceCount);
-        Assert.Null(row.DedupeKey);
+        Assert.Null(row.DeduplicationKey);
         Assert.Null(row.ResolvedAtUtc);
     }
 
@@ -80,7 +80,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
 
         var rows = await ReadAlertsAsync(TestNamespaceId, ct);
         Assert.Equal(2, rows.Count);
-        Assert.All(rows, r => Assert.Null(r.DedupeKey));
+        Assert.All(rows, r => Assert.Null(r.DeduplicationKey));
         Assert.All(rows, r => Assert.Equal(1, r.OccurrenceCount));
     }
 
@@ -194,7 +194,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(JobIdValue, row.JobId);
         Assert.Equal(AlertDeliveryStatusCode.Pending, row.DeliveryStatusCode);
         Assert.Equal(AlertKindCode.Manual, row.Kind);
-        Assert.Equal("ctx-key", row.DedupeKey);
+        Assert.Equal("ctx-key", row.DeduplicationKey);
         Assert.Equal(1, row.OccurrenceCount);
         Assert.Null(row.ResolvedAtUtc);
 

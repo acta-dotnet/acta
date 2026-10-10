@@ -6,9 +6,9 @@ namespace Acta;
 internal static class AlertControl
 {
     /// <summary>Binds the alert ref, then the operator audit, its reason naming the alert.</summary>
-    public static void Bind(DbCommand cmd, ISqlDialect dialect, AlertRef alertRef, string? reasonMessage, string? actorKey)
+    public static void Bind(DbCommand cmd, ISqlDialect dialect, AlertRef alertRef, string? reasonMessage, string? actor)
     {
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertRef, alertRef.Value));
-        cmd.AddOperatorAudit(dialect, actorKey, reasonMessage is null ? $"alert {alertRef}" : $"alert {alertRef}: {reasonMessage}");
+        cmd.AddOperatorAudit(dialect, actor, reasonMessage is null ? $"alert {alertRef}" : $"alert {alertRef}: {reasonMessage}");
     }
 }

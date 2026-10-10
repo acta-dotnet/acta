@@ -18,11 +18,11 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
 {
     protected override bool RunAsWorker => true;
 
-    private EnqueueJobRequest Request(string jobName = "add-numbers", string? tenantKey = null)
+    private EnqueueJobRequest Request(string jobName = "add-numbers", string? tenantName = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new EnqueueJobRequest(TestNamespace, jobName, payload, TenantKey: tenantKey);
+        return new EnqueueJobRequest(TestNamespace, jobName, payload, TenantName: tenantName);
     }
 
     [Fact(DisplayName = "Enqueue into a suspended namespace throws NamespaceSuspended")]
@@ -41,7 +41,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
         var key = TestKey("tax-susp");
         await Operations.Tenants.RegisterAsync(key, null, null, ct);
         await Operations.Tenants.SuspendAsync(key, null, null, ct);
-        var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(tenantKey: key), ct));
+        var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(tenantName: key), ct));
         Assert.Equal(EnqueueRejectionReason.TenantSuspended, ex.Reason);
     }
 
@@ -50,7 +50,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-            await Jobs.EnqueueAsync(Request(tenantKey: TestKey("tax-ghost")), ct)
+            await Jobs.EnqueueAsync(Request(tenantName: TestKey("tax-ghost")), ct)
         );
         Assert.Equal(EnqueueRejectionReason.TenantUnknown, ex.Reason);
     }

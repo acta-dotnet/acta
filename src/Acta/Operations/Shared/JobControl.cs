@@ -9,9 +9,9 @@ internal static class JobControl
     /// The public verbs are operator-only: the actor and the manual reason are stamped here, never taken from
     /// the caller, and the message is capped to its column so both providers store the same text.
     /// </summary>
-    public static JobControlInput Operator(string? reasonMessage, string? actorKey, int? expectedVersion = null) =>
+    public static JobControlInput Operator(string? reasonMessage, string? actor, int? expectedVersion = null) =>
         new(
-            JobControlActor.Operator(actorKey),
+            JobControlActor.Operator(actor),
             EventReasonCode.JobControlManual,
             reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
             expectedVersion
@@ -20,7 +20,7 @@ internal static class JobControl
     public static void BindActor(DbCommand cmd, ISqlDialect dialect, JobControlInput input, bool includeReasonMessage = true)
     {
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, input.Actor.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, input.Actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, input.Actor.Actor));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, input.ReasonCode));
         if (includeReasonMessage)
         {

@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Tenant resolution at enqueue: a null <c>TenantKey</c> inserts <c>tenant_id = NULL</c>, a known active
+/// Tenant resolution at enqueue: a null <c>TenantName</c> inserts <c>tenant_id = NULL</c>, a known active
 /// key resolves to its id, an unknown or suspended key rejects the whole batch atomically, a child
 /// inherits its parent's tenant unless it supplies its own, and the <c>ListJobs</c> tenant filter scopes
 /// results to one tenant.
@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "enqueue-jobs.tenant-scope",
     "Enqueue resolves, inherits, rejects, and filters by tenant",
     Area = "Enqueue",
-    Contract = "Enqueue resolves TenantKey to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override."
+    Contract = "Enqueue resolves TenantName to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override."
 )]
 public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -24,7 +24,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
-    private JobEnqueueValues Row(string? tenantKey, long? parentId = null, string? deduplicationKey = null, bool overrideParent = false)
+    private JobEnqueueValues Row(string? tenantName, long? parentId = null, string? deduplicationKey = null, bool overrideParent = false)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
@@ -34,7 +34,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
             Input: payload,
             DeduplicationKey: deduplicationKey,
             ParentId: parentId,
-            TenantKey: tenantKey,
+            TenantName: tenantName,
             OverrideParentTenant: overrideParent
         );
     }
@@ -45,20 +45,20 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         return await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId).CountAsync(ct);
     }
 
-    [Fact(DisplayName = "A null TenantKey inserts tenant_id NULL")]
+    [Fact(DisplayName = "A null TenantName inserts tenant_id NULL")]
     public async Task Null_tenant_inserts_null()
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
 
-        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null)], ct)).Jobs;
+        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: null)], ct)).Jobs;
         var job = await ReadJobAsync(result[0].JobId, ct);
 
         Assert.NotNull(job);
         Assert.Null(job!.TenantId);
     }
 
-    [Fact(DisplayName = "A known active TenantKey resolves to its tenant id")]
+    [Fact(DisplayName = "A known active TenantName resolves to its tenant id")]
     public async Task Known_tenant_resolves()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -66,14 +66,14 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var name = TestKey("ten-known");
         var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
-        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct)).Jobs;
+        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name)], ct)).Jobs;
         var job = await ReadJobAsync(result[0].JobId, ct);
 
         Assert.NotNull(job);
         Assert.Equal(tenantId, job!.TenantId);
     }
 
-    [Fact(DisplayName = "An unknown TenantKey rejects the batch and persists nothing")]
+    [Fact(DisplayName = "An unknown TenantName rejects the batch and persists nothing")]
     public async Task Unknown_tenant_rejects()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -81,13 +81,13 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var before = await CountJobsAsync(ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: TestKey("ten-ghost"))], ct)
+            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: TestKey("ten-ghost"))], ct)
         );
 
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
-    [Fact(DisplayName = "A suspended TenantKey rejects the batch and persists nothing")]
+    [Fact(DisplayName = "A suspended TenantName rejects the batch and persists nothing")]
     public async Task Suspended_tenant_rejects()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -99,7 +99,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         // A second benign row keeps this on the batch routine (single-row lists route to EnqueueJob).
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name), Row(tenantKey: null)], ct)
+            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name), Row(tenantName: null)], ct)
         );
 
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -114,7 +114,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Operations.Tenants.RegisterAsync(good, null, null, ct);
         var before = await CountJobsAsync(ct);
 
-        JobEnqueueValues[] command = [Row(tenantKey: good), Row(tenantKey: TestKey("ten-missing"))];
+        JobEnqueueValues[] command = [Row(tenantName: good), Row(tenantName: TestKey("ten-missing"))];
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, command, ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -128,15 +128,15 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var name = TestKey("ten-parent");
         var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct)).Jobs;
-        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null, parentId: parent[0].JobId)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name)], ct)).Jobs;
+        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: null, parentId: parent[0].JobId)], ct)).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);
         Assert.Equal(tenantId, childJob!.TenantId);
     }
 
-    [Fact(DisplayName = "A child with a different TenantKey and the explicit override lands under its own tenant")]
+    [Fact(DisplayName = "A child with a different TenantName and the explicit override lands under its own tenant")]
     public async Task Child_overrides_parent_tenant()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -146,11 +146,11 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Operations.Tenants.RegisterAsync(parentName, null, null, ct);
         var childTenantId = (await Operations.Tenants.RegisterAsync(childName, null, null, ct)).TenantId;
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: parentName)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: parentName)], ct)).Jobs;
         var child = (
             await EnqueueTestOps.EnqueueBatchAsync(
                 Services,
-                [Row(tenantKey: childName, parentId: parent[0].JobId, overrideParent: true)],
+                [Row(tenantName: childName, parentId: parent[0].JobId, overrideParent: true)],
                 ct
             )
         ).Jobs;
@@ -160,7 +160,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(childTenantId, childJob!.TenantId);
     }
 
-    [Fact(DisplayName = "A child with a different TenantKey and no override is rejected atomically")]
+    [Fact(DisplayName = "A child with a different TenantName and no override is rejected atomically")]
     public async Task Child_tenant_mismatch_rejects_without_override()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -170,13 +170,13 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Operations.Tenants.RegisterAsync(parentName, null, null, ct);
         await Operations.Tenants.RegisterAsync(childName, null, null, ct);
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: parentName)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: parentName)], ct)).Jobs;
         var before = await CountJobsAsync(ct);
 
         // A second benign row keeps this on the batch routine (single-row lists route to EnqueueJob)
         // and proves the whole batch rejects atomically.
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: childName, parentId: parent[0].JobId), Row(tenantKey: null)], ct)
+            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: childName, parentId: parent[0].JobId), Row(tenantName: null)], ct)
         );
 
         Assert.Equal(before, await CountJobsAsync(ct));
@@ -190,8 +190,8 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var childName = TestKey("ten-c4");
         var childTenantId = (await Operations.Tenants.RegisterAsync(childName, null, null, ct)).TenantId;
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null)], ct)).Jobs;
-        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: childName, parentId: parent[0].JobId)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: null)], ct)).Jobs;
+        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: childName, parentId: parent[0].JobId)], ct)).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);
@@ -206,7 +206,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var name = TestKey("ten-filter");
         var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
-        var enqueued = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct)).Jobs;
+        var enqueued = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: name)], ct)).Jobs;
         var jobId = enqueued[0].JobId;
 
         var matched = (

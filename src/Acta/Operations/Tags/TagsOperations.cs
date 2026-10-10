@@ -15,7 +15,7 @@ internal sealed class TagsOperations(
         TagTarget target,
         IReadOnlyList<TagInput> tags,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     ) => replaceTags.HandleAsync(new ReplaceTagsCommand(target, tags), ct);
 
@@ -23,7 +23,7 @@ internal sealed class TagsOperations(
         TagTarget target,
         TagInput tag,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     ) => upsertTags.HandleAsync(new UpsertTagsCommand(target, tag), ct);
 
@@ -31,7 +31,7 @@ internal sealed class TagsOperations(
         TagTarget target,
         string name,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     ) => removeTags.HandleAsync(new RemoveTagsCommand(target, name), ct);
 }

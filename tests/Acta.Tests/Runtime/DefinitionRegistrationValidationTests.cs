@@ -5,7 +5,7 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// Registration-time bounds in <see cref="RegisterDefinitionsHandler"/>: a code-declared ExecutionTimeout past
-/// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a malformed RateLimit or RateKey, two
+/// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a malformed RateLimit or RateName, two
 /// definitions disagreeing about the rate on a shared key, a non-ASCII or over-length RunbookUrl,
 /// or over-length display text fails worker init with a named error, the same contract the operator
 /// override gate holds, instead of a silent clamp at execution or a provider-specific write failure.
@@ -49,7 +49,7 @@ public sealed class DefinitionRegistrationValidationTests
 
     /// <summary>A catalog row as <c>RegisterAsync</c> reads it back: its effective (override ?? declared) rate is
     /// all this gate looks at, so every other policy field is an arbitrary but valid placeholder.</summary>
-    private static StoredDefinitionContract Stored(string name, string? effectiveRate, string? rateKey = null) =>
+    private static StoredDefinitionContract Stored(string name, string? effectiveRate, string? rateName = null) =>
         new(
             Name: name,
             ManifestGenerationAtUtc: Gen,
@@ -70,7 +70,7 @@ public sealed class DefinitionRegistrationValidationTests
                 MaxAttempts: 3,
                 ConcurrencyLimit: null,
                 RateLimit: effectiveRate,
-                RateKey: rateKey,
+                RateName: rateName,
                 Backoff: JobDefinitionRegistration.DefaultBackoffExpression,
                 ExecutionTimeoutSeconds: JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
                 DeadlineSeconds: 0,
@@ -144,13 +144,13 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Fact]
-    public async Task A_rate_key_that_is_not_kebab_fails_registration()
+    public async Task A_rate_name_that_is_not_kebab_fails_registration()
     {
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            RegisterAsync(Descriptor("metered") with { RateLimit = "10/s", RateKey = "Stripe Payments" })
+            RegisterAsync(Descriptor("metered") with { RateLimit = "10/s", RateName = "Stripe Payments" })
         );
 
-        Assert.Contains("RateKey", ex.Message);
+        Assert.Contains("RateName", ex.Message);
     }
 
     [Fact]
@@ -187,16 +187,16 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Fact]
-    public async Task Definitions_sharing_a_rate_key_must_declare_the_same_rate()
+    public async Task Definitions_sharing_a_rate_name_must_declare_the_same_rate()
     {
         // One meter cannot run at two rates: whichever worker asked last would set the interval, so
         // the realized rate would depend on arrival order instead of on anything declared.
         var left = Descriptor("left") with
         {
             RateLimit = "10/s",
-            RateKey = "stripe",
+            RateName = "stripe",
         };
-        var right = Descriptor("right") with { RateLimit = "5/s", RateKey = "stripe" };
+        var right = Descriptor("right") with { RateLimit = "5/s", RateName = "stripe" };
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(left, right));
 
@@ -206,15 +206,15 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Fact]
-    public async Task A_default_meter_name_collides_with_another_definitions_rate_key()
+    public async Task A_default_meter_name_collides_with_another_definitions_rate_name()
     {
-        // The meter is RateKey ?? Name, so "stripe" and RateKey = "stripe" are the same bucket even
+        // The meter is RateName ?? Name, so "stripe" and RateName = "stripe" are the same bucket even
         // though only one of them names it. Grouping on the declared key alone would miss this.
         var named = Descriptor("stripe") with
         {
             RateLimit = "1/s",
         };
-        var keyed = Descriptor("charge-card") with { RateLimit = "100/s", RateKey = "stripe" };
+        var keyed = Descriptor("charge-card") with { RateLimit = "100/s", RateName = "stripe" };
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(named, keyed));
 
@@ -227,8 +227,8 @@ public sealed class DefinitionRegistrationValidationTests
     {
         // "left" is already in the catalog, overridden down to 1/s. "right" is new to the meter and
         // declares the bare code value (10/s), which is not what the meter is actually running at.
-        var stored = new[] { Stored("left", effectiveRate: "1/s", rateKey: "stripe") };
-        var joining = Descriptor("right") with { RateLimit = "10/s", RateKey = "stripe" };
+        var stored = new[] { Stored("left", effectiveRate: "1/s", rateName: "stripe") };
+        var joining = Descriptor("right") with { RateLimit = "10/s", RateName = "stripe" };
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync([joining], stored));
 
@@ -240,8 +240,8 @@ public sealed class DefinitionRegistrationValidationTests
     [Fact]
     public async Task A_definition_joining_an_overridden_meter_at_its_effective_rate_is_accepted()
     {
-        var stored = new[] { Stored("left", effectiveRate: "1/s", rateKey: "stripe") };
-        var joining = Descriptor("right") with { RateLimit = "1/s", RateKey = "stripe" };
+        var stored = new[] { Stored("left", effectiveRate: "1/s", rateName: "stripe") };
+        var joining = Descriptor("right") with { RateLimit = "1/s", RateName = "stripe" };
 
         // The store fake rejects every call, so reaching it is the proof that the gate let it through.
         await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync([joining], stored));
@@ -265,16 +265,16 @@ public sealed class DefinitionRegistrationValidationTests
         // It never asks the meter anything, so sharing a bucket key with a metered definition is not
         // a disagreement about the rate.
         var unmetered = Descriptor("stripe");
-        var metered = Descriptor("charge-card") with { RateLimit = "100/s", RateKey = "stripe" };
+        var metered = Descriptor("charge-card") with { RateLimit = "100/s", RateName = "stripe" };
 
         await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(unmetered, metered));
     }
 
     [Fact]
-    public async Task Definitions_on_separate_rate_keys_may_declare_different_rates()
+    public async Task Definitions_on_separate_rate_names_may_declare_different_rates()
     {
-        var left = Descriptor("left") with { RateLimit = "10/s", RateKey = "stripe" };
-        var right = Descriptor("right") with { RateLimit = "5/s", RateKey = "twilio" };
+        var left = Descriptor("left") with { RateLimit = "10/s", RateName = "stripe" };
+        var right = Descriptor("right") with { RateLimit = "5/s", RateName = "twilio" };
 
         // The store fake rejects every call, so reaching it is the proof that the gate let both through.
         await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(left, right));
@@ -288,7 +288,7 @@ public sealed class DefinitionRegistrationValidationTests
             ExecutionTimeoutSeconds = JobDefinitionRegistration.MaxExecutionTimeoutSeconds,
             ConcurrencyLimit = JobDefinitionRegistration.MaxConcurrencyLimit,
             RateLimit = "1000/s",
-            RateKey = new string('r', JobDefinitionRegistration.MaxRateKeyLength),
+            RateName = new string('r', JobDefinitionRegistration.MaxRateNameLength),
             RunbookUrl = new string('r', ActaTextLimits.DefinitionRunbookUrl),
             DisplayName = new string('d', ActaTextLimits.DefinitionDisplayName),
             Description = new string('x', ActaTextLimits.DefinitionDescription),

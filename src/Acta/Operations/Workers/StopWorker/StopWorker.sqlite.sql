@@ -8,7 +8,7 @@ WHERE
     AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */);
 
 INSERT INTO {{schema}}.events (
-    event_code, namespace_id, actor_code, actor_key, job_id, execution_number,
+    event_code, namespace_id, actor_code, actor, job_id, execution_number,
     lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message
 )

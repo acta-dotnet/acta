@@ -52,7 +52,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         var ev = Assert.Single(events);
         Assert.Equal(ActorCode.Job, ev.ActorCode);
-        Assert.Equal(jobId.ToString(CultureInfo.InvariantCulture), ev.ActorKey);
+        Assert.Equal(jobId.ToString(CultureInfo.InvariantCulture), ev.Actor);
         // Substrate event: no transition, so from == to == the job's current status.
         Assert.Equal(ev.FromStatus, ev.ToStatus);
         Assert.Null(ev.ReasonCode);

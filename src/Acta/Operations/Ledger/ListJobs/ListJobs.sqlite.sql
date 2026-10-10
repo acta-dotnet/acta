@@ -17,7 +17,7 @@ SELECT
     pjob.job_ref AS parent_job_ref,
     rjob.job_ref AS lineage_root_job_ref,
     j.tenant_id,
-    t.tenant_key,
+    t.tenant_name,
     lane.name AS lane
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
@@ -33,7 +33,7 @@ WHERE
     AND (@p_job_name IS NULL OR jd.name = @p_job_name)
     AND (@p_parent_id IS NULL OR j.parent_id = @p_parent_id)
     AND (@p_tenant_id IS NULL OR j.tenant_id = @p_tenant_id)
-    AND (@p_tenant_key IS NULL OR t.tenant_key = @p_tenant_key)
+    AND (@p_tenant_name IS NULL OR t.tenant_name = @p_tenant_name)
     AND (@p_correlation_key IS NULL OR j.correlation_key = @p_correlation_key)
     AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1
@@ -77,7 +77,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
         AND (@p_job_name IS NULL OR jd.name = @p_job_name)
         AND (@p_parent_id IS NULL OR j.parent_id = @p_parent_id)
         AND (@p_tenant_id IS NULL OR j.tenant_id = @p_tenant_id)
-        AND (@p_tenant_key IS NULL OR j.tenant_id IN (SELECT tk.id FROM {{schema}}.tenants tk WHERE tk.tenant_key = @p_tenant_key))
+        AND (@p_tenant_name IS NULL OR j.tenant_id IN (SELECT tk.id FROM {{schema}}.tenants tk WHERE tk.tenant_name = @p_tenant_name))
         AND (@p_correlation_key IS NULL OR j.correlation_key = @p_correlation_key)
         AND (@p_tag_filters IS NULL OR NOT EXISTS (
             SELECT 1

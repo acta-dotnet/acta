@@ -203,7 +203,7 @@
     <div class="detail-workspace">
       <div class="detail-main">
         {#if activeTab === 'details'}
-          <JobSummary {job} tenantKey={detail.tenantKey} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
+          <JobSummary {job} tenantName={detail.tenantName} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
           <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
           <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
           <JobEventsPanel

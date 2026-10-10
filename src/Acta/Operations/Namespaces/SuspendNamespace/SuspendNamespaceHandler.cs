@@ -12,7 +12,7 @@ internal sealed class SuspendNamespaceHandler(IDbSession session, ISqlDialect di
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, name));
-                cmd.AddOperatorAudit(dialect, command.ActorKey, command.ReasonMessage);
+                cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<SuspendNamespaceResponse>(),
             ct

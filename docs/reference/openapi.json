@@ -1513,9 +1513,9 @@
             }
           },
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "query",
-            "description": "Only jobs admitted under this tenant key.",
+            "description": "Only jobs admitted under this tenant name.",
             "schema": {
               "type": "string"
             }
@@ -2666,7 +2666,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantKey}/tags": {
+    "/acta/api/v1/tenants/{tenantName}/tags": {
       "post": {
         "tags": [
           "Tenants"
@@ -2674,7 +2674,7 @@
         "summary": "Add or update one tag on the tenant.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -2782,7 +2782,7 @@
         "summary": "Read the tenant's tags.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -2854,7 +2854,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantKey}/tags/{tagName}": {
+    "/acta/api/v1/tenants/{tenantName}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Tenants"
@@ -2862,7 +2862,7 @@
         "summary": "Remove one tag from the tenant.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -3063,7 +3063,7 @@
           {
             "name": "nameContains",
             "in": "query",
-            "description": "Case-insensitive substring matched against key, display name, or description.",
+            "description": "Case-insensitive substring matched against name, display name, or description.",
             "schema": {
               "type": "string"
             }
@@ -3159,7 +3159,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantKey}/suspend": {
+    "/acta/api/v1/tenants/{tenantName}/suspend": {
       "post": {
         "tags": [
           "Tenants"
@@ -3167,7 +3167,7 @@
         "summary": "Suspend the tenant: new work is rejected at enqueue.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -3268,7 +3268,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantKey}/resume": {
+    "/acta/api/v1/tenants/{tenantName}/resume": {
       "post": {
         "tags": [
           "Tenants"
@@ -3276,7 +3276,7 @@
         "summary": "Resume a suspended tenant.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -3377,7 +3377,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantKey}": {
+    "/acta/api/v1/tenants/{tenantName}": {
       "patch": {
         "tags": [
           "Tenants"
@@ -3385,7 +3385,7 @@
         "summary": "Update the tenant's display name and description.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -3503,7 +3503,7 @@
         "summary": "Read one tenant.",
         "parameters": [
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
@@ -7437,9 +7437,9 @@
             }
           },
           {
-            "name": "tenantKey",
+            "name": "tenantName",
             "in": "query",
-            "description": "Only events stamped with this tenant key.",
+            "description": "Only events stamped with this tenant name.",
             "schema": {
               "type": "string"
             }
@@ -8223,7 +8223,7 @@
             ]
           }
         },
-        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateKey`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
+        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateName`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
       },
       "DefinitionStatusCode": {
         "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
@@ -8325,7 +8325,7 @@
               "string"
             ]
           },
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -8530,7 +8530,7 @@
           "rateLimit",
           "rateLimitOverride",
           "rateLimitEffective",
-          "rateKey",
+          "rateName",
           "lane",
           "backoff",
           "backoffOverride",
@@ -8704,7 +8704,7 @@
               "string"
             ]
           },
-          "rateKey": {
+          "rateName": {
             "type": [
               "null",
               "string"
@@ -9041,7 +9041,7 @@
           "lineage",
           "schedules",
           "schedulesTotal",
-          "tenantKey",
+          "tenantName",
           "maxAttemptsEffective",
           "workers",
           "workersTotal"
@@ -9105,7 +9105,7 @@
             ],
             "format": "int64"
           },
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -9569,7 +9569,7 @@
           "jobName",
           "lineageRootJobRef",
           "parentJobRef",
-          "tenantKey",
+          "tenantName",
           "deduplicationKey",
           "correlationKey",
           "concurrencyKey",
@@ -9619,7 +9619,7 @@
               }
             ]
           },
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -9901,7 +9901,7 @@
       },
       "GetTenantResponse": {
         "required": [
-          "tenantKey",
+          "tenantName",
           "displayName",
           "description",
           "status",
@@ -9911,7 +9911,7 @@
         ],
         "type": "object",
         "properties": {
-          "tenantKey": {
+          "tenantName": {
             "type": "string"
           },
           "displayName": {
@@ -9946,7 +9946,7 @@
             "format": "int32"
           }
         },
-        "description": "The single-tenant read model returned by ValueTask&lt;GetTenantResponse?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantKey`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
+        "description": "The single-tenant read model returned by ValueTask&lt;GetTenantResponse?&gt; ITenants.GetAsync(string tenantName, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantName`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
       },
       "GetWorkerResponse": {
         "required": [
@@ -10204,7 +10204,7 @@
           "concurrencyLimitEffective",
           "rateLimitOverride",
           "rateLimitEffective",
-          "rateKey",
+          "rateName",
           "lane",
           "modifiedAtUtc",
           "version"
@@ -10289,7 +10289,7 @@
               "string"
             ]
           },
-          "rateKey": {
+          "rateName": {
             "type": [
               "null",
               "string"
@@ -10314,7 +10314,7 @@
             "format": "int32"
           }
         },
-        "description": "One definition in an ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate key, which names the meter and so says\nwhich definitions share it. GetDefinitionResponse carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
+        "description": "One definition in an ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate name, which names the meter and so says\nwhich definitions share it. GetDefinitionResponse carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
       },
       "ListDefinitionsResponse": {
         "required": [
@@ -10377,7 +10377,7 @@
           "lineageRootJobRef",
           "executionNumber",
           "actorCode",
-          "actorKey",
+          "actor",
           "fromStatus",
           "toStatus",
           "executionStatus",
@@ -10386,7 +10386,7 @@
           "reasonMessage",
           "detailText",
           "workerRef",
-          "tenantKey"
+          "tenantName"
         ],
         "type": "object",
         "properties": {
@@ -10446,7 +10446,7 @@
           "actorCode": {
             "$ref": "#/components/schemas/ActorCode"
           },
-          "actorKey": {
+          "actor": {
             "type": [
               "null",
               "string"
@@ -10523,14 +10523,14 @@
               }
             ]
           },
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
             ]
           }
         },
-        "description": "One audit event row in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantKey`, and `WorkerRef` are\nnull when absent or purged, and a worker actor's `ActorKey` is its public ref. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
+        "description": "One audit event row in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantName`, and `WorkerRef` are\nnull when absent or purged, and a worker actor's `Actor` is its public ref. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
       },
       "ListEventsResponse": {
         "required": [
@@ -10587,7 +10587,7 @@
           "jobRef",
           "jobNamespace",
           "jobName",
-          "tenantKey",
+          "tenantName",
           "parentJobRef",
           "lineageRootJobRef",
           "deduplicationKey",
@@ -10612,7 +10612,7 @@
           "jobName": {
             "type": "string"
           },
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -10842,7 +10842,7 @@
           "jobName",
           "deduplicationKey",
           "correlationKey",
-          "tenantKey",
+          "tenantName",
           "failureCount",
           "lastError",
           "createdAtUtc"
@@ -10868,7 +10868,7 @@
               "string"
             ]
           },
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -10893,7 +10893,7 @@
             "format": "date-time"
           }
         },
-        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields (a null\ncorrelation or tenant key was never set), when the producer staged it, and the failure evidence\n(`FailureCount` delivery attempts consumed before quarantine, and the bounded `LastError`).\n`OutboxId` is the producer-minted id a scoped requeue or discard targets. The payload never leaves\nthe producer's database."
+        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields (a null\ncorrelation or tenant name was never set), when the producer staged it, and the failure evidence\n(`FailureCount` delivery attempts consumed before quarantine, and the bounded `LastError`).\n`OutboxId` is the producer-minted id a scoped requeue or discard targets. The payload never leaves\nthe producer's database."
       },
       "ListOutboxQuarantinedResponse": {
         "required": [
@@ -11192,7 +11192,7 @@
       },
       "ListTenantsItem": {
         "required": [
-          "tenantKey",
+          "tenantName",
           "displayName",
           "description",
           "status",
@@ -11202,7 +11202,7 @@
         ],
         "type": "object",
         "properties": {
-          "tenantKey": {
+          "tenantName": {
             "type": "string"
           },
           "displayName": {
@@ -11237,7 +11237,7 @@
             "format": "int32"
           }
         },
-        "description": "One tenant row in a ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantKey` is the caller-supplied opaque external identifier, unique, and `DisplayName` the human label\n(dashboards fall back to the key); `TenantId` is the DB-assigned id `job.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "One tenant row in a ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantName` is the kebab-case name the caller registered, unique, and `DisplayName` the human label\n(dashboards fall back to the name); `TenantId` is the DB-assigned id `job.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
       },
       "ListTenantsResponse": {
         "required": [
@@ -11681,7 +11681,7 @@
       "RegisterTenantRequest": {
         "type": "object",
         "properties": {
-          "tenantKey": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -11703,11 +11703,11 @@
       },
       "RegisterTenantResponse": {
         "required": [
-          "tenantKey"
+          "tenantName"
         ],
         "type": "object",
         "properties": {
-          "tenantKey": {
+          "tenantName": {
             "type": "string"
           }
         },

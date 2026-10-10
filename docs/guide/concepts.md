@@ -24,7 +24,7 @@ see [`design.md`](../internals/design.md).
 | **Firing** | One scheduled occurrence of a recurring `[JobSchedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
-| **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by an opaque external `TenantKey` (GUID / ULID / customer code) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
+| **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by a `TenantName`, a kebab-case name such as `acme-corp` (fold or prefix an external id that is not one) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
 | **Durable slot** | A named, run-once-or-resume primitive owned by a job (step, variable, signal, timer, lock, alert). Shares the job's claim, lease, retry, cancellation, and event lifecycle; never independently claimable. |
 | **Provider** | The durable SQL backend. SQL Server and Postgres are the distributed providers; SQLite is the embedded single-node provider used by concepts, demos, tests, and local exploration. |
 
@@ -83,11 +83,11 @@ final key. `AcrossDefinitions` is the explicit cross-definition form. Cross-defi
 are intentionally not exposed as a combined helper; derive that business key in application code
 only when the use case genuinely spans job definitions.
 
-Keys are trimmed and lowercased, so two identifiers that differ only by case are one key; hash a
-case-sensitive external id before using it as a key. Deduplication and concurrency keys are
+Keys are kept exactly as given, so `Order-1` and `order-1` are two keys; lowercase an id yourself when
+its source is case-insensitive. Deduplication and concurrency keys are
 namespace-scoped, never tenant-scoped: `invoice-123` used by
 two tenants is one key. When the business identity is tenant-relative, compose the key with
-`DeduplicationKey.ForTenant(tenantKey, businessKey)` (also valid for `ConcurrencyKey` values, and
+`DeduplicationKey.ForTenant(tenantName, businessKey)` (also valid for `ConcurrencyKey` values, and
 nestable as the business key of `ForDefinition`).
 
 A deduplication key is unique only while the job holding it exists. Retention purges the job row, and
@@ -99,14 +99,14 @@ by the key itself. A caller that needs an identity to outlive retention owns tha
 Namespace and tenant answer two different questions and never substitute for each other.
 
 - **`JobNamespace` = who owns and runs the work**: the microservice / work-ownership boundary. It owns workers, job definitions, schedules, and system jobs, and it is the hot-path claim filter. Good namespaces name a service or work domain: `billing`, `cards`, `kyc`, `notifications`. Bad namespaces smuggle in a customer, environment, or worker identity: `tenant-acme`, `premium-customers`, `prod`, `worker-a`. Enqueuing into another service's namespace is service-to-service routing, not multi-tenancy.
-- **Tenant = who the work is about**: the customer / business entity a single job concerns. A tenant does **not** own workers, namespaces, job definitions, schedules, or system jobs. It is set per job at enqueue (`TenantKey`, resolved to `tenant_id`), immutable afterward, and inherited by child jobs; a child naming a different tenant than its parent is rejected unless the enqueue opts in with `TenantKey(key, overrideParent: true)`. It is **audit / query / runtime scope**: it surfaces on `JobContext.TenantId` and `JobContext.TenantKey`, snapshots, lists, and job-scoped events, and as a filter on job/event queries. It is **not** a scheduling, claim, idempotency, or concurrency-key scope: those stay namespace-scoped.
+- **Tenant = who the work is about**: the customer / business entity a single job concerns. A tenant does **not** own workers, namespaces, job definitions, schedules, or system jobs. It is set per job at enqueue (`TenantName`, resolved to `tenant_id`), immutable afterward, and inherited by child jobs; a child naming a different tenant than its parent is rejected unless the enqueue opts in with `TenantName(key, overrideParent: true)`. It is **audit / query / runtime scope**: it surfaces on `JobContext.TenantId` and `JobContext.TenantName`, snapshots, lists, and job-scoped events, and as a filter on job/event queries. It is **not** a scheduling, claim, idempotency, or concurrency-key scope: those stay namespace-scoped.
 
-The `TenantKey` is an **opaque external identifier** (a GUID, ULID, or customer code, not a human label: that goes in the tenant's `display_name`, with longer notes in `description`). Register tenants with `operations.Tenants.RegisterAsync(tenantKey, displayName?, description?)`: insert-or-return-existing, so a new tenant is created Active and an existing one is returned untouched. Status changes go through `SuspendAsync`/`ResumeAsync`, metadata through `UpdateAsync`, and `GetAsync(tenantKey)` is the point read. Enqueuing an unknown or suspended tenant key is rejected atomically. A job with no tenant (including every system job) carries `tenant_id = NULL`; a definition can make the choice durable with `[Job(TenantRequirement = Required)]` (or `Forbidden`), enforced at the enqueue boundary in the database.
+The `TenantName` is a **name**: ASCII `dotted.kebab-case`, lowercased on input (`acme-corp`, `acme.eu`); it is not a human label, which goes in the tenant's `display_name`, with longer notes in `description`. A customer id that is not a name is folded or prefixed by the caller. Register tenants with `operations.Tenants.RegisterAsync(tenantName, displayName?, description?)`: insert-or-return-existing, so a new tenant is created Active and an existing one is returned untouched. Status changes go through `SuspendAsync`/`ResumeAsync`, metadata through `UpdateAsync`, and `GetAsync(tenantName)` is the point read. Enqueuing an unknown or suspended tenant name is rejected atomically. A job with no tenant (including every system job) carries `tenant_id = NULL`; a definition can make the choice durable with `[Job(TenantRequirement = Required)]` (or `Forbidden`), enforced at the enqueue boundary in the database.
 
 Two boundaries to keep straight when designing tenancy around Acta:
 
 - **The tenant catalog is global per store.** `tenants` carries no namespace: within one installed Acta schema, `acme` is one shared identity, and suspending it withdraws admission for explicit `acme` enqueues in every namespace using that store. Suspension is admission control, not work closure: jobs already admitted keep running, and a running workflow may still create children that inherit the suspended tenant. The guarantee is the commit boundary: an enqueue transaction beginning after the suspend commits is rejected.
-- **The tenant field is not a security or isolation boundary.** Acta validates, persists, propagates, and surfaces the tenant identity; it does not authorize callers, filter application data, select per-tenant databases, or create a failure domain. Applications enforce data access using `JobContext.TenantKey` as the authoritative identity, and requirements like separate residency, backups, or blast radius take separate Acta stores or deployments, not a tenant row.
+- **The tenant field is not a security or isolation boundary.** Acta validates, persists, propagates, and surfaces the tenant identity; it does not authorize callers, filter application data, select per-tenant databases, or create a failure domain. Applications enforce data access using `JobContext.TenantName` as the authoritative identity, and requirements like separate residency, backups, or blast radius take separate Acta stores or deployments, not a tenant row.
 
 ## Executions and attempts
 
@@ -148,11 +148,11 @@ change reaches each worker on its next heartbeat, so a decrease is honored gradu
 may use the old limit until every worker has seen the new one, and attempts already running finish.
 
 **`RateLimit` caps how often, where the limit caps how many.** `[Job("send-invoice", RateLimit =
-"10/s")]` meters starts against a shared clock: ten a second across every worker of the namespace, with `RateKey` naming the
+"10/s")]` meters starts against a shared clock: ten a second across every worker of the namespace, with `RateName` naming the
 meter when several definitions should share one (omit it and the meter is the definition name). A job
 that arrives before its turn is *given* the next free instant and re-arms Ready at exactly that
 instant, budget-neutral, carrying `job.rate-limited`; a turn less than a quarter second away is waited
-out in process instead. Definitions that share a `RateKey` must declare the same rate, and worker
+out in process instead. Definitions that share a `RateName` must declare the same rate, and worker
 startup refuses a pair that does not. That booking is what makes it cheap: a backlog
 of a thousand jobs costs one re-arm each and drains in arrival order at the rate, rather than a
 thousand workers re-racing a counter. Rate and limit are independent gates and a job passes both.

@@ -32,7 +32,7 @@ internal sealed partial class RuntimeJobContext(
     ILogger? log = null,
     ActaMetrics? metrics = null,
     IJobs? jobs = null,
-    string? tenantKey = null,
+    string? tenantName = null,
     int workerId = 0,
     Acta.IActaClock? clock = null
 ) : JobContext
@@ -65,7 +65,7 @@ internal sealed partial class RuntimeJobContext(
     public override string JobNamespace { get; } = namespaceName;
     public override int NamespaceId => _namespaceId;
     public override int? TenantId { get; } = job.TenantId;
-    public override string? TenantKey { get; } = tenantKey;
+    public override string? TenantName { get; } = tenantName;
     public override string JobName { get; } = jobName;
     public override JobRef JobRef { get; } = new JobRef(job.JobRef);
     public override int ExecutionNumber { get; } = job.ExecutionNumber;

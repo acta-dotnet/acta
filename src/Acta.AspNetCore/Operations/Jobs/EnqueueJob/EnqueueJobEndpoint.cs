@@ -109,7 +109,7 @@ internal static class EnqueueJobEndpoint
                         Priority: body.Priority,
                         NextRunAtUtc: body.NextRunAtUtc,
                         DelaySeconds: body.DelaySeconds,
-                        TenantKey: body.TenantKey
+                        TenantName: body.TenantName
                     );
 
                     try

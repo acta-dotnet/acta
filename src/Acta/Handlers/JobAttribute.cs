@@ -38,18 +38,18 @@ public sealed class JobAttribute(string name) : Attribute
     /// a retry loop: an early job is booked the instant the meter admits it, waits in process when under a quarter
     /// second away and is re-armed exactly once otherwise, so a backlog drains at the rate. An idle meter admits a
     /// second's worth at once (<c>600/m</c> bursts ten), and a booked turn stays valid for a second. Per namespace and
-    /// <see cref="RateKey"/>, independent of <see cref="ConcurrencyLimit"/>, and an operator-overridable policy slot.
+    /// <see cref="RateName"/>, independent of <see cref="ConcurrencyLimit"/>, and an operator-overridable policy slot.
     /// </summary>
     public string? RateLimit { get; init; }
 
     /// <summary>
     /// Which meter <see cref="RateLimit"/> spends from, kebab-case; null means the definition name, so a
-    /// rate alone throttles just this definition. Definitions sharing a key share one meter and must
-    /// declare the same rate, which worker startup enforces. Unlike the rate itself the key is code-owned
+    /// rate alone throttles just this definition. Definitions sharing a name share one meter and must
+    /// declare the same rate, which worker startup enforces. Unlike the rate itself the meter name is code-owned
     /// and has no operator override: moving a definition to another meter changes who it competes with,
     /// which is a contract change, not a dial.
     /// </summary>
-    public string? RateKey { get; init; }
+    public string? RateName { get; init; }
 
     /// <summary>
     /// Default lane for this definition's jobs: the jobs of one lane in one namespace run one at a time, in enqueue
@@ -108,8 +108,8 @@ public sealed class JobAttribute(string name) : Attribute
     /// <summary>
     /// Whether jobs of this definition must, may, or must not carry a tenant. Persisted on the
     /// definition and enforced at the enqueue boundary in the database: <c>Required</c> rejects a
-    /// tenant-less enqueue (explicit TenantKey or parent inheritance both satisfy it), and
-    /// <c>Forbidden</c> rejects an explicit TenantKey and suppresses parent inheritance.
+    /// tenant-less enqueue (explicit TenantName or parent inheritance both satisfy it), and
+    /// <c>Forbidden</c> rejects an explicit TenantName and suppresses parent inheritance.
     /// </summary>
     public DefinitionTenantRequirementCode TenantRequirement { get; init; } = DefinitionTenantRequirementCode.Optional;
 

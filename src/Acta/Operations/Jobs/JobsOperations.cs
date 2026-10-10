@@ -173,79 +173,79 @@ internal sealed class JobsOperations(
     public ValueTask<CancelJobResponse> CancelAsync(
         JobLookup job,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         int? expectedVersion = null,
         CancellationToken ct = default
-    ) => cancelJob.HandleAsync(new CancelJobCommand(job, reasonMessage, actorKey, expectedVersion), ct);
+    ) => cancelJob.HandleAsync(new CancelJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<PauseJobResponse> PauseAsync(
         JobLookup job,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         int? expectedVersion = null,
         CancellationToken ct = default
-    ) => pauseJob.HandleAsync(new PauseJobCommand(job, reasonMessage, actorKey, expectedVersion), ct);
+    ) => pauseJob.HandleAsync(new PauseJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<ResumeJobResponse> ResumeAsync(
         JobLookup job,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         int? expectedVersion = null,
         CancellationToken ct = default
-    ) => resumeJob.HandleAsync(new ResumeJobCommand(job, reasonMessage, actorKey, expectedVersion), ct);
+    ) => resumeJob.HandleAsync(new ResumeJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<RestartJobResponse> RestartAsync(
         JobLookup job,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         int? expectedVersion = null,
         CancellationToken ct = default
-    ) => restartJob.HandleAsync(new RestartJobCommand(job, reasonMessage, actorKey, expectedVersion), ct);
+    ) => restartJob.HandleAsync(new RestartJobCommand(job, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<RescheduleJobResponse> RescheduleAsync(
         JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         int? expectedVersion = null,
         CancellationToken ct = default
-    ) => rescheduleJob.HandleAsync(new RescheduleJobCommand(job, nextRunAtUtc, reasonMessage, actorKey, expectedVersion), ct);
+    ) => rescheduleJob.HandleAsync(new RescheduleJobCommand(job, nextRunAtUtc, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         int? expectedVersion = null,
         CancellationToken ct = default
-    ) => reprioritizeJob.HandleAsync(new ReprioritizeJobCommand(job, priority, reasonMessage, actorKey, expectedVersion), ct);
+    ) => reprioritizeJob.HandleAsync(new ReprioritizeJobCommand(job, priority, reasonMessage, actor, expectedVersion), ct);
 
     public ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => updateJobInput.HandleAsync(new UpdateJobInputCommand(job, input, reasonMessage, actorKey), ct);
+    ) => updateJobInput.HandleAsync(new UpdateJobInputCommand(job, input, reasonMessage, actor), ct);
 
-    public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default) =>
-        purgeJob.HandleAsync(new PurgeJobCommand(job, actorKey), ct);
+    public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actor = null, CancellationToken ct = default) =>
+        purgeJob.HandleAsync(new PurgeJobCommand(job, actor), ct);
 
     public ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
         JobLookup job,
         string name,
         T value,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => RaiseSignalAsync(job, name, routing.Json(value), actorKey, ct);
+    ) => RaiseSignalAsync(job, name, routing.Json(value), actor, ct);
 
     public ValueTask<RaiseSignalResponse> RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
-    ) => raiseSignal.HandleAsync(new RaiseSignalCommand(job, name, value, actorKey), ct);
+    ) => raiseSignal.HandleAsync(new RaiseSignalCommand(job, name, value, actor), ct);
 
     public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) =>
         getInputTemplate.Handle(new GetInputTemplateQuery(jobNamespace, jobName));

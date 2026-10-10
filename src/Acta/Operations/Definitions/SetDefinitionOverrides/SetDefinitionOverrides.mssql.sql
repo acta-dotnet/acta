@@ -7,12 +7,12 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @ns INT, @existing_version INT, @rate_key VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
+    DECLARE @ns INT, @existing_version INT, @rate_name VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
 
     SELECT
         @ns = jd.namespace_id,
         @existing_version = jd.version,
-        @rate_key = jd.rate_key,
+        @rate_name = jd.rate_name,
         @name = jd.name
     FROM {{schema}}.definitions jd WITH (UPDLOCK, ROWLOCK)
     WHERE jd.id = @p_id;
@@ -29,7 +29,7 @@ BEGIN TRY
             GOTO Finish;
         END;
 
-    SET @meter = LOWER(COALESCE(@rate_key, @name));
+    SET @meter = LOWER(COALESCE(@rate_name, @name));
 
     UPDATE {{schema}}.definitions SET
         priority_code_override = @p_priority_code_override,
@@ -64,11 +64,11 @@ BEGIN TRY
         namespace_id = @ns
         AND id <> @p_id
         AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
-        AND LOWER(COALESCE(rate_key, name)) = @meter;
+        AND LOWER(COALESCE(rate_name, name)) = @meter;
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
-        actor_code, actor_key,
+        actor_code, actor,
         job_id, job_ref, execution_number,
         lineage_root_id, definition_id,
         worker_id,
@@ -78,7 +78,7 @@ BEGIN TRY
     )
     VALUES (
         30 /* EventCode.JobDefinitionOverridesUpdated */, @now, @ns,
-        @p_actor_code, @p_actor_key,
+        @p_actor_code, @p_actor,
         NULL, NULL, NULL,
         NULL, @p_id,
         NULL,

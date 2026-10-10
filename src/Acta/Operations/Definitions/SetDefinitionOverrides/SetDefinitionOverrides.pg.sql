@@ -8,7 +8,7 @@ CREATE TEMP TABLE _set_definition_overrides (
 ) ON COMMIT DROP;
 
 INSERT INTO _set_definition_overrides (namespace_id, version, meter)
-SELECT jd.namespace_id, jd.version, lower(COALESCE(jd.rate_key, jd.name))
+SELECT jd.namespace_id, jd.version, lower(COALESCE(jd.rate_name, jd.name))
 FROM {{schema}}.definitions jd
 WHERE jd.id = @p_id
 FOR UPDATE;
@@ -47,12 +47,12 @@ WHERE
     AND sib.namespace_id = t.namespace_id
     AND sib.id <> @p_id
     AND (sib.rate_limit IS NOT NULL OR sib.rate_limit_override IS NOT NULL)
-    AND lower(COALESCE(sib.rate_key, sib.name)) = t.meter;
+    AND lower(COALESCE(sib.rate_name, sib.name)) = t.meter;
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, definition_id, reason_code, reason_message)
+    event_code, created_at_utc, namespace_id, actor_code, actor, definition_id, reason_code, reason_message)
 SELECT
-    30 /* EventCode.JobDefinitionOverridesUpdated */, now(), t.namespace_id, @p_actor_code, @p_actor_key, @p_id,
+    30 /* EventCode.JobDefinitionOverridesUpdated */, now(), t.namespace_id, @p_actor_code, @p_actor, @p_id,
     @p_reason_code, @p_reason_message
 FROM _set_definition_overrides t
 WHERE t.version = @p_version;

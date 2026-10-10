@@ -73,10 +73,10 @@ WHERE
     AND s.from_status = 30 /* JobStatusCode.Paused */;
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code, reason_code, reason_message)
 SELECT
-    72 /* EventCode.JobResumed */, now(), s.namespace_id, @p_actor_code, @p_actor_key, @p_id, s.job_ref,
+    72 /* EventCode.JobResumed */, now(), s.namespace_id, @p_actor_code, @p_actor, @p_id, s.job_ref,
     s.execution_number, COALESCE(s.lineage_root_id, @p_id), s.definition_id, s.tenant_id, 30 /* JobStatusCode.Paused */,
     s.to_status, @p_reason_code, @p_reason_message
 FROM _resume_job s

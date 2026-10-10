@@ -81,7 +81,7 @@ internal static class SchedulesEndpoints
             ControlStatus.Schedule<PauseScheduleResponse>(),
             Key,
             static (call, schedule) =>
-                call.Operations.Schedules.PauseAsync(schedule, call.Body?.PausedUntilUtc, call.ReasonMessage, call.ActorKey, call.Ct)
+                call.Operations.Schedules.PauseAsync(schedule, call.Body?.PausedUntilUtc, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume",
@@ -91,7 +91,7 @@ internal static class SchedulesEndpoints
             "Invalid schedule request.",
             ControlStatus.Schedule<ResumeScheduleResponse>(),
             Key,
-            static (call, schedule) => call.Operations.Schedules.ResumeAsync(schedule, call.ReasonMessage, call.ActorKey, call.Ct)
+            static (call, schedule) => call.Operations.Schedules.ResumeAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger",
@@ -101,7 +101,7 @@ internal static class SchedulesEndpoints
             "Invalid schedule request.",
             ControlStatus.Schedule<TriggerScheduleNowResponse>(),
             Key,
-            static (call, schedule) => call.Operations.Schedules.TriggerNowAsync(schedule, call.ReasonMessage, call.ActorKey, call.Ct)
+            static (call, schedule) => call.Operations.Schedules.TriggerNowAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides",
@@ -118,7 +118,7 @@ internal static class SchedulesEndpoints
                     call.Body.Expression,
                     call.Body.TimeZoneId,
                     call.ReasonMessage,
-                    call.ActorKey,
+                    call.Actor,
                     call.Ct
                 ),
             bodyRequired: true

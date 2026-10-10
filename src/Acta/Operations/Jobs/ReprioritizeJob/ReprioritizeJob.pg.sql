@@ -45,10 +45,10 @@ WHERE
     AND s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, tenant_id, reason_code, reason_message)
 SELECT
-    74 /* EventCode.JobReprioritized */, now(), s.namespace_id, @p_actor_code, @p_actor_key, @p_id, s.job_ref,
+    74 /* EventCode.JobReprioritized */, now(), s.namespace_id, @p_actor_code, @p_actor, @p_id, s.job_ref,
     s.execution_number, COALESCE(s.lineage_root_id, @p_id), s.definition_id, s.tenant_id, @p_reason_code, @p_reason_message
 FROM _reprioritize_job s
 WHERE

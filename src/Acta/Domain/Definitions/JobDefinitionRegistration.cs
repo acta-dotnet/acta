@@ -35,10 +35,10 @@ internal static class JobDefinitionRegistration
     public const int MaxConcurrencyLimit = 1024;
 
     /// <summary>
-    /// The longest a rate key may be, matching <c>definitions.rate_key</c> and the concurrency key it
+    /// The longest a rate name may be, matching <c>definitions.rate_name</c> and the concurrency key it
     /// shares a lock-key budget with.
     /// </summary>
-    public const int MaxRateKeyLength = 128;
+    public const int MaxRateNameLength = 128;
 
     /// <summary>A parseable backoff expression that fits its column.</summary>
     public static bool IsBackoff(string value) => Backoff.TryParse(value, out _) && value.Length <= ActaTextLimits.DefinitionBackoff;
@@ -58,12 +58,12 @@ internal static class JobDefinitionRegistration
         );
 
     /// <summary>
-    /// The meter a definition spends from: its declared RateKey, or its own name when it declares
+    /// The meter a definition spends from: its declared RateName, or its own name when it declares
     /// none, normalized the way the runner composes the bucket key. Grouping on this rather than on
     /// the declared key alone is what catches a definition named <c>stripe</c> colliding with another
-    /// definition's <c>RateKey = "stripe"</c>.
+    /// definition's <c>RateName = "stripe"</c>.
     /// </summary>
-    public static string EffectiveRateKey(string? rateKey, string name) => (rateKey ?? name).ToLowerInvariant();
+    public static string EffectiveRateName(string? rateName, string name) => (rateName ?? name).ToLowerInvariant();
 
     /// <summary>
     /// Rejects a descriptor whose backoff, timeout, runbook URL, display name or description exceeds
@@ -103,9 +103,9 @@ internal static class JobDefinitionRegistration
                     + $"\"{rateLimit}\", which is not a rate limit. {rateError}"
             );
         }
-        if (descriptor.RateKey is { } rateKey)
+        if (descriptor.RateName is { } rateName)
         {
-            _ = NameSyntax.Canonicalize(rateKey, nameof(descriptor.RateKey), MaxRateKeyLength);
+            _ = NameSyntax.Canonicalize(rateName, nameof(descriptor.RateName), MaxRateNameLength);
         }
 
         if (descriptor.Lane is { } lane)

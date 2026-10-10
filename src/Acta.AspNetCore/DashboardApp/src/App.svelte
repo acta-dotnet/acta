@@ -208,8 +208,8 @@
     {:else if $route.name === 'tenants'}
       <TenantsList />
     {:else if $route.name === 'tenant-detail'}
-      {#key $route.tenantKey}
-        <TenantDetail tenantKey={$route.tenantKey} />
+      {#key $route.tenantName}
+        <TenantDetail tenantName={$route.tenantName} />
       {/key}
     {:else if $route.name === 'tenant-new'}
       <TenantDetail />

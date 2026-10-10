@@ -63,7 +63,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Null(evt!.JobId);
         Assert.Null(evt.JobRef);
         Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal("spec-actor", evt.ActorKey);
+        Assert.Equal("spec-actor", evt.Actor);
         Assert.Contains(completed.JobRef.Value.ToString(), evt.ReasonMessage);
     }
 

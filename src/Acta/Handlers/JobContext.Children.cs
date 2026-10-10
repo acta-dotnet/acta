@@ -67,7 +67,7 @@ public abstract partial class JobContext
             DelaySeconds: options.DelaySeconds,
             Tags: options.Tags,
             ParentJobId: JobId,
-            TenantKey: options.TenantKey,
+            TenantName: options.TenantName,
             OverrideParentTenant: options.OverrideParentTenant,
             Lane: options.Lane
         );
@@ -283,7 +283,7 @@ public abstract partial class JobContext
             NextRunAtUtc = configured?.NextRunAtUtc,
             DelaySeconds = configured?.DelaySeconds,
             ParentJobId = JobId,
-            TenantKey = configured?.TenantKey,
+            TenantName = configured?.TenantName,
             OverrideParentTenant = configured?.OverrideParentTenant ?? false,
         };
     }

@@ -2,10 +2,10 @@ namespace Acta;
 
 /// <summary>One tenant edit as the facade received it; null clears a field.</summary>
 internal sealed record UpdateTenantCommand(
-    string TenantKey,
+    string TenantName,
     int ExpectedVersion,
     string? DisplayName,
     string? Description,
     string? ReasonMessage,
-    string? ActorKey
+    string? Actor
 );

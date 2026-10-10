@@ -55,7 +55,7 @@ internal static class NamespacesEndpoints
             "Invalid namespace jobNamespace.",
             ControlStatus.Admin<SuspendNamespaceResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
-            static (call, name) => call.Operations.Namespaces.SuspendAsync(name, call.ReasonMessage, call.ActorKey, call.Ct)
+            static (call, name) => call.Operations.Namespaces.SuspendAsync(name, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/namespaces/{jobNamespace}/resume",
@@ -65,7 +65,7 @@ internal static class NamespacesEndpoints
             "Invalid namespace jobNamespace.",
             ControlStatus.Admin<ResumeNamespaceResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
-            static (call, name) => call.Operations.Namespaces.ResumeAsync(name, call.ReasonMessage, call.ActorKey, call.Ct)
+            static (call, name) => call.Operations.Namespaces.ResumeAsync(name, call.ReasonMessage, call.Actor, call.Ct)
         );
         // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries without a re-read.
         controls.MapUpdate(
@@ -93,7 +93,7 @@ internal static class NamespacesEndpoints
                     body.OwnerTeam,
                     body.Description,
                     call.ReasonMessage,
-                    call.ActorKey,
+                    call.Actor,
                     call.Ct
                 );
             }

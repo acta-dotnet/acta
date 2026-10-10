@@ -4,7 +4,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.record_outbox_event
     @p_job_id BIGINT,
     @p_event_code SMALLINT,
     @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
+    @p_actor NVARCHAR(128),
     @p_reason_message NVARCHAR(512)
 AS
 BEGIN
@@ -21,7 +21,7 @@ BEGIN
             created_at_utc,
             namespace_id,
             actor_code,
-            actor_key,
+            actor,
             job_id,
             job_ref,
             execution_number,
@@ -34,7 +34,7 @@ BEGIN
             SYSUTCDATETIME(),
             j.namespace_id,
             @p_actor_code,
-            @p_actor_key,
+            @p_actor,
             j.id,
             j.job_ref,
             r.execution_number,

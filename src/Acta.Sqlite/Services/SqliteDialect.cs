@@ -200,7 +200,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 WriteUtcOrNull(writer, "next_run_at_utc", row.NextRunAtUtc);
                 WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
                 WriteNumberOrNull(writer, "parent_id", row.ParentId);
-                WriteStringOrNull(writer, "tenant_key", row.TenantKey);
+                WriteStringOrNull(writer, "tenant_name", row.TenantName);
                 writer.WriteNumber("tenant_override", row.OverrideParentTenant ? 1 : 0);
                 WriteStringOrNull(writer, "lane", row.Lane);
             }
@@ -254,7 +254,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableInt(command, "@p_next_run_at_utc", row.NextRunAtUtc is { } nextRun ? ToUnixMs(nextRun) : null);
         AddNullableInt(command, "@p_delay_seconds", row.DelaySeconds);
         AddNullableInt(command, "@p_parent_id", row.ParentId);
-        AddNullableText(command, "@p_tenant_key", row.TenantKey);
+        AddNullableText(command, "@p_tenant_name", row.TenantName);
         AddInt(command, "@p_tenant_override", row.OverrideParentTenant ? 1 : 0);
         AddNullableText(command, "@p_lane", row.Lane);
 
@@ -304,7 +304,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 writer.WriteNumber("max_attempts", row.MaxAttempts);
                 WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
                 WriteStringOrNull(writer, "rate_limit", row.RateLimit);
-                WriteStringOrNull(writer, "rate_key", row.RateKey);
+                WriteStringOrNull(writer, "rate_name", row.RateName);
                 WriteStringOrNull(writer, "lane", row.Lane);
                 writer.WriteString("backoff", row.Backoff);
                 writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);

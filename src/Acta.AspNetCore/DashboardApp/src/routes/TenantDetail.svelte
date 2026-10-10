@@ -17,18 +17,18 @@
   import { buildTenantDetailsPayload, tenantAdminNeedsReload } from './tenantAdmin.ts';
   import { routes } from '../routes.ts';
 
-  let { tenantKey = null }: { tenantKey?: string | null } = $props();
-  let creating = $derived(!tenantKey);
-  let newKeyEl: HTMLInputElement | null = $state(null);
+  let { tenantName = null }: { tenantName?: string | null } = $props();
+  let creating = $derived(!tenantName);
+  let newNameEl: HTMLInputElement | null = $state(null);
 
   $effect(() => {
-    if (creating) newKeyEl?.focus();
+    if (creating) newNameEl?.focus();
   });
 
   async function loadTenant(signal: AbortSignal): Promise<TenantListItem | null> {
-    if (!tenantKey) return null;
+    if (!tenantName) return null;
     try {
-      return await api<TenantListItem>(`tenants/${encodeURIComponent(tenantKey)}`, {}, { signal });
+      return await api<TenantListItem>(`tenants/${encodeURIComponent(tenantName)}`, {}, { signal });
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) return null;
       throw e;
@@ -38,7 +38,7 @@
   // The editor owns its input state: no polling and no focus/reconnect refreshes. It deliberately
   // refetches only after a successful details save or an explicit conflict reload.
   const detail = createQuery(() => ({
-    queryKey: keys.detail('tenant-detail', tenantKey ?? 'new'),
+    queryKey: keys.detail('tenant-detail', tenantName ?? 'new'),
     queryFn: ({ signal }) => loadTenant(signal),
     enabled: !creating,
     refetchOnWindowFocus: false,
@@ -53,11 +53,11 @@
   // Admin audit trail: one small query per tenant admin event code, merged newest-first.
   const HISTORY_CODES = ['tenant.suspended', 'tenant.resumed', 'tenant.updated'];
   const history = createQuery(() => ({
-    queryKey: keys.detail('tenant-history', tenant?.tenantKey ?? ''),
+    queryKey: keys.detail('tenant-history', tenant?.tenantName ?? ''),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const pages = await Promise.all(
         HISTORY_CODES.map((eventCode) =>
-          api<Paged<HistoryEvent>>('events', { tenantKey: tenant!.tenantKey, eventCode, pageSize: 20 }, { signal }).then(
+          api<Paged<HistoryEvent>>('events', { tenantName: tenant!.tenantName, eventCode, pageSize: 20 }, { signal }).then(
             (page) => page.items
           )
         )
@@ -83,25 +83,25 @@
   let loading = $derived(!creating && detail.isPending);
   let error = $derived(detail.error instanceof Error ? detail.error.message : detail.error ? String(detail.error) : '');
 
-  let newKey = $state('');
+  let newName = $state('');
   let newDisplayName = $state('');
   let newDescription = $state('');
   let registerBusy = $state(false);
   let registerMessage = $state('');
   let registerMessageKind = $state('');
-  let createdKey = $state('');
+  let createdName = $state('');
 
   async function submitRegister() {
-    if (!newKey.trim()) return;
+    if (!newName.trim()) return;
     registerBusy = true;
     registerMessage = '';
-    createdKey = '';
+    createdName = '';
     try {
-      const result = await registerTenant(newKey, newDisplayName, newDescription);
-      createdKey = result.tenantKey;
-      registerMessage = `Tenant ${result.tenantKey} registered.`;
+      const result = await registerTenant(newName, newDisplayName, newDescription);
+      createdName = result.tenantName;
+      registerMessage = `Tenant ${result.tenantName} registered.`;
       registerMessageKind = 'ok';
-      newKey = '';
+      newName = '';
       newDisplayName = '';
       newDescription = '';
     } catch (e) {
@@ -113,10 +113,10 @@
   }
 
   const detailsMutation = useControlMutation<
-    { tenantKey: string; displayName: string; description: string; expectedVersion: number; reason?: string },
+    { tenantName: string; displayName: string; description: string; expectedVersion: number; reason?: string },
     AdminControlResult
   >({
-    path: (vars) => `tenants/${encodeURIComponent(vars.tenantKey)}`,
+    path: (vars) => `tenants/${encodeURIComponent(vars.tenantName)}`,
     method: 'PATCH',
     body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildTenantDetailsPayload(vars) }),
     notFound: () => ({ action: 'notFound', version: null }),
@@ -133,7 +133,7 @@
     detailsNeedsReload = false;
     try {
       const result = await detailsMutation.mutateAsync({
-        tenantKey: tenant.tenantKey,
+        tenantName: tenant.tenantName,
         displayName: displayNameInput,
         description: descriptionInput,
         expectedVersion: tenant.version,
@@ -165,10 +165,10 @@
   }
 
   const statusMutation = useControlMutation<
-    { tenantKey: string; action: 'suspend' | 'resume'; reason?: string },
+    { tenantName: string; action: 'suspend' | 'resume'; reason?: string },
     AdminControlResult
   >({
-    path: (vars) => `tenants/${encodeURIComponent(vars.tenantKey)}/${vars.action}`,
+    path: (vars) => `tenants/${encodeURIComponent(vars.tenantName)}/${vars.action}`,
     notFound: () => ({ action: 'notFound', version: null }),
     versionConflict: () => ({ action: 'versionConflict', version: null }),
     invalidateKeys: () => [['tenants']] as const
@@ -182,7 +182,7 @@
     confirming = null;
     statusMessage = '';
     try {
-      const result = await statusMutation.mutateAsync({ tenantKey: tenant.tenantKey, action, reason });
+      const result = await statusMutation.mutateAsync({ tenantName: tenant.tenantName, action, reason });
       if (tenantAdminNeedsReload(result.action)) {
         statusMessage = result.action === 'notFound' ? 'Tenant not found.' : 'Tenant changed; reload before trying again.';
         statusMessageKind = 'warn';
@@ -204,15 +204,15 @@
 
   let backHref = $derived(routes.tenants({ namespace: $scope }));
   let createdHref = $derived(
-    createdKey
-      ? routes.tenant(createdKey, { namespace: $scope })
+    createdName
+      ? routes.tenant(createdName, { namespace: $scope })
       : routes.tenants({ namespace: $scope })
   );
-  let jobsHref = $derived(routes.jobs({ tenantKey: tenant?.tenantKey, namespace: $scope }));
-  let eventsHref = $derived(routes.events({ tenantKey: tenant?.tenantKey, namespace: $scope }));
+  let jobsHref = $derived(routes.jobs({ tenantName: tenant?.tenantName, namespace: $scope }));
+  let eventsHref = $derived(routes.events({ tenantName: tenant?.tenantName, namespace: $scope }));
 </script>
 
-<Page title={creating ? 'Register tenant' : tenant?.displayName ?? tenant?.tenantKey ?? 'Tenant'}>
+<Page title={creating ? 'Register tenant' : tenant?.displayName ?? tenant?.tenantName ?? 'Tenant'}>
   {#snippet breadcrumb()}
     <a href={backHref}><Icon name="chevron-left" />Tenants</a>
   {/snippet}
@@ -234,8 +234,8 @@
           <p class="detail-help">Create the stable tenant identity used by enqueue requests. Display details can be added afterward.</p>
           <form onsubmit={(event) => { event.preventDefault(); submitRegister(); }}>
             <label class="detail-field">
-              <span>Tenant key</span>
-              <input bind:this={newKeyEl} bind:value={newKey} maxlength="128" placeholder="Opaque key, GUID, or customer code" disabled={!canControlNow || registerBusy} />
+              <span>Tenant name</span>
+              <input bind:this={newNameEl} bind:value={newName} maxlength="128" placeholder="Kebab-case name, such as acme-corp" disabled={!canControlNow || registerBusy} />
             </label>
             <label class="detail-field">
               <span>Display name</span>
@@ -246,7 +246,7 @@
               <textarea bind:value={newDescription} rows="4" maxlength="512" placeholder="Human-readable context (optional)" disabled={!canControlNow || registerBusy}></textarea>
             </label>
             <div class="detail-form-actions">
-              <button class="primary" type="submit" disabled={!canControlNow || registerBusy || !newKey.trim()}>
+              <button class="primary" type="submit" disabled={!canControlNow || registerBusy || !newName.trim()}>
                 {registerBusy ? 'Registering...' : 'Register tenant'}
               </button>
             </div>
@@ -254,7 +254,7 @@
           {#if registerMessage}
             <div class="control-message {registerMessageKind}" role="status">
               {registerMessage}
-              {#if createdKey}<a href={createdHref}>Open tenant <span aria-hidden="true">→</span></a>{/if}
+              {#if createdName}<a href={createdHref}>Open tenant <span aria-hidden="true">→</span></a>{/if}
             </div>
           {/if}
         </section>
@@ -272,7 +272,7 @@
     </div>
   {:else}
     <section class="entity-summary" aria-label="Tenant identity">
-      <div class="entity-meta mono">{tenant.tenantKey} · version {tenant.version}</div>
+      <div class="entity-meta mono">{tenant.tenantName} · version {tenant.version}</div>
       <StatusBadge status={tenant.status} />
     </section>
 
@@ -280,7 +280,7 @@
       <div class="detail-main">
         <section class="detail-panel">
           <h2>Details</h2>
-          <p class="detail-help">Operator-owned context for this tenant. The tenant key is stable and cannot be edited.</p>
+          <p class="detail-help">Operator-owned context for this tenant. The tenant name is stable and cannot be edited.</p>
           <form onsubmit={(event) => { event.preventDefault(); saveDetails(); }}>
             <label class="detail-field">
               <span>Display name</span>
@@ -312,7 +312,7 @@
           <h2>Lifecycle</h2>
           <p>{tenant.status === 'suspended' ? 'Suspended; new enqueues naming this tenant are rejected.' : 'Active and accepting enqueue requests.'}</p>
           {#if canControlNow}
-            <p class="detail-help">Suspending rejects new enqueues that name this tenant key. Jobs already admitted keep running and may still create inherited child jobs.</p>
+            <p class="detail-help">Suspending rejects new enqueues that name this tenant name. Jobs already admitted keep running and may still create inherited child jobs.</p>
             {#if tenant.status === 'suspended'}
               <button disabled={statusMutation.isPending} onclick={() => (confirming = 'resume')}>Resume tenant</button>
             {:else}
@@ -330,7 +330,7 @@
           </nav>
         </section>
 
-        <TagEditor path={`tenants/${encodeURIComponent(tenant.tenantKey)}/tags`} />
+        <TagEditor path={`tenants/${encodeURIComponent(tenant.tenantName)}/tags`} />
       </aside>
     </div>
   {/if}
@@ -338,9 +338,9 @@
 
 {#if confirming && tenant}
   <ConfirmAction
-    title={(confirming === 'suspend' ? 'Suspend' : 'Resume') + ' tenant ' + tenant.tenantKey + '?'}
+    title={(confirming === 'suspend' ? 'Suspend' : 'Resume') + ' tenant ' + tenant.tenantName + '?'}
     body={confirming === 'suspend'
-      ? 'New enqueues naming this tenant key will be rejected until the tenant is resumed. Jobs already admitted keep running and may still create inherited child jobs.'
+      ? 'New enqueues naming this tenant name will be rejected until the tenant is resumed. Jobs already admitted keep running and may still create inherited child jobs.'
       : 'The tenant becomes eligible to enqueue jobs again immediately.'}
     confirmLabel={confirming === 'suspend' ? 'Suspend tenant' : 'Resume tenant'}
     onConfirm={(note) => runStatus(confirming!, note)}

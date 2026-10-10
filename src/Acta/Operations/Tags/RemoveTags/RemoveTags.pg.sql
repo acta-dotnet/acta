@@ -6,7 +6,7 @@ CREATE TEMP TABLE _remove_tags_target (scope_id BIGINT NOT NULL, namespace_id IN
 INSERT INTO _remove_tags_target (scope_id, namespace_id)
 SELECT t.id, NULL
 FROM {{schema}}.tenants t
-WHERE @p_scope_code = 20 /* TagScopeCode.Tenant */ AND t.tenant_key = @p_lookup_name
+WHERE @p_scope_code = 20 /* TagScopeCode.Tenant */ AND t.tenant_name = @p_lookup_name
 FOR UPDATE;
 
 INSERT INTO _remove_tags_target (scope_id, namespace_id)

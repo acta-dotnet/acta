@@ -14,16 +14,32 @@ test('jobsListSql composes filters with AND and lowercases the display status', 
   );
 });
 
-test('jobsListSql emits tenant_key as a quoted literal', () => {
+test('jobsListSql emits tenant_name as a quoted literal', () => {
   assert.equal(
-    jobsListSql({ tenantKey: 'acme-corp' }),
-    "SELECT * FROM acta.jobs_view WHERE tenant_key = 'acme-corp' ORDER BY created_at_utc DESC LIMIT 100;"
+    jobsListSql({ tenantName: 'acme-corp' }),
+    "SELECT * FROM acta.jobs_view WHERE tenant_name = 'acme-corp' ORDER BY created_at_utc DESC LIMIT 100;"
   );
-  assert.equal(jobsListSql({ tenantKey: '' }), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
+  assert.equal(jobsListSql({ tenantName: '' }), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
 });
 
 test('jobsListSql filters the view by lane', () => {
   assert.equal(jobsListSql({ lane: 'customer-42' }), "SELECT * FROM acta.jobs_view WHERE lane = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;");
+});
+
+test('the list builders fold names the way the API stores them, and keep keys exact', () => {
+  assert.equal(
+    jobsListSql({ namespace: 'Billing', jobName: 'Send-Invoice', tenantName: 'ACME', lane: 'Customer-42', correlationKey: 'Run-7' }),
+    "SELECT * FROM acta.jobs_view WHERE namespace = 'billing' AND job_name = 'send-invoice' AND correlation_key = 'Run-7' "
+      + "AND tenant_name = 'acme' AND lane = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;"
+  );
+  assert.equal(
+    eventsListSql({ namespace: 'Billing' }),
+    "SELECT * FROM acta.events_view WHERE namespace = 'billing' ORDER BY created_at_utc DESC LIMIT 100;"
+  );
+  assert.equal(
+    schedulesListSql({ namespace: 'Billing', jobName: 'Nightly-Close' }),
+    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' ORDER BY next_run_at_utc LIMIT 100;"
+  );
 });
 
 test('jobsListSql escapes single quotes in interpolated values', () => {
@@ -51,7 +67,7 @@ test('eventsListSql filters code families through the decoded columns and a time
       createdFromUtc: '2026-07-01T00:00:00.000Z',
       createdToUtc: '2026-07-22T00:00:00.000Z'
     }),
-    "SELECT * FROM acta.events_view WHERE namespace = 'billing' AND event = 'job.cancelled' AND actor = 'operator' AND reason = 'job.control-manual' AND created_at_utc >= '2026-07-01T00:00:00.000Z' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.events_view WHERE namespace = 'billing' AND event = 'job.cancelled' AND actor_kind = 'operator' AND reason = 'job.control-manual' AND created_at_utc >= '2026-07-01T00:00:00.000Z' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 

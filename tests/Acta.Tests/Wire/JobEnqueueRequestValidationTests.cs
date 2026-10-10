@@ -17,7 +17,7 @@ public sealed class JobEnqueueRequestValidationTests
             CorrelationKey: "Trace-A",
             ConcurrencyKey: "Mutex-A",
             Tags: [new TagInput("Env.Prod", "EU-West")],
-            TenantKey: "Tenant-A"
+            TenantName: "Tenant-A"
         )
         {
             Lane = "ORDER-1",
@@ -30,7 +30,7 @@ public sealed class JobEnqueueRequestValidationTests
         Assert.Equal("Order-1", normalized.DeduplicationKey);
         Assert.Equal("Trace-A", normalized.CorrelationKey);
         Assert.Equal("Mutex-A", normalized.ConcurrencyKey);
-        Assert.Equal("tenant-a", normalized.TenantKey);
+        Assert.Equal("tenant-a", normalized.TenantName);
         Assert.Equal("order-1", normalized.Lane);
         var tag = Assert.Single(normalized.Tags!);
         Assert.Equal("env.prod", tag.Name);
@@ -65,10 +65,10 @@ public sealed class JobEnqueueRequestValidationTests
             new EnqueueJobRequest(Ns, Name, DeduplicationKey: "SYS.Reserved"),
             new EnqueueJobRequest(Ns, Name, DeduplicationKey: "has space"),
             new EnqueueJobRequest(Ns, Name, CorrelationKey: "caf\u00e9"),
-            new EnqueueJobRequest(Ns, Name, TenantKey: "tenant_a"),
+            new EnqueueJobRequest(Ns, Name, TenantName: "tenant_a"),
             new EnqueueJobRequest(Ns, Name) { Lane = "order:42" },
             new EnqueueJobRequest(Ns, Name, ConcurrencyKey: new string('x', NameSyntax.ExtendedMaxLength + 1)),
-            new EnqueueJobRequest(Ns, Name, TenantKey: " "),
+            new EnqueueJobRequest(Ns, Name, TenantName: " "),
             new EnqueueJobRequest(Ns, Name, CorrelationKey: new string('c', NameSyntax.DefaultMaxLength + 1)),
             new EnqueueJobRequest(Ns, Name, Tags: [new TagInput("bad tag", null)]),
             new EnqueueJobRequest(Ns, Name, Tags: [new TagInput("Sys.Prod", "blue")]),

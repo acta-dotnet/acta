@@ -7,5 +7,5 @@ internal sealed record UpdateNamespaceCommand(
     string? OwnerTeam,
     string? Description,
     string? ReasonMessage,
-    string? ActorKey
+    string? Actor
 );

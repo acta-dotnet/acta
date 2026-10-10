@@ -72,7 +72,7 @@ BEGIN TRY
         END;
 
     DECLARE @schedule_ids TABLE (id BIGINT PRIMARY KEY);
-    DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY, namespace_id INT NOT NULL, dedupe_key VARCHAR(512) NULL);
+    DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY, namespace_id INT NOT NULL, deduplication_key VARCHAR(128) NULL);
     DECLARE @event_ids TABLE (id BIGINT PRIMARY KEY);
 
     INSERT @schedule_ids SELECT id FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
@@ -80,18 +80,18 @@ BEGIN TRY
     -- The job's alerts are read through ix_alerts_job without locks, which the held job row makes safe, then
     -- each identity row is locked through its identity key before the row and the delete locks the rest
     -- (docs/internals/sql-execution-policy.md, "Alert lock order").
-    INSERT @alert_ids (id, namespace_id, dedupe_key)
-    SELECT id, namespace_id, dedupe_key FROM {{schema}}.alerts WITH (FORCESEEK (ix_alerts_job (job_id)))
+    INSERT @alert_ids (id, namespace_id, deduplication_key)
+    SELECT id, namespace_id, deduplication_key FROM {{schema}}.alerts WITH (FORCESEEK (ix_alerts_job (job_id)))
     WHERE job_id = @p_id;
     DECLARE @identity_locked INT = (
         SELECT COUNT(*)
         FROM @alert_ids i
-        INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+        INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
             ON
                 a.namespace_id = i.namespace_id
-                AND a.dedupe_key = i.dedupe_key
+                AND a.deduplication_key = i.deduplication_key
                 AND a.id = i.id
-        WHERE i.dedupe_key IS NOT NULL
+        WHERE i.deduplication_key IS NOT NULL
     );
     INSERT @event_ids SELECT id FROM {{schema}}.events WITH (UPDLOCK, ROWLOCK, FORCESEEK)
     WHERE job_id = @p_id;
@@ -116,7 +116,7 @@ BEGIN TRY
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
-        actor_code, actor_key,
+        actor_code, actor,
         job_id, job_ref, execution_number,
         lineage_root_id, definition_id, tenant_id,
         worker_id,
@@ -126,7 +126,7 @@ BEGIN TRY
     )
     VALUES (
         75 /* EventCode.JobPurged */, @now, @namespace_id,
-        @p_actor_code, @p_actor_key,
+        @p_actor_code, @p_actor,
         NULL, NULL, NULL,
         NULL, @definition_id, @tenant_id,
         NULL,

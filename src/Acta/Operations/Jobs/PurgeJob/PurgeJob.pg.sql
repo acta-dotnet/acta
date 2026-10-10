@@ -80,10 +80,10 @@ DELETE FROM {{schema}}.jobs
 WHERE id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, definition_id, tenant_id, from_status_code,
+    event_code, created_at_utc, namespace_id, actor_code, actor, definition_id, tenant_id, from_status_code,
     reason_code, reason_message)
 SELECT
-    75 /* EventCode.JobPurged */, now(), s.namespace_id, @p_actor_code, @p_actor_key, s.definition_id, s.tenant_id,
+    75 /* EventCode.JobPurged */, now(), s.namespace_id, @p_actor_code, @p_actor, s.definition_id, s.tenant_id,
     s.from_status, @p_reason_code, 'purged ' || s.job_ref::text || ' (' || s.job_name || ')'
 FROM _purge_job s
 WHERE EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);

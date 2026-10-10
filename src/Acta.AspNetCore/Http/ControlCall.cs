@@ -23,7 +23,7 @@ internal sealed record ControlCall<TBody>(
     where TBody : class
 {
     /// <summary>The authenticated principal, stamped as the operator; never read from the body.</summary>
-    public string? ActorKey => Http.User?.Identity?.Name;
+    public string? Actor => Http.User?.Identity?.Name;
 }
 
 /// <summary>A verb's own check on its body failed: a 400 under the verb's title, with this message as the detail.</summary>

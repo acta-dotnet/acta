@@ -9,14 +9,14 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for worker identity across retention: <c>events</c> outlives the <c>workers</c> row, so
 /// the timeline has to stay readable once the holder is gone. The joined <c>worker_ref</c> is a live
-/// lookup and goes null with the row; the denormalized <c>actor_key</c> is the durable copy and still
+/// lookup and goes null with the row; the denormalized <c>actor</c> is the durable copy and still
 /// renders the canonical <c>wrk_</c> string. The internal worker id keeps filtering the surviving rows.
 /// </summary>
 [ConformanceSpec(
     "worker-ref.survives-purge",
-    "Events outlive a purged worker with a canonical actor key",
+    "Events outlive a purged worker with a canonical actor",
     Area = "Retention",
-    Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them."
+    Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor, and the historical worker id still selecting them."
 )]
 public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -26,15 +26,15 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<Conformance
     private const int NoAlertPurgeDays = 100_000;
 
     [Fact(
-        DisplayName = "After purge the worker row is gone while its events keep a canonical wrk_ actor key, a null workerRef, and the historical worker id"
+        DisplayName = "After purge the worker row is gone while its events keep a canonical wrk_ actor, a null workerRef, and the historical worker id"
     )]
-    public async Task Events_outlive_the_worker_row_with_a_canonical_actor_key_and_no_worker_ref()
+    public async Task Events_outlive_the_worker_row_with_a_canonical_actor_and_no_worker_ref()
     {
         var ct = TestContext.Current.CancellationToken;
         var ledger = Services.GetRequiredService<IActaOperations>().Ledger;
         var workers = Services.GetRequiredService<WorkersOperations>();
 
-        // The ref is minted here so the expected actor key is known without reading the row that this
+        // The ref is minted here so the expected actor is known without reading the row that this
         // spec is about to delete.
         var workerRef = WorkerRef.New();
         var (namespaceId, workerId) = await WorkerTestOps.StartAsync(
@@ -54,13 +54,13 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<Conformance
         await workers.StopWorkerAsync(namespaceId, workerId, ct);
 
         // Before purge: both lifecycle events name the worker twice over - the joined ref and the
-        // denormalized actor key - which is what makes the after-purge difference meaningful.
+        // denormalized actor - which is what makes the after-purge difference meaningful.
         var before = await ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct);
         Assert.Equal(2, before.Items.Count);
         Assert.Contains(before.Items, e => e.EventCode == EventCode.WorkerStarted);
         Assert.Contains(before.Items, e => e.EventCode == EventCode.WorkerStopped);
         Assert.All(before.Items, e => Assert.Equal<WorkerRef?>(workerRef, e.WorkerRef));
-        Assert.All(before.Items, e => Assert.Equal(workerRef.ToString(), e.ActorKey));
+        Assert.All(before.Items, e => Assert.Equal(workerRef.ToString(), e.Actor));
 
         // Retention reaps both terminal worker statuses, so the cleanly stopped row is purged as it
         // stands: the deletion runs through the production purge routine, which is the path under test.
@@ -90,14 +90,14 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<Conformance
         Assert.Equal(before.Items.Count, after.Items.Count);
         Assert.Equal(before.Items.Select(e => e.JobEventId).OrderBy(id => id), after.Items.Select(e => e.JobEventId).OrderBy(id => id));
 
-        // The joined ref is a live lookup, so it reads null; the denormalized actor key is the durable
+        // The joined ref is a live lookup, so it reads null; the denormalized actor is the durable
         // copy and still renders the canonical wrk_ form rather than the stored uuid text.
         Assert.All(after.Items, e => Assert.Null(e.WorkerRef));
-        Assert.All(after.Items, e => Assert.Equal(workerRef.ToString(), e.ActorKey));
+        Assert.All(after.Items, e => Assert.Equal(workerRef.ToString(), e.Actor));
         Assert.All(after.Items, e => Assert.Equal(ActorCode.Worker, e.ActorCode));
         Assert.DoesNotContain(
             after.Items,
-            e => string.Equals(e.ActorKey, workerRef.Value.ToString("D", CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            e => string.Equals(e.Actor, workerRef.Value.ToString("D", CultureInfo.InvariantCulture), StringComparison.Ordinal)
         );
     }
 }

@@ -20,7 +20,7 @@ internal sealed record JobEnqueueValues(
     int? DelaySeconds = null,
     IReadOnlyList<TagInput>? Tags = null,
     long? ParentId = null,
-    string? TenantKey = null,
+    string? TenantName = null,
     bool OverrideParentTenant = false,
     string? Lane = null
 );

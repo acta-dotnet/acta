@@ -19,7 +19,7 @@ internal sealed record ListEventsRow(
     int? WorkerId,
     int? ExecutionNumber,
     ActorCode ActorCode,
-    string? ActorKey,
+    string? Actor,
     JobStatusCode? FromStatus,
     JobStatusCode? ToStatus,
     ExecutionStatusCode? ExecutionStatus,
@@ -33,7 +33,7 @@ internal sealed record ListEventsRow(
     byte[]? Detail,
     string? JobName,
     Guid? WorkerRef,
-    string? TenantKey
+    string? TenantName
 )
 {
     public ListEventsItem ToItem() =>
@@ -52,7 +52,7 @@ internal sealed record ListEventsRow(
             WorkerId,
             ExecutionNumber,
             ActorCode,
-            CanonicalActorKey(),
+            CanonicalActor(),
             FromStatus,
             ToStatus,
             ExecutionStatus,
@@ -63,7 +63,7 @@ internal sealed record ListEventsRow(
                 ? Encoding.UTF8.GetString(Detail)
                 : null,
             WorkerRef is { } workerRef ? new Acta.WorkerRef(workerRef) : null,
-            TenantKey
+            TenantName
         );
 
     /// <summary>
@@ -71,6 +71,6 @@ internal sealed record ListEventsRow(
     /// SQL cast it to. Render it in the same canonical wrk_ form operators see everywhere else,
     /// leaving every other actor's key exactly as stored.
     /// </summary>
-    private string? CanonicalActorKey() =>
-        ActorCode == ActorCode.Worker && Guid.TryParse(ActorKey, out var parsed) ? new Acta.WorkerRef(parsed).ToString() : ActorKey;
+    private string? CanonicalActor() =>
+        ActorCode == ActorCode.Worker && Guid.TryParse(Actor, out var parsed) ? new Acta.WorkerRef(parsed).ToString() : Actor;
 }

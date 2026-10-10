@@ -49,7 +49,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         var threshold = Assert.Single(alerts, a => a.Kind == AlertKindCode.ThresholdReached);
         Assert.Equal(AlertSeverityCode.Error, threshold.SeverityCode);
         Assert.Equal(1, threshold.OccurrenceCount);
-        Assert.Contains("threshold-reached", threshold.DedupeKey);
+        Assert.Contains("threshold-reached", threshold.DeduplicationKey);
 
         // FirstFailure.OccurrenceCount == 2 proves both non-terminal failure events were processed,
         // confirming the single ThresholdReached (not missing events, not over-counting).
@@ -80,7 +80,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(AlertOriginCode.Automatic, threshold.OriginCode);
         Assert.Equal(AlertKindCode.ThresholdReached, threshold.Kind);
         Assert.Equal(1, threshold.OccurrenceCount);
-        Assert.Contains("threshold-reached", threshold.DedupeKey);
+        Assert.Contains("threshold-reached", threshold.DeduplicationKey);
 
         // FirstFailure.OccurrenceCount == 2 proves the above-threshold occurrence was processed
         // but did not emit a second ThresholdReached: the suppression guard ran.
@@ -176,7 +176,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(1, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
         Assert.Equal(2, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
 
-        var opened = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.DedupeKey == deduplicationKey);
+        var opened = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.DeduplicationKey == deduplicationKey);
         Assert.Null(opened.ResolvedAtUtc);
 
         // Resolve it (simulates a recovery event closing the row).
@@ -190,7 +190,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(1, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
         Assert.Equal(2, (await RaiseThresholdAsync(jobId, deduplicationKey, ct)).OccurrenceCount);
 
-        var rows = (await ReadAlertsAsync(NamespaceId, ct)).Where(a => a.DedupeKey == deduplicationKey).OrderBy(a => a.Id).ToList();
+        var rows = (await ReadAlertsAsync(NamespaceId, ct)).Where(a => a.DeduplicationKey == deduplicationKey).OrderBy(a => a.Id).ToList();
         Assert.Equal(2, rows.Count);
         Assert.Equal(opened.Id, rows[0].Id);
         Assert.Equal(resolved.ResolvedAtUtc, rows[0].ResolvedAtUtc); // never cleared back to NULL

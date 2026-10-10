@@ -39,9 +39,9 @@ public sealed class WorkerExecutorRateAdmissionTests
     }
 
     [Fact]
-    public async Task A_declared_rate_key_names_the_meter_instead()
+    public async Task A_declared_rate_name_names_the_meter_instead()
     {
-        var harness = new WorkerExecutorHarness(rateLimit: "600/m", rateKey: "stripe");
+        var harness = new WorkerExecutorHarness(rateLimit: "600/m", rateName: "stripe");
 
         await harness.RunAsync();
 

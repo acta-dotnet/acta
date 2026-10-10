@@ -21,7 +21,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "rate-limit.meter",
     "A definition's rate limit admits at the rate and books every early job a turn",
     Area = "Concurrency",
-    Contract = "A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to."
+    Contract = "A rate name admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to."
 )]
 public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -314,8 +314,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.True(rearms <= jobs * 3, $"{rearms} re-arms for {jobs} jobs reads as a re-race rather than one booking each");
     }
 
-    [Fact(DisplayName = "Two definitions on one rate key meter from one bucket")]
-    public async Task Two_definitions_on_one_rate_key_meter_from_one_bucket()
+    [Fact(DisplayName = "Two definitions on one rate name meter from one bucket")]
+    public async Task Two_definitions_on_one_rate_name_meter_from_one_bucket()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -339,8 +339,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         }
     }
 
-    [Fact(DisplayName = "Definitions that share a rate key must declare the same rate")]
-    public async Task Definitions_that_share_a_rate_key_must_declare_the_same_rate()
+    [Fact(DisplayName = "Definitions that share a rate name must declare the same rate")]
+    public async Task Definitions_that_share_a_rate_name_must_declare_the_same_rate()
     {
         var ct = TestContext.Current.CancellationToken;
         var handler = Services.GetRequiredService<RegisterDefinitionsHandler>();
@@ -638,7 +638,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         )
         {
             RateLimit = rateLimit,
-            RateKey = "rl-mismatch-key",
+            RateName = "rl-mismatch-key",
         };
 
     private async Task DriveUntilCompletedAsync(int jobs, int workers, CancellationToken ct)

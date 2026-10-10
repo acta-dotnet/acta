@@ -13,7 +13,7 @@ public interface IDefinitions
         int expectedVersion,
         DefinitionPolicyOverrides overrides,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 
@@ -30,7 +30,7 @@ public interface IDefinitions
         string jobName,
         int expectedVersion,
         string? reasonMessage = null,
-        string? actorKey = null,
+        string? actor = null,
         CancellationToken ct = default
     );
 

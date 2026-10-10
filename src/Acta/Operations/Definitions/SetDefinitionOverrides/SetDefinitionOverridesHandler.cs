@@ -18,7 +18,7 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
             return new SetDefinitionOverridesResponse(ControlAction.NotFound);
         }
 
-        var actor = JobControlActor.Operator(command.ActorKey);
+        var actor = JobControlActor.Operator(command.Actor);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("SetDefinitionOverrides"),
             cmd =>
@@ -44,7 +44,7 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DisplayNameOverride, overrides.DisplayName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DescriptionOverride, overrides.Description));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, actor.Actor));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
                 cmd.Parameters.Add(
                     dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))

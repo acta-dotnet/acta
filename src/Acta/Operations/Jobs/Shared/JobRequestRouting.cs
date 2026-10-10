@@ -92,7 +92,7 @@ internal sealed class JobRequestRouting(
             NextRunAtUtc: options?.NextRunAtUtc,
             DelaySeconds: options?.DelaySeconds,
             ParentJobId: options?.ParentJobId,
-            TenantKey: options?.TenantKey,
+            TenantName: options?.TenantName,
             OverrideParentTenant: options?.OverrideParentTenant ?? false,
             Lane: options?.Lane
         );

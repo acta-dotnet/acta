@@ -40,7 +40,7 @@ SET
     version = {{schema}}.checkpoints.version + 1;
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message
 )
@@ -49,7 +49,7 @@ SELECT
     {{now}},
     j.namespace_id,
     @p_actor_code,
-    @p_actor_key,
+    @p_actor,
     j.id,
     j.job_ref,
     r.execution_number,
@@ -75,7 +75,7 @@ WHERE
     AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
     lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message
 )
@@ -84,7 +84,7 @@ SELECT
     {{now}},
     j.namespace_id,
     @p_actor_code,
-    @p_actor_key,
+    @p_actor,
     j.id,
     j.job_ref,
     r.execution_number,

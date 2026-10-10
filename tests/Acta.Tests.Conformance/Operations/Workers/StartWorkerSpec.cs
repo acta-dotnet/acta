@@ -67,13 +67,13 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(3, count);
     }
 
-    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker and actor_key equal to the worker ref")]
+    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker and actor equal to the worker ref")]
     public async Task Each_worker_has_exactly_one_WorkerStarted_event_with_correct_actor_fields()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsName = TestKey("sw-evt");
 
-        // The refs are minted here so the expected actor_key is known independently of the row read: the
+        // The refs are minted here so the expected actor is known independently of the row read: the
         // event carries the worker's public ref as canonical lowercase uuid text, never the numeric id.
         var ref1 = WorkerRef.New();
         var ref2 = WorkerRef.New();
@@ -96,13 +96,13 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         var events1 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e1 = Assert.Single(events1);
         Assert.Equal(ActorCode.Worker, e1.ActorCode);
-        Assert.Equal(ref1.Value.ToString("D", CultureInfo.InvariantCulture), e1.ActorKey);
+        Assert.Equal(ref1.Value.ToString("D", CultureInfo.InvariantCulture), e1.Actor);
         Assert.Equal(nsId, e1.NamespaceId);
 
         var events2 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e2 = Assert.Single(events2);
         Assert.Equal(ActorCode.Worker, e2.ActorCode);
-        Assert.Equal(ref2.Value.ToString("D", CultureInfo.InvariantCulture), e2.ActorKey);
+        Assert.Equal(ref2.Value.ToString("D", CultureInfo.InvariantCulture), e2.Actor);
         Assert.Equal(nsId, e2.NamespaceId);
     }
 

@@ -1,7 +1,7 @@
-SELECT t.id AS tenant_id, t.tenant_key, t.display_name, t.description, t.status_code AS status, t.created_at_utc, t.modified_at_utc, t.version
+SELECT t.id AS tenant_id, t.tenant_name, t.display_name, t.description, t.status_code AS status, t.created_at_utc, t.modified_at_utc, t.version
 FROM {{schema}}.tenants t
 WHERE
-    (@p_search IS NULL OR POSITION(@p_search IN LOWER(t.tenant_key)) > 0 OR POSITION(@p_search IN LOWER(t.display_name)) > 0 OR POSITION(@p_search IN LOWER(t.description)) > 0)
+    (@p_search IS NULL OR POSITION(@p_search IN LOWER(t.tenant_name)) > 0 OR POSITION(@p_search IN LOWER(t.display_name)) > 0 OR POSITION(@p_search IN LOWER(t.description)) > 0)
     AND (@p_status_code IS NULL OR t.status_code = @p_status_code)
     AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1
@@ -15,15 +15,15 @@ WHERE
                 AND ((f.value ->> 'value_search') IS NULL OR tg.value_search = f.value ->> 'value_search')
         )
     ))
-    AND (@p_cursor_tenant_key IS NULL OR t.tenant_key > @p_cursor_tenant_key)
-ORDER BY t.tenant_key ASC
+    AND (@p_cursor_tenant_name IS NULL OR t.tenant_name > @p_cursor_tenant_name)
+ORDER BY t.tenant_name ASC
 LIMIT @p_take;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.tenants t
     WHERE
-        (@p_search IS NULL OR POSITION(@p_search IN LOWER(t.tenant_key)) > 0 OR POSITION(@p_search IN LOWER(t.display_name)) > 0 OR POSITION(@p_search IN LOWER(t.description)) > 0)
+        (@p_search IS NULL OR POSITION(@p_search IN LOWER(t.tenant_name)) > 0 OR POSITION(@p_search IN LOWER(t.display_name)) > 0 OR POSITION(@p_search IN LOWER(t.description)) > 0)
         AND (@p_status_code IS NULL OR t.status_code = @p_status_code)
         AND (@p_tag_filters IS NULL OR NOT EXISTS (
             SELECT 1

@@ -23,7 +23,7 @@ internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Message, command.Message));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.ChannelName, command.ChannelName));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, (short)command.DeliveryStatus));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DedupeKey, command.DeduplicationKey));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeduplicationKey, command.DeduplicationKey));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, command.SourceEventId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertRef, command.AlertRef));
                 },

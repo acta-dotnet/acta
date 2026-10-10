@@ -15,7 +15,7 @@ SELECT
     jd.max_attempts_effective AS max_attempts,
     jd.concurrency_limit_effective AS concurrency_limit,
     jd.rate_limit_effective AS rate_limit,
-    jd.rate_key,
+    jd.rate_name,
     jd.backoff_effective AS backoff,
     jd.execution_timeout_seconds_effective AS execution_timeout_seconds,
     jd.deadline_seconds_effective AS deadline_seconds,

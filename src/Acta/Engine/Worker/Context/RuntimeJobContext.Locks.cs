@@ -59,9 +59,10 @@ internal sealed partial class RuntimeJobContext
     /// system job's. The grace a booked turn gets before the sweep may take it is a constant, not the lease TTL: the
     /// turn is decoded as expiry minus grace, so a value moving with worker settings would shift every booked turn.
     /// </summary>
-    internal Task<ReserveRateResponse> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
+    internal Task<ReserveRateResponse> ReserveRateAsync(string rateName, RateLimitSpec rate, CancellationToken ct)
     {
-        var bucket = $"{_namespaceId}.rate.{NameSyntax.Canonicalize(rateKey, nameof(rateKey), JobDefinitionRegistration.MaxRateKeyLength)}";
+        var bucket =
+            $"{_namespaceId}.rate.{NameSyntax.Canonicalize(rateName, nameof(rateName), JobDefinitionRegistration.MaxRateNameLength)}";
         return _locks.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Burst, RateReservationGraceSeconds, ct);
     }
 

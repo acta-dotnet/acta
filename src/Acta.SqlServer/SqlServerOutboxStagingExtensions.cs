@@ -53,7 +53,7 @@ public static class SqlServerOutboxStagingExtensions
         p.Add(new SqlParameter("@priority_code", SqlDbType.TinyInt) { Value = row.PriorityCode is { } code ? code : DBNull.Value });
         p.Add(new SqlParameter("@next_run_at_utc", SqlDbType.DateTime2) { Value = (object?)row.NextRunAtUtc ?? DBNull.Value });
         p.Add(new SqlParameter("@delay_seconds", SqlDbType.Int) { Value = (object?)row.DelaySeconds ?? DBNull.Value });
-        p.Add(new SqlParameter("@tenant_key", SqlDbType.VarChar, 128) { Value = (object?)row.TenantKey ?? DBNull.Value });
+        p.Add(new SqlParameter("@tenant_name", SqlDbType.VarChar, 128) { Value = (object?)row.TenantName ?? DBNull.Value });
         p.Add(new SqlParameter("@meta", SqlDbType.NVarChar, -1) { Value = (object?)row.Meta ?? DBNull.Value });
 
         await command.ExecuteNonQueryAsync(cancellationToken);

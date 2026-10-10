@@ -66,7 +66,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await EnqueueJobAsync(ct);
 
-        var cancel = await Jobs.CancelAsync(enqueued, "no longer needed", actorKey: "spec-actor", ct: ct);
+        var cancel = await Jobs.CancelAsync(enqueued, "no longer needed", actor: "spec-actor", ct: ct);
         Assert.Equal(ControlAction.Applied, cancel.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancel.Status);
 
@@ -83,7 +83,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(EventReasonCode.JobControlManual, cancelEvent.ReasonCode);
         Assert.Equal("no longer needed", cancelEvent.ReasonMessage);
         // The caller-supplied actor id (e.g. an authenticated principal name) persists on the event.
-        Assert.Equal("spec-actor", cancelEvent.ActorKey);
+        Assert.Equal("spec-actor", cancelEvent.Actor);
     }
 
     [Fact(DisplayName = "Restart resets the failure budget and clears retention while keeping execution_number")]

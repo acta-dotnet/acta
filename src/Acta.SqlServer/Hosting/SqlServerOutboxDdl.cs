@@ -31,7 +31,7 @@ public static class SqlServerOutboxDdl
                 priority_code tinyint NULL,
                 next_run_at_utc datetime2 NULL,
                 delay_seconds int NULL,
-                tenant_key varchar(128) NULL,
+                tenant_name varchar(128) NULL,
                 meta nvarchar(max) NULL,
                 last_error nvarchar(512) NULL,
                 created_at_utc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),

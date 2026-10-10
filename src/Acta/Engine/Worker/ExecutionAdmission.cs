@@ -159,14 +159,14 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         CancellationToken ct
     )
     {
-        var rateKey = descriptor.RateKey ?? descriptor.JobName;
+        var rateName = descriptor.RateName ?? descriptor.JobName;
         ReserveRateResponse reservation;
         try
         {
-            reservation = await jobContext.ReserveRateAsync(rateKey, rate, ct);
+            reservation = await jobContext.ReserveRateAsync(rateName, rate, ct);
             if (IsNearTurn(reservation))
             {
-                reservation = await WaitForTurnAsync(job, jobContext, rateKey, rate, reservation, ct);
+                reservation = await WaitForTurnAsync(job, jobContext, rateName, rate, reservation, ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -176,12 +176,12 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             // double-counted.
             log.LogWarning(
                 ex,
-                "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the reservation for rate key ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",
+                "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the reservation for rate name ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",
                 "rate-admission",
                 "Bounced",
                 job.JobId,
                 "admission-error",
-                rateKey,
+                rateName,
                 concurrencyKeyBounceDelaySeconds * 1000
             );
             return Bounced(admissionFailed: true);
@@ -193,12 +193,12 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         }
 
         log.LogDebug(
-            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate key ({Detail}) is at its limit, so the job re-armed Ready in {DurationMs}ms.",
+            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate name ({Detail}) is at its limit, so the job re-armed Ready in {DurationMs}ms.",
             "rate-admission",
             "Bounced",
             job.JobId,
             "turn-reserved",
-            rateKey,
+            rateName,
             (int)Math.Max(0, (reservation.ResumeAtUtc - DateTime.UtcNow).TotalMilliseconds)
         );
         // An absolute instant rather than a delay, because the turn is a place in the meter's queue, not a cooldown.
@@ -219,26 +219,26 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     private async Task<ReserveRateResponse> WaitForTurnAsync(
         ClaimedJob job,
         RuntimeJobContext jobContext,
-        string rateKey,
+        string rateName,
         RateLimitSpec rate,
         ReserveRateResponse reservation,
         CancellationToken ct
     )
     {
         log.LogDebug(
-            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate key ({Detail}) admits it in {DurationMs}ms, waiting in process.",
+            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate name ({Detail}) admits it in {DurationMs}ms, waiting in process.",
             "rate-admission",
             "Waiting",
             job.JobId,
             "turn-near",
-            rateKey,
+            rateName,
             reservation.WaitMilliseconds
         );
         using var turnWait = CancellationTokenSource.CreateLinkedTokenSource(ct, jobContext.CancellationToken);
         try
         {
             await Task.Delay((int)reservation.WaitMilliseconds, turnWait.Token);
-            return await jobContext.ReserveRateAsync(rateKey, rate, turnWait.Token);
+            return await jobContext.ReserveRateAsync(rateName, rate, turnWait.Token);
         }
         // Worker shutdown mid-wait propagates: the row stays Executing for recovery like any attempt
         // shutdown interrupts, and the slot goes back as the attempt unwinds.

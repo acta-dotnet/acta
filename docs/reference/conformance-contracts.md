@@ -6,15 +6,15 @@
 ## Admin
 
 ### A non-ASCII operator name survives the audit event intact
-- **Contract:** The actor key stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters.
+- **Contract:** The actor stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters.
 - **Guarantees:**
   - The tenant.suspended event carries the operator name exactly as supplied
 
-### A tenant id resolves to its stored key
-- **Contract:** GetTenantKey returns the normalized key of the tenant with the given id whatever its status, and null when no tenant has that id.
+### A tenant id resolves to its stored name
+- **Contract:** GetTenantName returns the normalized name of the tenant with the given id whatever its status, and null when no tenant has that id.
 - **Guarantees:**
-  - A tenant registered with a mixed-case key reads back its lowercase key
-  - A suspended tenant still resolves its key
+  - A tenant registered with a mixed-case name reads back its lowercase name
+  - A suspended tenant still resolves its name
   - An id no tenant has reads null
 
 ### Namespace resume flips status back, emits one 15xx event, and rejects sys
@@ -262,12 +262,12 @@
   - A retired definition stays in the catalog with its Retired status
   - The catalog holds only the asked namespace's definitions
 
-### GetTenant reads a tenant by key and GetTenantKey reads its key by id
-- **Contract:** GetTenant returns the GetTenantResponse for a known key in any status or null, and GetTenantKey returns that tenant's key for its id.
+### GetTenant reads a tenant by name and GetTenantName reads its name by id
+- **Contract:** GetTenant returns the GetTenantResponse for a known name in any status or null, and GetTenantName returns that tenant's name for its id.
 - **Guarantees:**
-  - A known key returns the populated row and its id reads back the key
+  - A known name returns the populated row and its id reads back the name
   - A suspended tenant still resolves with status Suspended
-  - An unknown key returns null
+  - An unknown name returns null
 
 ### Newer-or-equal generation promotes policy; older cannot downgrade
 - **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits.
@@ -283,13 +283,13 @@
 ### Tenant registration inserts a new Active tenant or returns the existing row
 - **Contract:** Registering a new tenant inserts it Active and returns a new id, and re-registering returns the same id without changing status, metadata, or version.
 - **Guarantees:**
-  - A new tenant key inserts and returns a positive id with status Active
+  - A new tenant name inserts and returns a positive id with status Active
   - Re-registering the same key returns the same id (idempotent)
   - Re-registering an existing key leaves metadata and version untouched
   - Re-registering a suspended tenant does not resume it
   - Concurrent same-key registrations all return the same id
   - Registering with a display name reads it back
-  - The bare reserved tenant key 'sys' is rejected
+  - The bare reserved tenant name 'sys' is rejected
 
 ### Worker init writes a readable namespace row with a positive id
 - **Contract:** A seeded namespace is persisted with a positive db-assigned id and is readable back by that id.
@@ -500,7 +500,7 @@
   - Reservations queued behind a held bucket row are admitted at the burst when it frees, not all at once
 
 ### A definition's rate limit admits at the rate and books every early job a turn
-- **Contract:** A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.
+- **Contract:** A rate name admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.
 - **Guarantees:**
   - A fresh meter admits its burst at once and then one per interval
   - A booked turn is handed back unchanged until it arrives, and the meter stays put
@@ -510,8 +510,8 @@
   - A booked turn outlives the lock expiry sweep until its grace runs out
   - An unspent turn is collected by the lock expiry sweep
   - A backlog drains at the declared rate with one re-arm per denied job
-  - Two definitions on one rate key meter from one bucket
-  - Definitions that share a rate key must declare the same rate
+  - Two definitions on one rate name meter from one bucket
+  - Definitions that share a rate name must declare the same rate
   - An override on one participant of a shared meter lands on every other participant
   - Clearing the override on one participant clears it on every other participant
   - Overriding a meter's own-name definition, which declares no rate, still lands on the sibling that declares one
@@ -684,10 +684,10 @@
   - Enqueue succeeds again once the namespace is reactivated
 
 ### Tenant suspension is admission control, not work closure
-- **Contract:** Suspension rejects new enqueues naming the tenant key while admitted workflows may expand through inherited children after the suspend commits.
+- **Contract:** Suspension rejects new enqueues naming the tenant name while admitted workflows may expand through inherited children after the suspend commits.
 - **Guarantees:**
   - An admitted workflow still creates inherited children after its tenant is suspended
-  - A child naming the suspended tenant key explicitly is rejected even under a live parent
+  - A child naming the suspended tenant name explicitly is rejected even under a live parent
   - Enqueues overlapping a suspend land or reject atomically, and post-suspend enqueues reject
 
 ### The definition's tenant requirement is enforced at the enqueue boundary
@@ -701,16 +701,16 @@
   - A Forbidden child of a tenant-scoped parent lands with its inherited tenant suppressed to NULL
 
 ### Enqueue resolves, inherits, rejects, and filters by tenant
-- **Contract:** Enqueue resolves TenantKey to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override.
+- **Contract:** Enqueue resolves TenantName to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override.
 - **Guarantees:**
-  - A null TenantKey inserts tenant_id NULL
-  - A known active TenantKey resolves to its tenant id
-  - An unknown TenantKey rejects the batch and persists nothing
-  - A suspended TenantKey rejects the batch and persists nothing
+  - A null TenantName inserts tenant_id NULL
+  - A known active TenantName resolves to its tenant id
+  - An unknown TenantName rejects the batch and persists nothing
+  - A suspended TenantName rejects the batch and persists nothing
   - A batch with one bad tenant is rejected atomically (the good row never lands)
   - A child inherits the parent's tenant when it supplies none
-  - A child with a different TenantKey and the explicit override lands under its own tenant
-  - A child with a different TenantKey and no override is rejected atomically
+  - A child with a different TenantName and the explicit override lands under its own tenant
+  - A child with a different TenantName and no override is rejected atomically
   - A child naming its tenant-less parent's namespace tenant explicitly lands without the override
   - ListJobs filters by tenant id
 
@@ -1682,10 +1682,10 @@
   - Batching caps a single call at max iterations and a full run clears the rest
   - A stopped recurring job outlives its retention while its definition is live, and drains once retired
 
-### Events outlive a purged worker with a canonical actor key
-- **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
+### Events outlive a purged worker with a canonical actor
+- **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor, and the historical worker id still selecting them.
 - **Guarantees:**
-  - After purge the worker row is gone while its events keep a canonical wrk_ actor key, a null workerRef, and the historical worker id
+  - After purge the worker row is gone while its events keep a canonical wrk_ actor, a null workerRef, and the historical worker id
 
 ## Runtime
 
@@ -1923,7 +1923,7 @@
   - The seeded sys namespace (id 1, name sys) exists on a fresh install
   - ck_definitions_max_attempts rejects an UPDATE to zero while a positive value updates cleanly
   - ck_alerts_job_ref_pair and ck_alerts_occurrence_count each reject their violating INSERT
-  - ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved
+  - ux_alerts_deduplication_key admits one unresolved row per (namespace_id, deduplication_key) and stops filtering once it is resolved
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
   - ck_runtimes_inflight_leased and ck_runtimes_ready_due bind a status to the column it requires, on INSERT and on UPDATE
   - A code column stores an id this build does not know
@@ -1959,13 +1959,13 @@
   - A newer object package in the same major starts, and a foreign major or a missing row does not
 
 ### Schema bootstrap installs curated operator views
-- **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope.
+- **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant name and tags_view decodes exact target scope.
 - **Guarantees:**
   - Schema install creates exactly the curated operator views
   - Every curated operator view can be queried
   - Every literal Engineering Lab SELECT compiles against this provider
   - jobs_view supports friendly failed-status filtering with raw status_code beside it
-  - jobs_view resolves the tenant key beside the raw tenant id
+  - jobs_view resolves the tenant name beside the raw tenant id
   - tags_view decodes job scope beside exact target and tag values
   - events_view and checkpoints_view expose displayable payload text
 
@@ -2080,7 +2080,7 @@
 - **Guarantees:**
   - A target without tags reads an empty set and a missing target reads null
   - Each tag reads back its exact value, and a presence-only tag reads a null value
-  - A tenant key or job name addressed in another case reads the same target
+  - A tenant name or job name addressed in another case reads the same target
   - A read returns only the addressed target's tags
 
 ### Remove deletes one tag by name and treats a missing tag as done
@@ -2218,7 +2218,7 @@
 - **Guarantees:**
   - Namespace version is unchanged on same-metadata call and bumped on metadata change
   - Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace
-  - Each worker has exactly one WorkerStarted event with actor worker and actor_key equal to the worker ref
+  - Each worker has exactly one WorkerStarted event with actor worker and actor equal to the worker ref
   - Same host and process_id on two calls yields two distinct worker ids and two rows (no dedup)
   - Registering a worker/namespace named 'sys' is rejected while the seeded sys namespace remains intact
 
@@ -2278,7 +2278,7 @@
 | `GetStaleChildLatches` | yes | yes | yes |
 | `GetTags` | yes | yes | yes |
 | `GetTenant` | yes | yes | yes |
-| `GetTenantKey` | yes | yes | yes |
+| `GetTenantName` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
 | `HasMigrationsTable` | yes | yes | yes |

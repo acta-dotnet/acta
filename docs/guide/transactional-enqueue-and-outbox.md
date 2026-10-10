@@ -400,11 +400,11 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | `deduplication_key` | yes | ASCII, 128 characters; target root-job identity within the namespace. |
 | `correlation_key` | no | ASCII, 64 characters. |
 | `concurrency_key` | no | ASCII, 128 characters. |
-| `lane` | no | ASCII, 128 characters; the target lane, case-insensitive like `concurrency_key`. |
+| `lane` | no | A name: ASCII kebab-case, 128 characters, lowercased by Acta on ingestion. |
 | `priority_code` | no | Byte-sized target priority override; null leaves it to the definition. |
 | `next_run_at_utc` | no | Absolute target earliest-run instant. |
 | `delay_seconds` | no | Non-negative delay resolved at target ingestion. |
-| `tenant_key` | no | ASCII, 128 characters. |
+| `tenant_name` | no | A name: ASCII kebab-case, 128 characters, lowercased by Acta on ingestion; the tenant must be registered. |
 | `meta` | no | Provider-native JSON/text root object; initially only `tags`. |
 | `created_at_utc` | yes | Immutable producer-database UTC default. |
 | `status_code` | yes | Relay state; default `10` (Pending). `20` Claimed, `90` Quarantined. |

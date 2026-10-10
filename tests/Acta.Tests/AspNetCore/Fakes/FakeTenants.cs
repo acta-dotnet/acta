@@ -9,20 +9,20 @@ internal sealed class FakeTenants : ITenants
 {
     public FakeTenants()
     {
-        Register = (tenantKey, displayName, description, _) =>
+        Register = (tenantName, displayName, description, _) =>
         {
             // Mirror the production guard: an opaque-key validation failure surfaces as ArgumentException.
-            if (tenantKey == "bad key")
+            if (tenantName == "bad key")
             {
-                throw new ArgumentException("Tenant key must not contain whitespace.", nameof(tenantKey));
+                throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName));
             }
 
-            RegisterCalls.Add((tenantKey, displayName, description));
-            return ValueTask.FromResult(new RegisterTenantResponse(7, tenantKey));
+            RegisterCalls.Add((tenantName, displayName, description));
+            return ValueTask.FromResult(new RegisterTenantResponse(7, tenantName));
         };
-        Get = static (tenantKey, _) =>
+        Get = static (tenantName, _) =>
             ValueTask.FromResult<GetTenantResponse?>(
-                tenantKey == "cust-001"
+                tenantName == "cust-001"
                     ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
                     : null
             );
@@ -36,18 +36,18 @@ internal sealed class FakeTenants : ITenants
                     null
                 )
             );
-        Suspend = (tenantKey, reason, actor, _) =>
-            Apply(tenantKey, reason, actor, static (action, version) => new SuspendTenantResponse(action, version));
-        Resume = (tenantKey, reason, actor, _) =>
-            Apply(tenantKey, reason, actor, static (action, version) => new ResumeTenantResponse(action, version));
-        Update = (tenantKey, expectedVersion, _, _, reason, actor, _) =>
-            Apply(tenantKey, reason, actor, static (action, version) => new UpdateTenantResponse(action, version), expectedVersion);
+        Suspend = (tenantName, reason, actor, _) =>
+            Apply(tenantName, reason, actor, static (action, version) => new SuspendTenantResponse(action, version));
+        Resume = (tenantName, reason, actor, _) =>
+            Apply(tenantName, reason, actor, static (action, version) => new ResumeTenantResponse(action, version));
+        Update = (tenantName, expectedVersion, _, _, reason, actor, _) =>
+            Apply(tenantName, reason, actor, static (action, version) => new UpdateTenantResponse(action, version), expectedVersion);
     }
 
-    public List<(string TenantKey, string? DisplayName, string? Description)> RegisterCalls { get; } = [];
+    public List<(string TenantName, string? DisplayName, string? Description)> RegisterCalls { get; } = [];
 
     /// <summary>Applied suspend, resume, and patch calls.</summary>
-    public List<(string TenantKey, string? ReasonMessage, string? ActorKey)> SuspendResumeCalls { get; } = [];
+    public List<(string TenantName, string? ReasonMessage, string? Actor)> SuspendResumeCalls { get; } = [];
 
     public Func<string, string?, string?, CancellationToken, ValueTask<RegisterTenantResponse>> Register { get; set; }
 
@@ -62,50 +62,46 @@ internal sealed class FakeTenants : ITenants
     public Func<string, int, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateTenantResponse>> Update { get; set; }
 
     ValueTask<RegisterTenantResponse> ITenants.RegisterAsync(
-        string tenantKey,
+        string tenantName,
         string? displayName,
         string? description,
         CancellationToken ct
-    ) => Register(tenantKey, displayName, description, ct);
+    ) => Register(tenantName, displayName, description, ct);
 
-    ValueTask<GetTenantResponse?> ITenants.GetAsync(string tenantKey, CancellationToken ct) => Get(tenantKey, ct);
+    ValueTask<GetTenantResponse?> ITenants.GetAsync(string tenantName, CancellationToken ct) => Get(tenantName, ct);
 
     ValueTask<ListTenantsResponse> ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<SuspendTenantResponse> ITenants.SuspendAsync(
-        string tenantKey,
-        string? reasonMessage,
-        string? actorKey,
-        CancellationToken ct
-    ) => Suspend(tenantKey, reasonMessage, actorKey, ct);
+    ValueTask<SuspendTenantResponse> ITenants.SuspendAsync(string tenantName, string? reasonMessage, string? actor, CancellationToken ct) =>
+        Suspend(tenantName, reasonMessage, actor, ct);
 
-    ValueTask<ResumeTenantResponse> ITenants.ResumeAsync(string tenantKey, string? reasonMessage, string? actorKey, CancellationToken ct) =>
-        Resume(tenantKey, reasonMessage, actorKey, ct);
+    ValueTask<ResumeTenantResponse> ITenants.ResumeAsync(string tenantName, string? reasonMessage, string? actor, CancellationToken ct) =>
+        Resume(tenantName, reasonMessage, actor, ct);
 
     ValueTask<UpdateTenantResponse> ITenants.UpdateAsync(
-        string tenantKey,
+        string tenantName,
         int expectedVersion,
         string? displayName,
         string? description,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         CancellationToken ct
-    ) => Update(tenantKey, expectedVersion, displayName, description, reasonMessage, actorKey, ct);
+    ) => Update(tenantName, expectedVersion, displayName, description, reasonMessage, actor, ct);
 
     private ValueTask<T> Apply<T>(
-        string tenantKey,
+        string tenantName,
         string? reasonMessage,
-        string? actorKey,
+        string? actor,
         Func<ControlAction, int?, T> response,
         int? expectedVersion = null
     )
     {
-        if (tenantKey is "bad key" or "sys")
+        if (tenantName is "bad key" or "sys")
         {
-            throw new ArgumentException("Tenant key must not contain whitespace.", nameof(tenantKey));
+            throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName));
         }
 
-        if (tenantKey == "missing")
+        if (tenantName == "missing")
         {
             return ValueTask.FromResult(response(ControlAction.NotFound, null));
         }
@@ -115,7 +111,7 @@ internal sealed class FakeTenants : ITenants
             return ValueTask.FromResult(response(ControlAction.VersionConflict, 5));
         }
 
-        SuspendResumeCalls.Add((tenantKey, reasonMessage, actorKey));
+        SuspendResumeCalls.Add((tenantName, reasonMessage, actor));
         return ValueTask.FromResult(response(ControlAction.Applied, 2));
     }
 }

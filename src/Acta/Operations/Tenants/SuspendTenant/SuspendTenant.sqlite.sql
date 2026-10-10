@@ -3,14 +3,14 @@ DROP TABLE IF EXISTS temp._suspend_tenant;
 CREATE TEMP TABLE _suspend_tenant AS
 SELECT t.id, t.status_code AS from_status, t.version AS from_version
 FROM {{schema}}.tenants t
-WHERE t.tenant_key = @p_tenant_key;
+WHERE t.tenant_name = @p_tenant_name;
 
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
     actor_code,
-    actor_key,
+    actor,
     job_id,
     job_ref,
     execution_number,
@@ -30,7 +30,7 @@ SELECT
     {{now}},
     1,
     @p_actor_code,
-    @p_actor_key,
+    @p_actor,
     NULL,
     NULL,
     NULL,
@@ -50,7 +50,7 @@ WHERE s.from_status <> 20 /* TenantStatusCode.Suspended */;
 UPDATE {{schema}}.tenants
 SET status_code = 20 /* TenantStatusCode.Suspended */, modified_at_utc = {{now}}, version = version + 1
 WHERE
-    tenant_key = @p_tenant_key
+    tenant_name = @p_tenant_name
     AND status_code <> 20 /* TenantStatusCode.Suspended */;
 
 SELECT

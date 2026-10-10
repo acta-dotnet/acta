@@ -179,7 +179,7 @@ public sealed class ListAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var acked = alerts.First(a => a.Title == "ack-me");
         var ackedRef = new AlertRef(acked.AlertRef);
 
-        await queries.Alerts.AcknowledgeAsync(ackedRef, actorKey: "op", ct: ct);
+        await queries.Alerts.AcknowledgeAsync(ackedRef, actor: "op", ct: ct);
 
         var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, PageSize: 50), ct);
         var ackedItem = page.Items.Single(a => a.AlertRef == ackedRef);

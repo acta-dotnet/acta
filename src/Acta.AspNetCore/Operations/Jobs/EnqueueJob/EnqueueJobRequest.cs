@@ -18,7 +18,7 @@ internal sealed record EnqueueJobRequest(
     byte? FormatId = null,
     string? DeduplicationKey = null,
     string? CorrelationKey = null,
-    string? TenantKey = null,
+    string? TenantName = null,
     JobPriorityCode? Priority = null,
     int? DelaySeconds = null,
     DateTime? NextRunAtUtc = null

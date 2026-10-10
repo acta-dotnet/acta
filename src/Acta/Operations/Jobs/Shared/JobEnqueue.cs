@@ -38,7 +38,7 @@ internal static class JobEnqueue
                 NextRunAtUtc: request.NextRunAtUtc,
                 DelaySeconds: request.DelaySeconds,
                 ParentId: request.ParentJobId,
-                TenantKey: request.TenantKey,
+                TenantName: request.TenantName,
                 OverrideParentTenant: request.OverrideParentTenant,
                 Lane: request.Lane
             )
@@ -66,9 +66,9 @@ internal static class JobEnqueue
                 ? null
                 : KeySyntax.Canonicalize(row.CorrelationKey, nameof(row.CorrelationKey), NameSyntax.DefaultMaxLength),
             ConcurrencyKey = row.ConcurrencyKey is null ? null : KeySyntax.Canonicalize(row.ConcurrencyKey, nameof(row.ConcurrencyKey)),
-            TenantKey = row.TenantKey is null
+            TenantName = row.TenantName is null
                 ? null
-                : NameSyntax.Canonicalize(row.TenantKey, nameof(row.TenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true),
+                : NameSyntax.Canonicalize(row.TenantName, nameof(row.TenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true),
             Lane = row.Lane is null
                 ? null
                 : NameSyntax.Canonicalize(row.Lane, nameof(row.Lane), NameSyntax.ExtendedMaxLength, reserveSystem: true),
