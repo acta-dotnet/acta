@@ -26,8 +26,8 @@ internal sealed class AlertChannelRegistry
 
     public AlertChannelDeclaration? Resolve(string namespaceName, string channelName)
     {
-        namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
-        channelName = IdentifierSyntax.CanonicalizeKebab(channelName, nameof(channelName), IdentifierSyntax.ExtendedMaxLength);
+        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
+        channelName = NameSyntax.Canonicalize(channelName, nameof(channelName), maxLength: NameSyntax.ExtendedMaxLength);
         return _channels.TryGetValue((namespaceName, channelName), out var channel) ? channel : null;
     }
 
@@ -35,7 +35,7 @@ internal sealed class AlertChannelRegistry
 
     public IReadOnlyCollection<string> NamesForNamespace(string namespaceName)
     {
-        namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
+        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
         return _channels
             .Keys.Where(k => string.Equals(k.Namespace, namespaceName, StringComparison.Ordinal))
             .Select(k => k.Name)

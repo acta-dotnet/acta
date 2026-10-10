@@ -55,9 +55,11 @@ public class JobLookupTests
     [Fact]
     public void ByDeduplicationKey_allows_stored_system_keys()
     {
-        var job = JobLookup.ByDeduplicationKey("system", " SYS.Retention ");
+        var job = JobLookup.ByDeduplicationKey(" System ", " sys.retention ");
 
+        Assert.Equal("system", job.JobNamespace);
         Assert.Equal("sys.retention", job.DeduplicationKey);
+        Assert.Equal("Order-7", JobLookup.ByDeduplicationKey("billing", "Order-7").DeduplicationKey);
     }
 
     [Fact]

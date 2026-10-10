@@ -5,7 +5,7 @@ internal sealed class GetTenantHandler(IDbSession session, ISqlDialect dialect)
 {
     public ValueTask<GetTenantResponse?> HandleAsync(GetTenantQuery query, CancellationToken ct)
     {
-        var key = IdentifierSyntax.NormalizeTenantKey(query.TenantKey, "tenantKey");
+        var key = NameSyntax.Canonicalize(query.TenantKey, "tenantKey", NameSyntax.ExtendedMaxLength);
 
         return new(
             session.QuerySingleAsync(

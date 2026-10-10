@@ -36,8 +36,8 @@ internal sealed class WorkerBuilder : IWorkerBuilder
         // Channel name and transport kind are operator-stable kebab identifiers (like job, schedule, and
         // format names); kebab rejects the underscore-prefixed framework reserved shape. Endpoint is a
         // free-form transport target (URL, ARN, address), so only non-empty is required.
-        name = IdentifierSyntax.CanonicalizeKebab(name, nameof(name));
-        IdentifierSyntax.ValidateKebab(transportKind, nameof(transportKind));
+        name = NameSyntax.Canonicalize(name, nameof(name));
+        transportKind = NameSyntax.Canonicalize(transportKind, nameof(transportKind));
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
 
         var options = new AlertChannelOptions();
@@ -60,7 +60,7 @@ internal sealed class WorkerBuilder : IWorkerBuilder
         }
 
         // Source name is an operator-stable kebab identifier, like job/schedule/channel names.
-        sourceName = IdentifierSyntax.CanonicalizeKebab(sourceName, nameof(sourceName));
+        sourceName = NameSyntax.Canonicalize(sourceName, nameof(sourceName));
 
         // The provider extension (source.UseXxx) sets the builder's single store factory, not a shared
         // container registration: each namespace's relay keeps a distinct factory instead of one

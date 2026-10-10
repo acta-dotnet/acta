@@ -93,8 +93,8 @@ internal sealed class JobEntity : IEntity<long>
     // ---------- Caller keys ----------
 
     /// <summary>
-    /// Deduplication key on enqueue and a stable address for <c>IJobs.GetJobIdAsync</c>; user keys cannot start with
-    /// <c>"sys."</c>. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
+    /// Deduplication key on enqueue and a stable address for <c>IJobs.GetJobIdAsync</c>, compared exactly; user keys
+    /// cannot start with <c>"sys."</c> in any case. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
     /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring slot takes the job's name as its key, so a root
     /// enqueue keyed by that name deduplicates onto the slot.
     /// </summary>
@@ -109,7 +109,7 @@ internal sealed class JobEntity : IEntity<long>
     public string? CorrelationKey { get; init; }
 
     /// <summary>
-    /// Named concurrency key, normalized like a deduplication key. Enforced by execution-time slot leases
+    /// Named concurrency key, a case-sensitive key like the deduplication key. Enforced by execution-time slot leases
     /// (<c>{ns_id}.sem.{key}.{slot}</c> rows) the runner takes after claim; a claimed loser re-arms
     /// Ready after the fixed bounce delay. The key alone admits one at a time; the definition's
     /// <c>concurrency_limit</c> widens it to that many slots.

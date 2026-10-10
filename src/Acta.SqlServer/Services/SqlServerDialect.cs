@@ -58,7 +58,7 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName)
     {
-        IdentifierSyntax.ValidateBareIdentifier(routineName, nameof(routineName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(routineName, nameof(routineName));
         command.CommandText = $"{schema}.{routineName}";
         command.CommandType = CommandType.StoredProcedure;
     }

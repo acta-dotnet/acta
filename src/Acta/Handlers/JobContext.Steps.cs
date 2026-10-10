@@ -17,7 +17,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ArgumentNullException.ThrowIfNull(body);
         var options = BuildStepOptions(configure);
 
@@ -50,7 +50,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ArgumentNullException.ThrowIfNull(body);
         var options = BuildStepOptions(configure);
 

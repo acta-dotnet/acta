@@ -16,8 +16,8 @@ public class JobEnqueueOptions
     public string? JobNamespace { get; init; }
 
     /// <summary>
-    /// Exact final deduplication key, unique per namespace for root jobs. A second enqueue with the
-    /// same key returns the existing Job (<see cref="EnqueueJobAction.Deduplicated"/>).
+    /// Exact final deduplication key, unique per namespace for root jobs and compared with its case. A second
+    /// enqueue with the same key returns the existing Job (<see cref="EnqueueJobAction.Deduplicated"/>).
     /// </summary>
     public string? DeduplicationKey { get; init; }
 
@@ -37,8 +37,8 @@ public class JobEnqueueOptions
     /// Lane id: the Jobs of one lane in one namespace run one at a time, in enqueue order, while different lanes run
     /// in parallel, the equivalent of an SQS FIFO message group. A laned Job waits as
     /// <see cref="JobStatusCode.Blocked"/> until every older Job of its lane has finished, so a retrying, delayed,
-    /// suspended, or paused Job holds the lane until it settles, and priority never reorders one; normalized like
-    /// <see cref="ConcurrencyKey"/>. Overrides the definition's <see cref="JobAttribute.Lane"/> but cannot clear it; a child never
+    /// suspended, or paused Job holds the lane until it settles, and priority never reorders one. A lane is a name,
+    /// folded to lowercase. Overrides the definition's <see cref="JobAttribute.Lane"/> but cannot clear it; a child never
     /// inherits a lane, and one whose lane equals an unfinished ancestor's is rejected (<see cref="EnqueueRejectionReason.AncestorLane"/>).
     /// </summary>
     public string? Lane { get; init; }
@@ -76,8 +76,8 @@ public class JobEnqueueOptions
 
     /// <summary>
     /// Registered tenant this Job is <em>about</em> (the customer / business entity), resolved to a tenant
-    /// id at insert. An opaque external key (GUID / ULID / customer code); an unknown or inactive key
-    /// rejects the enqueue. <c>null</c> = no tenant for a root Job; a child Job with <c>null</c> here
+    /// id at insert. A name, folded to lowercase (a customer code in dotted kebab); an unknown or inactive
+    /// tenant rejects the enqueue. <c>null</c> = no tenant for a root Job; a child Job with <c>null</c> here
     /// inherits its parent's tenant.
     /// </summary>
     public string? TenantKey { get; init; }

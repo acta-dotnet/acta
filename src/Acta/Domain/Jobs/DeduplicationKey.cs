@@ -3,41 +3,40 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// Composes stable, normalized string values for <see cref="EnqueueJobRequest.DeduplicationKey"/>.
-/// Keys are trimmed and lowercased, so two ids that differ only by case are one key; hash a
-/// case-sensitive external id before composing it.
-/// Component normalization permits system-shaped text inside a definition-qualified key; validation
-/// of the completed user key enforces the reserved <c>sys.</c> prefix and storage length boundary.
+/// Composes stable values for <see cref="EnqueueJobRequest.DeduplicationKey"/>. The business key keeps its case, so
+/// two ids that differ only by case are two keys; a definition or tenant name part folds to lowercase like every name.
+/// The completed key holds to the <see cref="KeySyntax"/> rule and the storage length, and may not start with the
+/// reserved <c>sys.</c> prefix in any case.
 /// </summary>
 public static class DeduplicationKey
 {
     /// <summary>Maximum key length, delegated to the shared extended identifier limit.</summary>
-    public const int MaxLength = IdentifierSyntax.ExtendedMaxLength;
+    public const int MaxLength = NameSyntax.ExtendedMaxLength;
 
     /// <summary>
     /// Compose a definition-qualified key: <c>&lt;definitionName&gt;:&lt;businessKey&gt;</c>.
     /// </summary>
     public static string ForDefinition(string definitionName, string businessKey)
     {
-        var definition = IdentifierSyntax.NormalizeName(definitionName, nameof(definitionName));
-        var business = IdentifierSyntax.NormalizeKeyLookup(businessKey, nameof(businessKey));
+        var definition = NameSyntax.Canonicalize(definitionName, nameof(definitionName), NameSyntax.ExtendedMaxLength);
+        var business = KeySyntax.Canonicalize(businessKey, nameof(businessKey));
 
-        return IdentifierSyntax.NormalizeKey($"{definition}:{business}", nameof(businessKey), MaxLength);
+        return Canonicalize($"{definition}:{business}", nameof(businessKey));
     }
 
     /// <summary>
     /// Compose a tenant-relative key, <c>&lt;tenantKey&gt;:&lt;businessKey&gt;</c>, so equal business keys under
     /// different tenants never collide. Deduplication and concurrency keys are both namespace-scoped opaque strings,
     /// so the same composition serves <see cref="EnqueueJobRequest.ConcurrencyKey"/> values, and the result nests as
-    /// the business key of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted. A
-    /// tenant key containing <c>:</c> can compose to another tenant's key, so keep it out of tenant keys composed here.
+    /// the business key of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted. The
+    /// tenant part is a name, which never holds <c>:</c>, so two tenants never compose to one key.
     /// </summary>
     public static string ForTenant(string tenantKey, string businessKey)
     {
-        var tenant = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
-        var business = IdentifierSyntax.NormalizeKeyLookup(businessKey, nameof(businessKey));
+        var tenant = NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        var business = KeySyntax.Canonicalize(businessKey, nameof(businessKey));
 
-        return IdentifierSyntax.NormalizeKey($"{tenant}:{business}", nameof(businessKey), MaxLength);
+        return Canonicalize($"{tenant}:{business}", nameof(businessKey));
     }
 
     /// <summary>
@@ -48,11 +47,7 @@ public static class DeduplicationKey
     /// intentionally deferred; applications needing that scope should derive the bucketed business
     /// key explicitly and pass it here.
     /// </remarks>
-    public static string AcrossDefinitions(string businessKey)
-    {
-        var business = IdentifierSyntax.NormalizeKeyLookup(businessKey, nameof(businessKey));
-        return IdentifierSyntax.NormalizeKey(business, nameof(businessKey), MaxLength);
-    }
+    public static string AcrossDefinitions(string businessKey) => Canonicalize(businessKey, nameof(businessKey));
 
     /// <summary>Compose a definition-qualified key for the current UTC hour.</summary>
     public static string PerHour(string definitionName, string businessKey) => PerHour(definitionName, businessKey, DateTimeOffset.UtcNow);
@@ -88,11 +83,23 @@ public static class DeduplicationKey
         var ordinal = GetBucketOrdinal(instant, bucketSize);
         var size = FormatBucketSize(bucketSize);
 
-        return IdentifierSyntax.NormalizeKey(
-            $"{baseKey}:bucket:{size}:{ordinal.ToString(CultureInfo.InvariantCulture)}",
-            nameof(businessKey),
-            MaxLength
-        );
+        return Canonicalize($"{baseKey}:bucket:{size}:{ordinal.ToString(CultureInfo.InvariantCulture)}", nameof(businessKey));
+    }
+
+    /// <summary>
+    /// Returns the stored form of a deduplication key at enqueue: the <see cref="KeySyntax"/> rule, and no key under
+    /// <c>sys.</c> in any case, because the deduplication index also holds the system jobs' keys (<c>sys.retention</c>).
+    /// Lookups use <see cref="KeySyntax.Canonicalize"/> alone, so a system job's key still resolves.
+    /// </summary>
+    internal static string Canonicalize(string value, string paramName)
+    {
+        var canonical = KeySyntax.Canonicalize(value, paramName, MaxLength);
+        return canonical.StartsWith(NameSyntax.SystemPrefix, StringComparison.OrdinalIgnoreCase)
+            ? throw new ArgumentException(
+                $"Key '{canonical}' uses the reserved system prefix '{NameSyntax.SystemPrefix}': reserved for system-internal names.",
+                paramName
+            )
+            : canonical;
     }
 
     private static long GetBucketOrdinal(DateTimeOffset instant, TimeSpan bucketSize)

@@ -17,9 +17,9 @@ public sealed class DeduplicationKeyTests
     }
 
     [Fact]
-    public void ForTenant_composes_the_exact_tenant_relative_key()
+    public void ForTenant_composes_a_folded_tenant_with_the_exact_business_key()
     {
-        Assert.Equal("acme:invoice-123", DeduplicationKey.ForTenant(" Acme ", " Invoice-123 "));
+        Assert.Equal("acme:Invoice-123", DeduplicationKey.ForTenant(" Acme ", " Invoice-123 "));
     }
 
     [Fact]
@@ -48,10 +48,11 @@ public sealed class DeduplicationKeyTests
     }
 
     [Fact]
-    public void Components_are_trimmed_and_lowercase_normalized()
+    public void Components_are_trimmed_the_name_folded_and_the_key_kept_exact()
     {
-        Assert.Equal("process-order:order-123", DeduplicationKey.ForDefinition(" Process-Order ", " Order-123 "));
-        Assert.Equal("migration-42", DeduplicationKey.AcrossDefinitions(" Migration-42 "));
+        Assert.Equal("process-order:Order-123", DeduplicationKey.ForDefinition(" Process-Order ", " Order-123 "));
+        Assert.Equal("Migration-42", DeduplicationKey.AcrossDefinitions(" Migration-42 "));
+        Assert.Equal("send:auth0|123", DeduplicationKey.ForDefinition("send", "auth0|123"));
     }
 
     [Theory]
@@ -64,9 +65,11 @@ public sealed class DeduplicationKeyTests
     }
 
     [Fact]
-    public void Final_user_key_rejects_the_reserved_system_prefix()
+    public void Final_user_key_rejects_the_reserved_system_prefix_in_any_case()
     {
         Assert.Throws<ArgumentException>(() => DeduplicationKey.AcrossDefinitions("sys.customer-42"));
+        Assert.Throws<ArgumentException>(() => DeduplicationKey.AcrossDefinitions("SYS.customer-42"));
+        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForDefinition("Sys.Recovery", "customer-42"));
     }
 
     [Fact]

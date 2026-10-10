@@ -169,7 +169,7 @@ internal sealed class EnqueueJobsHandler(
             return;
         }
 
-        var seen = new Dictionary<string, int>(rows.Count, StringComparer.OrdinalIgnoreCase);
+        var seen = new Dictionary<string, int>(rows.Count, StringComparer.Ordinal);
         for (var i = 0; i < rows.Count; i++)
         {
             var row = rows[i];

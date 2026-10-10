@@ -18,17 +18,17 @@ public sealed class TagTarget
     internal object Lookup { get; }
 
     public static TagTarget ForTenant(string tenantKey) =>
-        new(TagScopeCode.Tenant, IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey)));
+        new(TagScopeCode.Tenant, NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength));
 
     public static TagTarget ForNamespace(string namespaceName) =>
-        new(TagScopeCode.Namespace, IdentifierSyntax.CanonicalizeKebab(namespaceName, nameof(namespaceName)));
+        new(TagScopeCode.Namespace, NameSyntax.Canonicalize(namespaceName, nameof(namespaceName)));
 
     public static TagTarget ForDefinition(string jobNamespace, string jobName) =>
         new(
             TagScopeCode.Definition,
             (
-                IdentifierSyntax.CanonicalizeKebab(jobNamespace, nameof(jobNamespace)),
-                IdentifierSyntax.NormalizeName(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength)
+                NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace)),
+                NameSyntax.Canonicalize(jobName, nameof(jobName), NameSyntax.ExtendedMaxLength)
             )
         );
 

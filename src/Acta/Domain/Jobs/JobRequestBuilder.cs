@@ -35,12 +35,13 @@ public sealed class JobRequestBuilder
 
     /// <summary>
     /// Start a new builder for a job under <paramref name="jobNamespace"/> / <paramref name="jobName"/>.
-    /// Both identifiers are validated against the strict-kebab user-name rules immediately.
+    /// Both are names, folded to lowercase and checked against the <see cref="NameSyntax"/> rule immediately; the
+    /// reserved <c>sys</c> names are rejected.
     /// </summary>
     public static JobRequestBuilder Create(string jobNamespace, string jobName)
     {
-        jobNamespace = IdentifierSyntax.CanonicalizeUserKebab(jobNamespace, nameof(jobNamespace));
-        jobName = IdentifierSyntax.CanonicalizeUserKebab(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength);
+        jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace), reserveSystem: true);
+        jobName = NameSyntax.Canonicalize(jobName, nameof(jobName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         return new JobRequestBuilder(jobNamespace, jobName);
     }
 
@@ -96,23 +97,22 @@ public sealed class JobRequestBuilder
     /// <summary>
     /// Assign an already composed final deduplication key. This is the lower-level API for explicit
     /// cross-definition or time-bucketed keys; prefer <see cref="Deduplicate"/> for the usual
-    /// definition-scoped business key.
+    /// definition-scoped business key. The key keeps its case and may not start with <c>sys.</c>.
     /// </summary>
     public JobRequestBuilder DeduplicationKey(string deduplicationKey)
     {
-        deduplicationKey = IdentifierSyntax.NormalizeKey(deduplicationKey, nameof(deduplicationKey));
+        deduplicationKey = Acta.DeduplicationKey.Canonicalize(deduplicationKey, nameof(deduplicationKey));
         _deduplicationKey = deduplicationKey;
         return this;
     }
 
     /// <summary>
     /// Set the correlation id threading related jobs together: a W3C trace id or a caller's own custom
-    /// value, at most 64 chars.
+    /// value, a key of at most 64 chars.
     /// </summary>
     public JobRequestBuilder CorrelationKey(string correlationKey)
     {
-        IdentifierSyntax.ValidateExternalToken(correlationKey, nameof(correlationKey), IdentifierSyntax.DefaultMaxLength);
-        _correlationKey = correlationKey;
+        _correlationKey = KeySyntax.Canonicalize(correlationKey, nameof(correlationKey), NameSyntax.DefaultMaxLength);
         return this;
     }
 
@@ -124,19 +124,19 @@ public sealed class JobRequestBuilder
     /// </summary>
     public JobRequestBuilder ConcurrencyKey(string concurrencyKey)
     {
-        concurrencyKey = IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey));
+        concurrencyKey = KeySyntax.Canonicalize(concurrencyKey, nameof(concurrencyKey));
         _concurrencyKey = concurrencyKey;
         return this;
     }
 
     /// <summary>
     /// Place the Job in a lane: the lane's Jobs in this namespace run one at a time, in enqueue order,
-    /// and different lanes run in parallel. The name is normalized like a concurrency key. See
+    /// and different lanes run in parallel. A lane is a name, folded to lowercase. See
     /// <see cref="JobEnqueueOptions.Lane"/>.
     /// </summary>
     public JobRequestBuilder Lane(string lane)
     {
-        _lane = IdentifierSyntax.NormalizeKey(lane, nameof(lane));
+        _lane = NameSyntax.Canonicalize(lane, nameof(lane), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         return this;
     }
 
@@ -192,15 +192,14 @@ public sealed class JobRequestBuilder
     }
 
     /// <summary>
-    /// Scope this Job to a registered tenant (the customer / business entity it is about). The opaque
-    /// normalized tenant key (GUID / ULID / customer code folded to Acta's key shape) is resolved to a
-    /// tenant id at insert; an unknown or inactive tenant rejects the enqueue. On a child enqueue a
-    /// key that differs from the parent's tenant is rejected unless <paramref name="overrideParent"/>
-    /// explicitly opts into the cross-tenant lineage.
+    /// Scope this Job to a registered tenant (the customer / business entity it is about). The tenant is
+    /// a name, folded to lowercase, and is resolved to a tenant id at insert; an unknown or inactive
+    /// tenant rejects the enqueue. On a child enqueue a tenant that differs from the parent's is
+    /// rejected unless <paramref name="overrideParent"/> explicitly opts into the cross-tenant lineage.
     /// </summary>
     public JobRequestBuilder TenantKey(string tenantKey, bool overrideParent = false)
     {
-        _tenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+        _tenantKey = NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         _overrideParentTenant = overrideParent;
         return this;
     }
@@ -217,10 +216,10 @@ public sealed class JobRequestBuilder
     /// </summary>
     public JobRequestBuilder Tag(string name, string? value = null)
     {
-        name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (value is { } tagValue)
         {
-            IdentifierSyntax.ValidateDisplayValue(tagValue, nameof(value), IdentifierSyntax.ExtendedMaxLength);
+            TextLimits.ValidateDisplayValue(tagValue, nameof(value), NameSyntax.ExtendedMaxLength);
         }
         _tags[name] = new TagInput(name, value);
         return this;

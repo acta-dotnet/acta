@@ -161,8 +161,12 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         // Stored canonical so two spellings of one rate ("10/s" and " 10/s") are one value on a shared
         // key and one hash. Null stays null: no rate is a real state, not a rate of zero.
         var rateLimit = descriptor.Rate?.Text;
-        var rateKey = descriptor.RateKey;
-        var lane = descriptor.Lane is { } declaredLane ? IdentifierSyntax.NormalizeKey(declaredLane, nameof(descriptor.Lane)) : null;
+        var rateKey = descriptor.RateKey is { } declaredRateKey
+            ? NameSyntax.Canonicalize(declaredRateKey, nameof(descriptor.RateKey), JobDefinitionRegistration.MaxRateKeyLength)
+            : null;
+        var lane = descriptor.Lane is { } declaredLane
+            ? NameSyntax.Canonicalize(declaredLane, nameof(descriptor.Lane), NameSyntax.ExtendedMaxLength, reserveSystem: true)
+            : null;
         var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;

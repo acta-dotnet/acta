@@ -163,13 +163,6 @@ sealed class Acta.ActorCodeJsonConverter
     .ctor()
     Acta.ActorCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ActorCode value, System.Text.Json.JsonSerializerOptions options)
-static class Acta.AdminTextLimits
-    System.Int32 AlertChannelName = 128
-    System.Int32 NamespaceDescription = 512
-    System.Int32 NamespaceOwnerTeam = 512
-    System.Int32 RunbookUrl = 512
-    System.Int32 TenantDescription = 512
-    System.Int32 TenantDisplayName = 128
 sealed class Acta.AlertChannelOptions
     .ctor()
     Acta.AlertChannelStatusCode Status { get;set; }
@@ -1236,32 +1229,6 @@ interface Acta.IWorkerWakeup
 interface Acta.IWorkers
     System.Threading.Tasks.ValueTask<Acta.GetWorkerResponse> GetAsync(Acta.WorkerRef workerRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListWorkersResponse> ListAsync(Acta.ListWorkersQuery query, System.Threading.CancellationToken ct = default)
-static class Acta.IdentifierSyntax
-    System.Boolean IsBareIdentifier(System.String value)
-    System.Boolean IsDatabaseName(System.String value)
-    System.Boolean IsDottedKebab(System.String value)
-    System.Boolean IsKebab(System.String value)
-    System.Boolean IsReservedSystemName(System.String value)
-    System.Boolean StartsWithSystemPrefix(System.String value)
-    System.Int32 BareIdentifierMaxLength = 63
-    System.Int32 DefaultMaxLength = 64
-    System.Int32 ExtendedMaxLength = 128
-    System.String CanonicalizeKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String CanonicalizeUserDottedKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String CanonicalizeUserKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String NormalizeKey(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String NormalizeKeyLookup(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String NormalizeLowerInvariant(System.String value)
-    System.String NormalizeName(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String NormalizeTenantKey(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.String ReservedSystemName = sys
-    System.String SystemPrefix = sys.
-    System.Void ValidateBareIdentifier(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.Void ValidateDatabaseName(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.Void ValidateDottedKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.Void ValidateKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.Void ValidateUserDottedKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
-    System.Void ValidateUserKebab(System.String value, System.String paramName, System.Int32 maxLength = default)
 sealed class Acta.InvalidPageCursorException
     .ctor(System.String message)
 sealed class Acta.InvalidQueryException
@@ -1655,6 +1622,8 @@ sealed class Acta.JsonJobPayloadSerializer
     Acta.JsonJobPayloadSerializer WithResolver(System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver)
     System.Text.Json.JsonSerializerOptions DefaultJsonOptions { get; }
     T Deserialize<T>(Acta.JobPayload payload)
+static class Acta.KeySyntax
+    System.String Canonicalize(System.String value, System.String paramName, System.Int32 maxLength = default)
 sealed class Acta.ListAlertsItem
     .ctor(Acta.AlertRef AlertRef, System.Int64 AlertId, System.String JobNamespace, System.Nullable<System.Int64> JobId, System.Nullable<Acta.JobRef> JobRef, Acta.AlertOriginCode Origin, Acta.AlertSeverityCode Severity, Acta.AlertKindCode Kind, System.String Title, System.String Message, System.String ChannelName, System.Int32 OccurrenceCount, System.Nullable<System.DateTime> ResolvedAtUtc, Acta.AlertDeliveryStatusCode DeliveryStatus, System.Int32 RetryCount, System.Nullable<System.DateTime> RetryAfterUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<System.DateTime> AcknowledgedAtUtc)
     Acta.AlertDeliveryStatusCode DeliveryStatus { get;init; }
@@ -2039,6 +2008,13 @@ sealed class Acta.MisfireStrategyCodeJsonConverter
     .ctor()
     Acta.MisfireStrategyCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.MisfireStrategyCode value, System.Text.Json.JsonSerializerOptions options)
+static class Acta.NameSyntax
+    System.Boolean StartsWithSystemPrefix(System.String value)
+    System.Int32 DefaultMaxLength = 64
+    System.Int32 ExtendedMaxLength = 128
+    System.String Canonicalize(System.String value, System.String paramName, System.Int32 maxLength = default, System.Boolean reserveSystem = default)
+    System.String ReservedSystemName = sys
+    System.String SystemPrefix = sys.
 enum Acta.NamespaceStatusCode
     Active = 10
     Suspended = 20
@@ -2435,6 +2411,13 @@ sealed class Acta.TextJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     Acta.TextJobPayloadSerializer Default { get; }
     T Deserialize<T>(Acta.JobPayload payload)
+static class Acta.TextLimits
+    System.Int32 AlertChannelName = 128
+    System.Int32 NamespaceDescription = 512
+    System.Int32 NamespaceOwnerTeam = 512
+    System.Int32 RunbookUrl = 512
+    System.Int32 TenantDescription = 512
+    System.Int32 TenantDisplayName = 128
 sealed class Acta.TriggerScheduleNowResponse
     .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

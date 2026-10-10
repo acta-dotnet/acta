@@ -35,8 +35,7 @@ public readonly record struct JobPayloadFormat
             throw new ArgumentOutOfRangeException(nameof(id), "Built-in payload formats must use ids 1..127.");
         }
 
-        IdentifierSyntax.ValidateDottedKebab(name, nameof(name));
-        return new JobPayloadFormat(id, name);
+        return new JobPayloadFormat(id, NameSyntax.Canonicalize(name, nameof(name)));
     }
 
     /// <summary>
@@ -49,8 +48,7 @@ public readonly record struct JobPayloadFormat
             throw new ArgumentOutOfRangeException(nameof(id), "Custom payload formats must use ids 128..255.");
         }
 
-        IdentifierSyntax.ValidateDottedKebab(name, nameof(name));
-        return new JobPayloadFormat(id, name);
+        return new JobPayloadFormat(id, NameSyntax.Canonicalize(name, nameof(name)));
     }
 
     public override string ToString() => $"{Name}/{Id}";

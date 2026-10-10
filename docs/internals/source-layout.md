@@ -93,9 +93,9 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 - `Handlers/`: the handler API: `JobContext`, the job attributes, backoff and rate-limit specs, steps, waits, locks, children, and their outcomes.
 - `Configuration/`: `JobsOptions`, `SqlProviderOptions`, and the options validator.
 - `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
-- `Primitives/`: identifier, duration, and ref syntax, text limits, and message truncation.
+- `Primitives/`: name, key, duration, and ref syntax, text limits, and message truncation.
 - `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
-- `Storage/`: database access beside `Schema/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
+- `Storage/`: database access beside `Schema/`: the session, `ISqlDialect`, SQL identifier syntax, value coercion, deadlock retry, the SQL resource catalog, and paging.
 - `Schema/`: the schema model, the migration runner and installer, the baseline and object package stamps, and the operator views in `Schema/Views/`.
 - `Hosting/`: `ActaBuilder`, `AddActa`, the builder interfaces and plug-in seams, provider registration, option validators, and what registration builds and operations read: `CatalogDeclaration`, the catalog registries (`JobContractRegistry`, `JobDescriptorRegistry`, `JobTypeRegistry`), and `OutboxRelayRegistry`. They stay here rather than in `Engine/` because operations name them.
 - `Cli/`: the operator CLI, a presenter over the public facades.

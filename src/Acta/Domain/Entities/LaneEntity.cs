@@ -25,8 +25,8 @@ internal sealed class LaneEntity : IEntity<long>
     public int NamespaceId { get; init; }
 
     /// <summary>
-    /// Caller-supplied lane id in canonical key form, like a concurrency key: trimmed, lowercased, 1 to
-    /// 128 characters of the key alphabet. The C# layer canonicalizes it before any write.
+    /// Caller-supplied lane, a name: trimmed, lowercased, dotted kebab of 1 to 128 characters. The C# layer
+    /// canonicalizes it before any write.
     /// </summary>
     [DbColumn("name", DbKind.AsciiString, Size = 128)]
     public string Name { get; init; } = default!;

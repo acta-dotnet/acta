@@ -35,6 +35,34 @@ internal static class KebabName
         return SegmentIsKebab(name, start, name.Length);
     }
 
+    /// <summary>
+    /// True for one or more kebab segments joined by <c>.</c> within the length cap, outside the reserved
+    /// <c>sys</c> name and <c>sys.</c> prefix.
+    /// </summary>
+    public static bool IsValidDotted(string name, int maxLength)
+    {
+        if (
+            string.IsNullOrEmpty(name)
+            || name.Length > maxLength
+            || name == "sys"
+            || name.StartsWith(SystemPrefix, StringComparison.Ordinal)
+        )
+        {
+            return false;
+        }
+
+        var start = 0;
+        for (var dot = name.IndexOf('.'); dot >= 0; dot = name.IndexOf('.', start))
+        {
+            if (!SegmentIsKebab(name, start, dot))
+            {
+                return false;
+            }
+            start = dot + 1;
+        }
+        return SegmentIsKebab(name, start, name.Length);
+    }
+
     private static bool SegmentIsKebab(string text, int start, int end)
     {
         if (start >= end || text[start] < 'a' || text[start] > 'z')

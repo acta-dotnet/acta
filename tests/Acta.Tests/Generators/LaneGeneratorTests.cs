@@ -3,13 +3,22 @@ using Xunit;
 namespace Acta.Tests.Generators;
 
 /// <summary>
-/// <c>[Job(Lane = ...)]</c> is checked at compile time under the concurrency-key rule, flows into the
-/// generated descriptor in canonical lowercase, and cannot ride a scheduled definition.
+/// <c>[Job(Lane = ...)]</c> is checked at compile time under the name rule, flows into the generated
+/// descriptor in canonical lowercase, and cannot ride a scheduled definition.
 /// </summary>
 public sealed class LaneGeneratorTests
 {
     public static TheoryData<string> InvalidLanes =>
-        ["\"\"", "\"   \"", "\"has space\"", "\"caf\\u00e9\"", "\"sys.reserved\"", $"\"{new string('l', 129)}\""];
+        [
+            "\"\"",
+            "\"   \"",
+            "\"has space\"",
+            "\"caf\\u00e9\"",
+            "\"orders:42\"",
+            "\"sys\"",
+            "\"sys.reserved\"",
+            $"\"{new string('l', 129)}\"",
+        ];
 
     [Theory]
     [MemberData(nameof(InvalidLanes))]
@@ -41,14 +50,14 @@ public sealed class LaneGeneratorTests
 
             public static class Handler
             {
-                [Job("laned", Lane = " Orders:42 ")]
+                [Job("laned", Lane = " Orders.EU-42 ")]
                 public static void Run() { }
             }
             """
         );
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Id == "ACTA0105");
-        Assert.Contains("Lane = \"orders:42\",", Assert.Single(result.GeneratedTrees).ToString());
+        Assert.Contains("Lane = \"orders.eu-42\",", Assert.Single(result.GeneratedTrees).ToString());
     }
 
     [Fact]

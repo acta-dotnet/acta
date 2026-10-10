@@ -8,10 +8,9 @@ namespace Acta;
 internal static class QueryValidation
 {
     /// <summary>
-    /// Validates an optional namespace filter as a lowercase kebab identifier. Uppercase is
-    /// rejected, not folded. Lookup-permissive: unlike the registration validators, this accepts the
-    /// bare <c>sys</c> namespace (the seeded system namespace) so operators can filter to it. Returns
-    /// the validated value, or null when input is null.
+    /// Validates an optional namespace filter as a name and returns it folded to lowercase, or null when
+    /// input is null. Lookup-permissive: unlike the registration validators, this accepts the bare
+    /// <c>sys</c> namespace (the seeded system namespace) so operators can filter to it.
     /// </summary>
     public static string? ValidateNamespace(string? value, string paramName)
     {
@@ -19,7 +18,7 @@ internal static class QueryValidation
         {
             try
             {
-                value = IdentifierSyntax.CanonicalizeKebab(value, paramName);
+                value = NameSyntax.Canonicalize(value, paramName);
             }
             catch (ArgumentException ex)
             {
@@ -31,7 +30,7 @@ internal static class QueryValidation
 
     /// <summary>
     /// Validates an optional namespace name fragment against the kebab character set
-    /// (<c>[a-z0-9-]</c>) and length; uppercase is rejected, not folded. Looser than a full
+    /// (<c>[a-z0-9-]</c>) and length, after folding it to lowercase like every name. Looser than a full
     /// identifier: a fragment may be partial and may match anywhere in the name. Rejecting '%' and
     /// '_' is what keeps the caller's term free of LIKE wildcards. Returns it, or null when null.
     /// </summary>
@@ -41,6 +40,8 @@ internal static class QueryValidation
         {
             return null;
         }
+
+        value = value.ToLowerInvariant();
 
         if (value.Length > 128)
         {
@@ -61,8 +62,8 @@ internal static class QueryValidation
     /// <summary>
     /// Validates an optional job-name fragment. Looser than <see cref="ValidateJobName"/>: a fragment
     /// may be partial, may match anywhere in the name, and needs no namespace, so an operator can
-    /// search names across every namespace. The system separator is allowed so <c>sys.</c> matches.
-    /// Uppercase is rejected, not folded, matching every other filter.
+    /// search names across every namespace. The name separator is allowed so <c>sys.</c> matches.
+    /// Folded to lowercase like every name.
     /// </summary>
     public static string? ValidateJobNameFragment(string? value, string paramName)
     {
@@ -71,9 +72,11 @@ internal static class QueryValidation
             return null;
         }
 
-        if (value.Length > IdentifierSyntax.ExtendedMaxLength)
+        value = value.ToLowerInvariant();
+
+        if (value.Length > NameSyntax.ExtendedMaxLength)
         {
-            throw new InvalidQueryException($"{paramName} must be at most {IdentifierSyntax.ExtendedMaxLength} characters.");
+            throw new InvalidQueryException($"{paramName} must be at most {NameSyntax.ExtendedMaxLength} characters.");
         }
 
         foreach (var ch in value)
@@ -90,7 +93,7 @@ internal static class QueryValidation
     /// <summary>
     /// Validates an optional job-name filter and its namespace dependency.
     /// System names such as <c>sys.recovery</c> are accepted so operators can filter system jobs.
-    /// Returns the validated full value (uppercase is rejected, not folded), or null when input is null.
+    /// Returns the name folded to lowercase, or null when input is null.
     /// </summary>
     public static string? ValidateJobName(string? value, string? namespaceValue, string paramName)
     {
@@ -104,16 +107,14 @@ internal static class QueryValidation
             throw new InvalidQueryException("JobName requires JobNamespace.");
         }
 
-        var bare = IdentifierSyntax.StartsWithSystemPrefix(value) ? value[IdentifierSyntax.SystemPrefix.Length..] : value;
         try
         {
-            IdentifierSyntax.ValidateKebab(bare, paramName, IdentifierSyntax.ExtendedMaxLength);
+            return NameSyntax.Canonicalize(value, paramName, NameSyntax.ExtendedMaxLength);
         }
         catch (ArgumentException ex)
         {
             throw new InvalidQueryException(ex.Message);
         }
-        return value;
     }
 
     /// <summary>

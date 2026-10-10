@@ -139,16 +139,10 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // Hold the key's only execution slot on behalf of a foreign owner, as another worker's live
-        // execution would. Same composition the runner uses ({ns_id}.sem.{canonical key}).
+        // execution would. Same composition the runner uses ({ns_id}.sem.{key}, the key exact).
         var locks = Services.GetRequiredService<LocksOperations>();
         var held = (
-            await locks.AcquireSlotAsync(
-                $"{ns}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}",
-                limit: 1,
-                TimeSpan.FromMinutes(5),
-                ownerJobId: long.MaxValue,
-                ct
-            )
+            await locks.AcquireSlotAsync($"{ns}.sem.{key}", limit: 1, TimeSpan.FromMinutes(5), ownerJobId: long.MaxValue, ct)
         ).Token;
         Assert.NotNull(held);
 

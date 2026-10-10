@@ -26,7 +26,7 @@ public sealed class JobEnqueueOptionsBuilder
     /// </summary>
     public JobEnqueueOptionsBuilder JobNamespace(string namespaceName)
     {
-        namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
+        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
         _namespace = namespaceName;
         return this;
     }
@@ -34,45 +34,45 @@ public sealed class JobEnqueueOptionsBuilder
     /// <summary>
     /// Set an already resolved final deduplication key. Typed routing has not resolved the definition
     /// when options are configured, so callers compose definition-scoped keys with
-    /// <see cref="Acta.DeduplicationKey"/> before assigning them here.
+    /// <see cref="Acta.DeduplicationKey"/> before assigning them here. The key keeps its case and may not
+    /// start with <c>sys.</c>.
     /// </summary>
     public JobEnqueueOptionsBuilder DeduplicationKey(string deduplicationKey)
     {
-        deduplicationKey = IdentifierSyntax.NormalizeKey(deduplicationKey, nameof(deduplicationKey));
+        deduplicationKey = Acta.DeduplicationKey.Canonicalize(deduplicationKey, nameof(deduplicationKey));
         _deduplicationKey = deduplicationKey;
         return this;
     }
 
     /// <summary>
-    /// Correlation id for cross-system tracing: a W3C trace id or a caller's own custom value, at most
-    /// 64 chars.
+    /// Correlation id for cross-system tracing: a W3C trace id or a caller's own custom value, a key of
+    /// at most 64 chars.
     /// </summary>
     public JobEnqueueOptionsBuilder CorrelationKey(string correlationKey)
     {
-        IdentifierSyntax.ValidateExternalToken(correlationKey, nameof(correlationKey), IdentifierSyntax.DefaultMaxLength);
-        _correlationKey = correlationKey;
+        _correlationKey = KeySyntax.Canonicalize(correlationKey, nameof(correlationKey), NameSyntax.DefaultMaxLength);
         return this;
     }
 
     /// <summary>
     /// Named admission key: at most the definition's <c>ConcurrencyLimit</c> Jobs per (namespace, key)
-    /// are in flight at a time, one when no limit is declared. Trimmed and lowercased.
+    /// are in flight at a time, one when no limit is declared. Trimmed; the case is kept.
     /// </summary>
     public JobEnqueueOptionsBuilder ConcurrencyKey(string concurrencyKey)
     {
-        concurrencyKey = IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey));
+        concurrencyKey = KeySyntax.Canonicalize(concurrencyKey, nameof(concurrencyKey));
         _concurrencyKey = concurrencyKey;
         return this;
     }
 
     /// <summary>
     /// Place the Job in a lane: the lane's Jobs in this namespace run one at a time, in enqueue order,
-    /// and different lanes run in parallel. The name is normalized like a concurrency key. See
+    /// and different lanes run in parallel. A lane is a name, folded to lowercase. See
     /// <see cref="JobEnqueueOptions.Lane"/>.
     /// </summary>
     public JobEnqueueOptionsBuilder Lane(string lane)
     {
-        _lane = IdentifierSyntax.NormalizeKey(lane, nameof(lane));
+        _lane = NameSyntax.Canonicalize(lane, nameof(lane), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         return this;
     }
 
@@ -126,15 +126,14 @@ public sealed class JobEnqueueOptionsBuilder
     }
 
     /// <summary>
-    /// Scope this Job to a registered tenant (the customer / business entity it is about). The opaque
-    /// normalized tenant key (GUID / ULID / customer code folded to Acta's key shape) is resolved to a
-    /// tenant id at insert; an unknown or inactive tenant rejects the enqueue. On a child enqueue a
-    /// key that differs from the parent's tenant is rejected unless <paramref name="overrideParent"/>
-    /// explicitly opts into the cross-tenant lineage.
+    /// Scope this Job to a registered tenant (the customer / business entity it is about). The tenant is
+    /// a name, folded to lowercase, and is resolved to a tenant id at insert; an unknown or inactive
+    /// tenant rejects the enqueue. On a child enqueue a tenant that differs from the parent's is
+    /// rejected unless <paramref name="overrideParent"/> explicitly opts into the cross-tenant lineage.
     /// </summary>
     public JobEnqueueOptionsBuilder TenantKey(string tenantKey, bool overrideParent = false)
     {
-        tenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+        tenantKey = NameSyntax.Canonicalize(tenantKey, nameof(tenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         _tenantKey = tenantKey;
         _overrideParentTenant = overrideParent;
         return this;
@@ -146,10 +145,10 @@ public sealed class JobEnqueueOptionsBuilder
     /// </summary>
     public JobEnqueueOptionsBuilder Tag(string name, string? value = null)
     {
-        name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (value is { } tagValue)
         {
-            IdentifierSyntax.ValidateDisplayValue(tagValue, nameof(value), IdentifierSyntax.ExtendedMaxLength);
+            TextLimits.ValidateDisplayValue(tagValue, nameof(value), NameSyntax.ExtendedMaxLength);
         }
         _tags[name] = new TagInput(name, value);
         return this;

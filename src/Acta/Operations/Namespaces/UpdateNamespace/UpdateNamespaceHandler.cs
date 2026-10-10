@@ -5,7 +5,7 @@ internal sealed class UpdateNamespaceHandler(IDbSession session, ISqlDialect dia
 {
     public async ValueTask<UpdateNamespaceResponse> HandleAsync(UpdateNamespaceCommand command, CancellationToken ct)
     {
-        var name = IdentifierSyntax.CanonicalizeUserKebab(command.Name, "name", IdentifierSyntax.ExtendedMaxLength);
+        var name = NameSyntax.Canonicalize(command.Name, "name", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         CatalogValidation.ValidateNamespace(command.OwnerTeam, command.Description);
 
         return await session.ExecuteOneAsync(

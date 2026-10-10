@@ -5,7 +5,7 @@ internal sealed class RegisterTenantHandler(IDbSession session, ISqlDialect dial
 {
     public async ValueTask<RegisterTenantResponse> HandleAsync(RegisterTenantCommand command, CancellationToken ct)
     {
-        var key = IdentifierSyntax.NormalizeTenantKey(command.TenantKey, "tenantKey");
+        var key = NameSyntax.Canonicalize(command.TenantKey, "tenantKey", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         CatalogValidation.ValidateTenant(command.DisplayName, command.Description);
 
         return await session.ExecuteOneAsync(

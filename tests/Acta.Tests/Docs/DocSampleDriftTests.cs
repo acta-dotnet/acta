@@ -234,7 +234,10 @@ public sealed class DocSampleDriftTests
                 {
                     try
                     {
-                        IdentifierSyntax.ValidateUserKebab(name, "jobName", IdentifierSyntax.ExtendedMaxLength);
+                        if (NameSyntax.Canonicalize(name, "jobName", NameSyntax.ExtendedMaxLength, reserveSystem: true) != name)
+                        {
+                            failures.Add($"{document}: [Job(\"{name}\")] is not lowercase, the form the generator requires.");
+                        }
                     }
                     catch (ArgumentException ex)
                     {

@@ -201,7 +201,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(1, LaneProbes.MaxConcurrent(TestNamespace));
     }
 
-    [Fact(DisplayName = "Lane names fold like concurrency keys: names that differ only in case are one lane")]
+    [Fact(DisplayName = "A lane is a name: lanes that differ only in case are one lane")]
     public async Task Lane_names_fold_case()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -212,12 +212,13 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(lower, ct));
     }
 
-    [Fact(DisplayName = "A lane outside the key alphabet is refused at enqueue")]
+    [Fact(DisplayName = "A lane that is not a dotted kebab name is refused at enqueue")]
     public async Task Invalid_lane_is_refused()
     {
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAnyAsync<ArgumentException>(async () => await EnqueueStepAsync("orders 42", "x", JobPriorityCode.Normal, ct));
+        await Assert.ThrowsAnyAsync<ArgumentException>(async () => await EnqueueStepAsync("orders:42", "x", JobPriorityCode.Normal, ct));
     }
 
     [Fact(DisplayName = "A definition lane orders its jobs, and an enqueue lane overrides it")]

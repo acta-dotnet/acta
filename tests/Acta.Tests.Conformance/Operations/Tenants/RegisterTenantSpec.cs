@@ -30,19 +30,19 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task New_tenant_inserts()
     {
         var ct = TestContext.Current.CancellationToken;
-        // A normalized tenant key with uppercase: Acta keys fold to lowercase at write.
-        var key = $"550E8400-{TestKey("tenant-new")}";
+        // A tenant is a name, and names fold to lowercase at write.
+        var key = $"Acme-550E8400-{TestKey("tenant-new")}";
         var canonical = key.ToLowerInvariant();
 
         var registered = await Tenants().RegisterAsync(key, null, "Acme Corp", ct);
         var id = registered.TenantId;
 
         Assert.True(id > 0);
-        Assert.Equal(canonical, registered.TenantKey); // the response names the tenant by its folded key
-        var row = await ReadAsync(canonical, ct); // stored key is the folded form
+        Assert.Equal(canonical, registered.TenantKey); // the response names the tenant by its folded name
+        var row = await ReadAsync(canonical, ct); // the stored name is the folded form
         Assert.NotNull(row);
         Assert.Equal(id, row!.Id);
-        Assert.Equal(canonical, row.TenantKey); // key is lowercased at write
+        Assert.Equal(canonical, row.TenantKey); // the name is lowercased at write
         Assert.Equal("Acme Corp", row.Description);
         Assert.Equal(TenantStatusCode.Active, row.Status);
     }

@@ -48,7 +48,7 @@ internal sealed class PostgresDialect : ISqlDialect
 
     public void ConfigureRoutineCommand(DbCommand command, string schema, string routineName)
     {
-        IdentifierSyntax.ValidateBareIdentifier(routineName, nameof(routineName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(routineName, nameof(routineName));
 
         // PostgreSQL functions returning TABLE are invoked via SELECT *. Store parameters are emitted
         // in insertion order because function arguments are positional; parameter names still select

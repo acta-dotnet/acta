@@ -7,7 +7,7 @@ namespace Acta;
 public sealed record TagInput(string Name, string? Value = null)
 {
     /// <summary>
-    /// Normalize one tag: reject null, canonicalize the name as a user dotted-kebab identifier, and
+    /// Normalize one tag: reject null, fold the name as a caller's name outside the <c>sys</c> reservation, and
     /// validate the preserved value. Shared by the request and operations enqueue paths so both accept
     /// exactly the same tags. <paramref name="paramName"/> is the caller's <c>Tags[i]</c> path.
     /// </summary>
@@ -18,14 +18,10 @@ public sealed record TagInput(string Name, string? Value = null)
             throw new ArgumentException("Tag entries must not be null.", paramName);
         }
 
-        var name = IdentifierSyntax.CanonicalizeUserDottedKebab(
-            tag.Name,
-            $"{paramName}.{nameof(Name)}",
-            IdentifierSyntax.ExtendedMaxLength
-        );
+        var name = NameSyntax.Canonicalize(tag.Name, $"{paramName}.{nameof(Name)}", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (tag.Value is { } value)
         {
-            IdentifierSyntax.ValidateDisplayValue(value, $"{paramName}.{nameof(Value)}", IdentifierSyntax.ExtendedMaxLength);
+            TextLimits.ValidateDisplayValue(value, $"{paramName}.{nameof(Value)}", NameSyntax.ExtendedMaxLength);
         }
 
         return tag with

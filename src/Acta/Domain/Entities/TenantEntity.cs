@@ -18,10 +18,9 @@ internal sealed class TenantEntity : IEntity<int>
     public int Id { get; init; }
 
     /// <summary>
-    /// Caller-supplied external tenant identifier (an opaque key such as a GUID, ULID, or customer code,
-    /// not a human label). Unique. Validated as opaque (non-empty, no <c>"sys."</c> prefix, at most 128
-    /// chars) rather than kebab. Resolved to <see cref="Id"/> at enqueue; the human label lives in
-    /// <see cref="DisplayName"/>.
+    /// Caller-supplied tenant name (a customer code folded to dotted kebab, not a human label). Unique.
+    /// Trimmed and lowercased, at most 128 chars, never <c>sys</c> or under <c>sys.</c>. Resolved to
+    /// <see cref="Id"/> at enqueue; the human label lives in <see cref="DisplayName"/>.
     /// </summary>
     [DbColumn("tenant_key", DbKind.AsciiString, Size = 128)]
     public string TenantKey { get; init; } = default!;
@@ -35,13 +34,13 @@ internal sealed class TenantEntity : IEntity<int>
     public TenantStatusCode Status { get; internal set; }
 
     /// <summary>Human display label for dashboards and pickers; NULL falls back to the key.</summary>
-    [DbColumn("display_name", DbKind.UnicodeString, Size = AdminTextLimits.TenantDisplayName)]
+    [DbColumn("display_name", DbKind.UnicodeString, Size = TextLimits.TenantDisplayName)]
     public string? DisplayName { get; internal set; }
 
     /// <summary>
     /// Longer operator-readable notes about the tenant. Unicode-capable.
     /// </summary>
-    [DbColumn("description", DbKind.UnicodeString, Size = AdminTextLimits.TenantDescription)]
+    [DbColumn("description", DbKind.UnicodeString, Size = TextLimits.TenantDescription)]
     public string? Description { get; internal set; }
 
     /// <summary>When the tenant row was first created. Set server-side.</summary>

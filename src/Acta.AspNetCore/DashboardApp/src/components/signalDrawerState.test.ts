@@ -13,8 +13,13 @@ test('validateSignalName rejects underscores', () => {
   assert.ok(validateSignalName('payment_received'));
 });
 
-test('validateSignalName rejects uppercase', () => {
-  assert.ok(validateSignalName('Payment-Received'));
+test('validateSignalName folds case and accepts dotted names, as the server does', () => {
+  assert.equal(validateSignalName('Payment-Received'), null);
+  assert.equal(validateSignalName('payment.received'), null);
+});
+
+test('validateSignalName rejects an empty segment', () => {
+  assert.ok(validateSignalName('payment..received'));
 });
 
 test('validateSignalName rejects the bare reserved name and the sys. prefix', () => {

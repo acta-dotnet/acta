@@ -72,23 +72,34 @@ public abstract partial class JobContext
     )
     {
         ArgumentNullException.ThrowIfNull(configure);
-        IdentifierSyntax.ValidateUserKebab(groupName, nameof(groupName), IdentifierSyntax.ExtendedMaxLength);
+        groupName = NameSyntax.Canonicalize(groupName, nameof(groupName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ValidateGroupTimeout(timeout);
 
         var builder = new ParallelBuilder();
         configure(builder);
         var branches = builder.Branches;
 
+        var childNames = new string[branches.Count];
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var branch in branches)
+        for (var i = 0; i < branches.Count; i++)
         {
-            IdentifierSyntax.ValidateUserKebab(branch.BranchName, "branchName", IdentifierSyntax.ExtendedMaxLength);
+            var branchName = NameSyntax.Canonicalize(
+                branches[i].BranchName,
+                "branchName",
+                NameSyntax.ExtendedMaxLength,
+                reserveSystem: true
+            );
             // Checked whole before any branch starts, so a name too long fails the group, not its last branch.
-            IdentifierSyntax.ValidateUserKebab($"{groupName}-{branch.BranchName}", "branchName", IdentifierSyntax.ExtendedMaxLength);
-            if (!seen.Add(branch.BranchName))
+            childNames[i] = NameSyntax.Canonicalize(
+                $"{groupName}-{branchName}",
+                "branchName",
+                NameSyntax.ExtendedMaxLength,
+                reserveSystem: true
+            );
+            if (!seen.Add(branchName))
             {
                 throw new ArgumentException(
-                    $"Parallel group '{groupName}' has a duplicate branch name '{branch.BranchName}'.",
+                    $"Parallel group '{groupName}' has a duplicate branch name '{branches[i].BranchName}'.",
                     nameof(configure)
                 );
             }
@@ -97,8 +108,7 @@ public abstract partial class JobContext
         var ids = new long[branches.Count];
         for (var i = 0; i < branches.Count; i++)
         {
-            var childName = $"{groupName}-{branches[i].BranchName}";
-            ids[i] = (await branches[i].Start(this, childName, ct)).JobId;
+            ids[i] = (await branches[i].Start(this, childNames[i], ct)).JobId;
         }
 
         var outcomes = await WaitChildGroupAsync(ids, timeout, ct);
@@ -162,7 +172,7 @@ public abstract partial class JobContext
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(itemKey);
         ArgumentNullException.ThrowIfNull(child);
-        IdentifierSyntax.ValidateUserKebab(groupName, nameof(groupName), IdentifierSyntax.ExtendedMaxLength);
+        groupName = NameSyntax.Canonicalize(groupName, nameof(groupName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ValidateGroupTimeout(timeout);
 
         var materialized = items as IReadOnlyList<TItem> ?? items.ToList();
@@ -181,8 +191,12 @@ public abstract partial class JobContext
                 throw new ArgumentException($"Map group '{groupName}' has a duplicate item key '{key}'.", nameof(itemKey));
             }
 
-            var childName = ChildGroupName(groupName, key);
-            IdentifierSyntax.ValidateUserKebab(childName, nameof(groupName), IdentifierSyntax.ExtendedMaxLength);
+            var childName = NameSyntax.Canonicalize(
+                ChildGroupName(groupName, key),
+                nameof(groupName),
+                NameSyntax.ExtendedMaxLength,
+                reserveSystem: true
+            );
             if (!seenNames.Add(childName))
             {
                 throw new ArgumentException(
@@ -217,7 +231,7 @@ public abstract partial class JobContext
     {
         // Invariant, so a replay on a host with another culture derives the same name.
         var canonical = (key is IFormattable f ? f.ToString(null, CultureInfo.InvariantCulture) : key.ToString()) ?? string.Empty;
-        return IsNameSafeTail(canonical) && groupName.Length + 1 + canonical.Length <= IdentifierSyntax.ExtendedMaxLength
+        return IsNameSafeTail(canonical) && groupName.Length + 1 + canonical.Length <= NameSyntax.ExtendedMaxLength
             ? $"{groupName}-{canonical}"
             : $"{groupName}-{ShortHash(canonical)}";
     }

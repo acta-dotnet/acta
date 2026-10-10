@@ -56,7 +56,7 @@ public sealed class SqlProviderOptionsValidatorTests
     [Fact]
     public void Overlong_schema_fails()
     {
-        var result = Validate(o => o.Schema = "a" + new string('b', IdentifierSyntax.BareIdentifierMaxLength));
+        var result = Validate(o => o.Schema = "a" + new string('b', SqlIdentifierSyntax.BareIdentifierMaxLength));
         Assert.True(result.Failed);
         Assert.Contains("Schema", result.FailureMessage);
     }

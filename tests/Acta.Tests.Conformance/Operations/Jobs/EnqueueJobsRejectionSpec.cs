@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Batch-enqueue rejection spec - exercises the C# guards that run before any SQL: same-batch
-/// duplicate DeduplicationKeys (case-insensitive), duplicate tag names per row, and unknown namespace/job.
+/// duplicate DeduplicationKeys (compared exactly), duplicate tag names per row, and unknown namespace/job.
 /// Each rejection is atomic: the whole batch throws and no job rows land. Distinct and null
 /// DeduplicationKeys are unaffected. Identical assertions run against SqlServer and Postgres.
 /// </summary>
@@ -39,18 +39,6 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(0, ex.FirstOrdinal);
         Assert.Equal(1, ex.SecondOrdinal);
 
-        Assert.Equal(before, await CountJobsAsync(ct));
-    }
-
-    [Fact(DisplayName = "Duplicate DeduplicationKeys differing only by case are rejected (case-insensitive)")]
-    public async Task Same_batch_duplicate_deduplication_key_differing_only_by_case_throws()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var before = await CountJobsAsync(ct);
-
-        JobEnqueueValues[] command = [Row("Invoice-7", new AddNumbers(1, 1)), Row("invoice-7", new AddNumbers(2, 2))];
-
-        await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(() => RunAsync(command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 

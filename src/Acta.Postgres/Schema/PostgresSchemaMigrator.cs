@@ -19,7 +19,7 @@ internal static class PostgresSchemaMigrator
     public static async Task ApplyAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
@@ -35,7 +35,7 @@ internal static class PostgresSchemaMigrator
     public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         var targetBuilder = new NpgsqlConnectionStringBuilder(connectionString);
         var databaseName = targetBuilder.Database;
@@ -43,7 +43,7 @@ internal static class PostgresSchemaMigrator
         {
             throw new InvalidOperationException("EnsureDatabaseAndApplyAsync requires the connection string to include a Database name.");
         }
-        IdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
+        SqlIdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
 
         var maintenanceBuilder = new NpgsqlConnectionStringBuilder(connectionString) { Database = "postgres" };
         await using (var maintenance = new NpgsqlConnection(maintenanceBuilder.ConnectionString))
@@ -86,7 +86,7 @@ internal static class PostgresSchemaMigrator
     public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync(ct);
@@ -96,7 +96,7 @@ internal static class PostgresSchemaMigrator
     public static async Task ResetSchemaAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
@@ -112,7 +112,7 @@ internal static class PostgresSchemaMigrator
     public static async Task DropSchemaAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);

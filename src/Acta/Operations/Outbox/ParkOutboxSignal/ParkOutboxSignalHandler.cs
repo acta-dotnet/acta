@@ -45,7 +45,7 @@ internal sealed class ParkOutboxSignalHandler(
     )
     {
         ArgumentNullException.ThrowIfNull(jobNamespace);
-        jobNamespace = IdentifierSyntax.CanonicalizeKebab(jobNamespace, nameof(jobNamespace));
+        jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
         if (outboxIds is { Count: 0 })
         {
             throw new ArgumentException("OutboxIds must be null (every quarantined row) or non-empty.", nameof(outboxIds));

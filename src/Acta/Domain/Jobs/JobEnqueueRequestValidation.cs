@@ -10,43 +10,42 @@ internal static class JobEnqueueRequestValidation
         ValidateParentId(request, paramName);
         ValidatePriority(request, paramName);
 
-        var correlationKey = request.CorrelationKey;
-        if (correlationKey is not null)
-        {
-            IdentifierSyntax.ValidateExternalToken(
-                correlationKey,
-                Field(paramName, nameof(EnqueueJobRequest.CorrelationKey)),
-                IdentifierSyntax.DefaultMaxLength
-            );
-        }
-
         return request with
         {
-            JobNamespace = IdentifierSyntax.CanonicalizeUserKebab(
+            JobNamespace = NameSyntax.Canonicalize(
                 request.JobNamespace,
-                Field(paramName, nameof(EnqueueJobRequest.JobNamespace))
+                Field(paramName, nameof(EnqueueJobRequest.JobNamespace)),
+                reserveSystem: true
             ),
-            JobName = IdentifierSyntax.CanonicalizeUserKebab(
+            JobName = NameSyntax.Canonicalize(
                 request.JobName,
                 Field(paramName, nameof(EnqueueJobRequest.JobName)),
-                IdentifierSyntax.ExtendedMaxLength
+                NameSyntax.ExtendedMaxLength,
+                reserveSystem: true
             ),
             DeduplicationKey = request.DeduplicationKey is null
                 ? null
-                : IdentifierSyntax.NormalizeKey(request.DeduplicationKey, Field(paramName, nameof(EnqueueJobRequest.DeduplicationKey))),
-            ConcurrencyKey = NormalizeOpaque(request.ConcurrencyKey, Field(paramName, nameof(EnqueueJobRequest.ConcurrencyKey))),
-            Lane = request.Lane is null
+                : DeduplicationKey.Canonicalize(request.DeduplicationKey, Field(paramName, nameof(EnqueueJobRequest.DeduplicationKey))),
+            CorrelationKey = request.CorrelationKey is null
                 ? null
-                : IdentifierSyntax.NormalizeKey(request.Lane, Field(paramName, nameof(EnqueueJobRequest.Lane))),
+                : KeySyntax.Canonicalize(
+                    request.CorrelationKey,
+                    Field(paramName, nameof(EnqueueJobRequest.CorrelationKey)),
+                    NameSyntax.DefaultMaxLength
+                ),
+            ConcurrencyKey = request.ConcurrencyKey is null
+                ? null
+                : KeySyntax.Canonicalize(request.ConcurrencyKey, Field(paramName, nameof(EnqueueJobRequest.ConcurrencyKey))),
+            Lane = request.Lane is null ? null : CanonicalizeName(request.Lane, Field(paramName, nameof(EnqueueJobRequest.Lane))),
             TenantKey = request.TenantKey is null
                 ? null
-                : IdentifierSyntax.NormalizeTenantKey(request.TenantKey, Field(paramName, nameof(EnqueueJobRequest.TenantKey))),
+                : CanonicalizeName(request.TenantKey, Field(paramName, nameof(EnqueueJobRequest.TenantKey))),
             Tags = NormalizeTags(request.Tags, paramName),
         };
     }
 
-    private static string? NormalizeOpaque(string? value, string paramName) =>
-        value is null ? null : IdentifierSyntax.NormalizeKey(value, paramName);
+    private static string CanonicalizeName(string value, string paramName) =>
+        NameSyntax.Canonicalize(value, paramName, NameSyntax.ExtendedMaxLength, reserveSystem: true);
 
     private static TagInput[]? NormalizeTags(IReadOnlyList<TagInput>? tags, string paramName) =>
         tags is null ? null : TagInput.NormalizeSet(tags, Field(paramName, nameof(EnqueueJobRequest.Tags)), "job");

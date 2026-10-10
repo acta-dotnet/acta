@@ -29,13 +29,13 @@ internal sealed class NamespaceEntity : IEntity<int>
     /// <summary>
     /// Owning team identifier surfaced on operator dashboards. Unicode-capable.
     /// </summary>
-    [DbColumn("owner_team", DbKind.UnicodeString, Size = AdminTextLimits.NamespaceOwnerTeam)]
+    [DbColumn("owner_team", DbKind.UnicodeString, Size = TextLimits.NamespaceOwnerTeam)]
     public string? OwnerTeam { get; internal set; }
 
     /// <summary>
     /// Operator-readable description of what this namespace owns. Unicode-capable.
     /// </summary>
-    [DbColumn("description", DbKind.UnicodeString, Size = AdminTextLimits.NamespaceDescription)]
+    [DbColumn("description", DbKind.UnicodeString, Size = TextLimits.NamespaceDescription)]
     public string? Description { get; internal set; }
 
     /// <summary>

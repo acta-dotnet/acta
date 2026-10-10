@@ -39,7 +39,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     public async Task Seeded_sys_namespace_is_a_valid_tag_target()
     {
         var ct = TestContext.Current.CancellationToken;
-        var target = TagTarget.ForNamespace(IdentifierSyntax.ReservedSystemName);
+        var target = TagTarget.ForNamespace(NameSyntax.ReservedSystemName);
         var name = TestKey("sys-tag");
 
         Assert.NotNull(await Operations.Tags.GetAsync(target, ct));

@@ -12,7 +12,7 @@ public abstract partial class JobContext
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task SleepAsync(string name, TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = DurationSyntax.ToWholeSeconds(delay, nameof(delay));
         if (seconds == 0)
         {
@@ -30,7 +30,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task SleepUntilAsync(string name, DateTimeOffset resumeAtUtc, string? reasonMessage = null, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await SleepCoreAsync(name, delay: null, resumeAtUtc.UtcDateTime, reasonMessage, linked.Token);
     }
@@ -58,7 +58,7 @@ public abstract partial class JobContext
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task WaitSignalAsync(string name, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await WaitSignalCoreAsync(name, linked.Token);
     }
@@ -70,7 +70,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<T?> WaitSignalAsync<T>(string name, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, linked.Token);
         return outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
@@ -86,7 +86,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: false, linked.Token);
@@ -98,7 +98,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<T?> WaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: false, linked.Token);
@@ -114,7 +114,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<SignalWaitOutcome> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
@@ -128,7 +128,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<SignalWaitOutcome<T>> TryWaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);

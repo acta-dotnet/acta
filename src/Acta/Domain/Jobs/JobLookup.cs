@@ -50,8 +50,8 @@ public readonly record struct JobLookup
     /// </summary>
     public static JobLookup ByDeduplicationKey(string jobNamespace, string deduplicationKey)
     {
-        jobNamespace = IdentifierSyntax.CanonicalizeKebab(jobNamespace, nameof(jobNamespace));
-        deduplicationKey = IdentifierSyntax.NormalizeKeyLookup(deduplicationKey, nameof(deduplicationKey));
+        jobNamespace = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
+        deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey));
 
         return new JobLookup(JobLookupKind.DeduplicationKey, 0, jobNamespace, deduplicationKey, default);
     }

@@ -8,7 +8,7 @@ internal sealed class UpdateTenantHandler(IDbSession session, ISqlDialect dialec
 {
     public async ValueTask<UpdateTenantResponse> HandleAsync(UpdateTenantCommand command, CancellationToken ct)
     {
-        var key = IdentifierSyntax.NormalizeTenantKey(command.TenantKey, "tenantKey");
+        var key = NameSyntax.Canonicalize(command.TenantKey, "tenantKey", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         CatalogValidation.ValidateTenant(command.DisplayName, command.Description);
 
         return await session.ExecuteOneAsync(

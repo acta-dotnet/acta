@@ -23,7 +23,7 @@ internal static partial class SqlServerSchemaMigrator
     public static async Task ApplyAsync(SqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
@@ -39,7 +39,7 @@ internal static partial class SqlServerSchemaMigrator
     public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         var targetBuilder = new SqlConnectionStringBuilder(connectionString);
         var databaseName = targetBuilder.InitialCatalog;
@@ -49,7 +49,7 @@ internal static partial class SqlServerSchemaMigrator
                 "EnsureDatabaseAndApplyAsync requires the connection string to include an Initial Catalog (target database name)."
             );
         }
-        IdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
+        SqlIdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
 
         var masterBuilder = new SqlConnectionStringBuilder(connectionString) { InitialCatalog = "master" };
         await using (var master = new SqlConnection(masterBuilder.ConnectionString))
@@ -153,7 +153,7 @@ internal static partial class SqlServerSchemaMigrator
     public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(ct);
@@ -163,7 +163,7 @@ internal static partial class SqlServerSchemaMigrator
     public static async Task ResetSchemaAsync(SqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
@@ -179,7 +179,7 @@ internal static partial class SqlServerSchemaMigrator
     public static async Task DropSchemaAsync(SqlConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);

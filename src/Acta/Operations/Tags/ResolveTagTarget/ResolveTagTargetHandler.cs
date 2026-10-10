@@ -60,10 +60,11 @@ internal sealed class ResolveTagTargetHandler(
                     return null;
                 }
 
-                var name = IdentifierSyntax.CanonicalizeUserKebab(
+                var name = NameSyntax.Canonicalize(
                     schedule.ScheduleName,
                     nameof(ScheduleLookup.ScheduleName),
-                    TagLimits.MaxNameLength
+                    TagLimits.MaxNameLength,
+                    reserveSystem: true
                 );
                 return new ResolveTagTargetResponse(TagScopeCode.Schedule, jobId, name);
             }

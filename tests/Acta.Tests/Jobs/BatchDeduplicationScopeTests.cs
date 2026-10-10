@@ -10,8 +10,8 @@ public sealed class BatchDeduplicationScopeTests
         JobEnqueueValues[] rows =
         [
             JobEnqueue.Canonicalize(Root("billing", "invoice-7")),
-            JobEnqueue.Canonicalize(Root("billing", "other")),
-            JobEnqueue.Canonicalize(Root("billing", "Invoice-7")),
+            JobEnqueue.Canonicalize(Root("Billing", "other")),
+            JobEnqueue.Canonicalize(Root("BILLING", " invoice-7 ")),
         ];
 
         var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
@@ -23,6 +23,18 @@ public sealed class BatchDeduplicationScopeTests
         Assert.Null(exception.ParentJobId);
         Assert.Equal(0, exception.FirstOrdinal);
         Assert.Equal(2, exception.SecondOrdinal);
+    }
+
+    [Fact]
+    public void Root_keys_that_differ_only_by_case_are_two_keys()
+    {
+        JobEnqueueValues[] rows =
+        [
+            JobEnqueue.Canonicalize(Root("billing", "invoice-7")),
+            JobEnqueue.Canonicalize(Root("billing", "Invoice-7")),
+        ];
+
+        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     [Fact]

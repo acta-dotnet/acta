@@ -5,7 +5,7 @@ internal sealed class SuspendTenantHandler(IDbSession session, ISqlDialect diale
 {
     public async ValueTask<SuspendTenantResponse> HandleAsync(SuspendTenantCommand command, CancellationToken ct)
     {
-        var key = IdentifierSyntax.NormalizeTenantKey(command.TenantKey, "tenantKey");
+        var key = NameSyntax.Canonicalize(command.TenantKey, "tenantKey", NameSyntax.ExtendedMaxLength, reserveSystem: true);
 
         return await session.ExecuteOneAsync(
             new StoreCommand("SuspendTenant"),

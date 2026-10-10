@@ -662,7 +662,6 @@
 - **Contract:** A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted.
 - **Guarantees:**
   - A same-batch duplicate DeduplicationKey throws DuplicateDeduplicationKeyInBatchException and persists nothing
-  - Duplicate DeduplicationKeys differing only by case are rejected (case-insensitive)
   - Duplicate DeduplicationKeys with different payloads are still rejected
   - Distinct and null DeduplicationKeys coexist in one batch and all insert
   - Duplicate tag names on a row throw ArgumentException and persist nothing
@@ -744,15 +743,18 @@
   - An unknown job rejection throws RouteUnknown
   - Enqueue against a retired definition throws DefinitionRetired
 
-### Acta keys normalize to lowercase while Acta names reject mixed case
-- **Contract:** Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab.
+### Names fold to lowercase while keys keep their case
+- **Contract:** A name is folded to lowercase on input, so any case addresses one stored name, while a key keeps its case and compares exactly.
 - **Guarantees:**
-  - A tenant key differing only by case resolves to one tenant on every provider
-  - An deduplication key differing only by case dedups onto one job
-  - A concurrency key differing only by case is one mutex group
-  - Namespace filter rejects mixed case
-  - Deduplication-key resolve is case-insensitive (C1 guard)
-  - Signal names reject mixed case
+  - A namespace and job name in any case route to the registered definition
+  - A tag name Billing.Send registers as billing.send and resolves in any case
+  - A lane ORDER-1 is the lane order-1
+  - A tenant ACME registers as acme and resolves in any case
+  - A signal raised as GO releases the wait on go
+  - Deduplication keys that differ only by case are two jobs, and a lookup by key is exact
+  - Concurrency keys that differ only by case do not share a lock
+  - SYS.x is rejected as a deduplication key at enqueue and as a name at registration
+  - A lookup names the seeded sys namespace in any case
 
 ### Contract enqueue names the job explicitly and resolves its route
 - **Contract:** The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths.
@@ -1043,8 +1045,8 @@
   - A batch lands its lane members in batch order
   - A batch whose first lane row is a dedup hit on a finished job lands its next row Ready
   - Concurrent producers into one lane: the lane runs in job-id order
-  - Lane names fold like concurrency keys: names that differ only in case are one lane
-  - A lane outside the key alphabet is refused at enqueue
+  - A lane is a name: lanes that differ only in case are one lane
+  - A lane that is not a dotted kebab name is refused at enqueue
   - A definition lane orders its jobs, and an enqueue lane overrides it
 
 ### Job reads name the lane and the member a Blocked job waits behind

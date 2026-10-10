@@ -24,12 +24,12 @@ internal sealed class SqlProviderOptionsValidator<TOptions> : IValidateOptions<T
 
         if (
             string.IsNullOrEmpty(options.Schema)
-            || options.Schema.Length > IdentifierSyntax.BareIdentifierMaxLength
-            || !IdentifierSyntax.IsBareIdentifier(options.Schema)
+            || options.Schema.Length > SqlIdentifierSyntax.BareIdentifierMaxLength
+            || !SqlIdentifierSyntax.IsBareIdentifier(options.Schema)
         )
         {
             failures.Add(
-                $"{prefix}.Schema must be a bare SQL identifier (`[a-z][a-z0-9_]*`) no longer than {IdentifierSyntax.BareIdentifierMaxLength} characters."
+                $"{prefix}.Schema must be a bare SQL identifier (`[a-z][a-z0-9_]*`) no longer than {SqlIdentifierSyntax.BareIdentifierMaxLength} characters."
             );
         }
 

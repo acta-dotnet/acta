@@ -54,8 +54,8 @@ public sealed class JobAttribute(string name) : Attribute
     /// <summary>
     /// Default lane for this definition's jobs: the jobs of one lane in one namespace run one at a time, in enqueue
     /// order, the equivalent of an SQS FIFO message group. An enqueue's <see cref="JobEnqueueOptions.Lane"/> overrides
-    /// it but cannot clear it. Code-owned, with no operator override; normalized like a concurrency key, trimmed and
-    /// lowercased, and checked at compile time. A laned definition cannot declare a <see cref="JobScheduleAttribute"/>,
+    /// it but cannot clear it. Code-owned, with no operator override; a name, trimmed and lowercased to dotted kebab,
+    /// and checked at compile time. A laned definition cannot declare a <see cref="JobScheduleAttribute"/>,
     /// because a recurring slot never finishes and would hold its lane forever.
     /// </summary>
     public string? Lane { get; init; }

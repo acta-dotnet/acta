@@ -63,7 +63,7 @@ internal static class JobDefinitionRegistration
     /// the declared key alone is what catches a definition named <c>stripe</c> colliding with another
     /// definition's <c>RateKey = "stripe"</c>.
     /// </summary>
-    public static string EffectiveRateKey(string? rateKey, string name) => IdentifierSyntax.NormalizeLowerInvariant(rateKey ?? name);
+    public static string EffectiveRateKey(string? rateKey, string name) => (rateKey ?? name).ToLowerInvariant();
 
     /// <summary>
     /// Rejects a descriptor whose backoff, timeout, runbook URL, display name or description exceeds
@@ -105,12 +105,12 @@ internal static class JobDefinitionRegistration
         }
         if (descriptor.RateKey is { } rateKey)
         {
-            IdentifierSyntax.ValidateKebab(rateKey, nameof(descriptor.RateKey), MaxRateKeyLength);
+            _ = NameSyntax.Canonicalize(rateKey, nameof(descriptor.RateKey), MaxRateKeyLength);
         }
 
         if (descriptor.Lane is { } lane)
         {
-            IdentifierSyntax.NormalizeKey(lane, nameof(descriptor.Lane));
+            _ = NameSyntax.Canonicalize(lane, nameof(descriptor.Lane), NameSyntax.ExtendedMaxLength, reserveSystem: true);
             if (!descriptor.Schedules.IsDefaultOrEmpty)
             {
                 throw new ArgumentException(

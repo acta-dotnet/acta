@@ -5,14 +5,14 @@ internal static class CatalogValidation
 {
     public static void ValidateTenant(string? displayName, string? description)
     {
-        ValidateLength(displayName, AdminTextLimits.TenantDisplayName, nameof(displayName));
-        ValidateLength(description, AdminTextLimits.TenantDescription, nameof(description));
+        ValidateLength(displayName, TextLimits.TenantDisplayName, nameof(displayName));
+        ValidateLength(description, TextLimits.TenantDescription, nameof(description));
     }
 
     public static void ValidateNamespace(string? ownerTeam, string? description)
     {
-        ValidateLength(ownerTeam, AdminTextLimits.NamespaceOwnerTeam, nameof(ownerTeam));
-        ValidateLength(description, AdminTextLimits.NamespaceDescription, nameof(description));
+        ValidateLength(ownerTeam, TextLimits.NamespaceOwnerTeam, nameof(ownerTeam));
+        ValidateLength(description, TextLimits.NamespaceDescription, nameof(description));
     }
 
     private static void ValidateLength(string? value, int maxLength, string paramName)

@@ -6,7 +6,7 @@ internal sealed class RemoveTagsHandler(ResolveTagTargetHandler resolveTagTarget
     public async ValueTask<RemoveTagsResponse> HandleAsync(RemoveTagsCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command.Target, "target");
-        var name = IdentifierSyntax.CanonicalizeUserDottedKebab(command.Name, "name", TagLimits.MaxNameLength);
+        var name = NameSyntax.Canonicalize(command.Name, "name", TagLimits.MaxNameLength, reserveSystem: true);
         var json = TagJson.Write([new TagInput(name)]);
         var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(command.Target), ct);
         return target is null

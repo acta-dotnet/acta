@@ -17,15 +17,25 @@ public sealed class QueryValidationTests
     }
 
     [Fact]
-    public void ValidateNamespace_still_rejects_mixed_case_and_null_passthrough()
+    public void ValidateNamespace_folds_mixed_case_rejects_malformed_and_passes_null_through()
     {
-        Assert.Throws<InvalidQueryException>(() => QueryValidation.ValidateNamespace("Sys", "namespace"));
+        Assert.Equal("sys", QueryValidation.ValidateNamespace("Sys", "namespace"));
+        Assert.Throws<InvalidQueryException>(() => QueryValidation.ValidateNamespace("bill_ing", "namespace"));
         Assert.Null(QueryValidation.ValidateNamespace(null, "namespace"));
     }
 
     [Fact]
-    public void ValidateJobName_accepts_sys_dot_prefixed_job_names()
+    public void ValidateJobName_accepts_sys_dot_prefixed_job_names_in_any_case()
     {
         Assert.Equal("sys.recovery", QueryValidation.ValidateJobName("sys.recovery", "sys", "jobName"));
+        Assert.Equal("sys.recovery", QueryValidation.ValidateJobName("Sys.Recovery", "sys", "jobName"));
+    }
+
+    [Fact]
+    public void Name_fragments_fold_and_keep_the_like_wildcards_out()
+    {
+        Assert.Equal("send-inv", QueryValidation.ValidateJobNameFragment("Send-Inv", "nameContains"));
+        Assert.Equal("bill", QueryValidation.ValidateNamespaceFragment("BILL", "nameContains"));
+        Assert.Throws<InvalidQueryException>(() => QueryValidation.ValidateJobNameFragment("send_%", "nameContains"));
     }
 }

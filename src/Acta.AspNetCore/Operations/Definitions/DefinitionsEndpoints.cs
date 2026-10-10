@@ -52,7 +52,7 @@ internal static class DefinitionsEndpoints
             "definition",
             options,
             DashboardJsonContext.Default.UpsertDefinitionTagsRequest,
-            static http => TagTarget(http)
+            static http => TagTarget.ForDefinition(Key(http).Namespace, Key(http).Name)
         );
         if (controls is null)
         {
@@ -101,16 +101,4 @@ internal static class DefinitionsEndpoints
 
     private static (string Namespace, string Name) Key(HttpContext http) =>
         (RouteKeys.Value(http, "jobNamespace"), RouteKeys.Value(http, "jobName"));
-
-    /// <summary>
-    /// <see cref="Acta.TagTarget.ForDefinition"/> folds case for its .NET callers, but the definition read rejects anything
-    /// but the canonical lowercase key, so the tag routes apply the read's rule first and answer a bad key the same way.
-    /// </summary>
-    private static TagTarget TagTarget(HttpContext http)
-    {
-        var (jobNamespace, jobName) = Key(http);
-        IdentifierSyntax.ValidateKebab(jobNamespace, nameof(jobNamespace));
-        IdentifierSyntax.ValidateDottedKebab(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength);
-        return Acta.TagTarget.ForDefinition(jobNamespace, jobName);
-    }
 }

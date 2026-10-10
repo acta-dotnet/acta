@@ -33,10 +33,10 @@ internal sealed record RaiseAlertCommand(
         long? sourceEventId
     )
     {
-        channelName = IdentifierSyntax.CanonicalizeKebab(channelName, nameof(channelName), ActaTextLimits.AlertChannelName);
+        channelName = NameSyntax.Canonicalize(channelName, nameof(channelName), maxLength: ActaTextLimits.AlertChannelName);
         if (deduplicationKey is not null)
         {
-            deduplicationKey = IdentifierSyntax.NormalizeKey(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDedupeKey);
+            deduplicationKey = KeySyntax.Canonicalize(deduplicationKey, nameof(deduplicationKey), ActaTextLimits.AlertDedupeKey);
         }
 
         return new RaiseAlertCommand(

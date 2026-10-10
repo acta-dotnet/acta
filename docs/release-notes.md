@@ -10,6 +10,17 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **`DriverVersionPolicy` is gone.** A provider that loads a database driver whose major version differs
   from the one Acta was certified on now logs one warning naming both and keeps running; it no longer
   refuses to start. Remove any `DriverVersionPolicy` setting from the provider options.
+- **Identifiers follow three rules: name, key, display text.** A name is Acta's vocabulary (namespace,
+  job, schedule, signal, tag, lane, tenant, rate meter): ASCII `dotted.kebab-case`, trimmed and lowercased
+  on input, so `Billing.Send-Invoice` registers and resolves as `billing.send-invoice`, and every name may
+  be dotted. A key is the caller's identity (deduplication, concurrency, correlation, lock): printable ASCII
+  without whitespace, kept exactly as given, so `Order-1` and `order-1` are two keys; `|`, `#`, and `*` are
+  now allowed, and only a deduplication key reserves the `sys.` prefix. Display text (display names,
+  values, messages) is any Unicode within its cap. Two things tighten: a correlation key must be printable
+  ASCII (spaces and Unicode used to pass), and a tenant or lane is a name, so an id that starts with a digit
+  or carries `_`, `:`, or `/` must be folded or prefixed by the caller. `IdentifierSyntax` and
+  `AdminTextLimits` are gone: `NameSyntax.Canonicalize(value, paramName, maxLength, reserveSystem)`,
+  `KeySyntax.Canonicalize(value, paramName, maxLength)`, and `TextLimits` replace them.
 - **SQL Server table types and three routines are named verb first.** A direct-SQL enqueue on SQL Server
   declares `acta.enqueue_tags_batch` and, for a batch, `acta.enqueue_jobs_batch`, instead of
   `job_enqueue_tag_batch` and `job_enqueue_batch`. The other types follow the routine that takes them

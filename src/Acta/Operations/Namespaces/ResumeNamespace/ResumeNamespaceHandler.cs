@@ -5,7 +5,7 @@ internal sealed class ResumeNamespaceHandler(IDbSession session, ISqlDialect dia
 {
     public async ValueTask<ResumeNamespaceResponse> HandleAsync(ResumeNamespaceCommand command, CancellationToken ct)
     {
-        var name = IdentifierSyntax.CanonicalizeUserKebab(command.Name, "name", IdentifierSyntax.ExtendedMaxLength);
+        var name = NameSyntax.Canonicalize(command.Name, "name", NameSyntax.ExtendedMaxLength, reserveSystem: true);
 
         return await session.ExecuteOneAsync(
             new StoreCommand("ResumeNamespace"),

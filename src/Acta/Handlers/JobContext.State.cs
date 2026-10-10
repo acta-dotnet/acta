@@ -141,7 +141,7 @@ public abstract partial class JobContext
     }
 
     private static string ValidateUserVariableName(string name) =>
-        IdentifierSyntax.CanonicalizeUserDottedKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
 
     /// <summary>
     /// Subclass sink: set a user variable using the default JSON format.

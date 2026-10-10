@@ -566,8 +566,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
     private IDefinitions Definitions => Operations.Definitions;
 
-    // The composition the runner uses: namespace id, the rate discriminator, and the canonical key.
-    private string Bucket(string key) => $"{NamespaceId}.rate.{IdentifierSyntax.NormalizeLowerInvariant(key)}";
+    // The composition the runner uses: namespace id, the rate discriminator, and the meter, a name folded to lowercase.
+    private string Bucket(string key) => $"{NamespaceId}.rate.{NameSyntax.Canonicalize(key, nameof(key), NameSyntax.ExtendedMaxLength)}";
 
     private Task<ReserveRateResponse> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
         Locks.ReserveRateAsync(bucket, jobId, IntervalMilliseconds, Burst, GraceSeconds, ct);

@@ -36,14 +36,13 @@ internal sealed partial class RuntimeJobContext
     /// <summary>
     /// Concurrency-slot admission, taken by the runner after the start CAS and before the handler.
     /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLock's
-    /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key is
-    /// canonicalized so one group across case never depends on the stored value alone, without the
-    /// public system-prefix rule: an enqueue key was already rejected at enqueue, and a key derived
-    /// from a definition name may legitimately be a system job's (sys.recovery with a limit).
+    /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is
+    /// exact, so two keys that differ only by case are two groups. A key derived from a definition name
+    /// may be a system job's (sys.recovery with a limit), which the key rule allows.
     /// </summary>
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
-        var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKeyLookup(concurrencyKey, nameof(concurrencyKey))}";
+        var prefix = $"{_namespaceId}.sem.{KeySyntax.Canonicalize(concurrencyKey, nameof(concurrencyKey))}";
         var token = (await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
@@ -56,13 +55,13 @@ internal sealed partial class RuntimeJobContext
     /// <summary>
     /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter is the bucket
     /// row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds nothing: it is moved, never
-    /// acquired, so there is no release. The key is canonicalized like the slot key, system names allowed for the same
-    /// reason. The grace a booked turn gets before the sweep may take it is a constant, not the lease TTL: the turn is
-    /// decoded as expiry minus grace, so a value moving with worker settings would shift every booked turn.
+    /// acquired, so there is no release. The meter is a name, folded to lowercase; a definition's own name may be a
+    /// system job's. The grace a booked turn gets before the sweep may take it is a constant, not the lease TTL: the
+    /// turn is decoded as expiry minus grace, so a value moving with worker settings would shift every booked turn.
     /// </summary>
     internal Task<ReserveRateResponse> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
     {
-        var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKeyLookup(rateKey, nameof(rateKey))}";
+        var bucket = $"{_namespaceId}.rate.{NameSyntax.Canonicalize(rateKey, nameof(rateKey), JobDefinitionRegistration.MaxRateKeyLength)}";
         return _locks.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Burst, RateReservationGraceSeconds, ct);
     }
 
@@ -103,12 +102,12 @@ internal sealed partial class RuntimeJobContext
 
     /// <summary>
     /// RunWithLock key space: namespace-scoped {ns_id}.lock.{key}, or global.lock.{key}
-    /// cross-namespace. The `global` sentinel cannot equal a numeric namespace id, so a global lock
-    /// never collides with a namespace-scoped one.
+    /// cross-namespace, with the key part exact. The `global` sentinel cannot equal a numeric namespace
+    /// id, so a global lock never collides with a namespace-scoped one.
     /// </summary>
     private string ComposeLockKey(string key, LockScope scope)
     {
-        key = IdentifierSyntax.NormalizeKey(key, nameof(key));
+        key = KeySyntax.Canonicalize(key, nameof(key));
         return scope == LockScope.Global ? $"global.lock.{key}" : $"{_namespaceId}.lock.{key}";
     }
 }

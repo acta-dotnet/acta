@@ -11,8 +11,8 @@ public static class ActaTestNames
 {
     /// <summary>
     /// Produce a namespace name in the shape <c>t-&lt;class-kebab&gt;-&lt;method-kebab&gt;-&lt;testId&gt;</c>,
-    /// truncated to satisfy the 64-char <c>namespaces.name</c> column and validated against
-    /// <see cref="IdentifierSyntax.ValidateUserKebab"/>. The token is the test's <c>TestId</c>
+    /// truncated to satisfy the 64-char <c>namespaces.name</c> column and checked by
+    /// <see cref="NameSyntax.Canonicalize"/> with the <c>sys</c> reservation. The token is the test's <c>TestId</c>
     /// (see <c>ActaTestBase</c>), so a test's namespace rows and its global-key rows
     /// (<c>TestKey</c>) share one needle.
     /// </summary>
@@ -35,9 +35,7 @@ public static class ActaTestNames
             middle = middle[..headRoom].TrimEnd('-');
         }
 
-        var name = prefix + middle + "-" + hex;
-        IdentifierSyntax.ValidateUserKebab(name, nameof(name));
-        return name;
+        return NameSyntax.Canonicalize(prefix + middle + "-" + hex, "name", reserveSystem: true);
     }
 
     private static string Kebab(string source)
@@ -71,7 +69,7 @@ public static class ActaTestNames
             }
         }
 
-        // Strip leading/trailing hyphens and ensure first char is a letter (IdentifierSyntax requirement).
+        // Strip leading/trailing hyphens and ensure first char is a letter (NameSyntax requirement).
         var result = sb.ToString().Trim('-');
         if (result.Length == 0 || !char.IsAsciiLetterLower(result[0]))
         {

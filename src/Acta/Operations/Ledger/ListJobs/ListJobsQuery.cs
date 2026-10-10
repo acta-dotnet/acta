@@ -1,10 +1,10 @@
 namespace Acta;
 
 /// <summary>
-/// Filters and paging for <see cref="ILedger.ListJobsAsync"/>; jobs are ordered newest first (created_at_utc
-/// descending, id descending). <c>JobNamespace</c> is required with <c>JobName</c>; <c>TenantKey</c> and <c>Lane</c>
-/// fold lowercase, <c>CorrelationKey</c> matches verbatim and case-sensitively; <c>TerminalOnly</c> true restricts to
-/// Succeeded, Failed, and Cancelled, and <c>RecurringOnly</c> true to jobs with at least one live schedule (null or
+/// Filters and paging for <see cref="ILedger.ListJobsAsync"/>, newest first (created_at_utc, id descending).
+/// <c>JobNamespace</c> is required with <c>JobName</c>; the names (<c>JobNamespace</c>, <c>JobName</c>, <c>TenantKey</c>,
+/// <c>Lane</c>) fold lowercase, <c>CorrelationKey</c> matches verbatim and case-sensitively; <c>TerminalOnly</c> true
+/// restricts to Succeeded, Failed, and Cancelled, and <c>RecurringOnly</c> true to jobs with a live schedule (null or
 /// false skips either); <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c> is the previous page's
 /// <see cref="IPagedResponse{T}.NextCursor"/>; <c>Tags</c> restricts to jobs carrying every supplied tag filter.
 /// </summary>

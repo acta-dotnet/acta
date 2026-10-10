@@ -126,7 +126,7 @@ public sealed class MapAsyncTests
         Assert.Equal(name, ctx2.Started[0].Name);
         Assert.StartsWith("group-", name);
         Assert.DoesNotContain(' ', name);
-        Assert.True(IdentifierSyntax.IsKebab(name), $"derived name '{name}' must be kebab");
+        Assert.Equal(name, NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength));
     }
 
     [Fact]

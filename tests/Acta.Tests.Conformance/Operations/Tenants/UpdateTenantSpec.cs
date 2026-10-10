@@ -86,7 +86,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var key = TestKey("adm-meta-long");
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await service.UpdateAsync(key, 0, new string('x', AdminTextLimits.TenantDisplayName + 1), null, null, null, ct)
+            await service.UpdateAsync(key, 0, new string('x', TextLimits.TenantDisplayName + 1), null, null, null, ct)
         );
     }
 }

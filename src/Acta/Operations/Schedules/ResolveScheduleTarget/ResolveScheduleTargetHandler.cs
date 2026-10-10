@@ -11,10 +11,10 @@ internal sealed class ResolveScheduleTargetHandler(GetJobIdHandler getJobId, IAc
     {
         var schedule = query.Schedule;
         ArgumentNullException.ThrowIfNull(schedule);
-        var scheduleName = IdentifierSyntax.CanonicalizeKebab(
+        var scheduleName = NameSyntax.Canonicalize(
             schedule.ScheduleName,
             nameof(schedule.ScheduleName),
-            IdentifierSyntax.ExtendedMaxLength
+            maxLength: NameSyntax.ExtendedMaxLength
         );
 
         if (await getJobId.HandleAsync(new GetJobIdQuery(schedule.Job), ct) is not { JobId: var jobId })

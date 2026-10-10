@@ -20,7 +20,7 @@ public abstract partial class JobContext
     )
         where TInput : notnull
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ArgumentNullException.ThrowIfNull(input);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
@@ -53,7 +53,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
     {
-        name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
+        name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var options = BuildChildOptions(name, configure);
         var request = new EnqueueJobRequest(
             jobNamespace,

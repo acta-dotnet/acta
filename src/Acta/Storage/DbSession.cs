@@ -25,7 +25,7 @@ internal sealed class DbSession : IDbSession
         ArgumentNullException.ThrowIfNull(options.ConnectionString);
         ArgumentNullException.ThrowIfNull(dialect);
         ArgumentNullException.ThrowIfNull(sql);
-        IdentifierSyntax.ValidateBareIdentifier(options.Schema, nameof(options.Schema));
+        SqlIdentifierSyntax.ValidateBareIdentifier(options.Schema, nameof(options.Schema));
 
         Provider = dialect.Provider;
         Schema = options.Schema;

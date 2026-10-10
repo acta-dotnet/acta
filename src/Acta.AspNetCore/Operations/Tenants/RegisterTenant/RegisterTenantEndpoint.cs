@@ -39,14 +39,14 @@ internal static class RegisterTenantEndpoint
                     }
 
                     if (
-                        ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", AdminTextLimits.TenantDisplayName) is
+                        ControlEndpointValidation.ValidateLength(request!.DisplayName, "displayName", TextLimits.TenantDisplayName) is
                         { } displayNameError
                     )
                     {
                         return displayNameError;
                     }
                     if (
-                        ControlEndpointValidation.ValidateLength(request.Description, "description", AdminTextLimits.TenantDescription) is
+                        ControlEndpointValidation.ValidateLength(request.Description, "description", TextLimits.TenantDescription) is
                         { } descriptionError
                     )
                     {
@@ -55,7 +55,12 @@ internal static class RegisterTenantEndpoint
 
                     try
                     {
-                        var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
+                        var canonicalTenantKey = NameSyntax.Canonicalize(
+                            tenantKey,
+                            nameof(tenantKey),
+                            NameSyntax.ExtendedMaxLength,
+                            reserveSystem: true
+                        );
                         var response = await operations.Tenants.RegisterAsync(
                             canonicalTenantKey,
                             request.DisplayName,

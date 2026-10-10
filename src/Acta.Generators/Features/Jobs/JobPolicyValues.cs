@@ -10,30 +10,14 @@ namespace Acta.Generators;
 internal static class JobPolicyValues
 {
     /// <summary>
-    /// The key rule the runtime enforces in <c>IdentifierSyntax.NormalizeKey</c>: trimmed, 1 to 128 key
-    /// characters, lowercased, and not under the reserved <c>sys.</c> prefix. The descriptor carries the
-    /// canonical form, the same value registration would store.
+    /// The name rule the runtime enforces on a lane in <c>NameSyntax.Canonicalize</c>: trimmed and lowercased,
+    /// dotted kebab of at most 128 characters, and not the reserved <c>sys</c> or under <c>sys.</c>. The
+    /// descriptor carries the canonical form, the same value registration would store.
     /// </summary>
     internal static bool TryCanonicalizeLane(string lane, out string canonical)
     {
-        var trimmed = lane.Trim();
-        canonical = trimmed.ToLowerInvariant();
-        if (trimmed.Length is 0 or > 128 || canonical.StartsWith("sys.", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        foreach (var c in trimmed)
-        {
-            var keyChar =
-                c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '-' or '_' or ':' or '/' or '@' or '+' or '=';
-            if (!keyChar)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        canonical = lane.Trim().ToLowerInvariant();
+        return KebabName.IsValidDotted(canonical, maxLength: 128);
     }
 
     /// <summary>

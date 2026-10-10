@@ -374,7 +374,7 @@ internal static class JobPolicyReader
                             ManifestDiagnostics.InvalidPolicyValue(
                                 named.Key,
                                 $"\"{ln}\"",
-                                "Lanes follow the concurrency-key rule: 1 to 128 key characters (a-z, A-Z, 0-9, '.', '-', '_', ':', '/', '@', '+', '=') after trimming, and not under the reserved `sys.` prefix.",
+                                "Lanes are names: dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by '.'), at most 128 chars after trimming and lowercasing, and not the reserved `sys` or under `sys.`.",
                                 location
                             )
                         );

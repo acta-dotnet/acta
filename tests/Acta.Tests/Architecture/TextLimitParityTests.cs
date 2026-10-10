@@ -33,10 +33,10 @@ public sealed class TextLimitParityTests
     [Fact]
     public void Provider_independent_text_limits_match_relational_columns()
     {
-        Assert.Equal(ActaSchema.Tenant.DisplayName.Size, AdminTextLimits.TenantDisplayName);
-        Assert.Equal(ActaSchema.Tenant.Description.Size, AdminTextLimits.TenantDescription);
-        Assert.Equal(ActaSchema.Namespace.OwnerTeam.Size, AdminTextLimits.NamespaceOwnerTeam);
-        Assert.Equal(ActaSchema.Namespace.Description.Size, AdminTextLimits.NamespaceDescription);
+        Assert.Equal(ActaSchema.Tenant.DisplayName.Size, TextLimits.TenantDisplayName);
+        Assert.Equal(ActaSchema.Tenant.Description.Size, TextLimits.TenantDescription);
+        Assert.Equal(ActaSchema.Namespace.OwnerTeam.Size, TextLimits.NamespaceOwnerTeam);
+        Assert.Equal(ActaSchema.Namespace.Description.Size, TextLimits.NamespaceDescription);
         Assert.Equal(ActaSchema.Event.ActorKey.Size, ActaTextLimits.ActorKey);
         Assert.Equal(ActaSchema.Event.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
         Assert.Equal(ActaSchema.Step.ReasonMessage.Size, ActaTextLimits.ReasonMessage);

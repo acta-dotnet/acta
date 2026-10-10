@@ -53,7 +53,7 @@ internal sealed record ClaimedJob(
             ExecutionNumber: Required(row.ExecutionNumber, "execution_number"),
             DeduplicationKey: row.DeduplicationKey is null
                 ? null
-                : IdentifierSyntax.NormalizeKeyLookup(row.DeduplicationKey, nameof(row.DeduplicationKey)),
+                : KeySyntax.Canonicalize(row.DeduplicationKey, nameof(row.DeduplicationKey)),
             CorrelationKey: row.CorrelationKey,
             ConcurrencyKey: row.ConcurrencyKey,
             InputFormatId: Required(row.InputFormatId, "input_format_id"),

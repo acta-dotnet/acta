@@ -63,7 +63,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
 
     public IActaBuilder Run(string namespaceName, Action<IWorkerBuilder> configure)
     {
-        namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
+        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
         ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new WorkerBuilder();
@@ -100,7 +100,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     public IActaBuilder Reference<TManifest>(string namespaceName)
         where TManifest : class, IJobManifest
     {
-        namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
+        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
 
         if (
             !_references.Any(r =>

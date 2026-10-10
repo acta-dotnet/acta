@@ -201,15 +201,15 @@ public sealed class CommandTextCompositionTests
         [
             // The Schema every {{schema}} substitution and every routine header uses, rejected at
             // host startup by ValidateOnStart before a single command is built.
-            ("src/Acta/Hosting/SqlProviderOptionsValidator.cs", "IdentifierSyntax.IsBareIdentifier(options.Schema)"),
+            ("src/Acta/Hosting/SqlProviderOptionsValidator.cs", "SqlIdentifierSyntax.IsBareIdentifier(options.Schema)"),
             // The external-outbox schema and table, the only physical names an application chooses.
-            ("src/Acta/Engine/Outbox/OutboxIdentifier.cs", "IdentifierSyntax.ValidateBareIdentifier(value, kind)"),
+            ("src/Acta/Engine/Outbox/OutboxIdentifier.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(value, kind)"),
             // The routine name each dialect interpolates into its call header.
-            ("src/Acta.Postgres/Services/PostgresDialect.cs", "IdentifierSyntax.ValidateBareIdentifier(routineName"),
-            ("src/Acta.SqlServer/Services/SqlServerDialect.cs", "IdentifierSyntax.ValidateBareIdentifier(routineName"),
+            ("src/Acta.Postgres/Services/PostgresDialect.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(routineName"),
+            ("src/Acta.SqlServer/Services/SqlServerDialect.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(routineName"),
             // The database name the bootstrap DDL interpolates into quoted and bracketed contexts.
-            ("src/Acta.Postgres/Schema/PostgresSchemaMigrator.cs", "IdentifierSyntax.ValidateDatabaseName(databaseName"),
-            ("src/Acta.SqlServer/Schema/SqlServerSchemaMigrator.cs", "IdentifierSyntax.ValidateDatabaseName(databaseName"),
+            ("src/Acta.Postgres/Schema/PostgresSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
+            ("src/Acta.SqlServer/Schema/SqlServerSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
         ];
 
         var failures = new List<string>();

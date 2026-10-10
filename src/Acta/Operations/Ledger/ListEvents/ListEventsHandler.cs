@@ -22,7 +22,7 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
         var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
             ? null
-            : IdentifierSyntax.NormalizeKeyLookup(query.TenantKey, nameof(query.TenantKey));
+            : NameSyntax.Canonicalize(query.TenantKey, nameof(query.TenantKey), NameSyntax.ExtendedMaxLength);
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListEventsQuery));
 

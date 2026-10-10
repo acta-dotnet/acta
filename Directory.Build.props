@@ -91,7 +91,7 @@
          AttemptIdentity and NoteDetail, the note payload of one [Job] handler each, nested in the
          TestJobs probe that writes them because TestJobs is a single flat namespace across 33 probe
          files, where a name that generic belongs to its handler rather than to all of them. The last
-         two are ValidateUserDottedKebabTests and JobPayloadConvenienceFactoryTests in
+         two are UserDottedNameTests and JobPayloadConvenienceFactoryTests in
          JobRequestBuilderTests, where the nesting is xUnit's grouping mechanism: a nested test class
          must be public to be discovered, and it runs under the outer class's name, which is the
          subject those two sub-suites hang off. -->
@@ -122,7 +122,7 @@
     <!-- Outside src only. A spec, a bench and a local-dev helper take their arguments from the code that
          calls them one line above, so a null guard on each is ceremony rather than a contract. The five
          src sites were judged individually: one gained a guard, four already validate through
-         IdentifierSyntax or are owned by System.Text.Json, which never passes a null writer. Note the
+         NameSyntax or are owned by System.Text.Json, which never passes a null writer. Note the
          trees: 75 sites are in tests, 45 in anvil and 2 in support/Acta.LocalHost, so a tests-and-anvil
          scope would leave the last two firing. -->
     <NoWarn
@@ -164,7 +164,7 @@
          resources loaded by SqlResourceCatalog, the rest is text this repo authored, and every value
          travels as a bound DbParameter - no site concatenates one into SQL. What is interpolated is
          identifiers - the schema, the outbox table, the routine name, the bootstrap database name -
-         and each is rejected before it reaches a command unless it matches IdentifierSyntax's bare
+         and each is rejected before it reaches a command unless it matches SqlIdentifierSyntax's bare
          `[a-z][a-z0-9_]*` shape (or, for CREATE DATABASE, the one-character-wider name shape that
          still excludes every quoting character). That is a claim about code rather than a convention
          Acta holds, so it does not get to age unread: CommandTextCompositionTests walks src/ on every

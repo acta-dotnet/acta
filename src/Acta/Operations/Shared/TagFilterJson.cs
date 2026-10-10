@@ -33,14 +33,15 @@ internal static class TagFilterJson
                 string name;
                 try
                 {
-                    name = IdentifierSyntax.CanonicalizeUserDottedKebab(
+                    name = NameSyntax.Canonicalize(
                         filter.Name,
                         $"Tags[{i}].{nameof(TagFilter.Name)}",
-                        TagLimits.MaxNameLength
+                        TagLimits.MaxNameLength,
+                        reserveSystem: true
                     );
                     if (filter.Value is { } value)
                     {
-                        IdentifierSyntax.ValidateDisplayValue(value, $"Tags[{i}].{nameof(TagFilter.Value)}", TagLimits.MaxValueLength);
+                        TextLimits.ValidateDisplayValue(value, $"Tags[{i}].{nameof(TagFilter.Value)}", TagLimits.MaxValueLength);
                     }
                 }
                 catch (ArgumentException ex)

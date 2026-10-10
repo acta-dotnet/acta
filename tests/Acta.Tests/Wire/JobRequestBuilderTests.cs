@@ -6,7 +6,8 @@ namespace Acta.Tests.Wire;
 /// Unit tests for <see cref="JobRequestBuilder"/>. Covers happy-path construction, eager validation
 /// of identifiers and lengths, last-write-wins tag dedup, the null-when-empty Tags convention, and
 /// repeatability isolation between consecutive <see cref="JobRequestBuilder.Build"/> calls. Also
-/// exercises the new <see cref="IdentifierSyntax.ValidateUserDottedKebab"/> helper and the
+/// exercises the name rule a caller's names follow (<see cref="NameSyntax.Canonicalize"/> with the <c>sys</c>
+/// reservation) and the
 /// <see cref="JobPayload.Text"/> / <see cref="JobPayload.Bytes"/> factories independently of the
 /// builder.
 /// </summary>
@@ -152,7 +153,7 @@ public class JobRequestBuilderTests
         Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).TenantKey(null!));
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).TenantKey("  "));
         Assert.Throws<ArgumentException>(() =>
-            JobRequestBuilder.Create(Ns, Name).TenantKey(new string('a', IdentifierSyntax.ExtendedMaxLength + 1))
+            JobRequestBuilder.Create(Ns, Name).TenantKey(new string('a', NameSyntax.ExtendedMaxLength + 1))
         );
     }
 
@@ -279,7 +280,7 @@ public class JobRequestBuilderTests
     [Fact]
     public void Tag_rejects_name_over_length_limit()
     {
-        var tooLong = new string('a', IdentifierSyntax.ExtendedMaxLength + 1);
+        var tooLong = new string('a', NameSyntax.ExtendedMaxLength + 1);
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).Tag(tooLong, "x"));
     }
 
@@ -295,7 +296,7 @@ public class JobRequestBuilderTests
     [Fact]
     public void Tag_value_at_length_limit_is_accepted()
     {
-        var atLimit = new string('a', IdentifierSyntax.ExtendedMaxLength);
+        var atLimit = new string('a', NameSyntax.ExtendedMaxLength);
         var built = JobRequestBuilder.Create(Ns, Name).Tag("name", atLimit).Build();
         Assert.Equal(atLimit, built.Tags![0].Value);
     }
@@ -303,7 +304,7 @@ public class JobRequestBuilderTests
     [Fact]
     public void Tag_value_over_length_limit_throws()
     {
-        var tooLong = new string('a', IdentifierSyntax.ExtendedMaxLength + 1);
+        var tooLong = new string('a', NameSyntax.ExtendedMaxLength + 1);
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).Tag("name", tooLong));
     }
 
@@ -357,7 +358,7 @@ public class JobRequestBuilderTests
     [Fact]
     public void Batch_rejects_value_over_length_limit()
     {
-        var tooLong = new string('a', IdentifierSyntax.ExtendedMaxLength + 1);
+        var tooLong = new string('a', NameSyntax.ExtendedMaxLength + 1);
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).Batch(tooLong));
     }
 
@@ -389,7 +390,7 @@ public class JobRequestBuilderTests
     [Fact]
     public void Namespace_over_length_limit_throws()
     {
-        var tooLong = new string('a', IdentifierSyntax.DefaultMaxLength + 1);
+        var tooLong = new string('a', NameSyntax.DefaultMaxLength + 1);
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(tooLong, Name));
     }
 
@@ -404,7 +405,7 @@ public class JobRequestBuilderTests
     [Fact]
     public void JobName_over_extended_length_limit_throws()
     {
-        var tooLong = new string('a', IdentifierSyntax.ExtendedMaxLength + 1);
+        var tooLong = new string('a', NameSyntax.ExtendedMaxLength + 1);
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, tooLong));
     }
 
@@ -414,7 +415,7 @@ public class JobRequestBuilderTests
         Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey(null!));
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("  "));
         Assert.Throws<ArgumentException>(() =>
-            JobRequestBuilder.Create(Ns, Name).DeduplicationKey(new string('a', IdentifierSyntax.ExtendedMaxLength + 1))
+            JobRequestBuilder.Create(Ns, Name).DeduplicationKey(new string('a', NameSyntax.ExtendedMaxLength + 1))
         );
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("sys.reserved"));
     }
@@ -425,14 +426,28 @@ public class JobRequestBuilderTests
         Assert.Throws<ArgumentNullException>(() => JobRequestBuilder.Create(Ns, Name).CorrelationKey(null!));
         Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).CorrelationKey("  "));
         Assert.Throws<ArgumentException>(() =>
-            JobRequestBuilder.Create(Ns, Name).CorrelationKey(new string('a', IdentifierSyntax.ExtendedMaxLength + 1))
+            JobRequestBuilder.Create(Ns, Name).CorrelationKey(new string('a', NameSyntax.ExtendedMaxLength + 1))
         );
     }
 
     [Fact]
-    public void Builder_rejects_mixed_case_job_name()
+    public void Builder_folds_mixed_case_names_and_keeps_keys_exact()
     {
-        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, "Add-Numbers"));
+        var request = JobRequestBuilder
+            .Create("Samples", "Add-Numbers")
+            .DeduplicationKey("Order-7")
+            .ConcurrencyKey("Mutex-A")
+            .Lane("ORDER-1")
+            .TenantKey("ACME")
+            .Build();
+
+        Assert.Equal("samples", request.JobNamespace);
+        Assert.Equal("add-numbers", request.JobName);
+        Assert.Equal("Order-7", request.DeduplicationKey);
+        Assert.Equal("Mutex-A", request.ConcurrencyKey);
+        Assert.Equal("order-1", request.Lane);
+        Assert.Equal("acme", request.TenantKey);
+        Assert.Throws<ArgumentException>(() => JobRequestBuilder.Create(Ns, Name).DeduplicationKey("SYS.x"));
     }
 
     [Fact]
@@ -466,7 +481,7 @@ public class JobRequestBuilderTests
         Assert.Equal(2, secondBuild.Tags!.Count);
     }
 
-    public class ValidateUserDottedKebabTests
+    public class UserDottedNameTests
     {
         [Theory]
         [InlineData("env")]
@@ -475,22 +490,22 @@ public class JobRequestBuilderTests
         [InlineData("a-b.c-d.e-f")]
         public void Accepts_valid_dotted_kebab(string value)
         {
-            IdentifierSyntax.ValidateUserDottedKebab(value, nameof(value), IdentifierSyntax.ExtendedMaxLength);
+            Assert.Equal(value, NameSyntax.Canonicalize(value, nameof(value), NameSyntax.ExtendedMaxLength, reserveSystem: true));
         }
 
         [Theory]
         [InlineData("sys.env")]
+        [InlineData("SYS.env")]
         [InlineData("sys.")]
         public void Rejects_system_prefix(string value)
         {
             Assert.Throws<ArgumentException>(() =>
-                IdentifierSyntax.ValidateUserDottedKebab(value, nameof(value), IdentifierSyntax.ExtendedMaxLength)
+                NameSyntax.Canonicalize(value, nameof(value), NameSyntax.ExtendedMaxLength, reserveSystem: true)
             );
         }
 
         [Theory]
         [InlineData("")]
-        [InlineData("Env")]
         [InlineData("env_prod")]
         [InlineData(".env")]
         [InlineData("env.")]
@@ -498,7 +513,7 @@ public class JobRequestBuilderTests
         public void Rejects_invalid_shape(string value)
         {
             Assert.Throws<ArgumentException>(() =>
-                IdentifierSyntax.ValidateUserDottedKebab(value, nameof(value), IdentifierSyntax.ExtendedMaxLength)
+                NameSyntax.Canonicalize(value, nameof(value), NameSyntax.ExtendedMaxLength, reserveSystem: true)
             );
         }
     }

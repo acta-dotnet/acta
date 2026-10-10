@@ -482,14 +482,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// Group claimed rows by target identity; the earliest staged row is the representative sent to the
     /// target, avoiding the ledger's same-batch duplicate-key rejection. Groups keep the claim order.
     /// The group keeps every member row so retry/quarantine can advance each row's own failure
-    /// count. The grouping key is case-folded (keys are ASCII by contract) to match the target's
-    /// dedup normalization, so two case-variant handoffs coalesce into one group instead of
-    /// colliding at the target.
+    /// count. The grouping key matches the target's dedup: the namespace folded like every name, the
+    /// deduplication key exact, so two handoffs whose keys differ only by case are two jobs.
     /// </summary>
     private static List<OutboxGroup> Coalesce(IReadOnlyList<ClaimOutboxRow> claimed) =>
         [
             .. claimed
-                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))
+                .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey))
                 .Select(g =>
                 {
                     var ordered = g.OrderBy(static r => r.Id).ToList();

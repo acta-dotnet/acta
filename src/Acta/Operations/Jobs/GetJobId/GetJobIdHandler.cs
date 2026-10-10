@@ -16,8 +16,8 @@ internal sealed class GetJobIdHandler(ResolveJobIdByRefHandler byRef, ResolveJob
             JobLookupKind.JobRef => byRef.HandleAsync(new ResolveJobIdByRefQuery(job.JobRef!.Value), ct),
             JobLookupKind.DeduplicationKey => byDeduplicationKey.HandleAsync(
                 new ResolveJobIdByDeduplicationKeyQuery(
-                    IdentifierSyntax.CanonicalizeKebab(job.JobNamespace!, nameof(job.JobNamespace)),
-                    IdentifierSyntax.NormalizeKeyLookup(job.DeduplicationKey!, nameof(job.DeduplicationKey))
+                    NameSyntax.Canonicalize(job.JobNamespace!, nameof(job.JobNamespace)),
+                    KeySyntax.Canonicalize(job.DeduplicationKey!, nameof(job.DeduplicationKey))
                 ),
                 ct
             ),

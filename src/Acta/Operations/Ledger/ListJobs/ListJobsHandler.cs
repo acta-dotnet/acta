@@ -15,12 +15,14 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
         var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
             ? null
-            : IdentifierSyntax.NormalizeKeyLookup(query.TenantKey, nameof(query.TenantKey));
+            : NameSyntax.Canonicalize(query.TenantKey, nameof(query.TenantKey), NameSyntax.ExtendedMaxLength);
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
         // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
         var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
         var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
-        var lane = string.IsNullOrWhiteSpace(query.Lane) ? null : IdentifierSyntax.NormalizeKeyLookup(query.Lane, nameof(query.Lane));
+        var lane = string.IsNullOrWhiteSpace(query.Lane)
+            ? null
+            : NameSyntax.Canonicalize(query.Lane, nameof(query.Lane), NameSyntax.ExtendedMaxLength);
 
         var paging = Paging.Start(
             "ListJobs",

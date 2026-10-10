@@ -6,7 +6,7 @@ namespace Acta;
 /// </summary>
 internal static class TagValueSearch
 {
-    internal const int MaxLength = IdentifierSyntax.ExtendedMaxLength;
+    internal const int MaxLength = NameSyntax.ExtendedMaxLength;
 
     public static string? Normalize(string? value, string paramName = "value")
     {

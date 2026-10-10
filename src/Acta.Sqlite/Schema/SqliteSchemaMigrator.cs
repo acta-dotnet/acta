@@ -21,7 +21,7 @@ internal static class SqliteSchemaMigrator
     public static async Task ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
@@ -38,7 +38,7 @@ internal static class SqliteSchemaMigrator
     public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync(ct);
@@ -62,7 +62,7 @@ internal static class SqliteSchemaMigrator
     public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         // The one place in this package that reads the connection string, and the reason is the whole
         // point of the check: opening a SqliteConnection creates the file, so a typo'd Data Source
@@ -92,7 +92,7 @@ internal static class SqliteSchemaMigrator
     public static async Task ResetSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);
@@ -109,7 +109,7 @@ internal static class SqliteSchemaMigrator
     public static async Task DropSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
-        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
         if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(ct);

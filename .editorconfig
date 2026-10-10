@@ -437,10 +437,10 @@ dotnet_diagnostic.CA1062.severity = none
 [src/Acta/Handlers/JobContext.cs]
 dotnet_diagnostic.CA1822.severity = none
 
-# CA1062: MapAsync's groupName is validated on entry - IdentifierSyntax.ValidateUserKebab reaches
-# EnsureNonEmptyAndLength, which opens with ArgumentNullException.ThrowIfNull(value, nameof(groupName)),
-# so a null already throws naming the right parameter before the flagged use. CA1062 does not follow
-# validation two frames down, and a local guard would be dead code; the sibling ParallelAsync validates
+# CA1062: MapAsync's groupName is validated on entry - NameSyntax.Validate opens with
+# ArgumentNullException.ThrowIfNull(value, nameof(groupName)), so a null already throws naming the
+# right parameter before the flagged use. CA1062 does not follow validation into a callee, and a
+# local guard would be dead code; the sibling ParallelAsync validates
 # the same way and escapes the rule only because it never dereferences the name.
 [src/Acta/Handlers/JobContext.FanOut.cs]
 dotnet_diagnostic.CA1062.severity = none

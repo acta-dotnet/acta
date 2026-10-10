@@ -179,7 +179,7 @@ public abstract partial class JobContext
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         if (channelName is not null)
         {
-            channelName = IdentifierSyntax.CanonicalizeKebab(channelName, nameof(channelName), IdentifierSyntax.ExtendedMaxLength);
+            channelName = NameSyntax.Canonicalize(channelName, nameof(channelName), maxLength: NameSyntax.ExtendedMaxLength);
         }
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);

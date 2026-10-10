@@ -88,7 +88,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
             await Operations.Namespaces.UpdateAsync(
                 TestNamespace,
                 0,
-                new string('x', AdminTextLimits.NamespaceOwnerTeam + 1),
+                new string('x', TextLimits.NamespaceOwnerTeam + 1),
                 null,
                 null,
                 null,

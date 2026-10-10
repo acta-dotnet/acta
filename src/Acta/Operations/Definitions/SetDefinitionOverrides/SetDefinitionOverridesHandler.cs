@@ -112,10 +112,10 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
         {
             overrides = overrides with
             {
-                AlertChannelName = IdentifierSyntax.CanonicalizeKebab(
+                AlertChannelName = NameSyntax.Canonicalize(
                     alertChannelName,
                     nameof(overrides.AlertChannelName),
-                    ActaTextLimits.AlertChannelName
+                    maxLength: ActaTextLimits.AlertChannelName
                 ),
             };
         }

@@ -17,7 +17,7 @@ test('buildNamespaceDetailsPayload sends null for a blank field, clearing that c
 test('isSysNamespace mirrors the backend reservation: the bare name and the sys. prefix', () => {
   assert.equal(isSysNamespace(RESERVED_SYSTEM_NAMESPACE), true);
   assert.equal(isSysNamespace('sys'), true);
-  // IdentifierSyntax.IsReservedSystemName reserves the prefix too, so the guardrail follows it.
+  // The registration rule reserves the prefix too, so the guardrail follows it.
   assert.equal(isSysNamespace('sys.recovery'), true);
   // Only the delimited prefix counts - a name that merely starts with the letters is a user row.
   assert.equal(isSysNamespace('system-billing'), false);

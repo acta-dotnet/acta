@@ -3,12 +3,13 @@ using Xunit;
 namespace Acta.Tests.Wire;
 
 /// <summary>
-/// A lane id follows the concurrency-key rule at every entry point: trimmed, lowercased, 1 to 128
-/// characters of the key alphabet, and never under the reserved <c>sys.</c> prefix.
+/// A lane is a name at every entry point: trimmed, lowercased, dotted kebab of 1 to 128 characters, and
+/// never the reserved <c>sys</c> or under <c>sys.</c>. A caller with an external id folds it into that shape.
 /// </summary>
 public sealed class LaneOptionTests
 {
-    public static TheoryData<string> InvalidLanes => ["", "   ", "has space", "café", "sys.reserved", new string('l', 129)];
+    public static TheoryData<string> InvalidLanes =>
+        ["", "   ", "has space", "caf\u00e9", "order:42", "order_42", "42", "sys", "sys.reserved", "SYS.Reserved", new string('l', 129)];
 
     [Theory]
     [InlineData(typeof(JobEnqueueOptionsBuilder))]

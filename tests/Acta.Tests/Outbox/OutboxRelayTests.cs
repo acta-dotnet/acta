@@ -71,22 +71,23 @@ public sealed class OutboxRelayTests
     }
 
     [Fact]
-    public async Task Case_variant_keys_coalesce_to_one_group_and_delete_together()
+    public async Task Case_variant_namespaces_coalesce_while_case_variant_keys_stay_two_groups()
     {
-        // Keys are ASCII by contract and fold case-insensitively at the target: "ORD-1" and "ord-1" are the
-        // same handoff, so they must coalesce into ONE group (one representative, one target entry) and both
-        // rows delete. Raw grouping would send two colliding entries and the target would reject the batch.
-        var upper = Row("ORD-1", created: Now, id: Guid.NewGuid());
+        // The namespace is a name and folds at the target, so "Orders" and "orders" with one key are the same
+        // handoff: ONE group, one target entry, both rows delete. The key is exact, so "ORD-1" beside "ord-1" is
+        // a second job, never coalesced into the first.
+        var upper = Row("ord-1", ns: "Orders", created: Now, id: Guid.NewGuid());
         var lower = Row("ord-1", created: Now.AddSeconds(5), id: Guid.NewGuid());
-        var store = new FakeStore(upper, lower);
+        var otherKey = Row("ORD-1", created: Now.AddSeconds(10), id: Guid.NewGuid());
+        var store = new FakeStore(upper, lower, otherKey);
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
         await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
         var batch = Assert.Single(target.Batches);
-        Assert.Single(batch);
-        Assert.Equal([upper.OutboxId, lower.OutboxId], store.Deleted.ToHashSet());
+        Assert.Equal(2, batch.Count);
+        Assert.Equal([upper.OutboxId, lower.OutboxId, otherKey.OutboxId], store.Deleted.ToHashSet());
     }
 
     [Fact]

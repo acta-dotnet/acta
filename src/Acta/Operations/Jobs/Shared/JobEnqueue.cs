@@ -48,8 +48,8 @@ internal static class JobEnqueue
     }
 
     /// <summary>
-    /// Names must already be lowercase Acta names; equality keys normalize to lowercase ASCII.
-    /// CorrelationKey is an external token and is preserved exactly.
+    /// Names fold to lowercase outside the <c>sys</c> reservation; keys keep their case, and the deduplication key may
+    /// not start with <c>sys.</c>.
     /// </summary>
     internal static JobEnqueueValues Canonicalize(JobEnqueueValues row)
     {
@@ -57,16 +57,21 @@ internal static class JobEnqueue
 
         return row with
         {
-            NamespaceName = IdentifierSyntax.CanonicalizeUserKebab(row.NamespaceName, nameof(row.NamespaceName)),
-            JobName = IdentifierSyntax.CanonicalizeUserKebab(row.JobName, nameof(row.JobName), IdentifierSyntax.ExtendedMaxLength),
+            NamespaceName = NameSyntax.Canonicalize(row.NamespaceName, nameof(row.NamespaceName), reserveSystem: true),
+            JobName = NameSyntax.Canonicalize(row.JobName, nameof(row.JobName), NameSyntax.ExtendedMaxLength, reserveSystem: true),
             DeduplicationKey = row.DeduplicationKey is null
                 ? null
-                : IdentifierSyntax.NormalizeKey(row.DeduplicationKey, nameof(row.DeduplicationKey)),
-            ConcurrencyKey = row.ConcurrencyKey is null
+                : DeduplicationKey.Canonicalize(row.DeduplicationKey, nameof(row.DeduplicationKey)),
+            CorrelationKey = row.CorrelationKey is null
                 ? null
-                : IdentifierSyntax.NormalizeKey(row.ConcurrencyKey, nameof(row.ConcurrencyKey)),
-            TenantKey = row.TenantKey is null ? null : IdentifierSyntax.NormalizeTenantKey(row.TenantKey, nameof(row.TenantKey)),
-            Lane = row.Lane is null ? null : IdentifierSyntax.NormalizeKey(row.Lane, nameof(row.Lane)),
+                : KeySyntax.Canonicalize(row.CorrelationKey, nameof(row.CorrelationKey), NameSyntax.DefaultMaxLength),
+            ConcurrencyKey = row.ConcurrencyKey is null ? null : KeySyntax.Canonicalize(row.ConcurrencyKey, nameof(row.ConcurrencyKey)),
+            TenantKey = row.TenantKey is null
+                ? null
+                : NameSyntax.Canonicalize(row.TenantKey, nameof(row.TenantKey), NameSyntax.ExtendedMaxLength, reserveSystem: true),
+            Lane = row.Lane is null
+                ? null
+                : NameSyntax.Canonicalize(row.Lane, nameof(row.Lane), NameSyntax.ExtendedMaxLength, reserveSystem: true),
             Tags = tags,
         };
     }

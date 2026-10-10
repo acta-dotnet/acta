@@ -31,7 +31,7 @@ internal sealed record StartWorkerCommand(
         Guid workerRef
     ) =>
         new(
-            IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName)),
+            NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true),
             ownerTeam,
             description,
             Acta.CatalogHash.Of(ownerTeam, description),

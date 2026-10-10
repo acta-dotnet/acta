@@ -204,7 +204,6 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     private LocksOperations Locks => Services.GetRequiredService<LocksOperations>();
 
-    // The composition the runner uses: namespace id, the sem discriminator, and the canonical key.
-    private string SlotPrefix(string key) =>
-        $"{Runtime.RegisteredNamespaceIds[TestNamespace]}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}";
+    // The composition the runner uses: namespace id, the sem discriminator, and the exact key.
+    private string SlotPrefix(string key) => $"{Runtime.RegisteredNamespaceIds[TestNamespace]}.sem.{key}";
 }

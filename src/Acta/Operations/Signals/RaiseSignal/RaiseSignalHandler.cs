@@ -18,7 +18,7 @@ internal sealed class RaiseSignalHandler(
 
     public async ValueTask<RaiseSignalResponse> HandleAsync(RaiseSignalCommand command, CancellationToken ct)
     {
-        var name = IdentifierSyntax.CanonicalizeUserKebab(command.Name, "name", IdentifierSyntax.ExtendedMaxLength);
+        var name = NameSyntax.Canonicalize(command.Name, "name", NameSyntax.ExtendedMaxLength, reserveSystem: true);
         var value = command.Value;
         if (value.Data.Length > _maxInlinePayloadBytes)
         {
