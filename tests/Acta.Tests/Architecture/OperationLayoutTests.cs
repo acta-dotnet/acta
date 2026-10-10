@@ -184,7 +184,7 @@ public sealed class OperationLayoutTests
     /// <summary>
     /// A group's root shows its operations class, <c>&lt;Group&gt;Operations</c>, and the interfaces that class implements,
     /// directly or through each other; the <c>Operations/</c> root shows <c>ActaOperations</c> and its interface, beside the
-    /// groups and <c>Shared/</c>. <c>Domain/</c> has exactly <c>Codes/</c> and <c>Entities/</c> below its root.
+    /// groups and <c>Shared/</c>. Below <c>Domain/</c> sit <c>Codes/</c>, <c>Entities/</c>, and one folder per group, named for it.
     /// </summary>
     [Fact]
     public void Each_group_root_shows_its_operations_class_and_its_interfaces()
@@ -241,7 +241,7 @@ public sealed class OperationLayoutTests
             Directory
                 .EnumerateDirectories(domain)
                 .Select(Path.GetFileName)
-                .Where(dir => dir is not ("Codes" or "Entities"))
+                .Where(dir => dir is not ("Codes" or "Entities") && !Directory.Exists(Path.Combine(operations, dir!)))
                 .Select(dir => $"domain-folder: {dir}")
         );
 
