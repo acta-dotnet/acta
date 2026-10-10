@@ -28,6 +28,7 @@ public static class ActaServiceCollectionExtensions
 
         AddRuntimeDefaults(services);
         AddOperations(services);
+        AddEngineOperations(services);
         AddExecutionServices(services);
 
         var builder = new ActaBuilder(services);
@@ -87,146 +88,165 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IJobPayloadSerializerRegistry, JobPayloadSerializerRegistry>();
     }
 
-    /// <summary>Every operation group: its handlers, then its facade.</summary>
+    /// <summary>
+    /// The operator facade and every group with a public interface, groups in alphabetical order: each group's handlers,
+    /// its shared helpers, then its operations class and interface.
+    /// </summary>
     private static void AddOperations(IServiceCollection services)
     {
-        // The operator facade over the group facades. Application code injects IJobs alone; dashboards,
-        // CLIs, and operator hosts inject IActaOperations.
+        // Application code injects IJobs alone; dashboards, CLIs, and operator hosts inject IActaOperations.
         services.TryAddSingleton<IActaOperations, ActaOperations>();
 
-        // Operation groups that have moved to handlers: each group's handlers, then its facade.
+        services.TryAddSingleton<AcknowledgeAlertHandler>();
+        services.TryAddSingleton<GetAlertableEventsHandler>();
+        services.TryAddSingleton<GetAlertHandler>();
+        services.TryAddSingleton<GetDeliverableAlertsHandler>();
+        services.TryAddSingleton<ListAlertsHandler>();
+        services.TryAddSingleton<RaiseAlertHandler>();
+        services.TryAddSingleton<ResolveAlertHandler>();
+        services.TryAddSingleton<ResolveAlertsHandler>();
+        services.TryAddSingleton<UpdateAlertDeliveryHandler>();
+        services.TryAddSingleton<AlertsOperations>();
+        services.TryAddSingleton<IAlerts>(sp => sp.GetRequiredService<AlertsOperations>());
+
+        services.TryAddSingleton<GetDefinitionContractsHandler>();
+        services.TryAddSingleton<GetDefinitionHandler>();
+        services.TryAddSingleton<ListDefinitionsHandler>();
+        services.TryAddSingleton<RegisterDefinitionsHandler>();
+        services.TryAddSingleton<ResolveDefinitionIdHandler>();
+        services.TryAddSingleton<RetireDefinitionHandler>();
+        services.TryAddSingleton<SetDefinitionOverridesHandler>();
+        services.TryAddSingleton<DefinitionsOperations>();
+        services.TryAddSingleton<IDefinitions>(sp => sp.GetRequiredService<DefinitionsOperations>());
+
+        services.TryAddSingleton<CancelJobHandler>();
+        services.TryAddSingleton<EnqueueJobHandler>();
+        services.TryAddSingleton<EnqueueJobsHandler>();
+        services.TryAddSingleton<GetCheckpointsHandler>();
+        services.TryAddSingleton<GetInputTemplateHandler>();
+        services.TryAddSingleton<GetJobExplanationHandler>();
+        services.TryAddSingleton<GetJobHandler>();
+        services.TryAddSingleton<GetJobIdHandler>();
+        services.TryAddSingleton<GetJobInputHandler>();
+        services.TryAddSingleton<GetJobLineageMapHandler>();
+        services.TryAddSingleton<GetJobStatusHandler>();
+        services.TryAddSingleton<GetResultHandler>();
+        services.TryAddSingleton<PauseJobHandler>();
+        services.TryAddSingleton<PurgeJobHandler>();
+        services.TryAddSingleton<ReprioritizeJobHandler>();
+        services.TryAddSingleton<RescheduleJobHandler>();
+        services.TryAddSingleton<ResetJobStateHandler>();
+        services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
+        services.TryAddSingleton<ResolveJobIdByRefHandler>();
+        services.TryAddSingleton<RestartJobHandler>();
+        services.TryAddSingleton<ResumeJobHandler>();
+        services.TryAddSingleton<UpdateJobInputHandler>();
+        services.TryAddSingleton<JobRequestRouting>();
+        services.TryAddSingleton<JobsOperations>();
+        services.TryAddSingleton<IJobs>(sp => sp.GetRequiredService<JobsOperations>());
+
+        services.TryAddSingleton<GetOverviewHandler>();
+        services.TryAddSingleton<ListEventsHandler>();
+        services.TryAddSingleton<ListJobsHandler>();
+        services.TryAddSingleton<LedgerOperations>();
+        services.TryAddSingleton<ILedger>(sp => sp.GetRequiredService<LedgerOperations>());
+
+        services.TryAddSingleton<ListNamespaceNamesHandler>();
+        services.TryAddSingleton<ListNamespacesHandler>();
+        services.TryAddSingleton<ResumeNamespaceHandler>();
+        services.TryAddSingleton<SuspendNamespaceHandler>();
+        services.TryAddSingleton<UpdateNamespaceHandler>();
+        services.TryAddSingleton<NamespacesOperations>();
+        services.TryAddSingleton<INamespaces>(sp => sp.GetRequiredService<NamespacesOperations>());
+
+        services.TryAddSingleton<ConsumeOutboxSignalHandler>();
+        services.TryAddSingleton<DiscardOutboxHandler>();
+        services.TryAddSingleton<GetOutboxSignalHandler>();
+        services.TryAddSingleton<ListOutboxQuarantinedHandler>();
+        services.TryAddSingleton<ListOutboxSourcesHandler>();
+        services.TryAddSingleton<ParkOutboxSignalHandler>();
+        services.TryAddSingleton<RecordOutboxEventHandler>();
+        services.TryAddSingleton<RequeueOutboxHandler>();
+        services.TryAddSingleton<OutboxOperations>();
+        services.TryAddSingleton<IOutbox>(sp => sp.GetRequiredService<OutboxOperations>());
+
+        services.TryAddSingleton<GetLiveSchedulesHandler>();
+        services.TryAddSingleton<GetScheduleStateHandler>();
+        services.TryAddSingleton<ListSchedulesHandler>();
+        services.TryAddSingleton<PauseScheduleHandler>();
+        services.TryAddSingleton<PreviewScheduleHandler>();
+        services.TryAddSingleton<RegisterSchedulesHandler>();
+        services.TryAddSingleton<ResolveScheduleTargetHandler>();
+        services.TryAddSingleton<ResumeScheduleHandler>();
+        services.TryAddSingleton<SetScheduleOverridesHandler>();
+        services.TryAddSingleton<TriggerScheduleNowHandler>();
+        services.TryAddSingleton<SchedulesOperations>();
+        services.TryAddSingleton<ISchedules>(sp => sp.GetRequiredService<SchedulesOperations>());
+
+        services.TryAddSingleton<GetTagsHandler>();
+        services.TryAddSingleton<RemoveTagsHandler>();
+        services.TryAddSingleton<ReplaceTagsHandler>();
+        services.TryAddSingleton<ResolveTagTargetHandler>();
+        services.TryAddSingleton<UpsertTagsHandler>();
+        services.TryAddSingleton<TagsOperations>();
+        services.TryAddSingleton<ITags>(sp => sp.GetRequiredService<TagsOperations>());
+
+        services.TryAddSingleton<GetTenantHandler>();
+        services.TryAddSingleton<GetTenantKeyHandler>();
+        services.TryAddSingleton<ListTenantsHandler>();
+        services.TryAddSingleton<RegisterTenantHandler>();
+        services.TryAddSingleton<ResumeTenantHandler>();
+        services.TryAddSingleton<SuspendTenantHandler>();
+        services.TryAddSingleton<UpdateTenantHandler>();
+        services.TryAddSingleton<TenantsOperations>();
+        services.TryAddSingleton<ITenants>(sp => sp.GetRequiredService<TenantsOperations>());
+
+        services.TryAddSingleton<ExtendWorkerLeasesHandler>();
+        services.TryAddSingleton<GetWorkerHandler>();
+        services.TryAddSingleton<ListWorkersHandler>();
+        services.TryAddSingleton<MarkDeadWorkersHandler>();
+        services.TryAddSingleton<StartWorkerHandler>();
+        services.TryAddSingleton<StopWorkerHandler>();
+        services.TryAddSingleton<WorkersOperations>();
+        services.TryAddSingleton<IWorkers>(sp => sp.GetRequiredService<WorkersOperations>());
+    }
+
+    /// <summary>The groups only the engine calls, in the same order as <see cref="AddOperations"/>.</summary>
+    private static void AddEngineOperations(IServiceCollection services)
+    {
         services.TryAddSingleton<GetUtcNowHandler>();
         services.TryAddSingleton<ClockOperations>();
         services.AddSingleton<IClockOperations>(sp => sp.GetRequiredService<ClockOperations>());
         services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IClockOperations>());
-        services.TryAddSingleton<RegisterTenantHandler>();
-        services.TryAddSingleton<GetTenantHandler>();
-        services.TryAddSingleton<GetTenantKeyHandler>();
-        services.TryAddSingleton<ListTenantsHandler>();
-        services.TryAddSingleton<SuspendTenantHandler>();
-        services.TryAddSingleton<ResumeTenantHandler>();
-        services.TryAddSingleton<UpdateTenantHandler>();
-        services.TryAddSingleton<TenantsOperations>();
-        services.TryAddSingleton<ITenants>(sp => sp.GetRequiredService<TenantsOperations>());
-        services.TryAddSingleton<ListNamespaceNamesHandler>();
-        services.TryAddSingleton<ListNamespacesHandler>();
-        services.TryAddSingleton<SuspendNamespaceHandler>();
-        services.TryAddSingleton<ResumeNamespaceHandler>();
-        services.TryAddSingleton<UpdateNamespaceHandler>();
-        services.TryAddSingleton<NamespacesOperations>();
-        services.TryAddSingleton<INamespaces>(sp => sp.GetRequiredService<NamespacesOperations>());
+
+        services.TryAddSingleton<AccessCheckpointHandler>();
+        services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
+        services.TryAddSingleton<ClaimJobHandler>();
+        services.TryAddSingleton<ClaimJobsHandler>();
+        services.TryAddSingleton<CompleteExecutionHandler>();
+        services.TryAddSingleton<CompleteExecutionsHandler>();
+        services.TryAddSingleton<CompleteStepHandler>();
+        services.TryAddSingleton<GetChildJobIdsHandler>();
+        services.TryAddSingleton<GetStaleChildLatchesHandler>();
+        services.TryAddSingleton<ReclaimStuckJobsHandler>();
+        services.TryAddSingleton<RecordNoteHandler>();
+        services.TryAddSingleton<RepairRecoverySlotHandler>();
+        services.TryAddSingleton<StartExecutionHandler>();
+        services.TryAddSingleton<StartStepHandler>();
+        services.TryAddSingleton<ExecutionOperations>();
+
         services.TryAddSingleton<AcquireLockHandler>();
         services.TryAddSingleton<AcquireSlotHandler>();
-        services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<ReleaseLockHandler>();
+        services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<LocksOperations>();
+
         services.TryAddSingleton<PurgeExpiredDataHandler>();
         services.TryAddSingleton<MaintenanceOperations>();
-        services.TryAddSingleton<ResolveTagTargetHandler>();
-        services.TryAddSingleton<GetTagsHandler>();
-        services.TryAddSingleton<ReplaceTagsHandler>();
-        services.TryAddSingleton<UpsertTagsHandler>();
-        services.TryAddSingleton<RemoveTagsHandler>();
-        services.TryAddSingleton<TagsOperations>();
-        services.TryAddSingleton<ITags>(sp => sp.GetRequiredService<TagsOperations>());
-        services.TryAddSingleton<StartWorkerHandler>();
-        services.TryAddSingleton<StopWorkerHandler>();
-        services.TryAddSingleton<ExtendWorkerLeasesHandler>();
-        services.TryAddSingleton<MarkDeadWorkersHandler>();
-        services.TryAddSingleton<GetWorkerHandler>();
-        services.TryAddSingleton<ListWorkersHandler>();
-        services.TryAddSingleton<WorkersOperations>();
-        services.TryAddSingleton<IWorkers>(sp => sp.GetRequiredService<WorkersOperations>());
-        services.TryAddSingleton<GetDefinitionContractsHandler>();
-        services.TryAddSingleton<RegisterDefinitionsHandler>();
-        services.TryAddSingleton<ResolveDefinitionIdHandler>();
-        services.TryAddSingleton<GetDefinitionHandler>();
-        services.TryAddSingleton<ListDefinitionsHandler>();
-        services.TryAddSingleton<SetDefinitionOverridesHandler>();
-        services.TryAddSingleton<RetireDefinitionHandler>();
-        services.TryAddSingleton<DefinitionsOperations>();
-        services.TryAddSingleton<IDefinitions>(sp => sp.GetRequiredService<DefinitionsOperations>());
-        services.TryAddSingleton<ListJobsHandler>();
-        services.TryAddSingleton<ListEventsHandler>();
-        services.TryAddSingleton<GetOverviewHandler>();
-        services.TryAddSingleton<LedgerOperations>();
-        services.TryAddSingleton<ILedger>(sp => sp.GetRequiredService<LedgerOperations>());
-        services.TryAddSingleton<RaiseAlertHandler>();
-        services.TryAddSingleton<GetAlertableEventsHandler>();
-        services.TryAddSingleton<GetDeliverableAlertsHandler>();
-        services.TryAddSingleton<UpdateAlertDeliveryHandler>();
-        services.TryAddSingleton<ResolveAlertsHandler>();
-        services.TryAddSingleton<AcknowledgeAlertHandler>();
-        services.TryAddSingleton<ResolveAlertHandler>();
-        services.TryAddSingleton<GetAlertHandler>();
-        services.TryAddSingleton<ListAlertsHandler>();
-        services.TryAddSingleton<AlertsOperations>();
-        services.TryAddSingleton<IAlerts>(sp => sp.GetRequiredService<AlertsOperations>());
-        services.TryAddSingleton<GetLiveSchedulesHandler>();
-        services.TryAddSingleton<GetScheduleStateHandler>();
-        services.TryAddSingleton<RegisterSchedulesHandler>();
-        services.TryAddSingleton<ResolveScheduleTargetHandler>();
-        services.TryAddSingleton<PauseScheduleHandler>();
-        services.TryAddSingleton<ResumeScheduleHandler>();
-        services.TryAddSingleton<SetScheduleOverridesHandler>();
-        services.TryAddSingleton<TriggerScheduleNowHandler>();
-        services.TryAddSingleton<ListSchedulesHandler>();
-        services.TryAddSingleton<PreviewScheduleHandler>();
-        services.TryAddSingleton<SchedulesOperations>();
-        services.TryAddSingleton<ISchedules>(sp => sp.GetRequiredService<SchedulesOperations>());
-        services.TryAddSingleton<ParkOutboxSignalHandler>();
-        services.TryAddSingleton<GetOutboxSignalHandler>();
-        services.TryAddSingleton<ConsumeOutboxSignalHandler>();
-        services.TryAddSingleton<RecordOutboxEventHandler>();
-        services.TryAddSingleton<ListOutboxSourcesHandler>();
-        services.TryAddSingleton<ListOutboxQuarantinedHandler>();
-        services.TryAddSingleton<RequeueOutboxHandler>();
-        services.TryAddSingleton<DiscardOutboxHandler>();
-        services.TryAddSingleton<OutboxOperations>();
-        services.TryAddSingleton<IOutbox>(sp => sp.GetRequiredService<OutboxOperations>());
-        services.TryAddSingleton<ResolveJobIdByRefHandler>();
-        services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
-        services.TryAddSingleton<GetJobHandler>();
-        services.TryAddSingleton<GetJobIdHandler>();
-        services.TryAddSingleton<GetJobStatusHandler>();
-        services.TryAddSingleton<GetJobInputHandler>();
-        services.TryAddSingleton<GetResultHandler>();
-        services.TryAddSingleton<GetCheckpointsHandler>();
-        services.TryAddSingleton<GetJobExplanationHandler>();
-        services.TryAddSingleton<GetJobLineageMapHandler>();
-        services.TryAddSingleton<CancelJobHandler>();
-        services.TryAddSingleton<PauseJobHandler>();
-        services.TryAddSingleton<ResumeJobHandler>();
-        services.TryAddSingleton<RestartJobHandler>();
-        services.TryAddSingleton<RescheduleJobHandler>();
-        services.TryAddSingleton<ReprioritizeJobHandler>();
-        services.TryAddSingleton<UpdateJobInputHandler>();
-        services.TryAddSingleton<PurgeJobHandler>();
-        services.TryAddSingleton<ResetJobStateHandler>();
-        services.TryAddSingleton<EnqueueJobHandler>();
-        services.TryAddSingleton<EnqueueJobsHandler>();
-        services.TryAddSingleton<GetInputTemplateHandler>();
-        services.TryAddSingleton<JobRequestRouting>();
-        services.TryAddSingleton<JobsOperations>();
-        services.TryAddSingleton<IJobs>(sp => sp.GetRequiredService<JobsOperations>());
+
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
         services.TryAddSingleton<SignalsOperations>();
-        services.TryAddSingleton<ClaimJobsHandler>();
-        services.TryAddSingleton<ClaimJobHandler>();
-        services.TryAddSingleton<StartExecutionHandler>();
-        services.TryAddSingleton<CompleteExecutionHandler>();
-        services.TryAddSingleton<CompleteExecutionsHandler>();
-        services.TryAddSingleton<ReclaimStuckJobsHandler>();
-        services.TryAddSingleton<RepairRecoverySlotHandler>();
-        services.TryAddSingleton<StartStepHandler>();
-        services.TryAddSingleton<CompleteStepHandler>();
-        services.TryAddSingleton<AccessCheckpointHandler>();
-        services.TryAddSingleton<RecordNoteHandler>();
-        services.TryAddSingleton<GetChildJobIdsHandler>();
-        services.TryAddSingleton<GetStaleChildLatchesHandler>();
-        services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
-        services.TryAddSingleton<ExecutionOperations>();
     }
 
     /// <summary>Metrics, the alert transports, and the ambient JobContext.</summary>
