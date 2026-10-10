@@ -253,7 +253,7 @@ public sealed class OperationLayoutTests
     }
 
     /// <summary>
-    /// A <c>Shared/</c> folder is shared below its parent: its types are named only by the parent's own files, its sibling
+    /// A <c>Shared/</c> folder, wherever it sits in <c>src/</c>, is shared below its parent: its types are named only by the parent's own files, its sibling
     /// folders, and what sits deeper, never from above or beside the parent, so it is internal. Registration may wire one.
     /// Crefs count.
     /// </summary>
@@ -262,7 +262,6 @@ public sealed class OperationLayoutTests
     {
         var files = ShippedCode.SourceFiles("*.cs").ToList();
         var scopeOf = files
-            .Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal))
             .Where(file => file.Relative.Contains("/Shared/", StringComparison.Ordinal))
             .SelectMany(file =>
                 DeclaredTypes(file.Path)
@@ -274,7 +273,6 @@ public sealed class OperationLayoutTests
             .ToDictionary(shared => shared.Type, shared => shared.Scope, StringComparer.Ordinal);
         Assert.NotEmpty(scopeOf);
         var published = files
-            .Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal))
             .Where(file => file.Relative.Contains("/Shared/", StringComparison.Ordinal))
             .SelectMany(file =>
                 Types(file.Path)
