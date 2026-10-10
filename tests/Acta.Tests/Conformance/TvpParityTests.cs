@@ -65,29 +65,7 @@ public sealed partial class TvpParityTests
     [Fact]
     public void M001_tvp_types_match_the_runtime_record_shapes()
     {
-        var m001 = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
-        var declared = new Dictionary<string, List<(string Name, string Type)>>(StringComparer.Ordinal);
-
-        foreach (Match block in TvpBlock.Matches(m001))
-        {
-            var columns = new List<(string, string)>();
-            foreach (var raw in block.Groups[2].Value.Split('\n'))
-            {
-                var line = raw.Trim();
-                if (line.Length == 0 || line.StartsWith("PRIMARY KEY", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var column = ColumnLine.Match(line);
-                if (column.Success)
-                {
-                    columns.Add((column.Groups[1].Value, Normalize(column.Groups[2].Value)));
-                }
-            }
-
-            declared[block.Groups[1].Value] = columns;
-        }
+        var declared = DeclaredColumns();
 
         Assert.Equal(declared.Keys.Order(StringComparer.Ordinal), SqlServerTableParameters.TvpShapes.Keys.Order(StringComparer.Ordinal));
 
@@ -108,6 +86,56 @@ public sealed partial class TvpParityTests
             "TVP drift between M001 (tools/Acta.Emit SqlServerDdlDialect) and SqlServerDialect record shapes:\n"
                 + string.Join("\n", failures)
         );
+    }
+
+    /// <summary>
+    /// A TVP column holding a case-exact key carries the key column's binary collation, and no other TVP column
+    /// carries one: a routine joining the two under the database default fails on a collation conflict.
+    /// </summary>
+    [Fact]
+    public void M001_tvp_key_columns_carry_the_binary_collation_of_their_case_exact_column()
+    {
+        var caseExact = ActaSchema
+            .Entities.SelectMany(e => e.Columns)
+            .Where(c => c.CaseExact)
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var wrong = DeclaredColumns()
+            .SelectMany(t => t.Value.Where(c => c.Collated != caseExact.Contains(c.Name)).Select(c => $"{t.Key}.{c.Name}"))
+            .ToList();
+
+        Assert.True(wrong.Count == 0, $"TVP columns whose binary collation disagrees with the schema model: {string.Join(", ", wrong)}");
+    }
+
+    private static Dictionary<string, List<(string Name, string Type, bool Collated)>> DeclaredColumns()
+    {
+        var m001 = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
+        var declared = new Dictionary<string, List<(string Name, string Type, bool Collated)>>(StringComparer.Ordinal);
+
+        foreach (Match block in TvpBlock.Matches(m001))
+        {
+            var columns = new List<(string, string, bool)>();
+            foreach (var raw in block.Groups[2].Value.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (line.Length == 0 || line.StartsWith("PRIMARY KEY", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var column = ColumnLine.Match(line);
+                if (column.Success)
+                {
+                    var collated = line.Contains(" COLLATE Latin1_General_100_BIN2_UTF8 ", StringComparison.Ordinal);
+                    columns.Add((column.Groups[1].Value, Normalize(column.Groups[2].Value), collated));
+                }
+            }
+
+            declared[block.Groups[1].Value] = columns;
+        }
+
+        return declared;
     }
 
     // Precision-only suffixes (DATETIME2(3)) are dropped: SqlMetaData carries no datetime precision,

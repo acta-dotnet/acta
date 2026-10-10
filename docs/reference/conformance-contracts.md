@@ -753,6 +753,8 @@
   - A signal raised as GO releases the wait on go
   - Deduplication keys that differ only by case are two jobs, and a lookup by key is exact
   - Concurrency keys that differ only by case do not share a lock
+  - A batch keeps deduplication keys that differ only by case apart, from each other and from a stored key
+  - Lock keys that differ only by case are two locks, and one heartbeat renews both
   - SYS.x is rejected as a deduplication key at enqueue and as a name at registration
   - A lookup names the seeded sys namespace in any case
 
@@ -1946,7 +1948,7 @@
   - Each modelled foreign key is installed with matching target and on-delete action
   - Each modelled check constraint is installed
   - No table carries an index, foreign key or check the model does not declare
-  - No installed column carries an explicit non-default collation
+  - On SQL Server exactly the case-exact columns carry a binary collation, and no column elsewhere
 
 ### Bootstrap verifies migration history even when it applies nothing
 - **Contract:** Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones.

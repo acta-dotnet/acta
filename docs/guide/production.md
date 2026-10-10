@@ -35,7 +35,8 @@ for production deployments, not for an evaluation.
 ## Provider choice
 
 Use SQL Server or PostgreSQL when more than one process will claim work from the same namespace.
-They are the server providers and the right default for service deployments.
+They are the server providers and the right default for service deployments. A PostgreSQL database
+must keep a deterministic collation, which is the default, so that keys compare exactly.
 
 Use SQLite when the database is embedded in one process or one node. SQLite is useful for concepts,
 local exploration, tests, and small single-node tools, but it has concurrency limits compared with

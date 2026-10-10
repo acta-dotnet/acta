@@ -19,7 +19,7 @@ internal sealed class LockEntity : IEntity
     /// <c>{ns}.rate.{key}</c> / <c>{ns}.rate.{key}.{job_id}</c>); never parsed for
     /// safety, since keys are compared as whole strings.
     /// </summary>
-    [DbColumn("lock_key", DbKind.AsciiString, Size = 256)]
+    [DbColumn("lock_key", DbKind.AsciiString, Size = 256, CaseExact = true)]
     public string LockKey { get; init; } = default!;
 
     /// <summary>

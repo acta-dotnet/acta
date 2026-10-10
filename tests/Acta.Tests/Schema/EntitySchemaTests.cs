@@ -91,6 +91,17 @@ public class EntitySchemaTests
     }
 
     [Fact]
+    public void CaseExact_Marks_Only_The_Compared_Keys()
+    {
+        // Correlation keys and the actor are carried, never compared, and names fold on input: neither needs it.
+        var caseExact = ActaSchema
+            .Entities.SelectMany(e => e.Columns.Where(c => c.CaseExact).Select(c => $"{e.TableName}.{c.Name}"))
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(["alerts.deduplication_key", "jobs.concurrency_key", "jobs.deduplication_key", "locks.lock_key"], caseExact);
+    }
+
+    [Fact]
     public void Input_Is_NullablePayload()
     {
         var c = ActaSchema.For<JobEntity>().Column("input");

@@ -55,6 +55,7 @@ internal sealed class ColumnModel(DbColumnSpec spec, Type entityType, XmlDocSour
     public string Name => _spec.Name;
     public DbKind Kind => _spec.Kind;
     public int Size => _spec.Size ?? 0;
+    public bool CaseExact => _spec.CaseExact;
     public int Precision => _spec.Precision ?? 0;
     public int Scale => _spec.Scale ?? 0;
     public bool IsNullable => _spec.IsNullable;

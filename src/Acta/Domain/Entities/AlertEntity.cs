@@ -142,7 +142,7 @@ internal sealed class AlertEntity : IEntity<long>
     /// <c>jobs.deduplication_key</c> included: the Automatic-origin default template
     /// <c>auto:{definitionId}:{jobId}:{alert_kind}:{job_reason}</c> stays under 100 characters.
     /// </summary>
-    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128)]
+    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
     public string? DeduplicationKey { get; init; }
 
     /// <summary>

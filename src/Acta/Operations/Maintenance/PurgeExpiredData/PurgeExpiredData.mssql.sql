@@ -20,8 +20,8 @@ BEGIN
         DECLARE @rows INT = 0;
         DECLARE @del TABLE (id BIGINT NOT NULL);
         DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
-        DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
-        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) NULL);
+        DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
+        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
         DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
 
         IF @p_section = 1

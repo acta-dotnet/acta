@@ -98,7 +98,7 @@ internal sealed class JobEntity : IEntity<long>
     /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring slot takes the job's name as its key, so a root
     /// enqueue keyed by that name deduplicates onto the slot.
     /// </summary>
-    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128)]
+    [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
     public string? DeduplicationKey { get; init; }
 
     /// <summary>
@@ -114,7 +114,7 @@ internal sealed class JobEntity : IEntity<long>
     /// Ready after the fixed bounce delay. The key alone admits one at a time; the definition's
     /// <c>concurrency_limit</c> widens it to that many slots.
     /// </summary>
-    [DbColumn("concurrency_key", DbKind.AsciiString, Size = 128)]
+    [DbColumn("concurrency_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
     public string? ConcurrencyKey { get; init; }
 
     // ---------- Input ----------

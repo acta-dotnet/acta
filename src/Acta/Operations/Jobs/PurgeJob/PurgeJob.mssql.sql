@@ -72,7 +72,11 @@ BEGIN TRY
         END;
 
     DECLARE @schedule_ids TABLE (id BIGINT PRIMARY KEY);
-    DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY, namespace_id INT NOT NULL, deduplication_key VARCHAR(128) NULL);
+    DECLARE @alert_ids TABLE (
+        id BIGINT PRIMARY KEY,
+        namespace_id INT NOT NULL,
+        deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL
+    );
     DECLARE @event_ids TABLE (id BIGINT PRIMARY KEY);
 
     INSERT @schedule_ids SELECT id FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)

@@ -41,7 +41,7 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities)
     // Coded identity is IsCoded and the stable CodeKind, never EnumTypeName, so a CLR enum rename is not drift;
     // member ids are not schema, since no column constrains its code values.
     private static string ColumnSignature(ColumnModel c) =>
-        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}";
+        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|caseExact={c.CaseExact}";
 
     private static string IndexSignature(DbIndexSpec i) =>
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"

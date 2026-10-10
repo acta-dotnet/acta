@@ -220,17 +220,27 @@ public sealed class M001InstallSpec : IntegrationSpec<ConformanceFixture>
             || name == $"ck_{entity.TableName}_{c.Name}_bytes"
         );
 
-    [Fact(DisplayName = "No installed column carries an explicit non-default collation")]
-    public async Task InstallsNoCollationOverrides()
+    [Fact(DisplayName = "On SQL Server exactly the case-exact columns carry a binary collation, and no column elsewhere")]
+    public async Task InstallsBinaryCollationOnExactlyTheCaseExactColumns()
     {
-        // Identifier matching is canonicalized in code (keys fold to lowercase, names are validated
-        // lowercase), which only stays provider-stable while columns compare with plain default
-        // collation. A CITEXT column or COLLATE clause would silently reintroduce per-provider
-        // divergence, so any per-column collation override is drift.
+        // Names fold on input, so they compare equal under any collation; keys compare bytewise. PostgreSQL
+        // and SQLite already compare exactly, while SQL Server's default collation folds case, so there the
+        // case-exact columns carry a binary collation. Any other override is drift.
+        var expected = new List<string>();
+        var actual = new List<string>();
         foreach (var entity in ActaSchema.Entities)
         {
+            if (Fixture.DialectToken == "mssql")
+            {
+                expected.AddRange(
+                    entity.Columns.Where(c => c.CaseExact).Select(c => $"{entity.TableName}.{c.Name} Latin1_General_100_BIN2_UTF8")
+                );
+            }
+
             var overrides = await Fixture.ListCollationOverridesAsync(Schema.SchemaName, entity.TableName);
-            Assert.True(overrides.Count == 0, $"Collation overrides on {entity.TableName}: [{string.Join(", ", overrides)}].");
+            actual.AddRange(overrides.Select(o => $"{entity.TableName}.{o.Column} {o.Collation}"));
         }
+
+        Assert.Equal(expected.Order(StringComparer.Ordinal), actual.Order(StringComparer.Ordinal));
     }
 }

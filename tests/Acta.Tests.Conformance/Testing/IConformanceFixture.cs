@@ -80,11 +80,10 @@ public interface IConformanceFixture
     ValueTask<IReadOnlyList<DbCheckInfo>> ListCheckConstraintsAsync(string schemaName, string tableName);
 
     /// <summary>
-    /// Columns of <paramref name="tableName"/> whose collation deviates from the database default
-    /// (explicit COLLATE clause or a case-insensitive type such as citext). Expected empty: identifier
-    /// matching is canonicalized in code, so per-column collation overrides are drift.
+    /// Columns of <paramref name="tableName"/> whose collation deviates from the database default, with that
+    /// collation (an explicit COLLATE clause, or a case-insensitive type such as citext).
     /// </summary>
-    ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName);
+    ValueTask<IReadOnlyList<(string Column, string Collation)>> ListCollationOverridesAsync(string schemaName, string tableName);
 
     /// <summary>Count user tables in <paramref name="schemaName"/> using a provider-native catalog query.</summary>
     ValueTask<int> CountTablesAsync(string schemaName);

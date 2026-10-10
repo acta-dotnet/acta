@@ -229,7 +229,8 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         string? EnumTypeName,
         string? CodeKind,
         string? Generated,
-        string? DecoderFqn
+        string? DecoderFqn,
+        bool CaseExact
     );
 
     internal readonly record struct IndexInfo(

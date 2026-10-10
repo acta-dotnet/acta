@@ -40,14 +40,21 @@ BEGIN
         SELECT job_id, execution_number
         FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number INT '$.execution_number');
 
-        DECLARE @lock_held TABLE (lock_key VARCHAR(256) NOT NULL, hold_token UNIQUEIDENTIFIER NOT NULL, PRIMARY KEY (lock_key, hold_token));
+        DECLARE @lock_held TABLE (
+            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+            hold_token UNIQUEIDENTIFIER NOT NULL,
+            PRIMARY KEY (lock_key, hold_token)
+        );
         INSERT INTO @lock_held (lock_key, hold_token)
         SELECT lock_key, hold_token
-        FROM OPENJSON(@p_locks) WITH (lock_key VARCHAR(256) '$.lock_key', hold_token UNIQUEIDENTIFIER '$.hold_token');
+        FROM OPENJSON(@p_locks) WITH (
+            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 '$.lock_key',
+            hold_token UNIQUEIDENTIFIER '$.hold_token'
+        );
 
         -- Lock holds renew first and never skip: no routine locks both locks and runtimes. A hold whose token
         -- moved is not answered, and the attempt that relied on it stops.
-        DECLARE @lock_renewed TABLE (lock_key VARCHAR(256) NOT NULL PRIMARY KEY);
+        DECLARE @lock_renewed TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL PRIMARY KEY);
         UPDATE k
         SET expires_at_utc = @new_expiry
         OUTPUT INSERTED.lock_key INTO @lock_renewed (lock_key)

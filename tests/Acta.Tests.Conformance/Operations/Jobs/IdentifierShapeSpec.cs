@@ -1,6 +1,7 @@
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using TestJobs;
 using Xunit;
 
@@ -90,7 +91,6 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     [Fact(DisplayName = "Deduplication keys that differ only by case are two jobs, and a lookup by key is exact")]
     public async Task Deduplication_keys_keep_their_case()
     {
-        SkipOnSqlServer();
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("Order");
 
@@ -109,7 +109,6 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     [Fact(DisplayName = "Concurrency keys that differ only by case do not share a lock")]
     public async Task Concurrency_keys_keep_their_case()
     {
-        SkipOnSqlServer();
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("mutex");
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -131,6 +130,54 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         await locks.ReleaseLockAsync(held.Value, ct);
+    }
+
+    [Fact(DisplayName = "A batch keeps deduplication keys that differ only by case apart, from each other and from a stored key")]
+    public async Task A_batch_keeps_key_case()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var key = TestKey("Order");
+        var stored = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key), ct);
+
+        var batch = await Jobs.EnqueueBatchAsync(
+            [
+                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToLowerInvariant()),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToUpperInvariant()),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key),
+            ],
+            ct
+        );
+
+        Assert.Equal(
+            [EnqueueJobAction.Inserted, EnqueueJobAction.Inserted, EnqueueJobAction.Deduplicated],
+            batch.Jobs.Select(j => j.Action)
+        );
+        Assert.Equal(3, batch.Jobs.Select(j => j.JobId).Append(stored.JobId).Distinct().Count());
+        Assert.Equal(stored.JobId, batch.Jobs[2].JobId);
+    }
+
+    [Fact(DisplayName = "Lock keys that differ only by case are two locks, and one heartbeat renews both")]
+    public async Task Lock_keys_keep_their_case()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var key = $"{ns}.lock.{TestKey("Ledger")}";
+        var locks = Services.GetRequiredService<LocksOperations>();
+
+        var exact = (await locks.AcquireLockAsync(key, TimeSpan.FromMinutes(5), ownerJobId: long.MaxValue, ct)).Token;
+        var folded = (await locks.AcquireLockAsync(key.ToLowerInvariant(), TimeSpan.FromMinutes(5), ownerJobId: long.MaxValue, ct)).Token;
+        Assert.NotNull(exact);
+        Assert.NotNull(folded);
+
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
+        var answer = await Services
+            .GetRequiredService<WorkersOperations>()
+            .ExtendWorkerLeasesAsync(worker!.Id, leaseTtl, false, [], [exact.Value, folded.Value], ct);
+
+        Assert.Equal([key, key.ToLowerInvariant()], answer.RenewedLockKeys.Order(StringComparer.Ordinal));
+        Assert.True((await locks.ReleaseLockAsync(exact.Value, ct)).Released);
+        Assert.True((await locks.ReleaseLockAsync(folded.Value, ct)).Released);
     }
 
     [Fact(DisplayName = "SYS.x is rejected as a deduplication key at enqueue and as a name at registration")]
@@ -155,14 +202,6 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForNamespace("SYS"), ct));
         await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "Sys", JobName: "Sys.Recovery"), ct);
     }
-
-    // SQL Server joins in Commit B (binary collation): its default collation still compares key columns
-    // case-insensitively, so two keys that differ only by case meet in the unique index and the lock row.
-    private void SkipOnSqlServer() =>
-        Assert.SkipWhen(
-            Db.Provider == DbProvider.SqlServer,
-            "SQL Server compares key columns case-insensitively until they take a binary collation."
-        );
 
     private static JobPayload Payload() => JobPayload.Json(new AddNumbers(1, 2));
 }

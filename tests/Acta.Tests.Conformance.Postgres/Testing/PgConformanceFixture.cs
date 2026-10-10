@@ -164,23 +164,26 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         return checks;
     }
 
-    public async ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName)
+    public async ValueTask<IReadOnlyList<(string Column, string Collation)>> ListCollationOverridesAsync(
+        string schemaName,
+        string tableName
+    )
     {
         await using var c = new NpgsqlConnection(IntegrationConfig.PostgresConnectionString!);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText =
-            "SELECT column_name FROM information_schema.columns WHERE table_schema = @s AND table_name = @t AND (collation_name IS NOT NULL OR udt_name = 'citext') ORDER BY column_name;";
+            "SELECT column_name, COALESCE(collation_name, udt_name) FROM information_schema.columns WHERE table_schema = @s AND table_name = @t AND (collation_name IS NOT NULL OR udt_name = 'citext') ORDER BY column_name;";
         cmd.Parameters.AddWithValue("@s", schemaName);
         cmd.Parameters.AddWithValue("@t", tableName);
-        var names = new List<string>();
+        var overrides = new List<(string, string)>();
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
         {
-            names.Add(r.GetString(0));
+            overrides.Add((r.GetString(0), r.GetString(1)));
         }
 
-        return names;
+        return overrides;
     }
 
     public ValueTask<IIntegrationSchema> CreateSchemaAsync() => PgIntegrationSchema.CreateAsync();

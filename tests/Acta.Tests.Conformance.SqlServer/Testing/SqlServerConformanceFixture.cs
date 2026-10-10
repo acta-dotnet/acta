@@ -211,17 +211,20 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return checks;
     }
 
-    public ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName) =>
+    public ValueTask<IReadOnlyList<(string Column, string Collation)>> ListCollationOverridesAsync(string schemaName, string tableName) =>
         ReadCatalogAsync(() => ListCollationOverridesCoreAsync(schemaName, tableName));
 
-    private async ValueTask<IReadOnlyList<string>> ListCollationOverridesCoreAsync(string schemaName, string tableName)
+    private async ValueTask<IReadOnlyList<(string Column, string Collation)>> ListCollationOverridesCoreAsync(
+        string schemaName,
+        string tableName
+    )
     {
         var builder = new SqlConnectionStringBuilder(IntegrationConfig.SqlServerConnectionString!) { TrustServerCertificate = true };
         await using var c = new SqlConnection(builder.ConnectionString);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = """
-            SELECT c.name
+            SELECT c.name, c.collation_name
             FROM sys.columns c
             JOIN sys.tables t ON t.object_id = c.object_id
             JOIN sys.schemas s ON s.schema_id = t.schema_id
@@ -232,14 +235,14 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
             """;
         cmd.Parameters.Add(new SqlParameter("@s", schemaName));
         cmd.Parameters.Add(new SqlParameter("@t", tableName));
-        var names = new List<string>();
+        var overrides = new List<(string, string)>();
         await using var r = await cmd.ExecuteReaderAsync();
         while (await r.ReadAsync())
         {
-            names.Add(r.GetString(0));
+            overrides.Add((r.GetString(0), r.GetString(1)));
         }
 
-        return names;
+        return overrides;
     }
 
     public ValueTask<IIntegrationSchema> CreateSchemaAsync() => SqlServerIntegrationSchema.CreateAsync();

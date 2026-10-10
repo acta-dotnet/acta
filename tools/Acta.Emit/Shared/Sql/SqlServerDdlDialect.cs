@@ -26,6 +26,9 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     public override string RenderGeneratedColumn(ColumnModel c) => $"{c.Name} AS ({c.Generated}) PERSISTED";
 
     public override string RenderType(ColumnModel c) =>
+        c.CaseExact ? $"{RenderBaseType(c)} COLLATE Latin1_General_100_BIN2_UTF8" : RenderBaseType(c);
+
+    private static string RenderBaseType(ColumnModel c) =>
         c.Kind switch
         {
             DbKind.Boolean => "bit",
@@ -121,12 +124,12 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 job_ref           UNIQUEIDENTIFIER NOT NULL,
                 namespace_name    VARCHAR(128)     NOT NULL,
                 job_name          VARCHAR(128)     NOT NULL,
-                deduplication_key        VARCHAR(128)     NULL,
+                deduplication_key        VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 correlation_key    VARCHAR(64)      NULL,
                 priority_override TINYINT          NULL,
                 input_format_id   TINYINT          NOT NULL,
                 input             VARBINARY(MAX)   NULL,
-                concurrency_key   VARCHAR(128)     NULL,
+                concurrency_key   VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 next_run_at_utc   DATETIME2(3)     NULL,
                 delay_seconds     INT              NULL,
                 parent_id         BIGINT           NULL,
@@ -220,7 +223,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             EXEC(N'CREATE TYPE {{schema}}.register_slots_batch AS TABLE (
                 definition_id    INT              NOT NULL PRIMARY KEY,
                 job_ref              UNIQUEIDENTIFIER NOT NULL,
-                deduplication_key           VARCHAR(128)     NOT NULL,
+                deduplication_key           VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
                 input_format_id      TINYINT        NOT NULL,
                 input                VARBINARY(MAX) NULL,
                 audit_level_code     TINYINT        NOT NULL,

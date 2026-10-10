@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 59)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 60)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -5382,7 +5382,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.59-f2da913cd31a02136bc68ee7ebec0546', 'acta');
+VALUES (-1, 'objects-1.60-f2da913cd31a02136bc68ee7ebec0546', 'acta');
 
 COMMIT;
 

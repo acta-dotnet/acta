@@ -76,7 +76,8 @@ internal sealed record DbColumnSpec(
     string? EnumTypeName = null,
     string? CodeKind = null,
     string ClrPropertyName = "",
-    string? Generated = null
+    string? Generated = null,
+    bool CaseExact = false
 )
 {
     /// <summary>

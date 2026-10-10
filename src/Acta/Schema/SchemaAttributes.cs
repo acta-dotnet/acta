@@ -65,6 +65,12 @@ internal sealed class DbColumnAttribute : Attribute
     public int Size { get; init; }
 
     /// <summary>
+    /// The column holds a key compared bytewise, so a provider whose default collation folds case gives it a
+    /// binary one (SQL Server <c>Latin1_General_100_BIN2_UTF8</c>); PostgreSQL and SQLite already compare exactly.
+    /// </summary>
+    public bool CaseExact { get; init; }
+
+    /// <summary>
     /// For <see cref="DbKind.Decimal"/>: total digits.
     /// </summary>
     public int Precision { get; init; }

@@ -123,6 +123,7 @@ internal static class EntityReader
         }
 
         var size = ReadNamedArgInt(colAttr, "Size");
+        var caseExact = ReadNamedArg(colAttr, "CaseExact") is bool ce && ce;
         var precision = ReadNamedArgInt(colAttr, "Precision");
         var scale = ReadNamedArgInt(colAttr, "Scale");
         var defaultName = ReadNamedArgEnum(colAttr, "Default") ?? "None";
@@ -171,7 +172,8 @@ internal static class EntityReader
             EnumTypeName: kind.EnumTypeName,
             CodeKind: kind.CodeKind,
             Generated: generated,
-            DecoderFqn: isEnum ? CodeFamilyNames.DecoderFqn(enumType!) : null
+            DecoderFqn: isEnum ? CodeFamilyNames.DecoderFqn(enumType!) : null,
+            CaseExact: caseExact
         );
         EntityChecks.CheckColumn(cls, column, nonNullableType, pk.Manual, propLoc, diagnostics);
         return column;

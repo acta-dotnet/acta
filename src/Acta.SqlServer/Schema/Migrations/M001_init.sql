@@ -20,7 +20,7 @@ CREATE TABLE {{schema}}.alerts (
     title nvarchar(512) NOT NULL,
     message nvarchar(512) NOT NULL,
     channel_name varchar(128) NOT NULL,
-    deduplication_key varchar(128) NULL,
+    deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     occurrence_count int NOT NULL,
     last_projected_event_id bigint NULL,
     resolved_at_utc datetime2(3) NULL,
@@ -172,9 +172,9 @@ CREATE TABLE {{schema}}.jobs (
     lineage_root_id bigint NULL,
     parent_id bigint NULL,
     tenant_id int NULL,
-    deduplication_key varchar(128) NULL,
+    deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     correlation_key varchar(64) NULL,
-    concurrency_key varchar(128) NULL,
+    concurrency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     input_format_id tinyint NOT NULL,
     input varbinary(max) NULL,
     audit_level_code tinyint NOT NULL,
@@ -208,7 +208,7 @@ GO
 IF OBJECT_ID(N'{{schema}}.locks', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.locks (
-    lock_key varchar(256) NOT NULL,
+    lock_key varchar(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
     job_id bigint NOT NULL,
     expires_at_utc datetime2(3) NOT NULL,
     hold_token uniqueidentifier NOT NULL
@@ -464,12 +464,12 @@ EXEC(N'CREATE TYPE {{schema}}.enqueue_jobs_batch AS TABLE (
     job_ref           UNIQUEIDENTIFIER NOT NULL,
     namespace_name    VARCHAR(128)     NOT NULL,
     job_name          VARCHAR(128)     NOT NULL,
-    deduplication_key        VARCHAR(128)     NULL,
+    deduplication_key        VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     correlation_key    VARCHAR(64)      NULL,
     priority_override TINYINT          NULL,
     input_format_id   TINYINT          NOT NULL,
     input             VARBINARY(MAX)   NULL,
-    concurrency_key   VARCHAR(128)     NULL,
+    concurrency_key   VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     next_run_at_utc   DATETIME2(3)     NULL,
     delay_seconds     INT              NULL,
     parent_id         BIGINT           NULL,
@@ -563,7 +563,7 @@ IF TYPE_ID(N'{{schema}}.register_slots_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.register_slots_batch AS TABLE (
     definition_id    INT              NOT NULL PRIMARY KEY,
     job_ref              UNIQUEIDENTIFIER NOT NULL,
-    deduplication_key           VARCHAR(128)     NOT NULL,
+    deduplication_key           VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
     input_format_id      TINYINT        NOT NULL,
     input                VARBINARY(MAX) NULL,
     audit_level_code     TINYINT        NOT NULL,
@@ -592,7 +592,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-663ad2f0a24646aa5df0a7edd1f05ac9', '{{schema}}');
+VALUES (0, 'baseline-1df4149caa2e0973216afcf5d40ade7d', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

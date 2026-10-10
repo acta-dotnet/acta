@@ -239,11 +239,15 @@ internal static class DataModelEmitter
         }
         if (c.IsPrimaryKey)
         {
-            return "PK";
+            return c.CaseExact ? "PK, case-exact" : "PK";
         }
         if (c.IsConcurrencyToken)
         {
             return "concurrency token";
+        }
+        if (c.CaseExact)
+        {
+            return "case-exact";
         }
         return c.Name.EndsWith("_format_id", StringComparison.Ordinal) ? Anchors.LinkCodeFamilyToCodeFamilies("JobPayloadFormat") : "·";
     }

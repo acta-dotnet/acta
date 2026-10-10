@@ -227,7 +227,8 @@ internal static class SchemaSourceWriter
         sb.Append("                    EnumTypeName: ").Append(StringLiteral(c.EnumTypeName)).AppendLine(",");
         sb.Append("                    CodeKind: ").Append(StringLiteral(c.CodeKind)).AppendLine(",");
         sb.Append("                    ClrPropertyName: ").Append(StringLiteral(c.ClrPropertyName)).AppendLine(",");
-        sb.Append("                    Generated: ").Append(StringLiteral(c.Generated)).AppendLine("),");
+        sb.Append("                    Generated: ").Append(StringLiteral(c.Generated)).AppendLine(",");
+        sb.Append("                    CaseExact: ").Append(c.CaseExact ? "true" : "false").AppendLine("),");
         sb.Append("                \"").Append(e.TableName).AppendLine("\",");
         sb.Append("                \"").Append(c.ColumnName).AppendLine("\",");
         sb.Append("                \"p_").Append(c.ColumnName).AppendLine("\");");

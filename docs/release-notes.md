@@ -29,8 +29,12 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   capped at 128 like every deduplication key). The operator's principal is display text:
   `events.actor` (was `actor_key`), the `actor` argument of every control verb, `ListEventsItem.Actor`,
   `ActaControlContext.Actor`, and in `events_view` the decoded code is now `actor_kind`. A producer with
-  an existing outbox table renames its `tenant_key` column to `tenant_name`. The baselines are re-cut and
-  the object package moves to revision 59.
+  an existing outbox table renames its `tenant_key` column to `tenant_name`, and on SQL Server gives
+  `deduplication_key` and `concurrency_key` the collation `Latin1_General_100_BIN2_UTF8`, as the shipped
+  DDL now does: on SQL Server every compared key column (`jobs.deduplication_key`, `jobs.concurrency_key`,
+  `locks.lock_key`, `alerts.deduplication_key`, and the matching table-type columns) is binary-collated,
+  which is what makes a key case-exact there. The baselines are re-cut and the object package moves
+  to revision 60.
 - **SQL Server table types and three routines are named verb first.** A direct-SQL enqueue on SQL Server
   declares `acta.enqueue_tags_batch` and, for a batch, `acta.enqueue_jobs_batch`, instead of
   `job_enqueue_tag_batch` and `job_enqueue_batch`. The other types follow the routine that takes them

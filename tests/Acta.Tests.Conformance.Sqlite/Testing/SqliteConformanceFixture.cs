@@ -101,7 +101,10 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         return CheckConstraintRegex().Matches(ddl).Select(m => new DbCheckInfo(m.Groups[1].Value)).ToList();
     }
 
-    public async ValueTask<IReadOnlyList<string>> ListCollationOverridesAsync(string schemaName, string tableName)
+    public async ValueTask<IReadOnlyList<(string Column, string Collation)>> ListCollationOverridesAsync(
+        string schemaName,
+        string tableName
+    )
     {
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();
@@ -109,7 +112,7 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = @t;";
         cmd.Parameters.AddWithValue("@t", tableName);
         var ddl = (string?)await cmd.ExecuteScalarAsync() ?? "";
-        return Regex.IsMatch(ddl, @"\bCOLLATE\b", RegexOptions.IgnoreCase) ? [$"{tableName} (CREATE TABLE contains COLLATE)"] : [];
+        return Regex.IsMatch(ddl, @"\bCOLLATE\b", RegexOptions.IgnoreCase) ? [("(CREATE TABLE)", "COLLATE")] : [];
     }
 
     public ValueTask<IIntegrationSchema> CreateSchemaAsync() => SqliteIntegrationSchema.CreateAsync();
