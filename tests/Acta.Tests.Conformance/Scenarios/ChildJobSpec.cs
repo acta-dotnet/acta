@@ -260,7 +260,9 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var (childId, parentId) = Assert.Single(failed);
         Assert.Equal(child.Id, childId);
         Assert.Equal(parent.JobId, parentId);
-        Assert.True(await RaiseChildLatch.Run(Services.GetRequiredService<Signals>(), childId, parentId, JobStatusCode.Failed, ct));
+        Assert.True(
+            await RaiseChildLatch.Run(Services.GetRequiredService<ISignalsOperations>(), childId, parentId, JobStatusCode.Failed, ct)
+        );
 
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(child.Id, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
@@ -280,7 +282,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         await SetJobStatusAsync(Db, child.Id, 220, ct);
 
         var latch = Assert.Single(
-            await Services.GetRequiredService<Execution>().GetStaleChildLatchesAsync(ns, ct),
+            await Services.GetRequiredService<IExecutionOperations>().GetStaleChildLatchesAsync(ns, ct),
             l => l.ParentJobId == parent.JobId
         );
         Assert.Equal(child.Id, latch.ChildJobId);
@@ -288,7 +290,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         Assert.True(
             await RaiseChildLatch.Run(
-                Services.GetRequiredService<Signals>(),
+                Services.GetRequiredService<ISignalsOperations>(),
                 latch.ChildJobId,
                 latch.ParentJobId,
                 latch.ChildStatus!.Value,
@@ -297,7 +299,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         );
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.DoesNotContain(
-            await Services.GetRequiredService<Execution>().GetStaleChildLatchesAsync(ns, ct),
+            await Services.GetRequiredService<IExecutionOperations>().GetStaleChildLatchesAsync(ns, ct),
             l => l.ParentJobId == parent.JobId
         );
     }

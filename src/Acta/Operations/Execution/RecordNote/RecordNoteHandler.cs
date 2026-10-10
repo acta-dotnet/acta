@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="Execution.RecordNoteAsync"/>: one routine call; an unknown job id throws.</summary>
+/// <summary><see cref="IExecutionOperations.RecordNoteAsync"/>: one routine call; an unknown job id throws.</summary>
 internal sealed class RecordNoteHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(RecordNoteCommand command, CancellationToken ct) =>

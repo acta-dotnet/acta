@@ -128,7 +128,7 @@ public sealed class WorkerClaimerTests
 
         public int Calls => Volatile.Read(ref _calls);
 
-        public Acta.Execution Execution() => new ScriptedSession(
+        public IExecutionOperations Execution() => new ScriptedSession(
                 (call, ct) =>
                 {
                     if (call.Stem != "ClaimJobs")
@@ -139,7 +139,7 @@ public sealed class WorkerClaimerTests
                     Interlocked.Increment(ref _calls);
                     return Task.FromResult<object?>(onClaim(ct));
                 }
-            ).Services().GetRequiredService<Acta.Execution>();
+            ).Services().GetRequiredService<IExecutionOperations>();
     }
 
     internal sealed class IdleWakeup : IWorkerWakeup

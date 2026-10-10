@@ -28,16 +28,14 @@ internal static class SchemaMigrationRunner
 
         var migrations = SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly);
         var sql = new SqlResourceCatalog(hooks.DialectToken, schemaName);
-        var timeout = hooks.CommandTimeoutSeconds;
+        var schema = new SchemaOperations(conn, sql, hooks.CommandTimeoutSeconds);
 
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
         {
-            await new AcquireSchemaLockHandler(conn, sql, timeout).HandleAsync(new AcquireSchemaLockCommand(tx, schemaName), ct);
-            await new EnsureMigrationsHandler(conn, sql, timeout).HandleAsync(new EnsureMigrationsCommand(tx), ct);
-            var applied = (
-                await new LoadAppliedVersionsHandler(conn, sql, timeout).HandleAsync(new LoadAppliedVersionsQuery(tx), ct)
-            ).Versions;
+            await schema.AcquireSchemaLockAsync(tx, schemaName, ct);
+            await schema.EnsureMigrationsAsync(tx, ct);
+            var applied = (await schema.LoadAppliedVersionsAsync(tx, ct)).Versions;
 
             VerifyBaselineStamp(applied, hooks.RequiredBaselineStamp);
             VerifyAppliedNames(migrations, applied);
@@ -143,7 +141,7 @@ internal static class SchemaMigrationRunner
     /// that has recorded its measurement.
     /// </summary>
     public static Task DropSchemaAsync(DbConnection conn, string schemaName, SchemaMigrationProviderHooks hooks, CancellationToken ct) =>
-        new DropSchemaHandler(conn, new SqlResourceCatalog(hooks.DialectToken, schemaName), hooks.CommandTimeoutSeconds).HandleAsync(ct);
+        new SchemaOperations(conn, new SqlResourceCatalog(hooks.DialectToken, schemaName), hooks.CommandTimeoutSeconds).DropSchemaAsync(ct);
 }
 
 /// <summary>

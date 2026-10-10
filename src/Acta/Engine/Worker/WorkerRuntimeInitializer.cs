@@ -17,7 +17,7 @@ namespace Acta;
 internal sealed class WorkerRuntimeInitializer(
     CatalogRegistrar catalog,
     WorkerLifecycle workers,
-    IServerClock serverClock,
+    IClockOperations serverClock,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -26,7 +26,7 @@ internal sealed class WorkerRuntimeInitializer(
 {
     private readonly CatalogRegistrar _catalog = catalog;
     private readonly WorkerLifecycle _workers = workers;
-    private readonly IServerClock _serverClock = serverClock;
+    private readonly IClockOperations _serverClock = serverClock;
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;

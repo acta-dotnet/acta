@@ -13,7 +13,7 @@ namespace Acta;
 /// built. A claim this deployment carries no handler for completes as a hand-back to Ready.
 /// </summary>
 internal sealed class WorkerExecutor(
-    Locks locks,
+    ILocksOperations locks,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     IServiceProvider rootServices,
@@ -29,7 +29,7 @@ internal sealed class WorkerExecutor(
     private readonly JobsOptions _options = options;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IServiceProvider _rootServices = rootServices;
-    private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
+    private readonly IExecutionOperations _execution = rootServices.GetRequiredService<IExecutionOperations>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ExecutionAdmission _admission = new(log ?? NullLogger.Instance, options.ConcurrencyKeyBounceDelaySeconds);
     private readonly HandlerInvocation _invocation = new(serializers, pipeline, options.MaxInlinePayloadBytes, log ?? NullLogger.Instance);
@@ -321,7 +321,7 @@ internal sealed class WorkerExecutor(
             _options.LeaseTtlSeconds,
             _rootServices.GetRequiredService<CancelJobHandler>(),
             _rootServices.GetRequiredService<ResetJobStateHandler>(),
-            _rootServices.GetRequiredService<Signals>(),
+            _rootServices.GetRequiredService<ISignalsOperations>(),
             _rootServices.GetRequiredService<AlertLifecycle>(),
             _execution,
             _serializers,

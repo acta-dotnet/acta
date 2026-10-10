@@ -97,8 +97,10 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IActaOperations, ActaOperations>();
 
         // Operation groups that have moved to handlers: each group's handlers, then its facade.
-        services.AddSingleton<IServerClock, GetUtcNowHandler>();
-        services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IServerClock>());
+        services.TryAddSingleton<GetUtcNowHandler>();
+        services.TryAddSingleton<ClockOperations>();
+        services.AddSingleton<IClockOperations>(sp => sp.GetRequiredService<ClockOperations>());
+        services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IClockOperations>());
         services.TryAddSingleton<RegisterTenantHandler>();
         services.TryAddSingleton<GetTenantHandler>();
         services.TryAddSingleton<GetTenantKeyHandler>();
@@ -117,8 +119,11 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<AcquireSlotHandler>();
         services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<ReleaseLockHandler>();
-        services.TryAddSingleton<Locks>();
+        services.TryAddSingleton<LocksOperations>();
+        services.TryAddSingleton<ILocksOperations>(sp => sp.GetRequiredService<LocksOperations>());
         services.TryAddSingleton<PurgeExpiredDataHandler>();
+        services.TryAddSingleton<MaintenanceOperations>();
+        services.TryAddSingleton<IMaintenanceOperations>(sp => sp.GetRequiredService<MaintenanceOperations>());
         services.TryAddSingleton<TagTargetResolution>();
         services.TryAddSingleton<GetTagsHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();
@@ -205,7 +210,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IJobs, Jobs>();
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
-        services.TryAddSingleton<Signals>();
+        services.TryAddSingleton<SignalsOperations>();
+        services.TryAddSingleton<ISignalsOperations>(sp => sp.GetRequiredService<SignalsOperations>());
         services.TryAddSingleton<ClaimJobsHandler>();
         services.TryAddSingleton<ClaimJobHandler>();
         services.TryAddSingleton<StartExecutionHandler>();
@@ -220,7 +226,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetChildJobIdsHandler>();
         services.TryAddSingleton<GetStaleChildLatchesHandler>();
         services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
-        services.TryAddSingleton<Execution>();
+        services.TryAddSingleton<ExecutionOperations>();
+        services.TryAddSingleton<IExecutionOperations>(sp => sp.GetRequiredService<ExecutionOperations>());
     }
 
     /// <summary>Metrics, the alert transports, and the ambient JobContext.</summary>

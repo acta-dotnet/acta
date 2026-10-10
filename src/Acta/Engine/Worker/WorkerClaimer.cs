@@ -10,7 +10,7 @@ namespace Acta;
 /// still sweeps. An empty claim sleeps until the claim horizon, cut short by a wakeup.
 /// </summary>
 internal sealed class WorkerClaimer(
-    Execution execution,
+    IExecutionOperations execution,
     WorkerExecutor executor,
     JobsOptions options,
     WorkerContext context,

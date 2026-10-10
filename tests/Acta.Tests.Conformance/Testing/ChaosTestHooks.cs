@@ -251,8 +251,8 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
     }
 }
 
-// The DB clock moved off IDbSession onto IActaClock, so the GetUtcNow skew now wraps that port.
-internal sealed class FaultInjectingClock(IServerClock inner, StoreFaultPlan plan) : IServerClock
+// Wraps the database clock door, so the GetUtcNow skew and fault reach IActaClock too, which defaults to the door.
+internal sealed class FaultInjectingClock(IClockOperations inner, StoreFaultPlan plan) : IClockOperations
 {
     public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>
         plan.TakeGetUtcNowFault() ? throw new InjectedProviderError("on the clock read")
@@ -275,10 +275,10 @@ internal static class ChaosServiceCollectionExtensions
             sp.GetRequiredService<StoreFaultPlan>()
         ));
 
-        var clockDescriptor = services.Last(d => d.ServiceType == typeof(IServerClock));
+        var clockDescriptor = services.Last(d => d.ServiceType == typeof(IClockOperations));
         services.Remove(clockDescriptor);
-        services.AddSingleton<IServerClock>(sp => new FaultInjectingClock(
-            (IServerClock)CreateInner(sp, clockDescriptor),
+        services.AddSingleton<IClockOperations>(sp => new FaultInjectingClock(
+            (IClockOperations)CreateInner(sp, clockDescriptor),
             sp.GetRequiredService<StoreFaultPlan>()
         ));
 

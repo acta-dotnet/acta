@@ -105,10 +105,10 @@ public sealed class RetentionJobTests
         Assert.Empty(store.Calls);
     }
 
-    private static RetentionJob Job(PurgeExpiredDataHandler purge, IServerClock clock) =>
-        new(purge, clock, Options.Create(new JobsOptions()));
+    private static RetentionJob Job(PurgeExpiredDataHandler purge, IClockOperations clock) =>
+        new(new MaintenanceOperations(purge), clock, Options.Create(new JobsOptions()));
 
-    private sealed class Clock : IServerClock
+    private sealed class Clock : IClockOperations
     {
         public int Reads { get; private set; }
 

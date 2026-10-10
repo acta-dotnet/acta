@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Operations.Locks;
 
 /// <summary>
 /// Conformance for <c>ReleaseLock</c> - the version-CAS DELETE that backs
-/// <c>Locks.ReleaseLockAsync</c>. Releasing a held lock removes the lease row and makes the key
+/// <c>ILocksOperations.ReleaseLockAsync</c>. Releasing a held lock removes the lease row and makes the key
 /// re-acquirable; releasing an already-released token is a token-CAS miss that returns false.
 /// </summary>
 /// <remarks>
@@ -35,7 +35,7 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Release_deletes_the_row_and_returns_false_for_stale_token()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<Acta.Locks>();
+        var locks = Services.GetRequiredService<ILocksOperations>();
         var key = TestKey("ck.release-lock-spec");
 
         var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;

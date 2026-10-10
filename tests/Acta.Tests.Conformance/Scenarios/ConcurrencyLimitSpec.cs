@@ -202,7 +202,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         await locks.ReleaseLockAsync(foreign!.Value, ct);
     }
 
-    private Locks Locks => Services.GetRequiredService<Locks>();
+    private ILocksOperations Locks => Services.GetRequiredService<ILocksOperations>();
 
     // The composition the runner uses: namespace id, the sem discriminator, and the canonical key.
     private string SlotPrefix(string key) =>

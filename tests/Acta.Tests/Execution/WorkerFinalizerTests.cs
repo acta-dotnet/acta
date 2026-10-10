@@ -177,7 +177,7 @@ public sealed class WorkerFinalizerTests
         context.WorkerIdByNamespace["orders"] = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
-            services.GetRequiredService<Acta.Execution>(),
+            services.GetRequiredService<IExecutionOperations>(),
             null!,
             new WorkerWakeupPublisher(new InProcessWakeup()),
             options,
@@ -247,7 +247,7 @@ public sealed class WorkerFinalizerTests
         context.WorkerIdByNamespace["orders"] = 1;
         var registry = new InFlightJobRegistry(options);
         var finalizer = new WorkerFinalizer(
-            session.Services().GetRequiredService<Acta.Execution>(),
+            session.Services().GetRequiredService<IExecutionOperations>(),
             null!,
             new WorkerWakeupPublisher(new InProcessWakeup()),
             options,

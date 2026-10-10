@@ -19,7 +19,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Checkpoints_round_trip_kind_state_and_value()
     {
         var ct = TestContext.Current.CancellationToken;
-        var execution = Services.GetRequiredService<Acta.Execution>();
+        var execution = Services.GetRequiredService<IExecutionOperations>();
 
         var enqueued = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
@@ -31,7 +31,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var signalValue = JobPayload.Json(new AddNumbers(2, 3));
         await Services
-            .GetRequiredService<Acta.Signals>()
+            .GetRequiredService<ISignalsOperations>()
             .RaiseSignalAsync(
                 new SignalSlotRaise(
                     enqueued.JobId,

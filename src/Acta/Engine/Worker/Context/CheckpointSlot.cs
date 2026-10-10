@@ -3,21 +3,28 @@ namespace Acta;
 /// <summary>
 /// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
 /// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
-/// <see cref="AccessCheckpointAction"/> through <see cref="Execution.AccessCheckpointAsync"/>. Checkpoint
+/// <see cref="AccessCheckpointAction"/> through <see cref="IExecutionOperations.AccessCheckpointAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
 /// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
 /// and typed serialization; this op owns the durable row shape.
 /// </summary>
 internal static class CheckpointSlot
 {
-    public static Task SetAsync(Execution store, long jobId, CheckpointKindCode kind, string name, JobPayload payload, CancellationToken ct)
+    public static Task SetAsync(
+        IExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        JobPayload payload,
+        CancellationToken ct
+    )
     {
         EnsureWritable(payload);
         return Run(store, AccessCheckpointAction.Set, jobId, kind, name, payload, ct);
     }
 
     public static async Task<CheckpointValue?> GetAsync(
-        Execution store,
+        IExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -29,7 +36,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<CheckpointValue> GetOrSetAsync(
-        Execution store,
+        IExecutionOperations store,
         long jobId,
         CheckpointKindCode kind,
         string name,
@@ -44,11 +51,21 @@ internal static class CheckpointSlot
             : ToValue(row);
     }
 
-    public static async Task<bool> ExistsAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
-        (await Run(store, AccessCheckpointAction.Exists, jobId, kind, name, null, ct)).Found != 0;
+    public static async Task<bool> ExistsAsync(
+        IExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct
+    ) => (await Run(store, AccessCheckpointAction.Exists, jobId, kind, name, null, ct)).Found != 0;
 
-    public static async Task<bool> DeleteAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
-        (await Run(store, AccessCheckpointAction.Delete, jobId, kind, name, null, ct)).Found != 0;
+    public static async Task<bool> DeleteAsync(
+        IExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct
+    ) => (await Run(store, AccessCheckpointAction.Delete, jobId, kind, name, null, ct)).Found != 0;
 
     // A variable value must carry a real payload: a non-None format with a non-zero id.
     private static void EnsureWritable(JobPayload payload)
@@ -60,7 +77,7 @@ internal static class CheckpointSlot
     }
 
     private static Task<AccessCheckpointResponse> Run(
-        Execution store,
+        IExecutionOperations store,
         AccessCheckpointAction action,
         long jobId,
         CheckpointKindCode kind,

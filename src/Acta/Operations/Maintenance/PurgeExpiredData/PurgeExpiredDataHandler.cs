@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Deletes one bounded batch of a retention section.</summary>
+/// <summary><see cref="IMaintenanceOperations.PurgeExpiredDataAsync"/>: one routine call per batch.</summary>
 internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<PurgeExpiredDataResponse> HandleAsync(PurgeExpiredDataCommand command, CancellationToken ct)

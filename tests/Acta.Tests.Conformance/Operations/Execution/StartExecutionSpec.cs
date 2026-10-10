@@ -26,7 +26,7 @@ public sealed class StartExecutionSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var (claimed, workerId, leaseTtl) = await ClaimAsync(leaseTtlSeconds: null, ct);
-        var execution = Services.GetRequiredService<Acta.Execution>();
+        var execution = Services.GetRequiredService<IExecutionOperations>();
 
         var first = await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct);
         var started = await ReadJobAsync(claimed.JobId, ct);
@@ -49,7 +49,7 @@ public sealed class StartExecutionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var action = (
             await Services
-                .GetRequiredService<Acta.Execution>()
+                .GetRequiredService<IExecutionOperations>()
                 .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber - 1, leaseTtl, ct)
         ).Action;
 
@@ -68,7 +68,7 @@ public sealed class StartExecutionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var action = (
             await Services
-                .GetRequiredService<Acta.Execution>()
+                .GetRequiredService<IExecutionOperations>()
                 .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)
         ).Action;
 
@@ -88,7 +88,7 @@ public sealed class StartExecutionSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, leaseTtlSeconds ?? leaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtlSeconds ?? leaseTtl, enqueued, ct)
         );
         return (claimed, workerId, leaseTtl);
     }

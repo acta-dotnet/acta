@@ -19,7 +19,7 @@ public sealed class AccessCheckpointSpec : ActaRuntimeTestBase<ConformanceFixtur
 {
     private static readonly byte Json = JobPayloadFormat.Json.Id;
 
-    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
+    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
 
     [Fact(DisplayName = "Set inserts a slot and a later Set overwrites its value in place, one version on")]
     public async Task Set_inserts_then_overwrites_in_place()

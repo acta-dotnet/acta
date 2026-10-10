@@ -13,8 +13,8 @@ namespace Acta;
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
 /// </summary>
 internal sealed class RetentionJob(
-    PurgeExpiredDataHandler purgeExpiredData,
-    IServerClock clock,
+    IMaintenanceOperations maintenance,
+    IClockOperations clock,
     IOptions<JobsOptions> options,
     ILogger<RetentionJob>? log = null
 )
@@ -99,7 +99,7 @@ internal sealed class RetentionJob(
                 for (var iteration = 0; iteration < command.MaxIterations; iteration++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var deleted = (await purgeExpiredData.HandleAsync(batch, ct)).Purged;
+                    var deleted = (await maintenance.PurgeExpiredDataAsync(batch, ct)).Purged;
                     counts[index] = checked(counts[index] + deleted);
                     if (deleted == 0)
                     {

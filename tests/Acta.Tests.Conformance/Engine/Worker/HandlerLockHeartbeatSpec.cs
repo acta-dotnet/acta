@@ -70,7 +70,9 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         // Steal the lock out-of-band: delete the locks row the handler holds (token-CAS DELETE),
         // so the next heartbeat does not renew a lock the handler still relies on.
         var holdToken = await HoldTokenAsync(lockKey, ct);
-        Assert.True((await Services.GetRequiredService<Locks>().ReleaseLockAsync(new LockToken(lockKey, holdToken), ct)).Released);
+        Assert.True(
+            (await Services.GetRequiredService<ILocksOperations>().ReleaseLockAsync(new LockToken(lockKey, holdToken), ct)).Released
+        );
 
         await Runtime.RunHeartbeatOnceAsync(ct);
 

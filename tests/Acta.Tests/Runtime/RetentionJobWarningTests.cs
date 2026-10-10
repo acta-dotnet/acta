@@ -135,7 +135,7 @@ public sealed class RetentionJobWarningTests
     }
 
     private static RetentionJob CreateJob(PurgeExpiredDataHandler purge, ILogger<RetentionJob> logger) =>
-        new(purge, new StubClock(), Options.Create(new JobsOptions()), logger);
+        new(new MaintenanceOperations(purge), new StubClock(), Options.Create(new JobsOptions()), logger);
 
     private static PurgeExpiredDataHandler Purges(Func<RetentionSection, int> execute) =>
         new RetentionJobTests.Store(command => execute(command.Section)).Handler;
@@ -153,7 +153,7 @@ public sealed class RetentionJobWarningTests
         );
     }
 
-    private sealed class StubClock : IServerClock
+    private sealed class StubClock : IClockOperations
     {
         public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(DateTime.UtcNow);
     }

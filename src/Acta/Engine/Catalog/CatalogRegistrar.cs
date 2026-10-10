@@ -15,7 +15,7 @@ internal sealed class CatalogRegistrar(
     GetDefinitionContractsHandler getDefinitionContracts,
     GetScheduleStateHandler getScheduleState,
     RegisterSchedulesHandler registerSchedules,
-    Execution execution,
+    IExecutionOperations execution,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     AlertRoutingCheck? alertRouting,
@@ -24,7 +24,7 @@ internal sealed class CatalogRegistrar(
     ILogger log
 )
 {
-    private readonly Execution _execution = execution;
+    private readonly IExecutionOperations _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly AlertRoutingCheck? _alertRouting = alertRouting;

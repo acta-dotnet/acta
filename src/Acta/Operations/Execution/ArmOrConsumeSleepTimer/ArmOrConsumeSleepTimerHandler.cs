@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="Execution.ArmOrConsumeSleepTimerAsync"/>: one routine call answers the timer's decision.</summary>
+/// <summary><see cref="IExecutionOperations.ArmOrConsumeSleepTimerAsync"/>: one routine call answers the timer's decision.</summary>
 internal sealed class ArmOrConsumeSleepTimerHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<ArmOrConsumeSleepTimerResponse> HandleAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>

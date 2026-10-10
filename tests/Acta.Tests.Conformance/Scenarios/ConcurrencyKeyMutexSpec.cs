@@ -73,7 +73,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         for (var attempt = 0; attempt < 40 && await InFlightCountAsync(key, ct) < 5; attempt++)
         {
             var batch = await Services
-                .GetRequiredService<Execution>()
+                .GetRequiredService<IExecutionOperations>()
                 .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 5), leaseTtl, ct);
             foreach (var job in batch.Jobs)
             {
@@ -140,7 +140,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
 
         // Hold the key's only execution slot on behalf of a foreign owner, as another worker's live
         // execution would. Same composition the runner uses ({ns_id}.sem.{canonical key}).
-        var locks = Services.GetRequiredService<Locks>();
+        var locks = Services.GetRequiredService<ILocksOperations>();
         var held = (
             await locks.AcquireSlotAsync(
                 $"{ns}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}",

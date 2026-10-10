@@ -3,8 +3,8 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary>
-/// Takes the per-schema installer lock inside the migration transaction and holds it until that transaction ends, so two
-/// installers never interleave. SQLite names no lock: its immediate migration transaction already holds the one write lock.
+/// <see cref="ISchemaOperations.AcquireSchemaLockAsync"/>. SQLite names no lock: its immediate migration transaction already
+/// holds the one write lock.
 /// </summary>
 internal sealed class AcquireSchemaLockHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {

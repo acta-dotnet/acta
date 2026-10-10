@@ -107,7 +107,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var workerId = worker!.Id;
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var claim = await Services
-            .GetRequiredService<Execution>()
+            .GetRequiredService<IExecutionOperations>()
             .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 10), leaseTtl, ct);
 
         Assert.Empty(claim.Jobs);

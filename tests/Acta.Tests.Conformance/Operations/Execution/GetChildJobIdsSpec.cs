@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 )]
 public sealed class GetChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
+    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
 
     [Fact(DisplayName = "Every direct child is listed, a cancelled one included")]
     public async Task Every_direct_child_is_listed()

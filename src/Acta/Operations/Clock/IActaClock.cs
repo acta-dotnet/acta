@@ -10,11 +10,3 @@ internal interface IActaClock
 {
     ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct);
 }
-
-/// <summary>
-/// The always-real database server clock. <c>AddActa</c> registers it unconditionally so the
-/// worker-init clock-skew guard measures the host offset against the true DB clock even when a test
-/// has replaced <see cref="IActaClock"/> with a deterministic fake for schedule determinism. Never
-/// replaced by tests; <c>AddActa</c> also defaults <see cref="IActaClock"/> to this instance.
-/// </summary>
-internal interface IServerClock : IActaClock;

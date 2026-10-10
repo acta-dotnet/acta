@@ -101,7 +101,7 @@ internal static class AlertTestOps
     /// outside the calling fact is touched.
     /// </summary>
     /// <remarks>
-    /// The instant comes from <see cref="IServerClock"/> - the database's own clock, which is what the
+    /// The instant comes from <see cref="IClockOperations"/> - the database's own clock, which is what the
     /// horizon predicate compares against - so the whole alert family rides on no assumption about this
     /// host's clock agreeing with the database's. Only rows still inside the horizon move, and they land
     /// exactly on it: the projector's cursor instant sits at the horizon of the last pass, so a stamp any
@@ -125,7 +125,7 @@ internal static class AlertTestOps
     /// </summary>
     public static async Task<DateTime> HorizonOfThisMomentAsync(IServiceProvider services, CancellationToken ct) =>
         AlertsJob.SafeHorizon(
-            await services.GetRequiredService<IServerClock>().GetUtcNowAsync(ct),
+            await services.GetRequiredService<IClockOperations>().GetUtcNowAsync(ct),
             services.GetRequiredService<AlertLifecycle>().SafeHorizonLag
         );
 
@@ -240,7 +240,9 @@ internal static class AlertTestOps
 
         var db = services.GetRequiredService<IDbSession>();
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(db, namespaceId, ct);
-        var claim = await services.GetRequiredService<Execution>().ClaimJobAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
+        var claim = await services
+            .GetRequiredService<IExecutionOperations>()
+            .ClaimJobAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
         Assert.Equal(slotId, Assert.Single(claim).JobId);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(services, namespaceId, ct)).Reclaimed);
@@ -296,11 +298,11 @@ internal static class AlertTestOps
             leaseTtlSeconds: 180,
             cancelJob: services.GetRequiredService<CancelJobHandler>(),
             resetJobState: services.GetRequiredService<ResetJobStateHandler>(),
-            signals: services.GetRequiredService<Signals>(),
+            signals: services.GetRequiredService<ISignalsOperations>(),
             alerts: services.GetRequiredService<AlertLifecycle>(),
-            executionStore: services.GetRequiredService<Execution>(),
+            executionStore: services.GetRequiredService<IExecutionOperations>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            locks: services.GetRequiredService<Locks>(),
+            locks: services.GetRequiredService<ILocksOperations>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

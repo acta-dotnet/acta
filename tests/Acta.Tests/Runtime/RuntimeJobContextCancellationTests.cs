@@ -36,9 +36,9 @@ public sealed class RuntimeJobContextCancellationTests
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: db.Services().GetRequiredService<Acta.Execution>(),
+            executionStore: db.Services().GetRequiredService<IExecutionOperations>(),
             new ThrowingSerializerRegistry(),
-            ScriptedSession.Unreachable.GetRequiredService<Locks>(),
+            ScriptedSession.Unreachable.GetRequiredService<ILocksOperations>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null
@@ -88,9 +88,9 @@ public sealed class RuntimeJobContextCancellationTests
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: db.Services().GetRequiredService<Acta.Execution>(),
+            executionStore: db.Services().GetRequiredService<IExecutionOperations>(),
             new ThrowingSerializerRegistry(),
-            ScriptedSession.Unreachable.GetRequiredService<Locks>(),
+            ScriptedSession.Unreachable.GetRequiredService<ILocksOperations>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

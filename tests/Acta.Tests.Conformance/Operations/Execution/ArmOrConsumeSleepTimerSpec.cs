@@ -17,7 +17,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
 {
     private const string TimerName = "t.nap";
 
-    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
+    private IExecutionOperations Execution => Services.GetRequiredService<IExecutionOperations>();
 
     [Fact(DisplayName = "A first sleep arms a Pending timer at its due instant and suspends")]
     public async Task First_sleep_arms_a_pending_timer()

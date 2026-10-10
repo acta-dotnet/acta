@@ -109,7 +109,9 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // No prior row: start_step inserts pending and returns Invoke even under at-most-once. The flag
         // only governs re-entry of an already-started slot, never the first legitimate run.
-        var start = await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
+        var start = await Services
+            .GetRequiredService<IExecutionOperations>()
+            .StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
         Assert.Equal(StartStepOutcomeCode.Invoke, start.Outcome);
     }
 
@@ -124,11 +126,15 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Durably start the slot (pending) without completing it: models an attempt that recorded the
         // step start and then crashed.
-        var staged = await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
+        var staged = await Services
+            .GetRequiredService<IExecutionOperations>()
+            .StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
         Assert.Equal(StartStepOutcomeCode.Invoke, staged.Outcome);
 
         // First re-entry under at-most-once poisons the slot to Interrupted (one transition, one bump).
-        var first = await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
+        var first = await Services
+            .GetRequiredService<IExecutionOperations>()
+            .StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
         Assert.Equal(StartStepOutcomeCode.Interrupted, first.Outcome);
 
         var row1 = await ReadStepAsync(enqueued.JobId, ct);
@@ -136,7 +142,9 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var versionAfterInterrupt = row1.Version;
 
         // A later replay of an already-Interrupted slot returns Interrupted again with NO further mutation.
-        var second = await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
+        var second = await Services
+            .GetRequiredService<IExecutionOperations>()
+            .StartStepAsync(enqueued.JobId, StepName, atMostOnce: true, ct);
         Assert.Equal(StartStepOutcomeCode.Interrupted, second.Outcome);
 
         var row2 = await ReadStepAsync(enqueued.JobId, ct);
@@ -148,7 +156,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Re_entry_clears_a_due_retry_instant_when_it_interrupts()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<Execution>();
+        var store = Services.GetRequiredService<IExecutionOperations>();
         var enqueued = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
             ct
@@ -201,7 +209,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         );
 
         // Stage a pending, never-completed step slot, then replay through the real runtime.
-        await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
+        await Services.GetRequiredService<IExecutionOperations>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // The body was never invoked on the replay.
@@ -230,7 +238,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct
         );
 
-        await Services.GetRequiredService<Execution>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
+        await Services.GetRequiredService<IExecutionOperations>().StartStepAsync(enqueued.JobId, StepName, atMostOnce: false, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body still never ran, but the handler reconciled and the job completed.

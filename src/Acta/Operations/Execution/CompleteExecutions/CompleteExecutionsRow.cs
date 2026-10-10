@@ -11,7 +11,7 @@ internal enum CompleteExecutionsAction : byte
 /// <summary>
 /// One completion's answer, keyed by its job and execution number: <c>Action</c> says whether the batch completed the
 /// attempt, lost ownership, found the job terminal or moved past this execution, or left the job to
-/// <see cref="Execution.CompleteExecutionAsync"/> because it has a parent or a lane. <c>FinalStatusCode</c> is the row
+/// <see cref="IExecutionOperations.CompleteExecutionAsync"/> because it has a parent or a lane. <c>FinalStatusCode</c> is the row
 /// after the call, null when the row is gone.
 /// </summary>
 [DbProjection]

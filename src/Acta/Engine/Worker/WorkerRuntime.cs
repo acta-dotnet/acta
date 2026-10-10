@@ -34,7 +34,7 @@ internal sealed class WorkerRuntime
     private readonly CancellationTokenSource _drainCts = new();
 
     public WorkerRuntime(
-        Locks locks,
+        ILocksOperations locks,
         IActaClock clock,
         IJobPayloadSerializerRegistry serializers,
         IServiceProvider rootServices,
@@ -72,7 +72,7 @@ internal sealed class WorkerRuntime
                 rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
                 rootServices.GetRequiredService<GetScheduleStateHandler>(),
                 rootServices.GetRequiredService<RegisterSchedulesHandler>(),
-                rootServices.GetRequiredService<Execution>(),
+                rootServices.GetRequiredService<IExecutionOperations>(),
                 clock,
                 serializers,
                 alertRouting,
@@ -81,7 +81,7 @@ internal sealed class WorkerRuntime
                 logger
             ),
             rootServices.GetRequiredService<WorkerLifecycle>(),
-            rootServices.GetRequiredService<IServerClock>(),
+            rootServices.GetRequiredService<IClockOperations>(),
             options,
             workerRegistration,
             _context,
@@ -89,7 +89,7 @@ internal sealed class WorkerRuntime
         );
 
         _finalizer = new WorkerFinalizer(
-            rootServices.GetRequiredService<Execution>(),
+            rootServices.GetRequiredService<IExecutionOperations>(),
             rootServices.GetRequiredService<CancelJobHandler>(),
             publisher,
             options.Value,
@@ -112,7 +112,7 @@ internal sealed class WorkerRuntime
             metrics
         );
         _claimer = new WorkerClaimer(
-            rootServices.GetRequiredService<Execution>(),
+            rootServices.GetRequiredService<IExecutionOperations>(),
             _executor,
             options.Value,
             _context,
@@ -131,7 +131,7 @@ internal sealed class WorkerRuntime
             logger
         );
         _recoveryMonitor = new RecoverySlotMonitor(
-            rootServices.GetRequiredService<Execution>(),
+            rootServices.GetRequiredService<IExecutionOperations>(),
             publisher,
             workerRegistration,
             _context,
@@ -148,7 +148,7 @@ internal sealed class WorkerRuntime
     /// </summary>
     public static WorkerRuntime Create(IServiceProvider sp, WorkerRegistration worker) =>
         new(
-            sp.GetRequiredService<Locks>(),
+            sp.GetRequiredService<ILocksOperations>(),
             sp.GetRequiredService<IActaClock>(),
             sp.GetRequiredService<IJobPayloadSerializerRegistry>(),
             sp,

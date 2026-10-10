@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace Acta;
 
-/// <summary>Reads the migration history, inside the query's transaction when it names one.</summary>
+/// <summary><see cref="ISchemaOperations.LoadAppliedVersionsAsync"/>: one read of the history table.</summary>
 internal sealed class LoadAppliedVersionsHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {
     public async Task<LoadAppliedVersionsResponse> HandleAsync(LoadAppliedVersionsQuery query, CancellationToken ct)

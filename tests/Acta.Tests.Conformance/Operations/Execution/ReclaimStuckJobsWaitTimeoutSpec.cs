@@ -44,7 +44,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         // that - the throw, the completion - died with the process.
         await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
-            .GetRequiredService<Acta.Signals>()
+            .GetRequiredService<ISignalsOperations>()
             .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
 
@@ -193,7 +193,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
 
         await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
-            .GetRequiredService<Acta.Signals>()
+            .GetRequiredService<ISignalsOperations>()
             .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
 

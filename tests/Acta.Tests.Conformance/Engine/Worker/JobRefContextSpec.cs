@@ -26,7 +26,7 @@ public sealed class JobRefContextSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var seen = await CheckpointSlot.GetAsync(
-            Services.GetRequiredService<Acta.Execution>(),
+            Services.GetRequiredService<IExecutionOperations>(),
             enqueued.JobId,
             CheckpointKindCode.Variable,
             "seen-ref",

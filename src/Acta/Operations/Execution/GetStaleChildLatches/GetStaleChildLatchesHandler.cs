@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="Execution.GetStaleChildLatchesAsync"/>: the namespace's Pending child latches whose child is already terminal or gone.</summary>
+/// <summary><see cref="IExecutionOperations.GetStaleChildLatchesAsync"/>: the namespace's Pending child latches whose child is already terminal or gone.</summary>
 internal sealed class GetStaleChildLatchesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetStaleChildLatchesResponse> HandleAsync(GetStaleChildLatchesQuery query, CancellationToken ct) =>

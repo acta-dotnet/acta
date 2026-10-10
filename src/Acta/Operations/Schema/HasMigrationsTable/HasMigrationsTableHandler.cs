@@ -3,10 +3,7 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary>
-/// Looks for the migration-history table in the catalog, outside any transaction. The read-only preflight asks this
-/// first, so an unprovisioned database is reported as unprovisioned rather than as the provider's "no such table" error.
-/// </summary>
+/// <summary><see cref="ISchemaOperations.HasMigrationsTableAsync"/>: counts the table in the provider's catalog.</summary>
 internal sealed class HasMigrationsTableHandler(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {
     public async Task<HasMigrationsTableResponse> HandleAsync(CancellationToken ct)

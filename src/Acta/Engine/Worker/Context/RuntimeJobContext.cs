@@ -19,11 +19,11 @@ internal sealed partial class RuntimeJobContext(
     int leaseTtlSeconds,
     CancelJobHandler cancelJob,
     ResetJobStateHandler resetJobState,
-    Signals signals,
+    ISignalsOperations signals,
     AlertLifecycle alerts,
-    Execution executionStore,
+    IExecutionOperations executionStore,
     IJobPayloadSerializerRegistry serializers,
-    Locks locks,
+    ILocksOperations locks,
     IReadOnlyList<string> triggeringScheduleNames,
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
@@ -42,11 +42,11 @@ internal sealed partial class RuntimeJobContext(
 
     private readonly CancelJobHandler _cancelJob = cancelJob;
     private readonly ResetJobStateHandler _resetJobState = resetJobState;
-    private readonly Signals _signals = signals;
+    private readonly ISignalsOperations _signals = signals;
     private readonly AlertLifecycle _alerts = alerts;
-    private readonly Execution _executionStore = executionStore;
+    private readonly IExecutionOperations _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
-    private readonly Locks _locks = locks;
+    private readonly ILocksOperations _locks = locks;
     private readonly int _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;

@@ -14,9 +14,9 @@ internal readonly record struct RecoveryPassReport(int DeadWorkersMarked, int Re
 /// lost to a crash. Worker <c>last_seen</c> and per-job lease expiry are independent signals, so the order is not otherwise load-bearing.
 /// </summary>
 internal sealed class RecoveryPass(
-    Signals signals,
+    ISignalsOperations signals,
     WorkerLifecycle workers,
-    Execution execution,
+    IExecutionOperations execution,
     IOptions<JobsOptions> options,
     WorkerWakeupPublisher wakeupPublisher
 )
