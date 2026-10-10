@@ -84,7 +84,7 @@ internal sealed class WorkerRuntimeHost(
         CancellationToken cancellationToken
     )
     {
-        var completed = await WorkerShutdownPhase.RunAsync(
+        var completed = await RunPhaseAsync(
             _runtimes,
             operation,
             LifecycleStampTimeout,
@@ -100,6 +100,57 @@ internal sealed class WorkerRuntimeHost(
         if (!completed)
         {
             _log.LogWarning("Acta: ({Operation}) stamps exceeded their shutdown budget; continuing shutdown.", phase);
+        }
+    }
+
+    /// <summary>
+    /// Runs a best-effort lifecycle phase over every item at once under one deadline linked to the shutdown token, and
+    /// answers whether every item finished in time. A failure reaches <paramref name="onFailure"/> per item, so one
+    /// runtime's stamp never blocks another's.
+    /// </summary>
+    internal static async Task<bool> RunPhaseAsync<T>(
+        IReadOnlyCollection<T> items,
+        Func<T, CancellationToken, Task> operation,
+        TimeSpan timeout,
+        Action<T, Exception> onFailure,
+        CancellationToken shutdownToken
+    )
+    {
+        using var phaseCts = CancellationTokenSource.CreateLinkedTokenSource(shutdownToken);
+        phaseCts.CancelAfter(timeout);
+        try
+        {
+            await Task.WhenAll(items.Select(RunOneAsync)).WaitAsync(phaseCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (phaseCts.IsCancellationRequested)
+        {
+            // The provider may ignore cancellation. WaitAsync still bounds this shutdown phase; the
+            // detached per-item wrapper observes and logs any eventual failure.
+            return false;
+        }
+
+        async Task RunOneAsync(T item)
+        {
+            try
+            {
+                await operation(item, phaseCts.Token);
+            }
+            catch (OperationCanceledException) when (phaseCts.IsCancellationRequested)
+            {
+                // The phase deadline is expected and reported once by the caller.
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    onFailure(item, ex);
+                }
+                catch
+                {
+                    // Logging cannot be allowed to fault a best-effort shutdown phase.
+                }
+            }
         }
     }
 

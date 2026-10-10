@@ -513,7 +513,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `JobAttribute.cs` | `src/Acta/Handlers/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Handlers/JobContext.cs` |
-| `JobExecution.cs` | `src/Acta/Engine/Execution/JobExecution.cs` |
+| `JobFinalizer.cs` | `src/Acta/Engine/Execution/JobFinalizer.cs` |
 | `EventReasonCode.cs` | `src/Acta/Codes/EventReasonCode.cs` |
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta/Engine/Execution/BackoffSchedule.cs` |

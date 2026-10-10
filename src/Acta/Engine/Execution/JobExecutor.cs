@@ -1,23 +1,23 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace Acta;
 
 /// <summary>
 /// Executes one already-claimed job up to its completion: starts a Dispatched claim, resolves the descriptor, opens
-/// the per-attempt DI scope, plans a recurring slot fire, builds the <see cref="RuntimeJobContext"/> and publishes it
-/// on the scope, then hands the admit-invoke body to <see cref="JobExecution"/>. Its loops take what
-/// <see cref="JobClaimer"/> claimed and hand each completion to <see cref="JobFinalizer"/>, so an executor is free as
-/// soon as the completion is built. A claim this deployment carries no handler for completes as a hand-back to Ready.
+/// the per-attempt DI scope, reads what the attempt needs, builds the <see cref="RuntimeJobContext"/> and publishes it
+/// on the scope, then runs <see cref="ExecutionAdmission"/>, which completes a refused attempt, and
+/// <see cref="HandlerInvocation"/>, which completes an admitted one. Its loops take what <see cref="JobClaimer"/>
+/// claimed and hand each completion to <see cref="JobFinalizer"/>, so an executor is free as soon as the completion is
+/// built. A claim this deployment carries no handler for completes as a hand-back to Ready.
 /// </summary>
 internal sealed class JobExecutor(
     Locks locks,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     IServiceProvider rootServices,
-    IOptions<JobsOptions> options,
+    JobsOptions options,
     JobBehaviorPipeline pipeline,
     WorkerContext context,
     InFlightJobRegistry registry,
@@ -26,25 +26,13 @@ internal sealed class JobExecutor(
     ActaMetrics? metrics = null
 )
 {
-    private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-    private readonly long _handBackDelayMs = (long)options.Value.SafetyPollInterval.TotalMilliseconds;
+    private readonly JobsOptions _options = options;
+    private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IServiceProvider _rootServices = rootServices;
-    private readonly WorkerContext _context = context;
-    private readonly InFlightJobRegistry _registry = registry;
     private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
-    private readonly ActaMetrics? _metrics = metrics;
-    private readonly JobExecution _jobExecution = new(serializers, options, pipeline, log ?? NullLogger.Instance);
-    private readonly AttemptContextFactory _contexts = new(
-        rootServices,
-        context,
-        clock,
-        serializers,
-        locks,
-        options,
-        log ?? NullLogger.Instance,
-        metrics
-    );
+    private readonly ExecutionAdmission _admission = new(log ?? NullLogger.Instance, options.ConcurrencyKeyBounceDelaySeconds);
+    private readonly HandlerInvocation _invocation = new(serializers, pipeline, options.MaxInlinePayloadBytes, log ?? NullLogger.Instance);
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
@@ -66,30 +54,30 @@ internal sealed class JobExecutor(
     private async Task<RunOnceStatus> RunOnceCoreAsync(string namespaceName, long? explicitJobId, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
-        var (namespaceId, workerId) = _context.ResolveWorker(namespaceName);
+        var (namespaceId, workerId) = context.ResolveWorker(namespaceName);
 
         // Only the scanning claim carries the exclusion: a caller naming a job id asked for that row,
         // and gets the bounce rather than an empty claim it cannot tell from a locked-away one.
         var claim = explicitJobId is { } id
-            ? await _execution.ClaimOneAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), _leaseTtlSeconds, id, ct)
+            ? await _execution.ClaimOneAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), _options.LeaseTtlSeconds, id, ct)
             : await _execution.ClaimOneAsync(
-                new ClaimOptions(namespaceId, workerId, MaxBatch: 1, ExcludedDefinitionIds: _context.UnsupportedDefinitionIdsSnapshot),
-                _leaseTtlSeconds,
+                new ClaimOptions(namespaceId, workerId, MaxBatch: 1, ExcludedDefinitionIds: context.UnsupportedDefinitionIdsSnapshot),
+                _options.LeaseTtlSeconds,
                 null,
                 ct
             );
         if (claim.Jobs.Count == 0)
         {
-            _metrics?.RecordClaim(namespaceName, "nothing-claimed");
+            metrics?.RecordClaim(namespaceName, "nothing-claimed");
             return RunOnceStatus.NothingClaimed;
         }
 
-        _metrics?.RecordClaim(namespaceName, "claimed");
+        metrics?.RecordClaim(namespaceName, "claimed");
 
         // No lease deadline: the CLI's jobs debug run pumps the heartbeat around a handler a debugger may hold
         // paused past it. The heartbeat still cancels the attempt once its row is gone.
         var entry = new InFlightJob(claim.Jobs[0], leaseRunway: null, ct);
-        _registry.TryAdd(entry);
+        registry.TryAdd(entry);
         return await RunInlineAsync(entry, ct);
     }
 
@@ -106,14 +94,14 @@ internal sealed class JobExecutor(
     {
         try
         {
-            await foreach (var entry in _registry.Claimed.Reader.ReadAllAsync(hostCt))
+            await foreach (var entry in registry.Claimed.Reader.ReadAllAsync(hostCt))
             {
                 try
                 {
                     if (await ExecuteAsync(entry, hostCt))
                     {
-                        await _registry.Completed.Writer.WriteAsync(entry, hostCt);
-                        _registry.ReleasePermit(entry);
+                        await registry.Completed.Writer.WriteAsync(entry, hostCt);
+                        registry.ReleasePermit(entry);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
@@ -140,8 +128,8 @@ internal sealed class JobExecutor(
         var job = entry.Claim;
         try
         {
-            var namespaceName = _context.WorkerRegistration!.NamespaceName;
-            var (namespaceId, workerId) = _context.ResolveWorker(namespaceName);
+            var namespaceName = context.WorkerRegistration!.NamespaceName;
+            var (namespaceId, workerId) = context.ResolveWorker(namespaceName);
             // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
             // row is no longer this worker's to run.
             if (entry.AttemptToken.IsCancellationRequested || !entry.Started && !await StartAsync(entry, workerId))
@@ -150,19 +138,19 @@ internal sealed class JobExecutor(
             }
 
             entry.State = InFlightJobState.Executing;
-            if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
+            if (!context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
             {
                 // One warning per definition, not per bounce: the exclusion makes the first bounce the whole
                 // story, and the rest of an already-claimed batch would otherwise repeat it once per row. The job
                 // name is not known - resolving it is what the missing descriptor would have done - so the ref is
                 // what an operator takes to `jobs explain`.
                 _log.Log(
-                    _context.ExcludeDefinition(job.DefinitionId) ? LogLevel.Warning : LogLevel.Debug,
+                    context.ExcludeDefinition(job.DefinitionId) ? LogLevel.Warning : LogLevel.Debug,
                     "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
                     namespaceName,
                     job.JobId,
                     $"ref {job.JobRef}, definition_id {job.DefinitionId}",
-                    _handBackDelayMs
+                    (long)_options.SafetyPollInterval.TotalMilliseconds
                 );
                 return Finalizing(
                     entry,
@@ -192,11 +180,10 @@ internal sealed class JobExecutor(
             }
 
             await using var attemptScope = _rootServices.CreateAsyncScope();
-            var attemptServices = attemptScope.ServiceProvider;
-            AttemptSetup setup;
+            (RuntimeJobContext Context, RecurringFirePlan? Fire) attempt;
             try
             {
-                setup = await _contexts.ReadSetupAsync(job, descriptor, hostCt);
+                attempt = await PrepareAsync(entry, descriptor, namespaceName, namespaceId, workerId, attemptScope.ServiceProvider, hostCt);
             }
             catch (Exception ex) when (!hostCt.IsCancellationRequested)
             {
@@ -210,13 +197,29 @@ internal sealed class JobExecutor(
                     HandBack($"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.")
                 );
             }
-            var jobContext = _contexts.Create(job, descriptor, namespaceName, namespaceId, workerId, setup, entry, attemptServices);
 
-            // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.
-            // The handler resolves from this same scope, so the scoped accessor carries the set value.
-            attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
+            var (jobContext, fire) = attempt;
+            ExecutionCompletion? completion;
+            try
+            {
+                // A fire that only ends timed pauses with nothing due takes no slot, no turn, and no handler call;
+                // it completes as a re-arm that applies the advances (ScheduleWalker.PlanFire).
+                completion = fire is { NothingDue: true }
+                    ? new ExecutionCompletion(CompletionKind.Rescheduled)
+                    {
+                        ReasonMessage = "A timed schedule pause ended with no occurrence due; the handler did not run.",
+                    }
+                    : await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
+                        ?? await _invocation.InvokeAsync(attemptScope.ServiceProvider, descriptor, job, jobContext, hostCt);
+            }
+            finally
+            {
+                // Mutual exclusion covers the handler, not the completion write: the slot admission took goes back on
+                // every exit, a refusal, the handler's end, or worker shutdown. Release is best-effort, non-throwing, and
+                // a no-op when no slot was taken; a failed release self-heals via the lock's TTL.
+                await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+            }
 
-            var completion = await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, setup.Fire, hostCt);
             if (completion is null)
             {
                 return false;
@@ -224,14 +227,14 @@ internal sealed class JobExecutor(
 
             entry.Descriptor = descriptor;
             entry.Context = jobContext;
-            entry.Fire = setup.Fire;
+            entry.Fire = fire;
             return Finalizing(entry, completion);
         }
         finally
         {
             if (entry.State != InFlightJobState.Finalizing)
             {
-                _registry.Remove(entry);
+                registry.Remove(entry);
             }
         }
     }
@@ -245,11 +248,11 @@ internal sealed class JobExecutor(
     {
         var job = entry.Claim;
         var start = await JobFinalizer.RepeatAsync(
-            token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _leaseTtlSeconds, token),
+            token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _options.LeaseTtlSeconds, token),
             _log,
             job.JobId,
             entry.AttemptToken,
-            _metrics
+            metrics
         );
         if (start.Action == StartExecutionAction.Started)
         {
@@ -266,6 +269,116 @@ internal sealed class JobExecutor(
             start.Action.ToString()
         );
         return false;
+    }
+
+    /// <summary>
+    /// What an attempt needs before its handler runs: the recurring fire plan and the tenant key, each read repeated
+    /// like the writes on the host token, then the context, published on the attempt scope so DI-resolved handlers
+    /// (e.g. MediatR) inject it from the same scope the handler resolves from.
+    /// </summary>
+    private async Task<(RuntimeJobContext Context, RecurringFirePlan? Fire)> PrepareAsync(
+        InFlightJob entry,
+        JobDescriptor descriptor,
+        string namespaceName,
+        int namespaceId,
+        int workerId,
+        IServiceProvider attemptServices,
+        CancellationToken ct
+    )
+    {
+        var job = entry.Claim;
+        var fire = await PlanFireAsync(job, descriptor, ct);
+        var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
+
+        // Resolve the external tenant key off the process-lifetime cache (one point read per
+        // distinct tenant); the claim projection itself stays join-free.
+        var tenantKey = job.TenantId is { } jobTenantId
+            ? await JobFinalizer.RepeatAsync(
+                async token => await _rootServices.GetRequiredService<TenantKeyCache>().ResolveAsync(jobTenantId, token),
+                _log,
+                job.JobId,
+                ct,
+                metrics
+            )
+            : null;
+
+        // A recurring slot never carries the whole-job deadline: it anchors to job creation
+        // and the slot row lives forever, so the Strict paths would cancel the slot
+        // terminally and the advisory surface (ctx.IsOverdue, ctx.TimeUntilDeadline) would
+        // report permanently overdue to every occurrence. Worker init rejects the
+        // Deadline + [JobSchedule] combination; a null here covers slots that predate the
+        // rule or gained a deadline through an override, in the one place every consumer
+        // reads from.
+        DateTime? deadlineAtUtc =
+            fire is null && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
+                ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
+                : null;
+        var jobContext = new RuntimeJobContext(
+            job,
+            descriptor.JobName,
+            namespaceName,
+            namespaceId,
+            _options.LeaseTtlSeconds,
+            _rootServices.GetRequiredService<CancelJobHandler>(),
+            _rootServices.GetRequiredService<ResetJobStateHandler>(),
+            _rootServices.GetRequiredService<Signals>(),
+            _rootServices.GetRequiredService<AlertLifecycle>(),
+            _execution,
+            _serializers,
+            locks,
+            fire?.TriggeringScheduleNames ?? [],
+            deadlineAtUtc,
+            entry.AttemptToken,
+            _options.MaxInlinePayloadBytes,
+            entry,
+            new StepRetryDefaults(
+                descriptor.MaxAttempts,
+                DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
+                DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
+                (decimal)backoff.Multiplier,
+                (decimal)backoff.Jitter
+            ),
+            _log,
+            metrics,
+            attemptServices.GetService<IJobs>(),
+            tenantKey,
+            workerId,
+            clock
+        );
+        attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
+        return (jobContext, fire);
+    }
+
+    /// <summary>
+    /// Recurring slot fire: reads live schedules once and plans the due set + cursor advances at a single
+    /// captured nowUtc. The due names are visible to the handler; the advances + slot MIN apply at
+    /// completion. Null for a one-shot job, which keeps the unchanged one-shot path.
+    /// </summary>
+    private async Task<RecurringFirePlan?> PlanFireAsync(ClaimedJob job, JobDescriptor descriptor, CancellationToken ct)
+    {
+        var isRecurring = context.RecurringSlotJobIds.ContainsKey(job.JobId);
+        if (!isRecurring && !string.Equals(job.DeduplicationKey, descriptor.JobName, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var nowUtc = await JobFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), _log, job.JobId, ct, metrics);
+        var liveSchedules = _rootServices.GetRequiredService<GetLiveSchedulesHandler>();
+        var live = await JobFinalizer.RepeatAsync(
+            async token => (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token)).Schedules,
+            _log,
+            job.JobId,
+            ct,
+            metrics
+        );
+        // A slot another runtime registered after this one started is not in the startup set. Its
+        // deduplication key is its job name, which a one-off may share, so live schedules decide.
+        if (!isRecurring && live.Count > 0)
+        {
+            isRecurring = true;
+            context.RecurringSlotJobIds.TryAdd(job.JobId, 0);
+        }
+        return isRecurring ? ScheduleWalker.PlanFire(live, nowUtc) : null;
     }
 
     // A claim this worker will not run goes back to Ready budget-neutral, through the finalizer, which writes it as a

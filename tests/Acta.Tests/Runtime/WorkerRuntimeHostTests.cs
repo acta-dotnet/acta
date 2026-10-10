@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Acta.Tests.Runtime;
 
-public sealed class WorkerShutdownPhaseTests
+public sealed class WorkerRuntimeHostTests
 {
     // The operations these tests hand the phase never complete on their own, so a phase that drops
     // its own timeout does not return late - it does not return at all. Waits that sit behind such an
@@ -29,7 +29,7 @@ public sealed class WorkerShutdownPhaseTests
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var started = 0;
 
-        var run = WorkerShutdownPhase.RunAsync(
+        var run = WorkerRuntimeHost.RunPhaseAsync(
             [1, 2, 3],
             async (_, ct) =>
             {
@@ -61,8 +61,8 @@ public sealed class WorkerShutdownPhaseTests
 
         // Two separate concerns: the WaitAsync makes a phase that never gives up fail readably rather
         // than hang, and the elapsed bound below is the actual fact - that it gave up on ITS timeout.
-        var completed = await WorkerShutdownPhase
-            .RunAsync([1, 2], (_, _) => never.Task, PhaseTimeout, static (_, _) => { }, TestContext.Current.CancellationToken)
+        var completed = await WorkerRuntimeHost
+            .RunPhaseAsync([1, 2], (_, _) => never.Task, PhaseTimeout, static (_, _) => { }, TestContext.Current.CancellationToken)
             .WaitAsync(HangGuard, TestContext.Current.CancellationToken);
 
         Assert.False(completed);
@@ -78,7 +78,7 @@ public sealed class WorkerShutdownPhaseTests
         var completedItems = new ConcurrentBag<int>();
         var failures = new ConcurrentBag<(int Item, Exception Error)>();
 
-        var completed = await WorkerShutdownPhase.RunAsync(
+        var completed = await WorkerRuntimeHost.RunPhaseAsync(
             [1, 2, 3],
             (item, _) =>
             {

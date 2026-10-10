@@ -15,7 +15,7 @@ namespace Acta.Tests.Execution;
 /// a test can assert on the completion shape rather than on a database. Reusable for executor unit tests;
 /// add scripted knobs here, not per test.
 /// </summary>
-internal sealed class JobExecutionHarness(
+internal sealed class JobExecutorHarness(
     CompleteStepOutcomeCode stepOutcome = CompleteStepOutcomeCode.Succeeded,
     CompleteExecutionAction completionAction = CompleteExecutionAction.Completed,
     bool cancelAttemptOnStepCompletion = false,
@@ -151,7 +151,7 @@ internal sealed class JobExecutionHarness(
             new HarnessClock(),
             new HarnessSerializers(),
             new StoreOnlyServices(_store.Execution, CancelJob()),
-            Options.Create(options),
+            options,
             new JobBehaviorPipeline([]),
             context,
             registry,
@@ -192,7 +192,7 @@ internal sealed class JobExecutionHarness(
     ) =>
         new(
             JobName: jobName,
-            HandlerType: typeof(JobExecutionHarness),
+            HandlerType: typeof(JobExecutorHarness),
             MethodName: "N/A",
             InputType: typeof(NoInput),
             OutputType: null,

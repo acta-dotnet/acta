@@ -4,16 +4,16 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Unit pins for concurrency admission in <see cref="JobExecutor.ExecuteAsync"/>, driven by
-/// <see cref="JobExecutionHarness"/>'s scripted slot store: which key and how many slots the runner
+/// <see cref="JobExecutorHarness"/>'s scripted slot store: which key and how many slots the runner
 /// asks for, that a granted slot is released once the handler is done, and that a denied slot skips
 /// the handler and settles the attempt as a budget-neutral re-arm with the bounce delay.
 /// </summary>
-public sealed class JobExecutionConcurrencyAdmissionTests
+public sealed class JobExecutorConcurrencyAdmissionTests
 {
     [Fact]
     public async Task No_key_and_no_limit_takes_no_slot_at_all()
     {
-        var harness = new JobExecutionHarness();
+        var harness = new JobExecutorHarness();
 
         var outcome = await harness.RunAsync();
 
@@ -25,7 +25,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
     public async Task A_persisted_key_with_no_limit_asks_for_one_slot_on_that_key()
     {
         // The pre-limit mutex, unchanged in meaning: the enqueue's key, a single slot.
-        var harness = new JobExecutionHarness(concurrencyKey: "customer-1");
+        var harness = new JobExecutorHarness(concurrencyKey: "customer-1");
 
         var outcome = await harness.RunAsync();
 
@@ -39,7 +39,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
     [Fact]
     public async Task A_limit_with_no_key_gates_on_the_definition_name()
     {
-        var harness = new JobExecutionHarness(concurrencyLimit: 4);
+        var harness = new JobExecutorHarness(concurrencyLimit: 4);
 
         await harness.RunAsync();
 
@@ -51,7 +51,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
     [Fact]
     public async Task A_persisted_key_and_a_limit_gate_on_the_key_with_the_definitions_slot_count()
     {
-        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", concurrencyLimit: 4);
+        var harness = new JobExecutorHarness(concurrencyKey: "customer-1", concurrencyLimit: 4);
 
         await harness.RunAsync();
 
@@ -63,7 +63,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
     [Fact]
     public async Task A_denied_slot_skips_the_handler_and_re_arms_budget_neutral()
     {
-        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", slotGranted: false);
+        var harness = new JobExecutorHarness(concurrencyKey: "customer-1", slotGranted: false);
 
         var outcome = await harness.RunAsync();
 
@@ -88,7 +88,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         // The default key is the definition name, and a system job may carry a limit; the public
         // system-prefix rule belongs to enqueue keys, which were validated there already. A rejection
         // here would bounce every attempt of sys.recovery without ever running it.
-        var harness = new JobExecutionHarness(concurrencyLimit: 2, jobName: "sys.recovery");
+        var harness = new JobExecutorHarness(concurrencyLimit: 2, jobName: "sys.recovery");
 
         var outcome = await harness.RunAsync();
 
@@ -99,7 +99,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
     [Fact]
     public async Task A_provider_error_on_slot_admission_bounces_instead_of_escaping()
     {
-        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", slotThrows: true);
+        var harness = new JobExecutorHarness(concurrencyKey: "customer-1", slotThrows: true);
 
         var outcome = await harness.RunAsync();
 

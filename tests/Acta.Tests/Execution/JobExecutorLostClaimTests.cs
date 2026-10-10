@@ -10,9 +10,9 @@ namespace Acta.Tests.Execution;
 /// a clean skip: the start matched no row, so nothing was mutated, and the attempt must invoke no handler,
 /// submit no completion, and report NothingClaimed so the row is simply re-claimed on a later tick. The
 /// sibling window - losing the claim DURING the handler, at the completion CAS - is
-/// <c>JobExecutionOwnershipTests</c> and <c>WorkerCrashRecoveryChaosSpec</c>.
+/// <c>JobExecutorOwnershipTests</c> and <c>WorkerCrashRecoveryChaosSpec</c>.
 /// </summary>
-public sealed class JobExecutionLostClaimTests
+public sealed class JobExecutorLostClaimTests
 {
     [Fact]
     public Task A_lease_reclaimed_between_claim_and_start_is_a_clean_skip() => AssertCleanSkip(StartExecutionAction.LostClaim);
@@ -27,7 +27,7 @@ public sealed class JobExecutionLostClaimTests
 
     private static async Task AssertCleanSkip(StartExecutionAction start)
     {
-        var harness = new JobExecutionHarness(startAction: start);
+        var harness = new JobExecutorHarness(startAction: start);
 
         var outcome = await harness.RunAsync();
 

@@ -3,13 +3,13 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Pins the two per-attempt inputs <see cref="JobExecutionHarness"/> used to leave at their optional
+/// Pins the two per-attempt inputs <see cref="JobExecutorHarness"/> used to leave at their optional
 /// defaults, each of which silently disabled a production behavior in every test built on the harness:
 /// the inline payload cap (defaulted to <c>int.MaxValue</c>, so a handler write that production
 /// rejects went through) and the running attempt (defaulted to null, so every execution timeout read
 /// back as a plain external cancel).
 /// </summary>
-public sealed class JobExecutionAttemptContextTests
+public sealed class JobExecutorAttemptContextTests
 {
     // null exercises the harness's own JobsOptions default; the other two are caps no default could
     // coincide with, so the pin fails on any divergence between the value this host configured and
@@ -21,7 +21,7 @@ public sealed class JobExecutionAttemptContextTests
     public async Task Handler_writes_are_capped_at_the_configured_inline_payload_size(int? configuredCap)
     {
         var expectedCap = configuredCap ?? new JobsOptions().MaxInlinePayloadBytes;
-        var harness = new JobExecutionHarness(maxInlinePayloadBytes: configuredCap);
+        var harness = new JobExecutorHarness(maxInlinePayloadBytes: configuredCap);
         var oversized = new string('x', expectedCap + 1024);
         PayloadTooLargeException? rejected = null;
 
@@ -44,7 +44,7 @@ public sealed class JobExecutionAttemptContextTests
     [Fact]
     public async Task An_execution_timeout_is_recorded_as_a_timeout_not_an_aborted_attempt()
     {
-        var harness = new JobExecutionHarness();
+        var harness = new JobExecutorHarness();
 
         var outcome = await harness.RunAsync(
             async (_, ct) =>

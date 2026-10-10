@@ -103,7 +103,7 @@ internal sealed class WorkerRuntime
             clock,
             serializers,
             rootServices,
-            options,
+            options.Value,
             pipeline,
             _context,
             _registry,

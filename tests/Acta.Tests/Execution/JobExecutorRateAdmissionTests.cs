@@ -4,18 +4,18 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Unit pins for rate admission in <see cref="JobExecutor.ExecuteAsync"/>, driven by
-/// <see cref="JobExecutionHarness"/>'s scripted meter: which bucket and which meter shape the runner
+/// <see cref="JobExecutorHarness"/>'s scripted meter: which bucket and which meter shape the runner
 /// asks for, that an admitted job runs its handler, and that a denied one skips the handler, gives
 /// back the concurrency slot it had just taken, and re-arms at exactly the reserved instant.
 /// </summary>
-public sealed class JobExecutionRateAdmissionTests
+public sealed class JobExecutorRateAdmissionTests
 {
     private static readonly DateTime ReservedTurn = new(2026, 9, 19, 12, 0, 30, 250, DateTimeKind.Utc);
 
     [Fact]
     public async Task No_declared_rate_asks_the_meter_for_nothing()
     {
-        var harness = new JobExecutionHarness();
+        var harness = new JobExecutorHarness();
 
         var outcome = await harness.RunAsync();
 
@@ -26,7 +26,7 @@ public sealed class JobExecutionRateAdmissionTests
     [Fact]
     public async Task A_rate_with_no_key_meters_on_the_definition_name()
     {
-        var harness = new JobExecutionHarness(rateLimit: "10/s");
+        var harness = new JobExecutorHarness(rateLimit: "10/s");
 
         var outcome = await harness.RunAsync();
 
@@ -41,7 +41,7 @@ public sealed class JobExecutionRateAdmissionTests
     [Fact]
     public async Task A_declared_rate_key_names_the_meter_instead()
     {
-        var harness = new JobExecutionHarness(rateLimit: "600/m", rateKey: "stripe");
+        var harness = new JobExecutorHarness(rateLimit: "600/m", rateKey: "stripe");
 
         await harness.RunAsync();
 
@@ -55,7 +55,7 @@ public sealed class JobExecutionRateAdmissionTests
     [Fact]
     public async Task A_denied_rate_re_arms_at_the_reserved_instant_budget_neutral()
     {
-        var harness = new JobExecutionHarness(rateLimit: "10/s", rateResumeAtUtc: ReservedTurn);
+        var harness = new JobExecutorHarness(rateLimit: "10/s", rateResumeAtUtc: ReservedTurn);
 
         var outcome = await harness.RunAsync();
 
@@ -78,7 +78,7 @@ public sealed class JobExecutionRateAdmissionTests
         // The meter books a turn 40ms away, inside the quarter-second horizon: the runner sleeps the
         // wait the meter measured, asks again, is admitted on the booked turn, and runs the handler
         // with no re-arm and no second claim.
-        var harness = new JobExecutionHarness(
+        var harness = new JobExecutorHarness(
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
@@ -103,7 +103,7 @@ public sealed class JobExecutionRateAdmissionTests
         // The attempt token is cancelled while the runner sleeps out a near turn (an operator cancel,
         // a stolen lease, the timeout): the sleep ends at once, the meter is not asked again, the
         // handler never runs, and the attempt settles through the cancellation path, not as a success.
-        var harness = new JobExecutionHarness(
+        var harness = new JobExecutorHarness(
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
@@ -127,7 +127,7 @@ public sealed class JobExecutionRateAdmissionTests
         // The worker token is cancelled while the runner sleeps out a near turn: the cancellation
         // propagates as it does for any attempt shutdown interrupts, no completion is written, but the
         // slot this process holds is released now rather than at lease expiry.
-        var harness = new JobExecutionHarness(
+        var harness = new JobExecutorHarness(
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
@@ -149,7 +149,7 @@ public sealed class JobExecutionRateAdmissionTests
         // The deadline was still ahead at admission but passes during the 200ms wait: the re-arm path
         // would have rechecked it on the next attempt, so the in-process path rechecks it after the
         // wait, settles as deadline exceeded without a handler run, and returns the slot it held.
-        var harness = new JobExecutionHarness(
+        var harness = new JobExecutorHarness(
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
@@ -181,7 +181,7 @@ public sealed class JobExecutionRateAdmissionTests
     {
         // Both gates declared: the slot is taken first, so a rate denial must hand it straight back
         // rather than hold it for the whole wait.
-        var harness = new JobExecutionHarness(
+        var harness = new JobExecutorHarness(
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
@@ -199,7 +199,7 @@ public sealed class JobExecutionRateAdmissionTests
     {
         // The turn is decoded as expiry minus grace, so a grace taken from the lease TTL would shift
         // every booked turn on a fleet-wide heartbeat change; the constant keeps old bookings honest.
-        var harness = new JobExecutionHarness(rateLimit: "10/s");
+        var harness = new JobExecutorHarness(rateLimit: "10/s");
 
         await harness.RunAsync();
 
@@ -210,7 +210,7 @@ public sealed class JobExecutionRateAdmissionTests
     [Fact]
     public async Task A_provider_error_on_the_reservation_bounces_and_gives_the_slot_back()
     {
-        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", concurrencyLimit: 4, rateLimit: "10/s", rateThrows: true);
+        var harness = new JobExecutorHarness(concurrencyKey: "customer-1", concurrencyLimit: 4, rateLimit: "10/s", rateThrows: true);
 
         var outcome = await harness.RunAsync();
 
@@ -232,7 +232,7 @@ public sealed class JobExecutionRateAdmissionTests
     {
         // The slot is the outer gate, so a job that cannot run must not move the meter: spending a
         // turn here would meter attempts that never execute.
-        var harness = new JobExecutionHarness(concurrencyKey: "customer-1", slotGranted: false, rateLimit: "10/s");
+        var harness = new JobExecutorHarness(concurrencyKey: "customer-1", slotGranted: false, rateLimit: "10/s");
 
         var outcome = await harness.RunAsync();
 

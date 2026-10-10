@@ -12,7 +12,7 @@ internal static class CheckpointSlot
 {
     public static Task SetAsync(Execution store, long jobId, CheckpointKindCode kind, string name, JobPayload payload, CancellationToken ct)
     {
-        CheckpointPayload.EnsureWritable(payload);
+        EnsureWritable(payload);
         return Run(store, CheckpointSlotAction.Set, jobId, kind, name, payload, ct);
     }
 
@@ -37,7 +37,7 @@ internal static class CheckpointSlot
         CancellationToken ct
     )
     {
-        CheckpointPayload.EnsureWritable(payload);
+        EnsureWritable(payload);
         var row = await Run(store, CheckpointSlotAction.GetOrSet, jobId, kind, name, payload, ct);
         return row.Found == 0 ? throw new InvalidOperationException("checkpoint_slot get-or-set returned no stored value.") : ToValue(row);
     }
@@ -47,6 +47,15 @@ internal static class CheckpointSlot
 
     public static async Task<bool> DeleteAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
         (await Run(store, CheckpointSlotAction.Delete, jobId, kind, name, null, ct)).Found != 0;
+
+    // A variable value must carry a real payload: a non-None format with a non-zero id.
+    private static void EnsureWritable(JobPayload payload)
+    {
+        if (payload.IsNone || payload.Format.Id == 0)
+        {
+            throw new ArgumentException("Variable payload cannot be None.", nameof(payload));
+        }
+    }
 
     private static Task<CheckpointSlotResponse> Run(
         Execution store,

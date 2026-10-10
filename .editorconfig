@@ -717,15 +717,12 @@ dotnet_diagnostic.CA1001.severity = none
 
 # CA1031: shutdown must run to completion. A worker loop that faulted during drain is surfaced by
 # base.StopAsync; escaping here would abandon the remaining shutdown steps of every other runtime.
-# Logged at warning; the budget-elapsed case has its own arm above.
+# Logged at warning; the budget-elapsed case has its own arm above. In RunPhaseAsync the outer catch
+# routes a per-item failure to the caller's onFailure reporter instead of faulting the Task.WhenAll,
+# which would abandon the other items' stamps mid-shutdown, and the inner bare catch is deliberately
+# broad and silent: it guards the reporter itself, because logging cannot be allowed to fault a
+# best-effort shutdown phase.
 [src/Acta/Engine/Worker/WorkerRuntimeHost.cs]
-dotnet_diagnostic.CA1031.severity = none
-
-# CA1031: best-effort shutdown phase. The outer catch routes a per-item failure to the caller's
-# onFailure reporter instead of faulting the Task.WhenAll, which would abandon the other items' stamps
-# mid-shutdown. The inner bare catch is deliberately broad and deliberately silent: it guards the
-# reporter itself, because logging cannot be allowed to fault a best-effort shutdown phase.
-[src/Acta/Engine/Worker/WorkerShutdownPhase.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: WorkerWakeupPublisher.WakeAsync is the publish seam whose entire purpose is that a wake never
