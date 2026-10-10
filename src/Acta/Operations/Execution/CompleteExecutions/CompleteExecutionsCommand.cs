@@ -22,4 +22,20 @@ internal sealed record CompleteExecutionsValues(
     int? DurationMs,
     int? FailureCount,
     int? RetentionSeconds
-);
+)
+{
+    /// <summary>The row for a per-job command with nothing to write beyond a Succeeded or Failed landing.</summary>
+    public static CompleteExecutionsValues From(CompleteExecutionCommand command) =>
+        new(
+            command.JobId,
+            command.ExpectedExecutionNumber,
+            command.Outcome == CompletionKind.Succeeded,
+            command.ResultFormatId,
+            command.Result,
+            command.EventReasonCode,
+            command.ReasonMessage,
+            command.DurationMs,
+            command.FailureCount,
+            command.RetentionSeconds
+        );
+}

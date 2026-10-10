@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text.Json;
 using Acta.Tests.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -216,6 +217,84 @@ public sealed class JobFinalizerTests
         Assert.Equal(2, writes);
         Assert.Equal(0, registry.Count());
     }
+
+    [Fact(DisplayName = "Plain completions waiting together are written in one call, and a row it leaves to its job is written alone")]
+    public async Task Plain_completions_waiting_together_are_written_in_one_call()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "CompleteExecutions" => new List<CompleteExecutionsRow>
+                {
+                    new(1, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, DateTime.UtcNow),
+                    new(2, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, DateTime.UtcNow),
+                    new(3, 0, CompleteExecutionsAction.PerJob, (byte)JobStatusCode.Executing, DateTime.UtcNow),
+                },
+                "CompleteExecution" => new CompleteExecutionResponse(
+                    CompleteExecutionAction.Completed,
+                    (byte)JobStatusCode.Succeeded,
+                    FinalNextRunAtUtc: null,
+                    DateTime.UtcNow,
+                    ParentReleased: false
+                ),
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new JobFinalizer(
+            session.Services().GetRequiredService<Acta.Execution>(),
+            null!,
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        );
+        foreach (var jobId in new long[] { 1, 2, 3 })
+        {
+            var entry = WorkerHeartbeatLeaseRunwayTests.Entry(jobId, state: InFlightJobState.Finalizing);
+            entry.Descriptor = Descriptor;
+            entry.Completion = new ExecutionCompletion(CompletionKind.Succeeded);
+            registry.TryAdd(entry);
+            await registry.Completed.Writer.WriteAsync(entry, ct);
+        }
+        registry.Completed.Writer.Complete();
+
+        await finalizer.RunLoopAsync(ct);
+
+        Assert.Equal(["CompleteExecutions", "CompleteExecution"], session.Calls.Select(call => call.Stem));
+        using var batch = JsonDocument.Parse((string)session.Calls[0].Parameters["p_completions"]!);
+        Assert.Equal([1L, 2L, 3L], batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()));
+        Assert.Equal(3L, session.Calls[1].Get(ActaSchema.Job.Id));
+        Assert.Equal(0, registry.Count());
+    }
+
+    // A one-shot definition: the batch reads only its retention, and the plan its budget and deadline behavior.
+    private static readonly JobDescriptor Descriptor = new(
+        "receipt",
+        typeof(JobFinalizerTests),
+        MethodName: "Run",
+        InputType: typeof(object),
+        OutputType: null,
+        InputPayloadFormat: default,
+        OutputPayloadFormat: null,
+        InvocationKind: default,
+        RequiresJobContextParameter: false,
+        RequiresCancellationToken: false,
+        Priority: default,
+        MaxAttempts: 1,
+        AuditLevel: default,
+        AlertProfile: default,
+        Invoker: null!,
+        DeserializeInput: null!,
+        SerializeOutput: null
+    );
 
     private static object FailOnce(TaskCompletionSource failed)
     {

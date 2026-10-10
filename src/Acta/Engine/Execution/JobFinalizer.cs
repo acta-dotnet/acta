@@ -7,8 +7,8 @@ namespace Acta;
 /// Writes each execution's completion: the one-shot retry budget and its Strict deadline guard, the
 /// <c>complete_execution</c> command for each completion shape (including the recurring-completion outcome math), the
 /// write, repeated until it lands, and the wakes and follow-ups its final state calls for. Its loops take what the
-/// executors completed, so an executor is free as soon as its completion is built, while the entry stays held, and
-/// renewed, until the write commits.
+/// executors completed and write the plain completions together in one <c>complete_executions</c> call, so an executor
+/// is free as soon as its completion is built, while the entry stays held, and renewed, until the write commits.
 /// </summary>
 internal sealed class JobFinalizer(
     Execution execution,
@@ -21,6 +21,9 @@ internal sealed class JobFinalizer(
     ActaMetrics? metrics
 )
 {
+    /// <summary>Enough writers to keep a database busy, few enough that a batch forms when the writes fall behind.</summary>
+    public const int LoopCount = 4;
+
     // One second doubling to a thirty-second ceiling, on the runtime's one retry curve: a dropped
     // connection costs almost nothing, and a failover measured in minutes is ridden out without
     // hammering the provider that is coming back. A quarter of jitter keeps a fleet whose writes failed
@@ -37,23 +40,35 @@ internal sealed class JobFinalizer(
     // keeps it at or above one second, so the delay never rounds to zero.
     private readonly int _handBackDelaySeconds = (int)Math.Ceiling(options.SafetyPollInterval.TotalSeconds);
 
+    // The Completed channel's capacity: a batch never holds more than the executors can have handed over at once.
+    private readonly int _maxBatch = options.MaxConcurrentExecutors;
+
+    private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
+
     /// <summary>
-    /// One of the worker's finalizer loops: writes each completion the executors hand over, one at a time, until the
-    /// channel is completed and empty. A fault is logged per entry, so one bad write never ends the loop.
+    /// One of the worker's finalizer loops: finalizes each completion together with whatever else is already waiting,
+    /// until the channel is completed and empty, so a batch forms only when the writes fall behind. A fault ends its batch.
     /// </summary>
     public async Task RunLoopAsync(CancellationToken hostCt)
     {
+        var reader = registry.Completed.Reader;
         try
         {
-            await foreach (var entry in registry.Completed.Reader.ReadAllAsync(hostCt))
+            await foreach (var first in reader.ReadAllAsync(hostCt))
             {
+                List<InFlightJob> entries = [first];
+                while (entries.Count < _maxBatch && reader.TryRead(out var next))
+                {
+                    entries.Add(next);
+                }
+
                 try
                 {
-                    await FinalizeAsync(entry, hostCt);
+                    await FinalizeAsync(entries, hostCt);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
                 {
-                    log.LogError(ex, "WorkerRuntime: finalizer faulted on job {JobId}.", entry.Claim.JobId);
+                    log.LogError(ex, "WorkerRuntime: finalizer faulted on {Count} completions.", entries.Count);
                 }
             }
         }
@@ -63,105 +78,166 @@ internal sealed class JobFinalizer(
         }
     }
 
-    /// <summary>
-    /// Writes <paramref name="entry"/>'s completion and removes the entry. A completion without a descriptor is a
-    /// claim handed back unrun: Rescheduled after the safety poll, budget-neutral, with no metric and no wake, since
-    /// every claim loop re-polls within that delay. A write the row no longer matches (NotOwner, AlreadyTerminal) is a
-    /// skip: the entry can outlive its lease while it waits.
-    /// </summary>
+    /// <summary>Writes <paramref name="entry"/>'s completion on its own and removes the entry.</summary>
     public async Task<RunOnceStatus> FinalizeAsync(InFlightJob entry, CancellationToken hostCt)
     {
         try
         {
-            var job = entry.Claim;
-            var completion = entry.Completion!;
-            var ns = context.WorkerRegistration!.NamespaceName;
-            var (_, workerId) = context.ResolveWorker(ns);
-            var descriptor = entry.Descriptor;
-            var retry = descriptor is null ? default : PlanRetry(descriptor, job, entry.Fire, completion);
-
-            // Deadline reschedule guard (Strict): if the next retry would land after the deadline,
-            // terminate Cancelled+JobDeadlineExceeded via the handler status instead of re-arming.
-            // Budget is left untouched; the handler-status shape handles completion. Same worker-clock
-            // comparison as the admission check: deliberate and skew-guarded, not a DB read.
-            if (
-                retry.InBudget
-                && descriptor!.DeadlineBehavior == DeadlineBehaviorCode.Strict
-                && entry.Context?.TimeUntilDeadline is { } untilDeadline
-                && untilDeadline < TimeSpan.FromSeconds(retry.DelaySeconds)
-            )
-            {
-                completion = completion with
-                {
-                    Outcome = CompletionKind.Cancelled,
-                    Reason = EventReasonCode.JobDeadlineExceeded,
-                    ReasonMessage = "Next retry would exceed the job deadline.",
-                    HandlerStatusCode = JobStatusCode.Cancelled,
-                };
-            }
-
-            var command = descriptor is null
-                ? HandBack(job, workerId, completion)
-                : BuildCommand(descriptor, job, workerId, entry.Fire, completion, retry);
-            var complete = await RepeatAsync(token => execution.CompleteExecutionAsync(command, token), log, job.JobId, hostCt, metrics);
-            if (complete.Action != CompleteExecutionAction.Completed)
-            {
-                // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
-                // committed and lost its answer, so the compare-and-swap completed no work.
-                log.LogInformation(
-                    "WorkerRuntime: ({Namespace}) job {JobId} completion skipped: ({Outcome}).",
-                    ns,
-                    job.JobId,
-                    complete.Action.ToString()
-                );
-                return RunOnceStatus.NothingClaimed;
-            }
-
-            var status = descriptor is null
-                ? RunOnceStatus.Rearmed
-                : completion.Outcome switch
-                {
-                    // A failed one-shot that re-armed for another attempt: the row is Ready, not Failed.
-                    CompletionKind.Failed when retry.InBudget => RunOnceStatus.Rearmed,
-                    CompletionKind.Succeeded or CompletionKind.Cancelled => RunOnceStatus.Completed,
-                    CompletionKind.Rescheduled or CompletionKind.Suspended or CompletionKind.Paused => RunOnceStatus.Rearmed,
-                    _ => RunOnceStatus.Failed,
-                };
-            if (descriptor is not null)
-            {
-                try
-                {
-                    await WakeAsync(complete, job, ns, hostCt);
-
-                    // Handler cancel: cancel the descendant subtree as follow-up transactions (the completion
-                    // above already raised this job's own latch in-routine); maintenance is the crash backstop.
-                    if (completion.HandlerStatusCode == JobStatusCode.Cancelled)
-                    {
-                        await cancelJob.CancelDescendantsAsync(job.JobId, CancelJobHandler.ParentCancelled, hostCt);
-                    }
-
-                    // reason_code is the failure cause's kebab (null on success).
-                    metrics?.RecordExecution(
-                        ns,
-                        descriptor.JobName,
-                        OutcomeTag(completion.Outcome),
-                        completion.Reason?.Code,
-                        completion.DurationMs
-                    );
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
-                {
-                    log.LogError(ex, "WorkerRuntime: follow-ups for job {JobId} failed after its completion landed.", job.JobId);
-                }
-            }
-
-            log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, status.ToString());
-            return status;
+            return await LandAsync(Plan(entry), batched: null, hostCt);
         }
         finally
         {
             registry.Remove(entry);
         }
+    }
+
+    /// <summary>Writes the plain completions in one call and the rest per job, then removes every entry.</summary>
+    private async Task FinalizeAsync(List<InFlightJob> entries, CancellationToken hostCt)
+    {
+        try
+        {
+            var writes = entries.Select(Plan).ToList();
+            var plain = writes.Where(write => write.Plain).ToDictionary(write => write.Entry.Key);
+            if (plain.Count > 0)
+            {
+                var batch = new CompleteExecutionsCommand(
+                    WorkerId,
+                    [.. plain.Values.Select(write => CompleteExecutionsValues.From(write.Command))]
+                );
+                var answer = await RepeatAsync(
+                    token => execution.CompleteExecutionsAsync(batch, token),
+                    log,
+                    batch.Completions[0].JobId,
+                    hostCt,
+                    metrics
+                );
+                foreach (var row in answer.Rows)
+                {
+                    // Completed, NotOwner, and AlreadyTerminal share their values with the per-job write's answers, and
+                    // the batch takes no job with a next run to report or a parent to release.
+                    await LandAsync(
+                        plain[(row.JobId, row.ExecutionNumber)],
+                        row.Action == CompleteExecutionsAction.PerJob
+                            ? null
+                            : new((CompleteExecutionAction)row.Action, row.FinalStatusCode, null, row.DbNowUtc, false),
+                        hostCt
+                    );
+                }
+            }
+
+            foreach (var write in writes.Where(write => !write.Plain))
+            {
+                await LandAsync(write, batched: null, hostCt);
+            }
+        }
+        finally
+        {
+            foreach (var entry in entries)
+            {
+                registry.Remove(entry);
+            }
+        }
+    }
+
+    /// <summary>Plans <paramref name="entry"/>'s write and the status it reports once the write lands.</summary>
+    private PlannedWrite Plan(InFlightJob entry)
+    {
+        var job = entry.Claim;
+        var completion = entry.Completion!;
+        if (entry.Descriptor is not { } descriptor)
+        {
+            return new(entry, completion, HandBack(job, WorkerId, completion), RunOnceStatus.Rearmed);
+        }
+
+        var retry = PlanRetry(descriptor, job, entry.Fire, completion);
+
+        // Deadline reschedule guard (Strict): if the next retry would land after the deadline,
+        // terminate Cancelled+JobDeadlineExceeded via the handler status instead of re-arming.
+        // Budget is left untouched; the handler-status shape handles completion. Same worker-clock
+        // comparison as the admission check: deliberate and skew-guarded, not a DB read.
+        if (
+            retry.InBudget
+            && descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict
+            && entry.Context?.TimeUntilDeadline is { } untilDeadline
+            && untilDeadline < TimeSpan.FromSeconds(retry.DelaySeconds)
+        )
+        {
+            completion = completion with
+            {
+                Outcome = CompletionKind.Cancelled,
+                Reason = EventReasonCode.JobDeadlineExceeded,
+                ReasonMessage = "Next retry would exceed the job deadline.",
+                HandlerStatusCode = JobStatusCode.Cancelled,
+            };
+        }
+
+        var status = completion.Outcome switch
+        {
+            // A failed one-shot that re-armed for another attempt: the row is Ready, not Failed.
+            CompletionKind.Failed when retry.InBudget => RunOnceStatus.Rearmed,
+            CompletionKind.Succeeded or CompletionKind.Cancelled => RunOnceStatus.Completed,
+            CompletionKind.Rescheduled or CompletionKind.Suspended or CompletionKind.Paused => RunOnceStatus.Rearmed,
+            _ => RunOnceStatus.Failed,
+        };
+        return new(entry, completion, BuildCommand(descriptor, job, WorkerId, entry.Fire, completion, retry), status);
+    }
+
+    /// <summary>
+    /// Writes <paramref name="write"/> per job unless a batch already answered it, then what follows: a skip when the
+    /// row no longer matches (NotOwner, AlreadyTerminal), since the entry can outlive its lease while it waits;
+    /// otherwise the wakes, descendant cancel, and metric its final state calls for, none of them for a hand-back,
+    /// since every claim loop re-polls within its delay.
+    /// </summary>
+    private async Task<RunOnceStatus> LandAsync(PlannedWrite write, CompleteExecutionResponse? batched, CancellationToken hostCt)
+    {
+        var (entry, completion, command, status) = write;
+        var job = entry.Claim;
+        var ns = context.WorkerRegistration!.NamespaceName;
+        var complete =
+            batched ?? await RepeatAsync(token => execution.CompleteExecutionAsync(command, token), log, job.JobId, hostCt, metrics);
+        if (complete.Action != CompleteExecutionAction.Completed)
+        {
+            // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
+            // committed and lost its answer, so the compare-and-swap completed no work.
+            log.LogInformation(
+                "WorkerRuntime: ({Namespace}) job {JobId} completion skipped: ({Outcome}).",
+                ns,
+                job.JobId,
+                complete.Action.ToString()
+            );
+            return RunOnceStatus.NothingClaimed;
+        }
+
+        if (entry.Descriptor is { } descriptor)
+        {
+            try
+            {
+                await WakeAsync(complete, job, ns, hostCt);
+
+                // Handler cancel: cancel the descendant subtree as follow-up transactions (the completion
+                // above already raised this job's own latch in-routine); maintenance is the crash backstop.
+                if (completion.HandlerStatusCode == JobStatusCode.Cancelled)
+                {
+                    await cancelJob.CancelDescendantsAsync(job.JobId, CancelJobHandler.ParentCancelled, hostCt);
+                }
+
+                // reason_code is the failure cause's kebab (null on success).
+                metrics?.RecordExecution(
+                    ns,
+                    descriptor.JobName,
+                    OutcomeTag(completion.Outcome),
+                    completion.Reason?.Code,
+                    completion.DurationMs
+                );
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
+            {
+                log.LogError(ex, "WorkerRuntime: follow-ups for job {JobId} failed after its completion landed.", job.JobId);
+            }
+        }
+
+        log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, status.ToString());
+        return status;
     }
 
     /// <summary>
@@ -505,4 +581,18 @@ internal sealed class JobFinalizer(
     /// </summary>
     private static bool IsRetryable(EventReasonCode? reason) =>
         reason is EventReasonCode.JobUnhandledException or EventReasonCode.JobExecutionTimeout or EventReasonCode.JobAttemptAborted;
+
+    /// <summary>One entry's write as planned: the completion after the deadline guard, its command, and its status.</summary>
+    private readonly record struct PlannedWrite(
+        InFlightJob Entry,
+        ExecutionCompletion Completion,
+        CompleteExecutionCommand Command,
+        RunOnceStatus Status
+    )
+    {
+        /// <summary>A one-shot landing Succeeded or Failed with nothing else to write, so <c>complete_executions</c> takes it.</summary>
+        public bool Plain =>
+            Command
+                is { RescheduleStatusCode: null, HandlerStatusCode: null, FinalStatus: null, WaitSignalName: null, ScheduleAdvances: null };
+    }
 }
