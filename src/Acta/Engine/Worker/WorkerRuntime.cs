@@ -59,11 +59,11 @@ internal sealed class WorkerRuntime
         var wake = wakeup ?? new InProcessWakeup();
         var publisher = wakeupPublisher ?? new WorkerWakeupPublisher(wake, metrics: metrics);
 
-        // The executing gauge reads this worker's executing entries on collection. Enqueue-only
+        // The in-flight gauge reads this worker's entries by state on collection. Enqueue-only
         // runtimes have no registration and contribute no source.
         if (workerRegistration is { } registration)
         {
-            metrics?.AddExecutingSource(registration.NamespaceName, () => _registry.Count(InFlightJobState.Executing));
+            metrics?.AddInFlightSource(registration.NamespaceName, _registry.Count);
         }
 
         _initializer = new WorkerRuntimeInitializer(

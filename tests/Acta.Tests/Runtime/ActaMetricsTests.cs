@@ -225,16 +225,30 @@ public sealed class ActaMetricsTests
     }
 
     [Fact]
-    public void Executing_gauge_observes_each_registered_namespace_source()
+    public void In_flight_gauge_reports_each_registered_namespace_by_state()
     {
         using var metrics = new ActaMetrics();
-        metrics.AddExecutingSource("billing", () => 3);
-        metrics.AddExecutingSource("shipping", () => 0);
+        metrics.AddInFlightSource(
+            "billing",
+            state =>
+                state switch
+                {
+                    InFlightJobState.Claimed => 2,
+                    InFlightJobState.Executing => 3,
+                    _ => 1,
+                }
+        );
+        metrics.AddInFlightSource("shipping", _ => 0);
 
-        var measurements = Collect<int>(metrics, "acta.executing", act: null, observable: true);
+        var measurements = Collect<int>(metrics, "acta.jobs.inflight", act: null, observable: true);
 
-        Assert.Equal(3, measurements.Single(m => (string?)m.Tags["namespace"] == "billing").Value);
-        Assert.Equal(0, measurements.Single(m => (string?)m.Tags["namespace"] == "shipping").Value);
+        int Read(string ns, string state) =>
+            measurements.Single(m => (string?)m.Tags["namespace"] == ns && (string?)m.Tags["state"] == state).Value;
+        Assert.Equal(6, measurements.Count);
+        Assert.Equal(2, Read("billing", "claimed"));
+        Assert.Equal(3, Read("billing", "executing"));
+        Assert.Equal(1, Read("billing", "finalizing"));
+        Assert.Equal(0, Read("shipping", "executing"));
     }
 
     // Captures every measurement the named instrument emits while act runs (or, for an observable

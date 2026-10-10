@@ -8,8 +8,8 @@ namespace Acta;
 /// completion in <see cref="Acta.JobFinalizer"/>, one claim measurement per claim attempt in
 /// <see cref="Acta.JobClaimer"/>, and the live in-flight count. Counters are additive, so no running totals
 /// are kept in process. Tag keys and values are the operator-facing metric surface, pinned by <c>ActaMetricsTests</c>
-/// and kept low-cardinality (namespace, job_name, outcome, reason_code, result); the unbounded job id and execution
-/// number stay off metrics and live on the logging scope and traces instead.
+/// and kept low-cardinality (namespace, job_name, outcome, reason_code, result, state); the unbounded job id and
+/// execution number stay off metrics and live on the logging scope and traces instead.
 /// </summary>
 internal sealed class ActaMetrics : IDisposable
 {
@@ -33,10 +33,18 @@ internal sealed class ActaMetrics : IDisposable
     private readonly UpDownCounter<long> _unsettledCompletions;
 
     /// <summary>
-    /// Each worker registers its namespace's live in-flight count; the observable gauge reads them
+    /// Each worker registers its namespace's live in-flight count by state; the observable gauge reads them
     /// on collection. Reading live state beats a running total that can drift on a crash.
     /// </summary>
-    private readonly List<(string Namespace, Func<int> LiveCount)> _executingSources = [];
+    private readonly List<(string Namespace, Func<InFlightJobState, int> LiveCount)> _inFlightSources = [];
+
+    // The state tag's values, kept off ToString() so an enum rename cannot rename an operator-facing dimension.
+    private static readonly (InFlightJobState State, string Tag)[] InFlightStates =
+    [
+        (InFlightJobState.Claimed, "claimed"),
+        (InFlightJobState.Executing, "executing"),
+        (InFlightJobState.Finalizing, "finalizing"),
+    ];
 
     public ActaMetrics()
     {
@@ -71,7 +79,12 @@ internal sealed class ActaMetrics : IDisposable
             "{completion}",
             "Completion writes still repeating after a failure."
         );
-        Meter.CreateObservableGauge("acta.executing", ObserveExecuting, "{job}", "Currently executing jobs per namespace.");
+        Meter.CreateObservableGauge(
+            "acta.jobs.inflight",
+            ObserveInFlight,
+            "{job}",
+            "Jobs this process holds per namespace, tagged by state: claimed, executing, or finalizing."
+        );
     }
 
     public void RecordExecution(string @namespace, string jobName, string outcome, string? reasonCode, double durationMs)
@@ -176,26 +189,28 @@ internal sealed class ActaMetrics : IDisposable
     public void RecordAlertProjectionSkip(string @namespace, string reason) =>
         _alertProjectionSkips.Add(1, new TagList { { "namespace", @namespace }, { "reason", reason } });
 
-    public void AddExecutingSource(string @namespace, Func<int> liveCount)
+    public void AddInFlightSource(string @namespace, Func<InFlightJobState, int> liveCount)
     {
-        lock (_executingSources)
+        lock (_inFlightSources)
         {
-            _executingSources.Add((@namespace, liveCount));
+            _inFlightSources.Add((@namespace, liveCount));
         }
     }
 
-    private IEnumerable<Measurement<int>> ObserveExecuting()
+    private IEnumerable<Measurement<int>> ObserveInFlight()
     {
-        lock (_executingSources)
+        lock (_inFlightSources)
         {
-            var snapshot = new Measurement<int>[_executingSources.Count];
-            for (var i = 0; i < _executingSources.Count; i++)
-            {
-                var (ns, count) = _executingSources[i];
-                snapshot[i] = new Measurement<int>(count(), new KeyValuePair<string, object?>("namespace", ns));
-            }
-
-            return snapshot;
+            return
+            [
+                .. _inFlightSources.SelectMany(source =>
+                    InFlightStates.Select(state => new Measurement<int>(
+                        source.LiveCount(state.State),
+                        new KeyValuePair<string, object?>("namespace", source.Namespace),
+                        new KeyValuePair<string, object?>("state", state.Tag)
+                    ))
+                ),
+            ];
         }
     }
 
