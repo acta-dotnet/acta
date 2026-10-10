@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Appends the applied-command evidence event against the slot job; it is always audited.</summary>
+/// <summary><see cref="IOutboxOperations.RecordOutboxEventAsync"/>: one insert.</summary>
 internal sealed class RecordOutboxEventHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(RecordOutboxEventCommand command, CancellationToken ct) =>

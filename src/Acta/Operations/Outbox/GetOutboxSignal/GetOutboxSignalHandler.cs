@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>Reads the pending command row under one name, or null when that inbox slot is empty.</summary>
+/// <summary><see cref="IOutboxOperations.GetOutboxSignalAsync"/>: one read.</summary>
 internal sealed class GetOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetOutboxSignalResponse?> HandleAsync(GetOutboxSignalQuery query, CancellationToken ct) =>

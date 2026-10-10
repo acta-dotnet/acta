@@ -13,14 +13,16 @@ namespace Acta;
 /// </summary>
 internal sealed class OutboxRelayRegistry(
     IEnumerable<WorkerRegistration> workers,
-    EnqueueJobsHandler target,
+    Func<IOutboxOperations> outbox,
+    IJobsOperations jobs,
     ILoggerFactory? loggerFactory = null
 )
 {
     private readonly Dictionary<string, OutboxRelayRegistration> _byNamespace = workers
         .Where(w => w.Relay is not null)
         .ToDictionary(w => w.NamespaceName, w => w.Relay!, StringComparer.Ordinal);
-    private readonly EnqueueJobsHandler _target = target;
+    private readonly Func<IOutboxOperations> _outbox = outbox;
+    private readonly IJobsOperations _jobs = jobs;
     private readonly ILoggerFactory? _loggerFactory = loggerFactory;
     private readonly ConcurrentDictionary<string, OutboxRelay> _services = new(StringComparer.Ordinal);
 
@@ -37,7 +39,7 @@ internal sealed class OutboxRelayRegistry(
             );
 
     /// <summary>This namespace's outbox source, for the operator reads that run outside the relay.</summary>
-    public OutboxSource Source(string namespaceName) => Service(namespaceName).Source;
+    public IOutboxSource Source(string namespaceName) => Service(namespaceName).Source;
 
     /// <summary>The relay service bound to this namespace's source; lazily created and cached per namespace.</summary>
     public OutboxRelay Service(string namespaceName) =>
@@ -46,8 +48,10 @@ internal sealed class OutboxRelayRegistry(
             ns =>
             {
                 var registration = Registration(ns);
-                var source = registration.SourceFactory.Create(registration.Schema, registration.Table);
-                return new OutboxRelay(source, _target, _loggerFactory?.CreateLogger<OutboxRelay>());
+                // The outbox operations resolve on first use: their quarantine listing reads this registry, so
+                // taking them in the constructor would be a cycle.
+                var source = _outbox().OpenSource(registration.SourceFactory.Create(registration.Schema, registration.Table));
+                return new OutboxRelay(source, _jobs, _loggerFactory?.CreateLogger<OutboxRelay>());
             }
         );
 }
@@ -68,14 +72,17 @@ internal sealed record OutboxRelayRegistration(
 );
 
 /// <summary>
-/// Provider seam that builds the relay's source from the captured source-connection options and
+/// Provider seam that builds the relay source's connection from the captured source-connection options and
 /// the source builder's schema/table overrides (each provider substitutes its own default when null).
 /// The provider's outbox relay extension registers one implementation into the source builder's service
-/// collection; <c>AddOutboxRelay</c> resolves it to construct the single <see cref="OutboxSource"/>
-/// that <c>sys.outbox</c> drains, so core stays free of any provider reference. Building the store does
-/// not open a connection: the first source contact happens inside the relay tick.
+/// collection; the registry opens the single source <c>sys.outbox</c> drains over the connection it builds,
+/// so core stays free of any provider reference. Building the connection does not open one: the first
+/// source contact happens inside the relay tick.
 /// </summary>
 internal interface IOutboxSourceFactory
 {
-    OutboxSource Create(string? schema, string? table);
+    OutboxSourceConnection Create(string? schema, string? table);
 }
+
+/// <summary>A producer's source database as its provider package reaches it: its own session and outbox dialect, never the ledger's.</summary>
+internal sealed record OutboxSourceConnection(IDbSession Session, ISqlDialect Dialect);

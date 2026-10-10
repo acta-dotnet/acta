@@ -28,7 +28,7 @@ public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
         var seed = EchoRow(dedup, jobNamespace: lateNs);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
-        var store = new HookedOutboxStore(SourceStore);
+        var store = new HookedOutboxStore(Services, SourceConnection);
 
         // Tick 1: the route does not resolve. The ledger rejects it as a recoverable routing rejection
         // (below threshold), so the tick is quiet: no throw, and the row reschedules to Pending with a

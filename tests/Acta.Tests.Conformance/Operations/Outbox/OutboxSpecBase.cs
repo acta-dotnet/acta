@@ -6,14 +6,14 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 /// <summary>
 /// Base for external-outbox source-store specs. Each test gets its own canonical source table (keyed by
 /// <see cref="ActaTestBase{ConformanceFixture}.TestId"/>) so parallel specs never claim each other's rows, and a
-/// store built over that table. The store is exercised directly, with no Acta-ledger session or DI: a
-/// worker relays a source database independently of its own ledger provider.
+/// store the outbox operations open over that table. The store is exercised directly, with no Acta-ledger session or
+/// DI: a worker relays a source database independently of its own ledger provider.
 /// </summary>
 public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
 {
     private protected string TableName { get; private set; } = null!;
 
-    private protected OutboxSource Store { get; private set; } = null!;
+    private protected IOutboxSource Store { get; private set; } = null!;
 
     protected const int LeaseTtlSeconds = 180;
 
@@ -21,7 +21,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
     {
         TableName = "acta_outbox_" + TestId;
         await Fixture.ApplyOutboxDdlAsync(TableName);
-        Store = (OutboxSource)Fixture.CreateOutboxStore(TableName);
+        Store = Fixture.OpenOutboxSource(Schema.SchemaName, TableName);
     }
 
     // A due Pending row staged "in the past" so the claim predicate (next_attempt_at_utc <= db_now) is

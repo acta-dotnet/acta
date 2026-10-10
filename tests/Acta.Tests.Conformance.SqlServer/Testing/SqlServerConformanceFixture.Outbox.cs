@@ -78,7 +78,7 @@ public sealed partial class SqlServerConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxStore(string table) => Acta.SqlServer.SqlServerOutboxSource.CreateSource(Conn, Schema, table);
+    public object CreateOutboxConnection(string table) => Acta.SqlServer.SqlServerOutboxSource.CreateConnection(Conn, Schema, table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

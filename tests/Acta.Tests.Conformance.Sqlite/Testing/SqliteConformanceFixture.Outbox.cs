@@ -75,8 +75,8 @@ public sealed partial class SqliteConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxStore(string table) =>
-        Acta.Sqlite.SqliteOutboxSource.CreateSource(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
+    public object CreateOutboxConnection(string table) =>
+        Acta.Sqlite.SqliteOutboxSource.CreateConnection(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

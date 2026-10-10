@@ -10,7 +10,7 @@ namespace Acta;
 /// quarantine. <c>AuditLevel.Failures</c> keeps idle and successful ticks out of <c>events</c>, while quarantine and
 /// infrastructure failures fail the tick so <c>SysCritical</c> alerts; staging sends no wakeup, so the cadence is the pickup floor.
 /// </summary>
-internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxInbox inbox, IOptions<JobsOptions> options)
+internal sealed class OutboxJob(OutboxRelayRegistry registry, IOutboxOperations outbox, IOptions<JobsOptions> options)
 {
     [Job(
         "sys.outbox",
@@ -26,7 +26,7 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxInbox inbox,
         var registration = registry.Registration(ctx.JobNamespace);
         var service = registry.Service(ctx.JobNamespace);
 
-        var (requeued, discarded) = await service.ApplyOperatorSignalsAsync(ctx.JobId, inbox, ct);
+        var (requeued, discarded) = await service.ApplyOperatorSignalsAsync(ctx.JobId, outbox, ct);
 
         var summary = await service.RunTickAsync(
             new OutboxRelayTickOptions(

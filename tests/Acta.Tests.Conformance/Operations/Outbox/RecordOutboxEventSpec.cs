@@ -22,7 +22,7 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
     public async Task Applied_command_evidence_event_is_always_emitted()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<OutboxInbox>();
+        var store = Services.GetRequiredService<IOutboxOperations>();
         // SeedJobAsync writes AuditLevel Off - exactly the case that proves the event has no audit gate.
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
         await Db.From<RuntimeEntity>()
@@ -41,7 +41,7 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
                 ct
             );
 
-        await store.RecordAppliedAsync(
+        await store.RecordOutboxEventAsync(
             new RecordOutboxEventCommand(jobId, EventCode.OutboxDiscarded, "marko", "poison batch - 2 row(s): [a, b]"),
             ct
         );

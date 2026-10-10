@@ -25,12 +25,12 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
-        var store = new HookedOutboxStore(SourceStore);
+        var store = new HookedOutboxStore(Services, SourceConnection);
         var target = new HookedJobSubmission(Services) { FailInstead = () => new InvalidOperationException("target unavailable") };
 
         // Tick 1: claim commits, then the target enqueue fails -> infrastructure failure that releases the
         // claim and fails the tick. No target job exists and the source row is back to Pending.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, target.Handler).RunTickAsync(TickOptions(), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(), ct));
         Assert.Equal(0, await CountLedgerJobsAsync(dedup, ct));
         var released = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
         Assert.True(released.Exists);
@@ -38,7 +38,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
 
         // Tick 2: the target is healthy -> the reclaimed row is delivered once and deleted.
         target.FailInstead = null;
-        await Relay(store.Source, target.Handler).RunTickAsync(TickOptions(), ct);
+        await Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
     }
@@ -52,7 +52,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var failFinalize = true;
-        var store = new HookedOutboxStore(SourceStore)
+        var store = new HookedOutboxStore(Services, SourceConnection)
         {
             BeforeDelete = () => failFinalize ? throw new InvalidOperationException("source finalize crash") : Task.CompletedTask,
         };
@@ -84,7 +84,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         var seed = EchoRow(dedup);
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
-        var store = new HookedOutboxStore(SourceStore);
+        var store = new HookedOutboxStore(Services, SourceConnection);
         await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
@@ -106,7 +106,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         }
         Assert.Equal(3, await Fixture.CountOutboxAsync(SourceTable));
 
-        await Relay(new HookedOutboxStore(SourceStore).Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        await Relay(new HookedOutboxStore(Services, SourceConnection).Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }

@@ -30,7 +30,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         await Fixture.ApplyOutboxDdlAsync(table);
-        var store = (OutboxSource)Fixture.CreateOutboxStore(table);
+        var store = Fixture.OpenOutboxSource(Schema.SchemaName, table);
 
         // Claim then delete.
         var toDelete = DueSeed();

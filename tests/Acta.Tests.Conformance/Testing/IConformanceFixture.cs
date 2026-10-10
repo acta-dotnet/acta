@@ -134,11 +134,11 @@ public interface IConformanceFixture
     ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests);
 
     /// <summary>
-    /// Build the provider's external-outbox source store (an internal <c>OutboxSource</c>, returned
-    /// as <see cref="object"/> so the public fixture surface does not leak the internal port) over
-    /// <paramref name="table"/>.
+    /// Build the provider's external-outbox source connection (an internal <c>OutboxSourceConnection</c>, returned
+    /// as <see cref="object"/> so the public fixture surface does not leak the internal type) over
+    /// <paramref name="table"/>; the outbox operations open the source over it.
     /// </summary>
-    object CreateOutboxStore(string table);
+    object CreateOutboxConnection(string table);
 
     /// <summary>Insert one producer row into <paramref name="table"/> with the seeded column values.</summary>
     ValueTask SeedOutboxRowAsync(string table, OutboxSeed seed);

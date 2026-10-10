@@ -24,7 +24,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
     public async Task Parked_requeue_frees_the_row_and_the_same_pass_relays_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        var signals = Services.GetRequiredService<OutboxInbox>();
+        var signals = Services.GetRequiredService<IOutboxOperations>();
         var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var dedup = TestKey("sig-apply");
 
@@ -71,7 +71,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
 
         // The signal row is consumed, the source row is Pending with its budget reset, and the
         // evidence event carries the operator's actor key, justification, and the applied id.
-        Assert.Null(await signals.GetAsync(slotJobId, OutboxSignalNames.Requeue, ct));
+        Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
         var state = await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId);
         Assert.Equal((byte)OutboxStatusCode.Pending, state.StatusCode);
         Assert.Equal(0, state.FailureCount);

@@ -1,9 +1,6 @@
 namespace Acta;
 
-/// <summary>
-/// Version-CAS delete of an applied command row. A command superseded while it was being applied is not
-/// consumed; the newer command simply applies on the next tick.
-/// </summary>
+/// <summary><see cref="IOutboxOperations.ConsumeOutboxSignalAsync"/>: one version-CAS delete.</summary>
 internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ConsumeOutboxSignalResponse> HandleAsync(ConsumeOutboxSignalCommand command, CancellationToken ct)

@@ -23,7 +23,7 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
     public async Task Park_admission_and_consume_follow_the_inbox_contract()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<OutboxInbox>();
+        var store = Services.GetRequiredService<IOutboxOperations>();
         var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
 
@@ -44,7 +44,7 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.Equal(3, rejected.Action);
         Assert.NotNull(rejected.PendingSinceUtc);
 
-        var pending = await store.GetAsync(jobId, OutboxSignalNames.Requeue, ct);
+        var pending = (await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct))?.Signal;
         Assert.NotNull(pending);
         Assert.Equal(first, pending!.Value);
         Assert.Equal(0, pending.Version);
@@ -60,18 +60,18 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.Equal(1, superseded.Action);
 
         Assert.False(
-            (await store.ConsumeAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct)).Consumed,
+            (await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct)).Consumed,
             "a superseded version must miss"
         );
-        var current = await store.GetAsync(jobId, OutboxSignalNames.Requeue, ct);
+        var current = (await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct))?.Signal;
         Assert.NotNull(current);
         Assert.Equal(superseding, current!.Value);
         Assert.Equal(1, current.Version);
 
-        Assert.True((await store.ConsumeAsync(jobId, OutboxSignalNames.Requeue, version: 1, ct)).Consumed);
-        Assert.Null(await store.GetAsync(jobId, OutboxSignalNames.Requeue, ct));
+        Assert.True((await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, version: 1, ct)).Consumed);
+        Assert.Null(await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct));
 
         // The two fixed names are independent slots: the discard slot was never touched.
-        Assert.Null(await store.GetAsync(jobId, OutboxSignalNames.Discard, ct));
+        Assert.Null(await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Discard, ct));
     }
 }

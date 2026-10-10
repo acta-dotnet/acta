@@ -171,12 +171,11 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetOutboxSignalHandler>();
         services.TryAddSingleton<ConsumeOutboxSignalHandler>();
         services.TryAddSingleton<RecordOutboxEventHandler>();
-        services.TryAddSingleton<OutboxInbox>();
         services.TryAddSingleton<ListOutboxSourcesHandler>();
         services.TryAddSingleton<ListOutboxQuarantinedHandler>();
         services.TryAddSingleton<RequeueOutboxHandler>();
         services.TryAddSingleton<DiscardOutboxHandler>();
-        services.TryAddSingleton<IOutbox, Outbox>();
+        AddDoor<OutboxOperations, IOutbox, IOutboxOperations>(services);
         services.TryAddSingleton<ResolveJobIdByRefHandler>();
         services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
         services.TryAddSingleton<JobLookupResolution>();
@@ -322,7 +321,8 @@ public static class ActaServiceCollectionExtensions
         {
             services.AddSingleton(sp => new OutboxRelayRegistry(
                 builder.Workers,
-                sp.GetRequiredService<EnqueueJobsHandler>(),
+                () => sp.GetRequiredService<IOutboxOperations>(),
+                sp.GetRequiredService<IJobsOperations>(),
                 sp.GetService<ILoggerFactory>()
             ));
         }

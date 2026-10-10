@@ -8,10 +8,10 @@ namespace Acta;
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
-/// bounded tick summary all live here; the source is the injected <see cref="OutboxSource"/>
-/// and the target is the owned batch enqueue, <see cref="EnqueueJobsHandler"/>.
+/// bounded tick summary all live here; the source is the injected <see cref="IOutboxSource"/> and the target is
+/// the owned batch enqueue, <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>.
 /// </summary>
-internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target, ILogger<OutboxRelay>? log = null)
+internal sealed class OutboxRelay(IOutboxSource source, IJobsOperations jobs, ILogger<OutboxRelay>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
@@ -22,7 +22,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target
     /// source the tick drains - the registry's 1:1 namespace-to-source invariant is what makes this the
     /// right source for the slot's parked commands.
     /// </summary>
-    internal OutboxSource Source => source;
+    internal IOutboxSource Source => source;
 
     /// <summary>
     /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the
@@ -31,16 +31,20 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target
     /// (both verbs only match Quarantined rows), and a consume miss means a newer command superseded
     /// this one mid-apply and simply applies next tick.
     /// </summary>
-    public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(long slotJobId, OutboxInbox inbox, CancellationToken ct)
+    public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(
+        long slotJobId,
+        IOutboxOperations outbox,
+        CancellationToken ct
+    )
     {
-        var requeued = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Requeue, inbox, ct);
-        var discarded = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Discard, inbox, ct);
+        var requeued = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Requeue, outbox, ct);
+        var discarded = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Discard, outbox, ct);
         return (requeued, discarded);
     }
 
-    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, OutboxInbox inbox, CancellationToken ct)
+    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, IOutboxOperations outbox, CancellationToken ct)
     {
-        var row = await inbox.GetAsync(slotJobId, name, ct);
+        var row = (await outbox.GetOutboxSignalAsync(slotJobId, name, ct))?.Signal;
         if (row is null)
         {
             return 0;
@@ -59,11 +63,11 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target
         if (payload is null)
         {
             // A malformed command must not wedge the two-name inbox: consume it, leave the trail.
-            await inbox.RecordAppliedAsync(
+            await outbox.RecordOutboxEventAsync(
                 new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), null, "Malformed operator command discarded unapplied."),
                 ct
             );
-            await inbox.ConsumeAsync(slotJobId, name, row.Version, ct);
+            await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Version, ct);
             return 0;
         }
 
@@ -72,11 +76,11 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target
                 ? (await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds
                 : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds;
 
-        await inbox.RecordAppliedAsync(
+        await outbox.RecordOutboxEventAsync(
             new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.ActorKey, Evidence(payload.ReasonMessage, affected)),
             ct
         );
-        await inbox.ConsumeAsync(slotJobId, name, row.Version, ct);
+        await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Version, ct);
         return affected.Count;
     }
 
@@ -434,7 +438,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target
 
         try
         {
-            var outcomes = (await target.HandleAsync(new EnqueueJobsCommand(groups.Select(g => g.Request).ToList()), ct)).Jobs;
+            var outcomes = (await jobs.EnqueueBatchAsync(groups.Select(g => g.Request).ToList(), ct)).Jobs;
             // Outcomes align with request order. A representative that Inserted relayed one new job and its
             // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
             for (var index = 0; index < groups.Count; index++)
