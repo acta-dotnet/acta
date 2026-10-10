@@ -521,7 +521,7 @@ dotnet_diagnostic.CA1805.severity = none
 # and the method is named for it. Renaming the parameter alone would leave one link in that chain
 # calling it something else, which is exactly the drift the naming rules were written to stop - and
 # the member is on the frozen 1.0.0 surface, where a rename is a break, not a cleanup.
-[src/Acta/Abstractions/IDefinitions.cs]
+[src/Acta/Operations/Definitions/IDefinitions.cs]
 dotnet_diagnostic.CA1716.severity = none
 
 # CA1024: GetBehavior(), which CA1024 wants as a property. It is the one member of that extension

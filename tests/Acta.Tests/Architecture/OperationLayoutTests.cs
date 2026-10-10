@@ -10,7 +10,9 @@ namespace Acta.Tests.Architecture;
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>,
 /// <c>Schema/Views/</c>, and a provider's <c>Schema/Migrations/</c>, every view in all three dialects, and no stem twice
 /// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>
-/// outside <c>Engine/Wakeup/</c>, while only Operations files and registration name a handler or a <c>Shared/</c> type.
+/// outside <c>Engine/Wakeup/</c>, while only Operations files and registration name a handler. A group's root holds its
+/// operations class and the interfaces that class implements; a type several operations share sits in the <c>Shared/</c>
+/// folder of the nearest folder holding them all, and one that code outside Operations names sits in <c>Domain/</c>.
 /// A route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What still differs is listed in the
 /// <c>layout</c> ratchet.
 /// </summary>
@@ -142,39 +144,32 @@ public sealed class OperationLayoutTests
     }
 
     /// <summary>
-    /// A group's handlers and <c>Shared/</c> types are its inside: code elsewhere calls the group's operations class, and only
-    /// registration wires a handler. <c>Abstractions/</c> and <c>Domain/</c> name no row either. Crefs count, as above.
+    /// A group's handlers are its inside: code elsewhere calls the group's operations class, and only registration wires a
+    /// handler. <c>Domain/</c> names no row either. Crefs count, as above.
     /// </summary>
     [Fact]
-    public void Only_operations_name_a_handler_or_a_shared_type()
+    public void Only_operations_name_a_handler()
     {
         var files = ShippedCode.SourceFiles("*.cs").ToList();
         var operations = files.Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal)).ToList();
-        var inside = operations
-            .Where(file =>
-                file.Relative.EndsWith("Handler.cs", StringComparison.Ordinal)
-                || file.Relative.Contains("/Shared/", StringComparison.Ordinal)
-            )
+        var handlers = operations
+            .Where(file => file.Relative.EndsWith("Handler.cs", StringComparison.Ordinal))
             .SelectMany(file => DeclaredTypes(file.Path))
             .ToHashSet();
         var rows = operations
             .Where(file => file.Relative.EndsWith("Row.cs", StringComparison.Ordinal))
             .SelectMany(file => DeclaredTypes(file.Path))
             .ToHashSet();
-        Assert.NotEmpty(inside);
+        Assert.NotEmpty(handlers);
         Assert.NotEmpty(rows);
-        var insideOrRow = inside.Union(rows).ToHashSet();
+        var handlersOrRows = handlers.Union(rows).ToHashSet();
 
         var violations = files
             .Except(operations)
             .Where(file => file.Relative != "src/Acta/ActaServiceCollectionExtensions.cs")
             .SelectMany(file =>
             {
-                var banned =
-                    file.Relative.StartsWith("src/Acta/Abstractions/", StringComparison.Ordinal)
-                    || file.Relative.StartsWith("src/Acta/Domain/", StringComparison.Ordinal)
-                        ? insideOrRow
-                        : inside;
+                var banned = file.Relative.StartsWith("src/Acta/Domain/", StringComparison.Ordinal) ? handlersOrRows : handlers;
                 return NamesUsed(file.Path).Where(banned.Contains).Distinct().Select(name => $"{file.Relative}: {name}");
             })
             .Order(StringComparer.Ordinal)
@@ -182,81 +177,69 @@ public sealed class OperationLayoutTests
 
         Assert.True(
             violations.Count == 0,
-            "Call the group's operations class instead. Files that name a handler or a Shared/ type, or a row from Abstractions/ or Domain/:\n"
-                + string.Join("\n", violations)
+            "Call the group's operations class instead. Files that name a handler, or a row from Domain/:\n" + string.Join("\n", violations)
         );
     }
 
     /// <summary>
-    /// A group's root shows only its operations class, <c>&lt;Group&gt;Operations</c>, implementing the group's public
-    /// interface when <c>Abstractions/</c> has one; the <c>Operations/</c> root shows only <c>ActaOperations</c>.
-    /// <c>Abstractions/</c> is a flat folder of interfaces, and <c>Domain/</c> has exactly <c>Codes/</c> and <c>Entities/</c>.
+    /// A group's root shows its operations class, <c>&lt;Group&gt;Operations</c>, and the interfaces that class implements,
+    /// directly or through each other; the <c>Operations/</c> root shows <c>ActaOperations</c> and its interface, beside the
+    /// groups and <c>Shared/</c>. <c>Domain/</c> has exactly <c>Codes/</c> and <c>Entities/</c> below its root.
     /// </summary>
     [Fact]
-    public void Each_group_shows_only_its_operations_class()
+    public void Each_group_root_shows_its_operations_class_and_its_interfaces()
     {
         var acta = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta");
         var operations = Path.Combine(acta, "Operations");
-        var abstractions = Path.Combine(acta, "Abstractions");
+        string[] operationsRoot = ["ActaOperations.cs", "IActaOperations.cs"];
         var violations = new List<string>();
 
         violations.AddRange(
             Directory
                 .EnumerateFiles(operations)
                 .Select(Path.GetFileName)
-                .Where(file => file != "ActaOperations.cs")
+                .Where(file => !operationsRoot.Contains(file))
                 .Select(file => $"operations-root: {file}")
         );
-        foreach (var group in Directory.EnumerateDirectories(operations))
+        foreach (var group in Directory.EnumerateDirectories(operations).Where(dir => Path.GetFileName(dir) != "Shared"))
         {
             var name = Path.GetFileName(group);
             var expected = $"{name}Operations";
+            var type = Types(Path.Combine(group, $"{expected}.cs"))
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.Text == expected);
+            if (type is null)
+            {
+                violations.Add($"operations-class: {name} declares no {expected}");
+                continue;
+            }
+
+            // The interfaces the class implements, followed through the ones declared beside it.
+            var allowed = new HashSet<string>(StringComparer.Ordinal) { $"{expected}.cs" };
+            var pending = new Queue<string>(BaseNames(type));
+            while (pending.TryDequeue(out var baseName))
+            {
+                if (allowed.Add($"{baseName}.cs") && Types(Path.Combine(group, $"{baseName}.cs")).FirstOrDefault() is { } declared)
+                {
+                    foreach (var next in BaseNames(declared))
+                    {
+                        pending.Enqueue(next);
+                    }
+                }
+            }
             violations.AddRange(
                 Directory
                     .EnumerateFiles(group)
                     .Select(Path.GetFileName)
-                    .Where(file => file != $"{expected}.cs")
+                    .Where(file => !allowed.Contains(file!))
                     .Select(file => $"group-root: {name}/{file}")
             );
-            var path = Path.Combine(group, $"{expected}.cs");
-            var type = File.Exists(path)
-                ? CSharpSyntaxTree
-                    .ParseText(File.ReadAllText(path), cancellationToken: TestContext.Current.CancellationToken)
-                    .GetRoot(TestContext.Current.CancellationToken)
-                    .DescendantNodes()
-                    .OfType<ClassDeclarationSyntax>()
-                    .FirstOrDefault(c => c.Identifier.Text == expected)
-                : null;
-            if (type is null)
-            {
-                violations.Add($"operations-class: {name} declares no {expected}");
-            }
-            else if (
-                File.Exists(Path.Combine(abstractions, $"I{name}.cs"))
-                && type.BaseList?.Types.Any(t => t.Type.ToString() == $"I{name}") != true
-            )
-            {
-                violations.Add($"operations-class: {expected} does not implement I{name}");
-            }
         }
 
-        violations.AddRange(Directory.EnumerateDirectories(abstractions).Select(dir => $"abstractions-folder: {Path.GetFileName(dir)}"));
+        var domain = Path.Combine(acta, "Domain");
         violations.AddRange(
             Directory
-                .EnumerateFiles(abstractions, "*.cs")
-                .SelectMany(file =>
-                    CSharpSyntaxTree
-                        .ParseText(File.ReadAllText(file), cancellationToken: TestContext.Current.CancellationToken)
-                        .GetRoot(TestContext.Current.CancellationToken)
-                        .DescendantNodes()
-                        .OfType<BaseTypeDeclarationSyntax>()
-                        .Where(t => t is not InterfaceDeclarationSyntax)
-                        .Select(t => $"abstractions-type: {t.Identifier.Text}")
-                )
-        );
-        violations.AddRange(
-            Directory
-                .EnumerateDirectories(Path.Combine(acta, "Domain"))
+                .EnumerateDirectories(domain)
                 .Select(Path.GetFileName)
                 .Where(dir => dir is not ("Codes" or "Entities"))
                 .Select(dir => $"domain-folder: {dir}")
@@ -264,10 +247,67 @@ public sealed class OperationLayoutTests
 
         Assert.True(
             violations.Count == 0,
-            "Keep each group's root to its operations class, Abstractions/ to interfaces, and Domain/ to Codes/ and Entities/ plus its root:\n"
+            "Keep a group's root to its operations class and the interfaces it implements, and its other types in Shared/ or its operations:\n"
                 + string.Join("\n", violations.Order(StringComparer.Ordinal))
         );
     }
+
+    /// <summary>
+    /// A <c>Shared/</c> folder is shared below its parent: its types are named only by the parent's own files, its sibling
+    /// folders, and what sits deeper, never from above or beside the parent, so it is internal. Registration may wire one.
+    /// Crefs count.
+    /// </summary>
+    [Fact]
+    public void A_shared_type_stays_below_its_parent()
+    {
+        var files = ShippedCode.SourceFiles("*.cs").ToList();
+        var scopeOf = files
+            .Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal))
+            .Where(file => file.Relative.Contains("/Shared/", StringComparison.Ordinal))
+            .SelectMany(file =>
+                DeclaredTypes(file.Path)
+                    .Select(type =>
+                        (Type: type, Scope: file.Relative[..(file.Relative.LastIndexOf("/Shared/", StringComparison.Ordinal) + 1)])
+                    )
+            )
+            .DistinctBy(shared => shared.Type)
+            .ToDictionary(shared => shared.Type, shared => shared.Scope, StringComparer.Ordinal);
+        Assert.NotEmpty(scopeOf);
+        var published = files
+            .Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal))
+            .Where(file => file.Relative.Contains("/Shared/", StringComparison.Ordinal))
+            .SelectMany(file =>
+                Types(file.Path)
+                    .Where(type => type.Modifiers.Any(modifier => modifier.Text == "public"))
+                    .Select(type => $"{file.Relative}: {type.Identifier.Text} is public")
+            );
+
+        var violations = files
+            .Where(file => file.Relative != "src/Acta/ActaServiceCollectionExtensions.cs")
+            .SelectMany(file =>
+                NamesUsed(file.Path)
+                    .Distinct()
+                    .Where(name => scopeOf.TryGetValue(name, out var scope) && !file.Relative.StartsWith(scope, StringComparison.Ordinal))
+                    .Select(name => $"{file.Relative}: {name} ({scopeOf[name]}Shared/)")
+            )
+            .Concat(published)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            violations.Count == 0,
+            "Move the type up to the Shared/ folder of the nearest folder holding every user, or to Domain/ when code outside Operations/ names it:\n"
+                + string.Join("\n", violations)
+        );
+    }
+
+    private static IEnumerable<BaseTypeDeclarationSyntax> Types(string path) =>
+        File.Exists(path)
+            ? CSharpSyntaxTree.ParseText(File.ReadAllText(path)).GetRoot().DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+            : [];
+
+    private static IEnumerable<string> BaseNames(BaseTypeDeclarationSyntax type) =>
+        type.BaseList?.Types.Select(baseType => baseType.Type.ToString()) ?? [];
 
     private static IEnumerable<string> DeclaredTypes(string path)
     {

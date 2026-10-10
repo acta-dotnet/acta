@@ -80,6 +80,7 @@ public sealed partial class OperationsIndexTests
 
         var groups = Directory
             .EnumerateDirectories(operations)
+            .Where(IsOperation)
             .Select(Path.GetFileName)
             .OfType<string>()
             .Concat(httpOnly.Select(op => op.Group))
@@ -248,7 +249,7 @@ public sealed partial class OperationsIndexTests
     private static HashSet<string> Identifiers(SyntaxNode node) =>
         node.DescendantTokens().Where(t => t.IsKind(SyntaxKind.IdentifierToken)).Select(t => t.Text).ToHashSet(StringComparer.Ordinal);
 
-    // A group's Shared/ folder holds what several of its operations share; it is not an operation.
+    // A Shared/ folder holds what several operations share; it is neither an operation nor, under Operations/, a group.
     private static bool IsOperation(string folder) => Path.GetFileName(folder) != "Shared";
 
     // A file at the group's root or in its Shared/ folder, where the helpers a facade method may call live.

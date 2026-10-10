@@ -507,8 +507,8 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `AlertProfileCode.cs` | `src/Acta/Domain/Codes/AlertProfileCode.cs` |
 | `AlertChannelOptions.cs` | `src/Acta/Hosting/AlertChannelOptions.cs` |
 | `AlertTransportKinds.cs` | `src/Acta/Hosting/AlertTransportKinds.cs` |
-| `IAlerts.cs` | `src/Acta/Abstractions/IAlerts.cs` |
-| `ListAlertsQuery.cs` | `src/Acta/Operations/Alerts/ListAlertsQuery.cs` |
+| `IAlerts.cs` | `src/Acta/Operations/Alerts/IAlerts.cs` |
+| `ListAlertsQuery.cs` | `src/Acta/Operations/Alerts/ListAlerts/ListAlertsQuery.cs` |
 | `AlertsEndpoints.cs` | `src/Acta.AspNetCore/Operations/Alerts/AlertsEndpoints.cs` |
 | `JobAttribute.cs` | `src/Acta/Handlers/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
