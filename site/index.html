@@ -316,49 +316,14 @@
         <b>your application</b><i>enqueue</i><b>one SQL ledger</b><i>claim + lease</i><b>peer workers</b><i>record &middot; checkpoint &middot; complete</i><b>the same ledger</b>
       </div>
       <p class="hiw-note">A dead worker's lease expires; any peer reclaims the job and continues from recorded state. Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
+      <div class="actions"><a class="button" href="/engine">How one worker claims, runs, and finalizes a job</a></div>
     </section>
 
     <section class="wrap" id="who-runs-next">
       <p class="record">Claiming</p>
       <h2>Who runs next?</h2>
       <p class="lede">Order within each lane, parallel work across lanes, and priority among the eligible jobs. The same order holds upstream: a job can be saved in the shop's own transaction, travel through the outbox relay, and reach the workers in the sequence it was staged.</p>
-      <figure class="walk claiming" id="claiming" aria-labelledby="claiming-title">
-        <div class="walk-header">
-          <div><h3 id="claiming-title">Two lanes, two peer workers, one claim scan.</h3><p>Step through enqueue, claim, finish, retry, and recover. Then switch to the outbox example to follow an order from the shop's database into the ledger.</p></div>
-          <div class="claiming-controls" hidden>
-            <button type="button" class="button" id="claiming-mode" aria-pressed="false">Show outbox example</button>
-          </div>
-        </div>
-        <nav class="claiming-controls walk-steps" id="claiming-steps" aria-label="Walkthrough steps" hidden></nav>
-        <div class="claiming-source" id="claiming-source" hidden>
-          <div class="claiming-journey" aria-label="Outbox journey"><span>1 · Shop saves an order</span><span>2 · Relay delivers requests</span><span>3 · Workers run jobs</span></div>
-          <div class="walk-label">Shop database · owned by your application</div>
-          <div class="claiming-transaction"><div class="claiming-order"><span class="claiming-table-name">orders table</span><strong>Order #1042</strong><span>Customer checked out · status: placed</span><span>Order #1073 · another checkout</span></div><div class="claiming-commit"><strong>One shop transaction</strong><span>Save the orders + insert the requests below.</span><span>Both commit, or neither does.</span></div></div>
-          <p class="claiming-source-intro"><code>acta_outbox</code> table <span>Rows saying “please run this job.” The shop has saved them; a handler has not run yet.</span></p>
-          <div id="claiming-outbox"></div>
-          <div class="claiming-relay"><div><strong>↓ sys.outbox relay</strong><span>Runs on the Acta worker fleet</span></div><div class="claiming-transfer" id="claiming-transfer"></div><span id="claiming-relay-note">Claims source rows, then admits jobs into the ledger.</span></div>
-        </div>
-        <div class="claiming-model">
-          <div class="claiming-ledger">
-            <div class="walk-label" id="claiming-ledger-label">Acta SQL ledger · namespace orders</div>
-            <div id="claiming-lanes">
-              <div class="claiming-lane"><div class="claiming-lane-name">customer-42 <small>Ordered lane</small></div><div class="claiming-jobs"><div class="walk-job ready"><b>A1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A2</b><span>Blocked</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A3</b><span>Blocked</span></div></div></div>
-              <div class="claiming-lane"><div class="claiming-lane-name">customer-73 <small>Ordered lane</small></div><div class="claiming-jobs"><div class="walk-job ready"><b>B1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>B2</b><span>Blocked</span></div></div></div>
-              <div class="claiming-lane"><div class="claiming-lane-name">No lane <small>Independent jobs</small></div><div class="claiming-jobs"><div class="walk-job ready"><b>C1</b><span>Ready</span></div><div class="walk-job ready"><b>C2</b><span>Ready</span></div></div></div>
-            </div>
-            <p class="walk-rule">Only eligible lane heads and unlaned jobs enter the claim scan. Blocked jobs stay outside it.</p>
-          </div>
-          <div class="walk-bridge" aria-hidden="true">claim <br />+ lease <br /><span>→</span></div>
-          <div class="claiming-workers"><div class="walk-label">Peer workers</div><div id="claiming-workers"><div class="walk-worker"><strong>Worker 1</strong><span>Available</span></div><div class="walk-worker"><strong>Worker 2</strong><span>Available</span></div></div><p>Any peer can take the next eligible job. A lane belongs to the ledger, not a worker.</p></div>
-        </div>
-        <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="claiming-step">1 / 5 · Enqueue</span><strong id="claiming-heading">Only the head of each lane is Ready.</strong><p id="claiming-description">A2 waits behind A1 even if A2 has higher priority. B1 and the unlaned jobs can run independently. This example shows Direct execution; Buffered workers claim before starting a handler.</p></figcaption>
-        <div class="claiming-controls walk-navigation" hidden><button type="button" class="button" id="claiming-back" disabled>Previous</button><button type="button" class="button primary" id="claiming-next">Next →</button><button type="button" class="button" id="claiming-replay">Replay</button><span>Step at your own pace</span></div>
-        <p class="walk-footnote">Execution is at-least-once; external effects still need idempotency. <a href="#claiming-lane-rules">Lane rules</a> · <a href="#claiming-outbox-ordering">Outbox ordering</a></p>
-        <div class="walk-help">
-          <details id="claiming-lane-rules"><summary>Lane rules</summary><p>A lane is an ordered line of jobs in one namespace. Only its head can be claimed when eligible; later jobs are Blocked. Success, final failure or cancellation promotes the next job in the same transaction. A retry, delay, pause or durable wait holds the head’s place. Priority never lets a later member jump the line. Different lanes and unlaned jobs can run in parallel, and any peer worker can take a lane’s next job.</p></details>
-          <details id="claiming-outbox-ordering"><summary>Outbox ordering</summary><p>The outbox is a table in your application’s database. Your transaction saves business data and job requests together. The relay claims those requests, commits jobs to the Acta ledger, then deletes the delivered source rows. Repeating a delivery uses the same deduplication key.</p><p>When source rows explicitly name a lane, a later row waits while an older Pending or Claimed row in that namespace and lane remains. A delivery retry holds that source line; quarantine releases it. Once delivered, the ledger lane independently controls execution order. Delivery does not wait for the handler to finish.</p><p>Sequentially staged rows preserve staging order. Concurrent producer transactions have no guaranteed order between them. A lane set only on the target job definition starts ordering at ledger admission, not in the source outbox.</p></details>
-        </div>
-      </figure>
+      <div class="actions"><a class="button" href="/claiming">Step through it: two lanes, two workers, one claim scan</a></div>
     </section>
 
     <section class="wrap" id="admission">
@@ -371,60 +336,7 @@
         <div><i>How many at once · N</i><b>ConcurrencyLimit</b><p>The same gate with N slots, per key when the enqueue names one, otherwise for the whole definition.</p><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code></div>
         <div><i>How often</i><b>RateLimit</b><p>Starts metered on one clock across the namespace’s workers. Early arrivals are booked a turn and come back for it.</p><code>[Job("send-invoice", RateLimit = "10/s")]</code></div>
       </div>
-
-      <figure class="walk admission" id="admission-figure" aria-labelledby="admission-title">
-        <div class="walk-header">
-          <h3 id="admission-title">The same five jobs, through each gate.</h3>
-          <p><b>A1, A2, A3</b> belong to customer 42 and <b>B1, B2</b> to customer 73. They arrive in the order A1, B1, A2, A3, B2, and three executors are free. Pick a gate and step through what the ledger records.</p>
-        </div>
-        <div class="walk-tabs" id="admission-tabs" role="tablist" aria-label="Admission gate">
-          <button type="button" class="button" id="admission-tab-lane" role="tab" aria-selected="true" aria-controls="admission-panel">Lane</button>
-          <button type="button" class="button" id="admission-tab-key" role="tab" aria-selected="false" aria-controls="admission-panel" tabindex="-1">ConcurrencyKey</button>
-          <button type="button" class="button" id="admission-tab-limit" role="tab" aria-selected="false" aria-controls="admission-panel" tabindex="-1">ConcurrencyLimit</button>
-          <button type="button" class="button" id="admission-tab-rate" role="tab" aria-selected="false" aria-controls="admission-panel" tabindex="-1">RateLimit</button>
-        </div>
-        <div id="admission-panel" role="tabpanel" aria-labelledby="admission-tab-lane">
-          <div class="admission-axis" id="admission-axis"><span><b>Order.</b> One job of the lane at a time, in enqueue order.</span><code>o =&gt; o.Lane("customer-42")</code></div>
-          <nav class="walk-steps" id="admission-steps" aria-label="Walkthrough steps"></nav>
-          <div class="admission-stage">
-            <div class="admission-ledger">
-              <div class="walk-label" id="admission-ledger-label">Acta SQL ledger · two lanes</div>
-              <div id="admission-gate">
-                <div class="admission-row"><div class="admission-row-name">customer-42 <small>Ordered lane</small></div><div class="admission-jobs"><div class="walk-job ready"><b>A1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A2</b><span>Blocked</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A3</b><span>Blocked</span></div></div></div>
-                <div class="admission-row"><div class="admission-row-name">customer-73 <small>Ordered lane</small></div><div class="admission-jobs"><div class="walk-job ready"><b>B1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>B2</b><span>Blocked</span></div></div></div>
-              </div>
-              <p class="walk-rule" id="admission-rule">Only lane heads enter the claim scan. Blocked jobs stay outside it, however deep the lane.</p>
-            </div>
-            <div class="walk-bridge" aria-hidden="true">claim <br />+ admit <br /><span>→</span></div>
-            <div class="admission-executors"><div class="walk-label">Executors</div><div id="admission-executors"><div class="walk-worker"><strong>Executor 1</strong><span>Available</span></div><div class="walk-worker"><strong>Executor 2</strong><span>Available</span></div><div class="walk-worker"><strong>Executor 3</strong><span>Available</span></div></div><p>Admission happens after the claim and before the handler. A job the gate turns away hands its executor back.</p></div>
-          </div>
-          <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="admission-step">Lane · 1 / 5 · Enqueue</span><strong id="admission-heading">Only the head of each lane is Ready.</strong><p id="admission-description">A1 and B1 are claimable. A2, A3 and B2 are Blocked, outside the claim scan, so a deep lane costs the claim nothing. Enqueue order is commit order: two producers cannot interleave a lane.</p></figcaption>
-          <div class="walk-navigation" hidden><button type="button" class="button" id="admission-back" disabled>Previous</button><button type="button" class="button primary" id="admission-next">Next →</button><button type="button" class="button" id="admission-play" aria-pressed="false">Play</button><span>Step at your own pace</span></div>
-        </div>
-        <p class="walk-footnote">Execution is at-least-once on every path, so handlers with external effects stay idempotent. A lane head still passes the key and rate gates it carries, and the jobs behind it stay Blocked while they re-arm it. Semantics in full: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md#lanes">Lanes</a> · <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md#ordering-and-exclusion">Ordering and exclusion</a> · runnable: <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key">209-concurrency-key</a></p>
-      </figure>
-
-      <table class="admission-choose">
-        <caption class="sr-only">Which gate to use, with the one line that turns it on</caption>
-        <thead><tr><th scope="col">I need</th><th scope="col">Gate</th><th scope="col">Turn it on</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">One at a time per customer, in the order they came in<small>Item N+1 starts only after item N finished: succeeded, failed for good, or cancelled.</small></th><td class="gate">Lane</td><td class="turn"><code>await jobs.EnqueueAsync(input, o =&gt; o.Lane("customer-42"));</code><span>Or <code>[Job("sync-orders", Lane = "orders")]</code> on the definition. Start here for "one at a time per entity".</span></td></tr>
-          <tr><th scope="row">Never two at once, and I do not care who goes first<small>Exclusive, unordered work. A failing job releases the key with it.</small></th><td class="gate">ConcurrencyKey</td><td class="turn"><code>await jobs.EnqueueAsync(input, o =&gt; o.ConcurrencyKey("rebuild:acme"));</code><span>The key is also the scope a ConcurrencyLimit applies to.</span></td></tr>
-          <tr><th scope="row">At most N at once<small>Per key when the enqueue names one, otherwise across the whole definition: four index rebuilds, or four per tenant.</small></th><td class="gate">ConcurrencyLimit</td><td class="turn"><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code><span>An operator can change the number on a running system.</span></td></tr>
-          <tr><th scope="row">No more than so many starts a second, across the namespace<small>Pacing against a partner API or a shared resource. How often, not how many.</small></th><td class="gate">RateLimit</td><td class="turn"><code>[Job("send-invoice", RateLimit = "10/s")]</code><code>[Job("refund", RateLimit = "10/s", RateKey = "stripe")]</code><span>Definitions in one namespace that name the same RateKey share one meter, at the same declared rate.</span></td></tr>
-        </tbody>
-      </table>
-
-      <div class="facts two">
-        <div>
-          <b>Measured, on one rig</b>
-          <p>32 logical cores, NVMe, zero-work handlers, 8 executors, on the rc.4 benchmark round. One lane holding a thousand jobs ran about <em>280 to 330 jobs a second</em> on PostgreSQL and SQL Server with the Direct profile, about <em>700 to 730</em> on SQLite with no network hop. A thousand lanes in round-robin ran at <em>80 to 95 percent</em> of unlaned throughput. One hot concurrency key with limit 1 managed <em>21 to 24 jobs a second</em> on the servers, because every loser is claimed, bounced, and re-armed. Rough illustrations of the shape of each gate, not capacity claims. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md">Benchmark round</a></p>
-        </div>
-        <div>
-          <b>Certified, under chaos</b>
-          <p>The release certification kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that no lane ever ran two members at once or out of order, and that every lane drained. The same run checks three rate meters, at 10, 50 and 100 starts a second, never admitted past their published budget. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
-        </div>
-      </div>
+      <div class="actions"><a class="button" href="/gates">Step the same five jobs through each gate</a></div>
     </section>
 
     <section class="wrap" id="fleet">
@@ -434,65 +346,7 @@
       <div class="hiw" aria-label="The worker loop">
         <b>register</b><i>heartbeat</i><b>claim due rows</b><i>lease</i><b>run handlers</b><i>renew</i><b>settle</b><i>repeat</i><b>the same ledger</b>
       </div>
-
-      <figure class="walk fleet" id="fleet-figure" aria-labelledby="fleet-title">
-        <div class="walk-header">
-          <h3 id="fleet-title">One namespace, as the database sees it.</h3>
-          <p>Three workers on build 1 share the namespace. Six jobs are due, J4 and J5 carry the concurrency key rebuild:acme, and J6 belongs to a definition the next build drops. Step through a claim, a heartbeat, a kill, the recovery pass, a shared gate, and a rolling deploy.</p>
-        </div>
-        <nav class="walk-steps" id="fleet-steps" aria-label="Walkthrough steps" hidden></nav>
-        <div class="walk-stage">
-          <div class="walk-label">Worker processes · peers</div>
-          <div class="fleet-workers" id="fleet-workers">
-            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W1</span><small>build 1</small></div><span class="fleet-worker-status">Registered · beat 1 s ago</span></div>
-            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W2</span><small>build 1</small></div><span class="fleet-worker-status">Registered · beat 1 s ago</span></div>
-            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W3</span><small>build 1</small></div><span class="fleet-worker-status">Registered · beat 1 s ago</span></div>
-            <div class="walk-worker fleet-worker empty"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W4</span></div><span class="fleet-worker-status">Not started</span></div>
-          </div>
-          <div class="fleet-bridge" aria-hidden="true"><span>claim + lease</span><span>heartbeat renews leases</span><span>settle · record steps</span></div>
-          <div class="fleet-db">
-            <div class="walk-label">Acta SQL ledger · PostgreSQL or SQL Server · namespace orders</div>
-            <div class="walk-scroll" tabindex="0" aria-label="Job rows; horizontally scrollable on small screens">
-              <table class="walk-table">
-                <caption class="sr-only">Job rows in the namespace: status, the worker holding the lease, the lease window, the execution number, and a note</caption>
-                <thead><tr><th scope="col">job</th><th scope="col">status</th><th scope="col">leased by</th><th scope="col">lease</th><th scope="col">execution</th><th scope="col">note</th></tr></thead>
-                <tbody id="fleet-rows">
-                  <tr><th scope="row">J1</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td></td></tr>
-                  <tr><th scope="row">J2</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td></td></tr>
-                  <tr><th scope="row">J3</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td></td></tr>
-                  <tr><th scope="row">J4</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td><code>key rebuild:acme</code></td></tr>
-                  <tr><th scope="row">J5</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td><code>key rebuild:acme</code></td></tr>
-                  <tr><th scope="row">J6</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td><code>handler in build 1 only</code></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fleet-shared">
-              <div id="fleet-recovery"><i>System slot</i><b>sys.recovery</b><span>Due in 40 s</span></div>
-              <div id="fleet-key"><i>Concurrency key row</i><b>rebuild:acme</b><span>Free</span></div>
-              <div id="fleet-meter"><i>Rate meter row</i><b>send-invoice · 10/s</b><span>Idle</span></div>
-            </div>
-            <p class="walk-rule">Workers find new rows by polling SQL, a 1 s safety poll by default. The optional Redis wake-up only shortens that wait; it never carries truth.</p>
-          </div>
-        </div>
-        <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="fleet-step">1 / 8 · Peers</span><strong id="fleet-heading">Three peer processes, one database, no leader.</strong><p id="fleet-description">Each worker registers in the namespace, heartbeats, claims due rows, runs handlers, and refreshes its leases. Nothing else coordinates them: no control plane, no broker, no election. The workers table is the only membership list, and every worker is in it as an equal.</p></figcaption>
-        <div class="walk-navigation" hidden><button type="button" class="button" id="fleet-back" disabled>Previous</button><button type="button" class="button primary" id="fleet-next">Next →</button><button type="button" class="button" id="fleet-play" aria-pressed="false">Play</button><span>Step at your own pace</span></div>
-        <p class="walk-footnote">Times are the defaults: 45 s heartbeat, 180 s lease, 315 s before a silent worker is marked dead. Execution stays at-least-once, so a handler with external effects is idempotent on every path. SQLite is the embedded single-node provider; the fleet story is PostgreSQL and SQL Server. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md">Production guide</a> · <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery">705-worker-crash-recovery</a></p>
-      </figure>
-
-      <div class="facts">
-        <div>
-          <b>The claim is the election</b>
-          <p>sys.recovery, sys.retention, sys.alerts and sys.outbox are recurring slots like any schedule: each fires once per cadence, run by whichever worker claims it. No worker is special, so there is nothing to fail over.</p>
-        </div>
-        <div>
-          <b>One setting, three windows</b>
-          <p>The heartbeat interval is the only coordination knob. The lease window is four heartbeats and the dead-worker threshold seven, both read-only, so replicas that agree on the heartbeat agree on everything else by construction.</p>
-        </div>
-        <div>
-          <b>Measured, under chaos</b>
-          <p>The rc.4 certification ran <em>24 worker processes of 64 executors each</em>, 1,536 concurrent slots on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em> and no recorded step ran twice, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
-        </div>
-      </div>
+      <div class="actions"><a class="button" href="/fleet">Step through a claim, a kill, and a rolling deploy</a></div>
     </section>
 
     <section class="wrap" id="install">
@@ -897,9 +751,6 @@ Hello, World!</span>
       <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>
-  <script src="assets/claiming.js"></script>
-  <script src="assets/admission.js"></script>
-  <script src="assets/fleet.js"></script>
   <script>
     // Two short links for the outside. useacta.net/#capabilities is the anchor on the full reference
     // above; useacta.net/#concepts hands off to the runnable concepts in the repository, since the

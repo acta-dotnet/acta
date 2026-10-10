@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How one worker claims, runs, and finalizes a job · the durable work ledger for .NET</title>
+  <meta name="description" content="Inside an Acta worker: one claimer, N executors, and one finalizer, an in-flight registry, and a heartbeat that renews exactly what the worker holds. Every channel size, batch cap, and lease deadline, and the backpressure that stops intake when the database is slow." />
+  <link rel="canonical" href="https://useacta.net/engine" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How one worker claims, runs, and finalizes a job · the durable work ledger for .NET" />
+  <meta property="og:description" content="Inside an Acta worker: one claimer, N executors, and one finalizer, an in-flight registry, and a heartbeat that renews exactly what the worker holds. Every channel size, batch cap, and lease deadline, and the backpressure that stops intake when the database is slow." />
+  <meta property="og:url" content="https://useacta.net/engine" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="assets/site.css" />
+  <style>
+    /* The pipeline figures, drawn in the site's tokens: one dark palette, like every page here. */
+    .eng-figure { margin: 2.4rem 0 0; }
+    .eng-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); padding: 1rem; }
+    .eng-scroll svg { display: block; width: 100%; min-width: 900px; height: auto; color: var(--muted); font-family: var(--sans); }
+    .eng-figure figcaption { margin: 1rem 0.2rem 0; color: var(--muted); font-size: 0.95rem; max-width: 88ch; }
+    .box { fill: var(--panel-2); stroke: var(--faint); stroke-width: 1.3; }
+    .ghost { fill: var(--panel-2); stroke: var(--hair); stroke-width: 1.2; }
+    .band { fill: var(--bg); stroke: var(--hair); stroke-width: 1; }
+    .slot { stroke: var(--hair); stroke-width: 1; }
+    .t { fill: var(--text); font-size: 13px; }
+    .tt { fill: var(--text); font-family: var(--serif); font-weight: 600; font-size: 16px; }
+    .tm { fill: var(--muted); font-size: 12px; }
+    .code { fill: var(--code); font-family: var(--mono); font-size: 12px; }
+    .ln { stroke: currentColor; stroke-width: 1.4; fill: none; }
+    .dash { stroke-dasharray: 5 4; }
+    .acc { stroke: var(--verdi); }
+    .acc-t { fill: var(--verdi); }
+    .warn { stroke: var(--oxide); }
+    .warn-t { fill: var(--oxide); }
+    .fill-fg { fill: currentColor; }
+    .fill-acc { fill: var(--verdi); }
+    .fill-warn { fill: var(--oxide); }
+    .bar-warn { fill: var(--oxide); opacity: 0.16; }
+    .eng-table { overflow-x: auto; margin-top: 2rem; }
+    .eng-caps { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .eng-caps th, .eng-caps td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--hair-soft); vertical-align: top; }
+    .eng-caps thead th { font-family: var(--mono); font-size: var(--label); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); font-weight: 400; }
+    .eng-caps td { color: var(--muted); }
+    .eng-caps td:first-child { color: var(--text); }
+    .eng-caps td.v { font-family: var(--mono); font-size: 0.85rem; color: var(--verdi); white-space: nowrap; }
+    .eng-caps th.grp { font-family: var(--serif); font-weight: 600; font-size: 1.05rem; color: var(--text); padding-top: 1.6rem; border-bottom-color: var(--hair); }
+    .eng-path { font-family: var(--mono); font-size: 0.82rem; color: var(--code); margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">Inside a worker</p>
+      <h1>How one worker claims, runs, and finalizes a job.</h1>
+      <p class="lede">Three agents and one table. The claimer takes rows from the database, the executors run handlers, the finalizer writes what happened, and an in-flight registry holds every claim from the moment it is taken until its completion has committed. The heartbeat renews exactly what the registry holds, so a row nothing holds runs out its lease and goes back to recovery.</p>
+    </header>
+
+    <section class="wrap">
+      <p class="record">The pipeline</p>
+      <h2>Claim, run, finalize, one channel apart.</h2>
+      <figure class="eng-figure">
+        <div class="eng-scroll">
+          <svg viewBox="0 0 1280 470" role="img" aria-label="One worker: the claimer takes up to 32 rows per call against permits and hands them through the Claimed channel to N executors; each executor hands its completion through the Completed channel to one finalizer, which writes up to 128 plain completions in one call and the rest per job; the heartbeat renews the registry's held set in one call every 45 seconds; a full Completed channel blocks the executors, which hold their permits, which stops the claimer.">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+              <marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
+              <marker id="ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
+            </defs>
+            <rect class="band" x="30" y="20" width="1220" height="66" rx="4"/>
+            <text class="tt" x="48" y="48">Database</text>
+            <text class="code" x="48" y="70">runtimes · locks · events · results</text>
+
+            <line class="ln" x1="115" y1="168" x2="115" y2="90" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <text class="code" x="125" y="122">claim_batch</text>
+            <text class="tm" x="125" y="138">≤ 32 rows, 1 call</text>
+            <line class="ln dash" x1="510" y1="148" x2="510" y2="90" marker-end="url(#ah)"/>
+            <text class="code" x="520" y="114">start_execution</text>
+            <text class="tm" x="520" y="130">Buffered only, per job</text>
+            <line class="ln acc" x1="850" y1="168" x2="850" y2="90" marker-end="url(#ah-acc)"/>
+            <text class="code acc-t" x="842" y="114" text-anchor="end">complete_executions</text>
+            <text class="tm" x="842" y="130" text-anchor="end">≤ 128 plain rows</text>
+            <line class="ln" x1="1000" y1="168" x2="1000" y2="90" marker-end="url(#ah)"/>
+            <text class="code" x="992" y="114" text-anchor="end">complete_execution</text>
+            <text class="tm" x="992" y="130" text-anchor="end">the rest, per job</text>
+            <line class="ln" x1="1100" y1="168" x2="1100" y2="90" marker-end="url(#ah)"/>
+            <text class="code" x="1110" y="114">extend_worker_leases</text>
+            <text class="tm" x="1110" y="130">held set + locks, 1 call</text>
+
+            <rect class="box" x="30" y="170" width="170" height="100" rx="4"/>
+            <text class="tt" x="44" y="194">WorkerClaimer</text>
+            <text class="tm" x="44" y="214">1 loop</text>
+            <text class="tm" x="44" y="231">waits for permits:</text>
+            <text class="tm" x="44" y="248">Direct 1, Buffered 32</text>
+
+            <text class="code" x="240" y="182">Claimed</text>
+            <rect class="box" x="240" y="190" width="140" height="56" rx="3"/>
+            <line class="slot" x1="268" y1="190" x2="268" y2="246"/><line class="slot" x1="296" y1="190" x2="296" y2="246"/>
+            <line class="slot" x1="324" y1="190" x2="324" y2="246"/><line class="slot" x1="352" y1="190" x2="352" y2="246"/>
+            <text class="tm" x="240" y="264">cap = permits, never blocks</text>
+            <line class="ln" x1="200" y1="218" x2="238" y2="218" marker-end="url(#ah)"/>
+
+            <rect class="ghost" x="440" y="150" width="180" height="100" rx="4"/>
+            <rect class="ghost" x="430" y="160" width="180" height="100" rx="4"/>
+            <rect class="box" x="420" y="170" width="180" height="100" rx="4"/>
+            <text class="tt" x="434" y="194">WorkerExecutor × N</text>
+            <text class="tm" x="434" y="214">N = 4 per core, 8 to 64</text>
+            <text class="tm" x="434" y="231">start · admit · handler</text>
+            <text class="tm" x="434" y="248">timeout 300 s default</text>
+            <line class="ln" x1="380" y1="218" x2="418" y2="218" marker-end="url(#ah)"/>
+
+            <text class="code" x="640" y="182">Completed</text>
+            <rect class="box" x="640" y="190" width="140" height="56" rx="3"/>
+            <line class="slot" x1="668" y1="190" x2="668" y2="246"/><line class="slot" x1="696" y1="190" x2="696" y2="246"/>
+            <line class="slot" x1="724" y1="190" x2="724" y2="246"/><line class="slot" x1="752" y1="190" x2="752" y2="246"/>
+            <text class="tm" x="640" y="264">cap 128 + N</text>
+            <line class="ln" x1="600" y1="218" x2="638" y2="218" marker-end="url(#ah)"/>
+
+            <rect class="box" x="820" y="170" width="190" height="100" rx="4"/>
+            <text class="tt" x="834" y="194">WorkerFinalizer</text>
+            <text class="tm" x="834" y="214">1 loop, takes what waits</text>
+            <text class="tm" x="834" y="231">≤ 128 rows · ≤ 4 MiB</text>
+            <text class="tm" x="834" y="248">+ ≤ 50 ms if backlog</text>
+            <line class="ln" x1="780" y1="218" x2="818" y2="218" marker-end="url(#ah)"/>
+
+            <rect class="box" x="1080" y="170" width="170" height="100" rx="4"/>
+            <text class="tt" x="1094" y="194">WorkerHeartbeat</text>
+            <text class="tm" x="1094" y="214">every 45 s</text>
+            <text class="tm" x="1094" y="231">renews, cancels,</text>
+            <text class="tm" x="1094" y="248">reloads policy</text>
+
+            <path class="ln dash warn" d="M 710 270 C 710 335, 160 335, 160 274" marker-end="url(#ah-warn)"/>
+            <text class="t warn-t" x="450" y="356" text-anchor="middle">Completed full → executors wait holding their permits → no permits → claimer stops</text>
+
+            <rect class="band" x="30" y="380" width="1220" height="62" rx="4"/>
+            <text class="tt" x="48" y="402">InFlightJobRegistry</text>
+            <text class="tm" x="48" y="424">one entry per claim, keyed (job, execution)</text>
+            <line class="slot" x1="410" y1="386" x2="410" y2="436"/>
+            <line class="slot" x1="620" y1="386" x2="620" y2="436"/>
+            <text class="code" x="300" y="416" text-anchor="middle">Claimed</text>
+            <text class="code" x="515" y="416" text-anchor="middle">Executing</text>
+            <text class="code" x="815" y="416" text-anchor="middle">Finalizing</text>
+            <line class="ln" x1="80" y1="270" x2="80" y2="378" marker-end="url(#ah)"/>
+            <text class="tm" x="88" y="372">adds entry, arms its deadline</text>
+            <line class="ln" x1="930" y1="270" x2="930" y2="378" marker-end="url(#ah)"/>
+            <text class="tm" x="922" y="372" text-anchor="end">removes it after the commit</text>
+            <line class="ln dash" x1="1165" y1="270" x2="1165" y2="378" marker-end="url(#ah)"/>
+            <text class="tm" x="1157" y="372" text-anchor="end">snapshot · re-arm · cancel</text>
+          </svg>
+        </div>
+        <figcaption>One worker process. Every arrow into the database is one round trip; the dashed one happens only on the Buffered profile. The green call carries the plain completions together, and everything else is written per job, all of a batch's per-job writes at once. The amber loop is the backpressure: when the database is slow, intake stops instead of memory growing.</figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap">
+      <p class="record">What each stage decides</p>
+      <h2>Five agents, one rule each.</h2>
+      <dl class="ref">
+        <div class="ref-row"><dt>Claimer</dt><dd>Takes the minimum permits (one on Direct, a whole batch of 32 on Buffered), then any more that are free up to 32, and claims that many rows in one call. Unused permits go back at once. An empty claim sleeps until the next row is due, at least 50 ms and at most 1 s, jittered up to 100 ms, and a wakeup ends the sleep early. A failed claim backs off a full second.</dd></div>
+        <div class="ref-row"><dt>The recovery slot</dt><dd>When a claim returns the namespace's <code>sys.recovery</code> row, it runs on its own task without a permit, so a worker whose executors are all busy still sweeps. A slot monitor also checks it every seven minutes.</dd></div>
+        <div class="ref-row"><dt>Executor</dt><dd>Skips an entry whose deadline already fired. On Buffered it moves the row to Executing first, repeating the start until it lands or the deadline fires. Then admission (concurrency slot, rate meter), the handler, and the completion record. It hands the entry to the finalizer and only then returns its permit.</dd></div>
+        <div class="ref-row"><dt>Finalizer</dt><dd>One per worker. Reads one completion, then everything already waiting, up to 128 completions or 4 MiB of results; if that first read found a backlog, it waits up to 50 ms more to fill the batch, and a lone completion never waits. A plain completion, a one-shot job landing Succeeded or Failed, goes into one <code>complete_executions</code> call. Everything else, and any row the batch hands back because it sits in a lane or has a parent, goes through <code>complete_execution</code>, all at once. Each write repeats until it lands; then the wakes, the metric, and the entry is removed.</dd></div>
+        <div class="ref-row"><dt>Heartbeat</dt><dd>Every 45 s it snapshots the registry and makes one call with the held (job, execution) pairs and lock holds. A renewed row re-arms its entry's deadline. A row locked by another transaction keeps its deadline for the next beat. A row not answered cancels a Claimed or Executing entry, while a Finalizing entry is left to its write. A lock not renewed cancels its attempt. When the namespace's newest definition change moved, it reloads the policy.</dd></div>
+      </dl>
+    </section>
+
+    <section class="wrap">
+      <p class="record">The lease clock</p>
+      <h2>One setting, every deadline.</h2>
+      <figure class="eng-figure">
+        <div class="eng-scroll">
+          <svg viewBox="0 0 1000 210" role="img" aria-label="Lease timeline from a claim: the heartbeat renews at 45, 90 and 135 seconds; if renewals stop, the attempt is cancelled at 112.5 seconds, the lease lapses at 180 seconds for recovery to reclaim, and a worker with no heartbeat at all is marked Dead at 315 seconds.">
+            <defs>
+              <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+            </defs>
+            <rect class="bar-warn" x="374" y="92" width="189" height="26"/>
+            <line class="ln" x1="60" y1="118" x2="955" y2="118" marker-end="url(#ah2)"/>
+            <g class="ln"><line x1="60" y1="112" x2="60" y2="124"/><line x1="186" y1="112" x2="186" y2="124"/><line x1="311" y1="112" x2="311" y2="124"/><line x1="437" y1="112" x2="437" y2="124"/><line x1="563" y1="112" x2="563" y2="124"/><line x1="940" y1="112" x2="940" y2="124"/></g>
+            <g class="code" text-anchor="middle">
+              <text x="60" y="142">0 s</text><text x="186" y="142">45</text><text x="311" y="142">90</text><text x="437" y="142">135</text><text x="563" y="142">180</text><text x="940" y="142">315</text>
+            </g>
+            <circle class="fill-acc" cx="186" cy="118" r="5"/><circle class="fill-acc" cx="311" cy="118" r="5"/><circle class="fill-acc" cx="437" cy="118" r="5"/>
+            <text class="t acc-t" x="311" y="76" text-anchor="middle">heartbeats renew: deadline = request start + 112.5 s</text>
+            <line class="ln acc" x1="311" y1="82" x2="311" y2="110"/>
+            <text class="t" x="60" y="40">claim: lease 180 s, deadline armed at 112.5 s</text>
+            <line class="ln" x1="60" y1="46" x2="60" y2="110"/>
+            <line class="ln warn" x1="374" y1="92" x2="374" y2="164"/>
+            <text class="t warn-t" x="380" y="180">renewals failing: handler cancelled at 112.5 s</text>
+            <text class="tm" x="468" y="108" text-anchor="middle">67.5 s to unwind</text>
+            <line class="ln warn" x1="563" y1="150" x2="563" y2="186"/>
+            <text class="t warn-t" x="569" y="200">lease lapses at 180 s: recovery reclaims the row</text>
+            <line class="ln" x1="940" y1="46" x2="940" y2="110"/>
+            <text class="t" x="940" y="40" text-anchor="end">no heartbeat at all: worker marked Dead at 315 s</text>
+          </svg>
+        </div>
+        <figcaption>The lease clock of one claim with the default heartbeat of 45 s. Every number derives from that one setting: the lease is four beats, and the deadline sits halfway between one beat and the lease, so a healthy attempt never comes near it and a cancelled one has 67.5 s to stop before another worker may take the row. Recovery charges the reclaimed row a failure only if it had started; a row that was only claimed goes back uncharged.</figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap">
+      <p class="record">Every cap and threshold</p>
+      <h2>What bounds what.</h2>
+      <p class="lede">Values are the defaults. Only the heartbeat interval, the executor count, the claim batch size, the safety poll, and the execution profile are settable; everything else is a constant or derives from them.</p>
+      <div class="eng-table">
+        <table class="eng-caps">
+          <thead><tr><th scope="col">Threshold</th><th scope="col">Value</th><th scope="col">What it bounds</th></tr></thead>
+          <tbody>
+            <tr><th class="grp" scope="rowgroup" colspan="3">Claiming</th></tr>
+            <tr><td><code>MaxConcurrentExecutors</code></td><td class="v">4 per core, 8 to 64</td><td>Executor loops per worker. A 2-core container gets 8, an 8-core host 32, anything from 16 cores up gets 64.</td></tr>
+            <tr><td><code>ClaimBatchSize</code></td><td class="v">32</td><td>Rows one claim call may take.</td></tr>
+            <tr><td>Permits</td><td class="v">Direct N · Buffered N + 32</td><td>Claims held and not yet handed to the finalizer. Direct claims only for a free executor; Buffered runs at most one batch ahead.</td></tr>
+            <tr><td><code>Claimed</code> channel</td><td class="v">= permits</td><td>Sized so the claimer's hand-off never blocks.</td></tr>
+            <tr><td><code>SafetyPollInterval</code></td><td class="v">1 s</td><td>The longest idle sleep, the back-off after a failed claim, and the delay on a claim handed back for want of a handler.</td></tr>
+            <tr><td>Poll floor · idle jitter</td><td class="v">50 ms · ≤ 100 ms</td><td>The shortest idle sleep, and the spread that keeps idle workers from claiming in lockstep.</td></tr>
+            <tr><th class="grp" scope="rowgroup" colspan="3">Executing</th></tr>
+            <tr><td>Execution timeout</td><td class="v">300 s default</td><td>Per attempt, set per definition; a timeout is retried under the failure budget.</td></tr>
+            <tr><td>Concurrency-key bounce</td><td class="v">2 s</td><td>How soon a job refused its concurrency slot is due again.</td></tr>
+            <tr><th class="grp" scope="rowgroup" colspan="3">Finalizing</th></tr>
+            <tr><td><code>Completed</code> channel</td><td class="v">128 + N</td><td>Room for a full batch and the executors behind it; when it fills, intake stops.</td></tr>
+            <tr><td>Batch size</td><td class="v">128</td><td>Completions in one <code>complete_executions</code> call.</td></tr>
+            <tr><td>Batch bytes</td><td class="v">4 MiB</td><td>Result bytes in one call; a larger single result is written alone.</td></tr>
+            <tr><td>Batch window</td><td class="v">50 ms</td><td>Extra wait to fill a batch, only when its first read found a backlog.</td></tr>
+            <tr><td>Write repeat</td><td class="v">1 s → 30 s, ±25 %</td><td>Back-off between tries of a failed start or completion: Warning for three tries, then Error, until it lands or the worker stops.</td></tr>
+            <tr><th class="grp" scope="rowgroup" colspan="3">Leases and recovery</th></tr>
+            <tr><td><code>HeartbeatInterval</code></td><td class="v">45 s</td><td>Renewal cadence, and the one timing value an operator sets.</td></tr>
+            <tr><td>Lease</td><td class="v">180 s, 4 beats</td><td>How long a row stays this worker's without a renewal.</td></tr>
+            <tr><td>Attempt deadline</td><td class="v">112.5 s</td><td>Halfway between one beat and the lease, counted from the last confirmed renewal's start: the handler is cancelled there.</td></tr>
+            <tr><td><code>WorkerDeadAfter</code></td><td class="v">315 s, 7 beats</td><td>No heartbeat for this long and recovery marks the worker Dead.</td></tr>
+            <tr><td>Recovery slot monitor</td><td class="v">7 min, staggered</td><td>The backstop that re-arms and runs a stranded <code>sys.recovery</code> outside the executor pool.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <p class="record">A row's status</p>
+      <h2>Two profiles, one registry.</h2>
+      <div class="facts">
+        <div><b>Direct</b><p class="eng-path">Ready → Executing → Succeeded | Failed | Ready</p><p>The claim itself starts the execution, so there is no separate start write. A claim whose answer was lost is treated as a crash right after it.</p></div>
+        <div><b>Buffered</b><p class="eng-path">Ready → Dispatched → Executing → done</p><p>The claim takes a batch ahead of the executors, and each executor starts its row. A row that runs out its lease before it starts goes back uncharged.</p></div>
+        <div><b>In the registry</b><p class="eng-path">Claimed → Executing → Finalizing → removed</p><p>Reported by <code>acta.jobs.inflight</code>, tagged by state; batch sizes by <code>acta.completions.batch</code>.</p></div>
+      </div>
+      <p class="also">Also: <a href="/claiming">who runs next</a><span class="sep">·</span><a href="/gates">four gates</a><span class="sep">·</span><a href="/fleet">a fleet with no leader</a></p>
+    </section>
+
+    <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+</body>
+</html>

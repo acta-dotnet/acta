@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Four gates, one axis each: order, exclusion and pacing · the durable work ledger for .NET</title>
+  <meta name="description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate and see what the ledger records." />
+  <link rel="canonical" href="https://useacta.net/gates" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Four gates, one axis each: order, exclusion and pacing · the durable work ledger for .NET" />
+  <meta property="og:description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate and see what the ledger records." />
+  <meta property="og:url" content="https://useacta.net/gates" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="assets/site.css" />
+  <link rel="stylesheet" href="assets/explainers.css" />
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">Order, exclusion &amp; pacing</p>
+      <h1>Four gates. One axis each.</h1>
+      <p class="lede">A lane decides <b>order</b>. A concurrency key or limit decides <b>how many run at once</b>. A rate limit decides <b>how often they start</b>. The gates are independent, so a job passes every one it carries, and a job that carries none is never slowed by them.</p>
+    </header>
+
+    <section class="wrap">
+      <div class="admission-axes">
+        <div><i>Order</i><b>Lane</b><p>One job of the lane at a time, in enqueue order, like an SQS FIFO message group. The lane holds through retries.</p><code>o => o.Lane("customer-42")</code></div>
+        <div><i>How many at once · 1</i><b>ConcurrencyKey</b><p>Never two at once per key. Order is not promised: a younger job may take a freed key first.</p><code>o => o.ConcurrencyKey("rebuild:acme")</code></div>
+        <div><i>How many at once · N</i><b>ConcurrencyLimit</b><p>The same gate with N slots, per key when the enqueue names one, otherwise for the whole definition.</p><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code></div>
+        <div><i>How often</i><b>RateLimit</b><p>Starts metered on one clock across the namespace’s workers. Early arrivals are booked a turn and come back for it.</p><code>[Job("send-invoice", RateLimit = "10/s")]</code></div>
+      </div>
+
+      <figure class="walk admission" id="admission-figure" aria-labelledby="admission-title">
+        <div class="walk-header">
+          <h3 id="admission-title">The same five jobs, through each gate.</h3>
+          <p><b>A1, A2, A3</b> belong to customer 42 and <b>B1, B2</b> to customer 73. They arrive in the order A1, B1, A2, A3, B2, and three executors are free. Pick a gate and step through what the ledger records.</p>
+        </div>
+        <div class="walk-tabs" id="admission-tabs" role="tablist" aria-label="Admission gate">
+          <button type="button" class="button" id="admission-tab-lane" role="tab" aria-selected="true" aria-controls="admission-panel">Lane</button>
+          <button type="button" class="button" id="admission-tab-key" role="tab" aria-selected="false" aria-controls="admission-panel" tabindex="-1">ConcurrencyKey</button>
+          <button type="button" class="button" id="admission-tab-limit" role="tab" aria-selected="false" aria-controls="admission-panel" tabindex="-1">ConcurrencyLimit</button>
+          <button type="button" class="button" id="admission-tab-rate" role="tab" aria-selected="false" aria-controls="admission-panel" tabindex="-1">RateLimit</button>
+        </div>
+        <div id="admission-panel" role="tabpanel" aria-labelledby="admission-tab-lane">
+          <div class="admission-axis" id="admission-axis"><span><b>Order.</b> One job of the lane at a time, in enqueue order.</span><code>o =&gt; o.Lane("customer-42")</code></div>
+          <nav class="walk-steps" id="admission-steps" aria-label="Walkthrough steps"></nav>
+          <div class="admission-stage">
+            <div class="admission-ledger">
+              <div class="walk-label" id="admission-ledger-label">Acta SQL ledger · two lanes</div>
+              <div id="admission-gate">
+                <div class="admission-row"><div class="admission-row-name">customer-42 <small>Ordered lane</small></div><div class="admission-jobs"><div class="walk-job ready"><b>A1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A2</b><span>Blocked</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A3</b><span>Blocked</span></div></div></div>
+                <div class="admission-row"><div class="admission-row-name">customer-73 <small>Ordered lane</small></div><div class="admission-jobs"><div class="walk-job ready"><b>B1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>B2</b><span>Blocked</span></div></div></div>
+              </div>
+              <p class="walk-rule" id="admission-rule">Only lane heads enter the claim scan. Blocked jobs stay outside it, however deep the lane.</p>
+            </div>
+            <div class="walk-bridge" aria-hidden="true">claim <br />+ admit <br /><span>→</span></div>
+            <div class="admission-executors"><div class="walk-label">Executors</div><div id="admission-executors"><div class="walk-worker"><strong>Executor 1</strong><span>Available</span></div><div class="walk-worker"><strong>Executor 2</strong><span>Available</span></div><div class="walk-worker"><strong>Executor 3</strong><span>Available</span></div></div><p>Admission happens after the claim and before the handler. A job the gate turns away hands its executor back.</p></div>
+          </div>
+          <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="admission-step">Lane · 1 / 5 · Enqueue</span><strong id="admission-heading">Only the head of each lane is Ready.</strong><p id="admission-description">A1 and B1 are claimable. A2, A3 and B2 are Blocked, outside the claim scan, so a deep lane costs the claim nothing. Enqueue order is commit order: two producers cannot interleave a lane.</p></figcaption>
+          <div class="walk-navigation" hidden><button type="button" class="button" id="admission-back" disabled>Previous</button><button type="button" class="button primary" id="admission-next">Next →</button><button type="button" class="button" id="admission-play" aria-pressed="false">Play</button><span>Step at your own pace</span></div>
+        </div>
+        <p class="walk-footnote">Execution is at-least-once on every path, so handlers with external effects stay idempotent. A lane head still passes the key and rate gates it carries, and the jobs behind it stay Blocked while they re-arm it. Semantics in full: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md#lanes">Lanes</a> · <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md#ordering-and-exclusion">Ordering and exclusion</a> · runnable: <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key">209-concurrency-key</a></p>
+      </figure>
+
+      <table class="admission-choose">
+        <caption class="sr-only">Which gate to use, with the one line that turns it on</caption>
+        <thead><tr><th scope="col">I need</th><th scope="col">Gate</th><th scope="col">Turn it on</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">One at a time per customer, in the order they came in<small>Item N+1 starts only after item N finished: succeeded, failed for good, or cancelled.</small></th><td class="gate">Lane</td><td class="turn"><code>await jobs.EnqueueAsync(input, o =&gt; o.Lane("customer-42"));</code><span>Or <code>[Job("sync-orders", Lane = "orders")]</code> on the definition. Start here for "one at a time per entity".</span></td></tr>
+          <tr><th scope="row">Never two at once, and I do not care who goes first<small>Exclusive, unordered work. A failing job releases the key with it.</small></th><td class="gate">ConcurrencyKey</td><td class="turn"><code>await jobs.EnqueueAsync(input, o =&gt; o.ConcurrencyKey("rebuild:acme"));</code><span>The key is also the scope a ConcurrencyLimit applies to.</span></td></tr>
+          <tr><th scope="row">At most N at once<small>Per key when the enqueue names one, otherwise across the whole definition: four index rebuilds, or four per tenant.</small></th><td class="gate">ConcurrencyLimit</td><td class="turn"><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code><span>An operator can change the number on a running system.</span></td></tr>
+          <tr><th scope="row">No more than so many starts a second, across the namespace<small>Pacing against a partner API or a shared resource. How often, not how many.</small></th><td class="gate">RateLimit</td><td class="turn"><code>[Job("send-invoice", RateLimit = "10/s")]</code><code>[Job("refund", RateLimit = "10/s", RateKey = "stripe")]</code><span>Definitions in one namespace that name the same RateKey share one meter, at the same declared rate.</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="facts two">
+        <div>
+          <b>Measured, on one rig</b>
+          <p>32 logical cores, NVMe, zero-work handlers, 8 executors, on the rc.4 benchmark round. One lane holding a thousand jobs ran about <em>280 to 330 jobs a second</em> on PostgreSQL and SQL Server with the Direct profile, about <em>700 to 730</em> on SQLite with no network hop. A thousand lanes in round-robin ran at <em>80 to 95 percent</em> of unlaned throughput. One hot concurrency key with limit 1 managed <em>21 to 24 jobs a second</em> on the servers, because every loser is claimed, bounced, and re-armed. Rough illustrations of the shape of each gate, not capacity claims. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md">Benchmark round</a></p>
+        </div>
+        <div>
+          <b>Certified, under chaos</b>
+          <p>The release certification kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that no lane ever ran two members at once or out of order, and that every lane drained. The same run checks three rate meters, at 10, 50 and 100 starts a second, never admitted past their published budget. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
+        </div>
+      </div>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">who runs next</a><span class="sep">·</span><a href="/fleet">a fleet with no leader</a></p>
+    </section>
+
+        <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+  <script src="assets/admission.js"></script>
+</body>
+</html>

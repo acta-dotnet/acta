@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A fleet with no leader · the durable work ledger for .NET</title>
+  <meta name="description" content="Acta workers are peers that coordinate through rows: claims, leases, heartbeats, and a recovery pass any of them can run. Step through a claim, a heartbeat, a kill, recovery, a shared gate, and a rolling deploy." />
+  <link rel="canonical" href="https://useacta.net/fleet" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="A fleet with no leader · the durable work ledger for .NET" />
+  <meta property="og:description" content="Acta workers are peers that coordinate through rows: claims, leases, heartbeats, and a recovery pass any of them can run. Step through a claim, a heartbeat, a kill, recovery, a shared gate, and a rolling deploy." />
+  <meta property="og:url" content="https://useacta.net/fleet" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="assets/site.css" />
+  <link rel="stylesheet" href="assets/explainers.css" />
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">Cluster-wide</p>
+      <h1>A fleet with no leader.</h1>
+      <p class="lede">Every worker is a peer: the same process loop, talking to the same rows. There is no control plane to run, no broker to stand up, and nothing to elect. Add a process and it starts claiming. Kill one and the others carry on, and the work it held comes back through a recovery pass any of them can run.</p>
+    </header>
+
+    <section class="wrap">
+      <div class="hiw" aria-label="The worker loop">
+        <b>register</b><i>heartbeat</i><b>claim due rows</b><i>lease</i><b>run handlers</b><i>renew</i><b>settle</b><i>repeat</i><b>the same ledger</b>
+      </div>
+
+      <figure class="walk fleet" id="fleet-figure" aria-labelledby="fleet-title">
+        <div class="walk-header">
+          <h3 id="fleet-title">One namespace, as the database sees it.</h3>
+          <p>Three workers on build 1 share the namespace. Six jobs are due, J4 and J5 carry the concurrency key rebuild:acme, and J6 belongs to a definition the next build drops. Step through a claim, a heartbeat, a kill, the recovery pass, a shared gate, and a rolling deploy.</p>
+        </div>
+        <nav class="walk-steps" id="fleet-steps" aria-label="Walkthrough steps" hidden></nav>
+        <div class="walk-stage">
+          <div class="walk-label">Worker processes · peers</div>
+          <div class="fleet-workers" id="fleet-workers">
+            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W1</span><small>build 1</small></div><span class="fleet-worker-status">Registered · beat 1 s ago</span></div>
+            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W2</span><small>build 1</small></div><span class="fleet-worker-status">Registered · beat 1 s ago</span></div>
+            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W3</span><small>build 1</small></div><span class="fleet-worker-status">Registered · beat 1 s ago</span></div>
+            <div class="walk-worker fleet-worker empty"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W4</span></div><span class="fleet-worker-status">Not started</span></div>
+          </div>
+          <div class="fleet-bridge" aria-hidden="true"><span>claim + lease</span><span>heartbeat renews leases</span><span>settle · record steps</span></div>
+          <div class="fleet-db">
+            <div class="walk-label">Acta SQL ledger · PostgreSQL or SQL Server · namespace orders</div>
+            <div class="walk-scroll" tabindex="0" aria-label="Job rows; horizontally scrollable on small screens">
+              <table class="walk-table">
+                <caption class="sr-only">Job rows in the namespace: status, the worker holding the lease, the lease window, the execution number, and a note</caption>
+                <thead><tr><th scope="col">job</th><th scope="col">status</th><th scope="col">leased by</th><th scope="col">lease</th><th scope="col">execution</th><th scope="col">note</th></tr></thead>
+                <tbody id="fleet-rows">
+                  <tr><th scope="row">J1</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td></td></tr>
+                  <tr><th scope="row">J2</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td></td></tr>
+                  <tr><th scope="row">J3</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td></td></tr>
+                  <tr><th scope="row">J4</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td><code>key rebuild:acme</code></td></tr>
+                  <tr><th scope="row">J5</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td><code>key rebuild:acme</code></td></tr>
+                  <tr><th scope="row">J6</th><td class="ready">Ready</td><td>·</td><td>·</td><td>0</td><td><code>handler in build 1 only</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="fleet-shared">
+              <div id="fleet-recovery"><i>System slot</i><b>sys.recovery</b><span>Due in 40 s</span></div>
+              <div id="fleet-key"><i>Concurrency key row</i><b>rebuild:acme</b><span>Free</span></div>
+              <div id="fleet-meter"><i>Rate meter row</i><b>send-invoice · 10/s</b><span>Idle</span></div>
+            </div>
+            <p class="walk-rule">Workers find new rows by polling SQL, a 1 s safety poll by default. The optional Redis wake-up only shortens that wait; it never carries truth.</p>
+          </div>
+        </div>
+        <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="fleet-step">1 / 8 · Peers</span><strong id="fleet-heading">Three peer processes, one database, no leader.</strong><p id="fleet-description">Each worker registers in the namespace, heartbeats, claims due rows, runs handlers, and refreshes its leases. Nothing else coordinates them: no control plane, no broker, no election. The workers table is the only membership list, and every worker is in it as an equal.</p></figcaption>
+        <div class="walk-navigation" hidden><button type="button" class="button" id="fleet-back" disabled>Previous</button><button type="button" class="button primary" id="fleet-next">Next →</button><button type="button" class="button" id="fleet-play" aria-pressed="false">Play</button><span>Step at your own pace</span></div>
+        <p class="walk-footnote">Times are the defaults: 45 s heartbeat, 180 s lease, 315 s before a silent worker is marked dead. Execution stays at-least-once, so a handler with external effects is idempotent on every path. SQLite is the embedded single-node provider; the fleet story is PostgreSQL and SQL Server. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md">Production guide</a> · <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery">705-worker-crash-recovery</a></p>
+      </figure>
+
+      <div class="facts">
+        <div>
+          <b>The claim is the election</b>
+          <p>sys.recovery, sys.retention, sys.alerts and sys.outbox are recurring slots like any schedule: each fires once per cadence, run by whichever worker claims it. No worker is special, so there is nothing to fail over.</p>
+        </div>
+        <div>
+          <b>One setting, three windows</b>
+          <p>The heartbeat interval is the only coordination knob. The lease window is four heartbeats and the dead-worker threshold seven, both read-only, so replicas that agree on the heartbeat agree on everything else by construction.</p>
+        </div>
+        <div>
+          <b>Measured, under chaos</b>
+          <p>The rc.4 certification ran <em>24 worker processes of 64 executors each</em>, 1,536 concurrent slots on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em> and no recorded step ran twice, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
+        </div>
+      </div>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">who runs next</a><span class="sep">·</span><a href="/gates">four gates</a></p>
+    </section>
+
+        <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+  <script src="assets/fleet.js"></script>
+</body>
+</html>

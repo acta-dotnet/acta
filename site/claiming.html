@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Who runs next? Claiming in Acta · the durable work ledger for .NET</title>
+  <meta name="description" content="How Acta decides which job runs next: lane heads and unlaned jobs enter the claim scan, blocked jobs wait outside it, and any peer worker can claim. Step through enqueue, claim, finish, retry, recovery, and the outbox." />
+  <link rel="canonical" href="https://useacta.net/claiming" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Who runs next? Claiming in Acta · the durable work ledger for .NET" />
+  <meta property="og:description" content="How Acta decides which job runs next: lane heads and unlaned jobs enter the claim scan, blocked jobs wait outside it, and any peer worker can claim. Step through enqueue, claim, finish, retry, recovery, and the outbox." />
+  <meta property="og:url" content="https://useacta.net/claiming" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="assets/site.css" />
+  <link rel="stylesheet" href="assets/explainers.css" />
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">Claiming</p>
+      <h1>Who runs next?</h1>
+      <p class="lede">Order within each lane, parallel work across lanes, and priority among the eligible jobs. The same order holds upstream: a job can be saved in the shop's own transaction, travel through the outbox relay, and reach the workers in the sequence it was staged.</p>
+    </header>
+
+    <section class="wrap">
+      <figure class="walk claiming" id="claiming" aria-labelledby="claiming-title">
+        <div class="walk-header">
+          <div><h3 id="claiming-title">Two lanes, two peer workers, one claim scan.</h3><p>Step through enqueue, claim, finish, retry, and recover. Then switch to the outbox example to follow an order from the shop's database into the ledger.</p></div>
+          <div class="claiming-controls" hidden>
+            <button type="button" class="button" id="claiming-mode" aria-pressed="false">Show outbox example</button>
+          </div>
+        </div>
+        <nav class="claiming-controls walk-steps" id="claiming-steps" aria-label="Walkthrough steps" hidden></nav>
+        <div class="claiming-source" id="claiming-source" hidden>
+          <div class="claiming-journey" aria-label="Outbox journey"><span>1 · Shop saves an order</span><span>2 · Relay delivers requests</span><span>3 · Workers run jobs</span></div>
+          <div class="walk-label">Shop database · owned by your application</div>
+          <div class="claiming-transaction"><div class="claiming-order"><span class="claiming-table-name">orders table</span><strong>Order #1042</strong><span>Customer checked out · status: placed</span><span>Order #1073 · another checkout</span></div><div class="claiming-commit"><strong>One shop transaction</strong><span>Save the orders + insert the requests below.</span><span>Both commit, or neither does.</span></div></div>
+          <p class="claiming-source-intro"><code>acta_outbox</code> table <span>Rows saying “please run this job.” The shop has saved them; a handler has not run yet.</span></p>
+          <div id="claiming-outbox"></div>
+          <div class="claiming-relay"><div><strong>↓ sys.outbox relay</strong><span>Runs on the Acta worker fleet</span></div><div class="claiming-transfer" id="claiming-transfer"></div><span id="claiming-relay-note">Claims source rows, then admits jobs into the ledger.</span></div>
+        </div>
+        <div class="claiming-model">
+          <div class="claiming-ledger">
+            <div class="walk-label" id="claiming-ledger-label">Acta SQL ledger · namespace orders</div>
+            <div id="claiming-lanes">
+              <div class="claiming-lane"><div class="claiming-lane-name">customer-42 <small>Ordered lane</small></div><div class="claiming-jobs"><div class="walk-job ready"><b>A1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A2</b><span>Blocked</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>A3</b><span>Blocked</span></div></div></div>
+              <div class="claiming-lane"><div class="claiming-lane-name">customer-73 <small>Ordered lane</small></div><div class="claiming-jobs"><div class="walk-job ready"><b>B1</b><span>Ready</span></div><span class="walk-arrow">→</span><div class="walk-job blocked"><b>B2</b><span>Blocked</span></div></div></div>
+              <div class="claiming-lane"><div class="claiming-lane-name">No lane <small>Independent jobs</small></div><div class="claiming-jobs"><div class="walk-job ready"><b>C1</b><span>Ready</span></div><div class="walk-job ready"><b>C2</b><span>Ready</span></div></div></div>
+            </div>
+            <p class="walk-rule">Only eligible lane heads and unlaned jobs enter the claim scan. Blocked jobs stay outside it.</p>
+          </div>
+          <div class="walk-bridge" aria-hidden="true">claim <br />+ lease <br /><span>→</span></div>
+          <div class="claiming-workers"><div class="walk-label">Peer workers</div><div id="claiming-workers"><div class="walk-worker"><strong>Worker 1</strong><span>Available</span></div><div class="walk-worker"><strong>Worker 2</strong><span>Available</span></div></div><p>Any peer can take the next eligible job. A lane belongs to the ledger, not a worker.</p></div>
+        </div>
+        <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="claiming-step">1 / 5 · Enqueue</span><strong id="claiming-heading">Only the head of each lane is Ready.</strong><p id="claiming-description">A2 waits behind A1 even if A2 has higher priority. B1 and the unlaned jobs can run independently. This example shows Direct execution; Buffered workers claim before starting a handler.</p></figcaption>
+        <div class="claiming-controls walk-navigation" hidden><button type="button" class="button" id="claiming-back" disabled>Previous</button><button type="button" class="button primary" id="claiming-next">Next →</button><button type="button" class="button" id="claiming-replay">Replay</button><span>Step at your own pace</span></div>
+        <p class="walk-footnote">Execution is at-least-once; external effects still need idempotency. <a href="#claiming-lane-rules">Lane rules</a> · <a href="#claiming-outbox-ordering">Outbox ordering</a></p>
+        <div class="walk-help">
+          <details id="claiming-lane-rules"><summary>Lane rules</summary><p>A lane is an ordered line of jobs in one namespace. Only its head can be claimed when eligible; later jobs are Blocked. Success, final failure or cancellation promotes the next job in the same transaction. A retry, delay, pause or durable wait holds the head’s place. Priority never lets a later member jump the line. Different lanes and unlaned jobs can run in parallel, and any peer worker can take a lane’s next job.</p></details>
+          <details id="claiming-outbox-ordering"><summary>Outbox ordering</summary><p>The outbox is a table in your application’s database. Your transaction saves business data and job requests together. The relay claims those requests, commits jobs to the Acta ledger, then deletes the delivered source rows. Repeating a delivery uses the same deduplication key.</p><p>When source rows explicitly name a lane, a later row waits while an older Pending or Claimed row in that namespace and lane remains. A delivery retry holds that source line; quarantine releases it. Once delivered, the ledger lane independently controls execution order. Delivery does not wait for the handler to finish.</p><p>Sequentially staged rows preserve staging order. Concurrent producer transactions have no guaranteed order between them. A lane set only on the target job definition starts ordering at ledger admission, not in the source outbox.</p></details>
+        </div>
+      </figure>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/gates">four gates</a><span class="sep">·</span><a href="/fleet">a fleet with no leader</a></p>
+    </section>
+
+        <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+  <script src="assets/claiming.js"></script>
+</body>
+</html>
