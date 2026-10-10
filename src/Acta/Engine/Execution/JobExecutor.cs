@@ -6,11 +6,11 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans a recurring slot
-/// fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope, then hands the
-/// start-admit-invoke-complete lifecycle to <see cref="JobExecution"/>, whose admission takes the concurrency-key
-/// slot after the start CAS and bounces a loser back to Ready. Its loops take what <see cref="JobClaimer"/> claimed.
-/// A claim this deployment carries no handler for is returned to Ready instead of executed.
+/// Executes one already-claimed job up to its completion: starts a Dispatched claim, resolves the descriptor, opens
+/// the per-attempt DI scope, plans a recurring slot fire, builds the <see cref="RuntimeJobContext"/> and publishes it
+/// on the scope, then hands the admit-invoke body to <see cref="JobExecution"/>. Its loops take what
+/// <see cref="JobClaimer"/> claimed and hand each completion to <see cref="JobFinalizer"/>, so an executor is free as
+/// soon as the completion is built. A claim this deployment carries no handler for completes as a hand-back to Ready.
 /// </summary>
 internal sealed class JobExecutor(
     Locks locks,
@@ -18,21 +18,23 @@ internal sealed class JobExecutor(
     IJobPayloadSerializerRegistry serializers,
     IServiceProvider rootServices,
     IOptions<JobsOptions> options,
+    JobBehaviorPipeline pipeline,
     WorkerContext context,
     InFlightJobRegistry registry,
-    JobExecution jobExecution,
+    JobFinalizer finalizer,
     ILogger? log = null,
     ActaMetrics? metrics = null
 )
 {
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
+    private readonly long _handBackDelayMs = (long)options.Value.SafetyPollInterval.TotalMilliseconds;
     private readonly IServiceProvider _rootServices = rootServices;
     private readonly WorkerContext _context = context;
     private readonly InFlightJobRegistry _registry = registry;
-    private readonly JobExecution _jobExecution = jobExecution;
     private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ActaMetrics? _metrics = metrics;
+    private readonly JobExecution _jobExecution = new(serializers, options, pipeline, log ?? NullLogger.Instance);
     private readonly AttemptContextFactory _contexts = new(
         rootServices,
         context,
@@ -43,13 +45,6 @@ internal sealed class JobExecutor(
         log ?? NullLogger.Instance,
         metrics
     );
-
-    // Re-arm delay for a claim this deployment cannot run, in whole seconds (the store verb's unit).
-    // SafetyPollInterval is the honest unit for it: the option is documented as the bound on how long
-    // a Ready row waits to be found by a process this one shares no wakeup transport with, and a
-    // process that carries the missing handler is exactly who has to pick this job up. Validation
-    // keeps it at or above one second, so the delay never rounds to zero.
-    private readonly int _unsupportedClaimDelaySeconds = (int)Math.Ceiling(options.Value.SafetyPollInterval.TotalSeconds);
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
@@ -95,12 +90,17 @@ internal sealed class JobExecutor(
         // paused past it. The heartbeat still cancels the attempt once its row is gone.
         var entry = new InFlightJob(claim.Jobs[0], leaseRunway: null, ct);
         _registry.TryAdd(entry);
-        return await ExecuteClaimedJobAsync(entry, ct);
+        return await RunInlineAsync(entry, ct);
     }
+
+    /// <summary>Executes and finalizes one entry on the caller's task, for the paths that hold no permit.</summary>
+    public async Task<RunOnceStatus> RunInlineAsync(InFlightJob entry, CancellationToken ct) =>
+        await ExecuteAsync(entry, ct) ? await finalizer.FinalizeAsync(entry, ct) : RunOnceStatus.NothingClaimed;
 
     /// <summary>
     /// One of the worker's executor loops: runs each entry the claimer hands over, one at a time, until the claimer
-    /// completes the channel and it is empty. A fault is logged per entry, so one bad job never ends the loop.
+    /// completes the channel and it is empty, and hands each completion to the finalizers before returning the
+    /// entry's permit. A fault is logged per entry, so one bad job never ends the loop.
     /// </summary>
     public async Task RunLoopAsync(CancellationToken hostCt)
     {
@@ -110,15 +110,10 @@ internal sealed class JobExecutor(
             {
                 try
                 {
-                    var outcome = await ExecuteClaimedJobAsync(entry, hostCt);
-                    if (outcome != RunOnceStatus.NothingClaimed)
+                    if (await ExecuteAsync(entry, hostCt))
                     {
-                        _log.LogInformation(
-                            "WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})",
-                            _context.WorkerRegistration!.NamespaceName,
-                            entry.Claim.JobId,
-                            outcome.ToString()
-                        );
+                        await _registry.Completed.Writer.WriteAsync(entry, hostCt);
+                        _registry.ReleasePermit(entry);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
@@ -134,12 +129,13 @@ internal sealed class JobExecutor(
     }
 
     /// <summary>
-    /// Runs one registered claim through the attempt lifecycle, then removes it from the registry. A claim whose
-    /// definition this deployment carries no descriptor for is returned to Ready instead (see
-    /// <see cref="ReleaseUnsupportedClaimAsync"/>), because claims are by namespace and a worker is
-    /// therefore free to claim work it cannot run.
+    /// Runs one held entry up to its completion: true once the entry carries its completion and is Finalizing, for the
+    /// finalizer to write; false after removing an entry that completes nothing here, because its row is gone, its
+    /// start was refused, or the worker stopped mid-handler, which leaves the row Executing for recovery. A claim
+    /// whose definition this deployment carries no descriptor for completes as a hand-back, because claims are by
+    /// namespace and a worker is therefore free to claim work it cannot run.
     /// </summary>
-    public async Task<RunOnceStatus> ExecuteClaimedJobAsync(InFlightJob entry, CancellationToken ct)
+    public async Task<bool> ExecuteAsync(InFlightJob entry, CancellationToken hostCt)
     {
         var job = entry.Claim;
         try
@@ -148,15 +144,32 @@ internal sealed class JobExecutor(
             var (namespaceId, workerId) = _context.ResolveWorker(namespaceName);
             // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
             // row is no longer this worker's to run.
-            if (entry.AttemptToken.IsCancellationRequested)
+            if (entry.AttemptToken.IsCancellationRequested || !entry.Started && !await StartAsync(entry, workerId))
             {
-                return RunOnceStatus.NothingClaimed;
+                return false;
             }
+
             entry.State = InFlightJobState.Executing;
             if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
             {
-                var firstBounce = _context.ExcludeDefinition(job.DefinitionId);
-                return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, entry.Started, firstBounce, ct);
+                // One warning per definition, not per bounce: the exclusion makes the first bounce the whole
+                // story, and the rest of an already-claimed batch would otherwise repeat it once per row. The job
+                // name is not known - resolving it is what the missing descriptor would have done - so the ref is
+                // what an operator takes to `jobs explain`.
+                _log.Log(
+                    _context.ExcludeDefinition(job.DefinitionId) ? LogLevel.Warning : LogLevel.Debug,
+                    "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
+                    namespaceName,
+                    job.JobId,
+                    $"ref {job.JobRef}, definition_id {job.DefinitionId}",
+                    _handBackDelayMs
+                );
+                return Finalizing(
+                    entry,
+                    HandBack(
+                        $"No handler for definition_id={job.DefinitionId} in this deployment; returned to Ready for a worker that has one."
+                    )
+                );
             }
 
             // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
@@ -180,28 +193,22 @@ internal sealed class JobExecutor(
 
             await using var attemptScope = _rootServices.CreateAsyncScope();
             var attemptServices = attemptScope.ServiceProvider;
-            // The claim is this worker's from here until something settles it, so anything that fails
-            // before the handler runs hands the claim back rather than leaving it leased and unowned.
             AttemptSetup setup;
             try
             {
-                setup = await _contexts.ReadSetupAsync(job, descriptor, ct);
+                setup = await _contexts.ReadSetupAsync(job, descriptor, hostCt);
             }
-            catch (Exception ex) when (!ct.IsCancellationRequested)
+            catch (Exception ex) when (!hostCt.IsCancellationRequested)
             {
                 _log.LogError(
                     ex,
                     "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
                     job.JobId
                 );
-                await ReleaseClaimAsync(
-                    job,
-                    workerId,
-                    entry.Started,
-                    $"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.",
-                    ct
+                return Finalizing(
+                    entry,
+                    HandBack($"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.")
                 );
-                throw;
             }
             var jobContext = _contexts.Create(job, descriptor, namespaceName, namespaceId, workerId, setup, entry, attemptServices);
 
@@ -209,124 +216,67 @@ internal sealed class JobExecutor(
             // The handler resolves from this same scope, so the scoped accessor carries the set value.
             attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
 
-            return await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, workerId, setup.Fire, entry.Started, ct);
+            var completion = await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, setup.Fire, hostCt);
+            if (completion is null)
+            {
+                return false;
+            }
+
+            entry.Descriptor = descriptor;
+            entry.Context = jobContext;
+            entry.Fire = setup.Fire;
+            return Finalizing(entry, completion);
         }
         finally
         {
-            _registry.Remove(entry);
-        }
-    }
-
-    /// <summary>
-    /// Returns a claim this deployment has no handler for to Ready: budget-neutral, lease cleared, due again after
-    /// <see cref="JobsOptions.SafetyPollInterval"/>, so a worker that carries the definition can take it (claims are
-    /// selected by namespace, so every rolling deploy hands some worker a job it cannot run). The caller has excluded
-    /// the definition from this worker's claims, so each costs one bounce rather than one per job per interval. The
-    /// claim never becomes an attempt: no scope, no handler. Throwing instead would leave the row leased
-    /// until its lease lapsed and recovery took it.
-    /// </summary>
-    private async Task<RunOnceStatus> ReleaseUnsupportedClaimAsync(
-        ClaimedJob job,
-        string namespaceName,
-        int workerId,
-        bool alreadyStarted,
-        bool firstBounce,
-        CancellationToken ct
-    )
-    {
-        // One warning per definition, not per bounce: the exclusion makes the first bounce the whole
-        // story, and the rest of an already-claimed batch would otherwise repeat it once per row.
-        // This is the only place the pair (namespace, definition id) is known. The job name is not -
-        // resolving it is what the missing descriptor would have done - so the ref is what an operator
-        // takes to `jobs explain`.
-        _log.Log(
-            firstBounce ? LogLevel.Warning : LogLevel.Debug,
-            "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
-            namespaceName,
-            job.JobId,
-            $"ref {job.JobRef}, definition_id {job.DefinitionId}",
-            _unsupportedClaimDelaySeconds * 1000
-        );
-
-        // No wakeup publish, deliberately: every claim loop re-polls within SafetyPollInterval, which
-        // is the delay itself, and waking this namespace would wake this worker's own loops first -
-        // the loops that have just excluded this definition and so are the least able to use the wake.
-        return await ReleaseClaimAsync(
-            job,
-            workerId,
-            alreadyStarted,
-            $"No handler for definition_id={job.DefinitionId} in this deployment; returned to Ready for a worker that has one.",
-            ct
-        );
-    }
-
-    /// <summary>
-    /// Returns a claim this worker will not run to Ready, budget-neutral, lease cleared, due again after
-    /// <see cref="JobsOptions.SafetyPollInterval"/>. Both writes are repeated until they land, because a claim nothing
-    /// settles waits out its lease before recovery returns it.
-    /// </summary>
-    private async Task<RunOnceStatus> ReleaseClaimAsync(
-        ClaimedJob job,
-        int workerId,
-        bool alreadyStarted,
-        string reasonMessage,
-        CancellationToken ct
-    )
-    {
-        // complete_execution's CAS matches an Executing row only, so the claim is walked through the
-        // start first even though nothing will run. The combined claim loop already started the
-        // execution in the claim itself.
-        if (!alreadyStarted)
-        {
-            var (start, _) = await CompletionWrite.RetryAsync(
-                token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _leaseTtlSeconds, token),
-                _log,
-                job.JobId,
-                ct,
-                _metrics
-            );
-            if (start.Action != StartExecutionAction.Started)
+            if (entry.State != InFlightJobState.Finalizing)
             {
-                // Reclaimed on lease expiry, reassigned, or moved out of Dispatched by a control verb:
-                // the row is no longer this worker's to release.
-                _log.LogInformation(
-                    "WorkerRuntime: lost claim on job {JobId} ({Detail}) before releasing it: ({Outcome}); skipping.",
-                    job.JobId,
-                    $"definition_id {job.DefinitionId}",
-                    start.Action.ToString()
-                );
-                return RunOnceStatus.NothingClaimed;
+                _registry.Remove(entry);
             }
         }
+    }
 
-        // Unclassified rather than a borrowed code: no catalog reason describes a worker declining a
-        // claim, and the two candidates would both misreport it - JobAttemptAborted is published as a
-        // mid-flight abort retried under the failure budget, JobDefinitionRetired as a catalog
-        // retirement that cancels. Unclassified is the writer saying the story is in the message, and
-        // it stays out of both the alertable set and the Failures audit level, which a bounce belongs
-        // outside of: nothing failed.
-        var request = new CompleteExecutionCommand(
-            job.JobId,
-            workerId,
-            job.ExecutionNumber,
-            CompletionKind.Rescheduled,
-            0,
-            ReadOnlyMemory<byte>.Empty,
-            EventReasonCode.Unclassified,
-            reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
-            DurationMs: 0
-        )
-        {
-            RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
-            RescheduleDelaySeconds = _unsupportedClaimDelaySeconds,
-        };
-        var (complete, _) = await CompletionWrite.RetryAsync(
-            token => _execution.CompleteExecutionAsync(request, token),
+    /// <summary>
+    /// Moves a Dispatched claim to Executing, repeated until it answers or the entry's attempt token stops it, since a
+    /// start abandoned after the claim leaves the row to wait out its lease; a start that committed and lost its
+    /// answer is answered Started again.
+    /// </summary>
+    private async Task<bool> StartAsync(InFlightJob entry, int workerId)
+    {
+        var job = entry.Claim;
+        var start = await JobFinalizer.RepeatAsync(
+            token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _leaseTtlSeconds, token),
             _log,
             job.JobId,
-            ct,
+            entry.AttemptToken,
             _metrics
         );
-        return complete.Action == CompleteExecutionAction.Completed ? RunOnceStatus.Rearmed : RunOnceStatus.NothingClaimed;
+        if (start.Action == StartExecutionAction.Started)
+        {
+            return true;
+        }
+
+        // The claim was lost before execution began: reclaimed by recovery, reassigned, or moved out of
+        // Dispatched by an operator control verb between claim and start. The start mutated nothing; clean
+        // skip, and the row is re-claimed on the next tick.
+        _log.LogInformation(
+            "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: ({Outcome}); skipping.",
+            job.JobId,
+            $"execution number {job.ExecutionNumber}",
+            start.Action.ToString()
+        );
+        return false;
+    }
+
+    // A claim this worker will not run goes back to Ready budget-neutral, through the finalizer, which writes it as a
+    // hand-back because the entry carries no descriptor.
+    private static ExecutionCompletion HandBack(string reasonMessage) =>
+        new(CompletionKind.Rescheduled) { Reason = EventReasonCode.Unclassified, ReasonMessage = reasonMessage };
+
+    private static bool Finalizing(InFlightJob entry, ExecutionCompletion completion)
+    {
+        entry.Completion = completion;
+        entry.State = InFlightJobState.Finalizing;
+        return true;
     }
 }

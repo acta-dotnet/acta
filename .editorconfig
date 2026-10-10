@@ -638,7 +638,7 @@ dotnet_diagnostic.CA1031.severity = none
 # repeat exists so a completion write is never abandoned while the worker lives; a metrics listener
 # or a logger that throws must not be the thing that abandons it, so those calls are swallowed and
 # the write's own failure stays the one being handled.
-[src/Acta/Engine/Execution/CompletionWrite.cs]
+[src/Acta/Engine/Execution/JobFinalizer.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: two catches that tear down a failed attempt and must never become the failure themselves. A

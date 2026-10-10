@@ -7,9 +7,10 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Drives one real <see cref="JobExecution.RunAsync"/> attempt end to end over the real execution and lock
-/// groups on scripted sessions: the start CAS, a handler that runs one durable step, and the completion
-/// CAS. The script says what <c>complete_step</c> and <c>complete_execution</c> answer, and the harness
+/// Drives one real attempt end to end through <see cref="JobExecutor.ExecuteAsync"/> and
+/// <see cref="JobFinalizer.FinalizeAsync"/> over the real execution and lock groups on scripted sessions: the
+/// start CAS, a handler that runs one durable step, and the completion CAS. The script says what
+/// <c>complete_step</c> and <c>complete_execution</c> answer, and the harness
 /// keeps every <see cref="BoundCompletion"/> the runner bound plus the subset the scripted CAS applied, so
 /// a test can assert on the completion shape rather than on a database. Reusable for executor unit tests;
 /// add scripted knobs here, not per test.
@@ -46,7 +47,7 @@ internal sealed class JobExecutionHarness(
     // The worker token the runner is handed, cancelled by the script when a fact wants a shutdown.
     private readonly CancellationTokenSource _workerCts = new();
 
-    // The entry RunAsync runs, linked from the worker token as the executor links it.
+    // The entry RunAsync runs, linked from the worker token as the claimer links it.
     private InFlightJob? _entry;
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
@@ -94,66 +95,15 @@ internal sealed class JobExecutionHarness(
     public async Task<RunOnceStatus> RunAsync(Func<JobContext, CancellationToken, Task>? handler = null)
     {
         handler ??= static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token);
-        var job = Job(failureCount, concurrencyKey);
-        _entry = new InFlightJob(job, leaseRunway: null, _workerCts.Token);
+        _entry = new InFlightJob(Job(), leaseRunway: null, _workerCts.Token);
         _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _entry.Cancel : null;
         _locks.OnRateRequest =
             cancelAttemptDuringRateWait ? _entry.Cancel
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
-        var options = Options.Create(new JobsOptions());
-        if (maxInlinePayloadBytes is { } configuredCap)
-        {
-            // One options instance feeds both the attempt context and JobExecution, so a configured
-            // cap moves the handler-write limit and the result-drop limit together, as it does in a host.
-            options.Value.MaxInlinePayloadBytes = configuredCap;
-        }
-
-        var context = new RuntimeJobContext(
-            job,
-            jobName: jobName,
-            namespaceName: "harness",
-            namespaceId: 1,
-            leaseTtlSeconds: options.Value.LeaseTtlSeconds,
-            cancelJob: null!,
-            resetJobState: null!,
-            signals: null!,
-            alerts: null!,
-            executionStore: _store.Execution,
-            new HarnessSerializers(),
-            _locks.Locks,
-            cancellationToken: _entry.AttemptToken,
-            triggeringScheduleNames: [],
-            deadlineAtUtc: deadlineAtUtc,
-            // The two the production JobExecutor supplies and this harness used to default away:
-            // without the cap a handler write is unbounded here but bounded in production, and
-            // without the attempt every timeout reads as a plain external cancel.
-            maxInlinePayloadBytes: options.Value.MaxInlinePayloadBytes,
-            inFlightJob: _entry,
-            workerId: WorkerId
-        );
-
-        var execution = new JobExecution(
-            CancelJob(),
-            _store.Execution,
-            new HarnessSerializers(),
-            options,
-            new JobBehaviorPipeline([]),
-            new WorkerWakeupPublisher(new InProcessWakeup()),
-            _log
-        );
-
-        return await execution.RunAsync(
-            EmptyServices.Instance,
-            Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateKey),
-            job,
-            context,
-            WorkerId,
-            fire: null,
-            alreadyStarted: false,
-            _workerCts.Token
-        );
+        return await Executor(Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateKey, deadlineAtUtc))
+            .RunInlineAsync(_entry, _workerCts.Token);
     }
 
     /// <summary>
@@ -162,44 +112,56 @@ internal sealed class JobExecutionHarness(
     /// store is the same one, so a test reads the released claim off <see cref="Submitted"/> and the
     /// bounce off <see cref="Log"/>.
     /// </summary>
-    public async Task<RunOnceStatus> RunWithNoDescriptorAsync()
+    public Task<RunOnceStatus> RunWithNoDescriptorAsync() =>
+        Executor(descriptor: null)
+            .RunInlineAsync(new InFlightJob(Job(), leaseRunway: null, CancellationToken.None), CancellationToken.None);
+
+    // The worker this runtime would be: registered for one namespace, with the descriptor the claim names, if any.
+    private JobExecutor Executor(JobDescriptor? descriptor)
     {
         var context = new WorkerContext(new WorkerRegistration("harness", null, null, [], []));
         context.NamespaceIds["harness"] = 1;
         context.WorkerIdByNamespace["harness"] = WorkerId;
-        return await Executor(context)
-            .ExecuteClaimedJobAsync(
-                new InFlightJob(Job(failureCount, concurrencyKey), leaseRunway: null, CancellationToken.None),
-                CancellationToken.None
-            );
-    }
+        if (descriptor is not null)
+        {
+            context.DescriptorByDefinitionId[1] = descriptor;
+        }
 
-    private JobExecutor Executor(WorkerContext context)
-    {
-        var options = Options.Create(new JobsOptions());
-        var serializers = new HarnessSerializers();
+        // One options instance feeds the attempt context and the invocation, so a configured cap moves the
+        // handler-write limit and the result-drop limit together, as it does in a host.
+        var options = new JobsOptions();
+        if (maxInlinePayloadBytes is { } configuredCap)
+        {
+            options.MaxInlinePayloadBytes = configuredCap;
+        }
+
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new JobFinalizer(
+            _store.Execution,
+            CancelJob(),
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            _log,
+            metrics: null
+        );
         return new JobExecutor(
             _locks.Locks,
             new HarnessClock(),
-            serializers,
+            new HarnessSerializers(),
             new StoreOnlyServices(_store.Execution, CancelJob()),
-            options,
+            Options.Create(options),
+            new JobBehaviorPipeline([]),
             context,
-            new InFlightJobRegistry(new JobsOptions()),
-            new JobExecution(
-                CancelJob(),
-                _store.Execution,
-                serializers,
-                options,
-                new JobBehaviorPipeline([]),
-                new WorkerWakeupPublisher(new InProcessWakeup()),
-                _log
-            ),
+            registry,
+            finalizer,
             _log
         );
     }
 
-    private static ClaimedJob Job(int failureCount, string? concurrencyKey) =>
+    // A deadline lands as the claim's creation plus a whole-second policy, so a fact's instant is reached through both.
+    private ClaimedJob Job() =>
         new(
             JobId: 4242,
             JobRef: Guid.CreateVersion7(),
@@ -214,7 +176,7 @@ internal sealed class JobExecutionHarness(
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
             LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
-            CreatedAtUtc: DateTime.UtcNow,
+            CreatedAtUtc: deadlineAtUtc?.AddSeconds(-1) ?? DateTime.UtcNow,
             FailureCount: failureCount,
             Version: 1
         );
@@ -225,7 +187,8 @@ internal sealed class JobExecutionHarness(
         int maxAttempts,
         int? concurrencyLimit,
         string? rateLimit,
-        string? rateKey
+        string? rateKey,
+        DateTime? deadlineAtUtc
     ) =>
         new(
             JobName: jobName,
@@ -254,6 +217,7 @@ internal sealed class JobExecutionHarness(
             ConcurrencyLimit = concurrencyLimit,
             RateLimit = rateLimit,
             RateKey = rateKey,
+            DeadlineSeconds = deadlineAtUtc is null ? null : 1,
         };
 
     // The real execution group over a scripted session. Only the five calls one attempt makes are
@@ -392,13 +356,6 @@ internal sealed class JobExecutionHarness(
             Exception? exception,
             Func<TState, Exception?, string> formatter
         ) => Entries.Add(new LogEntry(logLevel, formatter(state, exception)));
-    }
-
-    private sealed class EmptyServices : IServiceProvider
-    {
-        public static readonly EmptyServices Instance = new();
-
-        public object? GetService(Type serviceType) => null;
     }
 
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the

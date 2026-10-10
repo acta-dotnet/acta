@@ -7,12 +7,11 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Worker-runtime singleton owning everything for its namespace: the catalog upsert (namespace, definitions,
-/// <c>workers</c>) in <see cref="InitializeAsync"/>, driven by the host during startup, the claim/dispatch pipeline in
-/// <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level <see cref="RunAsync"/> that runs pipeline and
-/// heartbeat concurrently. A thin facade over <see cref="WorkerContext"/> (shared state), <see cref="WorkerRuntimeInitializer"/>
-/// (registration), <see cref="JobClaimer"/> (claims), and <see cref="JobExecutor"/> with <see cref="JobExecution"/>
-/// (claimed-job execution). An enqueue-only runtime skips the worker row and the pipeline but still bootstraps.
+/// Worker-runtime singleton owning everything for its namespace: the catalog upsert in <see cref="InitializeAsync"/>,
+/// the claim/dispatch pipeline in <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level
+/// <see cref="RunAsync"/> that runs pipeline and heartbeat concurrently. A thin facade over <see cref="WorkerContext"/>,
+/// <see cref="WorkerRuntimeInitializer"/>, <see cref="JobClaimer"/>, <see cref="JobExecutor"/>, and
+/// <see cref="JobFinalizer"/>. An enqueue-only runtime skips the worker row and the pipeline but still bootstraps.
 /// </summary>
 internal sealed class WorkerRuntime
 {
@@ -20,6 +19,7 @@ internal sealed class WorkerRuntime
     private readonly InFlightJobRegistry _registry;
     private readonly WorkerRuntimeInitializer _initializer;
     private readonly JobExecutor _executor;
+    private readonly JobFinalizer _finalizer;
     private readonly JobClaimer _claimer;
     private readonly int _executorCount;
     private readonly WorkerHeartbeat _heartbeat;
@@ -88,17 +88,29 @@ internal sealed class WorkerRuntime
             logger
         );
 
-        var jobExecution = new JobExecution(
-            rootServices.GetRequiredService<CancelJobHandler>(),
+        _finalizer = new JobFinalizer(
             rootServices.GetRequiredService<Execution>(),
-            serializers,
-            options,
-            pipeline,
+            rootServices.GetRequiredService<CancelJobHandler>(),
             publisher,
+            options.Value,
+            _context,
+            _registry,
             logger,
             metrics
         );
-        _executor = new JobExecutor(locks, clock, serializers, rootServices, options, _context, _registry, jobExecution, logger, metrics);
+        _executor = new JobExecutor(
+            locks,
+            clock,
+            serializers,
+            rootServices,
+            options,
+            pipeline,
+            _context,
+            _registry,
+            _finalizer,
+            logger,
+            metrics
+        );
         _claimer = new JobClaimer(
             rootServices.GetRequiredService<Execution>(),
             _executor,
@@ -187,7 +199,10 @@ internal sealed class WorkerRuntime
 
     public Task RunLoopAsync(CancellationToken ct) => RunPipelineAsync(ct, ct);
 
-    /// <summary>The claimer and the executor loops; ends once the claimer stopped and the executors emptied its channel.</summary>
+    /// <summary>
+    /// The claimer, the executor loops, and as many finalizer loops; ends once the claimer stopped, the executors
+    /// emptied its channel, and the finalizers wrote every completion the executors handed them.
+    /// </summary>
     private async Task RunPipelineAsync(CancellationToken ct, CancellationToken drainCt)
     {
         if (WorkerNamespaceName is null)
@@ -196,8 +211,11 @@ internal sealed class WorkerRuntime
         }
 
         var executors = Enumerable.Range(0, _executorCount).Select(_ => _executor.RunLoopAsync(ct)).ToArray();
+        var finalizers = Enumerable.Range(0, _executorCount).Select(_ => _finalizer.RunLoopAsync(ct)).ToArray();
         await _claimer.RunAsync(ct, drainCt);
         await Task.WhenAll(executors);
+        _registry.Completed.Writer.TryComplete();
+        await Task.WhenAll(finalizers);
     }
 
     /// <summary>

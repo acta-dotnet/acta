@@ -3,7 +3,7 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit-pins <see cref="ExecutionCompletion.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
+/// Unit-pins <see cref="JobFinalizer.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
 /// regardless of the consecutive-failure count (MaxAttempts is the one-off budget only) while still carrying
 /// the attempt's reason through, a success resets the counter to zero,
 /// and an exhausted schedule pauses.
@@ -19,7 +19,7 @@ public class RecurringOutcomeTests
         // recurring slot re-arms Ready and just bumps the counter. Re-arming is not forgetting: the
         // attempt's reason rides along on the rollover, which is what makes the failure alertable and
         // attributable even though the status says the slot is armed again.
-        var (status, failureCount, reason, message) = ExecutionCompletion.ComputeRecurringOutcome(
+        var (status, failureCount, reason, message) = JobFinalizer.ComputeRecurringOutcome(
             CompletionKind.Failed,
             Job(failureCount: 5),
             Fire(NextRun),
@@ -36,7 +36,7 @@ public class RecurringOutcomeTests
     [Fact]
     public void Succeeded_resets_the_failure_counter_to_zero()
     {
-        var (status, failureCount, reason, message) = ExecutionCompletion.ComputeRecurringOutcome(
+        var (status, failureCount, reason, message) = JobFinalizer.ComputeRecurringOutcome(
             CompletionKind.Succeeded,
             Job(failureCount: 9),
             Fire(NextRun),
@@ -56,7 +56,7 @@ public class RecurringOutcomeTests
     [Fact]
     public void Exhausted_schedule_pauses_with_schedules_exhausted()
     {
-        var (status, _, reason, _) = ExecutionCompletion.ComputeRecurringOutcome(
+        var (status, _, reason, _) = JobFinalizer.ComputeRecurringOutcome(
             CompletionKind.Succeeded,
             Job(failureCount: 0),
             Fire(null),

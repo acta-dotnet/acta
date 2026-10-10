@@ -3,7 +3,7 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit pins for rate admission in <see cref="JobExecution.RunAsync"/>, driven by
+/// Unit pins for rate admission in <see cref="JobExecutor.ExecuteAsync"/>, driven by
 /// <see cref="JobExecutionHarness"/>'s scripted meter: which bucket and which meter shape the runner
 /// asks for, that an admitted job runs its handler, and that a denied one skips the handler, gives
 /// back the concurrency slot it had just taken, and re-arms at exactly the reserved instant.

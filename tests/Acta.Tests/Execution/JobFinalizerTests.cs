@@ -1,23 +1,26 @@
 using System.Data.Common;
+using Acta.Tests.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// The completion write's repeat. A completion abandoned after a thrown exception leaves a row the
-/// heartbeat renews forever and recovery can never reclaim, so the write is repeated until it lands or
-/// the worker stops, and a defect is repeated alongside a provider error because a loud loop costs less
-/// than an unreclaimable row.
+/// The finalizer's write. A completion abandoned after a thrown exception leaves the row Executing until its lease
+/// lapses, and recovery then charges a failure and runs the job again, so the write is repeated until it lands or the
+/// worker stops, and a defect is repeated alongside a provider error because a loud loop costs less than a finished
+/// execution run twice. Meanwhile the entry stays held as Finalizing, so the heartbeat keeps renewing its row.
 /// </summary>
-public sealed class CompletionWriteTests
+public sealed class JobFinalizerTests
 {
-    [Fact(DisplayName = "A failure that clears is repeated until the write lands, and the caller is told a retry happened")]
+    [Fact(DisplayName = "A failure that clears is repeated until the write lands")]
     public async Task A_failure_that_clears_is_repeated_until_the_write_lands()
     {
         var calls = 0;
-        var (result, retried) = await CompletionWrite.RetryAsync<string>(
+        var result = await JobFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -30,32 +33,16 @@ public sealed class CompletionWriteTests
         );
 
         Assert.Equal("landed", result);
-        Assert.True(retried);
         Assert.Equal(3, calls);
-    }
-
-    [Fact(DisplayName = "A first try that lands reports no retry")]
-    public async Task A_first_try_that_lands_reports_no_retry()
-    {
-        var (result, retried) = await CompletionWrite.RetryAsync<string>(
-            _ => Task.FromResult("landed"),
-            NullLogger.Instance,
-            jobId: 7,
-            TestContext.Current.CancellationToken,
-            firstDelay: TimeSpan.Zero
-        );
-
-        Assert.Equal("landed", result);
-        Assert.False(retried);
     }
 
     // Fifty is past any bounded budget: the point is that no counter ends the repeat, and the old
     // five-try budget is the number this has to outlive.
-    [Fact(DisplayName = "A provider error outlives any bounded budget and settles when it clears")]
+    [Fact(DisplayName = "A provider error outlives any bounded budget and lands when it clears")]
     public async Task A_persistent_provider_error_outlives_a_bounded_budget()
     {
         var calls = 0;
-        var (result, retried) = await CompletionWrite.RetryAsync<string>(
+        var result = await JobFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -68,7 +55,6 @@ public sealed class CompletionWriteTests
         );
 
         Assert.Equal("landed", result);
-        Assert.True(retried);
         Assert.Equal(50, calls);
     }
 
@@ -76,7 +62,7 @@ public sealed class CompletionWriteTests
     public async Task A_failure_that_is_not_a_provider_error_is_repeated_too()
     {
         var calls = 0;
-        var (_, retried) = await CompletionWrite.RetryAsync<string>(
+        await JobFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -88,7 +74,6 @@ public sealed class CompletionWriteTests
             firstDelay: TimeSpan.Zero
         );
 
-        Assert.True(retried);
         Assert.Equal(4, calls);
     }
 
@@ -100,7 +85,7 @@ public sealed class CompletionWriteTests
         var calls = 0;
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            CompletionWrite.RetryAsync<int>(
+            JobFinalizer.RepeatAsync<int>(
                 token =>
                 {
                     calls++;
@@ -126,7 +111,7 @@ public sealed class CompletionWriteTests
         // The stop says why the repeat ended; the failure says why the row is still Executing, and that
         // is what the caller logs.
         await Assert.ThrowsAsync<ProviderDown>(() =>
-            CompletionWrite.RetryAsync<int>(
+            JobFinalizer.RepeatAsync<int>(
                 _ =>
                 {
                     calls++;
@@ -147,7 +132,7 @@ public sealed class CompletionWriteTests
     public async Task A_throwing_logger_does_not_end_the_repeat()
     {
         var calls = 0;
-        var (result, retried) = await CompletionWrite.RetryAsync<string>(
+        var result = await JobFinalizer.RepeatAsync<string>(
             _ =>
             {
                 calls++;
@@ -160,7 +145,82 @@ public sealed class CompletionWriteTests
         );
 
         Assert.Equal("landed", result);
-        Assert.True(retried);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact(DisplayName = "An entry is Finalizing and renewed between its executor's release and the commit of its write")]
+    public async Task A_finalizing_entry_is_renewed_until_its_write_lands()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var writes = 0;
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "CompleteExecution" when Interlocked.Increment(ref writes) == 1 => FailOnce(failed),
+                "CompleteExecution" => new CompleteExecutionResponse(
+                    CompleteExecutionAction.Completed,
+                    (byte)JobStatusCode.Ready,
+                    FinalNextRunAtUtc: null,
+                    DateTime.UtcNow,
+                    ParentReleased: false
+                ),
+                "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(42, ExecutionNumber: 3, LockKey: null, Renewed: true, null),
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        var services = session.Services();
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new JobFinalizer(
+            services.GetRequiredService<Acta.Execution>(),
+            null!,
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        );
+        var heartbeat = new WorkerHeartbeat(
+            services.GetRequiredService<WorkerLifecycle>(),
+            ScriptedSession.Unreachable.GetRequiredService<GetDefinitionContractsHandler>(),
+            Options.Create(options),
+            context.WorkerRegistration,
+            context,
+            registry,
+            NullLogger.Instance
+        );
+
+        // An unsupported claim's hand-back, the completion that needs no descriptor.
+        var entry = WorkerHeartbeatLeaseRunwayTests.Entry(42, executionNumber: 3, leaseRunway: TimeSpan.FromMinutes(1));
+        entry.Completion = new ExecutionCompletion(CompletionKind.Rescheduled) { ReasonMessage = "handed back" };
+        entry.State = InFlightJobState.Finalizing;
+        registry.TryAdd(entry);
+
+        var finalizing = finalizer.FinalizeAsync(entry, ct);
+        await failed.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await heartbeat.TickAsync(ct);
+
+        Assert.Equal(
+            """[{"job_id":42,"execution_number":3}]""",
+            Assert.Single(session.Calls, call => call.Stem == "ExtendWorkerLeases").Parameters["p_executions"]
+        );
+        Assert.Equal(InFlightJobState.Finalizing, Assert.Single(registry.Snapshot()).State);
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
+
+        Assert.Equal(RunOnceStatus.Rearmed, await finalizing.WaitAsync(TimeSpan.FromSeconds(30), ct));
+        Assert.Equal(2, writes);
+        Assert.Equal(0, registry.Count());
+    }
+
+    private static object FailOnce(TaskCompletionSource failed)
+    {
+        failed.SetResult();
+        throw new ProviderDown();
     }
 
     private sealed class ProviderDown() : DbException("connection dropped");

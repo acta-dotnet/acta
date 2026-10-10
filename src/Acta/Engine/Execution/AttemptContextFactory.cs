@@ -40,7 +40,7 @@ internal sealed class AttemptContextFactory(
         if (job.TenantId is { } jobTenantId)
         {
             var tenants = rootServices.GetRequiredService<TenantKeyCache>();
-            (tenantKey, _) = await CompletionWrite.RetryAsync(
+            tenantKey = await JobFinalizer.RepeatAsync(
                 async token => await tenants.ResolveAsync(jobTenantId, token),
                 log,
                 job.JobId,
@@ -113,9 +113,9 @@ internal sealed class AttemptContextFactory(
             return null;
         }
 
-        var (nowUtc, _) = await CompletionWrite.RetryAsync(async token => await clock.GetUtcNowAsync(token), log, job.JobId, ct, metrics);
+        var nowUtc = await JobFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), log, job.JobId, ct, metrics);
         var liveSchedules = rootServices.GetRequiredService<GetLiveSchedulesHandler>();
-        var (live, _) = await CompletionWrite.RetryAsync(
+        var live = await JobFinalizer.RepeatAsync(
             async token => (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token)).Schedules,
             log,
             job.JobId,

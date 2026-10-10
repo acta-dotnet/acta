@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// The gates an attempt passes after the start CAS and before its handler: a Strict deadline already past, the
-/// concurrency slot, the rate turn, and the deadline again after a rate wait. An attempt the gates turn away settles
+/// concurrency slot, the rate turn, and the deadline again after a rate wait. An attempt the gates turn away completes
 /// without its handler.
 /// </summary>
 internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDelaySeconds)
@@ -22,8 +22,8 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     private static bool IsNearTurn(ReserveRateResponse reservation) =>
         !reservation.Admitted && reservation.WaitMilliseconds > 0 && reservation.WaitMilliseconds <= RateTurnWaitMilliseconds;
 
-    /// <summary>The settlement of an attempt the gates turn away, or null when it is admitted and its handler runs.</summary>
-    public async Task<AttemptSettlement?> AdmitAsync(
+    /// <summary>The completion of an attempt the gates turn away, or null when it is admitted and its handler runs.</summary>
+    public async Task<ExecutionCompletion?> AdmitAsync(
         JobDescriptor descriptor,
         ClaimedJob job,
         RuntimeJobContext jobContext,
@@ -47,7 +47,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         // ownership, and held only while the handler runs. The gate is the key - the enqueue's key
         // when the row carries one, else the definition name once the definition declares a limit -
         // and the limit is how many of its slots exist, 1 when only a key was given. A loser skips
-        // the handler and settles the attempt as a budget-neutral re-arm with the fixed bounce delay
+        // the handler and completes the attempt as a budget-neutral re-arm with the fixed bounce delay
         // (the contention throttle): mutual exclusion of execution only, no per-key ordering.
         // The limit comes off the descriptor, which the policy reload keeps current, so admission
         // costs no join on the claim path.
@@ -63,7 +63,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         // Rate admission, after the concurrency slot because the rate is the scarcer gate: a job that
         // is early gives its slot straight back, so a held slot never waits out someone else's turn.
         // A denial is not a race to re-run: the meter has already booked this job's instant, so the
-        // attempt settles as a budget-neutral re-arm at exactly that instant and comes back once.
+        // attempt completes as a budget-neutral re-arm at exactly that instant and comes back once.
         // The parsed rate rides on the descriptor, which the policy reload keeps current.
         if (descriptor.Rate is { } rate && await TakeTurnAsync(descriptor, job, jobContext, rate, ct) is { } limited)
         {
@@ -78,10 +78,10 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     private static bool PastStrictDeadline(JobDescriptor descriptor, RuntimeJobContext jobContext) =>
         descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict && jobContext.IsOverdue;
 
-    private AttemptSettlement DeadlineExceeded(ClaimedJob job)
+    private ExecutionCompletion DeadlineExceeded(ClaimedJob job)
     {
         log.LogInformation("WorkerRuntime: job {JobId} overdue at admission; cancelling without running the handler.", job.JobId);
-        return AttemptSettlement.Terminal(
+        return ExecutionCompletion.Terminal(
             CompletionKind.Cancelled,
             EventReasonCode.JobDeadlineExceeded,
             "Job passed its deadline before execution started.",
@@ -90,10 +90,10 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     }
 
     /// <summary>
-    /// Concurrency bounce: settle the attempt as a budget-neutral re-arm with the fixed delay. A provider
+    /// Concurrency bounce: complete the attempt as a budget-neutral re-arm with the fixed delay. A provider
     /// error says nothing about the key, which a rate-only definition does not even have.
     /// </summary>
-    private AttemptSettlement Bounced(bool admissionFailed) =>
+    private ExecutionCompletion Bounced(bool admissionFailed) =>
         new(CompletionKind.Rescheduled)
         {
             Reason = admissionFailed ? EventReasonCode.Unclassified : EventReasonCode.JobConcurrencyKeyHeld,
@@ -103,8 +103,8 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             RescheduleDelaySeconds = concurrencyKeyBounceDelaySeconds,
         };
 
-    /// <summary>Takes one of the key's slots; the bounce settlement when every slot is held or the acquire failed.</summary>
-    private async Task<AttemptSettlement?> TakeSlotAsync(
+    /// <summary>Takes one of the key's slots; the bounce completion when every slot is held or the acquire failed.</summary>
+    private async Task<ExecutionCompletion?> TakeSlotAsync(
         ClaimedJob job,
         RuntimeJobContext jobContext,
         string concurrencyKey,
@@ -150,8 +150,8 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         return Bounced(admissionFailed: false);
     }
 
-    /// <summary>Reserves the job's turn on its rate meter; the re-arm settlement when the turn lies ahead or the reservation failed.</summary>
-    private async Task<AttemptSettlement?> TakeTurnAsync(
+    /// <summary>Reserves the job's turn on its rate meter; the re-arm completion when the turn lies ahead or the reservation failed.</summary>
+    private async Task<ExecutionCompletion?> TakeTurnAsync(
         JobDescriptor descriptor,
         ClaimedJob job,
         RuntimeJobContext jobContext,
@@ -202,7 +202,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             (int)Math.Max(0, (reservation.ResumeAtUtc - DateTime.UtcNow).TotalMilliseconds)
         );
         // An absolute instant rather than a delay, because the turn is a place in the meter's queue, not a cooldown.
-        return new AttemptSettlement(CompletionKind.Rescheduled)
+        return new ExecutionCompletion(CompletionKind.Rescheduled)
         {
             Reason = EventReasonCode.JobRateLimited,
             ReasonMessage = "The rate limit for this key reserved this job its next turn.",
@@ -245,8 +245,8 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // The attempt was cancelled while it waited: an operator cancel, a stolen lease, or
-            // the timeout. Admitted on paper, so the handler invocation settles it the way it
-            // settles any attempt cancelled before its handler ran; the booked turn stays on
+            // the timeout. Admitted on paper, so the handler invocation completes it the way it
+            // completes any attempt cancelled before its handler ran; the booked turn stays on
             // the row for a return inside the window or for the sweep.
             return new ReserveRateResponse(true, reservation.ResumeAtUtc, 0);
         }

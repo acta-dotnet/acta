@@ -29,7 +29,7 @@ certified commit.
 
 - A completion write that keeps failing while the heartbeat still renews the lease settles once the
   provider returns, on the same worker, with no restart: `CompleteAndClockChaosSpec` and
-  `WorkerCrashRecoveryChaosSpec` on every provider, and `CompletionWriteTests` for the repeat itself.
+  `WorkerCrashRecoveryChaosSpec` on every provider, and `JobFinalizerTests` for the repeat itself.
 - A completion that commits and loses its response is reconciled by the repeat, not rerun, and never
   advances a recurring slot twice: the after-commit case in `CompleteAndClockChaosSpec`.
 - The recovery sweep runs while every executor is busy, because it runs outside the executor pool,

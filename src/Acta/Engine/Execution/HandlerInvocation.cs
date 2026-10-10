@@ -6,7 +6,7 @@ namespace Acta;
 /// <summary>
 /// Runs an admitted attempt's handler: input deserialization, the generator-emitted <c>descriptor.Invoker</c>
 /// wrapped in the registered pipeline behaviors (the invoker directly when none are registered), and result
-/// serialization; then settles the attempt by how the handler ended.
+/// serialization; then completes the attempt by how the handler ended.
 /// </summary>
 internal sealed class HandlerInvocation(
     IJobPayloadSerializerRegistry serializers,
@@ -16,10 +16,10 @@ internal sealed class HandlerInvocation(
 )
 {
     /// <summary>
-    /// The attempt's settlement, or null when worker shutdown interrupted the handler and the row stays Executing
+    /// The attempt's completion, or null when worker shutdown interrupted the handler and the row stays Executing
     /// for recovery.
     /// </summary>
-    public async Task<AttemptSettlement?> InvokeAsync(
+    public async Task<ExecutionCompletion?> InvokeAsync(
         IServiceProvider attemptServices,
         JobDescriptor descriptor,
         ClaimedJob job,
@@ -29,20 +29,20 @@ internal sealed class HandlerInvocation(
     {
         var started = Stopwatch.GetTimestamp();
         var inputDeserialized = false;
-        AttemptSettlement settlement;
+        ExecutionCompletion completion;
         try
         {
             // An attempt cancelled between the start CAS and here - during a rate wait, or in the
-            // instant before - settles through the cancellation path below without invoking a
+            // instant before - completes through the cancellation path below without invoking a
             // handler that may not take the token.
             jobContext.CancellationToken.ThrowIfCancellationRequested();
             var requestObject = DeserializeInput(descriptor, job);
             inputDeserialized = true;
-            settlement = Succeeded(descriptor, job, await InvokeHandlerAsync(attemptServices, descriptor, requestObject, jobContext));
+            completion = Succeeded(descriptor, job, await InvokeHandlerAsync(attemptServices, descriptor, requestObject, jobContext));
         }
         catch (JobControlException control)
         {
-            settlement = Controlled(control, descriptor, job);
+            completion = Controlled(control, descriptor, job);
         }
         catch (OperationCanceledException) when (jobContext.CancellationToken.IsCancellationRequested)
         {
@@ -58,7 +58,7 @@ internal sealed class HandlerInvocation(
                 return null;
             }
 
-            settlement = Cancelled(descriptor, job, jobContext);
+            completion = Cancelled(descriptor, job, jobContext);
         }
         catch (StepOwnershipLostException ownershipLost)
         {
@@ -69,7 +69,7 @@ internal sealed class HandlerInvocation(
             // terminal: a row another execution owns no-ops at the completion CAS exactly as a
             // stolen lease does, while a row this worker still owns re-arms under the failure budget
             // and retries instead of landing Failed with no recorded reason.
-            settlement = new AttemptSettlement(CompletionKind.Failed)
+            completion = new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReasonCode.JobAttemptAborted,
                 ReasonMessage = $"Step '{ownershipLost.StepName}' ownership could not be confirmed; attempt aborted.".Truncate(
@@ -89,7 +89,7 @@ internal sealed class HandlerInvocation(
             // ctx.FailAsync: no retry (JobStepInterrupted is non-retryable), budget untouched, so the
             // parent is never replayed back into the interrupted step. The distinct reason preserves
             // the "outcome unknown" story for jobs explain / the timeline.
-            settlement = AttemptSettlement.Terminal(
+            completion = ExecutionCompletion.Terminal(
                 CompletionKind.Failed,
                 EventReasonCode.JobStepInterrupted,
                 interrupted.Message,
@@ -104,10 +104,10 @@ internal sealed class HandlerInvocation(
         }
         catch (Exception ex)
         {
-            settlement = Faulted(ex, inputDeserialized, descriptor, job);
+            completion = Faulted(ex, inputDeserialized, descriptor, job);
         }
 
-        return settlement with
+        return completion with
         {
             DurationMs = (int)Math.Min((long)Stopwatch.GetElapsedTime(started).TotalMilliseconds, int.MaxValue),
         };
@@ -138,9 +138,9 @@ internal sealed class HandlerInvocation(
         return chain();
     }
 
-    private AttemptSettlement Succeeded(JobDescriptor descriptor, ClaimedJob job, JobHandlerOutput invocation)
+    private ExecutionCompletion Succeeded(JobDescriptor descriptor, ClaimedJob job, JobHandlerOutput invocation)
     {
-        var succeeded = new AttemptSettlement(CompletionKind.Succeeded);
+        var succeeded = new ExecutionCompletion(CompletionKind.Succeeded);
         if (!invocation.HasResult)
         {
             return succeeded;
@@ -187,12 +187,12 @@ internal sealed class HandlerInvocation(
     /// generic failure so it is never mis-recorded as Failed. An unknown subclass never falls
     /// into the re-arm path: it is failed like any other exception the handler let escape.
     /// </summary>
-    private AttemptSettlement Controlled(JobControlException control, JobDescriptor descriptor, ClaimedJob job)
+    private ExecutionCompletion Controlled(JobControlException control, JobDescriptor descriptor, ClaimedJob job)
     {
         switch (control)
         {
             case RescheduleJobException reschedule:
-                return new AttemptSettlement(CompletionKind.Rescheduled)
+                return new ExecutionCompletion(CompletionKind.Rescheduled)
                 {
                     Reason = EventReasonCode.JobHandlerRescheduled,
                     ReasonMessage = reschedule.Message.Truncate(ActaTextLimits.ReasonMessage),
@@ -200,7 +200,7 @@ internal sealed class HandlerInvocation(
                     RescheduleResumeAtUtc = reschedule.Delay is null ? reschedule.ResumeAtUtc?.UtcDateTime : null,
                 };
             case SuspendSignal suspend:
-                return new AttemptSettlement(CompletionKind.Suspended)
+                return new ExecutionCompletion(CompletionKind.Suspended)
                 {
                     Reason = EventReasonCode.JobHandlerSuspended,
                     ReasonMessage = suspend.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage),
@@ -210,7 +210,7 @@ internal sealed class HandlerInvocation(
                 // An inline step still awaits its retry instant on replay, or failed in budget and scheduled a
                 // retry. Re-arm budget-neutral via the existing Rescheduled path (failure_count
                 // untouched) at the step's next_retry_at_utc; only the reason differs.
-                return new AttemptSettlement(CompletionKind.Rescheduled)
+                return new ExecutionCompletion(CompletionKind.Rescheduled)
                 {
                     Reason = EventReasonCode.JobStepRetryScheduled,
                     ReasonMessage = (stepRetry.ReasonMessage ?? $"Step '{stepRetry.StepName}' retry scheduled.").Truncate(
@@ -221,7 +221,7 @@ internal sealed class HandlerInvocation(
             case SignalSuspendSignal signalSuspend:
                 // Signal wait with no Set slot: re-arm as Suspended (no due time). complete_execution
                 // locks the named slot and lands Ready instead if a raise won the race.
-                return new AttemptSettlement(CompletionKind.Suspended)
+                return new ExecutionCompletion(CompletionKind.Suspended)
                 {
                     Reason = EventReasonCode.JobHandlerSuspended,
                     ReasonMessage = (signalSuspend.ReasonMessage ?? $"Signal '{signalSuspend.SignalName}' pending.").Truncate(
@@ -235,7 +235,7 @@ internal sealed class HandlerInvocation(
                 // FailureCount is submitted, so complete_execution's COALESCE leaves the budget
                 // untouched, and the terminal landing stamps retention so the job stops being
                 // an immortal Suspended row.
-                return AttemptSettlement.Terminal(
+                return ExecutionCompletion.Terminal(
                     CompletionKind.Cancelled,
                     EventReasonCode.JobWaitTimedOut,
                     $"Durable wait '{waitTimeout.WaitName}' timed out.",
@@ -244,21 +244,21 @@ internal sealed class HandlerInvocation(
             case HandlerFailException fail:
                 // Deliberate terminal Failed: no retry, budget untouched. Distinct from an unhandled
                 // exception (UnhandledException reason); both land Failed but the reason tells them apart.
-                return AttemptSettlement.Terminal(
+                return ExecutionCompletion.Terminal(
                     CompletionKind.Failed,
                     EventReasonCode.JobHandlerFailed,
                     fail.ReasonMessage,
                     JobStatusCode.Failed
                 );
             case HandlerCancelException cancel:
-                return AttemptSettlement.Terminal(
+                return ExecutionCompletion.Terminal(
                     CompletionKind.Cancelled,
                     EventReasonCode.JobHandlerCancelled,
                     cancel.ReasonMessage,
                     JobStatusCode.Cancelled
                 );
             case HandlerPauseException pause:
-                return AttemptSettlement.Terminal(
+                return ExecutionCompletion.Terminal(
                     CompletionKind.Paused,
                     EventReasonCode.JobHandlerPaused,
                     pause.ReasonMessage,
@@ -275,7 +275,7 @@ internal sealed class HandlerInvocation(
                     descriptor.JobName,
                     job.JobId
                 );
-                return new AttemptSettlement(CompletionKind.Failed)
+                return new ExecutionCompletion(CompletionKind.Failed)
                 {
                     Reason = EventReasonCode.JobUnhandledException,
                     ReasonMessage = $"Unrecognized control signal {control.GetType().Name}: {control.Message}".Truncate(
@@ -285,14 +285,14 @@ internal sealed class HandlerInvocation(
         }
     }
 
-    private AttemptSettlement Cancelled(JobDescriptor descriptor, ClaimedJob job, RuntimeJobContext jobContext)
+    private ExecutionCompletion Cancelled(JobDescriptor descriptor, ClaimedJob job, RuntimeJobContext jobContext)
     {
         if (jobContext.AttemptTimedOut)
         {
             // The per-attempt execution timeout fired. Record it distinctly and let the retry budget
             // decide re-arm vs terminal; a timeout is a retryable failure like an exception.
             log.LogWarning("Handler for job ({JobName}) id {JobId} exceeded its execution timeout.", descriptor.JobName, job.JobId);
-            return new AttemptSettlement(CompletionKind.Failed)
+            return new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReasonCode.JobExecutionTimeout,
                 ReasonMessage = "Execution exceeded the configured timeout.",
@@ -308,14 +308,14 @@ internal sealed class HandlerInvocation(
         // rows still no-op. Writing (not skipping) matters because a skipped write leaves the
         // row Executing until its lease lapses.
         log.LogWarning("WorkerRuntime: job {JobId} attempt aborted mid-flight; handler stopped cooperatively.", job.JobId);
-        return new AttemptSettlement(CompletionKind.Failed)
+        return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = EventReasonCode.JobAttemptAborted,
             ReasonMessage = "Attempt aborted: the lease or a held lock could no longer be guaranteed.",
         };
     }
 
-    private AttemptSettlement Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
+    private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {
         if (inputDeserialized)
         {
@@ -334,7 +334,7 @@ internal sealed class HandlerInvocation(
         // A programming error retrying cannot fix lands terminal Failed through the same
         // completion branch as ctx.FailAsync, leaving the retry budget untouched.
         var nonRetryable = ex is NotImplementedException or NotSupportedException;
-        return new AttemptSettlement(CompletionKind.Failed)
+        return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = nonRetryable ? EventReasonCode.JobNonRetryableException : EventReasonCode.JobUnhandledException,
             ReasonMessage = (inputDeserialized ? ex.Message : $"Input deserialization failed ({ex.GetType().Name}): {ex.Message}").Truncate(

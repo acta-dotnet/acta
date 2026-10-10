@@ -20,6 +20,7 @@ internal sealed class InFlightJobRegistry
                 : options.MaxConcurrentExecutors + options.ClaimBatchSize;
         Permits = new SemaphoreSlim(permits, permits);
         Claimed = Channel.CreateBounded<InFlightJob>(permits);
+        Completed = Channel.CreateBounded<InFlightJob>(options.MaxConcurrentExecutors);
     }
 
     /// <summary>
@@ -31,6 +32,12 @@ internal sealed class InFlightJobRegistry
     /// <summary>The claimer's hand-off to the executors, as large as the permits so a write never blocks.</summary>
     public Channel<InFlightJob> Claimed { get; }
 
+    /// <summary>
+    /// The executors' hand-off to the finalizers, as large as the executor count: when the writes fall behind it fills,
+    /// the executors wait on it with their permits held, and the claimer stops.
+    /// </summary>
+    public Channel<InFlightJob> Completed { get; }
+
     public bool TryAdd(InFlightJob entry) => _entries.TryAdd(entry.Key, entry);
 
     /// <summary>
@@ -40,11 +47,17 @@ internal sealed class InFlightJobRegistry
     public void Remove(InFlightJob entry)
     {
         _entries.TryRemove(new KeyValuePair<(long, int), InFlightJob>(entry.Key, entry));
+        ReleasePermit(entry);
+        entry.Dispose();
+    }
+
+    /// <summary>Returns <paramref name="entry"/>'s permit if it holds one, while the entry stays held.</summary>
+    public void ReleasePermit(InFlightJob entry)
+    {
         if (entry.ReleasePermit())
         {
             Permits.Release();
         }
-        entry.Dispose();
     }
 
     public InFlightJob[] Snapshot() => [.. _entries.Values];

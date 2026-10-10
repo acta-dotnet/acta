@@ -1,13 +1,14 @@
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit pins for the step-ownership path through <see cref="JobExecution.RunAsync"/>, driven by
+/// Unit pins for the step-ownership path through <see cref="JobExecutor.ExecuteAsync"/>, driven by
 /// <see cref="JobExecutionHarness"/>: a <c>complete_step</c> StaleVersion on a job this attempt still
 /// owns re-arms as a retryable abort instead of landing terminal Failed with no reason, no completion
 /// shape ever submits Failed without a reason, and a completion CAS that answers NotOwner writes
-/// nothing at all.
+/// nothing at all and is a logged skip.
 /// </summary>
 public sealed class JobExecutionOwnershipTests
 {
@@ -125,19 +126,22 @@ public sealed class JobExecutionOwnershipTests
     }
 
     [Fact]
-    public async Task Not_owner_without_a_cancelled_attempt_stays_an_anomaly()
+    public async Task Not_owner_without_a_cancelled_attempt_is_a_logged_skip()
     {
-        // The same NotOwner answer with the attempt token still live is the genuine anomaly the
-        // runner refuses to swallow: losing the row without any cancellation means the ledger and
-        // this worker disagree. Pinned so a future "just skip it" cannot land unnoticed.
+        // The same NotOwner answer with the attempt token still live: a Finalizing entry can outlive its
+        // lease while its write waits, so losing the row is a skip the log records, not a fault.
         var harness = new JobExecutionHarness(
             stepOutcome: CompleteStepOutcomeCode.StaleVersion,
             completionAction: CompleteExecutionAction.NotOwner
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => harness.RunAsync());
+        var outcome = await harness.RunAsync();
 
+        Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.Empty(harness.Applied);
+        var skip = Assert.Single(harness.Log, entry => entry.Message.Contains("completion skipped", StringComparison.Ordinal));
+        Assert.Equal(LogLevel.Information, skip.Level);
+        Assert.Contains(nameof(CompleteExecutionAction.NotOwner), skip.Message, StringComparison.Ordinal);
     }
 
     private static async Task<IReadOnlyList<BoundCompletion>> Submissions(

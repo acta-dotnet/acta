@@ -49,6 +49,15 @@ internal sealed class InFlightJob : IDisposable
 
     public (long JobId, int ExecutionNumber) Key => (Claim.JobId, Claim.ExecutionNumber);
 
+    /// <summary>The descriptor the executor ran it under; null for a claim handed back unrun.</summary>
+    public JobDescriptor? Descriptor { get; set; }
+
+    public RuntimeJobContext? Context { get; set; }
+
+    public RecurringFirePlan? Fire { get; set; }
+
+    public ExecutionCompletion? Completion { get; set; }
+
     public InFlightJobState State
     {
         get => _state;

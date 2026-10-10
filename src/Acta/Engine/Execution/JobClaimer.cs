@@ -173,13 +173,7 @@ internal sealed class JobClaimer(
                 await previous;
                 try
                 {
-                    var outcome = await executor.ExecuteClaimedJobAsync(slot, hostCt);
-                    log.LogInformation(
-                        "WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})",
-                        context.WorkerRegistration!.NamespaceName,
-                        slot.Claim.JobId,
-                        outcome.ToString()
-                    );
+                    await executor.RunInlineAsync(slot, hostCt);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
                 {

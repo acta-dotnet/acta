@@ -3,7 +3,7 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit pins for concurrency admission in <see cref="JobExecution.RunAsync"/>, driven by
+/// Unit pins for concurrency admission in <see cref="JobExecutor.ExecuteAsync"/>, driven by
 /// <see cref="JobExecutionHarness"/>'s scripted slot store: which key and how many slots the runner
 /// asks for, that a granted slot is released once the handler is done, and that a denied slot skips
 /// the handler and settles the attempt as a budget-neutral re-arm with the bounce delay.
