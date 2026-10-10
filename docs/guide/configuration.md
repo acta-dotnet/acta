@@ -48,7 +48,6 @@ uses schema `main`; SQL Server and Postgres default to schema `acta`.
 | `CommandTimeout` | 30 seconds | Runtime operation timeout applied by the store. |
 | `DeadlockRetryAttempts` | 5 | Store-level retry count for database deadlock victims. Set `1` to disable retry. |
 | `ApplyMigrationsOnStartup` | `false` | Dev/sample convenience. Production should apply migrations before starting workers. Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
-| `DriverVersionPolicy` | `Fail` | What startup does when the loaded ADO driver's major version differs from the one Acta was certified against: `Fail` refuses to start, `Warn` logs one warning and continues. |
 
 Local concepts, demos, and Anvil use `UseLocalDatabase(...)`, which selects a provider from explicit
 argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite as the zero-setup default.

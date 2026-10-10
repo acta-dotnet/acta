@@ -7,6 +7,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **`DriverVersionPolicy` is gone.** A provider that loads a database driver whose major version differs
+  from the one Acta was certified on now logs one warning naming both and keeps running; it no longer
+  refuses to start. Remove any `DriverVersionPolicy` setting from the provider options.
 - **The Bulk execution profile is gone.** `ExecutionProfile.Bulk` is removed; set `Direct`, the profile
   Bulk built on. Every completion is now written in its own transaction, so a crash never re-runs a
   handler that already finished. The cost is throughput: in the rc.4 round, PostgreSQL drain at sixteen

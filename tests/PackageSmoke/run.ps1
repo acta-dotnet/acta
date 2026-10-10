@@ -46,8 +46,8 @@ else {
 
 # Floors only, by policy. An upper bound in a nuspec is a fake lock - NuGet reports a violated range as
 # the NU1608 warning, not an error - so bounds would cost every host app its freedom to manage its own
-# driver version while locking nothing. The real lock is the runtime driver-major preflight at provider
-# bootstrap (DriverVersionPolicy). Do not "fix" this openness by adding bounds.
+# driver version while locking nothing. A major Acta was not certified on is reported by the driver-major
+# check at provider bootstrap, one warning naming both versions. Do not "fix" this openness by adding bounds.
 #
 # Bracket notation is the form that carries an explicit upper bound: "[1.0,)" is still a floor, while
 # "[1.0]" (exact pin), "[1.0,2.0)" and "(,2.0]" are not.

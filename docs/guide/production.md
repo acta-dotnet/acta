@@ -187,12 +187,11 @@ version it needs, including through Central Package Management; NuGet resolves o
 process and Acta uses whatever it resolves.
 
 An upper bound in package metadata would not actually protect you — NuGet demotes a version-range
-conflict to a warning that most builds never read. So the real guard runs at startup instead: the
-preflight compares the major version of the driver actually loaded against the major Acta was
-certified with, and refuses to start on a mismatch. If you have validated the newer driver yourself
-and want to proceed, set `DriverVersionPolicy = DriverVersionPolicy.Warn` on the provider options;
-you get one logged warning instead of a refusal, and the decision is recorded where an operator can
-see it.
+conflict to a warning that most builds never read. So the check runs at startup instead: the
+provider compares the major version of the driver actually loaded against the major Acta was
+certified with, and on a mismatch logs one warning naming both. The host keeps running, because a
+driver often moves when another library pulls in its next major; the warning tells an operator which
+version is running uncertified, and the conformance suite is what certifies a new one.
 
 ## Worker count and executor count
 

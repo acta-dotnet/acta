@@ -8,9 +8,8 @@ using Xunit;
 namespace Acta.Tests.Hosting;
 
 /// <summary>
-/// The driver-major preflight is the only real lock on which ADO driver a host loads, because the
-/// package dependency is an unbounded floor by policy. These cover the comparison, what the message
-/// has to name for an operator to act on it, and the one escape hatch.
+/// The driver-major check at provider bootstrap: the package dependency is an unbounded floor, so the host decides
+/// the driver version, and a major Acta was not certified on is reported once and never stops the host.
 /// </summary>
 public sealed class DriverVersionPreflightTests
 {
@@ -19,84 +18,36 @@ public sealed class DriverVersionPreflightTests
     private static int LoadedMajor(Assembly assembly) => assembly.GetName().Version!.Major;
 
     [Fact]
-    public void Matching_major_passes_under_either_policy()
+    public void A_matching_major_says_nothing()
     {
-        var major = LoadedMajor(Sqlite);
-        DriverVersionPreflight.Run(Sqlite, major, DriverVersionPolicy.Fail, log: null);
-        DriverVersionPreflight.Run(Sqlite, major, DriverVersionPolicy.Warn, log: null);
+        var log = new CapturingLogger();
+        DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite), log);
+        Assert.Empty(log.Entries);
     }
 
-    [Fact]
-    public void Newer_loaded_major_fails_by_default()
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void A_different_major_logs_one_warning_naming_both_and_continues(int offset)
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite) - 1, DriverVersionPolicy.Fail, log: null)
-        );
-        Assert.Contains("Microsoft.Data.Sqlite", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Older_loaded_major_fails_too()
-    {
-        // Both directions: a driver behind the certified major can be missing behavior Acta relies on.
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite) + 1, DriverVersionPolicy.Fail, log: null)
-        );
-        Assert.Contains("Microsoft.Data.Sqlite", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Failure_message_names_both_majors_and_the_escape_hatch()
-    {
-        var loaded = LoadedMajor(Sqlite);
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            DriverVersionPreflight.Run(Sqlite, loaded + 3, DriverVersionPolicy.Fail, log: null)
-        );
-
-        Assert.Contains($"major {loaded} is loaded", exception.Message, StringComparison.Ordinal);
-        Assert.Contains($"certified against major {loaded + 3}", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("DriverVersionPolicy.Warn", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Warn_logs_exactly_one_structured_warning_and_continues()
-    {
+        // Both directions: a driver behind the certified major can be missing behavior Acta relies on, and one ahead
+        // of it is a new major because its authors reserved the right to change something.
         var loaded = LoadedMajor(Sqlite);
         var log = new CapturingLogger();
 
-        DriverVersionPreflight.Run(Sqlite, loaded + 3, DriverVersionPolicy.Warn, log);
+        DriverVersionPreflight.Run(Sqlite, loaded - offset, log);
 
         var entry = Assert.Single(log.Entries);
         Assert.Equal(LogLevel.Warning, entry.Level);
         Assert.Equal("driver-version-preflight", entry.Values["Operation"]);
         Assert.Equal("driver-major-mismatch", entry.Values["Reason"]);
-        Assert.Contains($"major {loaded} is loaded", (string)entry.Values["Detail"]!, StringComparison.Ordinal);
-        Assert.Contains($"major {loaded + 3}", (string)entry.Values["Detail"]!, StringComparison.Ordinal);
+        Assert.Contains($"Microsoft.Data.Sqlite major {loaded} is loaded", (string)entry.Values["Detail"]!, StringComparison.Ordinal);
+        Assert.Contains($"certified against major {loaded - offset}", (string)entry.Values["Detail"]!, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Warn_on_a_matching_major_says_nothing()
-    {
-        var log = new CapturingLogger();
-        DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite), DriverVersionPolicy.Warn, log);
-        Assert.Empty(log.Entries);
-    }
-
-    [Fact]
-    public void Fail_is_the_default_policy() => Assert.Equal(DriverVersionPolicy.Fail, default(DriverVersionPolicy));
-
-    [Fact]
-    public void An_undefined_policy_fails_closed()
-    {
-        // Configuration binding can produce a value the enum never declared. Options validation rejects
-        // one, and this is the second lock: an undefined policy must never behave as the skip the enum
-        // deliberately does not offer.
-        var undefined = (DriverVersionPolicy)2;
-        var log = new CapturingLogger();
-
-        Assert.Throws<InvalidOperationException>(() => DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite) + 3, undefined, log));
-        Assert.Empty(log.Entries);
-    }
+    public void A_host_without_logging_still_starts() => DriverVersionPreflight.Run(Sqlite, LoadedMajor(Sqlite) + 3, log: null);
 
     private sealed class CapturingLogger : ILogger
     {

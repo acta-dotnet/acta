@@ -19,7 +19,7 @@ internal sealed class SqliteProviderBootstrap(SqlProviderOptions options, ILogge
         // this build. The second check runs whether or not this host applies migrations - the apply
         // path makes the same comparisons, and a host that never applies would otherwise never make
         // them at all.
-        DriverVersionPreflight.Run(typeof(SqliteConnection).Assembly, CertifiedDriverMajor, options.DriverVersionPolicy, log);
+        DriverVersionPreflight.Run(typeof(SqliteConnection).Assembly, CertifiedDriverMajor, log);
 
         if (options.ApplyMigrationsOnStartup)
         {

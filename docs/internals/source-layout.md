@@ -91,7 +91,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 
 - `Codes/`: the persisted code families, with the code attributes and manifests that declare them.
 - `Handlers/`: the handler API: `JobContext`, the job attributes, backoff and rate-limit specs, steps, waits, locks, children, and their outcomes.
-- `Configuration/`: `JobsOptions`, `SqlProviderOptions`, `DriverVersionPolicy`, and the options validator.
+- `Configuration/`: `JobsOptions`, `SqlProviderOptions`, and the options validator.
 - `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
 - `Primitives/`: identifier, duration, and ref syntax, text limits, and message truncation.
 - `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
