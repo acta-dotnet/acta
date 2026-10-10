@@ -263,7 +263,7 @@ public sealed partial class AotPolicyTests
     {
         // Every allowlisted path must resolve to a file
         // under the scanned roots. A rename, move, or delete leaves a dead entry that silently exempts
-        // nothing; flagging it keeps the ratchet honest. Existence is the reliable signal - a "does the
+        // nothing; flagging it keeps the ratchet accurate. Existence is the reliable signal - a "does the
         // file still trip the pattern" check would false-positive on the scanners' own parsing limits.
         var repoRoot = ResolveRepoRoot();
         var present = EnumerateRuntimeFiles(repoRoot).Select(f => RelativeTo(repoRoot, f)).ToHashSet(StringComparer.Ordinal);

@@ -129,7 +129,7 @@ foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
         }
 
         # Dependencies are floors and nothing else (see Test-UpperBoundedRange above for why, and for
-        # the self-test that keeps this honest). Group-agnostic, so every target-framework group of
+        # the self-test that keeps this accurate). Group-agnostic, so every target-framework group of
         # every shipped package is covered.
         foreach ($dependency in $nuspec.SelectNodes('//*[local-name()="dependency"]')) {
             if (Test-UpperBoundedRange $dependency.version) {

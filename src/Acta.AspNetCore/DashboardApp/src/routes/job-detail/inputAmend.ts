@@ -12,7 +12,7 @@ export function inputAmendable(status: string): boolean {
 // Builds the format-faithful amend body for the job's stored format. A text job amends its text field
 // verbatim (never json-quoted); any other editable format (json) parses the draft as raw JSON, and a
 // bad parse returns the message so the panel surfaces it without POSTing. A literal null parses fine
-// but the backend reads null as "no field", so block it here with an honest message rather than let
+// but the backend reads null as "no field", so block it here with a clear message rather than let
 // the POST come back a misleading 400. v1 edits json and text only.
 export function amendBody(text: string, format: string): { body: Record<string, unknown> } | { error: string } {
   if (format === 'text') return { body: { text } };

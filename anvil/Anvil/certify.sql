@@ -102,7 +102,7 @@ WHERE  e.event_code IN (40, 41)
 --
 -- Note what this does NOT assert: that every job Succeeded. A realistic workload contains shapes
 -- designed to fail - Anvil seeds `always-fails` - so "everything is Succeeded" would fail a healthy
--- run. Terminal-state completeness is the honest invariant; per-shape outcomes are check 5.
+-- run. Terminal-state completeness is the invariant that must hold; per-shape outcomes are check 5.
 --
 -- One exception: a system recurring job whose lease is still live. The workers keep running while
 -- the seal reads, and sys.alerts fires on every minute, so a seal that crosses a minute meets a fire
@@ -130,7 +130,7 @@ GROUP  BY d.name, r.status_code;
 -- `at-most-once-charge` is exempt for a different reason than `always-fails`, and the difference
 -- matters. always-fails throws on purpose. at-most-once-charge fails only when a kill landed inside
 -- its body: the AtMostOnce contract refuses to re-run it and terminalizes the ambiguity instead,
--- because for a charge an honest "this may have happened once" beats a confident second attempt.
+-- because for a charge an admitted "this may have happened once" beats a confident second attempt.
 -- Its real assertion is check 10, which is about how many times the body ran, not how it ended.
 
 -- ---------------------------------------------------------------------------------------------

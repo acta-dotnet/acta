@@ -48,7 +48,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // The burst is spent, so the next request is the first to wait, and it waits one interval. The
         // meter refills one turn per interval, though, so on a slow database (a shared CI server queuing
         // the first reserves of a fresh bucket behind other classes) the burst itself can take longer
-        // than an interval and leave a turn free: the eleventh request is then admitted honestly. The
+        // than an interval and leave a turn free: the eleventh request is then admitted on its own turn. The
         // claim measured here is the rate: past the burst, the meter admits at most the turns the
         // elapsed time could have refilled, and the first denial books a turn ahead of now.
         // A database whose every round trip outlasts an interval refills a turn per request and never

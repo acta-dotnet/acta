@@ -187,7 +187,7 @@ public static class AtMostOnceChargeJob
     // admitted. So the assertion is "never more than one", not "exactly one".
     //
     // Ending Failed is by design here, not a defect: a body interrupted before its outcome committed
-    // terminalizes as ambiguous and throws StepInterruptedException, because for a charge, an honest
+    // terminalizes as ambiguous and throws StepInterruptedException, because for a charge, an admitted
     // "this may have happened once" beats a confident retry. certify.sql exempts this shape from the
     // expected-outcome check for that reason and names it there.
     [Job("at-most-once-charge", MaxAttempts = 3, Backoff = "2s..4s")]

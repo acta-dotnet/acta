@@ -257,7 +257,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // read off the call the loop made rather than inferred from how long this test took, which a
         // loaded runner can stretch without the clamp being wrong. That same load can leave nothing to
         // read: the budget also pays for the status round-trips, so a slow one exhausts it and the call
-        // times out honestly before issuing a single wait. So the call is repeated until an attempt
+        // times out before issuing a single wait. So the call is repeated until an attempt
         // does issue one, and every assertion below reads that attempt's own values.
         IReadOnlyList<TimeSpan> requestedWaits = [];
         var elapsed = TimeSpan.Zero;

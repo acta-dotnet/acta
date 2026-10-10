@@ -79,7 +79,7 @@ test('enqueueInputFields: text sends text only, verbatim', () => {
   assert.deepEqual(enqueueInputFields(true, { format: 'text', json: {}, text: 'order-42' }), { fields: { text: 'order-42' } });
 });
 
-test('enqueueInputFields: a literal null json is blocked with an honest message', () => {
+test('enqueueInputFields: a literal null json is blocked with a clear message', () => {
   const result = enqueueInputFields(true, { format: 'json', json: null, text: '' });
   assert.ok('error' in result && result.error.length > 0);
 });

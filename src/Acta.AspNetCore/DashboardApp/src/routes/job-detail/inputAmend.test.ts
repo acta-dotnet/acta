@@ -19,7 +19,7 @@ test('amendBody json format returns the parse error and no body', () => {
   assert.ok('error' in result && result.error.length > 0);
 });
 
-test('amendBody json format blocks a literal null with an honest message and no body', () => {
+test('amendBody json format blocks a literal null with a clear message and no body', () => {
   const result = amendBody('null', 'json');
   assert.ok('error' in result && result.error.length > 0);
 });

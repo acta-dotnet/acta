@@ -1,8 +1,6 @@
 # Choosing Acta
 
-Most .NET teams start by asking the same question:
-
-> How should we run periodic, delayed, or scheduled jobs?
+Use this page to decide whether Acta should run your application's periodic, delayed, and scheduled jobs.
 
 The hard part is not finding a timer, cron parser, or scheduler. .NET teams already have many
 options: `BackgroundService`, `PeriodicTimer`, Hangfire, Quartz, TickerQ, MassTransit scheduling,

@@ -313,7 +313,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
 
     // Moves the row's scheduled instant without touching anything else, which is how these facts travel
     // in time: the delivery read compares retry_after_utc against the database's own clock, so rewinding
-    // the column is the honest way to say "the moment arrived" and parking it forward says "not yet".
+    // the column is the accurate way to say "the moment arrived" and parking it forward says "not yet".
     private async Task ScheduleAsync(long alertId, DateTime whenUtc, CancellationToken ct) =>
         Assert.Equal(
             1,

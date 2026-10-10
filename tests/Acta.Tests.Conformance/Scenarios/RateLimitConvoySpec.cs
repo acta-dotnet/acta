@@ -81,7 +81,7 @@ public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture
 
         // Judged at the release instant, the meter admits its burst and books the rest a turn. The calls
         // execute serially after the release, so every interval the drain lasts brings one more turn due;
-        // a slow runner drains slower and earns those turns honestly. The stale reading also admits
+        // a slow runner drains slower and earns those turns fairly. The stale reading also admits
         // every turn the hold itself spanned, about twenty-five more than this bound.
         var turnsDuringDrain = (int)Math.Ceiling(drained.TotalMilliseconds / IntervalMilliseconds);
         var admitted = results.Count(r => r.Admitted);

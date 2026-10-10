@@ -1295,7 +1295,7 @@ Generate also gained a projection horizon: it reads only events older than twice
 transaction, so a lower id could commit *after* the cursor had already passed a higher one — under
 fan-out load that event was skipped forever, silently. The horizon closes the window with the
 writing statement's own timeout as the bound: nothing can stay uncommitted longer than that, so
-everything behind the horizon is settled before the cursor walks it. The cost is honest and small:
+everything behind the horizon is settled before the cursor walks it. The cost is small:
 worst-case failure-to-alert-row latency roughly doubles, to about two minutes on defaults, scaling
 with `CommandTimeout`. Found by this release's adversarial review pass.
 
@@ -1410,7 +1410,7 @@ review wave, and again after the namespace-id widening that wave forced — and 
   78 worker starts.
 - **`seal-20260822T115015Z.md` — the 3-participant / 2-namespace ensemble**: PASS, with
   non-vacuous at-most-once evidence: **43 of 400 charges killed mid-body, none ever run twice**,
-  each terminalized as honestly ambiguous rather than confidently re-charged.
+  each terminalized as ambiguous rather than charged again.
   `namespace-isolation` held at zero rows with a second namespace live and being killed beside
   the first — and the pre-fix control run even showed the burn as seven visible holes in the
   namespace id space, the only shape where it left gaps rather than a runaway sequence.

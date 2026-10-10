@@ -47,7 +47,7 @@ export function cloneInputState(payload: JobPayloadView | null | undefined): Enq
 
 // The enqueue input fields for the active format: `input` (json) or `text`, or nothing when input is
 // disabled. Absent fields stay absent so the POST omits them. A literal null json is blocked with an
-// honest message (mirroring amendBody): the backend reads null as "no field", so submitting it would
+// clear message (mirroring amendBody): the backend reads null as "no field", so submitting it would
 // silently enqueue a no-input job.
 export function enqueueInputFields(
   include: boolean,

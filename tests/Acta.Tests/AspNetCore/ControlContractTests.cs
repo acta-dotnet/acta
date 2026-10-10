@@ -816,7 +816,7 @@ public sealed class ControlContractTests
         // the round trip above: a handler that stopped writing one leaves the name out of the body,
         // and then deserialization supplies a default for it and reserialization writes the name back,
         // so the comparison above sees a body that is missing nothing. The committed document says
-        // what is required, and OpenApiContractTests is what keeps that document honest.
+        // what is required, and OpenApiContractTests is what keeps that document accurate.
         var absent = RequiredMembers(row.Declared).Where(member => !sent.ContainsKey(member)).ToList();
         if (absent.Count > 0)
         {

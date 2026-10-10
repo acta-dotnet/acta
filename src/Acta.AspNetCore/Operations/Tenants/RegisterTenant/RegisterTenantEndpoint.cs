@@ -71,7 +71,7 @@ internal static class RegisterTenantEndpoint
                 }
             )
             // RegisterAsync is insert-or-get, and it succeeds either way without saying which, so this
-            // cannot honestly claim 201. An idempotent upsert answering 200 with the canonical key is
+            // cannot claim 201. An idempotent upsert answering 200 with the canonical key is
             // the accurate shape.
             .WithSummary("Register a tenant, or return the existing one.")
             // The body is read manually rather than bound, so the document only learns its shape here.

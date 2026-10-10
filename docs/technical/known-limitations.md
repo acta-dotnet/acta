@@ -145,7 +145,7 @@ is next claimed, so a job already suspended under the old unbounded code needs o
 reschedule before the new bound takes effect.
 
 Reclaiming a worker that died while a resolved timeout was being acted on re-arms the job on its
-unchanged deadline without charging retry budget, so the replay lands the honest timed-out outcome
+unchanged deadline without charging retry budget, so the replay lands the timed-out outcome
 with the budget the feature promised untouched. The match is deliberately wide: any lease death
 while the job's cached wake instant still points at the expired slot — which is the whole
 resolving attempt, including work a `Try` handler does after the wait returned — re-arms uncharged

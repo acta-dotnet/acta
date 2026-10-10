@@ -33,7 +33,7 @@ public sealed class RecurringResultCapTests
         CatalogRegistrar.ValidateRecurringResultCaps([Descriptor("one-shot", scheduled: false, cap: 0)]);
 
     // The validator reads the name, the schedules and the cap; every other field is defaulted because it
-    // never reaches them, and building a real record keeps the fact honest about what a descriptor is.
+    // never reaches them, and building a real record keeps the fact true to what a descriptor is.
     private static JobDescriptor Descriptor(string jobName, bool scheduled, int cap) =>
         new(
             jobName,

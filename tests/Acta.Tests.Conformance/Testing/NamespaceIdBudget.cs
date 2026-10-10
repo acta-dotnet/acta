@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// solution often enough to spend two billion ids is not a thing that happens. What can still spend
 /// them is a defect - an allocator advanced by work that creates no namespace (the shape
 /// <c>StartWorkerIdAllocationSpec</c> pins), or a fixture registering namespaces in a loop. So the
-/// guard is kept, and it is kept as a runaway detector: if it ever fires, the honest first reading is
+/// guard is kept, and it is kept as a runaway detector: if it ever fires, the first reading should be
 /// that something is allocating ids far faster than the suite creates namespaces, and the number in
 /// the message is the evidence for that rather than a chore reminder.
 /// </para>

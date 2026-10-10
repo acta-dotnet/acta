@@ -103,7 +103,7 @@ public static class ShippingHandlers
 ## Steps
 
 `await ctx.RunStepAsync("name", ct => ...)` is a named run-once slot. On re-entry a completed step
-returns its recorded result instead of running the body. Two honest halves of that promise:
+returns its recorded result instead of running the body. That promise has two conditions:
 
 - The outcome is durable only after it is recorded. A crash after the side effect ran but before
   the outcome landed re-runs the body on replay — the body must be idempotent, usually via a

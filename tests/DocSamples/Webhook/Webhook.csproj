@@ -8,7 +8,7 @@
     <ActaPackageVersion Condition="'$(ActaPackageVersion)' == ''">*-*</ActaPackageVersion>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The smallest honest set: the webhook handler needs [Job], JobContext, and the generator,
+    <!-- The smallest complete set: the webhook handler needs [Job], JobContext, and the generator,
          all of which ride the Acta package. No provider, no host. HttpClient is the BCL's, so the
          sample's only undeclared dependency is one a newcomer already has. -->
     <PackageReference Include="Acta" Version="$(ActaPackageVersion)" />

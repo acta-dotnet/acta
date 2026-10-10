@@ -234,7 +234,7 @@ public sealed partial class CommentStyleTests
     public void Allowlists_reference_only_existing_files()
     {
         // Stale-entry detection: every allowlisted path must resolve to a file under the scanned roots. A rename, move, or delete leaves a dead entry that silently
-        // exempts nothing; flagging it keeps the ratchet honest. Existence is the reliable signal - a
+        // exempts nothing; flagging it keeps the ratchet accurate. Existence is the reliable signal - a
         // "does the file still trip the check" test would false-positive on the scanners' parsing limits
         // (e.g. a multi-line attribute between the doc block and an internal type declaration).
         var repoRoot = ResolveRepoRoot();

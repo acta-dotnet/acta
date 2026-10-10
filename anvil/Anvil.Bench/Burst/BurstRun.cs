@@ -482,7 +482,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
     }
 
     // Over every invocation the run made, not just the drain's: the cap is a per-invocation property, so
-    // the honest reading is the worst one anywhere in the run, and the line names which one that was.
+    // the reading that counts is the worst one anywhere in the run, and the line names which one that was.
     private void AssertDeliveryCap()
     {
         if (_invocations.Count == 0)

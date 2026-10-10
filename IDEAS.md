@@ -330,7 +330,7 @@ million.
 
 The first version should be very clear about what it measures. Handler execution time, time waiting
 to be claimed, and total time from enqueue to completion answer different questions and should not be
-mixed into one number. Execution time is the simplest honest starting point because `duration_ms` is
+mixed into one number. Execution time is the simplest sound starting point because `duration_ms` is
 already the canonical per-attempt measurement. Successes and failures should be filterable and shown
 separately, since a job that fails quickly can otherwise make a definition look deceptively fast.
 Retries count as separate attempts; recurring jobs naturally contribute one measurement for each
@@ -361,7 +361,7 @@ would choose and configure the OpenTelemetry exporter.
 
 A delay or signal wait might last for days, so it should not create one enormous open span. Each
 execution attempt should be represented separately, with links back to the enqueue, the parent job,
-and any earlier attempt. That would give operators an honest trace while still showing the complete
+and any earlier attempt. That would give operators an accurate trace while still showing the complete
 relationship between the pieces of work. A live flow diagram could then link directly to the relevant
 external traces.
 
