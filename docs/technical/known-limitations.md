@@ -62,17 +62,20 @@ part way leaves the row `Executing` under a lease the worker's heartbeat keeps r
 recovery cannot reclaim while the heartbeat reaches the database. A database outage longer than the
 lease lets every lease lapse, and recovery then reclaims the row and re-runs it, finished or not. A defect in the completion path therefore loops instead of surfacing
 once, so it is logged at `Warning` for the first three tries and at `Error` after, always naming the
-job id, and `acta.completions.unsettled` counts the writes in that state. The start write on the
-hand-back path is repeated the same way and for the same reason: a claim this deployment cannot run
-has already stamped its lease and its in-flight status.
+job id, and `acta.completions.unsettled` counts the writes in that state. A Buffered worker's start
+write is repeated the same way, until it lands or the claim's own lease deadline ends it.
 
-The attempt holds its executor slot for as long as it repeats. That is deliberate backpressure, not
-a free ride: a completion that keeps failing reduces the worker's execution capacity, and enough of
-them occupy every slot and stop the worker claiming work whose own completion might have succeeded.
-Acta keeps the finalization it owes rather than abandoning it to run more handlers whose completions
-would be abandoned in turn. Repairing the underlying database failure lets the pending completions
-land without restarting the worker, as long as each attempt still owns its row. Recovery itself is
-unaffected, because the slot monitor runs the sweep outside the executor pool.
+The executor is freed as soon as its completion is built; the entry stays held, renewed by the
+heartbeat, until a finalizer loop lands the write. That is still deliberate backpressure, one
+channel later: the finalizer loops are as many as the executors, a write that keeps failing holds
+its loop, the channel between executors and finalizers fills, executors then block on it while they
+still hold their claim permits, and the claimer stops. A failing database stops intake instead of
+growing memory. Acta keeps the finalization it owes rather than abandoning it to run more handlers
+whose completions would be abandoned in turn. Repairing the underlying database failure lets the
+pending completions land without restarting the worker, as long as each entry still owns its row.
+Recovery itself is unaffected, because the slot monitor runs the sweep outside the executor pool;
+a Buffered worker whose executors are all held and whose buffer is not empty cannot claim the
+`sys.recovery` slot itself, so under saturation the monitor's seven-minute check is what sweeps.
 
 A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
 lapses, `sys.recovery` reclaims it, and the handler runs again. A graceful drain keeps repeating

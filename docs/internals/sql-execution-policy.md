@@ -5,7 +5,7 @@ everything else through embedded SQL and installed views; SQLite runs every muta
 inside a transaction the session owns.
 
 This is the execution policy referenced by [the design decisions](design.md). The server providers
-each install twenty-nine routines: enqueue, claim, start and complete, the step and slot writes, leases,
+each install thirty routines: enqueue, claim, start and complete (per job and in a batch), the step and slot writes, leases,
 recovery, retention, alert raise and settlement, outbox signals, and definition and schedule
 registration. Every other operation, control verbs included, is embedded SQL on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
@@ -214,8 +214,9 @@ the lock.
   sibling in that lane holds the lane and waits for the parent.
 - An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
   rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
-  invisible to every other transaction, so no settle can contend for it. Completion batches lock
-  their distinct lanes in id order before any runtime row.
+  invisible to every other transaction, so no settle can contend for it. The completion batch
+  (`CompleteExecutions`) takes no lane lock and no parent lock: it answers a laned or parented row
+  "per job" and never touches it, so only the per-job completion runs the lane hand-off.
 - The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
   no row, and the next pass inserts the lane again.
 - On SQL Server every lane lock is an `UPDLOCK` seek by `id` on the clustered key. A lookup by name
