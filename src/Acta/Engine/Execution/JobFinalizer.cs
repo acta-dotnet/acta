@@ -40,8 +40,8 @@ internal sealed class JobFinalizer(
     // keeps it at or above one second, so the delay never rounds to zero.
     private readonly int _handBackDelaySeconds = (int)Math.Ceiling(options.SafetyPollInterval.TotalSeconds);
 
-    /// <summary>The most completions one call writes: commit cost has sharp diminishing returns past about a hundred.</summary>
-    public const int MaxBatch = 100;
+    /// <summary>The most completions one call writes; commit cost flattens well before this.</summary>
+    public const int MaxBatch = 128;
 
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
