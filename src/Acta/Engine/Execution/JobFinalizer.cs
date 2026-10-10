@@ -48,10 +48,12 @@ internal sealed partial class JobFinalizer(
     public const int MaxBatchBytes = 4 * 1024 * 1024;
 
     /// <summary>
-    /// How long a batch below the cap waits for more before it is written. Zero writes whatever is waiting the moment
-    /// the finalizer is free, so a completion never waits on others.
+    /// How long a batch that found a backlog waits for more before it is written. Without the wait a batch holds only
+    /// what arrived during the previous write, a handful of rows at any rate; with it the cap fills at a few thousand
+    /// completions a second, which halves the commits per job. A lone completion never waits: the window opens only
+    /// when the first read already found more than one waiting.
     /// </summary>
-    public static readonly TimeSpan BatchWindow = TimeSpan.Zero;
+    public static readonly TimeSpan BatchWindow = TimeSpan.FromMilliseconds(50);
 
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
@@ -73,7 +75,7 @@ internal sealed partial class JobFinalizer(
                 {
                     if (!reader.TryRead(out var next))
                     {
-                        if (BatchWindow == TimeSpan.Zero || !await WaitForNextAsync(reader, window.Token))
+                        if (entries.Count == 1 || !await WaitForNextAsync(reader, window.Token))
                         {
                             break;
                         }
