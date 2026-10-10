@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Who runs next? Claiming in Acta · the durable work ledger for .NET</title>
+  <title>How Acta decides which job runs next · the durable work ledger for .NET</title>
   <meta name="description" content="How Acta decides which job runs next: lane heads and unlaned jobs enter the claim scan, blocked jobs wait outside it, and any peer worker can claim. Step through enqueue, claim, finish, retry, recovery, and the outbox." />
   <link rel="canonical" href="https://useacta.net/claiming" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="Who runs next? Claiming in Acta · the durable work ledger for .NET" />
+  <meta property="og:title" content="How Acta decides which job runs next · the durable work ledger for .NET" />
   <meta property="og:description" content="How Acta decides which job runs next: lane heads and unlaned jobs enter the claim scan, blocked jobs wait outside it, and any peer worker can claim. Step through enqueue, claim, finish, retry, recovery, and the outbox." />
   <meta property="og:url" content="https://useacta.net/claiming" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
@@ -51,7 +51,7 @@
   <main id="content">
     <header class="wrap page-head">
       <p class="record">Claiming</p>
-      <h1>Who runs next?</h1>
+      <h1>How Acta decides which job runs next.</h1>
       <p class="lede">Order within each lane, parallel work across lanes, and priority among the eligible jobs. The same order holds upstream: a job can be saved in the shop's own transaction, travel through the outbox relay, and reach the workers in the sequence it was staged.</p>
     </header>
 
@@ -93,7 +93,7 @@
           <details id="claiming-outbox-ordering"><summary>Outbox ordering</summary><p>The outbox is a table in your application’s database. Your transaction saves business data and job requests together. The relay claims those requests, commits jobs to the Acta ledger, then deletes the delivered source rows. Repeating a delivery uses the same deduplication key.</p><p>When source rows explicitly name a lane, a later row waits while an older Pending or Claimed row in that namespace and lane remains. A delivery retry holds that source line; quarantine releases it. Once delivered, the ledger lane independently controls execution order. Delivery does not wait for the handler to finish.</p><p>Sequentially staged rows preserve staging order. Concurrent producer transactions have no guaranteed order between them. A lane set only on the target job definition starts ordering at ledger admission, not in the source outbox.</p></details>
         </div>
       </figure>
-      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/gates">four gates</a><span class="sep">·</span><a href="/fleet">a fleet with no leader</a></p>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
     </section>
 
         <footer>

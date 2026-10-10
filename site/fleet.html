@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>A fleet with no leader · the durable work ledger for .NET</title>
+  <title>Add as many workers as you like; they share the work through your database · the durable work ledger for .NET</title>
   <meta name="description" content="Acta workers are peers that coordinate through rows: claims, leases, heartbeats, and a recovery pass any of them can run. Step through a claim, a heartbeat, a kill, recovery, a shared gate, and a rolling deploy." />
   <link rel="canonical" href="https://useacta.net/fleet" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="A fleet with no leader · the durable work ledger for .NET" />
+  <meta property="og:title" content="Add as many workers as you like; they share the work through your database · the durable work ledger for .NET" />
   <meta property="og:description" content="Acta workers are peers that coordinate through rows: claims, leases, heartbeats, and a recovery pass any of them can run. Step through a claim, a heartbeat, a kill, recovery, a shared gate, and a rolling deploy." />
   <meta property="og:url" content="https://useacta.net/fleet" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
@@ -51,7 +51,7 @@
   <main id="content">
     <header class="wrap page-head">
       <p class="record">Cluster-wide</p>
-      <h1>A fleet with no leader.</h1>
+      <h1>Add as many workers as you like. They share the work through your database.</h1>
       <p class="lede">Every worker is a peer: the same process loop, talking to the same rows. There is no control plane to run, no broker to stand up, and nothing to elect. Add a process and it starts claiming. Kill one and the others carry on, and the work it held comes back through a recovery pass any of them can run.</p>
     </header>
 
@@ -118,7 +118,7 @@
           <p>The rc.4 certification ran <em>24 worker processes of 64 executors each</em>, 1,536 concurrent slots on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em> and no recorded step ran twice, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
         </div>
       </div>
-      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">who runs next</a><span class="sep">·</span><a href="/gates">four gates</a></p>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a></p>
     </section>
 
         <footer>

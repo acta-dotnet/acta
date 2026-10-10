@@ -90,7 +90,7 @@
 
     <section class="wrap">
       <p class="record">The pipeline</p>
-      <h2>Claim, run, finalize, one channel apart.</h2>
+      <h2>The pipeline inside one worker.</h2>
       <figure class="eng-figure">
         <div class="eng-scroll">
           <svg viewBox="0 0 1280 470" role="img" aria-label="One worker: the claimer takes up to 32 rows per call against permits and hands them through the Claimed channel to N executors; each executor hands its completion through the Completed channel to one finalizer, which writes up to 128 plain completions in one call and the rest per job; the heartbeat renews the registry's held set in one call every 45 seconds; a full Completed channel blocks the executors, which hold their permits, which stops the claimer.">
@@ -186,7 +186,7 @@
 
     <section class="wrap">
       <p class="record">What each stage decides</p>
-      <h2>Five agents, one rule each.</h2>
+      <h2>What each stage decides.</h2>
       <dl class="ref">
         <div class="ref-row"><dt>Claimer</dt><dd>Takes the minimum permits (one on Direct, a whole batch of 32 on Buffered), then any more that are free up to 32, and claims that many rows in one call. Unused permits go back at once. An empty claim sleeps until the next row is due, at least 50 ms and at most 1 s, jittered up to 100 ms, and a wakeup ends the sleep early. A failed claim backs off a full second.</dd></div>
         <div class="ref-row"><dt>The recovery slot</dt><dd>When a claim returns the namespace's <code>sys.recovery</code> row, it runs on its own task without a permit, so a worker whose executors are all busy still sweeps. A slot monitor also checks it every seven minutes.</dd></div>
@@ -198,7 +198,7 @@
 
     <section class="wrap">
       <p class="record">The lease clock</p>
-      <h2>One setting, every deadline.</h2>
+      <h2>Every deadline comes from one setting: the heartbeat interval.</h2>
       <figure class="eng-figure">
         <div class="eng-scroll">
           <svg viewBox="0 0 1000 210" role="img" aria-label="Lease timeline from a claim: the heartbeat renews at 45, 90 and 135 seconds; if renewals stop, the attempt is cancelled at 112.5 seconds, the lease lapses at 180 seconds for recovery to reclaim, and a worker with no heartbeat at all is marked Dead at 315 seconds.">
@@ -231,7 +231,7 @@
 
     <section class="wrap">
       <p class="record">Every cap and threshold</p>
-      <h2>What bounds what.</h2>
+      <h2>Every cap and threshold, and what it bounds.</h2>
       <p class="lede">Values are the defaults. Only the heartbeat interval, the executor count, the claim batch size, the safety poll, and the execution profile are settable; everything else is a constant or derives from them.</p>
       <div class="eng-table">
         <table class="eng-caps">
@@ -266,13 +266,13 @@
 
     <section class="wrap">
       <p class="record">A row's status</p>
-      <h2>Two profiles, one registry.</h2>
+      <h2>A job's status on Direct and Buffered workers.</h2>
       <div class="facts">
         <div><b>Direct</b><p class="eng-path">Ready → Executing → Succeeded | Failed | Ready</p><p>The claim itself starts the execution, so there is no separate start write. A claim whose answer was lost is treated as a crash right after it.</p></div>
         <div><b>Buffered</b><p class="eng-path">Ready → Dispatched → Executing → done</p><p>The claim takes a batch ahead of the executors, and each executor starts its row. A row that runs out its lease before it starts goes back uncharged.</p></div>
         <div><b>In the registry</b><p class="eng-path">Claimed → Executing → Finalizing → removed</p><p>Reported by <code>acta.jobs.inflight</code>, tagged by state; batch sizes by <code>acta.completions.batch</code>.</p></div>
       </div>
-      <p class="also">Also: <a href="/claiming">who runs next</a><span class="sep">·</span><a href="/gates">four gates</a><span class="sep">·</span><a href="/fleet">a fleet with no leader</a></p>
+      <p class="also">Also: <a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
     </section>
 
     <footer>

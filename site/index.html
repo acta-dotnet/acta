@@ -259,9 +259,9 @@
           <a href="#how-it-runs"><span><span class="t">How a worker runs a job</span><span class="s">Claim, run, finalize: a job is done only when its completion commits, up to 128 per commit.</span></span></a>
           <a href="#recovery"><span><span class="t">Retries &amp; recovery, built in</span><span class="s">Typed backoff; a dead worker's lease lapses and its jobs are reclaimed, leaderless.</span></span></a>
           <a href="#primitives"><span><span class="t">Steps, sleeps &amp; signals</span><span class="s">Recorded step outcomes; wait hours or days without holding a worker thread.</span></span></a>
-          <a href="#who-runs-next"><span><span class="t">Who runs next</span><span class="s">Lane heads and unlaned jobs enter the claim scan; blocked jobs wait outside it, and any peer can claim.</span></span></a>
-          <a href="#admission"><span><span class="t">Order, exclusion &amp; pacing</span><span class="s">Lanes for strict order, concurrency keys and limits for how many at once, rate limits for how often.</span></span></a>
-          <a href="#fleet"><span><span class="t">A fleet with no leader</span><span class="s">Peer workers coordinate through rows: claims, leases, heartbeats, and recovery that any of them can run.</span></span></a>
+          <a href="#who-runs-next"><span><span class="t">Which job runs next</span><span class="s">Lane heads and unlaned jobs enter the claim scan; blocked jobs wait outside it, and any peer can claim.</span></span></a>
+          <a href="#admission"><span><span class="t">Order, limits &amp; pacing</span><span class="s">Lanes for strict order, concurrency keys and limits for how many at once, rate limits for how often.</span></span></a>
+          <a href="#fleet"><span><span class="t">Many workers, no coordinator</span><span class="s">Peer workers coordinate through rows: claims, leases, heartbeats, and recovery that any of them can run.</span></span></a>
           <a href="#lineage"><span><span class="t">Fan-out &amp; lineage</span><span class="s">Child jobs with traceable parents; results you can fetch.</span></span></a>
           <a href="#dashboard"><span><span class="t">State you can SELECT</span><span class="s">Every job, attempt, and lease is a row, with a dashboard and CLI included.</span></span></a>
           <a href="#data-model"><span><span class="t">A data model built to be read</span><span class="s">Hot runtime state split from job identity, an append-only event ledger, every column documented.</span></span></a>
@@ -277,7 +277,7 @@
 
     <section class="wrap" id="code">
       <p class="record">The code</p>
-      <h2>A durable job in a dozen lines.</h2>
+      <h2>A job that survives crashes, in a dozen lines of C#.</h2>
       <p class="lede">The <code>[Job]</code> name is the durable, operator-facing contract; enqueue is typed, dispatch is source-generated. And the state it creates isn't hidden in a broker or a SaaS console: it's rows you <code>SELECT</code>.</p>
       <div class="pair">
         <div class="panel">
@@ -379,14 +379,14 @@
 
     <section class="wrap" id="who-runs-next">
       <p class="record">Claiming</p>
-      <h2>Who runs next?</h2>
+      <h2>How Acta decides which job runs next.</h2>
       <p class="lede">Order within each lane, parallel work across lanes, and priority among the eligible jobs. The same order holds upstream: a job can be saved in the shop's own transaction, travel through the outbox relay, and reach the workers in the sequence it was staged.</p>
       <div class="actions"><a class="button" href="/claiming">Step through it: two lanes, two workers, one claim scan</a></div>
     </section>
 
     <section class="wrap" id="admission">
-      <p class="record">Order, exclusion &amp; pacing</p>
-      <h2>Four gates. One axis each.</h2>
+      <p class="record">Order, limits &amp; pacing</p>
+      <h2>Choose which jobs run in order, how many run at once, and how often they start.</h2>
       <p class="lede">A lane decides <b>order</b>. A concurrency key or limit decides <b>how many run at once</b>. A rate limit decides <b>how often they start</b>. The gates are independent, so a job passes every one it carries, and a job that carries none is never slowed by them.</p>
       <div class="admission-axes">
         <div><i>Order</i><b>Lane</b><p>One job of the lane at a time, in enqueue order, like an SQS FIFO message group. The lane holds through retries.</p><code>o => o.Lane("customer-42")</code></div>
@@ -399,7 +399,7 @@
 
     <section class="wrap" id="fleet">
       <p class="record">Cluster-wide</p>
-      <h2>A fleet with no leader.</h2>
+      <h2>Add as many workers as you like. They share the work through your database.</h2>
       <p class="lede">Every worker is a peer: the same process loop, talking to the same rows. There is no control plane to run, no broker to stand up, and nothing to elect. Add a process and it starts claiming. Kill one and the others carry on, and the work it held comes back through a recovery pass any of them can run.</p>
       <div class="hiw" aria-label="The worker loop">
         <b>register</b><i>heartbeat</i><b>claim due rows</b><i>lease</i><b>run handlers</b><i>renew</i><b>settle</b><i>repeat</i><b>the same ledger</b>
@@ -409,7 +409,7 @@
 
     <section class="wrap" id="install">
       <p class="record">Install</p>
-      <h2>One provider package. Nothing new to run.</h2>
+      <h2>Install one package for your database. Nothing else to run.</h2>
       <p class="lede">The provider package carries the runtime, the source generator, the analyzers, and the operator CLI. No broker to stand up, no sidecar, no service to operate. The embedded dashboard is one more package, <code>Acta.AspNetCore</code>, when you want it. Acta is still in release candidates, so the commands carry <code>--prerelease</code>.</p>
       <div class="install">
         <div class="install-row primary">
@@ -435,7 +435,7 @@
       <p class="record">What you can build</p>
       <div class="example-head">
         <div>
-          <h2>Work that outlives the process running it.</h2>
+          <h2>Long-running work that survives crashes and deploys.</h2>
           <p class="example-subtitle">Different domains, one shape</p>
           <p class="lede">Acta has no domain types and never will: no <code>Agent</code>, no <code>Pipeline</code>, no <code>Workflow</code>. It does not care whether a step calls a model, a payment rail, FFmpeg, or a machine. What these have in common is work measured in minutes or days, expensive to repeat, and unacceptable to lose.</p>
         </div>
@@ -484,7 +484,7 @@
       <p class="record">Engineering labs</p>
       <div class="example-head">
         <div>
-          <h2>The decisions behind it, each one runnable.</h2>
+          <h2>Every design decision, as a project you can run.</h2>
           <p class="example-subtitle">Nine questions, answered in rows</p>
           <p class="lede">An Engineering Lab is a small project in the repository whose README carries the whole loop: the question, the alternatives, what the design costs, the exact rows that prove the behavior, and what happens when a worker dies at the worst moment. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The field guide</a> sequences them into a 45-minute tour.</p>
         </div>
@@ -545,7 +545,7 @@
 
     <section class="wrap" id="compare">
       <p class="record">How it compares</p>
-      <h2>You know these tools. Here is the difference.</h2>
+      <h2>How Acta compares with Hangfire, Quartz.NET, TickerQ, MassTransit, and Temporal.</h2>
       <p class="lede">This table is the short version. The full fit guide covers when to keep exactly what you have. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a></p>
       <div class="vs">
         <div class="vs-row">
@@ -577,7 +577,7 @@
 
     <section class="wrap center" id="dashboard">
       <p class="record centered">The dashboard</p>
-      <h2>See exactly what your jobs are doing.</h2>
+      <h2>A built-in dashboard shows what every job is doing.</h2>
       <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default (browse to it as localhost or 127.0.0.1), with mutating verbs off until you enable them; removing the local-only guard without configuring authorization does not degrade, it refuses to start.</p>
       <figure class="shot">
         <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
@@ -592,7 +592,7 @@
 
     <section class="wrap" id="boundaries">
       <p class="record">Numbers &amp; boundaries</p>
-      <h2>Measured, not promised.</h2>
+      <h2>Benchmarks, tests, and what Acta does not do.</h2>
       <div class="bench-line">
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc5-engine-drain-20261010.md" style="text-decoration:none">23,349</a></b><span>jobs/s drain · Postgres · Direct · 16 workers, completions group-committed, every job durable</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">179,639</a></b><span>jobs/s batch enqueue · Postgres · 200k-job fleet insert</span></div>
@@ -628,7 +628,7 @@
 
     <section class="wrap" id="inventory">
       <p class="record">Capabilities · quick reference</p>
-      <h2>The core inventory, in five columns.</h2>
+      <h2>Everything Acta includes, at a glance.</h2>
       <p class="lede">The one-line version of everything Acta does. Each item is expanded, with the API that does it, in <a href="#reference">the full reference</a> below.</p>
       <div class="fgrid">
         <div class="fcol">
@@ -693,7 +693,7 @@
     <section class="wrap" id="reference">
       <a id="capabilities"></a>
       <p class="record">Capabilities · in full</p>
-      <h2>Every capability, in plain terms.</h2>
+      <h2>Every capability: what it does and the API behind it.</h2>
       <p class="lede">The quick reference above, expanded: what each piece does, how it behaves when things fail, and the API that does it.</p>
 
       <div class="ref">
@@ -780,7 +780,7 @@
 
     <section class="wrap" id="run">
       <p class="record">Run it</p>
-      <h2>Acta est. Now run it yourself.</h2>
+      <h2>Run your first durable job in five minutes.</h2>
       <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
       <div class="term">
         <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
