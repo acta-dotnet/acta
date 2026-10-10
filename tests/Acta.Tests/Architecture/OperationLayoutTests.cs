@@ -10,8 +10,9 @@ namespace Acta.Tests.Architecture;
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>,
 /// <c>Schema/Views/</c>, and a provider's <c>Schema/Migrations/</c>, every view in all three dialects, and no stem twice
 /// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>
-/// outside <c>Engine/Wakeup/</c>. A route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What
-/// still differs is listed in the <c>layout</c> ratchet.
+/// outside <c>Engine/Wakeup/</c>, while only Operations files and registration name a handler or a <c>Shared/</c> type.
+/// A route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What still differs is listed in the
+/// <c>layout</c> ratchet.
 /// </summary>
 public sealed class OperationLayoutTests
 {
@@ -132,6 +133,52 @@ public sealed class OperationLayoutTests
             .ToList();
 
         Assert.True(violations.Count == 0, "Operations files that name an Engine type:\n" + string.Join("\n", violations));
+    }
+
+    /// <summary>
+    /// A group's handlers and <c>Shared/</c> types are its inside: code elsewhere calls the group's operations class, and only
+    /// registration wires a handler. <c>Abstractions/</c> and <c>Domain/</c> name no row either. Crefs count, as above.
+    /// </summary>
+    [Fact]
+    public void Only_operations_name_a_handler_or_a_shared_type()
+    {
+        var files = ShippedCode.SourceFiles("*.cs").ToList();
+        var operations = files.Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal)).ToList();
+        var inside = operations
+            .Where(file =>
+                file.Relative.EndsWith("Handler.cs", StringComparison.Ordinal)
+                || file.Relative.Contains("/Shared/", StringComparison.Ordinal)
+            )
+            .SelectMany(file => DeclaredTypes(file.Path))
+            .ToHashSet();
+        var rows = operations
+            .Where(file => file.Relative.EndsWith("Row.cs", StringComparison.Ordinal))
+            .SelectMany(file => DeclaredTypes(file.Path))
+            .ToHashSet();
+        Assert.NotEmpty(inside);
+        Assert.NotEmpty(rows);
+        var insideOrRow = inside.Union(rows).ToHashSet();
+
+        var violations = files
+            .Except(operations)
+            .Where(file => file.Relative != "src/Acta/ActaServiceCollectionExtensions.cs")
+            .SelectMany(file =>
+            {
+                var banned =
+                    file.Relative.StartsWith("src/Acta/Abstractions/", StringComparison.Ordinal)
+                    || file.Relative.StartsWith("src/Acta/Domain/", StringComparison.Ordinal)
+                        ? insideOrRow
+                        : inside;
+                return NamesUsed(file.Path).Where(banned.Contains).Distinct().Select(name => $"{file.Relative}: {name}");
+            })
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            violations.Count == 0,
+            "Call the group's operations class instead. Files that name a handler or a Shared/ type, or a row from Abstractions/ or Domain/:\n"
+                + string.Join("\n", violations)
+        );
     }
 
     private static IEnumerable<string> DeclaredTypes(string path)
