@@ -409,7 +409,8 @@ public class DbSessionRetryRegionTests
         public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema) =>
             throw new NotSupportedException();
 
-        public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request) => throw new NotSupportedException();
+        public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeConnection(FakeDialect dialect, List<string> log) : DbConnection

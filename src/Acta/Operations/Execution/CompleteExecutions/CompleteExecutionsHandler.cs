@@ -10,7 +10,7 @@ internal sealed class CompleteExecutionsHandler(IDbSession session, ISqlDialect 
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, command.WorkerId));
-                    dialect.BindCompleteExecutions(cmd, command);
+                    dialect.BindCompleteExecutions(cmd, command, session.Schema);
                 },
                 DbProjectionResolver.Resolve<CompleteExecutionsRow>(),
                 ct

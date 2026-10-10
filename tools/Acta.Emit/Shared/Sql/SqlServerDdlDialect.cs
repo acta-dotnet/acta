@@ -104,7 +104,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 )
         );
 
-    // TVP table types consumed by hot-path routines (enqueue / claim / schedule batches). Request-
+    // TVP table types consumed by hot-path routines (enqueue / completion / schedule batches). Request-
     // shape table types, not domain entities, so they are a dialect literal here rather than part of
     // the emitted entity schema. Postgres needs none (it binds typed arrays instead).
     // CREATE TYPE must be alone in its batch, so the TYPE_ID guard wraps each body in EXEC; the
@@ -146,6 +146,24 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 value   NVARCHAR(128) NULL,
                 value_search NVARCHAR(128) NULL,
                 PRIMARY KEY (ordinal, name)
+            );');
+            GO
+
+            -- Per-completion batch: one row per plain terminal completion by one worker, whose id is a scalar.
+            -- Consumed by acta.complete_executions's @p_batch sproc parameter.
+            IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
+                ordinal           INT            NOT NULL PRIMARY KEY,
+                job_id            BIGINT         NOT NULL,
+                execution_number  INT            NOT NULL,
+                succeeded         BIT            NOT NULL,
+                result_format_id  TINYINT        NOT NULL,
+                result            VARBINARY(MAX) NULL,
+                reason_code       TINYINT        NULL,
+                reason_message    NVARCHAR(512)  NULL,
+                duration_ms       INT            NULL,
+                failure_count     INT            NULL,
+                retention_seconds INT            NULL
             );');
             GO
 

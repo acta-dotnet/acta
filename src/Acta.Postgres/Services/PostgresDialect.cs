@@ -487,7 +487,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, versions);
     }
 
-    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request)
+    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema)
     {
         var postgres = (NpgsqlCommand)command;
         var completions = request.Completions;

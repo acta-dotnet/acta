@@ -130,8 +130,8 @@ internal static class DbParams
     }
 
     /// <summary>
-    /// A batch's completions as JSON array text, each result as base64, for the dialects whose batch completion expands
-    /// them with OPENJSON or json_each.
+    /// A batch's completions as JSON array text, each result as base64, for SQLite's batch completion, which expands them
+    /// with json_each.
     /// </summary>
     public static string JsonCompletions(IReadOnlyList<CompleteExecutionsValues> completions)
     {

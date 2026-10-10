@@ -106,6 +106,6 @@ internal interface ISqlDialect
     /// <summary>Binds a recurring-completion command (scalars plus the schedule-advance batch) in the provider-native shape.</summary>
     void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema);
 
-    /// <summary>Binds a batch completion's rows in the provider-native shape (typed arrays or JSON array text).</summary>
-    void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request);
+    /// <summary>Binds a batch completion's rows in the provider-native shape (typed arrays, a table type, or JSON array text).</summary>
+    void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema);
 }

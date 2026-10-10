@@ -106,6 +106,50 @@ internal static class SqlServerTableParameters
         }
     }
 
+    internal static readonly SqlMetaData[] CompleteExecutionsColumns =
+    [
+        new("ordinal", SqlDbType.Int),
+        new("job_id", SqlDbType.BigInt),
+        new("execution_number", SqlDbType.Int),
+        new("succeeded", SqlDbType.Bit),
+        new("result_format_id", SqlDbType.TinyInt),
+        new("result", SqlDbType.VarBinary, -1),
+        new("reason_code", SqlDbType.TinyInt),
+        new("reason_message", SqlDbType.NVarChar, 512),
+        new("duration_ms", SqlDbType.Int),
+        new("failure_count", SqlDbType.Int),
+        new("retention_seconds", SqlDbType.Int),
+    ];
+
+    internal static IEnumerable<SqlDataRecord> BuildCompleteExecutionsRecords(IReadOnlyList<CompleteExecutionsValues> completions)
+    {
+        var record = new SqlDataRecord(CompleteExecutionsColumns);
+        for (var i = 0; i < completions.Count; i++)
+        {
+            var completion = completions[i];
+            record.SetInt32(0, i);
+            record.SetInt64(1, completion.JobId);
+            record.SetInt32(2, completion.ExecutionNumber);
+            record.SetBoolean(3, completion.Succeeded);
+            record.SetByte(4, completion.ResultFormatId);
+            // A result with a format and no bytes is still a result, bound zero-length: results.result is NOT NULL.
+            SetBytesOrNull(record, 5, completion.Result, completion.ResultFormatId != JobPayloadFormat.None.Id);
+            if (completion.EventReasonCode is { } reason)
+            {
+                record.SetByte(6, (byte)reason);
+            }
+            else
+            {
+                record.SetDBNull(6);
+            }
+            SetNullableString(record, 7, completion.ReasonMessage);
+            SetNullableInt32(record, 8, completion.DurationMs);
+            SetNullableInt32(record, 9, completion.FailureCount);
+            SetNullableInt32(record, 10, completion.RetentionSeconds);
+            yield return record;
+        }
+    }
+
     /// <summary>
     /// Column order must match the job_definition_batch TVP.
     /// </summary>
@@ -298,6 +342,7 @@ internal static class SqlServerTableParameters
     {
         ["job_enqueue_batch"] = BatchColumns,
         ["job_enqueue_tag_batch"] = TagColumns,
+        ["complete_executions_batch"] = CompleteExecutionsColumns,
         ["job_definition_batch"] = DefinitionColumns,
         ["job_schedule_slot_batch"] = SlotColumns,
         ["job_schedule_upsert_batch"] = ScheduleUpsertColumns,

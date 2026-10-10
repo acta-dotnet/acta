@@ -178,7 +178,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_locks", DbParams.JsonHeldLocks(locks));
     }
 
-    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request) =>
+    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) =>
         AddText(command, "@p_completions", DbParams.JsonCompletions(request.Completions));
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)

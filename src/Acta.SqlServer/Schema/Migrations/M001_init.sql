@@ -492,6 +492,24 @@ EXEC(N'CREATE TYPE {{schema}}.job_enqueue_tag_batch AS TABLE (
 );');
 GO
 
+-- Per-completion batch: one row per plain terminal completion by one worker, whose id is a scalar.
+-- Consumed by acta.complete_executions's @p_batch sproc parameter.
+IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
+    ordinal           INT            NOT NULL PRIMARY KEY,
+    job_id            BIGINT         NOT NULL,
+    execution_number  INT            NOT NULL,
+    succeeded         BIT            NOT NULL,
+    result_format_id  TINYINT        NOT NULL,
+    result            VARBINARY(MAX) NULL,
+    reason_code       TINYINT        NULL,
+    reason_message    NVARCHAR(512)  NULL,
+    duration_ms       INT            NULL,
+    failure_count     INT            NULL,
+    retention_seconds INT            NULL
+);');
+GO
+
 -- Per-definition registration batch: one row per [Job] descriptor under a single namespace.
 -- Consumed by acta.register_definitions's @p_definitions sproc parameter (one round trip per
 -- worker regardless of definition count). name is the per-namespace natural key.
@@ -574,7 +592,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-e54bb8ef2964873df46a813da387dfbb', '{{schema}}');
+VALUES (0, 'baseline-b6a833aff2b114adb15ad431b5f49cd1', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

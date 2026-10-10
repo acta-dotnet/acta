@@ -105,8 +105,14 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_locks", SqlDbType.NVarChar, DbParams.JsonHeldLocks(locks));
     }
 
-    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request) =>
-        AddScalar((SqlCommand)command, "@p_completions", SqlDbType.NVarChar, DbParams.JsonCompletions(request.Completions));
+    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) =>
+        AddParameter(
+            (SqlCommand)command,
+            "@p_batch",
+            SqlDbType.Structured,
+            SqlServerTableParameters.BuildCompleteExecutionsRecords(request.Completions),
+            typeName: $"{schema}.complete_executions_batch"
+        );
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
