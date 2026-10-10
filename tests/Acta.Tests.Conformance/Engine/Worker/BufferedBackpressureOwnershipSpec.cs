@@ -7,24 +7,23 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The heartbeat against a Buffered claim loop that is blocked on a full channel. A claimed batch is this worker's
-/// the moment the claim commits, but the loop hands the rows to the channel one at a time and a write blocks while
-/// every executor is held. The heartbeat renews only what the process holds, so the rows behind the blocked write
-/// must already count as buffered, or their leases would lapse while they waited for their turn. A drain that lands
-/// while the write is blocked drops those same rows from the buffer, since no executor will ever take them, and
-/// their leases lapse to recovery.
+/// The Buffered profile against a held executor. The claimer claims only when a whole batch of permits is free, so
+/// with every executor held the rows it already claimed wait in the <c>Claimed</c> channel and the rest stay Ready.
+/// The heartbeat renews every row the process holds, so the waiting rows keep their leases, and a drain runs them
+/// rather than dropping them: their claim committed, and a dropped row would wait out its lease.
 /// </summary>
 [ConformanceSpec(
     "runtime.buffered-backpressure-ownership",
-    "Rows behind a full Buffered channel stay renewed until a drain drops them",
+    "A Buffered worker claims one batch ahead and a drain runs it",
     Area = "Runtime",
-    Contract = "A row claimed but not written to a full Buffered channel is renewed by the heartbeat, and a drain stops renewing it."
+    Contract = "A Buffered worker with every executor held claims at most one batch ahead, the heartbeat renews the rows waiting for an executor, and a drain runs them."
 )]
 public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Six claimable rows behind the holding job: the channel holds three, so the second batch's write
-    // blocks with rows behind it, and the sixth row stays Ready because the loop never gets to it.
+    // Six claimable rows behind the holding job: one batch takes the holding job and two of them, and with the
+    // only executor held no second batch fits, so four stay Ready.
     private const int WaitingJobs = 6;
+    private const int BatchSize = 3;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
@@ -33,7 +32,7 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         {
             o.ExecutionProfile = ExecutionProfile.Buffered;
             o.MaxConcurrentExecutors = 1;
-            o.ClaimBatchSize = 3;
+            o.ClaimBatchSize = BatchSize;
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
             // A long beat keeps the runtime's own heartbeat out of the window; the fact ticks it by hand.
             o.HeartbeatInterval = TimeSpan.FromSeconds(30);
@@ -42,8 +41,8 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         });
     }
 
-    [Fact(DisplayName = "A heartbeat against a claim loop blocked on a full channel renews every row it holds")]
-    public async Task Rows_behind_a_blocked_channel_write_are_renewed()
+    [Fact(DisplayName = "A heartbeat renews the rows claimed ahead of a held executor, and no second batch is claimed")]
+    public async Task Rows_claimed_ahead_are_renewed_and_no_second_batch_is_claimed()
     {
         var ct = TestContext.Current.CancellationToken;
         var (blocking, waiting) = await EnqueueAsync(ct);
@@ -53,18 +52,8 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         {
             await WaitUntilBlockedAsync(blocking, waiting, ct);
 
-            var (renewed, unrenewed) = (0, 0);
-            var allRenewed = await WaitUntilAsync(
-                async () =>
-                {
-                    (renewed, unrenewed) = await BeatAsync(waiting, ct);
-                    return unrenewed == 0;
-                },
-                SpecWaits.Converge,
-                ct
-            );
-            Assert.True(allRenewed, $"{unrenewed} rows waiting behind the full channel were not renewed");
-            Assert.Equal(WaitingJobs - 1, renewed);
+            await AssertAllRenewedAsync(waiting, ct);
+            Assert.Equal(WaitingJobs - BatchSize + 1, await CountAsync(waiting, JobStatusCode.Ready, ct));
             Assert.Equal(1, ChaosProbes.CountingInvocations[blocking.JobId]);
         }
         finally
@@ -73,8 +62,8 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         }
     }
 
-    [Fact(DisplayName = "A drain that lands on a blocked channel write stops renewing the rows it never wrote")]
-    public async Task A_drain_stops_renewing_the_rows_behind_a_blocked_write()
+    [Fact(DisplayName = "A drain keeps renewing the rows claimed ahead and runs them once the executor frees")]
+    public async Task A_drain_runs_the_rows_claimed_ahead()
     {
         var ct = TestContext.Current.CancellationToken;
         var (blocking, waiting) = await EnqueueAsync(ct);
@@ -84,25 +73,15 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         {
             await WaitUntilBlockedAsync(blocking, waiting, ct);
 
-            // The drain stops the producer mid-batch: the rows it had claimed and not written leave the buffer,
-            // while the channel's rows stay held for the executor the drain lets finish.
             await Runtime.BeginDrainAsync(ct);
-            var (renewed, unrenewed) = (0, 0);
-            var dropped = await WaitUntilAsync(
-                async () =>
-                {
-                    (renewed, unrenewed) = await BeatAsync(waiting, ct);
-                    return unrenewed > 0;
-                },
-                SpecWaits.Converge,
-                ct
-            );
-            Assert.True(dropped, "the drain left the rows behind the blocked write renewed by a worker that will not run them");
+            await AssertAllRenewedAsync(waiting, ct);
 
-            // How many rows the channel still holds depends on how far the executors got; the contract is that
-            // some rows lapse and the channel's rows keep their leases.
-            Assert.Equal(WaitingJobs - 1, renewed + unrenewed);
-            Assert.InRange(renewed, 1, WaitingJobs - 2);
+            ChaosProbes.Release(blocking.JobId);
+            await Runtime.DrainCompletion.WaitAsync(SpecWaits.Gate, ct);
+
+            Assert.Equal(BatchSize - 1, await CountAsync(waiting, JobStatusCode.Succeeded, ct));
+            Assert.Equal(WaitingJobs - BatchSize + 1, await CountAsync(waiting, JobStatusCode.Ready, ct));
+            Assert.Equal(0, Runtime.InFlightCount);
         }
         finally
         {
@@ -110,8 +89,8 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         }
     }
 
-    // Everything is enqueued before the worker starts so the loop claims full batches: the holding job
-    // first, then the rows that fill the channel and block the loop.
+    // Everything is enqueued before the worker starts so the claimer takes a full batch: the holding job
+    // first, then the rows that wait behind it.
     private async Task<(EnqueueJobResponse Blocking, List<long> Waiting)> EnqueueAsync(CancellationToken ct)
     {
         var blocking = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-holding", JobPayload.None), ct);
@@ -125,17 +104,33 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         return (blocking, waiting);
     }
 
-    // The loop is blocked once the executor is held and every row the two batches can take is
-    // Dispatched under the worker's lease: the channel's three plus the ones stuck behind the write.
+    // The claimer is blocked once the executor is held and the rest of the first batch is Dispatched under the
+    // worker's lease, waiting for it.
     private async Task WaitUntilBlockedAsync(EnqueueJobResponse blocking, List<long> waiting, CancellationToken ct)
     {
         await ChaosProbes.WaitStartedAsync(blocking.JobId, ct).WaitAsync(SpecWaits.Gate, ct);
         var claimed = await WaitUntilAsync(
-            async () => (await DispatchedLeasesAsync(waiting, ct)).Count >= WaitingJobs - 1,
+            async () => (await DispatchedLeasesAsync(waiting, ct)).Count >= BatchSize - 1,
             SpecWaits.Converge,
             ct
         );
-        Assert.True(claimed, "the claim loop did not fill the channel within the converge budget");
+        Assert.True(claimed, "the claimer did not claim its first batch within the converge budget");
+    }
+
+    private async Task AssertAllRenewedAsync(List<long> waiting, CancellationToken ct)
+    {
+        var (renewed, unrenewed) = (0, 0);
+        var allRenewed = await WaitUntilAsync(
+            async () =>
+            {
+                (renewed, unrenewed) = await BeatAsync(waiting, ct);
+                return unrenewed == 0;
+            },
+            SpecWaits.Converge,
+            ct
+        );
+        Assert.True(allRenewed, $"{unrenewed} rows waiting for the held executor were not renewed");
+        Assert.Equal(BatchSize - 1, renewed);
     }
 
     private static async Task EndRunAsync(EnqueueJobResponse blocking, CancellationTokenSource hostCts, Task run)
@@ -177,6 +172,20 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
         }
 
         return leases;
+    }
+
+    private async Task<int> CountAsync(List<long> jobIds, JobStatusCode status, CancellationToken ct)
+    {
+        var count = 0;
+        foreach (var jobId in jobIds)
+        {
+            if ((await Jobs.GetAsync(JobLookup.ById(jobId), ct))?.Status == status)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static async Task<bool> WaitUntilAsync(Func<Task<bool>> condition, TimeSpan budget, CancellationToken ct)

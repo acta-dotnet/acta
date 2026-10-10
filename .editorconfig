@@ -678,13 +678,6 @@ dotnet_diagnostic.CA1031.severity = none
 [src/Acta/Engine/Alerting/AlertDelivery.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA1031: per-tick catch on a long-lived background loop. A failed reload tick - a database outage, a
-# row a provider rejects - must cost one interval, not the loop: escaping would end policy reloads for
-# the process lifetime with no way to restart them, leaving every worker on stale definition policy.
-# Logged at error; shutdown leaves through the filtered cancellation arms.
-[src/Acta/Engine/Catalog/DefinitionPolicyReloader.cs]
-dotnet_diagnostic.CA1031.severity = none
-
 # CA1031: the executor's per-attempt boundary, where an arbitrary user handler's exception becomes a
 # Failed settlement with JobUnhandledException (or the non-retryable reason for NotImplemented /
 # NotSupported) for the completion write to land under the retry budget. Handlers can throw
@@ -702,22 +695,9 @@ dotnet_diagnostic.CA1031.severity = none
 
 # CA1001: the one disposable field is _tickGate, a SemaphoreSlim used purely as an async mutex around
 # TickAsync. A SemaphoreSlim only holds an OS wait handle once AvailableWaitHandle is read and nothing
-# in Acta reads it, so Dispose() would release nothing; the gate is entered by the lock-lease loop and
-# by WorkerRuntime.RunHeartbeatOnceAsync, so a disposed gate would turn a harmless late tick into
-# ObjectDisposedException. Created once per WorkerRuntime and alive as long as the process, so
-# deliberately not disposable. The per-extend linked source inside TickAsync is separately
-# 'using'-scoped.
-# CA1031: two catches on the lock-lease loop - the immediate first tick and each periodic tick. An
-# extend failure must cost one interval: escaping would end the loop, so every lock held by a running
-# attempt would stop being extended and would expire mid-flight while the attempt kept running.
-[src/Acta/Engine/Worker/LockLeaseHeartbeat.cs]
-dotnet_diagnostic.CA1001.severity = none
-dotnet_diagnostic.CA1031.severity = none
-
-# CA1001: the one disposable field is _tickGate, on the same reasoning as LockLeaseHeartbeat's - a
-# SemaphoreSlim whose Dispose() would release nothing, entered here by the heartbeat loop, by the host's
-# StampDrainingAsync during the drain, and by WorkerRuntime.RunHeartbeatOnceAsync, so disposing it would
-# turn a harmless late tick into ObjectDisposedException. Deliberately not disposable.
+# in Acta reads it, so Dispose() would release nothing. The gate is entered by the heartbeat loop, by the
+# host's StampDrainingAsync during the drain, and by WorkerRuntime.RunHeartbeatOnceAsync, so disposing it
+# would turn a harmless late tick into ObjectDisposedException. Deliberately not disposable.
 # CA1031: two catches on the heartbeat loop - the immediate first tick and each periodic tick. Escaping
 # would end the loop, so last_seen would stop advancing and lease recovery would reclaim this worker's
 # jobs while it was still running them. A failed tick must cost one interval and nothing more.
@@ -727,33 +707,13 @@ dotnet_diagnostic.CA1031.severity = none
 
 # CA1001: the one disposable field is _drainCts, and disposing it would reclaim nothing. It is a bare
 # CancellationTokenSource - no CancelAfter, so no Timer is ever armed, and nothing in Acta reads
-# Token.WaitHandle, so the lazily-created ManualResetEvent is never materialized. Its only registration
-# is the linked source WorkerLoop builds in RunLoopAsync, which that method scopes with 'using'. Against
+# Token.WaitHandle, so the lazily-created ManualResetEvent is never materialized. Its only registrations
+# are the linked sources JobClaimer and RecoverySlotMonitor build in RunAsync, each scoped with 'using'. Against
 # zero benefit, IDisposable costs real safety: the source must stay usable for the whole process because
 # BeginDrain arrives from the host's StopAsync, and the public constructor is a documented direct test
 # seam whose callers would all have to take on a lifecycle they do not otherwise need.
 [src/Acta/Engine/Worker/WorkerRuntime.cs]
 dotnet_diagnostic.CA1001.severity = none
-
-# CA1031: four catches, one per loop. The claim loop is the process's entire supply of work and must
-# survive a database outage - escaping would end claiming for the process lifetime and the worker would
-# idle silently until restarted - so it logs at error and backs off a full safety interval, because the
-# anti-spin floor is for deadline races, not error retry. The executor loop's per-job catch keeps one
-# bad job from tearing that executor down and silently shrinking concurrency until a restart. The
-# Direct-profile coordinator's claim-side catch must release the slots it acquired, or the permits taken
-# for the failed claim would never be returned and the batch would shrink permanently. RunOneAsync is
-# not awaited, so escaping there would only produce an unobserved Task exception, leaving no record of
-# why the job died. Shutdown leaves through the filtered cancellation arms.
-# CA2000: the 'slots' SemaphoreSlim is the coordinator's permit counter, shared with every
-# fire-and-forget RunOneAsync task, each of which Releases it in a finally. The loop's own finally
-# drains by re-acquiring all executorCount permits, so the coordinator resumes while the last Release is
-# still unwinding inside the semaphore; disposing there would race it, and Release starts with a
-# disposed check, so a clean drain could end in ObjectDisposedException in the claim/dispatch loop.
-# Disposal would also reclaim nothing: the only disposable state a SemaphoreSlim holds is the wait
-# handle behind AvailableWaitHandle, which no code in Acta reads. Left to the GC on purpose.
-[src/Acta/Engine/Worker/WorkerLoop.cs]
-dotnet_diagnostic.CA1031.severity = none
-dotnet_diagnostic.CA2000.severity = none
 
 # CA1031: shutdown must run to completion. A worker loop that faulted during drain is surfaced by
 # base.StopAsync; escaping here would abandon the remaining shutdown steps of every other runtime.

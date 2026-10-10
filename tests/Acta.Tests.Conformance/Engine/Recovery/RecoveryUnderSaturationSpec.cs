@@ -7,17 +7,17 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Recovery;
 
 /// <summary>
-/// The recovery sweep on a worker whose executors are all held. The Buffered claim loop claims ahead
+/// The recovery sweep on a worker whose executors are all held. The Buffered claimer claims ahead
 /// of its executors into a channel, so the <c>sys.recovery</c> slot could be claimed into that buffer
 /// behind jobs no executor will take, under a lease the heartbeat renews, and nothing would sweep
-/// until an executor came free. The loop runs the slot on its own task instead, so the one job that
-/// reclaims what the executors hold never waits behind them.
+/// until an executor came free. The claimer runs the slot on its own task without a permit instead, so
+/// the one job that reclaims what the executors hold never waits behind them.
 /// </summary>
 [ConformanceSpec(
     "runtime.recovery-under-saturation",
     "A Buffered worker with every executor held still runs the recovery sweep",
     Area = "Recovery",
-    Contract = "A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held."
+    Contract = "A recovery slot claimed by the Buffered claimer runs outside the channel without a permit, so a stranded job is reclaimed while every executor is held."
 )]
 public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -32,8 +32,6 @@ public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<Conformanc
             o.ExecutionProfile = ExecutionProfile.Buffered;
             o.MaxConcurrentExecutors = 1;
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
-            // A long beat keeps the heartbeat's own orphan release out of the window, so the stranded job
-            // can only return to Ready through the sweep this fact is about.
             o.HeartbeatInterval = TimeSpan.FromSeconds(30);
             o.LeaseTtlSeconds = 120;
             o.WorkerDeadAfter = TimeSpan.FromSeconds(300);
@@ -54,9 +52,13 @@ public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<Conformanc
             // The only executor is now held for as long as this fact wants.
             await ChaosProbes.WaitStartedAsync(blocking.JobId, ct).WaitAsync(SpecWaits.Gate, ct);
 
-            // A job stranded the way a dead worker leaves one: in flight under a lease that lapsed. The
-            // slot is made due so the next claim can take it.
-            var stranded = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
+            // A job stranded the way a dead worker leaves one: in flight under a lease that lapsed. It is
+            // enqueued not due, since a claimed row would wait for the held executor and hold back every
+            // further Buffered claim. The slot is made due so the next claim can take it.
+            var stranded = await Jobs.EnqueueAsync(
+                new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None, DelaySeconds: 3600),
+                ct
+            );
             await StrandAsync(stranded.JobId, ct);
             var slotId = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "sys.recovery"), ct))?.JobId;
             Assert.NotNull(slotId);

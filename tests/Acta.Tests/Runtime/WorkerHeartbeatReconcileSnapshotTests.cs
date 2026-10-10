@@ -23,7 +23,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         var db = new GatedWorkerStore(liveJobIds: [1]);
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
-        var registry = new InFlightJobRegistry();
+        var registry = new InFlightJobRegistry(new JobsOptions());
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 

@@ -7,7 +7,7 @@ namespace Acta.Tests.Runtime;
 /// The wake contract, no DB: <see cref="AsyncWakeSignal"/> auto-reset + single-slot latch
 /// coalescing, <see cref="InProcessWakeup"/> channel fan-out (worker-namespace allocate-on-publish,
 /// job-completion waiter-managed lifetime, all-worker-namespaces enumeration),
-/// <see cref="WorkerLoop.ComputeSleep"/> deadline math (floor, jitter, hard safety cap), the
+/// <see cref="JobClaimer.ComputeSleep"/> deadline math (floor, jitter, hard safety cap), the
 /// <see cref="WorkerWakeupPublisher"/> never-breaks-the-caller guarantee, and the
 /// <see cref="WorkerWakeupChannel"/> reserved-name rules.
 /// </summary>
@@ -211,7 +211,7 @@ public sealed class WorkerWakeupTests
     [Fact]
     public void ComputeSleep_with_no_horizon_returns_the_safety_interval()
     {
-        Assert.Equal(Safety, WorkerLoop.ComputeSleep(null, Safety, Floor, Jitter));
+        Assert.Equal(Safety, JobClaimer.ComputeSleep(null, Safety, Floor, Jitter));
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class WorkerWakeupTests
     {
         var horizon = new ClaimHorizon(DbNow, NextReadyAtUtc: null);
 
-        Assert.Equal(Safety, WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter));
+        Assert.Equal(Safety, JobClaimer.ComputeSleep(horizon, Safety, Floor, Jitter));
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class WorkerWakeupTests
         // safety-interval sleep.
         var horizon = new ClaimHorizon(DbNow, DbNow.AddSeconds(-1));
 
-        Assert.Equal(Floor, WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter));
+        Assert.Equal(Floor, JobClaimer.ComputeSleep(horizon, Safety, Floor, Jitter));
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public sealed class WorkerWakeupTests
     {
         var horizon = new ClaimHorizon(DbNow, DbNow.AddMilliseconds(1));
 
-        var sleep = WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter);
+        var sleep = JobClaimer.ComputeSleep(horizon, Safety, Floor, Jitter);
 
         Assert.InRange(sleep, Floor, Floor + Jitter);
     }
@@ -248,7 +248,7 @@ public sealed class WorkerWakeupTests
         var untilDue = TimeSpan.FromSeconds(3);
         var horizon = new ClaimHorizon(DbNow, DbNow + untilDue);
 
-        var sleep = WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter);
+        var sleep = JobClaimer.ComputeSleep(horizon, Safety, Floor, Jitter);
 
         Assert.InRange(sleep, untilDue, untilDue + Jitter);
     }
@@ -259,7 +259,7 @@ public sealed class WorkerWakeupTests
         var untilDue = TimeSpan.FromSeconds(3);
         var horizon = new ClaimHorizon(DbNow, DbNow + untilDue);
 
-        Assert.Equal(untilDue, WorkerLoop.ComputeSleep(horizon, Safety, Floor, TimeSpan.Zero));
+        Assert.Equal(untilDue, JobClaimer.ComputeSleep(horizon, Safety, Floor, TimeSpan.Zero));
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public sealed class WorkerWakeupTests
 
         for (var i = 0; i < 50; i++)
         {
-            Assert.True(WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter) <= Safety);
+            Assert.True(JobClaimer.ComputeSleep(horizon, Safety, Floor, Jitter) <= Safety);
         }
     }
 
@@ -280,7 +280,7 @@ public sealed class WorkerWakeupTests
     {
         var horizon = new ClaimHorizon(DbNow, DbNow.AddHours(2));
 
-        Assert.Equal(Safety, WorkerLoop.ComputeSleep(horizon, Safety, Floor, Jitter));
+        Assert.Equal(Safety, JobClaimer.ComputeSleep(horizon, Safety, Floor, Jitter));
     }
 
     [Fact]

@@ -9,8 +9,8 @@ namespace Acta;
 /// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans a recurring slot
 /// fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope, then hands the
 /// start-admit-invoke-complete lifecycle to <see cref="JobExecution"/>, whose admission takes the concurrency-key
-/// slot after the start CAS and bounces a loser back to Ready. Claiming jobs and dispatching them to executors is the
-/// worker loop's job. A claim this deployment carries no handler for is returned to Ready instead of executed.
+/// slot after the start CAS and bounces a loser back to Ready. Its loops take what <see cref="JobClaimer"/> claimed.
+/// A claim this deployment carries no handler for is returned to Ready instead of executed.
 /// </summary>
 internal sealed class JobExecutor(
     Locks locks,
@@ -53,8 +53,8 @@ internal sealed class JobExecutor(
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
-    /// lifecycle (including the concurrency-key lock). The deterministic single-shot primitive: the
-    /// production loop drives it from N executor loops; tests drive it directly.
+    /// lifecycle (including the concurrency-key lock). The deterministic single-shot primitive, holding no
+    /// executor permit.
     /// </summary>
     public Task<RunOnceStatus> RunOnceAsync(string namespaceName, CancellationToken ct) =>
         RunOnceCoreAsync(namespaceName, explicitJobId: null, ct);
@@ -95,7 +95,42 @@ internal sealed class JobExecutor(
         // paused past it. The heartbeat still cancels the attempt once its row is gone.
         var entry = new InFlightJob(claim.Jobs[0], leaseRunway: null, ct);
         _registry.TryAdd(entry);
-        return await ExecuteClaimedJobAsync(entry, namespaceName, namespaceId, workerId, alreadyStarted: false, ct);
+        return await ExecuteClaimedJobAsync(entry, ct);
+    }
+
+    /// <summary>
+    /// One of the worker's executor loops: runs each entry the claimer hands over, one at a time, until the claimer
+    /// completes the channel and it is empty. A fault is logged per entry, so one bad job never ends the loop.
+    /// </summary>
+    public async Task RunLoopAsync(CancellationToken hostCt)
+    {
+        try
+        {
+            await foreach (var entry in _registry.Claimed.Reader.ReadAllAsync(hostCt))
+            {
+                try
+                {
+                    var outcome = await ExecuteClaimedJobAsync(entry, hostCt);
+                    if (outcome != RunOnceStatus.NothingClaimed)
+                    {
+                        _log.LogInformation(
+                            "WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})",
+                            _context.WorkerRegistration!.NamespaceName,
+                            entry.Claim.JobId,
+                            outcome.ToString()
+                        );
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
+                {
+                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", entry.Claim.JobId);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (hostCt.IsCancellationRequested)
+        {
+            // A hard stop: entries still in the channel lapse to recovery.
+        }
     }
 
     /// <summary>
@@ -104,18 +139,13 @@ internal sealed class JobExecutor(
     /// <see cref="ReleaseUnsupportedClaimAsync"/>), because claims are by namespace and a worker is
     /// therefore free to claim work it cannot run.
     /// </summary>
-    public async Task<RunOnceStatus> ExecuteClaimedJobAsync(
-        InFlightJob entry,
-        string namespaceName,
-        int namespaceId,
-        int workerId,
-        bool alreadyStarted,
-        CancellationToken ct
-    )
+    public async Task<RunOnceStatus> ExecuteClaimedJobAsync(InFlightJob entry, CancellationToken ct)
     {
         var job = entry.Claim;
         try
         {
+            var namespaceName = _context.WorkerRegistration!.NamespaceName;
+            var (namespaceId, workerId) = _context.ResolveWorker(namespaceName);
             // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
             // row is no longer this worker's to run.
             if (entry.AttemptToken.IsCancellationRequested)
@@ -126,7 +156,7 @@ internal sealed class JobExecutor(
             if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
             {
                 var firstBounce = _context.ExcludeDefinition(job.DefinitionId);
-                return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, alreadyStarted, firstBounce, ct);
+                return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, entry.Started, firstBounce, ct);
             }
 
             // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
@@ -167,7 +197,7 @@ internal sealed class JobExecutor(
                 await ReleaseClaimAsync(
                     job,
                     workerId,
-                    alreadyStarted,
+                    entry.Started,
                     $"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.",
                     ct
                 );
@@ -179,7 +209,7 @@ internal sealed class JobExecutor(
             // The handler resolves from this same scope, so the scoped accessor carries the set value.
             attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
 
-            return await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, workerId, setup.Fire, alreadyStarted, ct);
+            return await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, workerId, setup.Fire, entry.Started, ct);
         }
         finally
         {

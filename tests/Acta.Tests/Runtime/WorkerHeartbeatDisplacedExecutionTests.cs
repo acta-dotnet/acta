@@ -18,7 +18,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
-        var registry = new InFlightJobRegistry();
+        var registry = new InFlightJobRegistry(new JobsOptions());
         using var stale = Entry(7, executionNumber: 1, state: InFlightJobState.Executing);
         using var newer = Entry(7, executionNumber: 2);
         registry.TryAdd(stale);

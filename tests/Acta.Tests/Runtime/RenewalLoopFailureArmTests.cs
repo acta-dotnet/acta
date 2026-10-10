@@ -45,7 +45,7 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
-            new InFlightJobRegistry(),
+            new InFlightJobRegistry(new JobsOptions()),
             log
         );
 
@@ -67,7 +67,7 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
-            new InFlightJobRegistry(),
+            new InFlightJobRegistry(new JobsOptions()),
             log
         );
 
@@ -92,7 +92,7 @@ public sealed class RenewalLoopFailureArmTests
             LoopOptions(),
             Registration,
             context,
-            new InFlightJobRegistry(),
+            new InFlightJobRegistry(new JobsOptions()),
             log
         );
 
@@ -107,7 +107,7 @@ public sealed class RenewalLoopFailureArmTests
         // Nothing but the heartbeat moves a deadline and nothing watches it, so a loop whose every call fails must
         // neither end nor hold the attempt open: the deadline alone stops the handler before its lease can lapse.
         var context = HeartbeatContext();
-        var registry = new InFlightJobRegistry();
+        var registry = new InFlightJobRegistry(new JobsOptions());
         using var entry = WorkerHeartbeatLeaseRunwayTests.Entry(1, leaseRunway: TimeSpan.FromMilliseconds(100));
         registry.TryAdd(entry);
         var heartbeat = new WorkerHeartbeat(

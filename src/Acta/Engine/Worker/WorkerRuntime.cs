@@ -8,24 +8,25 @@ namespace Acta;
 
 /// <summary>
 /// Worker-runtime singleton owning everything for its namespace: the catalog upsert (namespace, definitions,
-/// <c>workers</c>) in <see cref="InitializeAsync"/>, driven by the host during startup, the claim/dispatch poll loop in
-/// <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level <see cref="RunAsync"/> that runs loop and
+/// <c>workers</c>) in <see cref="InitializeAsync"/>, driven by the host during startup, the claim/dispatch pipeline in
+/// <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level <see cref="RunAsync"/> that runs pipeline and
 /// heartbeat concurrently. A thin facade over <see cref="WorkerContext"/> (shared state), <see cref="WorkerRuntimeInitializer"/>
-/// (registration), <see cref="JobExecutor"/> with <see cref="JobExecution"/> (claimed-job execution), and
-/// <see cref="WorkerLoop"/> (the poll loop). An enqueue-only runtime skips the worker row and the loop but still bootstraps.
+/// (registration), <see cref="JobClaimer"/> (claims), and <see cref="JobExecutor"/> with <see cref="JobExecution"/>
+/// (claimed-job execution). An enqueue-only runtime skips the worker row and the pipeline but still bootstraps.
 /// </summary>
 internal sealed class WorkerRuntime
 {
     private readonly WorkerContext _context;
-    private readonly InFlightJobRegistry _registry = new();
+    private readonly InFlightJobRegistry _registry;
     private readonly WorkerRuntimeInitializer _initializer;
     private readonly JobExecutor _executor;
-    private readonly WorkerLoop _loop;
+    private readonly JobClaimer _claimer;
+    private readonly int _executorCount;
     private readonly WorkerHeartbeat _heartbeat;
     private readonly RecoverySlotMonitor _recoveryMonitor;
 
     /// <summary>
-    /// Cancelled by BeginDrainAsync to stop the claim loop's producer while the heartbeat and
+    /// Cancelled by BeginDrainAsync to stop the claimer while the heartbeat and
     /// in-flight handlers run on under the host token. Lives for the runtime's lifetime so the
     /// drain signal is never lost to a startup race; a lightweight source with no timer and no
     /// WaitHandle needs no disposal (see the CA1001 suppression above).
@@ -49,6 +50,8 @@ internal sealed class WorkerRuntime
     {
         var logger = log ?? NullLogger<WorkerRuntime>.Instance;
         _context = new WorkerContext(workerRegistration);
+        _registry = new InFlightJobRegistry(options.Value);
+        _executorCount = options.Value.MaxConcurrentExecutors;
         WorkerNamespaceName = workerRegistration?.NamespaceName;
 
         // Direct-ctor (test seam) callers get a private in-process wakeup pair; the composition root
@@ -96,11 +99,10 @@ internal sealed class WorkerRuntime
             metrics
         );
         _executor = new JobExecutor(locks, clock, serializers, rootServices, options, _context, _registry, jobExecution, logger, metrics);
-        _loop = new WorkerLoop(
+        _claimer = new JobClaimer(
             rootServices.GetRequiredService<Execution>(),
             _executor,
-            options,
-            workerRegistration,
+            options.Value,
             _context,
             _registry,
             wake,
@@ -168,22 +170,35 @@ internal sealed class WorkerRuntime
     public Task StopAsync(CancellationToken ct) => _initializer.StopAsync(ct);
 
     /// <summary>
-    /// Host entry point: runs the claim/dispatch loop and the worker heartbeat concurrently under the same
+    /// Host entry point: runs the claim/dispatch pipeline and the worker heartbeat concurrently under the same
     /// <paramref name="ct"/>. The host runs <see cref="InitializeAsync"/> during startup, before this is reached. Every
     /// loop self-gates on <see cref="WorkerRegistration"/>, so enqueue-only deployments fall through immediately.
     /// </summary>
     public Task RunAsync(CancellationToken ct)
     {
-        // The loop's producer and the recovery monitor's checks stop on _drainCts (graceful drain) or ct
-        // (hard stop); the heartbeat and in-flight execution run on ct, so a drain finishes in-flight
-        // work, including a recovery pass the monitor started, before DrainCompletion completes.
-        var loop = _loop.RunLoopAsync(ct, _drainCts.Token);
+        // The claimer and the recovery monitor's checks stop on _drainCts (graceful drain) or ct (hard stop); the
+        // heartbeat and in-flight execution run on ct, so a drain finishes in-flight work, including a recovery pass
+        // the monitor started, before DrainCompletion completes.
+        var pipeline = RunPipelineAsync(ct, _drainCts.Token);
         var monitor = _recoveryMonitor.RunAsync(ct, _drainCts.Token);
-        DrainCompletion = Task.WhenAll(loop, monitor);
+        DrainCompletion = Task.WhenAll(pipeline, monitor);
         return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct));
     }
 
-    public Task RunLoopAsync(CancellationToken ct) => _loop.RunLoopAsync(ct);
+    public Task RunLoopAsync(CancellationToken ct) => RunPipelineAsync(ct, ct);
+
+    /// <summary>The claimer and the executor loops; ends once the claimer stopped and the executors emptied its channel.</summary>
+    private async Task RunPipelineAsync(CancellationToken ct, CancellationToken drainCt)
+    {
+        if (WorkerNamespaceName is null)
+        {
+            return;
+        }
+
+        var executors = Enumerable.Range(0, _executorCount).Select(_ => _executor.RunLoopAsync(ct)).ToArray();
+        await _claimer.RunAsync(ct, drainCt);
+        await Task.WhenAll(executors);
+    }
 
     /// <summary>
     /// Begins a graceful drain: stops the claim loop from taking new work and stamps the worker Draining via
@@ -209,7 +224,7 @@ internal sealed class WorkerRuntime
     public Task StampDrainingAsync(CancellationToken ct) => _heartbeat.StampDrainingAsync(ct);
 
     /// <summary>
-    /// Completes when the claim/dispatch loop has drained - every claimed and in-flight job finished, not
+    /// Completes when the claim/dispatch pipeline has drained - every claimed and in-flight job finished, not
     /// just the live attempt count sampled to zero. The signal the host awaits to bound a graceful drain;
     /// already-completed (so instant) before <see cref="RunAsync"/> starts and for an enqueue-only runtime.
     /// </summary>

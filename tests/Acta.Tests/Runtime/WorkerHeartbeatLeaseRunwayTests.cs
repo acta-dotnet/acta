@@ -31,7 +31,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
     private static readonly WorkerRegistration Registration = new("orders", null, null, [], []);
 
-    private readonly InFlightJobRegistry _registry = new();
+    private readonly InFlightJobRegistry _registry = new(new JobsOptions());
 
     [Fact]
     public async Task A_confirmed_renewal_re_arms_the_lease_deadline()

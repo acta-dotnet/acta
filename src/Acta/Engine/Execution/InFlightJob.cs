@@ -17,10 +17,13 @@ internal sealed class InFlightJob : IDisposable
     private readonly CancellationTokenSource _attempt;
     private readonly ConcurrentDictionary<LockToken, byte> _heldLocks = new();
     private volatile InFlightJobState _state;
+    private int _permit;
 
-    public InFlightJob(ClaimedJob claim, TimeSpan? leaseRunway, CancellationToken hostCt)
+    public InFlightJob(ClaimedJob claim, TimeSpan? leaseRunway, CancellationToken hostCt, bool started = false, bool holdsPermit = false)
     {
         Claim = claim;
+        Started = started;
+        _permit = holdsPermit ? 1 : 0;
         if (leaseRunway is { } runway)
         {
             _lease = new CancellationTokenSource();
@@ -40,6 +43,9 @@ internal sealed class InFlightJob : IDisposable
         (TimeSpan.FromSeconds(options.LeaseTtlSeconds) + options.HeartbeatInterval) / 2;
 
     public ClaimedJob Claim { get; }
+
+    /// <summary>Whether the claim itself started the execution (Direct), so no start is written for it.</summary>
+    public bool Started { get; }
 
     public (long JobId, int ExecutionNumber) Key => (Claim.JobId, Claim.ExecutionNumber);
 
@@ -78,6 +84,9 @@ internal sealed class InFlightJob : IDisposable
     }
 
     public void ArmTimeout(TimeSpan delay) => _timeout.CancelAfter(delay);
+
+    /// <summary>True exactly once for an entry built holding one of the registry's permits, so every exit may call it.</summary>
+    public bool ReleasePermit() => Interlocked.Exchange(ref _permit, 0) == 1;
 
     public void TrackLock(LockToken token) => _heldLocks[token] = 0;
 

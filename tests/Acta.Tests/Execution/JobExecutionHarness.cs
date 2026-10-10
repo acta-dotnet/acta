@@ -164,15 +164,14 @@ internal sealed class JobExecutionHarness(
     /// </summary>
     public async Task<RunOnceStatus> RunWithNoDescriptorAsync()
     {
-        var executor = Executor(new WorkerContext(null));
-        return await executor.ExecuteClaimedJobAsync(
-            new InFlightJob(Job(failureCount, concurrencyKey), leaseRunway: null, CancellationToken.None),
-            namespaceName: "harness",
-            namespaceId: 1,
-            WorkerId,
-            alreadyStarted: false,
-            CancellationToken.None
-        );
+        var context = new WorkerContext(new WorkerRegistration("harness", null, null, [], []));
+        context.NamespaceIds["harness"] = 1;
+        context.WorkerIdByNamespace["harness"] = WorkerId;
+        return await Executor(context)
+            .ExecuteClaimedJobAsync(
+                new InFlightJob(Job(failureCount, concurrencyKey), leaseRunway: null, CancellationToken.None),
+                CancellationToken.None
+            );
     }
 
     private JobExecutor Executor(WorkerContext context)
@@ -186,7 +185,7 @@ internal sealed class JobExecutionHarness(
             new StoreOnlyServices(_store.Execution, CancelJob()),
             options,
             context,
-            new InFlightJobRegistry(),
+            new InFlightJobRegistry(new JobsOptions()),
             new JobExecution(
                 CancelJob(),
                 _store.Execution,

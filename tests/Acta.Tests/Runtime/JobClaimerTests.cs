@@ -1,34 +1,32 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// What a worker does when the claim query itself fails - a database outage, a failover, a connection
-/// pool exhausted - in both loop shapes the runtime ships: the producer/consumer dispatch loop
-/// (<see cref="ExecutionProfile.Buffered"/>) and the combined claim-execute coordinator
-// (<see cref="ExecutionProfile.Direct"/>). Two arms per loop.
-/// A failed claim must not tear the loop down and must not retry at the anti-spin poll floor either -
-/// the floor exists for deadline races, and hammering a down database at that cadence spams errors many
-/// times a second - so it backs off a full safety interval and says how long it is waiting. A stop or
-/// drain landing during that backoff, or on the claim call itself, must end the loop cleanly rather
-/// than fault it, because the loop's task is awaited by the host's shutdown.
+/// What the claimer does when the claim query itself fails - a database outage, a failover, a connection pool
+/// exhausted - in both profiles, which share the one loop. A failed claim must not tear the loop down and must not
+/// retry at the anti-spin poll floor either - the floor exists for deadline races, and hammering a down database at
+/// that cadence spams errors many times a second - so it backs off a full safety interval and says how long it is
+/// waiting. A stop landing during that backoff, or on the claim call itself, must end the loop cleanly rather than
+/// fault it, because the loop's task is awaited by the host's shutdown, and every permit the claim took comes back.
 /// </summary>
-public sealed class WorkerLoopClaimFailureTests
+public sealed class JobClaimerTests
 {
     private const string Namespace = "orders";
 
-    [Fact]
-    public async Task A_failing_claim_in_the_dispatch_loop_backs_off_and_keeps_claiming()
+    [Theory]
+    [InlineData(ExecutionProfile.Buffered)]
+    [InlineData(ExecutionProfile.Direct)]
+    public async Task A_failing_claim_backs_off_and_keeps_claiming(ExecutionProfile profile)
     {
         var log = new RecordingLogger();
         var store = new ClaimStore(_ => throw new InvalidOperationException("synthetic database outage"));
-        var loop = Loop(store, log, ExecutionProfile.Buffered, TimeSpan.FromMilliseconds(20));
+        var (claimer, registry) = Claimer(store, log, profile, TimeSpan.FromMilliseconds(20));
 
         using var cts = new CancellationTokenSource();
-        var running = loop.RunLoopAsync(cts.Token);
+        var running = claimer.RunAsync(cts.Token, cts.Token);
 
         // Two failures is the fact: the loop retried after the first rather than exiting. A hang guard,
         // not a measurement - only a loop that stopped fails to reach this.
@@ -39,10 +37,11 @@ public sealed class WorkerLoopClaimFailureTests
 
         Assert.All(ClaimErrors(log), e => Assert.Contains("backing off 20ms before retry", e.Message, StringComparison.Ordinal));
         Assert.True(store.Calls >= 2);
+        Assert.Equal(Capacity(profile), registry.Permits.CurrentCount);
     }
 
     [Fact]
-    public async Task A_stop_during_the_dispatch_loop_backoff_ends_the_loop_instead_of_waiting_it_out()
+    public async Task A_stop_during_the_backoff_ends_the_loop_instead_of_waiting_it_out()
     {
         // The backoff is a full safety interval - a minute in some deployments - so a stop landing inside
         // it has to break out. The safety interval here is 10 minutes: only the break makes this return.
@@ -53,40 +52,19 @@ public sealed class WorkerLoopClaimFailureTests
             cts.Cancel();
             throw new InvalidOperationException("synthetic connection torn down at shutdown");
         });
-        var loop = Loop(store, log, ExecutionProfile.Buffered, TimeSpan.FromMinutes(10));
+        var (claimer, _) = Claimer(store, log, ExecutionProfile.Buffered, TimeSpan.FromMinutes(10));
 
-        await loop.RunLoopAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        await claimer.RunAsync(cts.Token, cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         Assert.Single(ClaimErrors(log));
         Assert.Equal(1, store.Calls);
     }
 
     [Fact]
-    public async Task A_failing_claim_in_the_combined_loop_backs_off_and_keeps_claiming()
+    public async Task A_stop_landing_on_the_claim_call_ends_the_loop_without_calling_it_a_failure()
     {
-        var log = new RecordingLogger();
-        var store = new ClaimStore(_ => throw new InvalidOperationException("synthetic database outage"));
-        var loop = Loop(store, log, ExecutionProfile.Direct, TimeSpan.FromMilliseconds(20));
-
-        using var cts = new CancellationTokenSource();
-        var running = loop.RunLoopAsync(cts.Token);
-
-        await WaitUntil(() => CombinedClaimErrors(log).Count >= 2, TimeSpan.FromSeconds(30));
-
-        cts.Cancel();
-        // The coordinator's drain re-acquires every executor permit before returning. A claim that threw
-        // must have released the permits it took, or this never completes.
-        await running.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        Assert.All(CombinedClaimErrors(log), e => Assert.Contains("backing off 20ms before retry", e.Message, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task A_stop_landing_on_the_combined_claim_call_ends_the_loop_without_calling_it_a_failure()
-    {
-        // The claim was cancelled by the drain, not broken by the database. Logging that as an error
-        // would put a red line in every clean shutdown, and the permits still have to come back or the
-        // coordinator's drain hangs.
+        // The claim was cancelled by the stop, not broken by the database. Logging that as an error would put
+        // a red line in every clean shutdown, and the permits still have to come back.
         var log = new RecordingLogger();
         using var cts = new CancellationTokenSource();
         var store = new ClaimStore(ct =>
@@ -94,53 +72,40 @@ public sealed class WorkerLoopClaimFailureTests
             cts.Cancel();
             throw new OperationCanceledException(cts.Token);
         });
-        var loop = Loop(store, log, ExecutionProfile.Direct, TimeSpan.FromMinutes(10));
+        var (claimer, registry) = Claimer(store, log, ExecutionProfile.Direct, TimeSpan.FromMinutes(10));
 
-        await loop.RunLoopAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        await claimer.RunAsync(cts.Token, cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain(log.Entries, e => e.Level == LogLevel.Error);
         Assert.Equal(1, store.Calls);
+        Assert.Equal(Capacity(ExecutionProfile.Direct), registry.Permits.CurrentCount);
     }
 
     private static IReadOnlyList<RecordingLogger.Entry> ClaimErrors(RecordingLogger log) =>
         [.. log.Entries.Where(e => e.Level == LogLevel.Error && e.Message.Contains("claim iteration failed", StringComparison.Ordinal))];
 
-    private static IReadOnlyList<RecordingLogger.Entry> CombinedClaimErrors(RecordingLogger log) =>
-        [
-            .. log.Entries.Where(e =>
-                e.Level == LogLevel.Error && e.Message.Contains("combined claim iteration failed", StringComparison.Ordinal)
-            ),
-        ];
+    private static int Capacity(ExecutionProfile profile) => profile == ExecutionProfile.Direct ? 2 : 4;
 
-    internal static WorkerLoop Loop(ClaimStore store, RecordingLogger log, ExecutionProfile profile, TimeSpan safetyPoll)
+    // The executor is null: these arms claim no row, so a null is the strongest statement that nothing runs.
+    private static (JobClaimer Claimer, InFlightJobRegistry Registry) Claimer(
+        ClaimStore store,
+        RecordingLogger log,
+        ExecutionProfile profile,
+        TimeSpan safetyPoll
+    )
     {
-        var registration = new WorkerRegistration(Namespace, null, null, [], []);
-        var context = new WorkerContext(registration);
+        var context = new WorkerContext(new WorkerRegistration(Namespace, null, null, [], []));
         context.NamespaceIds[Namespace] = 1;
         context.WorkerIdByNamespace[Namespace] = 1;
-        var options = Options.Create(
-            new JobsOptions
-            {
-                ExecutionProfile = profile,
-                SafetyPollInterval = safetyPoll,
-                MaxConcurrentExecutors = 2,
-                ClaimBatchSize = 2,
-            }
-        );
-
-        // The executor is null: these arms claim no row, so a null is the strongest statement that they run
-        // before any job is dispatched. A row a claim does return faults on it, which both loops log and
-        // swallow, so an arm that only watches the claim answer can still use this loop.
-        return new WorkerLoop(
-            store.Execution(),
-            executor: null!,
-            options,
-            registration,
-            context,
-            new InFlightJobRegistry(),
-            new IdleWakeup(),
-            log
-        );
+        var options = new JobsOptions
+        {
+            ExecutionProfile = profile,
+            SafetyPollInterval = safetyPoll,
+            MaxConcurrentExecutors = 2,
+            ClaimBatchSize = 2,
+        };
+        var registry = new InFlightJobRegistry(options);
+        return (new JobClaimer(store.Execution(), executor: null!, options, context, registry, new IdleWakeup(), log), registry);
     }
 
     private static async Task WaitUntil(Func<bool> condition, TimeSpan timeout)

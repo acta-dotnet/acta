@@ -955,10 +955,15 @@
   - One JobStateReset event is emitted with the Job actor and no status transition
   - Reset below the audit level clears the rows but emits no event
 
-### The combined claim-execute loop drains a backlog exactly once
-- **Contract:** Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip.
+### The Buffered pipeline drains a backlog exactly once
+- **Contract:** Under ExecutionProfile.Buffered the claimer and its executors drain a backlog exactly once, starting each Dispatched claim before it runs.
 - **Guarantees:**
-  - Every enqueued job executes exactly once via the combined loop and the whole backlog drains to completion
+  - Buffered: every enqueued job executes exactly once and the whole backlog drains to completion
+
+### The Direct pipeline drains a backlog exactly once
+- **Contract:** Under ExecutionProfile.Direct the claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip.
+- **Guarantees:**
+  - Direct: every enqueued job executes exactly once and the whole backlog drains to completion
 
 ### Start execution matches the claim on worker and execution number
 - **Contract:** Start moves this worker's claim at its execution to Executing, answers a replay Started without a second event, and refuses another execution as LostClaim.
@@ -1591,7 +1596,7 @@
   - A lapsed slot named under a namespace that does not hold it is reported missing and stays stranded
 
 ### A Buffered worker with every executor held still runs the recovery sweep
-- **Contract:** A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held.
+- **Contract:** A recovery slot claimed by the Buffered claimer runs outside the channel without a permit, so a stranded job is reclaimed while every executor is held.
 - **Guarantees:**
   - A stranded job is reclaimed while the Buffered worker's only executor is held by another job
 
@@ -1668,11 +1673,11 @@
 
 ## Runtime
 
-### Rows behind a full Buffered channel stay renewed until a drain drops them
-- **Contract:** A row claimed but not written to a full Buffered channel is renewed by the heartbeat, and a drain stops renewing it.
+### A Buffered worker claims one batch ahead and a drain runs it
+- **Contract:** A Buffered worker with every executor held claims at most one batch ahead, the heartbeat renews the rows waiting for an executor, and a drain runs them.
 - **Guarantees:**
-  - A heartbeat against a claim loop blocked on a full channel renews every row it holds
-  - A drain that lands on a blocked channel write stops renewing the rows it never wrote
+  - A heartbeat renews the rows claimed ahead of a held executor, and no second batch is claimed
+  - A drain keeps renewing the rows claimed ahead and runs them once the executor frees
 
 ### A claim whose answer was lost lapses to recovery
 - **Contract:** A row leased by this worker that no attempt or buffered claim holds is not renewed by the heartbeat, and recovery returns it to Ready once its lease lapses.
