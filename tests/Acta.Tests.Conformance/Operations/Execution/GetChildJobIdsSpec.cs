@@ -29,7 +29,7 @@ public sealed class GetChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture,
         }
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(children[0], ct: ct)).Action);
 
-        var listed = await Execution.GetChildJobIdsAsync(root.JobId, ct);
+        var listed = (await Execution.GetChildJobIdsAsync(root.JobId, ct)).ChildJobIds;
 
         Assert.Equal(children.Select(c => c.JobId).Order(), listed.Order());
     }
@@ -42,9 +42,9 @@ public sealed class GetChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture,
         var child = await EnqueueAsync(root.JobId, "child", ct);
         var grandchild = await EnqueueAsync(child.JobId, "grandchild", ct);
 
-        Assert.Equal(child.JobId, Assert.Single(await Execution.GetChildJobIdsAsync(root.JobId, ct)));
-        Assert.Equal(grandchild.JobId, Assert.Single(await Execution.GetChildJobIdsAsync(child.JobId, ct)));
-        Assert.Empty(await Execution.GetChildJobIdsAsync(grandchild.JobId, ct));
+        Assert.Equal(child.JobId, Assert.Single((await Execution.GetChildJobIdsAsync(root.JobId, ct)).ChildJobIds));
+        Assert.Equal(grandchild.JobId, Assert.Single((await Execution.GetChildJobIdsAsync(child.JobId, ct)).ChildJobIds));
+        Assert.Empty((await Execution.GetChildJobIdsAsync(grandchild.JobId, ct)).ChildJobIds);
     }
 
     private async Task<EnqueueJobResponse> EnqueueAsync(long? parentJobId, string key, CancellationToken ct) =>

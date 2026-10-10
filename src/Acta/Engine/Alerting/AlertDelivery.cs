@@ -33,7 +33,7 @@ internal sealed class AlertDelivery(
 
     internal async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, CancellationToken ct)
     {
-        var due = await _alerts.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
+        var due = (await _alerts.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct)).Alerts;
         foreach (var a in due)
         {
             var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);

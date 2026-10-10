@@ -235,7 +235,7 @@ internal sealed partial class RuntimeJobContext(
         // can only ever expire, because nothing will raise a latch nobody writes, so a handler bug or a
         // stale id reaches this method by construction, not by chance. Without the check it would cancel
         // an unrelated job, in another namespace or tenant, irreversibly and silently.
-        var children = await _executionStore.GetChildJobIdsAsync(JobId, ct);
+        var children = (await _executionStore.GetChildJobIdsAsync(JobId, ct)).ChildJobIds;
         if (!children.Contains(childJobId))
         {
             // The awaiting job and its namespace are already on the log scope, so the subject here is

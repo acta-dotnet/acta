@@ -8,7 +8,7 @@ internal sealed class GetStaleChildLatchesHandler(IDbSession session, ISqlDialec
             await session.QueryListAsync(
                 "GetStaleChildLatches",
                 cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, query.NamespaceId)),
-                DbProjectionResolver.Resolve<StaleChildLatch>(),
+                DbProjectionResolver.Resolve<GetStaleChildLatchesItem>(),
                 ct
             )
         );

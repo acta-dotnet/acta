@@ -138,7 +138,9 @@ internal sealed class AlertsJob(
 
         for (var batch = 0; batch < Drain.MaxBatches; batch++)
         {
-            var events = await _alerts.GetAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct);
+            var events = (
+                await _alerts.GetAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct)
+            ).Events;
 
             foreach (var e in events)
             {

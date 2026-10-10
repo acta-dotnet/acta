@@ -128,10 +128,10 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
 
         var outcomeL = await Services
             .GetRequiredService<SignalsOperations>()
-            .RaiseSignalAsync(new SignalSlotRaise(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseSignalAsync(new RaiseSignalSlot(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
         var outcomeF = await Services
             .GetRequiredService<SignalsOperations>()
-            .RaiseSignalAsync(new SignalSlotRaise(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseSignalAsync(new RaiseSignalSlot(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);

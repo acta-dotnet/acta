@@ -31,17 +31,18 @@ internal sealed class RaiseSignalHandler(
         }
 
         var input = new JobControlInput(JobControlActor.Operator(command.ActorKey), EventReasonCode.JobSignalReleased, null);
-        var row = await RaiseSlotAsync(
-            new SignalSlotRaise(jobId, CheckpointKindCode.Signal, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), input),
+        var response = await RaiseSlotAsync(
+            new RaiseSignalSlot(jobId, CheckpointKindCode.Signal, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), input),
             ct
         );
-        await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
-        return new RaiseSignalResponse(jobId, row.Action, row.Status, null);
+        await JobControl.WakeIfReadyAsync(wakeup, response.Action, response.Status, ct);
+        return response;
     }
 
     /// <summary><see cref="SignalsOperations.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
-    internal Task<RaiseSignalRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>
-        session.ExecuteOneAsync(
+    internal async Task<RaiseSignalResponse> RaiseSlotAsync(RaiseSignalSlot raise, CancellationToken ct)
+    {
+        var row = await session.ExecuteOneAsync(
             new StoreCommand("RaiseSignal"),
             cmd =>
             {
@@ -55,4 +56,6 @@ internal sealed class RaiseSignalHandler(
             DbProjectionResolver.Resolve<RaiseSignalRow>(),
             ct
         );
+        return new RaiseSignalResponse(raise.JobId, row.Action, row.Status, null);
+    }
 }

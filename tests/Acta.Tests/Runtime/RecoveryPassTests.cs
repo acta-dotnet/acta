@@ -46,7 +46,7 @@ public sealed class RecoveryPassTests
                 new ReclaimStuckJobsRow(JobId: 7, JobStatusCode.Failed, ParentId: 8, LaneRepaired: false),
                 new ReclaimStuckJobsRow(JobId: 11, JobStatusCode.Ready, ParentId: null, LaneRepaired: false),
             ],
-            staleLatches: [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
+            staleLatches: [new GetStaleChildLatchesItem(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
         );
         var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
 
@@ -123,8 +123,10 @@ public sealed class RecoveryPassTests
     private static ScriptedSession WorkerSweep(int marked = 0) => new(_ => marked);
 
     // The reclaim answers the rows it touched and the latch read its stale latches; nothing else is reached.
-    private static ExecutionOperations ExecutionStore(ReclaimStuckJobsRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
-        new ScriptedSession(call =>
+    private static ExecutionOperations ExecutionStore(
+        ReclaimStuckJobsRow[]? reclaimed = null,
+        GetStaleChildLatchesItem[]? staleLatches = null
+    ) => new ScriptedSession(call =>
             call.Stem switch
             {
                 "ReclaimStuckJobs" => reclaimed ?? [],

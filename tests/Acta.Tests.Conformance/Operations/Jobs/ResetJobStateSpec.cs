@@ -95,7 +95,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Services
             .GetRequiredService<SignalsOperations>()
             .RaiseSignalAsync(
-                new SignalSlotRaise(
+                new RaiseSignalSlot(
                     jobId,
                     CheckpointKindCode.Signal,
                     "s.test",

@@ -144,16 +144,18 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
 
     private static DateTime Ms(int milliseconds) => T0.AddMilliseconds(milliseconds);
 
-    private Task<IReadOnlyList<AlertableEvent>> ReadAsync(
+    private async Task<IReadOnlyList<AlertableEvent>> ReadAsync(
         DateTime cursorUtc,
         long cursorEventId,
         DateTime horizonUtc,
         CancellationToken ct,
         int batchSize = 50
     ) =>
-        Services
-            .GetRequiredService<AlertsOperations>()
-            .GetAlertableEventsAsync(TestNamespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc, ct);
+        (
+            await Services
+                .GetRequiredService<AlertsOperations>()
+                .GetAlertableEventsAsync(TestNamespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc, ct)
+        ).Events;
 
     private Task<long> StageFailureAsync(DateTime stampUtc, CancellationToken ct) =>
         StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, EventReasonCode.JobUnhandledException, stampUtc, ct);

@@ -118,7 +118,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var jobId = await EnqueueAsync(ct);
         var input = new JobControlInput(new JobControlActor(ActorCode.Sys), EventReasonCode.JobSignalReleased, null);
-        await Slots.RaiseSignalAsync(new SignalSlotRaise(jobId, CheckpointKindCode.ChildLatch, "go", 0, null, input), ct);
+        await Slots.RaiseSignalAsync(new RaiseSignalSlot(jobId, CheckpointKindCode.ChildLatch, "go", 0, null, input), ct);
 
         Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitAsync(jobId, "go", null, ct)).Outcome);
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSlotAsync(jobId, CheckpointKindCode.ChildLatch, "go", ct)).Status);

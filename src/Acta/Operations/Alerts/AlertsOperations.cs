@@ -56,20 +56,14 @@ internal sealed class AlertsOperations(
     /// pair. Stamps, not ids, order the walk: the stamp is set inside the writing transaction and the id at
     /// insert, so a slow writer commits a low stamp under a high id that an id-only cursor would skip.
     /// </summary>
-    internal async Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
+    internal Task<GetAlertableEventsResponse> GetAlertableEventsAsync(
         int namespaceId,
         DateTime cursorUtc,
         long cursorEventId,
         int batchSize,
         DateTime horizonUtc,
         CancellationToken ct
-    ) =>
-        (
-            await getAlertableEvents.HandleAsync(
-                new GetAlertableEventsQuery(namespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc),
-                ct
-            )
-        ).Events;
+    ) => getAlertableEvents.HandleAsync(new GetAlertableEventsQuery(namespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc), ct);
 
     /// <summary>
     /// Reads the namespace's unresolved alerts due for delivery, both arms keyed off <c>retry_after_utc</c>:
@@ -78,8 +72,8 @@ internal sealed class AlertsOperations(
     /// re-stamps it, so a job failing faster than the reminder interval would never be reminded. Resolved
     /// rows are never sent; an attempt already in flight may still complete.
     /// </summary>
-    internal async Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-        (await getDeliverableAlerts.HandleAsync(new GetDeliverableAlertsQuery(namespaceId, batchSize), ct)).Alerts;
+    internal Task<GetDeliverableAlertsResponse> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
+        getDeliverableAlerts.HandleAsync(new GetDeliverableAlertsQuery(namespaceId, batchSize), ct);
 
     /// <summary>
     /// Records one delivery attempt's outcome (status, retry count, and <c>retry_after_utc</c>: the next retry

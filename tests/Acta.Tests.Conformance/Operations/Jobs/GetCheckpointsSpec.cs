@@ -33,7 +33,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
         await Services
             .GetRequiredService<SignalsOperations>()
             .RaiseSignalAsync(
-                new SignalSlotRaise(
+                new RaiseSignalSlot(
                     enqueued.JobId,
                     CheckpointKindCode.Signal,
                     "s.ready",

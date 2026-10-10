@@ -282,7 +282,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         await SetJobStatusAsync(Db, child.Id, 220, ct);
 
         var latch = Assert.Single(
-            await Services.GetRequiredService<ExecutionOperations>().GetStaleChildLatchesAsync(ns, ct),
+            (await Services.GetRequiredService<ExecutionOperations>().GetStaleChildLatchesAsync(ns, ct)).Latches,
             l => l.ParentJobId == parent.JobId
         );
         Assert.Equal(child.Id, latch.ChildJobId);
@@ -299,7 +299,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         );
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.DoesNotContain(
-            await Services.GetRequiredService<ExecutionOperations>().GetStaleChildLatchesAsync(ns, ct),
+            (await Services.GetRequiredService<ExecutionOperations>().GetStaleChildLatchesAsync(ns, ct)).Latches,
             l => l.ParentJobId == parent.JobId
         );
     }

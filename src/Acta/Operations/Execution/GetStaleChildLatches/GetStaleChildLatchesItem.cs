@@ -6,4 +6,4 @@ namespace Acta;
 /// child row no longer exists. <see cref="ChildStatus"/> is null when the row is gone.
 /// </summary>
 [DbProjection(ByName = true)]
-internal sealed record StaleChildLatch(long ParentJobId, long ChildJobId, JobStatusCode? ChildStatus);
+internal sealed record GetStaleChildLatchesItem(long ParentJobId, long ChildJobId, JobStatusCode? ChildStatus);

@@ -4,7 +4,7 @@ namespace Acta;
 /// One slot raise as the SQL takes it, the caller having validated the name and payload: the resolved job,
 /// the slot's kind and name, the payload, and the audit input.
 /// </summary>
-internal sealed record SignalSlotRaise(
+internal sealed record RaiseSignalSlot(
     long JobId,
     CheckpointKindCode Kind,
     string Name,

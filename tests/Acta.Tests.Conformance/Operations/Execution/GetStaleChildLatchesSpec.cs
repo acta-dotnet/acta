@@ -30,7 +30,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (parent, child) = await ParentWaitingOnChildAsync(ct);
 
-        Assert.DoesNotContain(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
+        Assert.DoesNotContain((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
 
         // The child lands Failed and the raise that should follow is lost, as a crash between the two would leave it.
         var affected = await Db.From<RuntimeEntity>()
@@ -38,9 +38,9 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
             .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Failed }, ct);
         Assert.Equal(1, affected);
 
-        var stale = Assert.Single(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
-        Assert.Equal(new StaleChildLatch(parent, child, JobStatusCode.Failed), stale);
-        Assert.DoesNotContain(await Execution.GetStaleChildLatchesAsync(int.MaxValue, ct), l => l.ParentJobId == parent);
+        var stale = Assert.Single((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
+        Assert.Equal(new GetStaleChildLatchesItem(parent, child, JobStatusCode.Failed), stale);
+        Assert.DoesNotContain((await Execution.GetStaleChildLatchesAsync(int.MaxValue, ct)).Latches, l => l.ParentJobId == parent);
     }
 
     [Fact(DisplayName = "A Pending latch whose child row is gone is reported with no child status")]
@@ -51,8 +51,8 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
 
         Assert.Equal(1, await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE id = @p_id", ct, ("@p_id", child)));
 
-        var stale = Assert.Single(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
-        Assert.Equal(new StaleChildLatch(parent, child, null), stale);
+        var stale = Assert.Single((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
+        Assert.Equal(new GetStaleChildLatchesItem(parent, child, null), stale);
     }
 
     [Fact(DisplayName = "A latch the child set when it landed is not reported")]
@@ -64,7 +64,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child, ct));
 
         Assert.Equal(CheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent, ct)).Status);
-        Assert.DoesNotContain(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
+        Assert.DoesNotContain((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
     }
 
     /// <summary>Runs a parent once so it starts its child and suspends on that child's Pending latch.</summary>

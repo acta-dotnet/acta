@@ -30,7 +30,7 @@ internal static class RaiseChildLatch
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus);
         var input = new JobControlInput(new JobControlActor(ActorCode.Sys), EventReasonCode.JobSignalReleased, null);
         var outcome = await signals.RaiseSignalAsync(
-            new SignalSlotRaise(parentJobId, CheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
+            new RaiseSignalSlot(parentJobId, CheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
             ct
         );
         return outcome.Action == ControlAction.Applied && outcome.Status == JobStatusCode.Ready;
