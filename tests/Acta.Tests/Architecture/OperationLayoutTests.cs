@@ -187,6 +187,88 @@ public sealed class OperationLayoutTests
         );
     }
 
+    /// <summary>
+    /// A group's root shows only its operations class, <c>&lt;Group&gt;Operations</c>, implementing the group's public
+    /// interface when <c>Abstractions/</c> has one; the <c>Operations/</c> root shows only <c>ActaOperations</c>.
+    /// <c>Abstractions/</c> is a flat folder of interfaces, and <c>Domain/</c> has exactly <c>Codes/</c> and <c>Entities/</c>.
+    /// </summary>
+    [Fact]
+    public void Each_group_shows_only_its_operations_class()
+    {
+        var acta = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta");
+        var operations = Path.Combine(acta, "Operations");
+        var abstractions = Path.Combine(acta, "Abstractions");
+        var violations = new List<string>();
+
+        violations.AddRange(
+            Directory
+                .EnumerateFiles(operations)
+                .Select(Path.GetFileName)
+                .Where(file => file != "ActaOperations.cs")
+                .Select(file => $"operations-root: {file}")
+        );
+        foreach (var group in Directory.EnumerateDirectories(operations))
+        {
+            var name = Path.GetFileName(group);
+            var expected = $"{name}Operations";
+            violations.AddRange(
+                Directory
+                    .EnumerateFiles(group)
+                    .Select(Path.GetFileName)
+                    .Where(file => file != $"{expected}.cs")
+                    .Select(file => $"group-root: {name}/{file}")
+            );
+            var path = Path.Combine(group, $"{expected}.cs");
+            var type = File.Exists(path)
+                ? CSharpSyntaxTree
+                    .ParseText(File.ReadAllText(path), cancellationToken: TestContext.Current.CancellationToken)
+                    .GetRoot(TestContext.Current.CancellationToken)
+                    .DescendantNodes()
+                    .OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == expected)
+                : null;
+            if (type is null)
+            {
+                violations.Add($"operations-class: {name} declares no {expected}");
+            }
+            else if (
+                File.Exists(Path.Combine(abstractions, $"I{name}.cs"))
+                && type.BaseList?.Types.Any(t => t.Type.ToString() == $"I{name}") != true
+            )
+            {
+                violations.Add($"operations-class: {expected} does not implement I{name}");
+            }
+        }
+
+        violations.AddRange(Directory.EnumerateDirectories(abstractions).Select(dir => $"abstractions-folder: {Path.GetFileName(dir)}"));
+        violations.AddRange(
+            Directory
+                .EnumerateFiles(abstractions, "*.cs")
+                .SelectMany(file =>
+                    CSharpSyntaxTree
+                        .ParseText(File.ReadAllText(file), cancellationToken: TestContext.Current.CancellationToken)
+                        .GetRoot(TestContext.Current.CancellationToken)
+                        .DescendantNodes()
+                        .OfType<BaseTypeDeclarationSyntax>()
+                        .Where(t => t is not InterfaceDeclarationSyntax)
+                        .Select(t => $"abstractions-type: {t.Identifier.Text}")
+                )
+        );
+        violations.AddRange(
+            Directory
+                .EnumerateDirectories(Path.Combine(acta, "Domain"))
+                .Select(Path.GetFileName)
+                .Where(dir => dir is not ("Codes" or "Entities"))
+                .Select(dir => $"domain-folder: {dir}")
+        );
+
+        Assert.True(
+            violations.Count == 0,
+            "Keep each group's root to its operations class, Abstractions/ to interfaces, and Domain/ to Codes/ and Entities/ plus its root:\n"
+                + string.Join("\n", violations.Order(StringComparer.Ordinal))
+        );
+    }
+
     private static IEnumerable<string> DeclaredTypes(string path)
     {
         var nodes = CSharpSyntaxTree.ParseText(File.ReadAllText(path)).GetRoot().DescendantNodes().ToList();

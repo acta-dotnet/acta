@@ -68,7 +68,7 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
 
 ## Type names: one suffix per role
 
-A type is named `{Subject}{Role}`, and each role has exactly one suffix. An operation is named `VerbNoun` (`PauseJob`, `ListJobs`), and that name is also its folder, its SQL file stem, and its facade method without `Async` ([source layout](source-layout.md)).
+A type is named `{Subject}{Role}`, and each role has exactly one suffix. An operation is named `VerbNoun` (`PauseJob`, `ListJobs`), and that name is also its folder, its SQL file stem, and its method on the group's operations class without `Async` ([source layout](source-layout.md)).
 
 | Role | Suffix | Example |
 |---|---|---|
@@ -79,7 +79,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | Bound straight from a reader, internal, no public twin | `Row` | `ClaimJobsRow` |
 | The column values one batch write binds, internal | `Values` | `JobEnqueueValues` |
 | Element of an operation's response | `Item` | `ListJobsItem`, `GetTagsItem` |
-| Public facade implementation | the interface name without `I` | `Jobs : IJobs` |
+| A group's operations class | the group's name plus `Operations` | `JobsOperations : IJobs`, `ExecutionOperations` |
 | HTTP request body of a route | `Request` | `PauseJobRequest`, `UpsertJobTagsRequest` |
 | Route table of a group / one route | `Endpoints`, `Endpoint` | `JobsEndpoints`, `EnqueueJobEndpoint` |
 | Table model, one class per table, named by the table's singular | `Entity` | `JobEntity`, `RuntimeEntity` |
