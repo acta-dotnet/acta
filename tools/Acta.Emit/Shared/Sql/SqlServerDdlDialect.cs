@@ -75,8 +75,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
     public override string RenderIdentity() => " IDENTITY(1,1)";
 
-    // PAGE compression suits large/cold tables (events, results), not small/hot ones
-    // (e.g. leases), so it is a per-table opt-in via [DbTable(PageCompression = true)].
+    // PAGE compression suits large/cold tables (events), not small or insert-hot ones
+    // (e.g. leases, results), so it is a per-table opt-in via [DbTable(PageCompression = true)].
     public override string TableTrailingOptions(EntityModel e) => e.PageCompression ? " WITH (DATA_COMPRESSION = PAGE)" : "";
 
     // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic clustered key,

@@ -259,7 +259,7 @@ CREATE TABLE {{schema}}.results (
     , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
     , CONSTRAINT fk_results_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
-) WITH (DATA_COMPRESSION = PAGE);
+);
 END
 GO
 
@@ -592,7 +592,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-1df4149caa2e0973216afcf5d40ade7d', '{{schema}}');
+VALUES (0, 'baseline-8929bce2cd3a515470cbb9108481fb42', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

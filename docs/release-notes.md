@@ -285,6 +285,10 @@ settles, and what an operator sees when it fails.
   land what is left; a hard stop leaves the rows for recovery, the contract an interrupted write had.
   The claim loop, the executing-attempt bookkeeping, the completion writer, and the shutdown-phase
   helper are gone with it.
+- **`results` is no longer page-compressed on SQL Server.** Every completion appends to its last page,
+  and compressing a full page held the latch the other finalizers were waiting on; without it the
+  SQL Server Direct drain at sixteen workers ran about 4% faster. `events` keeps page compression.
+  The SQL Server baseline is re-cut.
 
 ### Additions
 
