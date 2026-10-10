@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION {{schema}}.claim_batch(
+CREATE OR REPLACE FUNCTION {{schema}}.claim_jobs(
     p_namespace_id INT,
     p_leased_by_worker_id INT,
     p_claim_limit INT,

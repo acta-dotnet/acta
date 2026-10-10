@@ -1,11 +1,11 @@
 namespace Acta;
 
-/// <summary><see cref="Execution.CheckpointSlotAsync"/>: one routine call per slot action, answering exactly one row.</summary>
-internal sealed class CheckpointSlotHandler(IDbSession session, ISqlDialect dialect)
+/// <summary><see cref="Execution.AccessCheckpointAsync"/>: one routine call per slot action, answering exactly one row.</summary>
+internal sealed class AccessCheckpointHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<CheckpointSlotResponse> HandleAsync(CheckpointSlotCommand command, CancellationToken ct) =>
+    public Task<AccessCheckpointResponse> HandleAsync(AccessCheckpointCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
-            new StoreCommand("CheckpointSlot"),
+            new StoreCommand("AccessCheckpoint"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SlotAction, (short)command.Action));
@@ -15,7 +15,7 @@ internal sealed class CheckpointSlotHandler(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, command.ValueFormatId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, command.Value));
             },
-            DbProjectionResolver.Resolve<CheckpointSlotResponse>(),
+            DbProjectionResolver.Resolve<AccessCheckpointResponse>(),
             ct
         );
 }

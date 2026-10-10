@@ -12,7 +12,7 @@ namespace Acta;
 /// </summary>
 internal static class BaselineStamps
 {
-    internal const string Mssql = "baseline-b6a833aff2b114adb15ad431b5f49cd1";
+    internal const string Mssql = "baseline-bec8dddcf42467efc4568768783ff7a7";
 
     internal const string Pg = "baseline-c9dc8fbc2218b7f2e44ff33ff29f66a8";
 

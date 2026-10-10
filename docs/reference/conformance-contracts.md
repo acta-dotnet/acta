@@ -443,6 +443,16 @@
 
 ## Claim
 
+### A by-id claim takes exactly the named due job or nothing
+- **Contract:** ClaimJob leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan.
+- **Guarantees:**
+  - The named Ready job goes Dispatched under the worker's lease, one attempt and one version on
+  - A claim that starts executing lands the job Executing, with a started event when the job is audited
+  - A Suspended job whose wait deadline has passed is claimed, and one waiting with no deadline is not
+  - A job not yet due, paused, or named under another namespace is not claimed and keeps its version
+  - A job already claimed is not claimed again and keeps its first lease
+  - Without a job id the claim takes a single job by the scan, whatever batch size it was asked for
+
 ### Claim caps at the batch size, reports the horizon, and skips excluded rows
 - **Contract:** A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.
 - **Guarantees:**
@@ -456,16 +466,6 @@
 - **Contract:** Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant.
 - **Guarantees:**
   - Due rows claim in priority order past parked waits and a band of delayed High rows, then the horizon names the High band
-
-### A by-id claim takes exactly the named due job or nothing
-- **Contract:** ClaimOne leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan.
-- **Guarantees:**
-  - The named Ready job goes Dispatched under the worker's lease, one attempt and one version on
-  - A claim that starts executing lands the job Executing, with a started event when the job is audited
-  - A Suspended job whose wait deadline has passed is claimed, and one waiting with no deadline is not
-  - A job not yet due, paused, or named under another namespace is not claimed and keeps its version
-  - A job already claimed is not claimed again and keeps its first lease
-  - Without a job id the claim takes a single job by the scan, whatever batch size it was asked for
 
 ## Clock
 
@@ -803,16 +803,6 @@
 
 ## Execution
 
-### A sleep arms one durable timer, suspends until it is due, then consumes it
-- **Contract:** A sleep arms one Pending timer and suspends on its stored instant until that passes, then consumes it once and continues on every later entry.
-- **Guarantees:**
-  - A first sleep arms a Pending timer at its due instant and suspends
-  - Re-entering before the instant suspends on the stored instant, whatever delay the replay passes
-  - Re-entering after the instant consumes the timer, continues, and clears the executing job's run instant
-  - A consumed timer continues on every later entry and is never armed again
-  - A zero-length sleep or one whose resume instant has passed continues at once and arms nothing
-  - A second sleep under another name while one is pending is rejected and arms nothing
-
 ### A checkpoint slot is set, read, kept on first write, and deleted by one call
 - **Contract:** A slot keyed by job, kind, and name is overwritten by Set, kept by GetOrSet, removed by Delete, and never written without a payload.
 - **Guarantees:**
@@ -822,6 +812,16 @@
   - GetOrSet stores the first value and hands it back unchanged to every later caller
   - The same name under another kind or another job is a different slot
   - A write without a payload is rejected and stores nothing
+
+### A sleep arms one durable timer, suspends until it is due, then consumes it
+- **Contract:** A sleep arms one Pending timer and suspends on its stored instant until that passes, then consumes it once and continues on every later entry.
+- **Guarantees:**
+  - A first sleep arms a Pending timer at its due instant and suspends
+  - Re-entering before the instant suspends on the stored instant, whatever delay the replay passes
+  - Re-entering after the instant consumes the timer, continues, and clears the executing job's run instant
+  - A consumed timer continues on every later entry and is never armed again
+  - A zero-length sleep or one whose resume instant has passed continues at once and arms nothing
+  - A second sleep under another name while one is pending is rejected and arms nothing
 
 ### Completing a step stores a success, schedules a retry, or exhausts the slot
 - **Contract:** A step completion stores a success, schedules an in-budget retry, exhausts past the attempt or window budget, and writes nothing on a stale version.
@@ -1892,16 +1892,16 @@
   - Over an existing history it keeps every recorded row
   - Rolled back with the migration transaction, the table it created is gone
 
+### The history-table probe answers whether the table is there
+- **Contract:** HasMigrationsTable answers false for a schema without a migration-history table and true for one with it, failing on neither.
+- **Guarantees:**
+  - False without a history table, true with an empty one
+
 ### The migration history reads back version by version
 - **Contract:** LoadAppliedVersions returns every recorded version with the name it was recorded under, with or without the migration transaction.
 - **Guarantees:**
   - Every recorded version reads back with the name it was recorded under
   - Inside the migration transaction it reads the history table that transaction just created
-
-### The history-table probe answers whether the table is there
-- **Contract:** MigrationsTableExists answers false for a schema without a migration-history table and true for one with it, failing on neither.
-- **Guarantees:**
-  - False without a history table, true with an empty one
 
 ### Hardened schema enforces its checks, seed, and denormalized invariants
 - **Contract:** The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.
@@ -2211,6 +2211,7 @@
 
 | SQL stem | PostgreSQL | SQL Server | SQLite |
 | --- | --- | --- | --- |
+| `AccessCheckpoint` | yes | yes | yes |
 | `AcknowledgeAlert` | yes | yes | yes |
 | `AcquireLock` | yes | yes | yes |
 | `AcquireSchemaLock` | yes | yes | yes |
@@ -2218,10 +2219,9 @@
 | `AlertsView` | yes | yes | yes |
 | `ArmOrConsumeSleepTimer` | yes | yes | yes |
 | `CancelJob` | yes | yes | yes |
-| `CheckpointSlot` | yes | yes | yes |
 | `CheckpointsView` | yes | yes | yes |
-| `ClaimBatch` | yes | yes | yes |
-| `ClaimOne` | yes | yes | yes |
+| `ClaimJob` | yes | yes | yes |
+| `ClaimJobs` | yes | yes | yes |
 | `ClaimOutbox` | yes | yes | yes |
 | `CompleteExecution` | yes | yes | yes |
 | `CompleteExecutions` | yes | yes | yes |
@@ -2261,6 +2261,7 @@
 | `GetTenantKey` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
+| `HasMigrationsTable` | yes | yes | yes |
 | `JobsView` | yes | yes | yes |
 | `ListAlerts` | yes | yes | yes |
 | `ListDefinitions` | yes | yes | yes |
@@ -2274,7 +2275,6 @@
 | `ListWorkers` | yes | yes | yes |
 | `LoadAppliedVersions` | yes | yes | yes |
 | `MarkDeadWorkers` | yes | yes | yes |
-| `MigrationsTableExists` | yes | yes | yes |
 | `ParkOutboxSignal` | yes | yes | yes |
 | `PauseJob` | yes | yes | yes |
 | `PauseSchedule` | yes | yes | yes |

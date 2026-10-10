@@ -143,7 +143,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
-        var claimed = Assert.Single(await Execution.ClaimOneAsync(ns, worker!.Id, leaseTtlSeconds, job, ct));
+        var claimed = Assert.Single(await Execution.ClaimJobAsync(ns, worker!.Id, leaseTtlSeconds, job, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (await Execution.StartExecutionAsync(claimed.JobId, worker.Id, claimed.ExecutionNumber, leaseTtlSeconds, ct)).Action

@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
 /// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
-/// <see cref="CheckpointSlotAction"/> through <see cref="Execution.CheckpointSlotAsync"/>. Checkpoint
+/// <see cref="AccessCheckpointAction"/> through <see cref="Execution.AccessCheckpointAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
 /// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
 /// and typed serialization; this op owns the durable row shape.
@@ -13,7 +13,7 @@ internal static class CheckpointSlot
     public static Task SetAsync(Execution store, long jobId, CheckpointKindCode kind, string name, JobPayload payload, CancellationToken ct)
     {
         EnsureWritable(payload);
-        return Run(store, CheckpointSlotAction.Set, jobId, kind, name, payload, ct);
+        return Run(store, AccessCheckpointAction.Set, jobId, kind, name, payload, ct);
     }
 
     public static async Task<CheckpointValue?> GetAsync(
@@ -24,7 +24,7 @@ internal static class CheckpointSlot
         CancellationToken ct
     )
     {
-        var row = await Run(store, CheckpointSlotAction.Get, jobId, kind, name, null, ct);
+        var row = await Run(store, AccessCheckpointAction.Get, jobId, kind, name, null, ct);
         return row.Found == 0 ? null : ToValue(row);
     }
 
@@ -38,15 +38,17 @@ internal static class CheckpointSlot
     )
     {
         EnsureWritable(payload);
-        var row = await Run(store, CheckpointSlotAction.GetOrSet, jobId, kind, name, payload, ct);
-        return row.Found == 0 ? throw new InvalidOperationException("checkpoint_slot get-or-set returned no stored value.") : ToValue(row);
+        var row = await Run(store, AccessCheckpointAction.GetOrSet, jobId, kind, name, payload, ct);
+        return row.Found == 0
+            ? throw new InvalidOperationException("access_checkpoint get-or-set returned no stored value.")
+            : ToValue(row);
     }
 
     public static async Task<bool> ExistsAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
-        (await Run(store, CheckpointSlotAction.Exists, jobId, kind, name, null, ct)).Found != 0;
+        (await Run(store, AccessCheckpointAction.Exists, jobId, kind, name, null, ct)).Found != 0;
 
     public static async Task<bool> DeleteAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
-        (await Run(store, CheckpointSlotAction.Delete, jobId, kind, name, null, ct)).Found != 0;
+        (await Run(store, AccessCheckpointAction.Delete, jobId, kind, name, null, ct)).Found != 0;
 
     // A variable value must carry a real payload: a non-None format with a non-zero id.
     private static void EnsureWritable(JobPayload payload)
@@ -57,24 +59,24 @@ internal static class CheckpointSlot
         }
     }
 
-    private static Task<CheckpointSlotResponse> Run(
+    private static Task<AccessCheckpointResponse> Run(
         Execution store,
-        CheckpointSlotAction action,
+        AccessCheckpointAction action,
         long jobId,
         CheckpointKindCode kind,
         string name,
         JobPayload? payload,
         CancellationToken ct
     ) =>
-        store.CheckpointSlotAsync(
-            new CheckpointSlotCommand(action, jobId, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
+        store.AccessCheckpointAsync(
+            new AccessCheckpointCommand(action, jobId, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
             ct
         );
 
-    private static CheckpointValue ToValue(CheckpointSlotResponse row)
+    private static CheckpointValue ToValue(AccessCheckpointResponse row)
     {
         return row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version
-            ? throw new InvalidOperationException("checkpoint_slot returned a found slot with NULL value columns.")
+            ? throw new InvalidOperationException("access_checkpoint returned a found slot with NULL value columns.")
             : new CheckpointValue(format, value, version);
     }
 }

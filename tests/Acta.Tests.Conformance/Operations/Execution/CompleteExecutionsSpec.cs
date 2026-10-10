@@ -176,7 +176,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
     private async Task<ClaimedJob> ClaimExecutingAsync(long jobId, int workerId, CancellationToken ct)
     {
         var options = new ClaimOptions(Runtime.RegisteredNamespaceIds[TestNamespace], workerId, MaxBatch: 1, StartExecuting: true);
-        return Assert.Single((await Execution.ClaimOneAsync(options, LeaseTtl, jobId, ct)).Jobs);
+        return Assert.Single((await Execution.ClaimJobAsync(options, LeaseTtl, jobId, ct)).Jobs);
     }
 
     // A row is untouched while its version and its finished events stay as they were.

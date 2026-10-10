@@ -37,7 +37,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
             ct
         );
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var claim = await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct);
+        var claim = await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct);
         var claimedRow = Assert.Single(claim);
         var leaseAfterClaim = claimedRow.LeaseExpiresAtUtc;
 
@@ -84,7 +84,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct)
         );
 
         // A lease refresh is not a claim-generation change: an operator verb's expected version must still hold.
@@ -119,8 +119,8 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var execution = Services.GetRequiredService<Acta.Execution>();
         var held = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         var lost = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
-        var heldClaim = Assert.Single(await execution.ClaimOneAsync(ns, workerId, leaseTtl, held, ct));
-        var lostClaim = Assert.Single(await execution.ClaimOneAsync(ns, workerId, leaseTtl, lost, ct));
+        var heldClaim = Assert.Single(await execution.ClaimJobAsync(ns, workerId, leaseTtl, held, ct));
+        var lostClaim = Assert.Single(await execution.ClaimJobAsync(ns, workerId, leaseTtl, lost, ct));
         var lostLease = (await ReadJobAsync(lost.JobId, ct)).LeaseExpiresAtUtc;
         await Task.Delay(5, ct);
 

@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION {{schema}}.checkpoint_slot(
+CREATE OR REPLACE FUNCTION {{schema}}.access_checkpoint(
     p_action SMALLINT,
     p_job_id BIGINT,
     p_kind_code SMALLINT,
@@ -12,12 +12,12 @@ AS $$
 DECLARE
     v_deleted INTEGER;
 BEGIN
-    IF p_action IN (10 /* CheckpointSlotAction.Set */, 30 /* CheckpointSlotAction.GetOrSet */)
+    IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
        AND (p_value_format_id = 0 /* JobPayloadFormat.None */ OR p_value IS NULL) THEN
         RAISE EXCEPTION 'Variable payload must use a non-zero format id and non-NULL value.';
     END IF;
 
-    IF p_action = 10 /* CheckpointSlotAction.Set */ THEN
+    IF p_action = 10 /* AccessCheckpointAction.Set */ THEN
         INSERT INTO {{schema}}.checkpoints (
             job_id,
             kind_code,
@@ -43,7 +43,7 @@ BEGIN
             version = {{schema}}.checkpoints.version + 1;
 
         RETURN QUERY SELECT 1, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSIF p_action = 20 /* CheckpointSlotAction.Get */ THEN
+    ELSIF p_action = 20 /* AccessCheckpointAction.Get */ THEN
         RETURN QUERY
         SELECT 1, jv.value_format_id, jv.value, jv.version
         FROM {{schema}}.checkpoints AS jv
@@ -55,7 +55,7 @@ BEGIN
         IF NOT FOUND THEN
             RETURN QUERY SELECT 0, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
         END IF;
-    ELSIF p_action = 30 /* CheckpointSlotAction.GetOrSet */ THEN
+    ELSIF p_action = 30 /* AccessCheckpointAction.GetOrSet */ THEN
         LOOP
             RETURN QUERY
             SELECT 1, jv.value_format_id, jv.value, jv.version
@@ -95,7 +95,7 @@ BEGIN
                 RETURN;
             END IF;
         END LOOP;
-    ELSIF p_action = 40 /* CheckpointSlotAction.Exists */ THEN
+    ELSIF p_action = 40 /* AccessCheckpointAction.Exists */ THEN
         RETURN QUERY
         SELECT CASE WHEN EXISTS (
             SELECT 1
@@ -105,7 +105,7 @@ BEGIN
                 AND jv.kind_code = p_kind_code
                 AND jv.name = p_name
         ) THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSIF p_action = 50 /* CheckpointSlotAction.Delete */ THEN
+    ELSIF p_action = 50 /* AccessCheckpointAction.Delete */ THEN
         DELETE FROM {{schema}}.checkpoints AS jv
         WHERE
             jv.job_id = p_job_id
@@ -115,7 +115,7 @@ BEGIN
         GET DIAGNOSTICS v_deleted = ROW_COUNT;
         RETURN QUERY SELECT CASE WHEN v_deleted > 0 THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
     ELSE
-        RAISE EXCEPTION 'checkpoint_slot received an unknown action.';
+        RAISE EXCEPTION 'access_checkpoint received an unknown action.';
     END IF;
 END;
 $$;

@@ -10,6 +10,13 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **`DriverVersionPolicy` is gone.** A provider that loads a database driver whose major version differs
   from the one Acta was certified on now logs one warning naming both and keeps running; it no longer
   refuses to start. Remove any `DriverVersionPolicy` setting from the provider options.
+- **SQL Server table types and three routines are named verb first.** A direct-SQL enqueue on SQL Server
+  declares `acta.enqueue_tags_batch` and, for a batch, `acta.enqueue_jobs_batch`, instead of
+  `job_enqueue_tag_batch` and `job_enqueue_batch`. The other types follow the routine that takes them
+  (`register_definitions_batch`, `register_schedules_batch`, `register_slots_batch`,
+  `advance_schedules_batch`), and `claim_batch`, `claim_one`, and `checkpoint_slot` are now `claim_jobs`,
+  `claim_job`, and `access_checkpoint`. The SQL Server baseline is re-cut, and the object package moves
+  to revision 58.
 - **The Bulk execution profile is gone.** `ExecutionProfile.Bulk` is removed; set `Direct`, the profile
   Bulk built on. Every completion is now written in its own transaction, so a crash never re-runs a
   handler that already finished. The cost is throughput: in the rc.4 round, PostgreSQL drain at sixteen

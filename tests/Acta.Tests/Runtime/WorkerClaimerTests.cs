@@ -122,7 +122,7 @@ public sealed class WorkerClaimerTests
     }
 
     /// <summary>The real execution group over a session whose claim answers the rows the script returns.</summary>
-    internal sealed class ClaimStore(Func<CancellationToken, IReadOnlyList<ClaimBatchRow>> onClaim)
+    internal sealed class ClaimStore(Func<CancellationToken, IReadOnlyList<ClaimJobsRow>> onClaim)
     {
         private int _calls;
 
@@ -131,7 +131,7 @@ public sealed class WorkerClaimerTests
         public Acta.Execution Execution() => new ScriptedSession(
                 (call, ct) =>
                 {
-                    if (call.Stem != "ClaimBatch")
+                    if (call.Stem != "ClaimJobs")
                     {
                         throw new NotSupportedException(call.Stem);
                     }

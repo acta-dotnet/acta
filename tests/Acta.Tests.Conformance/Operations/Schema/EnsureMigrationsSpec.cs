@@ -32,7 +32,7 @@ public sealed class EnsureMigrationsSpec : IntegrationSpec<ConformanceFixture>
             await tx.CommitAsync(ct);
         }
 
-        Assert.True((await new MigrationsTableExistsHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists);
+        Assert.True((await new HasMigrationsTableHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists);
         var history = await new LoadAppliedVersionsHandler(connection, sql, TimeoutSeconds).HandleAsync(
             new LoadAppliedVersionsQuery(null),
             ct
@@ -76,6 +76,6 @@ public sealed class EnsureMigrationsSpec : IntegrationSpec<ConformanceFixture>
             await tx.RollbackAsync(ct);
         }
 
-        Assert.False((await new MigrationsTableExistsHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists);
+        Assert.False((await new HasMigrationsTableHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists);
     }
 }

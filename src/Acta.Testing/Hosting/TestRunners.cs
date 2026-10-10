@@ -87,20 +87,20 @@ internal static class TestRunners
     /// <summary>
     /// Convenience overload taking the enqueue result directly.
     /// </summary>
-    internal static Task<IReadOnlyList<ClaimedJob>> ClaimOneAsync(
+    internal static Task<IReadOnlyList<ClaimedJob>> ClaimJobAsync(
         this Execution execution,
         int namespaceId,
         int workerId,
         int leaseTtlSeconds,
         EnqueueJobResponse enqueued,
         CancellationToken ct
-    ) => execution.ClaimOneAsync(namespaceId, workerId, leaseTtlSeconds, enqueued.JobId, ct);
+    ) => execution.ClaimJobAsync(namespaceId, workerId, leaseTtlSeconds, enqueued.JobId, ct);
 
     /// <summary>
     /// Claim the specific job <paramref name="jobId"/> without running it, retrying while the claim is
     /// transiently skipped. For setups that need a claimed-but-not-run lease (heartbeat / reclaim).
     /// </summary>
-    internal static async Task<IReadOnlyList<ClaimedJob>> ClaimOneAsync(
+    internal static async Task<IReadOnlyList<ClaimedJob>> ClaimJobAsync(
         this Execution execution,
         int namespaceId,
         int workerId,
@@ -113,7 +113,7 @@ internal static class TestRunners
         while (true)
         {
             var claim = (
-                await execution.ClaimOneAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), leaseTtlSeconds, jobId, ct)
+                await execution.ClaimJobAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), leaseTtlSeconds, jobId, ct)
             ).Jobs;
             if (claim.Count > 0 || elapsed.Elapsed > Budget)
             {

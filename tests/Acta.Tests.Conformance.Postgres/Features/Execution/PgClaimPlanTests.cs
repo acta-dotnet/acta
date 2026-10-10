@@ -7,14 +7,14 @@ using Xunit;
 namespace Acta.Tests.Conformance.Postgres.Features.Execution;
 
 /// <summary>
-/// The plans claim_batch actually runs, captured by auto_explain from inside the routine: the claim is one
+/// The plans claim_jobs actually runs, captured by auto_explain from inside the routine: the claim is one
 /// ordered scan of ix_runtimes_claim_ready keyed per priority band, and the empty claim's horizon reads the
 /// head of each band once. Parked waits and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
 public sealed class PgClaimPlanTests : ClaimSkewTestBase
 {
     [Fact(
-        DisplayName = "claim_batch seeks ix_runtimes_claim_ready per priority band without sorting, and its horizon reads each band's head"
+        DisplayName = "claim_jobs seeks ix_runtimes_claim_ready per priority band without sorting, and its horizon reads each band's head"
     )]
     public async Task Claim_seeks_each_band_and_the_horizon_reads_each_band_head()
     {
@@ -79,7 +79,7 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
     private async Task<int> ClaimAsync(NpgsqlConnection conn, int ns, int workerId, CancellationToken ct)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT id FROM {Schema.SchemaName}.claim_batch(@ns, @worker, 16, 30, false) WHERE id IS NOT NULL";
+        cmd.CommandText = $"SELECT id FROM {Schema.SchemaName}.claim_jobs(@ns, @worker, 16, 30, false) WHERE id IS NOT NULL";
         cmd.Parameters.AddWithValue("ns", ns);
         cmd.Parameters.AddWithValue("worker", workerId);
         var claimed = 0;

@@ -38,7 +38,7 @@ internal static class MigrationHistoryPreflight
 
         var sql = new SqlResourceCatalog(hooks.DialectToken, schemaName);
         var timeout = hooks.CommandTimeoutSeconds;
-        if (!(await new MigrationsTableExistsHandler(conn, sql, timeout).HandleAsync(ct)).Exists)
+        if (!(await new HasMigrationsTableHandler(conn, sql, timeout).HandleAsync(ct)).Exists)
         {
             throw NotProvisioned(schemaName, hooks.DialectToken);
         }

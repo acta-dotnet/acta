@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>One row of the claim scan; the horizon sentinel row carries a null <see cref="JobId"/>.</summary>
 [DbProjection]
-internal sealed record ClaimBatchRow(
+internal sealed record ClaimJobsRow(
     long? JobId,
     int? NamespaceId,
     int? DefinitionId,

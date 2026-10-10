@@ -13,12 +13,12 @@ public sealed class SqlCommandCatalogTests
     // routine edit costing a migration. Everything else runs inline; adding a routine is a decision, not a drift.
     private static readonly string[] InstalledRoutines =
     [
+        "AccessCheckpoint",
         "AcquireLock",
         "AcquireSlot",
         "ArmOrConsumeSleepTimer",
-        "CheckpointSlot",
-        "ClaimBatch",
-        "ClaimOne",
+        "ClaimJob",
+        "ClaimJobs",
         "CompleteExecution",
         "CompleteExecutions",
         "CompleteStep",

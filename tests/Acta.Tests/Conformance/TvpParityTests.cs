@@ -21,20 +21,20 @@ public sealed partial class TvpParityTests
 
     /// <summary>
     /// The key of every TVP, pinned. A TVP is bound positionally and its key decides which rows the
-    /// receiving routine treats as distinct: keying <c>job_enqueue_batch</c> on anything a caller can
+    /// receiving routine treats as distinct: keying <c>enqueue_jobs_batch</c> on anything a caller can
     /// repeat within one batch makes the whole batch fail on a duplicate. That is the defect this
     /// pinning exists to catch, and it is why the current baseline is keyed on <c>ordinal</c> - a
     /// position the caller cannot collide - rather than on any caller-supplied value.
     /// </summary>
     private static readonly Dictionary<string, string> ExpectedKeys = new(StringComparer.Ordinal)
     {
-        ["job_enqueue_batch"] = "ordinal",
-        ["job_enqueue_tag_batch"] = "ordinal, name",
+        ["enqueue_jobs_batch"] = "ordinal",
+        ["enqueue_tags_batch"] = "ordinal, name",
         ["complete_executions_batch"] = "ordinal",
-        ["job_definition_batch"] = "name",
-        ["job_schedule_slot_batch"] = "definition_id",
-        ["job_schedule_upsert_batch"] = "definition_id, name",
-        ["job_schedule_advance_batch"] = "schedule_id",
+        ["register_definitions_batch"] = "name",
+        ["register_slots_batch"] = "definition_id",
+        ["register_schedules_batch"] = "definition_id, name",
+        ["advance_schedules_batch"] = "schedule_id",
     };
 
     [Fact]

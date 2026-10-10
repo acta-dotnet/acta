@@ -6,8 +6,8 @@ namespace Acta;
 /// subfeatures (checkpoint slot CRUD, child-latch reads, sleep-timer arm/consume).
 /// </summary>
 internal sealed class Execution(
-    ClaimBatchHandler claimBatch,
-    ClaimOneHandler claimOne,
+    ClaimJobsHandler claimJobs,
+    ClaimJobHandler claimJob,
     StartExecutionHandler startExecution,
     CompleteExecutionHandler completeExecution,
     CompleteExecutionsHandler completeExecutions,
@@ -15,7 +15,7 @@ internal sealed class Execution(
     RepairRecoverySlotHandler repairRecoverySlot,
     StartStepHandler startStep,
     CompleteStepHandler completeStep,
-    CheckpointSlotHandler checkpointSlot,
+    AccessCheckpointHandler accessCheckpoint,
     RecordNoteHandler recordNote,
     GetChildJobIdsHandler getChildJobIds,
     GetStaleChildLatchesHandler getStaleChildLatches,
@@ -28,16 +28,16 @@ internal sealed class Execution(
     /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED.
     /// Empty claim carries the horizon sentinel.
     /// </summary>
-    public Task<ClaimBatchResponse> ClaimBatchAsync(ClaimOptions options, int leaseTtlSeconds, CancellationToken ct) =>
-        claimBatch.HandleAsync(new ClaimBatchCommand(options, leaseTtlSeconds), ct);
+    public Task<ClaimJobsResponse> ClaimJobsAsync(ClaimOptions options, int leaseTtlSeconds, CancellationToken ct) =>
+        claimJobs.HandleAsync(new ClaimJobsCommand(options, leaseTtlSeconds), ct);
 
     /// <summary>
-    /// Claims exactly one job. A null <c>jobId</c> delegates to <see cref="ClaimBatchAsync"/> with a
+    /// Claims exactly one job. A null <c>jobId</c> delegates to <see cref="ClaimJobsAsync"/> with a
     /// batch of one; an explicit <c>jobId</c> deterministically claims that specific Ready job for
     /// callers that already know which to run. The only claim API that accepts an explicit id.
     /// </summary>
-    public Task<ClaimOneResponse> ClaimOneAsync(ClaimOptions options, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-        claimOne.HandleAsync(new ClaimOneCommand(options, leaseTtlSeconds, jobId), ct);
+    public Task<ClaimJobResponse> ClaimJobAsync(ClaimOptions options, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
+        claimJob.HandleAsync(new ClaimJobCommand(options, leaseTtlSeconds, jobId), ct);
 
     /// <summary>
     /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution-started</c>, matched on
@@ -110,12 +110,12 @@ internal sealed class Execution(
 
     /// <summary>
     /// The one generic CRUD call over a <c>checkpoints</c> slot, dispatched by
-    /// <see cref="CheckpointSlotAction"/> through a single durable statement. Returns exactly one
+    /// <see cref="AccessCheckpointAction"/> through a single durable statement. Returns exactly one
     /// outcome row. Checkpoint kinds with their own concurrency choreography (signals, timers,
     /// child latches) keep dedicated operations.
     /// </summary>
-    public Task<CheckpointSlotResponse> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
-        checkpointSlot.HandleAsync(command, ct);
+    public Task<AccessCheckpointResponse> AccessCheckpointAsync(AccessCheckpointCommand command, CancellationToken ct) =>
+        accessCheckpoint.HandleAsync(command, ct);
 
     /// <summary>
     /// Appends one application-authored <c>job.note-recorded</c> event. Every other event rides inside the transition it

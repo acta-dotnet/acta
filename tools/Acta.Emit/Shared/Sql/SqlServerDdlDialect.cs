@@ -115,8 +115,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
             -- Per-row enqueue batch: one row per Job to enqueue (1..5000 per call).
             -- Consumed by acta.enqueue_jobs's @p_batch sproc parameter.
-            IF TYPE_ID(N'{{schema}}.job_enqueue_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.job_enqueue_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.enqueue_jobs_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.enqueue_jobs_batch AS TABLE (
                 ordinal           INT              NOT NULL,
                 job_ref           UNIQUEIDENTIFIER NOT NULL,
                 namespace_name    VARCHAR(128)     NOT NULL,
@@ -138,9 +138,9 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             GO
 
             -- Per-tag enqueue batch: zero-or-more rows per Job, joined to the main batch by ordinal.
-            -- Consumed by acta.enqueue_jobs's @p_tag_batch sproc parameter.
-            IF TYPE_ID(N'{{schema}}.job_enqueue_tag_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.job_enqueue_tag_batch AS TABLE (
+            -- Consumed by the @p_tag_batch sproc parameter of acta.enqueue_jobs and acta.enqueue_job.
+            IF TYPE_ID(N'{{schema}}.enqueue_tags_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.enqueue_tags_batch AS TABLE (
                 ordinal INT          NOT NULL,
                 name    VARCHAR(128) NOT NULL,
                 value   NVARCHAR(128) NULL,
@@ -170,8 +170,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             -- Per-definition registration batch: one row per [Job] descriptor under a single namespace.
             -- Consumed by acta.register_definitions's @p_definitions sproc parameter (one round trip per
             -- worker regardless of definition count). name is the per-namespace natural key.
-            IF TYPE_ID(N'{{schema}}.job_definition_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.register_definitions_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.register_definitions_batch AS TABLE (
                 name                                 VARCHAR(128)  NOT NULL,
                 priority_code                        TINYINT       NOT NULL,
                 max_attempts                         INT           NOT NULL,
@@ -205,8 +205,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             -- Per-schedule cursor advances applied by acta.complete_execution on a recurring slot fire.
             -- One row per due schedule; next_run_at_utc NULL clears the cursor (schedule exhausted).
             -- expected_version is the schedule version the plan read; NULL applies the advance unguarded.
-            IF TYPE_ID(N'{{schema}}.job_schedule_advance_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.job_schedule_advance_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.advance_schedules_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.advance_schedules_batch AS TABLE (
                 schedule_id      BIGINT       NOT NULL PRIMARY KEY,
                 next_run_at_utc  DATETIME2(3) NULL,
                 expected_version INT          NULL
@@ -216,8 +216,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             -- Per-definition recurring slot batch: one row per definition reconciled in a single
             -- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
             -- deduplication_key is the slot job's natural key (the job name).
-            IF TYPE_ID(N'{{schema}}.job_schedule_slot_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.job_schedule_slot_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.register_slots_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.register_slots_batch AS TABLE (
                 definition_id    INT              NOT NULL PRIMARY KEY,
                 job_ref              UNIQUEIDENTIFIER NOT NULL,
                 deduplication_key           VARCHAR(128)     NOT NULL,
@@ -232,8 +232,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             -- All definitions' reconciled schedules for one acta.register_schedules call, tagged with
             -- definition_id so each schedule links to its definition's slot. next_run_at_utc is the
             -- C#-computed cursor; description is the optional operator note.
-            IF TYPE_ID(N'{{schema}}.job_schedule_upsert_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.job_schedule_upsert_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.register_schedules_batch') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.register_schedules_batch AS TABLE (
                 definition_id             INT          NOT NULL,
                 name                          VARCHAR(128) NOT NULL,
                 expression                    VARCHAR(128) NOT NULL,

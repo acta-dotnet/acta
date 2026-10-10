@@ -22,12 +22,12 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// anti-spin floor.</para>
 /// </summary>
 [ConformanceSpec(
-    "claim-batch.size-cap",
+    "claim-jobs.size-cap",
     "Claim caps at the batch size, reports the horizon, and skips excluded rows",
     Area = "Claim",
     Contract = "A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both."
 )]
-public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Batch = 5;
 
@@ -61,7 +61,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var claimed = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
 
         Assert.Equal(Batch, claimed.Jobs.Count);
         Assert.Null(claimed.Horizon);
@@ -83,7 +83,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
                 () =>
                     Services
                         .GetRequiredService<Acta.Execution>()
-                        .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
+                        .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
                 r => r.Jobs.Count > 0 || r.Horizon is not { NextReadyAtUtc: { } due, DbNowUtc: var now } || due > now,
                 ct
             );
@@ -116,9 +116,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var delayed = await ReadClaimUntilAsync(
             () =>
-                Services
-                    .GetRequiredService<Acta.Execution>()
-                    .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct),
+                Services.GetRequiredService<Acta.Execution>().ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct),
             r => r.Horizon?.NextReadyAtUtc is { } seen && seen <= dueAt.AddMinutes(1),
             ct
         );
@@ -156,13 +154,13 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         // last-enqueued High row ahead of the Normal one it was enqueued after.
         var firstFiltered = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
 
         Assert.Equal(high.JobId, Assert.Single(firstFiltered.Jobs).JobId);
 
         var restFiltered = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
 
         Assert.Equal(normal.JobId, Assert.Single(restFiltered.Jobs).JobId);
         Assert.DoesNotContain(excludedDefinitionId, restFiltered.Jobs.Select(j => j.DefinitionId));
@@ -171,7 +169,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         // worker that asked not to see it.
         var unfiltered = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
 
         Assert.Equal(excludedJobs.Order(), unfiltered.Jobs.Select(j => j.JobId).Order());
     }
@@ -197,7 +195,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             () =>
                 Services
                     .GetRequiredService<Acta.Execution>()
-                    .ClaimBatchAsync(
+                    .ClaimJobsAsync(
                         new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]),
                         leaseTtl,
                         ct
@@ -220,7 +218,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var allWaiting = await WaitingDefinitionIdsAsync(ns, ct);
         var silent = await Services
             .GetRequiredService<Acta.Execution>()
-            .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: allWaiting), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: allWaiting), leaseTtl, ct);
 
         Assert.Empty(silent.Jobs);
         Assert.Null(Assert.NotNull(silent.Horizon).NextReadyAtUtc);
@@ -259,9 +257,9 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     /// schema can transiently hide a row; production loops tick again, and so does this read. On
     /// timeout the last result is returned so the caller's asserts fail with the observed values.
     /// </summary>
-    private static async Task<ClaimBatchResponse> ReadClaimUntilAsync(
-        Func<Task<ClaimBatchResponse>> read,
-        Func<ClaimBatchResponse, bool> settled,
+    private static async Task<ClaimJobsResponse> ReadClaimUntilAsync(
+        Func<Task<ClaimJobsResponse>> read,
+        Func<ClaimJobsResponse, bool> settled,
         CancellationToken ct
     )
     {

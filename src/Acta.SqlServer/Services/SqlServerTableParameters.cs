@@ -10,7 +10,7 @@ namespace Acta.SqlServer;
 internal static class SqlServerTableParameters
 {
     /// <summary>
-    /// Column order and types must match the job_enqueue_batch TVP.
+    /// Column order and types must match the enqueue_jobs_batch TVP.
     /// </summary>
     internal static readonly SqlMetaData[] BatchColumns =
     [
@@ -151,7 +151,7 @@ internal static class SqlServerTableParameters
     }
 
     /// <summary>
-    /// Column order must match the job_definition_batch TVP.
+    /// Column order must match the register_definitions_batch TVP.
     /// </summary>
     internal static readonly SqlMetaData[] DefinitionColumns =
     [
@@ -340,13 +340,13 @@ internal static class SqlServerTableParameters
         StringComparer.Ordinal
     )
     {
-        ["job_enqueue_batch"] = BatchColumns,
-        ["job_enqueue_tag_batch"] = TagColumns,
+        ["enqueue_jobs_batch"] = BatchColumns,
+        ["enqueue_tags_batch"] = TagColumns,
         ["complete_executions_batch"] = CompleteExecutionsColumns,
-        ["job_definition_batch"] = DefinitionColumns,
-        ["job_schedule_slot_batch"] = SlotColumns,
-        ["job_schedule_upsert_batch"] = ScheduleUpsertColumns,
-        ["job_schedule_advance_batch"] = ScheduleAdvanceColumns,
+        ["register_definitions_batch"] = DefinitionColumns,
+        ["register_slots_batch"] = SlotColumns,
+        ["register_schedules_batch"] = ScheduleUpsertColumns,
+        ["advance_schedules_batch"] = ScheduleAdvanceColumns,
     };
 
     /// <summary>

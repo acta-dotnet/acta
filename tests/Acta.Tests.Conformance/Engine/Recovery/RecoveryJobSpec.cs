@@ -57,7 +57,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
-        Assert.Single(await Execution.ClaimOneAsync(TestNamespaceId, workerId, LeaseTtlSeconds, stranded, ct));
+        Assert.Single(await Execution.ClaimJobAsync(TestNamespaceId, workerId, LeaseTtlSeconds, stranded, ct));
 
         // A parent Suspended on a child that landed terminal with its latch never set: the raise lost to
         // a crash between the two writes, which only the handler's backstop pass can repair.

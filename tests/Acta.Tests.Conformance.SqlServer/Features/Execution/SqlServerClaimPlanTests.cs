@@ -9,7 +9,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 
 /// <summary>
-/// The actual plans claim_batch runs, returned by STATISTICS XML for every statement inside the procedure:
+/// The actual plans claim_jobs runs, returned by STATISTICS XML for every statement inside the procedure:
 /// the claim seeks ix_runtimes_claim_ready one priority band at a time and reads only the due rows, and the
 /// empty claim's horizon reads the head of each band once. Parked waits, which SQL Server sorts first in
 /// their band, and a band of delayed High rows crowd the index around the due rows.
@@ -19,7 +19,7 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
     private static readonly XNamespace Showplan = "http://schemas.microsoft.com/sqlserver/2004/07/showplan";
 
     [Fact(
-        DisplayName = "claim_batch seeks ix_runtimes_claim_ready per priority band and reads only the due rows, and its horizon reads each band's head"
+        DisplayName = "claim_jobs seeks ix_runtimes_claim_ready per priority band and reads only the due rows, and its horizon reads each band's head"
     )]
     public async Task Claim_seeks_each_band_and_reads_only_due_rows()
     {
@@ -69,7 +69,7 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
         CancellationToken ct
     )
     {
-        await using var cmd = new SqlCommand($"{Schema.SchemaName}.claim_batch", conn, tx) { CommandType = CommandType.StoredProcedure };
+        await using var cmd = new SqlCommand($"{Schema.SchemaName}.claim_jobs", conn, tx) { CommandType = CommandType.StoredProcedure };
         cmd.Parameters.AddWithValue("@p_namespace_id", ns);
         cmd.Parameters.AddWithValue("@p_leased_by_worker_id", workerId);
         cmd.Parameters.AddWithValue("@p_claim_limit", 16);

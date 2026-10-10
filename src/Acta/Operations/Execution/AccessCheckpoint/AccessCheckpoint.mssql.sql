@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE {{schema}}.checkpoint_slot
+CREATE OR ALTER PROCEDURE {{schema}}.access_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
     @p_kind_code TINYINT,
@@ -16,7 +16,7 @@ BEGIN
             BEGIN TRANSACTION;
 
         IF
-            @p_action IN (10 /* CheckpointSlotAction.Set */, 30 /* CheckpointSlotAction.GetOrSet */)
+            @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
             AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
             THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
 
@@ -28,7 +28,7 @@ BEGIN
             version INT NULL
         );
 
-        IF @p_action = 10 /* CheckpointSlotAction.Set */
+        IF @p_action = 10 /* AccessCheckpointAction.Set */
             BEGIN
 
                 UPDATE jv
@@ -59,7 +59,7 @@ BEGIN
 
                 INSERT INTO @row (found, value_format_id, value, version) VALUES (1, NULL, NULL, NULL);
             END
-        ELSE IF @p_action = 20 /* CheckpointSlotAction.Get */
+        ELSE IF @p_action = 20 /* AccessCheckpointAction.Get */
             BEGIN
                 INSERT INTO @row (found, value_format_id, value, version)
                 SELECT
@@ -78,7 +78,7 @@ BEGIN
                         INSERT INTO @row (found, value_format_id, value, version) VALUES (0, NULL, NULL, NULL);
                     END
             END
-        ELSE IF @p_action = 30 /* CheckpointSlotAction.GetOrSet */
+        ELSE IF @p_action = 30 /* AccessCheckpointAction.GetOrSet */
             BEGIN
 
                 INSERT INTO @row (found, value_format_id, value, version)
@@ -111,7 +111,7 @@ BEGIN
                     END
 
             END
-        ELSE IF @p_action = 40 /* CheckpointSlotAction.Exists */
+        ELSE IF @p_action = 40 /* AccessCheckpointAction.Exists */
             BEGIN
                 INSERT INTO @row (found, value_format_id, value, version)
                 SELECT
@@ -127,7 +127,7 @@ BEGIN
                     NULL,
                     NULL;
             END
-        ELSE IF @p_action = 50 /* CheckpointSlotAction.Delete */
+        ELSE IF @p_action = 50 /* AccessCheckpointAction.Delete */
             BEGIN
                 DELETE FROM {{schema}}.checkpoints
                 WHERE
@@ -140,7 +140,7 @@ BEGIN
             END
         ELSE
             BEGIN
-                THROW 50002, 'checkpoint_slot received an unknown action.', 1;
+                THROW 50002, 'access_checkpoint received an unknown action.', 1;
             END
 
         SELECT

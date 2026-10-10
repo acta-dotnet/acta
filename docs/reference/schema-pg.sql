@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 57)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 58)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -800,6 +800,128 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 -- ===== routines (versionless; always rewritten to this file's definitions) =====
 
+CREATE OR REPLACE FUNCTION acta.access_checkpoint(
+    p_action SMALLINT,
+    p_job_id BIGINT,
+    p_kind_code SMALLINT,
+    p_name VARCHAR,
+    p_value_format_id SMALLINT,
+    p_value BYTEA
+)
+RETURNS TABLE (found INT, value_format_id SMALLINT, value BYTEA, version INTEGER)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_deleted INTEGER;
+BEGIN
+    IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+       AND (p_value_format_id = 0 /* JobPayloadFormat.None */ OR p_value IS NULL) THEN
+        RAISE EXCEPTION 'Variable payload must use a non-zero format id and non-NULL value.';
+    END IF;
+
+    IF p_action = 10 /* AccessCheckpointAction.Set */ THEN
+        INSERT INTO acta.checkpoints (
+            job_id,
+            kind_code,
+            name,
+            value_format_id,
+            value,
+            created_at_utc,
+            modified_at_utc,
+            version)
+        VALUES (
+            p_job_id,
+            p_kind_code,
+            p_name,
+            p_value_format_id,
+            p_value,
+            now(),
+            now(),
+            0)
+        ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
+            value_format_id = EXCLUDED.value_format_id,
+            value = EXCLUDED.value,
+            modified_at_utc = now(),
+            version = acta.checkpoints.version + 1;
+
+        RETURN QUERY SELECT 1, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
+    ELSIF p_action = 20 /* AccessCheckpointAction.Get */ THEN
+        RETURN QUERY
+        SELECT 1, jv.value_format_id, jv.value, jv.version
+        FROM acta.checkpoints AS jv
+        WHERE
+            jv.job_id = p_job_id
+            AND jv.kind_code = p_kind_code
+            AND jv.name = p_name;
+
+        IF NOT FOUND THEN
+            RETURN QUERY SELECT 0, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
+        END IF;
+    ELSIF p_action = 30 /* AccessCheckpointAction.GetOrSet */ THEN
+        LOOP
+            RETURN QUERY
+            SELECT 1, jv.value_format_id, jv.value, jv.version
+            FROM acta.checkpoints AS jv
+            WHERE
+                jv.job_id = p_job_id
+                AND jv.kind_code = p_kind_code
+                AND jv.name = p_name;
+
+            IF FOUND THEN
+                RETURN;
+            END IF;
+
+            RETURN QUERY
+            INSERT INTO acta.checkpoints AS inserted (
+                job_id,
+                kind_code,
+                name,
+                value_format_id,
+                value,
+                created_at_utc,
+                modified_at_utc,
+                version)
+            VALUES (
+                p_job_id,
+                p_kind_code,
+                p_name,
+                p_value_format_id,
+                p_value,
+                now(),
+                now(),
+                0)
+            ON CONFLICT (job_id, kind_code, name) DO NOTHING
+            RETURNING 1, inserted.value_format_id, inserted.value, inserted.version;
+
+            IF FOUND THEN
+                RETURN;
+            END IF;
+        END LOOP;
+    ELSIF p_action = 40 /* AccessCheckpointAction.Exists */ THEN
+        RETURN QUERY
+        SELECT CASE WHEN EXISTS (
+            SELECT 1
+            FROM acta.checkpoints AS jv
+            WHERE
+                jv.job_id = p_job_id
+                AND jv.kind_code = p_kind_code
+                AND jv.name = p_name
+        ) THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
+    ELSIF p_action = 50 /* AccessCheckpointAction.Delete */ THEN
+        DELETE FROM acta.checkpoints AS jv
+        WHERE
+            jv.job_id = p_job_id
+            AND jv.kind_code = p_kind_code
+            AND jv.name = p_name;
+
+        GET DIAGNOSTICS v_deleted = ROW_COUNT;
+        RETURN QUERY SELECT CASE WHEN v_deleted > 0 THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
+    ELSE
+        RAISE EXCEPTION 'access_checkpoint received an unknown action.';
+    END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION acta.acquire_lock(
     p_lock_key VARCHAR,
     p_job_id BIGINT,
@@ -944,129 +1066,132 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.checkpoint_slot(
-    p_action SMALLINT,
-    p_job_id BIGINT,
-    p_kind_code SMALLINT,
-    p_name VARCHAR,
-    p_value_format_id SMALLINT,
-    p_value BYTEA
+CREATE OR REPLACE FUNCTION acta.claim_job(
+    p_namespace_id INT,
+    p_leased_by_worker_id INT,
+    p_lease_ttl_seconds INT,
+    p_id BIGINT,
+    p_start_executing BOOLEAN
 )
-RETURNS TABLE (found INT, value_format_id SMALLINT, value BYTEA, version INTEGER)
-LANGUAGE plpgsql
+RETURNS TABLE (
+    id BIGINT,
+    namespace_id INT,
+    definition_id INT,
+    execution_number INT,
+    deduplication_key VARCHAR,
+    correlation_key VARCHAR,
+    concurrency_key VARCHAR,
+    input_format_id SMALLINT,
+    input BYTEA,
+    next_run_at_utc TIMESTAMPTZ,
+    lease_expires_at_utc TIMESTAMPTZ,
+    created_at_utc TIMESTAMPTZ,
+    failure_count INT,
+    version INT,
+    job_ref UUID,
+    tenant_id INT,
+    db_now TIMESTAMPTZ,
+    next_ready_at_utc TIMESTAMPTZ
+)
+LANGUAGE sql
 AS $$
-DECLARE
-    v_deleted INTEGER;
-BEGIN
-    IF p_action IN (10 /* CheckpointSlotAction.Set */, 30 /* CheckpointSlotAction.GetOrSet */)
-       AND (p_value_format_id = 0 /* JobPayloadFormat.None */ OR p_value IS NULL) THEN
-        RAISE EXCEPTION 'Variable payload must use a non-zero format id and non-NULL value.';
-    END IF;
-
-    IF p_action = 10 /* CheckpointSlotAction.Set */ THEN
-        INSERT INTO acta.checkpoints (
-            job_id,
-            kind_code,
-            name,
-            value_format_id,
-            value,
-            created_at_utc,
-            modified_at_utc,
-            version)
-        VALUES (
-            p_job_id,
-            p_kind_code,
-            p_name,
-            p_value_format_id,
-            p_value,
-            now(),
-            now(),
-            0)
-        ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-            value_format_id = EXCLUDED.value_format_id,
-            value = EXCLUDED.value,
+    WITH candidates AS (
+        /* claim_jobs' due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
+           Suspended row with a NULL instant is an unbounded wait that never comes due. */
+        SELECT r.job_id AS id, r.status_code AS from_status
+        FROM acta.runtimes r
+        WHERE
+            r.job_id = p_id
+            AND r.namespace_id = p_namespace_id
+            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            AND r.next_run_at_utc IS NOT NULL
+            AND r.next_run_at_utc <= now()
+        FOR UPDATE OF r SKIP LOCKED
+    ),
+    updated AS (
+        UPDATE acta.runtimes r
+        SET
+            status_code = CASE WHEN p_start_executing THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+            execution_number = r.execution_number + 1,
+            leased_by_worker_id = p_leased_by_worker_id,
+            lease_expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
             modified_at_utc = now(),
-            version = acta.checkpoints.version + 1;
-
-        RETURN QUERY SELECT 1, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSIF p_action = 20 /* CheckpointSlotAction.Get */ THEN
-        RETURN QUERY
-        SELECT 1, jv.value_format_id, jv.value, jv.version
-        FROM acta.checkpoints AS jv
-        WHERE
-            jv.job_id = p_job_id
-            AND jv.kind_code = p_kind_code
-            AND jv.name = p_name;
-
-        IF NOT FOUND THEN
-            RETURN QUERY SELECT 0, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-        END IF;
-    ELSIF p_action = 30 /* CheckpointSlotAction.GetOrSet */ THEN
-        LOOP
-            RETURN QUERY
-            SELECT 1, jv.value_format_id, jv.value, jv.version
-            FROM acta.checkpoints AS jv
-            WHERE
-                jv.job_id = p_job_id
-                AND jv.kind_code = p_kind_code
-                AND jv.name = p_name;
-
-            IF FOUND THEN
-                RETURN;
-            END IF;
-
-            RETURN QUERY
-            INSERT INTO acta.checkpoints AS inserted (
-                job_id,
-                kind_code,
-                name,
-                value_format_id,
-                value,
-                created_at_utc,
-                modified_at_utc,
-                version)
-            VALUES (
-                p_job_id,
-                p_kind_code,
-                p_name,
-                p_value_format_id,
-                p_value,
-                now(),
-                now(),
-                0)
-            ON CONFLICT (job_id, kind_code, name) DO NOTHING
-            RETURNING 1, inserted.value_format_id, inserted.value, inserted.version;
-
-            IF FOUND THEN
-                RETURN;
-            END IF;
-        END LOOP;
-    ELSIF p_action = 40 /* CheckpointSlotAction.Exists */ THEN
-        RETURN QUERY
-        SELECT CASE WHEN EXISTS (
-            SELECT 1
-            FROM acta.checkpoints AS jv
-            WHERE
-                jv.job_id = p_job_id
-                AND jv.kind_code = p_kind_code
-                AND jv.name = p_name
-        ) THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSIF p_action = 50 /* CheckpointSlotAction.Delete */ THEN
-        DELETE FROM acta.checkpoints AS jv
-        WHERE
-            jv.job_id = p_job_id
-            AND jv.kind_code = p_kind_code
-            AND jv.name = p_name;
-
-        GET DIAGNOSTICS v_deleted = ROW_COUNT;
-        RETURN QUERY SELECT CASE WHEN v_deleted > 0 THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSE
-        RAISE EXCEPTION 'checkpoint_slot received an unknown action.';
-    END IF;
-END;
+            version = r.version + 1
+        FROM candidates c
+        JOIN acta.jobs j ON j.id = c.id
+        WHERE r.job_id = c.id
+        RETURNING
+            r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
+            r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
+            j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
+            r.failure_count, r.version, j.job_ref, c.from_status
+    ),
+    started_event AS (
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        SELECT
+            40 /* EventCode.JobExecutionStarted */,
+            now(),
+            u.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            u.id,
+            u.job_ref,
+            u.execution_number,
+            COALESCE(u.lineage_root_id, u.id),
+            u.definition_id,
+            u.tenant_id,
+            p_leased_by_worker_id,
+            u.from_status,
+            50 /* JobStatusCode.Executing */,
+            50 /* ExecutionStatusCode.Executing */,
+            NULL,
+            NULL,
+            NULL
+        FROM updated u
+        WHERE p_start_executing AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+        RETURNING 1
+    )
+    SELECT
+        u.id,
+        u.namespace_id,
+        u.definition_id,
+        u.execution_number,
+        u.deduplication_key,
+        u.correlation_key,
+        u.concurrency_key,
+        u.input_format_id,
+        u.input,
+        u.next_run_at_utc,
+        now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
+        u.created_at_utc,
+        u.failure_count,
+        u.version,
+        u.job_ref,
+        u.tenant_id,
+        NULL::timestamptz AS db_now,
+        NULL::timestamptz AS next_ready_at_utc
+    FROM updated u;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.claim_batch(
+CREATE OR REPLACE FUNCTION acta.claim_jobs(
     p_namespace_id INT,
     p_leased_by_worker_id INT,
     p_claim_limit INT,
@@ -1288,131 +1413,6 @@ AS $$
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.claim_one(
-    p_namespace_id INT,
-    p_leased_by_worker_id INT,
-    p_lease_ttl_seconds INT,
-    p_id BIGINT,
-    p_start_executing BOOLEAN
-)
-RETURNS TABLE (
-    id BIGINT,
-    namespace_id INT,
-    definition_id INT,
-    execution_number INT,
-    deduplication_key VARCHAR,
-    correlation_key VARCHAR,
-    concurrency_key VARCHAR,
-    input_format_id SMALLINT,
-    input BYTEA,
-    next_run_at_utc TIMESTAMPTZ,
-    lease_expires_at_utc TIMESTAMPTZ,
-    created_at_utc TIMESTAMPTZ,
-    failure_count INT,
-    version INT,
-    job_ref UUID,
-    tenant_id INT,
-    db_now TIMESTAMPTZ,
-    next_ready_at_utc TIMESTAMPTZ
-)
-LANGUAGE sql
-AS $$
-    WITH candidates AS (
-        /* claim_batch's due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
-           Suspended row with a NULL instant is an unbounded wait that never comes due. */
-        SELECT r.job_id AS id, r.status_code AS from_status
-        FROM acta.runtimes r
-        WHERE
-            r.job_id = p_id
-            AND r.namespace_id = p_namespace_id
-            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-            AND r.next_run_at_utc IS NOT NULL
-            AND r.next_run_at_utc <= now()
-        FOR UPDATE OF r SKIP LOCKED
-    ),
-    updated AS (
-        UPDATE acta.runtimes r
-        SET
-            status_code = CASE WHEN p_start_executing THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
-            execution_number = r.execution_number + 1,
-            leased_by_worker_id = p_leased_by_worker_id,
-            lease_expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
-            modified_at_utc = now(),
-            version = r.version + 1
-        FROM candidates c
-        JOIN acta.jobs j ON j.id = c.id
-        WHERE r.job_id = c.id
-        RETURNING
-            r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
-            r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
-            j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, r.version, j.job_ref, c.from_status
-    ),
-    started_event AS (
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        SELECT
-            40 /* EventCode.JobExecutionStarted */,
-            now(),
-            u.namespace_id,
-            70 /* ActorCode.Worker */,
-            NULL,
-            u.id,
-            u.job_ref,
-            u.execution_number,
-            COALESCE(u.lineage_root_id, u.id),
-            u.definition_id,
-            u.tenant_id,
-            p_leased_by_worker_id,
-            u.from_status,
-            50 /* JobStatusCode.Executing */,
-            50 /* ExecutionStatusCode.Executing */,
-            NULL,
-            NULL,
-            NULL
-        FROM updated u
-        WHERE p_start_executing AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
-        RETURNING 1
-    )
-    SELECT
-        u.id,
-        u.namespace_id,
-        u.definition_id,
-        u.execution_number,
-        u.deduplication_key,
-        u.correlation_key,
-        u.concurrency_key,
-        u.input_format_id,
-        u.input,
-        u.next_run_at_utc,
-        now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
-        u.created_at_utc,
-        u.failure_count,
-        u.version,
-        u.job_ref,
-        u.tenant_id,
-        NULL::timestamptz AS db_now,
-        NULL::timestamptz AS next_ready_at_utc
-    FROM updated u;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.complete_execution(
@@ -5382,7 +5382,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.57-9b571f90b8ab485856fcb6e8461de58c', 'acta');
+VALUES (-1, 'objects-1.58-4ef07f8649786b063348bd6d39a0f7c5', 'acta');
 
 COMMIT;
 

@@ -61,7 +61,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var j2 = outcomes[1].JobId;
         var j3 = outcomes[2].JobId;
 
-        var c3 = Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker!.Id, LeaseTtl, j3, ct));
+        var c3 = Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, worker!.Id, LeaseTtl, j3, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (
@@ -114,7 +114,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var failed = outcomes[1].JobId;
 
         var execution = Services.GetRequiredService<Acta.Execution>();
-        var claim = Assert.Single(await execution.ClaimOneAsync(ns, worker!.Id, LeaseTtl, failed, ct));
+        var claim = Assert.Single(await execution.ClaimJobAsync(ns, worker!.Id, LeaseTtl, failed, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (await execution.StartExecutionAsync(claim.JobId, worker.Id, claim.ExecutionNumber, LeaseTtl, ct)).Action

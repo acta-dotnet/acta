@@ -59,8 +59,8 @@ internal sealed class WorkerExecutor(
         // Only the scanning claim carries the exclusion: a caller naming a job id asked for that row,
         // and gets the bounce rather than an empty claim it cannot tell from a locked-away one.
         var claim = explicitJobId is { } id
-            ? await _execution.ClaimOneAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), _options.LeaseTtlSeconds, id, ct)
-            : await _execution.ClaimOneAsync(
+            ? await _execution.ClaimJobAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), _options.LeaseTtlSeconds, id, ct)
+            : await _execution.ClaimJobAsync(
                 new ClaimOptions(namespaceId, workerId, MaxBatch: 1, ExcludedDefinitionIds: context.UnsupportedDefinitionIdsSnapshot),
                 _options.LeaseTtlSeconds,
                 null,

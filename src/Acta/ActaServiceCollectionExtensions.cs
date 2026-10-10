@@ -206,8 +206,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
         services.TryAddSingleton<Signals>();
-        services.TryAddSingleton<ClaimBatchHandler>();
-        services.TryAddSingleton<ClaimOneHandler>();
+        services.TryAddSingleton<ClaimJobsHandler>();
+        services.TryAddSingleton<ClaimJobHandler>();
         services.TryAddSingleton<StartExecutionHandler>();
         services.TryAddSingleton<CompleteExecutionHandler>();
         services.TryAddSingleton<CompleteExecutionsHandler>();
@@ -215,7 +215,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<RepairRecoverySlotHandler>();
         services.TryAddSingleton<StartStepHandler>();
         services.TryAddSingleton<CompleteStepHandler>();
-        services.TryAddSingleton<CheckpointSlotHandler>();
+        services.TryAddSingleton<AccessCheckpointHandler>();
         services.TryAddSingleton<RecordNoteHandler>();
         services.TryAddSingleton<GetChildJobIdsHandler>();
         services.TryAddSingleton<GetStaleChildLatchesHandler>();

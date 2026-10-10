@@ -173,7 +173,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         var claim1 = (
             await Services
                 .GetRequiredService<Execution>()
-                .ClaimOneAsync(new ClaimOptions(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
+                .ClaimJobAsync(new ClaimOptions(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
         ).Jobs;
         Assert.Single(claim1);
         Assert.Equal(1, claim1[0].ExecutionNumber);
@@ -182,7 +182,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         var claim2 = (
             await Services
                 .GetRequiredService<Execution>()
-                .ClaimOneAsync(new ClaimOptions(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
+                .ClaimJobAsync(new ClaimOptions(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
         ).Jobs;
         Assert.Empty(claim2);
 

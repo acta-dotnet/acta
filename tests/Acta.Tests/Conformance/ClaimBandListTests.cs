@@ -18,7 +18,7 @@ public sealed partial class ClaimBandListTests
     [InlineData("sqlite")]
     public void Claim_band_list_names_every_priority_code_once(string dialect)
     {
-        var sql = ProviderSqlResources.Read(dialect, "ClaimBatch");
+        var sql = ProviderSqlResources.Read(dialect, "ClaimJobs");
 
         var listed = PriorityMember().Matches(sql).Select(m => m.Groups["member"].Value).Order(StringComparer.Ordinal);
 

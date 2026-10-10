@@ -532,7 +532,7 @@ DDL, against the rc.3 baseline:
   status_code) WHERE status_code IN (10, 20)`: `namespace_id` leaves the key and `pool_id` takes
   its place, same width and seek shape;
 - SQL Server: a `pool_id_batch (pool_id int NOT NULL)` table type and a `pool_name varchar(64) NOT
-  NULL` column on `job_definition_batch`.
+  NULL` column on `register_definitions_batch`.
 
 Rules:
 
@@ -543,7 +543,7 @@ Rules:
   gives up the system jobs, which production.md must say, and every active namespace therefore
   needs default-serving workers (a topology test of named-pool workers plus default-serving workers
   proves recovery, alerting, and retention keep running).
-- A pool id implies its namespace, so `claim_batch`, `claim_one`, and the idle next-ready lookup
+- A pool id implies its namespace, so `claim_jobs`, `claim_job`, and the idle next-ready lookup
   filter by served pool ids alone (an array on PostgreSQL, a table type on SQL Server, a list on
   SQLite) and a worker can never reach another namespace's rows.
 - Registration upserts the worker's pool names inside its namespace, points each definition at its

@@ -61,6 +61,10 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
   (`Jobs`, `Workers`, `Alerts`); a box is named for its capability (`Worker` holds one worker's runtime,
   `Alerting` is the process, `Catalog` is what a deployment declares). A system job's class is
   `<Sys>Job` (`RecoveryJob`, `OutboxJob`), named for the job, not for what it relays or sweeps.
+- **Verb first, plural for a set.** An operation, its routine, and a SQL Server table type read as the
+  action they carry, with a plural noun when they act on a set: `ClaimJob` and `ClaimJobs` (`claim_job`,
+  `claim_jobs`), `CompleteExecutions`. A table type is named for the routine that takes it plus `_batch`
+  (`enqueue_jobs_batch`, `complete_executions_batch`); `Batch` is never the noun.
 
 ## Type names: one suffix per role
 
@@ -72,7 +76,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | Input to a read operation, including public list filters | `Query` | `ListJobsQuery` |
 | Executes one command or query | `Handler` | `PauseJobHandler` |
 | What an operation returns | `Response` | `PauseJobResponse : IJobControlResponse`, `GetJobResponse` |
-| Bound straight from a reader, internal, no public twin | `Row` | `ClaimBatchRow` |
+| Bound straight from a reader, internal, no public twin | `Row` | `ClaimJobsRow` |
 | The column values one batch write binds, internal | `Values` | `JobEnqueueValues` |
 | Element of an operation's response | `Item` | `ListJobsItem`, `GetTagsItem` |
 | Public facade implementation | the interface name without `I` | `Jobs : IJobs` |

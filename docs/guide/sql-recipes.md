@@ -64,7 +64,7 @@ SELECT job_id, job_ref, action  /* action: 1 inserted, 2 idempotency-deduped */
 so declare an empty one even for a tag-free enqueue:
 
 ```sql
-DECLARE @tags acta.job_enqueue_tag_batch;
+DECLARE @tags acta.enqueue_tags_batch;
 DECLARE @payload varbinary(max) = CAST('{"invoiceId":42}' AS varbinary(max));
 EXEC acta.enqueue_job
     @p_namespace_name = 'billing',

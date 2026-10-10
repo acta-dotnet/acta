@@ -240,7 +240,7 @@ internal static class AlertTestOps
 
         var db = services.GetRequiredService<IDbSession>();
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(db, namespaceId, ct);
-        var claim = await services.GetRequiredService<Execution>().ClaimOneAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
+        var claim = await services.GetRequiredService<Execution>().ClaimJobAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
         Assert.Equal(slotId, Assert.Single(claim).JobId);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(services, namespaceId, ct)).Reclaimed);

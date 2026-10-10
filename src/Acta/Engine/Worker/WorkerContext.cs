@@ -19,7 +19,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// <summary>
     /// definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
     /// UpsertDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
-    /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_batch</c> free of any JOIN to
+    /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_jobs</c> free of any JOIN to
     /// definitions. Each descriptor carries the definition's effective (override-or-default)
     /// policy. Concurrent because the definition-policy reload tick re-overlays entries while
     /// executor threads read them.

@@ -1,18 +1,18 @@
 namespace Acta;
 
-/// <summary><see cref="Execution.ClaimBatchAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
-internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
+/// <summary><see cref="Execution.ClaimJobsAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
+internal sealed class ClaimJobsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<ClaimBatchResponse> HandleAsync(ClaimBatchCommand command, CancellationToken ct)
+    public async Task<ClaimJobsResponse> HandleAsync(ClaimJobsCommand command, CancellationToken ct)
     {
         var options = command.Options;
         if (options.MaxBatch <= 0)
         {
-            return ClaimBatchResponse.Empty;
+            return ClaimJobsResponse.Empty;
         }
 
         var rows = await session.ExecuteAsync(
-            new StoreCommand("ClaimBatch"),
+            new StoreCommand("ClaimJobs"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, options.NamespaceId));
@@ -22,18 +22,18 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, options.StartExecuting));
                 dialect.BindExcludedDefinitionIds(cmd, options.ExcludedDefinitionIds);
             },
-            DbProjectionResolver.Resolve<ClaimBatchRow>(),
+            DbProjectionResolver.Resolve<ClaimJobsRow>(),
             ct
         );
         return Map(rows);
     }
 
     /// <summary>Job rows become claimed jobs; the sentinel row, its job id null, becomes the horizon.</summary>
-    private static ClaimBatchResponse Map(IReadOnlyList<ClaimBatchRow> rows)
+    private static ClaimJobsResponse Map(IReadOnlyList<ClaimJobsRow> rows)
     {
         if (rows.Count == 0)
         {
-            return ClaimBatchResponse.Empty;
+            return ClaimJobsResponse.Empty;
         }
 
         ClaimHorizon? horizon = null;
@@ -53,6 +53,6 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
             }
         }
 
-        return new ClaimBatchResponse(jobs, horizon);
+        return new ClaimJobsResponse(jobs, horizon);
     }
 }

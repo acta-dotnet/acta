@@ -110,7 +110,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, running.JobId, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, leaseTtl, running.JobId, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,

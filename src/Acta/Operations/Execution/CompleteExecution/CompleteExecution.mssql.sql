@@ -18,7 +18,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.complete_execution
     @p_wait_signal_name NVARCHAR(128) = NULL,
     @p_handler_status_code TINYINT = NULL,
     @p_retention_seconds INT = NULL,
-    @p_schedule_advances {{schema}}.job_schedule_advance_batch READONLY
+    @p_schedule_advances {{schema}}.advance_schedules_batch READONLY
 AS
 BEGIN
     SET NOCOUNT ON;

@@ -8,14 +8,14 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Execution;
 
-/// <summary>Conformance for <c>checkpoint_slot</c>, the one CRUD call behind job variables and the progress slot.</summary>
+/// <summary>Conformance for <c>access_checkpoint</c>, the one CRUD call behind job variables and the progress slot.</summary>
 [ConformanceSpec(
-    "checkpoint-slot.crud",
+    "access-checkpoint.crud",
     "A checkpoint slot is set, read, kept on first write, and deleted by one call",
     Area = "Execution",
     Contract = "A slot keyed by job, kind, and name is overwritten by Set, kept by GetOrSet, removed by Delete, and never written without a payload."
 )]
-public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class AccessCheckpointSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private static readonly byte Json = JobPayloadFormat.Json.Id;
 
@@ -27,19 +27,19 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
 
-        Assert.Equal(1, (await SlotAsync(CheckpointSlotAction.Set, job, "color", Value("red"), ct)).Found);
+        Assert.Equal(1, (await SlotAsync(AccessCheckpointAction.Set, job, "color", Value("red"), ct)).Found);
         var inserted = Assert.Single(await SlotsAsync(job, ct));
         Assert.Equal(CheckpointKindCode.Variable, inserted.Kind);
         Assert.Null(inserted.Status);
         Assert.Equal(Value("red"), inserted.Value);
         Assert.Equal(0, inserted.Version);
 
-        Assert.Equal(1, (await SlotAsync(CheckpointSlotAction.Set, job, "color", Value("blue"), ct)).Found);
+        Assert.Equal(1, (await SlotAsync(AccessCheckpointAction.Set, job, "color", Value("blue"), ct)).Found);
 
         var overwritten = Assert.Single(await SlotsAsync(job, ct));
         Assert.Equal(Value("blue"), overwritten.Value);
         Assert.Equal(1, overwritten.Version);
-        var read = await SlotAsync(CheckpointSlotAction.Get, job, "color", null, ct);
+        var read = await SlotAsync(AccessCheckpointAction.Get, job, "color", null, ct);
         Assert.Equal(1, read.Found);
         Assert.Equal(Json, read.ValueFormatId);
         Assert.Equal(Value("blue"), read.Value);
@@ -52,7 +52,7 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
 
-        foreach (var action in new[] { CheckpointSlotAction.Get, CheckpointSlotAction.Exists, CheckpointSlotAction.Delete })
+        foreach (var action in new[] { AccessCheckpointAction.Get, AccessCheckpointAction.Exists, AccessCheckpointAction.Delete })
         {
             var row = await SlotAsync(action, job, "absent", null, ct);
             Assert.Equal(0, row.Found);
@@ -66,13 +66,13 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
-        await SlotAsync(CheckpointSlotAction.Set, job, "doomed", Value("x"), ct);
-        Assert.Equal(1, (await SlotAsync(CheckpointSlotAction.Exists, job, "doomed", null, ct)).Found);
+        await SlotAsync(AccessCheckpointAction.Set, job, "doomed", Value("x"), ct);
+        Assert.Equal(1, (await SlotAsync(AccessCheckpointAction.Exists, job, "doomed", null, ct)).Found);
 
-        Assert.Equal(1, (await SlotAsync(CheckpointSlotAction.Delete, job, "doomed", null, ct)).Found);
-        Assert.Equal(0, (await SlotAsync(CheckpointSlotAction.Delete, job, "doomed", null, ct)).Found);
+        Assert.Equal(1, (await SlotAsync(AccessCheckpointAction.Delete, job, "doomed", null, ct)).Found);
+        Assert.Equal(0, (await SlotAsync(AccessCheckpointAction.Delete, job, "doomed", null, ct)).Found);
 
-        Assert.Equal(0, (await SlotAsync(CheckpointSlotAction.Exists, job, "doomed", null, ct)).Found);
+        Assert.Equal(0, (await SlotAsync(AccessCheckpointAction.Exists, job, "doomed", null, ct)).Found);
         Assert.Empty(await SlotsAsync(job, ct));
     }
 
@@ -82,8 +82,8 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
 
-        var first = await SlotAsync(CheckpointSlotAction.GetOrSet, job, "seed", Value("first"), ct);
-        var second = await SlotAsync(CheckpointSlotAction.GetOrSet, job, "seed", Value("second"), ct);
+        var first = await SlotAsync(AccessCheckpointAction.GetOrSet, job, "seed", Value("first"), ct);
+        var second = await SlotAsync(AccessCheckpointAction.GetOrSet, job, "seed", Value("second"), ct);
 
         Assert.Equal(1, first.Found);
         Assert.Equal(Value("first"), first.Value);
@@ -102,25 +102,25 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
         var other = await EnqueueAsync(ct);
-        await SlotAsync(CheckpointSlotAction.Set, job, "shared", Value("variable"), ct);
+        await SlotAsync(AccessCheckpointAction.Set, job, "shared", Value("variable"), ct);
 
-        Assert.Equal(0, (await SlotAsync(CheckpointSlotAction.Exists, other, "shared", null, ct)).Found);
+        Assert.Equal(0, (await SlotAsync(AccessCheckpointAction.Exists, other, "shared", null, ct)).Found);
         Assert.Equal(
             0,
             (
-                await Execution.CheckpointSlotAsync(
-                    Command(CheckpointSlotAction.Exists, job, "shared", null, CheckpointKindCode.Progress),
+                await Execution.AccessCheckpointAsync(
+                    Command(AccessCheckpointAction.Exists, job, "shared", null, CheckpointKindCode.Progress),
                     ct
                 )
             ).Found
         );
 
-        await Execution.CheckpointSlotAsync(
-            Command(CheckpointSlotAction.Set, job, "shared", Value("progress"), CheckpointKindCode.Progress),
+        await Execution.AccessCheckpointAsync(
+            Command(AccessCheckpointAction.Set, job, "shared", Value("progress"), CheckpointKindCode.Progress),
             ct
         );
 
-        Assert.Equal(Value("variable"), (await SlotAsync(CheckpointSlotAction.Get, job, "shared", null, ct)).Value);
+        Assert.Equal(Value("variable"), (await SlotAsync(AccessCheckpointAction.Get, job, "shared", null, ct)).Value);
         Assert.Equal(2, (await SlotsAsync(job, ct)).Count);
     }
 
@@ -131,14 +131,14 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
         var job = await EnqueueAsync(ct);
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Execution.CheckpointSlotAsync(
-                new CheckpointSlotCommand(CheckpointSlotAction.Set, job, CheckpointKindCode.Variable, "empty", 0, null),
+            Execution.AccessCheckpointAsync(
+                new AccessCheckpointCommand(AccessCheckpointAction.Set, job, CheckpointKindCode.Variable, "empty", 0, null),
                 ct
             )
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Execution.CheckpointSlotAsync(
-                new CheckpointSlotCommand(CheckpointSlotAction.GetOrSet, job, CheckpointKindCode.Variable, "empty", Json, null),
+            Execution.AccessCheckpointAsync(
+                new AccessCheckpointCommand(AccessCheckpointAction.GetOrSet, job, CheckpointKindCode.Variable, "empty", Json, null),
                 ct
             )
         );
@@ -151,21 +151,21 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
 
     private static byte[] Value(string text) => Encoding.UTF8.GetBytes($"\"{text}\"");
 
-    private static CheckpointSlotCommand Command(
-        CheckpointSlotAction action,
+    private static AccessCheckpointCommand Command(
+        AccessCheckpointAction action,
         long jobId,
         string name,
         byte[]? value,
         CheckpointKindCode kind = CheckpointKindCode.Variable
     ) => new(action, jobId, kind, name, value is null ? (byte)0 : Json, value);
 
-    private Task<CheckpointSlotResponse> SlotAsync(
-        CheckpointSlotAction action,
+    private Task<AccessCheckpointResponse> SlotAsync(
+        AccessCheckpointAction action,
         long jobId,
         string name,
         byte[]? value,
         CancellationToken ct
-    ) => Execution.CheckpointSlotAsync(Command(action, jobId, name, value), ct);
+    ) => Execution.AccessCheckpointAsync(Command(action, jobId, name, value), ct);
 
     private Task<IReadOnlyList<CheckpointEntity>> SlotsAsync(long jobId, CancellationToken ct) =>
         Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct);

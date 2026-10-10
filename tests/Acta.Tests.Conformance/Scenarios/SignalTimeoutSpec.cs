@@ -122,7 +122,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         var claimed = await Services
             .GetRequiredService<Execution>()
-            .ClaimBatchAsync(new ClaimOptions(ns, worker!.Id, MaxBatch: 8, StartExecuting: true), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, worker!.Id, MaxBatch: 8, StartExecuting: true), leaseTtl, ct);
         Assert.Contains(claimed.Jobs, j => j.JobId == enqueued.JobId);
 
         // The row came from Suspended, so the timeline says Suspended. A hard-coded Ready would assert

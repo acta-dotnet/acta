@@ -13,12 +13,12 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// earliest waiting instant across the bands.
 /// </summary>
 [ConformanceSpec(
-    "claim-batch.skew",
+    "claim-jobs.skew",
     "Claim returns only due rows, in claim order, past parked and delayed rows",
     Area = "Claim",
     Contract = "Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant."
 )]
-public sealed class ClaimBatchSkewSpec : ClaimSkewTestBase
+public sealed class ClaimJobsSkewSpec : ClaimSkewTestBase
 {
     private const int Batch = 4;
 
@@ -68,8 +68,8 @@ public sealed class ClaimBatchSkewSpec : ClaimSkewTestBase
 
         var store = Services.GetRequiredService<Acta.Execution>();
         var batches = new List<Guid[]>();
-        ClaimBatchResponse claimed;
-        while ((claimed = await store.ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct)).Jobs.Count > 0)
+        ClaimJobsResponse claimed;
+        while ((claimed = await store.ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct)).Jobs.Count > 0)
         {
             batches.Add([.. claimed.Jobs.Select(j => j.JobRef).Order()]);
         }

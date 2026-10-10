@@ -1,8 +1,8 @@
 -- Lock order: the batch's lanes in id order, then job rows (docs/internals/sql-execution-policy.md,
 -- "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_jobs
-    @p_batch {{schema}}.job_enqueue_batch READONLY,
-    @p_tag_batch {{schema}}.job_enqueue_tag_batch READONLY
+    @p_batch {{schema}}.enqueue_jobs_batch READONLY,
+    @p_tag_batch {{schema}}.enqueue_tags_batch READONLY
 AS
 BEGIN
     SET NOCOUNT ON;

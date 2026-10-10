@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>The claimed row of a by-id claim, in the claim scan's column order; its horizon columns are always null.</summary>
 [DbProjection]
-internal sealed record ClaimOneRow(
+internal sealed record ClaimJobRow(
     long? JobId,
     int? NamespaceId,
     int? DefinitionId,

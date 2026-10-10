@@ -192,7 +192,7 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
         var rows = await inner.ExecuteAsync(command, bind, mapRow, ct);
         switch (command.Operation)
         {
-            case "ClaimBatch" or "ClaimOne":
+            case "ClaimJobs" or "ClaimJob":
                 plan.MaybeThrowAfterClaim();
                 break;
             case "StartExecution":

@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE {{schema}}.claim_one
+CREATE OR ALTER PROCEDURE {{schema}}.claim_job
     @p_namespace_id INT,
     @p_leased_by_worker_id INT,
     @p_lease_ttl_seconds INT,
@@ -45,7 +45,7 @@ BEGIN
             );
 
         WITH candidates AS (
-            /* claim_batch's due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
+            /* claim_jobs' due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
                Suspended row with a NULL instant is an unbounded wait that never comes due. */
             SELECT r.job_id AS id
             FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)

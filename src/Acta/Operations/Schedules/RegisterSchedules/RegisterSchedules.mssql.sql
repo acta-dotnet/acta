@@ -1,7 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.register_schedules
     @p_namespace_id INT,
-    @p_definitions {{schema}}.job_schedule_slot_batch READONLY,
-    @p_schedules {{schema}}.job_schedule_upsert_batch READONLY
+    @p_definitions {{schema}}.register_slots_batch READONLY,
+    @p_schedules {{schema}}.register_schedules_batch READONLY
 AS
 BEGIN
     SET NOCOUNT ON;

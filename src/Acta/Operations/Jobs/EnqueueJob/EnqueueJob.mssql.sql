@@ -16,7 +16,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
     @p_parent_id BIGINT = NULL,
     @p_tenant_key VARCHAR(128) = NULL,
     @p_tenant_override BIT = 0,
-    @p_tag_batch {{schema}}.job_enqueue_tag_batch READONLY,
+    @p_tag_batch {{schema}}.enqueue_tags_batch READONLY,
     @p_lane VARCHAR(128) = NULL
 AS
 BEGIN

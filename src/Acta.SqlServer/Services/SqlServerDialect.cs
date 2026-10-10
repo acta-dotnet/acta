@@ -122,7 +122,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_batch",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.job_enqueue_batch",
+                TypeName = $"{schema}.enqueue_jobs_batch",
                 Value = SqlServerTableParameters.BuildBatchRecords(rows, jobRefs),
             }
         );
@@ -131,7 +131,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_tag_batch",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.job_enqueue_tag_batch",
+                TypeName = $"{schema}.enqueue_tags_batch",
                 Value = SqlServerTableParameters.BuildTagRecords(rows),
             }
         );
@@ -160,7 +160,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_tag_batch",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.job_enqueue_tag_batch",
+                TypeName = $"{schema}.enqueue_tags_batch",
                 Value = SqlServerTableParameters.BuildTagRecords([row]),
             }
         );
@@ -192,7 +192,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_definitions",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.job_definition_batch",
+                TypeName = $"{schema}.register_definitions_batch",
                 Value = SqlServerTableParameters.BuildDefinitionRecords(rows),
             }
         );
@@ -212,7 +212,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_definitions",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.job_schedule_slot_batch",
+                TypeName = $"{schema}.register_slots_batch",
                 Value = SqlServerTableParameters.BuildSlotRecords(definitions, slotRefs),
             }
         );
@@ -221,7 +221,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_schedules",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.job_schedule_upsert_batch",
+                TypeName = $"{schema}.register_schedules_batch",
                 Value = SqlServerTableParameters.BuildScheduleUpsertRecords(definitions),
             }
         );
@@ -262,7 +262,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             "@p_schedule_advances",
             SqlDbType.Structured,
             SqlServerTableParameters.BuildScheduleAdvanceRecords(request.ScheduleAdvances)!,
-            typeName: $"{schema}.job_schedule_advance_batch"
+            typeName: $"{schema}.advance_schedules_batch"
         );
     }
 

@@ -74,7 +74,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         {
             var batch = await Services
                 .GetRequiredService<Execution>()
-                .ClaimBatchAsync(new ClaimOptions(ns, workerId, MaxBatch: 5), leaseTtl, ct);
+                .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 5), leaseTtl, ct);
             foreach (var job in batch.Jobs)
             {
                 claimedIds.Add(job.JobId);

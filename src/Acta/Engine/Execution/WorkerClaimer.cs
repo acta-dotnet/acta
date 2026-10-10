@@ -49,7 +49,7 @@ internal sealed class WorkerClaimer(
             while (!stop.IsCancellationRequested)
             {
                 var permits = 0;
-                ClaimBatchResponse result;
+                ClaimJobsResponse result;
                 try
                 {
                     for (; permits < minimum; permits++)
@@ -59,7 +59,7 @@ internal sealed class WorkerClaimer(
                     permits = await TakeFreePermitsAsync(permits, settle: direct && handedOff, stop.Token);
 
                     var claimedAt = Stopwatch.GetTimestamp();
-                    result = await execution.ClaimBatchAsync(
+                    result = await execution.ClaimJobsAsync(
                         new ClaimOptions(
                             namespaceId,
                             workerId,

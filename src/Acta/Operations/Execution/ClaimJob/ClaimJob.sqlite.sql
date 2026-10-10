@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS temp._claimed_by_id;
 
-/* ClaimBatch's due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
+/* ClaimJobs' due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
    Suspended row with a NULL instant is an unbounded wait that never comes due. */
 CREATE TEMP TABLE _claimed_by_id AS
 SELECT r.job_id AS id, r.status_code AS from_status

@@ -1,4 +1,4 @@
-/* The two backlog counters below admit what claim_batch claims. Ready keeps its gauge meaning and
+/* The two backlog counters below admit what claim_jobs claims. Ready keeps its gauge meaning and
    counts whether or not it is due; a Suspended row counts only once its wait has actually expired, or
    a queue of long approval waits would read as backlog that no worker is behind on. */
 /* Not shared text with the claim, so the two are must-stay-in-sync twins; change one, change the other. */

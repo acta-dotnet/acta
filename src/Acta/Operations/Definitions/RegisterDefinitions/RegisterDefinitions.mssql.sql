@@ -1,7 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.register_definitions
     @p_namespace_id INT,
     @p_manifest_generation DATETIME2(7),
-    @p_definitions {{schema}}.job_definition_batch READONLY
+    @p_definitions {{schema}}.register_definitions_batch READONLY
 AS
 BEGIN
     SET NOCOUNT ON;

@@ -31,7 +31,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
 
         // Wrong worker: correct execution_number+version but different worker id.
@@ -59,7 +59,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         // Drive to Succeeded: claim → start → complete.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
@@ -102,7 +102,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
 
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
@@ -135,7 +135,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
 
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
@@ -179,7 +179,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         // Worker1 claims and starts → Executing(50), execution_number=1.
         var worker1Id = workerId;
         var claimed1 = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker1Id, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, worker1Id, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
@@ -202,7 +202,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         // eventually matches a later run's worker, whose heartbeat then extends this foreign lease.
         var worker2Id = -workerId;
         var claimed2 = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker2Id, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, worker2Id, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(claimed1.ExecutionNumber + 1, claimed2.ExecutionNumber);
 

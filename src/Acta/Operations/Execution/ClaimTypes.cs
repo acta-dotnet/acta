@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// What one claim on the hot priority-ordered scan asks for; deterministic by-id claiming lives on the separate
-/// <c>claim_one</c> path (testing and debug), so the production claim query carries no explicit-id branch.
+/// <c>claim_job</c> path (testing and debug), so the production claim query carries no explicit-id branch.
 /// <c>ExcludedDefinitionIds</c> holds the <c>definitions.id</c> values this worker has bounced for want of a handler:
 /// null or empty applies no filter and keeps the candidate step on the pure claim-index scan, and both the candidate
 /// scan and the empty-claim horizon skip an excluded row, so a worker whose only due work is excluded sleeps instead
@@ -81,7 +81,7 @@ internal readonly record struct ClaimHorizon(DateTime DbNowUtc, DateTime? NextRe
 
 /// <summary>
 /// The columns both claim routines return, in SELECT order, so <see cref="ClaimedJob.From"/> reads a
-/// <c>ClaimBatch</c> or a <c>ClaimOne</c> row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
+/// <c>ClaimJobs</c> or a <c>ClaimJob</c> row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
 /// </summary>
 internal interface IClaimColumns
 {

@@ -46,10 +46,10 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `AccessCheckpoint` | · | · | · | routine | routine | inline | `checkpoints` | `AccessCheckpointSpec` |
 | `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `runtimes` | `ArmOrConsumeSleepTimerSpec` |
-| `CheckpointSlot` | · | · | · | routine | routine | inline | `checkpoints` | `CheckpointSlotSpec` |
-| `ClaimBatch` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimBatchSkewSpec`, `ClaimBatchSpec` |
-| `ClaimOne` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimOneSpec` |
+| `ClaimJob` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimJobSpec` |
+| `ClaimJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
 | `CompleteExecution` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionSchedulesChangedSpec` |
 | `CompleteExecutions` | · | · | · | routine | routine | inline | `events`, `results`, `runtimes` | `CompleteExecutionsSpec` |
 | `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
@@ -167,8 +167,8 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `AcquireSchemaLock` | · | · | · | inline | inline | inline | · | `AcquireSchemaLockSpec` |
 | `DropSchema` | · | · | · | inline | inline | inline | · | `DropSchemaSpec` |
 | `EnsureMigrations` | · | · | · | inline | inline | inline | · | `EnsureMigrationsSpec` |
+| `HasMigrationsTable` | · | · | · | inline | inline | inline | · | `HasMigrationsTableSpec` |
 | `LoadAppliedVersions` | · | · | · | inline | inline | inline | · | `LoadAppliedVersionsSpec` |
-| `MigrationsTableExists` | · | · | · | inline | inline | inline | · | `MigrationsTableExistsSpec` |
 
 ## Signals
 

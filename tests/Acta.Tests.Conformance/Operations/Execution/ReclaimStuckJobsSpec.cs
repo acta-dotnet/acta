@@ -22,7 +22,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Claim with a negative TTL so the lease lands in the past, deterministically simulating a worker
-    // that claimed then died long enough ago for its lease to lapse. Passed straight to ClaimOneAsync,
+    // that claimed then died long enough ago for its lease to lapse. Passed straight to ClaimJobAsync,
     // never through JobsOptions - production options reject a non-positive lease (JobsOptionsValidator).
     private const int LeaseTtlSeconds = -5;
 
@@ -41,7 +41,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         );
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var claim = await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
+        var claim = await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
         Assert.Equal(enqueued.JobId, Assert.Single(claim).JobId);
 
         var reclaimed = await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct);
@@ -121,7 +121,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(r => r.Id == enqueued.JobId)
             .UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = spent }, ct);
 
-        Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct));
+        Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct));
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
 
         var uncharged = await ReadJobAsync(enqueued.JobId, ct);
@@ -155,7 +155,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Claim with a live lease, then transition to Executing. The job lands Executing(50).
         const int LiveLeaseTtl = 30;
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         var started = (
             await Services
@@ -201,7 +201,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Claim then start with a live (future) lease: the row lands Executing(50) with lease_expires_at_utc > now.
         const int LiveLeaseTtl = 30;
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         var started = (
             await Services
@@ -245,7 +245,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         const int LiveLeaseTtl = 30;
         const string TimerName = "t.stale-worker";
-        var claimed = Assert.Single(await execution.ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
+        var claimed = Assert.Single(await execution.ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)).Action

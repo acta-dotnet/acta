@@ -88,7 +88,7 @@ public sealed class StartExecutionSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, leaseTtlSeconds ?? leaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimJobAsync(ns, workerId, leaseTtlSeconds ?? leaseTtl, enqueued, ct)
         );
         return (claimed, workerId, leaseTtl);
     }

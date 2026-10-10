@@ -11,7 +11,7 @@ internal static partial class ActaSchema
             new(name, kind, size, null, null, nullable);
 
         /// <summary>
-        /// checkpoint_slot dispatch discriminator (CheckpointSlotAction); never persisted.
+        /// access_checkpoint dispatch discriminator (AccessCheckpointAction); never persisted.
         /// </summary>
         public static readonly DbValueSpec<short> SlotAction = Scalar<short>("p_action", DbKind.Int16, nullable: false);
 

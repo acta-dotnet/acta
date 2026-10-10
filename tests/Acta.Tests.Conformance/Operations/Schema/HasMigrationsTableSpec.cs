@@ -5,16 +5,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schema;
 
 /// <summary>
-/// Conformance for <c>MigrationsTableExists</c>: the preflight's first question, which must answer for a database that
+/// Conformance for <c>HasMigrationsTable</c>: the preflight's first question, which must answer for a database that
 /// was never provisioned instead of failing on it.
 /// </summary>
 [ConformanceSpec(
-    "migrations-table-exists.probe",
+    "has-migrations-table.probe",
     "The history-table probe answers whether the table is there",
     Area = "Schema",
-    Contract = "MigrationsTableExists answers false for a schema without a migration-history table and true for one with it, failing on neither."
+    Contract = "HasMigrationsTable answers false for a schema without a migration-history table and true for one with it, failing on neither."
 )]
-public sealed class MigrationsTableExistsSpec : IntegrationSpec<ConformanceFixture>
+public sealed class HasMigrationsTableSpec : IntegrationSpec<ConformanceFixture>
 {
     private const int TimeoutSeconds = 30;
 
@@ -32,6 +32,6 @@ public sealed class MigrationsTableExistsSpec : IntegrationSpec<ConformanceFixtu
         await using var probe = await Fixture.CreateHistoryProbeAsync(history);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
-        return (await new MigrationsTableExistsHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists;
+        return (await new HasMigrationsTableHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists;
     }
 }

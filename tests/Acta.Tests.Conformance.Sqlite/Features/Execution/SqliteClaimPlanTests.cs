@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 
 /// <summary>
-/// The query plans of ClaimBatch's claim and horizon statements, read with EXPLAIN QUERY PLAN from the
+/// The query plans of ClaimJobs' claim and horizon statements, read with EXPLAIN QUERY PLAN from the
 /// provider's own embedded script: the claim searches ix_runtimes_claim_ready once per priority band in
 /// claim order, so SQLite never sorts, and the horizon searches the head of each band. Parked waits, which
 /// SQLite sorts first in their band, and a band of delayed High rows crowd the index around the due rows.
@@ -17,7 +17,7 @@ public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
     private const string BandSeek = "USING COVERING INDEX ix_runtimes_claim_ready (namespace_id=? AND priority_code=?";
 
     [Fact(
-        DisplayName = "ClaimBatch searches ix_runtimes_claim_ready per priority band without a sort, and its horizon searches each band's head"
+        DisplayName = "ClaimJobs searches ix_runtimes_claim_ready per priority band without a sort, and its horizon searches each band's head"
     )]
     public async Task Claim_searches_each_band_and_the_horizon_searches_each_band_head()
     {
@@ -64,7 +64,7 @@ public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
 
     private static IEnumerable<string> Statements()
     {
-        var sql = new SqlResourceCatalog("sqlite", "main").Load("ClaimBatch");
+        var sql = new SqlResourceCatalog("sqlite", "main").Load("ClaimJobs");
 
         // A statement ends at a semicolon that ends its line; a comment may carry one mid-line.
         return Regex.Split(sql, @";[ \t]*\r?\n").Select(StripLeadingComments).Where(s => s.Length > 0);

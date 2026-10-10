@@ -18,7 +18,7 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = $"""
-                DECLARE @tags {Schema.SchemaName}.job_enqueue_tag_batch;
+                DECLARE @tags {Schema.SchemaName}.enqueue_tags_batch;
                 EXEC {Schema.SchemaName}.enqueue_job
                     @p_namespace_name = @namespace,
                     @p_job_name = 'add-numbers',

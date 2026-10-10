@@ -1,10 +1,10 @@
 namespace Acta;
 
 /// <summary>
-/// Which CRUD shape a <c>checkpoint_slot</c> call takes. The values are the routine's dispatch
+/// Which CRUD shape an <c>access_checkpoint</c> call takes. The values are the routine's dispatch
 /// discriminator; they are never persisted.
 /// </summary>
-internal enum CheckpointSlotAction : short
+internal enum AccessCheckpointAction : short
 {
     Set = 10,
     Get = 20,

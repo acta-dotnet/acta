@@ -7,14 +7,14 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Execution;
 
-/// <summary>Conformance for <c>claim_one</c>, the claim that takes one named job, or the scan's next job when it names none.</summary>
+/// <summary>Conformance for <c>claim_job</c>, the claim that takes one named job, or the scan's next job when it names none.</summary>
 [ConformanceSpec(
-    "claim-one.by-id",
+    "claim-job.by-id",
     "A by-id claim takes exactly the named due job or nothing",
     Area = "Claim",
-    Contract = "ClaimOne leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan."
+    Contract = "ClaimJob leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan."
 )]
-public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int LeaseTtlSeconds = 30;
 
@@ -94,7 +94,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(deadlinePassed.JobId, ct)).Status);
 
         var waiting = await ReadJobAsync(unbounded.JobId, ct);
-        Assert.Empty((await Execution.ClaimOneAsync(request, LeaseTtlSeconds, unbounded.JobId, ct)).Jobs);
+        Assert.Empty((await Execution.ClaimJobAsync(request, LeaseTtlSeconds, unbounded.JobId, ct)).Jobs);
         await AssertUntouchedAsync(waiting, ct);
     }
 
@@ -128,7 +128,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         )
         {
             var before = await ReadJobAsync(jobId, ct);
-            Assert.Empty((await Execution.ClaimOneAsync(claim, LeaseTtlSeconds, jobId, ct)).Jobs);
+            Assert.Empty((await Execution.ClaimJobAsync(claim, LeaseTtlSeconds, jobId, ct)).Jobs);
             await AssertUntouchedAsync(before, ct);
         }
     }
@@ -143,7 +143,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var held = await ReadJobAsync(enqueued.JobId, ct);
 
         Assert.Empty(
-            (await Execution.ClaimOneAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct)).Jobs
+            (await Execution.ClaimJobAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct)).Jobs
         );
 
         await AssertUntouchedAsync(held, ct);
@@ -183,7 +183,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var elapsed = Stopwatch.StartNew();
         while (true)
         {
-            var claimed = (await Execution.ClaimOneAsync(request, LeaseTtlSeconds, jobId, ct)).Jobs;
+            var claimed = (await Execution.ClaimJobAsync(request, LeaseTtlSeconds, jobId, ct)).Jobs;
             if (claimed.Count > 0 || elapsed.Elapsed > TimeSpan.FromSeconds(5))
             {
                 return claimed;

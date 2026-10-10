@@ -79,7 +79,7 @@ namespace Acta;
 )]
 [DbCheck(Name = "ck_runtimes_counters", Sql = "execution_number >= 0 AND failure_count >= 0")]
 // Both directions, so with ck_runtimes_lease_consistency an in-flight status and a complete lease pair
-// are the same fact. ClaimOne, ClaimBatch and StartExecution are the only routines that enter 40/50,
+// are the same fact. ClaimJob, ClaimJobs and StartExecution are the only routines that enter 40/50,
 // and each writes the lease in the same statement. Every routine that nulls the lease leaves 40/50 in
 // the same statement: CompleteExecution, ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
