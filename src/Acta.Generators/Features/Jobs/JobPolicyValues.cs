@@ -17,7 +17,7 @@ internal static class JobPolicyValues
     internal static bool TryCanonicalizeLane(string lane, out string canonical)
     {
         canonical = lane.Trim().ToLowerInvariant();
-        return KebabName.IsValidDotted(canonical, maxLength: 128);
+        return KebabName.IsValid(canonical, maxLength: 128);
     }
 
     /// <summary>

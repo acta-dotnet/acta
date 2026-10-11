@@ -156,7 +156,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidJobName(DiscoveredJob job) =>
         new(
             "ACTA0102",
-            $"`[Job(\"{job.JobName}\")]` is not a valid JobName. Names are kebab-case (`[a-z][a-z0-9-]*`, no leading/trailing/double dash), at most 128 chars; the `sys.` prefix is reserved for system jobs.",
+            $"`[Job(\"{job.JobName}\")]` is not a valid JobName. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`, no trailing dash), at most 128 chars; the `sys.` prefix is reserved for system jobs.",
             job.Location
         );
 
@@ -287,7 +287,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidScheduleName(DiscoveredJob job, string scheduleName) =>
         new(
             "ACTA0121",
-            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` is not a valid schedule name. Names are kebab-case (`[a-z][a-z0-9-]*`), at most 128 chars; the `sys.` prefix is reserved for system schedules.",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` is not a valid schedule name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 128 chars; the `sys.` prefix is reserved for system schedules.",
             job.Location
         );
 
@@ -352,7 +352,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidPayloadFormatName(CustomPayloadFormat format) =>
         new(
             "ACTA0131",
-            $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` is not a valid format name. Names are kebab-case (`[a-z][a-z0-9-]*`), at most 64 chars, and must not collide with the built-in `json`/`text`/`bytes`/`none`.",
+            $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` is not a valid format name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 64 chars, and must not collide with the built-in `json`/`text`/`bytes`/`none`.",
             format.Location
         );
 

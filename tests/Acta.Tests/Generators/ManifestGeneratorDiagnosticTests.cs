@@ -80,8 +80,12 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("send email")]
     [InlineData("-leading-dash")]
     [InlineData("trailing-dash-")]
-    [InlineData("double--dash")]
     [InlineData("1-starts-with-digit")]
+    [InlineData("billing..send")]
+    [InlineData("billing.")]
+    [InlineData(".billing")]
+    [InlineData("billing.-send")]
+    [InlineData("sys")]
     public void Non_kebab_job_name_errors_ACTA0102(string jobName)
     {
         var result = RunGenerator(
@@ -99,6 +103,29 @@ public class ManifestGeneratorDiagnosticTests
 
         var error = Assert.Single(Of(result, "ACTA0102"));
         Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+    }
+
+    // A job name follows the runtime's name rule: dotted kebab segments, a doubled dash allowed.
+    [Theory]
+    [InlineData("billing.send-invoice")]
+    [InlineData("a.b.c")]
+    [InlineData("double--dash")]
+    public void Dotted_kebab_job_name_is_valid(string jobName)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("{{jobName}}")]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Empty(Of(result, "ACTA0102"));
     }
 
     [Fact]

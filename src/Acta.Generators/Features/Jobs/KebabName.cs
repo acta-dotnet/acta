@@ -3,50 +3,23 @@ using System;
 namespace Acta.Generators;
 
 /// <summary>
-/// The shared kebab grammar for persisted names: job names, schedule names, and payload format
-/// names. System-internal names may use the reserved <c>sys.</c> dotted namespace when the
-/// caller explicitly allows it.
+/// The name grammar the runtime's <c>NameSyntax</c> applies, for the persisted names a <c>[Job]</c> declares: job,
+/// schedule, rate meter, alert channel, payload format, and lane names. One or more <c>[a-z][a-z0-9-]*</c> segments
+/// without a trailing <c>-</c>, joined by <c>.</c>, lowercase as written. The bare <c>sys</c> and the <c>sys.</c>
+/// prefix belong to Acta and pass only when the caller allows them (the framework assembly).
 /// </summary>
 internal static class KebabName
 {
-    /// <summary>
     private const string SystemPrefix = "sys.";
 
-    /// True for `[a-z][a-z0-9]*(-[a-z0-9]+)*` within the length cap. The `sys.` prefix is honored
-    /// only when the caller allows it (framework assembly).
-    /// </summary>
-    public static bool IsValid(string name, int maxLength, bool allowSystemPrefix)
+    /// <summary>True for a dotted kebab name within the length cap, outside the reserved names unless allowed.</summary>
+    public static bool IsValid(string name, int maxLength, bool allowSystemPrefix = false)
     {
         if (string.IsNullOrEmpty(name) || name.Length > maxLength)
         {
             return false;
         }
-
-        var start = 0;
-        if (name.StartsWith(SystemPrefix, StringComparison.Ordinal))
-        {
-            if (!allowSystemPrefix)
-            {
-                return false;
-            }
-            start = SystemPrefix.Length;
-        }
-
-        return SegmentIsKebab(name, start, name.Length);
-    }
-
-    /// <summary>
-    /// True for one or more kebab segments joined by <c>.</c> within the length cap, outside the reserved
-    /// <c>sys</c> name and <c>sys.</c> prefix.
-    /// </summary>
-    public static bool IsValidDotted(string name, int maxLength)
-    {
-        if (
-            string.IsNullOrEmpty(name)
-            || name.Length > maxLength
-            || name == "sys"
-            || name.StartsWith(SystemPrefix, StringComparison.Ordinal)
-        )
+        if (!allowSystemPrefix && (name == "sys" || name.StartsWith(SystemPrefix, StringComparison.Ordinal)))
         {
             return false;
         }
@@ -65,30 +38,19 @@ internal static class KebabName
 
     private static bool SegmentIsKebab(string text, int start, int end)
     {
-        if (start >= end || text[start] < 'a' || text[start] > 'z')
+        if (start >= end || text[start] < 'a' || text[start] > 'z' || text[end - 1] == '-')
         {
             return false;
         }
 
-        var previousDash = false;
         for (var i = start + 1; i < end; i++)
         {
             var c = text[i];
-            if (c == '-')
-            {
-                if (previousDash)
-                {
-                    return false;
-                }
-                previousDash = true;
-                continue;
-            }
-            if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')))
+            if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'))
             {
                 return false;
             }
-            previousDash = false;
         }
-        return !previousDash;
+        return true;
     }
 }
