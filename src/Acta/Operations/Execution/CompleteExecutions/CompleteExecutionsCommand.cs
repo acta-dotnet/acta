@@ -7,9 +7,11 @@ namespace Acta;
 internal sealed record CompleteExecutionsCommand(int WorkerId, IReadOnlyList<CompleteExecutionsValues> Completions);
 
 /// <summary>
-/// One attempt's plain terminal completion. <c>Result</c> is written when <c>ResultFormatId</c> is not None;
-/// <c>FailureCount</c> is the exhausted count on a terminal failure, null to keep the row's; <c>RetentionSeconds</c>
-/// stamps the row's retention from the database clock, null to leave it.
+/// One attempt's completion, landing Succeeded or Failed unless a shape field says otherwise, read in this order:
+/// <c>WaitSignalName</c> suspends on that signal (Ready when it already arrived), <c>RescheduleStatusCode</c> re-arms
+/// Ready, <c>HandlerStatusCode</c> lands what the handler asked for, and <c>FinalStatus</c> is a recurring fire, which
+/// applies <c>ScheduleAdvances</c>, reads the slot's next run from its schedules, and keeps <c>RecurringResultCap</c>
+/// results. <c>FailureCount</c> null keeps the row's; <c>RetentionSeconds</c> stamps retention at a terminal landing.
 /// </summary>
 internal sealed record CompleteExecutionsValues(
     long JobId,
@@ -24,7 +26,25 @@ internal sealed record CompleteExecutionsValues(
     int? RetentionSeconds
 )
 {
-    /// <summary>The row for a per-job command with nothing to write beyond a Succeeded or Failed landing.</summary>
+    public byte? RescheduleStatusCode { get; init; }
+
+    public int? RescheduleDelaySeconds { get; init; }
+
+    public DateTime? RescheduleResumeAtUtc { get; init; }
+
+    public string? WaitSignalName { get; init; }
+
+    public byte? HandlerStatusCode { get; init; }
+
+    public JobStatusCode? FinalStatus { get; init; }
+
+    public DateTime? JobNextRunAtUtc { get; init; }
+
+    public int RecurringResultCap { get; init; }
+
+    public IReadOnlyList<ScheduleAdvance>? ScheduleAdvances { get; init; }
+
+    /// <summary>The row for a planned per-job command.</summary>
     public static CompleteExecutionsValues From(CompleteExecutionCommand command) =>
         new(
             command.JobId,
@@ -37,5 +57,16 @@ internal sealed record CompleteExecutionsValues(
             command.DurationMs,
             command.FailureCount,
             command.RetentionSeconds
-        );
+        )
+        {
+            RescheduleStatusCode = command.RescheduleStatusCode,
+            RescheduleDelaySeconds = command.RescheduleDelaySeconds,
+            RescheduleResumeAtUtc = command.RescheduleResumeAtUtc,
+            WaitSignalName = command.WaitSignalName,
+            HandlerStatusCode = command.HandlerStatusCode,
+            FinalStatus = command.FinalStatus,
+            JobNextRunAtUtc = command.JobNextRunAtUtc,
+            RecurringResultCap = command.RecurringResultCap,
+            ScheduleAdvances = command.ScheduleAdvances,
+        };
 }

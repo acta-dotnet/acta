@@ -119,6 +119,14 @@ internal static class SqlServerTableParameters
         new("duration_ms", SqlDbType.Int),
         new("failure_count", SqlDbType.Int),
         new("retention_seconds", SqlDbType.Int),
+        new("reschedule_status_code", SqlDbType.TinyInt),
+        new("reschedule_delay_seconds", SqlDbType.Int),
+        new("reschedule_resume_at_utc", SqlDbType.DateTime2),
+        new("wait_signal_name", SqlDbType.NVarChar, 128),
+        new("handler_status_code", SqlDbType.TinyInt),
+        new("final_status", SqlDbType.TinyInt),
+        new("job_next_run_at_utc", SqlDbType.DateTime2),
+        new("recurring_result_cap", SqlDbType.Int),
     ];
 
     internal static IEnumerable<SqlDataRecord> BuildCompleteExecutionsRecords(IReadOnlyList<CompleteExecutionsValues> completions)
@@ -134,18 +142,19 @@ internal static class SqlServerTableParameters
             record.SetByte(4, completion.ResultFormatId);
             // A result with a format and no bytes is still a result, bound zero-length: results.result is NOT NULL.
             SetBytesOrNull(record, 5, completion.Result, completion.ResultFormatId != JobPayloadFormat.None.Id);
-            if (completion.EventReasonCode is { } reason)
-            {
-                record.SetByte(6, (byte)reason);
-            }
-            else
-            {
-                record.SetDBNull(6);
-            }
+            SetNullableByte(record, 6, (byte?)completion.EventReasonCode);
             SetNullableString(record, 7, completion.ReasonMessage);
             SetNullableInt32(record, 8, completion.DurationMs);
             SetNullableInt32(record, 9, completion.FailureCount);
             SetNullableInt32(record, 10, completion.RetentionSeconds);
+            SetNullableByte(record, 11, completion.RescheduleStatusCode);
+            SetNullableInt32(record, 12, completion.RescheduleDelaySeconds);
+            SetNullableDateTime(record, 13, completion.RescheduleResumeAtUtc);
+            SetNullableString(record, 14, completion.WaitSignalName);
+            SetNullableByte(record, 15, completion.HandlerStatusCode);
+            SetNullableByte(record, 16, (byte?)completion.FinalStatus);
+            SetNullableDateTime(record, 17, completion.JobNextRunAtUtc);
+            SetNullableInt32(record, 18, completion.RecurringResultCap);
             yield return record;
         }
     }
@@ -363,6 +372,18 @@ internal static class SqlServerTableParameters
         else
         {
             record.SetString(ordinal, value);
+        }
+    }
+
+    internal static void SetNullableByte(SqlDataRecord record, int ordinal, byte? value)
+    {
+        if (value is { } number)
+        {
+            record.SetByte(ordinal, number);
+        }
+        else
+        {
+            record.SetDBNull(ordinal);
         }
     }
 

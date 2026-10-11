@@ -152,21 +152,29 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             );');
             GO
 
-            -- Per-completion batch: one row per plain terminal completion by one worker, whose id is a scalar.
+            -- Per-completion batch: one row per completion by one worker, whose id is a scalar.
             -- Consumed by acta.complete_executions's @p_batch sproc parameter.
             IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
-                ordinal           INT            NOT NULL PRIMARY KEY,
-                job_id            BIGINT         NOT NULL,
-                execution_number  INT            NOT NULL,
-                succeeded         BIT            NOT NULL,
-                result_format_id  TINYINT        NOT NULL,
-                result            VARBINARY(MAX) NULL,
-                reason_code       TINYINT        NULL,
-                reason_message    NVARCHAR(512)  NULL,
-                duration_ms       INT            NULL,
-                failure_count     INT            NULL,
-                retention_seconds INT            NULL
+                ordinal                  INT            NOT NULL PRIMARY KEY,
+                job_id                   BIGINT         NOT NULL,
+                execution_number         INT            NOT NULL,
+                succeeded                BIT            NOT NULL,
+                result_format_id         TINYINT        NOT NULL,
+                result                   VARBINARY(MAX) NULL,
+                reason_code              TINYINT        NULL,
+                reason_message           NVARCHAR(512)  NULL,
+                duration_ms              INT            NULL,
+                failure_count            INT            NULL,
+                retention_seconds        INT            NULL,
+                reschedule_status_code   TINYINT        NULL,
+                reschedule_delay_seconds INT            NULL,
+                reschedule_resume_at_utc DATETIME2(3)   NULL,
+                wait_signal_name         NVARCHAR(128)  NULL,
+                handler_status_code      TINYINT        NULL,
+                final_status             TINYINT        NULL,
+                job_next_run_at_utc      DATETIME2(3)   NULL,
+                recurring_result_cap     INT            NULL
             );');
             GO
 
@@ -205,7 +213,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             );');
             GO
 
-            -- Per-schedule cursor advances applied by acta.complete_execution on a recurring slot fire.
+            -- Per-schedule cursor advances applied on a recurring slot fire.
             -- One row per due schedule; next_run_at_utc NULL clears the cursor (schedule exhausted).
             -- expected_version is the schedule version the plan read; NULL applies the advance unguarded.
             IF TYPE_ID(N'{{schema}}.advance_schedules_batch') IS NULL

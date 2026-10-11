@@ -491,21 +491,29 @@ EXEC(N'CREATE TYPE {{schema}}.enqueue_tags_batch AS TABLE (
 );');
 GO
 
--- Per-completion batch: one row per plain terminal completion by one worker, whose id is a scalar.
+-- Per-completion batch: one row per completion by one worker, whose id is a scalar.
 -- Consumed by acta.complete_executions's @p_batch sproc parameter.
 IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
-    ordinal           INT            NOT NULL PRIMARY KEY,
-    job_id            BIGINT         NOT NULL,
-    execution_number  INT            NOT NULL,
-    succeeded         BIT            NOT NULL,
-    result_format_id  TINYINT        NOT NULL,
-    result            VARBINARY(MAX) NULL,
-    reason_code       TINYINT        NULL,
-    reason_message    NVARCHAR(512)  NULL,
-    duration_ms       INT            NULL,
-    failure_count     INT            NULL,
-    retention_seconds INT            NULL
+    ordinal                  INT            NOT NULL PRIMARY KEY,
+    job_id                   BIGINT         NOT NULL,
+    execution_number         INT            NOT NULL,
+    succeeded                BIT            NOT NULL,
+    result_format_id         TINYINT        NOT NULL,
+    result                   VARBINARY(MAX) NULL,
+    reason_code              TINYINT        NULL,
+    reason_message           NVARCHAR(512)  NULL,
+    duration_ms              INT            NULL,
+    failure_count            INT            NULL,
+    retention_seconds        INT            NULL,
+    reschedule_status_code   TINYINT        NULL,
+    reschedule_delay_seconds INT            NULL,
+    reschedule_resume_at_utc DATETIME2(3)   NULL,
+    wait_signal_name         NVARCHAR(128)  NULL,
+    handler_status_code      TINYINT        NULL,
+    final_status             TINYINT        NULL,
+    job_next_run_at_utc      DATETIME2(3)   NULL,
+    recurring_result_cap     INT            NULL
 );');
 GO
 
@@ -544,7 +552,7 @@ EXEC(N'CREATE TYPE {{schema}}.register_definitions_batch AS TABLE (
 );');
 GO
 
--- Per-schedule cursor advances applied by acta.complete_execution on a recurring slot fire.
+-- Per-schedule cursor advances applied on a recurring slot fire.
 -- One row per due schedule; next_run_at_utc NULL clears the cursor (schedule exhausted).
 -- expected_version is the schedule version the plan read; NULL applies the advance unguarded.
 IF TYPE_ID(N'{{schema}}.advance_schedules_batch') IS NULL
@@ -591,7 +599,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-edefe1eabd09920b6f63d72e5d73b105', '{{schema}}');
+VALUES (0, 'baseline-ff279981e3e07c8114020731859d92ce', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');
