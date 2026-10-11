@@ -223,7 +223,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
         services.TryAddSingleton<ClaimJobHandler>();
         services.TryAddSingleton<ClaimJobsHandler>();
-        services.TryAddSingleton<CompleteExecutionHandler>();
         services.TryAddSingleton<CompleteExecutionsHandler>();
         services.TryAddSingleton<CompleteStepHandler>();
         services.TryAddSingleton<GetChildJobIdsHandler>();

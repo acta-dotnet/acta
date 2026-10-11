@@ -65,7 +65,7 @@ BEGIN
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
            version bump: a lease refresh is not a claim-generation change. */
         -- Read the matched ids first so the update locks base rows only, never an index key; start_execution
-        -- and complete_execution lock in the other order. See docs/internals/sql-execution-policy.md.
+        -- and complete_executions lock in the other order. See docs/internals/sql-execution-policy.md.
         DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
         INSERT INTO @matched (job_id, execution_number)
         SELECT r.job_id, r.execution_number

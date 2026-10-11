@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion."
 )]
-public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool ParkScheduleSlots => false;
 
@@ -61,7 +61,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         );
 
         // The runtime decides whether to wake from the result row, so it must carry the derived state.
-        Assert.Equal(CompleteExecutionAction.Completed, result.Action);
+        Assert.Equal(CompleteExecutionsAction.Completed, result.Action);
         Assert.Equal((byte)JobStatusCode.Paused, result.FinalStatusCode);
         Assert.Null(result.FinalNextRunAtUtc);
 
@@ -242,7 +242,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         return worker.Id;
     }
 
-    private Task<CompleteExecutionResponse> CompleteAsync(
+    private Task<CompleteExecutionsRow> CompleteAsync(
         long jobId,
         int workerId,
         IReadOnlyList<ScheduleAdvance> advances,
@@ -252,21 +252,27 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
     ) =>
         Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteExecutionAsync(
-                new CompleteExecutionCommand(
-                    JobId: jobId,
-                    WorkerId: workerId,
-                    ExpectedExecutionNumber: Attempt,
-                    Outcome: CompletionKind.Succeeded,
-                    ResultFormatId: 0,
-                    Result: ReadOnlyMemory<byte>.Empty,
-                    ScheduleAdvances: advances,
-                    FinalStatus: plannedStatus,
-                    JobNextRunAtUtc: plannedNextRun,
-                    FailureCount: 0,
+            .CompleteAsync(
+                workerId,
+                new CompleteExecutionsValues(
+                    jobId,
+                    Attempt,
+                    true,
+                    JobPayloadFormat.None.Id,
+                    ReadOnlyMemory<byte>.Empty,
+                    null,
+                    null,
+                    null,
+                    0,
+                    null
+                )
+                {
+                    ScheduleAdvances = advances,
+                    FinalStatus = plannedStatus,
+                    JobNextRunAtUtc = plannedNextRun,
                     // The slot keeps one result, the attribute default: this fact is about cursors.
-                    RecurringResultCap: 1
-                ),
+                    RecurringResultCap = 1,
+                },
                 ct
             );
 

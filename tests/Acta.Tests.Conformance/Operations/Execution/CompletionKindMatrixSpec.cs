@@ -7,14 +7,14 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
-/// Covers the unexercised outcome branches of <c>StartExecution</c> and <c>CompleteExecution</c>:
+/// Covers the unexercised outcome branches of <c>StartExecution</c> and <c>CompleteExecutions</c>:
 /// NotOwner and AlreadyTerminal on both operations. No-op outcomes must write no event.
 /// </summary>
 [ConformanceSpec(
     "execution.outcome-matrix",
-    "StartExecution and CompleteExecution no-op outcomes return exact action enums",
+    "StartExecution and CompleteExecutions no-op outcomes return exact action enums",
     Area = "Execution",
-    Contract = "No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action."
+    Contract = "No-op StartExecution and CompleteExecutions outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action."
 )]
 public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -70,9 +70,9 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             ).Action
         );
         Assert.Equal(
-            CompleteExecutionAction.Completed,
+            CompleteExecutionsAction.Completed,
             (
-                await Services.GetRequiredService<ExecutionOperations>().CompleteExecutionAsync(MakeCompleteRequest(claimed, workerId), ct)
+                await Services.GetRequiredService<ExecutionOperations>().CompleteAsync(workerId, CompletionTestOps.Landing(claimed), ct)
             ).Action
         );
 
@@ -92,7 +92,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionStarted, ct));
     }
 
-    [Fact(DisplayName = "CompleteExecution with wrong worker returns NotOwner and writes no job.execution-finished event")]
+    [Fact(DisplayName = "CompleteExecutions with wrong worker returns NotOwner and writes no job.execution-finished event")]
     public async Task Complete_wrong_worker_returns_not_owner_and_no_event()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -118,14 +118,14 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         // Wrong worker: the runtime row's leased_by_worker_id = workerId, request says a foreign id.
         var result = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteExecutionAsync(MakeCompleteRequest(claimed, -workerId), ct);
+            .CompleteAsync(-workerId, CompletionTestOps.Landing(claimed), ct);
 
-        Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
+        Assert.Equal(CompleteExecutionsAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
-    [Fact(DisplayName = "Second CompleteExecution on a terminal job returns AlreadyTerminal with no additional finished event")]
+    [Fact(DisplayName = "Second CompleteExecutions on a terminal job returns AlreadyTerminal with no additional finished event")]
     public async Task Complete_double_returns_already_terminal_and_no_additional_event()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -147,10 +147,10 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
                     .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
             ).Action
         );
-        var req = MakeCompleteRequest(claimed, workerId);
+        var req = CompletionTestOps.Landing(claimed);
         Assert.Equal(
-            CompleteExecutionAction.Completed,
-            (await Services.GetRequiredService<ExecutionOperations>().CompleteExecutionAsync(req, ct)).Action
+            CompleteExecutionsAction.Completed,
+            (await Services.GetRequiredService<ExecutionOperations>().CompleteAsync(workerId, req, ct)).Action
         );
 
         // Baseline: Succeeded with exactly one finished event.
@@ -159,15 +159,15 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(1, finishedBefore);
 
         // Second complete: same worker and execution_number.
-        var result2 = await Services.GetRequiredService<ExecutionOperations>().CompleteExecutionAsync(req, ct);
+        var result2 = await Services.GetRequiredService<ExecutionOperations>().CompleteAsync(workerId, req, ct);
 
-        Assert.Equal(CompleteExecutionAction.AlreadyTerminal, result2.Action);
+        Assert.Equal(CompleteExecutionsAction.AlreadyTerminal, result2.Action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Event count must be unchanged: no second finished event.
         Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
-    [Fact(DisplayName = "Stale CompleteExecution by a displaced worker returns NotOwner and leaves job owned by the new claimant")]
+    [Fact(DisplayName = "Stale CompleteExecutions by a displaced worker returns NotOwner and leaves job owned by the new claimant")]
     public async Task Stolen_row_stale_complete_returns_not_owner_and_job_stays_dispatched()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -216,9 +216,9 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         // SQL: status=Dispatched(40) is not terminal, leased_by_worker_id=worker2Id ≠ worker1Id → NotOwner.
         var result = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteExecutionAsync(MakeCompleteRequest(claimed1, worker1Id), ct);
+            .CompleteAsync(worker1Id, CompletionTestOps.Landing(claimed1), ct);
 
-        Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
+        Assert.Equal(CompleteExecutionsAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         // Count unchanged: the stale attempt wrote no additional finished event.
         Assert.Equal(finishedBefore, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
@@ -232,14 +232,4 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.NotNull(worker);
         return (Db, dialect, ns, worker!.Id);
     }
-
-    private static CompleteExecutionCommand MakeCompleteRequest(ClaimedJob claimed, int workerId) =>
-        new(
-            JobId: claimed.JobId,
-            WorkerId: workerId,
-            ExpectedExecutionNumber: claimed.ExecutionNumber,
-            Outcome: CompletionKind.Succeeded,
-            ResultFormatId: 0,
-            Result: ReadOnlyMemory<byte>.Empty
-        );
 }

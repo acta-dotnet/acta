@@ -130,19 +130,9 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var completion = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteExecutionAsync(
-                new CompleteExecutionCommand(
-                    JobId: claimed.JobId,
-                    WorkerId: workerId,
-                    ExpectedExecutionNumber: claimed.ExecutionNumber,
-                    Outcome: CompletionKind.Succeeded,
-                    ResultFormatId: 0,
-                    Result: ReadOnlyMemory<byte>.Empty
-                ),
-                ct
-            );
+            .CompleteAsync(workerId, CompletionTestOps.Landing(claimed), ct);
 
-        Assert.Equal(CompleteExecutionAction.Completed, completion.Action);
+        Assert.Equal(CompleteExecutionsAction.Completed, completion.Action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(running.JobId, ct)).Status);
     }
 

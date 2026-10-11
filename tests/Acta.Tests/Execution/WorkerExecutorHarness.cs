@@ -10,14 +10,14 @@ namespace Acta.Tests.Execution;
 /// Drives one real attempt end to end through <see cref="WorkerExecutor.ExecuteAsync"/> and
 /// <see cref="WorkerFinalizer.FinalizeAsync"/> over the real execution and lock groups on scripted sessions: the
 /// start CAS, a handler that runs one durable step, and the completion CAS. The script says what
-/// <c>complete_step</c> and <c>complete_execution</c> answer, and the harness
+/// <c>complete_step</c> and <c>complete_executions</c> answer, and the harness
 /// keeps every <see cref="BoundCompletion"/> the runner bound plus the subset the scripted CAS applied, so
 /// a test can assert on the completion shape rather than on a database. Reusable for executor unit tests;
 /// add scripted knobs here, not per test.
 /// </summary>
 internal sealed class WorkerExecutorHarness(
     CompleteStepOutcomeCode stepOutcome = CompleteStepOutcomeCode.Succeeded,
-    CompleteExecutionAction completionAction = CompleteExecutionAction.Completed,
+    CompleteExecutionsAction completionAction = CompleteExecutionsAction.Completed,
     bool cancelAttemptOnStepCompletion = false,
     int maxAttempts = 3,
     int failureCount = 0,
@@ -225,7 +225,7 @@ internal sealed class WorkerExecutorHarness(
     // visible rather than silent.
     private sealed class ScriptedExecutionStore(
         CompleteStepOutcomeCode stepOutcome,
-        CompleteExecutionAction completionAction,
+        CompleteExecutionsAction completionAction,
         StartExecutionAction startAction,
         bool startFailsOnce
     )
@@ -301,7 +301,7 @@ internal sealed class WorkerExecutorHarness(
         private CompleteExecutionsRow Complete(BoundCompletion completion)
         {
             _submitted.Add(completion);
-            if (completionAction != CompleteExecutionAction.Completed)
+            if (completionAction != CompleteExecutionsAction.Completed)
             {
                 // The CAS matched no row: nothing is written, and the reported status is the row's
                 // current one rather than anything this attempt asked for.

@@ -352,8 +352,8 @@
 - **Guarantees:**
   - Clock skew is not silently ignored and the explicit AllowClockSkew override admits the same skew
 
-### CompleteExecution transient failures and DB clock skew are explicit
-- **Contract:** Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization.
+### CompleteExecutions transient failures and DB clock skew are explicit
+- **Contract:** Transient storage failures before and after CompleteExecutions converge to one state, and DB/app clock skew is enforced at initialization.
 - **Guarantees:**
   - A worker that stops while its completion is still failing leaves Executing with no success event, and reclaim reruns to a single Succeeded finish
   - A provider error before the completion commit is retried and the attempt lands once
@@ -377,7 +377,7 @@
 - **Guarantees:**
   - Claim-only crash recovers uncharged, with no execution-started event and an orphaned recovery event
   - Crash after start orphans and charges the started execution before retry and finishes once
-  - Crash before CompleteExecution does not replay the durable step on recovery
+  - Crash before CompleteExecutions does not replay the durable step on recovery
   - Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once
   - Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed
 
@@ -851,7 +851,7 @@
 ### A batch of completions lands what one completion per job lands
 - **Contract:** A completion batch writes what one completion per job writes, sets a child's latch, hands a lane on, and touches no row it does not complete.
 - **Guarantees:**
-  - Two successes and an exhausted failure land the runtime, result, and finished-event rows the per-job write lands
+  - Two successes and an exhausted failure land the same rows written alone as written together
   - A child sets its latch on the parent and a lane head hands the lane on, in the same batch
   - A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched
   - At the failures-only audit level a success writes a finished event only when it answers a recorded failure
@@ -861,14 +861,14 @@
 - **Guarantees:**
   - A lease renewal racing a held child completion finishes without a deadlock
 
-### StartExecution and CompleteExecution no-op outcomes return exact action enums
-- **Contract:** No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.
+### StartExecution and CompleteExecutions no-op outcomes return exact action enums
+- **Contract:** No-op StartExecution and CompleteExecutions outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.
 - **Guarantees:**
   - StartExecution with wrong worker returns NotOwner and writes no job.execution-started event
   - StartExecution on a terminal job returns AlreadyTerminal and writes no additional started event
-  - CompleteExecution with wrong worker returns NotOwner and writes no job.execution-finished event
-  - Second CompleteExecution on a terminal job returns AlreadyTerminal with no additional finished event
-  - Stale CompleteExecution by a displaced worker returns NotOwner and leaves job owned by the new claimant
+  - CompleteExecutions with wrong worker returns NotOwner and writes no job.execution-finished event
+  - Second CompleteExecutions on a terminal job returns AlreadyTerminal with no additional finished event
+  - Stale CompleteExecutions by a displaced worker returns NotOwner and leaves job owned by the new claimant
 
 ### A stranded recovery slot is repaired under a guard by any worker
 - **Contract:** A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.
@@ -1988,7 +1988,7 @@
   - A malformed or reserved signal name throws before the job is looked up
 
 ### A raise inside the suspend handoff lands the job Ready, not Suspended
-- **Contract:** complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.
+- **Contract:** complete_executions re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.
 - **Guarantees:**
   - A raise landing between the wait and its completion lands the job Ready with the payload intact
   - The same completion with nothing raised in the window still parks the job Suspended
@@ -2251,7 +2251,6 @@
 | `ClaimJob` | yes | yes | yes |
 | `ClaimJobs` | yes | yes | yes |
 | `ClaimOutbox` | yes | yes | yes |
-| `CompleteExecution` | yes | yes | yes |
 | `CompleteExecutions` | yes | yes | yes |
 | `CompleteStep` | yes | yes | yes |
 | `ConsumeOutboxSignal` | yes | yes | yes |

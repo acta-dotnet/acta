@@ -31,7 +31,7 @@ internal static class ScheduleWalker
     /// cursor advance for each due schedule, and the post-advance slot MIN. A timed pause that has elapsed is a resume
     /// at the instant it ended: an occurrence inside the window is a misfire for the schedule's policy, one at or after
     /// its end is due as usual. The schedule fires only when that leaves an occurrence due by now, and advances either
-    /// way, which also clears the pause (see <c>complete_execution</c>); a timed pause still ahead contributes only its
+    /// way, which also clears the pause (see <c>complete_executions</c>); a timed pause still ahead contributes only its
     /// <c>PausedUntilUtc</c> as the slot's wake point.
     /// </summary>
     public static RecurringFirePlan PlanFire(IReadOnlyList<LiveSchedule> live, DateTime nowUtc)

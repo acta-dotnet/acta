@@ -36,49 +36,53 @@ internal sealed partial class WorkerFinalizer
     // retirement that cancels. Unclassified is the writer saying the story is in the message, and
     // it stays out of both the alertable set and the Failures audit level, which a bounce belongs
     // outside of: nothing failed.
-    private CompleteExecutionCommand HandBack(ClaimedJob job, int workerId, ExecutionCompletion completion) =>
+    private CompleteExecutionsValues HandBack(ClaimedJob job, ExecutionCompletion completion) =>
         new(
             job.JobId,
-            workerId,
             job.ExecutionNumber,
-            CompletionKind.Rescheduled,
+            Succeeded: false,
             0,
             ReadOnlyMemory<byte>.Empty,
             EventReasonCode.Unclassified,
             completion.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage),
-            DurationMs: 0
+            DurationMs: 0,
+            FailureCount: null,
+            RetentionSeconds: null
         )
         {
             RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
             RescheduleDelaySeconds = _handBackDelaySeconds,
+            HasLane = job.LaneId is not null,
+            HasParent = job.ParentId is not null,
         };
 
-    private static CompleteExecutionCommand BuildCommand(
+    private static CompleteExecutionsValues BuildCommand(
         JobDescriptor descriptor,
         ClaimedJob job,
-        int workerId,
         RecurringFirePlan? fire,
         ExecutionCompletion s,
         (int Attempted, int DelaySeconds, bool InBudget) retry
     )
     {
-        // Resolved once and passed on every completion shape; complete_execution stamps it onto
+        // Resolved once and passed on every completion shape; complete_executions stamps it onto
         // runtimes.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
         // Every shape but the recurring and the success one writes no result payload.
-        var payloadless = new CompleteExecutionCommand(
+        var payloadless = new CompleteExecutionsValues(
             job.JobId,
-            workerId,
             job.ExecutionNumber,
-            s.Outcome,
+            s.Outcome == CompletionKind.Succeeded,
             0,
             ReadOnlyMemory<byte>.Empty,
             s.Reason,
             s.ReasonMessage,
-            s.DurationMs
+            s.DurationMs,
+            FailureCount: null,
+            RetentionSeconds: descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds
         )
         {
-            RetentionSeconds = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds,
+            HasLane = job.LaneId is not null,
+            HasParent = job.ParentId is not null,
         };
 
         if (fire is { NothingDue: true })

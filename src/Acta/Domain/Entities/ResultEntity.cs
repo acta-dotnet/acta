@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// One durable result per job attempt, keyed by <c>(JobId, ExecutionNumber)</c>, so result bytes stay off the hot
-/// job row and a recurring job keeps a history instead of overwriting one slot. <c>complete_execution</c> trims a
+/// job row and a recurring job keeps a history instead of overwriting one slot. <c>complete_executions</c> trims a
 /// recurring job's rows to the definition's <c>RecurringResultCap</c> (default 1) on every completion, and a deleted
 /// job takes its rows with it (<c>fk_results_jobs ON DELETE CASCADE</c>). The latest result is one primary-key seek.
 /// </summary>

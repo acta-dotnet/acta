@@ -97,14 +97,14 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
-    [Fact(DisplayName = "Crash before CompleteExecution does not replay the durable step on recovery")]
-    public async Task Worker_crashes_after_handler_completes_before_CompleteExecution()
+    [Fact(DisplayName = "Crash before CompleteExecutions does not replay the durable step on recovery")]
+    public async Task Worker_crashes_after_handler_completes_before_CompleteExecutions()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-step-before-complete", ct);
 
-        // --- 1. The handler runs its durable step, then CompleteExecution fails before commit.
+        // --- 1. The handler runs its durable step, then CompleteExecutions fails before commit.
         await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
 
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);

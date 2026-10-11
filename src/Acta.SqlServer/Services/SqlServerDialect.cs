@@ -243,45 +243,6 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
-    public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema)
-    {
-        var sql = (SqlCommand)command;
-        var resultBytes = request.Result.IsEmpty ? [] : request.Result.ToArray();
-
-        AddParameter(sql, "@p_id", SqlDbType.BigInt, request.JobId);
-        AddParameter(sql, "@p_leased_by_worker_id", SqlDbType.Int, request.WorkerId);
-        AddParameter(sql, "@p_execution_number", SqlDbType.Int, request.ExpectedExecutionNumber);
-        AddParameter(sql, "@p_reason_code", SqlDbType.TinyInt, request.EventReasonCode is { } reason ? (byte)reason : DBNull.Value);
-        AddParameter(sql, "@p_reason_message", SqlDbType.NVarChar, (object?)request.ReasonMessage ?? DBNull.Value, size: 512);
-        AddParameter(sql, "@p_result_format_id", SqlDbType.TinyInt, request.ResultFormatId);
-        AddParameter(sql, "@p_result", SqlDbType.VarBinary, resultBytes);
-        AddParameter(sql, "@p_execution_succeeded", SqlDbType.Bit, request.Outcome == CompletionKind.Succeeded);
-        AddParameter(sql, "@p_duration_ms", SqlDbType.Int, request.DurationMs is { } duration ? duration : DBNull.Value);
-        // A re-arm status marks a fire that ran nothing; the slot's next run still comes from the schedules.
-        AddParameter(sql, "@p_reschedule_status_code", SqlDbType.TinyInt, request.RescheduleStatusCode is { } rearm ? rearm : DBNull.Value);
-        AddParameter(sql, "@p_reschedule_delay_seconds", SqlDbType.Int, DBNull.Value);
-        AddParameter(
-            sql,
-            "@p_reschedule_resume_at_utc",
-            SqlDbType.DateTime2,
-            request.RescheduleResumeAtUtc is { } resumeAt ? resumeAt : DBNull.Value
-        );
-        AddParameter(sql, "@p_wait_signal_name", SqlDbType.NVarChar, DBNull.Value, size: 128);
-        AddParameter(sql, "@p_handler_status_code", SqlDbType.TinyInt, DBNull.Value);
-        AddParameter(sql, "@p_retention_seconds", SqlDbType.Int, request.RetentionSeconds is { } retention ? retention : DBNull.Value);
-        AddParameter(sql, "@p_final_status", SqlDbType.TinyInt, (byte)request.FinalStatus!.Value);
-        AddParameter(sql, "@p_job_next_run_at_utc", SqlDbType.DateTime2, request.JobNextRunAtUtc is { } nextRun ? nextRun : DBNull.Value);
-        AddParameter(sql, "@p_failure_count", SqlDbType.Int, request.FailureCount is { } failureCount ? failureCount : DBNull.Value);
-        AddParameter(sql, "@p_recurring_result_cap", SqlDbType.Int, request.RecurringResultCap);
-        AddParameter(
-            sql,
-            "@p_schedule_advances",
-            SqlDbType.Structured,
-            SqlServerTableParameters.BuildScheduleAdvanceRecords(request.ScheduleAdvances)!,
-            typeName: $"{schema}.advance_schedules_batch"
-        );
-    }
-
     private static void AddParameter(
         SqlCommand command,
         string name,

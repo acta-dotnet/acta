@@ -8,7 +8,7 @@ namespace Acta;
 /// slot. Hand-rolled rather than the registered serializer: the contract is pinned and must not
 /// change when a consumer swaps the JSON format. The envelope carries terminal state only
 /// (<c>childJobId</c>, <c>status</c>); the failure reason lives on the child's event timeline.
-/// <c>complete_execution</c> builds the same shape in SQL for its in-transaction raise;
+/// <c>complete_executions</c> builds the same shape in SQL for its in-transaction raise;
 /// <see cref="Write"/> serves the C#-side raises (cancel, reclaim, maintenance backstop).
 /// </summary>
 internal static class ChildOutcomeEnvelope

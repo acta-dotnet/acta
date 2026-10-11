@@ -46,30 +46,4 @@ internal sealed record CompleteExecutionsValues(
 
     /// <summary>The job has a parent, as its claim read it; parent_id never changes.</summary>
     public bool HasParent { get; init; }
-
-    /// <summary>The row for a planned per-job command.</summary>
-    public static CompleteExecutionsValues From(CompleteExecutionCommand command) =>
-        new(
-            command.JobId,
-            command.ExpectedExecutionNumber,
-            command.Outcome == CompletionKind.Succeeded,
-            command.ResultFormatId,
-            command.Result,
-            command.EventReasonCode,
-            command.ReasonMessage,
-            command.DurationMs,
-            command.FailureCount,
-            command.RetentionSeconds
-        )
-        {
-            RescheduleStatusCode = command.RescheduleStatusCode,
-            RescheduleDelaySeconds = command.RescheduleDelaySeconds,
-            RescheduleResumeAtUtc = command.RescheduleResumeAtUtc,
-            WaitSignalName = command.WaitSignalName,
-            HandlerStatusCode = command.HandlerStatusCode,
-            FinalStatus = command.FinalStatus,
-            JobNextRunAtUtc = command.JobNextRunAtUtc,
-            RecurringResultCap = command.RecurringResultCap,
-            ScheduleAdvances = command.ScheduleAdvances,
-        };
 }

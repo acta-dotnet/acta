@@ -64,9 +64,6 @@ internal interface ISqlDialect
 
     void ConfigureRoutineCommand(DbCommand command, string schema, string routineName);
 
-    /// <summary>Binds parameters required by a provider's non-recurring completion implementation.</summary>
-    void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionCommand request) { }
-
     /// <summary>
     /// Binds the batch claim's excluded-definition set in the provider-native shape (typed array or
     /// JSON array text). The parameter is always bound, because every dialect's claim text names it;
@@ -102,9 +99,6 @@ internal interface ISqlDialect
         IReadOnlyList<Guid> slotRefs,
         string schema
     );
-
-    /// <summary>Binds a recurring-completion command (scalars plus the schedule-advance batch) in the provider-native shape.</summary>
-    void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema);
 
     /// <summary>Binds a batch completion's rows in the provider-native shape (typed arrays, a table type, or JSON array text).</summary>
     void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema);

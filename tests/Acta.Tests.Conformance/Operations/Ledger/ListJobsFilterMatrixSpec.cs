@@ -72,14 +72,15 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
         var cr3 = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteExecutionAsync(
-                new CompleteExecutionCommand(c3.JobId, worker.Id, c3.ExecutionNumber, CompletionKind.Failed, 0, ReadOnlyMemory<byte>.Empty)
+            .CompleteAsync(
+                worker.Id,
+                CompletionTestOps.Landing(c3, succeeded: false) with
                 {
                     HandlerStatusCode = (byte)JobStatusCode.Failed,
                 },
                 ct
             );
-        Assert.Equal(CompleteExecutionAction.Completed, cr3.Action);
+        Assert.Equal(CompleteExecutionsAction.Completed, cr3.Action);
 
         var queries = Services.GetRequiredService<IActaOperations>();
 
@@ -119,21 +120,15 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             StartExecutionAction.Started,
             (await execution.StartExecutionAsync(claim.JobId, worker.Id, claim.ExecutionNumber, LeaseTtl, ct)).Action
         );
-        var completed = await execution.CompleteExecutionAsync(
-            new CompleteExecutionCommand(
-                claim.JobId,
-                worker.Id,
-                claim.ExecutionNumber,
-                CompletionKind.Failed,
-                0,
-                ReadOnlyMemory<byte>.Empty
-            )
+        var completed = await execution.CompleteAsync(
+            worker.Id,
+            CompletionTestOps.Landing(claim, succeeded: false) with
             {
                 HandlerStatusCode = (byte)JobStatusCode.Failed,
             },
             ct
         );
-        Assert.Equal(CompleteExecutionAction.Completed, completed.Action);
+        Assert.Equal(CompleteExecutionsAction.Completed, completed.Action);
 
         var queries = Services.GetRequiredService<IActaOperations>();
 

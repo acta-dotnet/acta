@@ -38,12 +38,6 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public string DialectToken => "sqlite";
 
-    public void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionCommand request)
-    {
-        command.Parameters.Add(CreateParameter(new DbParameterSpec("p_recurring_result_cap", request.RecurringResultCap, DbKind.Int32)));
-        command.Parameters.Add(CreateParameter(new DbParameterSpec("p_schedule_advances", "[]", DbKind.UnicodeString, Size: 8)));
-    }
-
     public bool ResultSetIsLast => true;
 
     /// <summary>
@@ -422,35 +416,6 @@ internal sealed class SqliteDialect : ISqlDialect
 
         AddText(command, "@p_definitions", definitionRows);
         AddText(command, "@p_schedules", scheduleRows);
-    }
-
-    public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema)
-    {
-        // results.result is NOT NULL; preserve an empty non-none result as a zero-length blob.
-        var resultBytes = request.Result.IsEmpty ? [] : request.Result.ToArray();
-
-        AddInt(command, "@p_id", request.JobId);
-        AddInt(command, "@p_leased_by_worker_id", request.WorkerId);
-        AddInt(command, "@p_execution_number", request.ExpectedExecutionNumber);
-        AddNullableInt(command, "@p_reason_code", request.EventReasonCode is { } reason ? (short)reason : null);
-        AddNullableText(command, "@p_reason_message", request.ReasonMessage);
-        AddInt(command, "@p_result_format_id", request.ResultFormatId);
-        AddNullableBlob(command, "@p_result", resultBytes);
-        AddInt(command, "@p_execution_succeeded", request.Outcome == CompletionKind.Succeeded ? 1 : 0);
-        AddNullableInt(command, "@p_duration_ms", request.DurationMs);
-        // Signal and handler-status scalars are inert on the recurring path; bind NULL so the inline body's
-        // named-parameter set is always complete. A re-arm status marks a fire that ran nothing.
-        AddNullableInt(command, "@p_reschedule_status_code", request.RescheduleStatusCode);
-        AddNullableInt(command, "@p_reschedule_delay_seconds", null);
-        AddNullableInt(command, "@p_reschedule_resume_at_utc", request.RescheduleResumeAtUtc is { } resumeAt ? ToUnixMs(resumeAt) : null);
-        AddNullableText(command, "@p_wait_signal_name", null);
-        AddNullableInt(command, "@p_handler_status_code", null);
-        AddNullableInt(command, "@p_retention_seconds", request.RetentionSeconds);
-        AddInt(command, "@p_final_status", (short)request.FinalStatus!.Value);
-        AddNullableInt(command, "@p_job_next_run_at_utc", request.JobNextRunAtUtc is { } nextRun ? ToUnixMs(nextRun) : null);
-        AddNullableInt(command, "@p_failure_count", request.FailureCount);
-        AddInt(command, "@p_recurring_result_cap", request.RecurringResultCap);
-        AddText(command, "@p_schedule_advances", JsonScheduleAdvances(request.ScheduleAdvances ?? []));
     }
 
     private static string JsonScheduleAdvances(IReadOnlyList<ScheduleAdvance> advances) =>

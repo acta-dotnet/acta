@@ -6,7 +6,7 @@ namespace Acta;
 /// cause is a concurrent execution re-claiming the job and advancing the slot, but the signal can be spurious: a
 /// transient-retry re-run of a CAS batch whose first attempt committed reads zero changes and looks identical. The
 /// runner therefore treats it as a retryable attempt abort rather than a verdict: a row another execution owns no-ops
-/// at the <c>complete_execution</c> CAS, while a row this attempt still owns re-arms under the failure budget and retries.
+/// at the <c>complete_executions</c> CAS, while a row this attempt still owns re-arms under the failure budget and retries.
 /// </summary>
 internal sealed class StepOwnershipLostException(string stepName)
     : Exception($"Step '{stepName}' completion lost its version CAS; the job is owned by another execution.")

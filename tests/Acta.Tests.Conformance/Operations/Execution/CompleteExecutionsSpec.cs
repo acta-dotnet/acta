@@ -22,12 +22,12 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Fact(DisplayName = "Two successes and an exhausted failure land the runtime, result, and finished-event rows the per-job write lands")]
-    public async Task Batch_lands_the_rows_the_per_job_write_lands()
+    [Fact(DisplayName = "Two successes and an exhausted failure land the same rows written alone as written together")]
+    public async Task Batch_lands_the_rows_each_completion_lands_alone()
     {
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
-        // A result with no bytes is still a result: both writes store a zero-length one.
+        // A result with no bytes is still a result: both ways store a zero-length one.
         Func<ClaimedJob, CompleteExecutionsValues>[] shapes =
         [
             job => Plain(job) with { ResultFormatId = JobPayloadFormat.Json.Id, Result = "{\"sum\":3}"u8.ToArray() },
@@ -47,10 +47,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         foreach (var shape in shapes)
         {
             var single = await ExecutingAsync(AddNumbers(), workerId, ct);
-            Assert.Equal(
-                CompleteExecutionAction.Completed,
-                (await Execution.CompleteExecutionAsync(PerJob(shape(single), workerId), ct)).Action
-            );
+            Assert.Equal(CompleteExecutionsAction.Completed, (await Execution.CompleteAsync(workerId, shape(single), ct)).Action);
             var batched = await ExecutingAsync(AddNumbers(), workerId, ct);
             batch.Add(shape(batched));
             pairs.Add((single.JobId, batched.JobId));
@@ -103,10 +100,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         // Negative, so the abandoned lease never matches a real worker's id in the append-only test database.
         var foreign = await ExecutingAsync(AddNumbers(), -workerId, ct);
         var terminal = await ExecutingAsync(AddNumbers(), workerId, ct);
-        Assert.Equal(
-            CompleteExecutionAction.Completed,
-            (await Execution.CompleteExecutionAsync(PerJob(Plain(terminal), workerId), ct)).Action
-        );
+        Assert.Equal(CompleteExecutionsAction.Completed, (await Execution.CompleteAsync(workerId, Plain(terminal), ct)).Action);
         var before = (await StateAsync(foreign.JobId, ct), await StateAsync(terminal.JobId, ct));
 
         var answers = await CompleteAsync(workerId, [Plain(foreign), Plain(terminal)], ct);
@@ -150,23 +144,6 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
             HasParent = job.ParentId is not null,
         };
 
-    private static CompleteExecutionCommand PerJob(CompleteExecutionsValues values, int workerId) =>
-        new(
-            values.JobId,
-            workerId,
-            values.ExecutionNumber,
-            values.Succeeded ? CompletionKind.Succeeded : CompletionKind.Failed,
-            values.ResultFormatId,
-            values.Result,
-            values.EventReasonCode,
-            values.ReasonMessage,
-            values.DurationMs,
-            FailureCount: values.FailureCount
-        )
-        {
-            RetentionSeconds = values.RetentionSeconds,
-        };
-
     private async Task<Dictionary<long, CompleteExecutionsRow>> CompleteAsync(
         int workerId,
         IReadOnlyList<CompleteExecutionsValues> batch,
@@ -195,7 +172,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
     private async Task<(int Version, int Finished)> StateAsync(long jobId, CancellationToken ct) =>
         ((await ReadJobAsync(jobId, ct)).Version, await CountEventsAsync(jobId, EventCode.JobExecutionFinished, ct));
 
-    // What a completion lands, compared between the two writes: the instants differ, so retention compares as set.
+    // What a completion lands, compared between the two ways: the instants differ, so retention compares as set.
     private async Task<object> LandedAsync(long jobId, CancellationToken ct)
     {
         var job = await ReadJobAsync(jobId, ct);

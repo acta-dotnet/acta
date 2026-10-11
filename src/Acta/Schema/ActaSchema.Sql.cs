@@ -31,12 +31,6 @@ internal static partial class ActaSchema
             nullable: true
         );
 
-        public static readonly DbValueSpec<bool> ExecutionSucceeded = Scalar<bool>(
-            "p_execution_succeeded",
-            DbKind.Boolean,
-            nullable: false
-        );
-
         /// <summary>
         /// start_step at-most-once switch: when true, a re-entered pending step is terminalized
         /// Interrupted rather than re-invoked. Passed in each call; never persisted on the row.
@@ -93,48 +87,6 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<bool> Draining = Scalar<bool>("p_draining", DbKind.Boolean, nullable: false);
 
         /// <summary>
-        /// complete_execution re-arm mode: non-null status_code selects the re-arm branch
-        /// (150=Rescheduled, 151=Suspended); the host derives next_run_at_utc from the resume instant
-        /// or db_now + delay_seconds.
-        /// </summary>
-        public static readonly DbValueSpec<byte?> RescheduleStatusCode = Scalar<byte?>(
-            "p_reschedule_status_code",
-            DbKind.Byte,
-            nullable: true
-        );
-
-        public static readonly DbValueSpec<int?> RescheduleDelaySeconds = Scalar<int?>(
-            "p_reschedule_delay_seconds",
-            DbKind.Int32,
-            nullable: true
-        );
-
-        public static readonly DbValueSpec<DateTime?> RescheduleResumeAtUtc = Scalar<DateTime?>(
-            "p_reschedule_resume_at_utc",
-            DbKind.UtcInstant,
-            nullable: true
-        );
-
-        /// <summary>
-        /// complete_execution signal-suspend: non-null alongside reschedule_status_code = 151 selects the
-        /// signal branch. The awaited slot is locked and re-checked so a raise that arrived while the
-        /// handler was still Executing lands the Job Ready instead of stranding it Suspended.
-        /// </summary>
-        public static readonly DbValueSpec<string?> WaitSignalName = Sized<string?>(
-            "p_wait_signal_name",
-            DbKind.AsciiString,
-            128,
-            nullable: true
-        );
-
-        /// <summary>
-        /// complete_execution handler-control: non-null target Status (200 Failed / 220 Cancelled /
-        /// 30 Paused) for a deliberate ctx.FailAsync / CancelAsync / PauseAsync termination. Takes the
-        /// non-recurring path; overrides to_status and emits the matching lifecycle event.
-        /// </summary>
-        public static readonly DbValueSpec<byte?> HandlerStatusCode = Scalar<byte?>("p_handler_status_code", DbKind.Byte, nullable: true);
-
-        /// <summary>
         /// arm_or_consume_sleep_timer: the wait length / absolute resume instant the routine resolves to
         /// a stored due_at_utc under a job-level lock.
         /// </summary>
@@ -170,27 +122,12 @@ internal static partial class ActaSchema
             nullable: true
         );
 
-        /// <summary>
-        /// complete_execution / cancel_job retention stamping: non-null seconds added to db_now to set
-        /// runtimes.retention_until_utc at a terminal landing. NULL leaves the column untouched.
-        /// </summary>
-        public static readonly DbValueSpec<int?> RetentionSeconds = Scalar<int?>("p_retention_seconds", DbKind.Int32, nullable: true);
-
-        /// <summary>
-        /// complete_execution final status / next-run / failure-count. On the non-recurring scalar path
-        /// p_final_status stays NULL (keeps the recurring branch off) and p_job_next_run_at_utc NULL; the
-        /// one-shot retry path passes p_failure_count = the bumped count so the routine's
-        /// COALESCE(p_failure_count, failure_count) persists it. NULL leaves failure_count untouched.
-        /// </summary>
-        public static readonly DbValueSpec<byte?> FinalStatus = Scalar<byte?>("p_final_status", DbKind.Byte, nullable: true);
-
+        /// <summary>The recurring slot's next run, as the schedule verbs recompute it.</summary>
         public static readonly DbValueSpec<DateTime?> JobNextRunAtUtc = Scalar<DateTime?>(
             "p_job_next_run_at_utc",
             DbKind.UtcInstant,
             nullable: true
         );
-
-        public static readonly DbValueSpec<int?> FailureCount = Scalar<int?>("p_failure_count", DbKind.Int32, nullable: true);
 
         /// <summary>
         /// sys.alerts projection cursor, id half: the events.id consumed last on the prior tick. It only

@@ -71,7 +71,5 @@ internal abstract class OutboxSourceDialect : ISqlDialect
         string schema
     ) => throw NotOutbox();
 
-    public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema) => throw NotOutbox();
-
     public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) => throw NotOutbox();
 }

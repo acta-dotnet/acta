@@ -7,7 +7,7 @@ namespace Acta;
 /// over the existing <c>raise_signal</c> routine with no SQL of its own. The slot is upserted Set
 /// with the JSON envelope, a Suspended parent is released to Ready, and a terminal or missing parent
 /// is a clean no-op. Serves the C#-side raise sites (operator cancel, reclaim, maintenance
-/// backstop); <c>complete_execution</c> raises in-transaction itself on the hot path. Returns true
+/// backstop); <c>complete_executions</c> raises in-transaction itself on the hot path. Returns true
 /// when the raise released the parent.
 /// </summary>
 internal static class RaiseChildLatch

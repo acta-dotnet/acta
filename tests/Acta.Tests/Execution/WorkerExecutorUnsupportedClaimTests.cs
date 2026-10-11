@@ -26,7 +26,7 @@ public sealed class WorkerExecutorUnsupportedClaimTests
         Assert.Equal((byte)ExecutionStatusCode.Rescheduled, released.RescheduleStatusCode);
 
         // Budget-neutral, so a definition that stays missing cannot burn the job's retries: no failure
-        // count is submitted and complete_execution's COALESCE leaves the stored one alone.
+        // count is submitted and complete_executions' COALESCE leaves the stored one alone.
         Assert.Null(released.FailureCount);
         Assert.Null(released.HandlerStatusCode);
 

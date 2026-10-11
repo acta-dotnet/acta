@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// The suspend handoff: the window between <c>wait_signal</c> answering SuspendPending and
-/// <c>complete_execution</c> writing that suspend. A raise landing inside it answers a wait the ledger
+/// <c>complete_executions</c> writing that suspend. A raise landing inside it answers a wait the ledger
 /// has no record of, so the completion re-reads the awaited slot under its own lock and lands the job
 /// Ready rather than parking it on a signal that already arrived.
 /// </summary>
@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     "signals.suspend-handoff-race",
     "A raise inside the suspend handoff lands the job Ready, not Suspended",
     Area = "Signals",
-    Contract = "complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
+    Contract = "complete_executions re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
 )]
 public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -48,7 +48,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
         var decision = new ReviewDecision(true, "beat the handoff");
         // Baselined after the enqueue's own wake, which lands on this same channel. Inside the window
-        // the raise publishes nothing (the job is still Executing), so complete_execution's Ready
+        // the raise publishes nothing (the job is still Executing), so complete_executions' Ready
         // transition is the only publisher left and any increase here is that transition.
         var namespaceWakesBefore = _wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace);
 
@@ -81,7 +81,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobResumed);
         Assert.Single(events, e => e.EventCode == EventCode.JobSignalRaised);
 
-        // The other half of not losing the wake: complete_execution is the only site that can see this
+        // The other half of not losing the wake: complete_executions is the only site that can see this
         // transition, so a Ready row it reports without a publish is a job nobody is told about.
         Assert.True(_wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace) > namespaceWakesBefore);
 

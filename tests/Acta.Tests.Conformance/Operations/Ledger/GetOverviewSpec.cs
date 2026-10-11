@@ -98,7 +98,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     /// so no system jobs and no schedules) and pins all overview counters to exact values.
     /// <para>
     /// <list type="bullet">
-    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + StartExecution + CompleteExecution.</item>
+    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + StartExecution + CompleteExecutions.</item>
     ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
     ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseAlert.</item>
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
@@ -170,7 +170,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var j3 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
         var j4 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
 
-        // j3 → Executing: claim + StartExecution, leave running (no CompleteExecution call).
+        // j3 → Executing: claim + StartExecution, leave running (no CompleteExecutions call).
         var c3 = Assert.Single(await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, w1!.Id, LeaseTtl, j3, ct));
         Assert.Equal(
             StartExecutionAction.Started,
@@ -193,14 +193,15 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         );
         var cr4 = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteExecutionAsync(
-                new CompleteExecutionCommand(c4.JobId, w1.Id, c4.ExecutionNumber, CompletionKind.Failed, 0, ReadOnlyMemory<byte>.Empty)
+            .CompleteAsync(
+                w1.Id,
+                CompletionTestOps.Landing(c4, succeeded: false) with
                 {
                     HandlerStatusCode = (byte)JobStatusCode.Failed,
                 },
                 ct
             );
-        Assert.Equal(CompleteExecutionAction.Completed, cr4.Action);
+        Assert.Equal(CompleteExecutionsAction.Completed, cr4.Action);
 
         // ── Alerts ────────────────────────────────────────────────────────────────────────────────
         // Two unresolved alerts on j1: one Error (severity 3) and one Critical (severity 4).

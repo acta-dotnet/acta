@@ -9,7 +9,6 @@ internal sealed class ExecutionOperations(
     ClaimJobsHandler claimJobs,
     ClaimJobHandler claimJob,
     StartExecutionHandler startExecution,
-    CompleteExecutionHandler completeExecution,
     CompleteExecutionsHandler completeExecutions,
     ReclaimStuckJobsHandler reclaimStuckJobs,
     RepairRecoverySlotHandler repairRecoverySlot,
@@ -54,21 +53,11 @@ internal sealed class ExecutionOperations(
     ) => startExecution.HandleAsync(new StartExecutionCommand(jobId, workerId, expectedExecutionNumber, leaseTtlSeconds), ct);
 
     /// <summary>
-    /// Finalizes the attempt, CAS-guarded on (job id, worker, execution number): flips the status to terminal or re-arm,
-    /// writes <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>, raises the parent's
-    /// child-done latch, and always answers one row. A recurring rollover applies each planned advance only where the
-    /// schedule still carries the planned version (an edit made during the attempt keeps its cursor), then reads the slot
-    /// from the schedules as they stand: one a deployment orphaned meanwhile is never advanced or reactivated, and the slot
-    /// lands Ready at the earliest surviving cursor or Paused when none survives, its event carrying that same status.
-    /// </summary>
-    public Task<CompleteExecutionResponse> CompleteExecutionAsync(CompleteExecutionCommand command, CancellationToken ct) =>
-        completeExecution.HandleAsync(command, ct);
-
-    /// <summary>
-    /// Writes a batch of plain terminal completions in one transaction, each CAS-guarded on (job id, worker, execution
-    /// number) and landing the rows <see cref="CompleteExecutionAsync"/> lands for it: the status, the result, and the
-    /// finished event. A job with a parent or a lane is answered PerJob and left as it was, and every completion is
-    /// answered.
+    /// Finalizes a batch of attempts in one transaction, each CAS-guarded on (job id, worker, execution number): flips the
+    /// status to terminal or re-arm, writes <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>,
+    /// raises a parent's child-done latch, hands a lane on, and answers every row. A recurring rollover applies each planned
+    /// advance only where the schedule still carries the planned version, then reads the slot from the schedules as they
+    /// stand: one a deployment orphaned meanwhile is never advanced, and the slot lands Ready or Paused accordingly.
     /// </summary>
     public Task<CompleteExecutionsResponse> CompleteExecutionsAsync(CompleteExecutionsCommand command, CancellationToken ct) =>
         completeExecutions.HandleAsync(command, ct);

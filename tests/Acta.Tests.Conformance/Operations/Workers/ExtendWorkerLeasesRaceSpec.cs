@@ -76,7 +76,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         ).Leases;
         await gate.CommitAsync(ct);
 
-        Assert.Equal(CompleteExecutionAction.Completed, (await completion).Action);
+        Assert.Equal(CompleteExecutionsAction.Completed, (await completion).Action);
         Assert.Contains(rows, r => r.JobId == parent.JobId && r.Renewed);
         // Held by the completion, the child is skipped; a slow completion that had not reached it yet lets
         // the renewal take it first. Either way it is still reported in flight.
@@ -101,7 +101,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<(int WorkerId, int ExecutionNumber, Func<Task<CompleteExecutionResponse>> Complete)> StartedAsync(
+    private async Task<(int WorkerId, int ExecutionNumber, Func<Task<CompleteExecutionsRow>> Complete)> StartedAsync(
         EnqueueJobResponse job,
         CancellationToken ct
     )
@@ -116,22 +116,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
             StartExecutionAction.Started,
             (await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)).Action
         );
-        return (
-            workerId,
-            claimed.ExecutionNumber,
-            () =>
-                store.CompleteExecutionAsync(
-                    new CompleteExecutionCommand(
-                        JobId: claimed.JobId,
-                        WorkerId: workerId,
-                        ExpectedExecutionNumber: claimed.ExecutionNumber,
-                        Outcome: CompletionKind.Succeeded,
-                        ResultFormatId: 0,
-                        Result: ReadOnlyMemory<byte>.Empty
-                    ),
-                    ct
-                )
-        );
+        return (workerId, claimed.ExecutionNumber, () => store.CompleteAsync(workerId, CompletionTestOps.Landing(claimed), ct));
     }
 
     private EnqueueJobRequest Step(string label) => new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("", label)));

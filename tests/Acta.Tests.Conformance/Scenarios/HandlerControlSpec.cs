@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for the handler-initiated control verbs (<c>ctx.FailAsync</c> / <c>CancelAsync</c> /
 /// <c>PauseAsync</c>): each is a deliberate decision that finalizes the attempt through
-/// <c>complete_execution</c> to a terminal/hold Status, does not return to user code, leaves the
+/// <c>complete_executions</c> to a terminal/hold Status, does not return to user code, leaves the
 /// failure budget untouched, writes no result, and stamps the matching reason + lifecycle event.
 /// </summary>
 [ConformanceSpec(

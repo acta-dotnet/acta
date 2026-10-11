@@ -100,7 +100,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             var restart = Jobs.RestartAsync(failed, "racing the head", ct: ct).AsTask();
             await Task.WhenAll(completion, restart);
 
-            Assert.Equal(CompleteExecutionAction.Completed, (await completion).Action);
+            Assert.Equal(CompleteExecutionsAction.Completed, (await completion).Action);
             Assert.Equal(ControlAction.Applied, (await restart).Action);
             JobStatusCode[] statuses = [(await ReadJobAsync(failed.JobId, ct)).Status, (await ReadJobAsync(waiting.JobId, ct)).Status];
             Assert.Single(statuses, s => s == JobStatusCode.Ready);
@@ -261,7 +261,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<Func<Task<CompleteExecutionResponse>>> StartedAsync(EnqueueJobResponse job, CancellationToken ct)
+    private async Task<Func<Task<CompleteExecutionsRow>>> StartedAsync(EnqueueJobResponse job, CancellationToken ct)
     {
         var store = Services.GetRequiredService<ExecutionOperations>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -273,18 +273,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             StartExecutionAction.Started,
             (await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)).Action
         );
-        return () =>
-            store.CompleteExecutionAsync(
-                new CompleteExecutionCommand(
-                    JobId: claimed.JobId,
-                    WorkerId: workerId,
-                    ExpectedExecutionNumber: claimed.ExecutionNumber,
-                    Outcome: CompletionKind.Succeeded,
-                    ResultFormatId: 0,
-                    Result: ReadOnlyMemory<byte>.Empty
-                ),
-                ct
-            );
+        return () => store.CompleteAsync(workerId, CompletionTestOps.Landing(claimed), ct);
     }
 
     private async Task<EnqueueJobResponse> DoomedAsync(string lane, CancellationToken ct) =>

@@ -114,7 +114,7 @@ public sealed class WorkerExecutorOwnershipTests
         // attempt reports NothingClaimed.
         var harness = new WorkerExecutorHarness(
             stepOutcome: CompleteStepOutcomeCode.StaleVersion,
-            completionAction: CompleteExecutionAction.NotOwner,
+            completionAction: CompleteExecutionsAction.NotOwner,
             cancelAttemptOnStepCompletion: true
         );
 
@@ -132,7 +132,7 @@ public sealed class WorkerExecutorOwnershipTests
         // lease while its write waits, so losing the row is a skip the log records, not a fault.
         var harness = new WorkerExecutorHarness(
             stepOutcome: CompleteStepOutcomeCode.StaleVersion,
-            completionAction: CompleteExecutionAction.NotOwner
+            completionAction: CompleteExecutionsAction.NotOwner
         );
 
         var outcome = await harness.RunAsync();
@@ -141,7 +141,7 @@ public sealed class WorkerExecutorOwnershipTests
         Assert.Empty(harness.Applied);
         var skip = Assert.Single(harness.Log, entry => entry.Message.Contains("completion skipped", StringComparison.Ordinal));
         Assert.Equal(LogLevel.Information, skip.Level);
-        Assert.Contains(nameof(CompleteExecutionAction.NotOwner), skip.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(CompleteExecutionsAction.NotOwner), skip.Message, StringComparison.Ordinal);
     }
 
     private static async Task<IReadOnlyList<BoundCompletion>> Submissions(

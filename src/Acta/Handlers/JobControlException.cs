@@ -14,7 +14,7 @@ public abstract class JobControlException(string? message) : Exception(message) 
 /// Re-arms the current Job to <c>Ready</c> with a forward-dated <c>NextRunAtUtc</c> and stops the attempt without
 /// charging the failure budget; throw it directly, or call <c>ctx.RescheduleAsync</c> / <c>ctx.RescheduleUntilAsync</c>,
 /// which throw it for you. Exactly one of <see cref="Delay"/> and <see cref="ResumeAtUtc"/> is set, and the host
-/// computes the due instant in <c>complete_execution</c> from DB UTC time: a delay becomes <c>db_now + delay</c>, an
+/// computes the due instant in <c>complete_executions</c> from DB UTC time: a delay becomes <c>db_now + delay</c>, an
 /// absolute instant is used verbatim, and a past one re-arms as immediately claimable.
 /// </summary>
 public sealed class RescheduleJobException : JobControlException
@@ -50,7 +50,7 @@ public sealed class RescheduleJobException : JobControlException
 /// <c>ctx.PauseAsync</c>: each stops the current attempt with an intended target Status and an optional
 /// operator-readable <paramref name="reasonMessage"/>, without charging the failure budget and without being recorded
 /// as an unhandled exception. Unlike a thrown exception (a crash) these are intentional domain decisions: the host
-/// catches the concrete type and routes it through <c>complete_execution</c> to the matching terminal or hold Status.
+/// catches the concrete type and routes it through <c>complete_executions</c> to the matching terminal or hold Status.
 /// Throw via the <c>ctx</c> verbs rather than constructing these directly.
 /// </summary>
 public abstract class HandlerControlException(string? reasonMessage) : JobControlException(reasonMessage)

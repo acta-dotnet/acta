@@ -379,7 +379,7 @@ Service-owned execution boundary. One deployable service owns one `NamespaceEnti
 
 ### `acta.results` <a id="entity-acta-results"></a>
 
-One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so result bytes stay off the hot job row and a recurring job keeps a history instead of overwriting one slot. `complete_execution` trims a recurring job's rows to the definition's `RecurringResultCap` (default 1) on every completion, and a deleted job takes its rows with it (`fk_results_jobs ON DELETE CASCADE`). The latest result is one primary-key seek.
+One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so result bytes stay off the hot job row and a recurring job keeps a history instead of overwriting one slot. `complete_executions` trims a recurring job's rows to the definition's `RecurringResultCap` (default 1) on every completion, and a deleted job takes its rows with it (`fk_results_jobs ON DELETE CASCADE`). The latest result is one primary-key seek.
 
 **CLR type** `Acta.ResultEntity` · **Primary key** `pk_results` (`job_id`, `execution_number`)
 

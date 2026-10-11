@@ -19,7 +19,6 @@ public sealed class SqlCommandCatalogTests
         "ArmOrConsumeSleepTimer",
         "ClaimJob",
         "ClaimJobs",
-        "CompleteExecution",
         "CompleteExecutions",
         "CompleteStep",
         "ConsumeOutboxSignal",

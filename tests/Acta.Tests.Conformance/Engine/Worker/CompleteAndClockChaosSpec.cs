@@ -8,9 +8,9 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 
 [ConformanceSpec(
     "chaos.complete-clock",
-    "CompleteExecution transient failures and DB clock skew are explicit",
+    "CompleteExecutions transient failures and DB clock skew are explicit",
     Area = "Chaos",
-    Contract = "Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization."
+    Contract = "Transient storage failures before and after CompleteExecutions converge to one state, and DB/app clock skew is enforced at initialization."
 )]
 public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {

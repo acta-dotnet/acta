@@ -209,7 +209,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
         // flaky-recover fails its first attempts with a zero backoff: each failing completion lands
-        // the row Ready due-now, and complete_execution's final-Ready report is the ONLY publish
+        // the row Ready due-now, and complete_executions' final-Ready report is the ONLY publish
         // site that can see that transition. Without it every retry would wait out the safety poll.
         FlakyRecoverProbe.Reset(TestNamespace);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);

@@ -125,18 +125,7 @@ internal sealed partial class WorkerFinalizer(
         try
         {
             var writes = entries.Select(Plan).ToList();
-            var batch = new CompleteExecutionsCommand(
-                WorkerId,
-                [
-                    .. writes.Select(write =>
-                        CompleteExecutionsValues.From(write.Command) with
-                        {
-                            HasLane = write.Entry.Claim.LaneId is not null,
-                            HasParent = write.Entry.Claim.ParentId is not null,
-                        }
-                    ),
-                ]
-            );
+            var batch = new CompleteExecutionsCommand(WorkerId, [.. writes.Select(write => write.Row)]);
             var answer = await RepeatAsync(
                 token => execution.CompleteExecutionsAsync(batch, token),
                 log,
@@ -168,7 +157,7 @@ internal sealed partial class WorkerFinalizer(
         var completion = entry.Completion!;
         if (entry.Descriptor is not { } descriptor)
         {
-            return new(entry, completion, HandBack(job, WorkerId, completion), RunOnceStatus.Rearmed);
+            return new(entry, completion, HandBack(job, completion), RunOnceStatus.Rearmed);
         }
 
         var retry = PlanRetry(descriptor, job, entry.Fire, completion);
@@ -201,7 +190,7 @@ internal sealed partial class WorkerFinalizer(
             CompletionKind.Rescheduled or CompletionKind.Suspended or CompletionKind.Paused => RunOnceStatus.Rearmed,
             _ => RunOnceStatus.Failed,
         };
-        return new(entry, completion, BuildCommand(descriptor, job, WorkerId, entry.Fire, completion, retry), status);
+        return new(entry, completion, BuildCommand(descriptor, job, entry.Fire, completion, retry), status);
     }
 
     /// <summary>
@@ -381,11 +370,11 @@ internal sealed partial class WorkerFinalizer(
         }
     }
 
-    /// <summary>One entry's write as planned: the completion after the deadline guard, its command, and its status.</summary>
+    /// <summary>One entry's write as planned: the completion after the deadline guard, its batch row, and its status.</summary>
     private readonly record struct PlannedWrite(
         InFlightJob Entry,
         ExecutionCompletion Completion,
-        CompleteExecutionCommand Command,
+        CompleteExecutionsValues Row,
         RunOnceStatus Status
     );
 }

@@ -73,13 +73,13 @@ namespace Acta;
 // Both directions, so with ck_runtimes_lease_consistency an in-flight status and a complete lease pair
 // are the same fact. ClaimJob, ClaimJobs and StartExecution are the only routines that enter 40/50,
 // and each writes the lease in the same statement. Every routine that nulls the lease leaves 40/50 in
-// the same statement: CompleteExecution, ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
+// the same statement: CompleteExecutions, ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
 [DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
 // A Ready row is due at a known instant, which is what lets ix_runtimes_claim_ready leave out NULL instants
 // without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
 // in the same statement: EnqueueJob, EnqueueJobs, RegisterSchedules, RestartJob, ResumeJob,
-// RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecution (re-arm and signal release),
+// RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecutions (re-arm and signal release),
 // ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]
 internal sealed class RuntimeEntity : IEntity<long>
