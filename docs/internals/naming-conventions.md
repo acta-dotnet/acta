@@ -1,10 +1,10 @@
 # Naming conventions
 
-The naming rules the 0.9.0 surface froze under. Both pre-freeze audits (the .NET surface audit and
-the schema audit) found drift that a stated rule would have prevented, so the rules are stated here
-once and every later name is measured against them. They govern all four contract tiers - the .NET
-surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetry an operator queries
-- and a rename that violates one after 1.0.0 is a breaking change, not a cleanup.
+The naming rules the public surface is held to. The surface audits before 1.0 found drift that a
+stated rule would have prevented, so the rules are stated here once and every later name is measured
+against them. They govern all four contract tiers - the .NET surface, the HTTP surface, the SQL
+schema plus persisted codes, and the telemetry an operator queries - and a rename that violates one
+after 1.0.0 is a breaking change, not a cleanup.
 
 ## Words with one meaning
 
@@ -241,7 +241,7 @@ free and it grows with every line anyone adds.
   single quotes some templates used around a value (`'{Detail}'`), so the vocabulary has one delimiter
   instead of three.
 - **Log `Outcome` values and metric `outcome` tags diverge on purpose, and neither should be "fixed" to
-  match the other.** `ExecutionCompletion.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
+  match the other.** `WorkerFinalizer.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
   into `ActaMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze
   at 1.0; a log field mirrors the C# code and does not freeze. Two surfaces, each internally consistent,
   beats one convention bent across both. Persisted code tokens are a third such surface and stay kebab

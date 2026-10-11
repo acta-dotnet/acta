@@ -38,7 +38,7 @@ Four consequences an operator sees:
   (`AlertsJob.GenerateMaxBatches`, `AlertsJob.GenerateTimeBudget`, `AlertsJob.GenerateAsync`), so a
   burst of a few thousand failures clears in one tick. The time budget is checked *between* batches,
   so the batch in flight always finishes. Deliver is deliberately not drained the same way and stays
-  at 256 transport attempts per pass (`AlertsJob.DeliverBatchSize`): pushing ten thousand webhooks
+  at 256 transport attempts per pass (`AlertDelivery.DeliverBatchSize`): pushing ten thousand webhooks
   through one tick would trade a database problem for an outage on the operator's own channel. A
   namespace that outruns either bound falls behind. Falling behind is lag, not loss, for two
   reasons that guard two different failure shapes: the projection horizon keeps generate from
@@ -108,7 +108,7 @@ Everything else is invisible to alerting. Two exclusions are worth stating outri
 
 - **A `Cancelled` landing never alerts, under any profile.** An operator cancel, `ctx.CancelAsync`
   (`HandlerInvocation`), and a whole-job deadline — both the "overdue at admission" and the
-  "next retry would exceed the deadline" paths (`ExecutionAdmission`, `ExecutionCompletion`) — all land the job
+  "next retry would exceed the deadline" paths (`ExecutionAdmission`, `WorkerFinalizer`) — all land the job
   `Cancelled`, and the alertable set has no `Cancelled` branch.
 - **Not every re-arm alerts.** A budget-neutral re-arm carrying `job.concurrency-key-held` (62),
   `job.rate-limited` (66), `job.step-retry-scheduled` (61), `job.attempt-aborted` (25), or
@@ -118,7 +118,7 @@ Everything else is invisible to alerting. Two exclusions are worth stating outri
   `EventReasonCode.JobStepRetryScheduled`, `EventReasonCode.JobAttemptAborted`).
 
 A recurring slot's rollover carries the failed attempt's reason through onto its `Ready` event
-(`ExecutionCompletion.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every
+(`WorkerFinalizer.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every
 night is visible to the projector at all.
 
 ## Profiles
@@ -159,7 +159,7 @@ auto:{DefinitionId}:{JobId}:{kind}:{reasonCode ?? "none"}
 whole window reopens as a fresh incident counting from one — the ledger's events, not the alert
 row, are the long-horizon record. This key names an **incident**, not a time bucket: `alerts` carries a unique
 index on `(namespace_id, deduplication_key)` filtered to unresolved rows, so at most one OPEN row exists per
-key at any moment (`JobAlert.cs`). A repeat of the same condition while that row is open folds onto it
+key at any moment (`AlertEntity.cs`). A repeat of the same condition while that row is open folds onto it
 — `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
 (`RaiseAlert.*.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
 once a success stamps it, the row never reopens, and the next failure on the same key opens a fresh
@@ -218,7 +218,7 @@ its lifecycle; Acta does not police key choice, it deduplicates on it. The opera
 
 Reminders follow the same split. A manual alert that delivers is notified once and never again: Acta
 has no way to tell whether one handler's statement still holds, so it schedules no reminder and the
-caller owns resolving the row (`AlertsJob.SettleAsync`). A manual alert whose *send* failed is the
+caller owns resolving the row (`AlertDelivery.SettleAsync`). A manual alert whose *send* failed is the
 exception — nobody has been told yet, so it is re-attempted on the reminder cadence until it lands,
 and stops there.
 
@@ -254,7 +254,7 @@ reason it hits), not 2–3 accumulated rows per job per rolling window under the
 
 | | One-shot job | Recurring slot |
 | --- | --- | --- |
-| Failures before it stops | at most `MaxAttempts` (default 15, `JobAttribute.MaxAttempts`) | unbounded; the slot re-arms forever (`ExecutionCompletion.ComputeRecurringOutcome`) |
+| Failures before it stops | at most `MaxAttempts` (default 15, `JobAttribute.MaxAttempts`) | unbounded; the slot re-arms forever (`WorkerFinalizer.ComputeRecurringOutcome`) |
 | Alert rows on defaults | at most three: `FirstFailure`, `ThresholdReached`, `FinalFailure` | two, for as long as the slot stays broken |
 | Ends by itself | yes, at the terminal `Failed` | only on a success, or operator intervention |
 
@@ -268,7 +268,7 @@ reminder cadence; it does not change how many rows exist or whether `ThresholdRe
 
 ## Delivery
 
-The deliver phase selects due rows and settles each one (`AlertsJob.DeliverAsync`). Due means an
+The deliver phase selects due rows and settles each one (`AlertDelivery.DeliverAsync`). Due means an
 unresolved incident (`resolved_at_utc IS NULL`) and one of two arms, both reading `retry_after_utc`
 as the row's "not before" instant: `Pending`/`RetryAfter` with it null or past — a first attempt or a
 due retry — or `Delivered`/`Failed` with it past — a reminder, at the instant that settlement
@@ -295,21 +295,21 @@ channel's kind, and decides in this fixed order (`AlertChannelVerdict.Decide`):
 | Otherwise | Send | per the transport's outcome |
 
 A transport that throws is treated as retryable and logged at Warning, never propagated
-(`AlertsJob.SendAsync`). Settlement (`AlertsJob.SettleAsync`) writes a compare-and-swap against the
+(`AlertDelivery.SendAsync`). Settlement (`AlertDelivery.SettleAsync`) writes a compare-and-swap against the
 `version` the row carried at selection (`UpdateAlertDelivery.*.sql`): a row that moved in the
 meantime — an operator resolved it, or a competing worker already settled the same attempt — matches
 no version, and the write is skipped with a Debug log line rather than retried, because the newer state
-is the one that should stand (`AlertsJob.WriteSettlementAsync`).
+is the one that should stand (`AlertDelivery.WriteSettlementAsync`).
 
 - `Delivered` (100) — terminal, and `retry_count` resets to 0: the send series that just landed is
   over.
 - `Retryable` — `retry_count + 1`; below `AlertDeliveryMaxRetries` the row becomes `RetryAfter` (20)
   with `retry_after_utc` set from a `30s..1h` doubling curve with 10% jitter, parsed once and
-  independent of any job's backoff policy (`AlertsJob.RetryBackoff`, `AlertsJob.SettleAsync`).
+  independent of any job's backoff policy (`AlertDelivery.RetryBackoff`, `AlertDelivery.SettleAsync`).
 - At the cap — `Failed` (200), terminal.
 
 `retry_count` is the budget for one **send series**, not a lifetime count on the row
-(`JobAlert.RetryCount`). `AlertDeliveryMaxRetries` is `internal` and fixed at 5
+(`AlertEntity.RetryCount`). `AlertDeliveryMaxRetries` is `internal` and fixed at 5
 (`JobsOptions.AlertDeliveryMaxRetries`): five send attempts and four waits of roughly 30s, 1m, 2m, and
 4m (`BackoffSchedule.ComputeDelaySeconds`), so the one-hour ceiling in the curve is never reached and a
 series that cannot be delivered goes terminal `Failed` in under ten minutes of tick time. Because
@@ -364,18 +364,18 @@ j.Run("billing", w =>
   overrides it. This is why failures reach the logs out of the box.
 - **`MinSeverity` and `Status` are the two per-channel policies** (`AlertChannelOptions.MinSeverity`,
   `AlertChannelOptions.Status`). `Disabled` and `Deprecated` both suppress; the difference is what the
-  log line says (`AlertsJob.LogSuppressedDecision`).
+  log line says (`AlertDelivery.LogSuppressedDecision`).
 - **Built-in transport kinds are `log` and `slack-webhook`** (`AlertTransportKinds.Log`,
   `AlertTransportKinds.SlackWebhook`). A custom transport defines its own kebab kind and registers an
   `IAlertTransport`.
 - **Acta SQL stores the channel *name* only.** Endpoints, webhook URLs, credentials, and routing keys
   are never persisted: the delivery target is assembled at send time from the registry declaration
-  (`AlertsJob.SendAsync`). Keep real endpoints in configuration or a secret store.
+  (`AlertDelivery.SendAsync`). Keep real endpoints in configuration or a secret store.
 
 Route a job with `[Job(AlertChannelName = "ops-slack")]` (`JobAttribute.AlertChannelName`); a job that
 declares none routes to `default`. `RunbookUrl` on the same attribute (`JobAttribute.RunbookUrl`) is
 resolved at delivery time from the definition and carried on the notification
-(`GetDeliverableAlerts.sql`, `AlertsJob.SendAsync`); it is not on the list-query projection.
+(`GetDeliverableAlerts.sql`, `AlertDelivery.SendAsync`); it is not on the list-query projection.
 
 `AlertChannelValidationMode` checks at worker startup that every alerting definition routes to a
 channel configured in its namespace: `Off` skips, `Warn` (default) logs each unroutable definition,
@@ -392,7 +392,7 @@ Alert rows are queryable like everything else. `IActaOperations.Alerts` offers `
 by namespace, job, resolution, acknowledgement, severity, delivery status, and tags), `GetAsync`,
 `AcknowledgeAsync`, and `ResolveAsync` (`IAlerts`, `ListAlertsQuery`). The dashboard and HTTP API
 expose the two verbs at `POST /alerts/{alertRef}/acknowledge|resolve`, 200 or 404 and never 409 —
-both carrying `AlertControlResponse` — behind
+answering `AcknowledgeAlertResponse` and `ResolveAlertResponse` — behind
 `EnableControls` and the `X-Acta-Control` header (the gate lives in `MapActa`, the header
 name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselves in
 `AlertsEndpoints`). In SQL, `acta.alerts_view` renders the coded columns beside `deduplication_key`
@@ -422,7 +422,7 @@ The intended rule is that one profile means one thing for every job and the aler
 independent of how the job was started. Two divergences remain, and both trace to a single root
 cause: **a recurring slot has no terminal state.** `MaxAttempts` is the one-shot retry budget, and a
 recurring slot re-arms instead of terminalizing however many consecutive runs throw
-(`ExecutionCompletion.ComputeRecurringOutcome`). That is deliberate — a nightly job must not die permanently
+(`WorkerFinalizer.ComputeRecurringOutcome`). That is deliberate — a nightly job must not die permanently
 after three bad nights — but the alerting consequences are real.
 
 ### 1. `OnTerminal` and `Info` are silent for a recurring job's ordinary failures
@@ -434,7 +434,7 @@ choose `OnFailure` for recurring work you want to hear about — is the right on
 
 They do still fire on the terminal `Failed` shapes a recurring slot can reach, all three of which
 route through the handler-status completion path and stop the whole slot
-(`ExecutionCompletion`):
+(`WorkerFinalizer`):
 
 | Shape | Reason code | Where |
 | --- | --- | --- |
@@ -443,7 +443,7 @@ route through the handler-status completion path and stop the whole slot
 | An `AtMostOnce()` step was re-entered before its outcome was recorded, uncaught | `job.step-interrupted` (63) | `HandlerInvocation` |
 
 A whole-job deadline is **not** one of them: the deadline lands the job `Cancelled`, not `Failed`
-(`ExecutionAdmission`, `ExecutionCompletion`, `EventReasonCode.JobDeadlineExceeded`), and the alertable set has no
+(`ExecutionAdmission`, `WorkerFinalizer`, `EventReasonCode.JobDeadlineExceeded`), and the alertable set has no
 `Cancelled` branch (`GetAlertableEvents.sql`). No profile alerts on a deadline — the `on-terminal`
 `[Code]` description (`AlertProfileCode.OnTerminal`) and
 [Known limitations](../technical/known-limitations.md) both say the same.
@@ -498,6 +498,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | Cited as | Path |
 | --- | --- |
 | `AlertsJob.cs` | `src/Acta/Engine/Alerting/AlertsJob.cs` |
+| `AlertDelivery.cs` | `src/Acta/Engine/Alerting/AlertDelivery.cs` |
 | `AlertChannelVerdict.cs` | `src/Acta/Engine/Alerting/AlertChannelVerdict.cs` |
 | `AlertChannelRegistry.cs` | `src/Acta/Engine/Alerting/AlertChannelRegistry.cs` |
 | `AlertRoutingCheck.cs` | `src/Acta/Engine/Alerting/AlertRoutingCheck.cs` |

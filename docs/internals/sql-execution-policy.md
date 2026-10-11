@@ -81,9 +81,14 @@ their separate migration transaction and lock.
 `PurgeExpiredData` remains one routine identity, but each invocation purges one selected section's
 bounded batch. `RetentionJob` reads database time once, calculates fixed sweep cutoffs, and
 visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, expired locks,
-and unreferenced lanes in that order. Defaults remain 1,000 rows and 50 iterations per section. An empty batch ends its
-section. Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.
-The coordinator never retries the whole sweep. Committed undelivered-alert deletions produce one
+and unreferenced lanes in that order. Defaults remain 1,000 rows and 50 iterations per section, and an
+empty batch ends its section. The jobs section is the exception: no index finds expired jobs, so each
+call walks `runtimes` down by job id from the cursor the previous tick stored on the slot
+(`p_before_job_id`, the `purge-cursor` job variable), scans ten batches' worth of rows, deletes the
+namespace's expired jobs among them, and answers where it stopped; a tick takes up to 200 such slices,
+two million rows, or stops early at the oldest row or once a delete budget's worth of jobs is gone.
+Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.
+`RetentionJob` never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
 
 Every SQL Server statement that updates `runtimes` through a join carries `WITH (FORCESEEK)`, except
@@ -114,9 +119,9 @@ well inside the lease window. The lock holds renew first and without skipping: n
 `locks` and `runtimes`, so there is no order to keep against. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
-Routines that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
-and `complete_execution` both do. `reset_job_state` takes the `runtimes` row and then deletes the
-job's checkpoints, and `purge_job` reaches them through the cascade from the job row; both run on a
+Statements that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
+and `complete_execution` both do. `ResetJobState` takes the `runtimes` row and then deletes the
+job's checkpoints, and `PurgeJob` reaches them through the cascade from the job row; both run on a
 job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
 exception, taking the
 `runtimes` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
@@ -170,7 +175,7 @@ child table, but it locks only the batch's own keys.
 
 ### Alert lock order
 
-A routine that writes a job's alerts locks the job row first, then the alert rows. `purge_job` holds the
+A statement that writes a job's alerts locks the job row first, then the alert rows. `PurgeJob` holds the
 job row while it deletes the job's alerts, and `raise_alert` and `resolve_alerts` lock the same
 row before they touch an alert: `UPDLOCK` on SQL Server, `FOR SHARE` on PostgreSQL against the
 purge's `FOR UPDATE`. A raise or resolve that meets a purge of its job waits for it. A raise that then
@@ -189,7 +194,7 @@ finds the job gone is refused, so no alert outlives its job.
   each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
 - On SQL Server a row that has a deduplication identity is locked through its
   `ix_alerts_deduplication_key_identity` key before the row itself. `raise_alert` seeks that index under
-  `UPDLOCK, HOLDLOCK`, pinned by name, and range-locks the identity and its next key. `purge_job` and
+  `UPDLOCK, HOLDLOCK`, pinned by name, and range-locks the identity and its next key. `PurgeJob` and
   the alert retention sections lock identity rows through the same index before deleting them.
   Retention stages its batch without locks and locks with `READPAST`, so it skips a row a raise holds.
   A delete that took the row first and the index key second deadlocked against a raise, whichever job
@@ -239,7 +244,7 @@ the lock.
 - A definition retire locks the lanes of the definition's parked laned jobs in id order, cancels
   every parked job of the definition, and only then promotes each of those lanes once, so no member of
   the retired definition is promoted on the way. All of it is one transaction.
-- `restart_job` reactivates a finished laned job in place, under the lane lock. It refuses the job
+- `RestartJob` reactivates a finished laned job in place, under the lane lock. It refuses the job
   while an unfinished ancestor or descendant sits in the same lane: the restarted job would run ahead
   of a descendant its handler may wait for, the cycle the enqueue ancestor guard refuses. Both walks
   run under the lane lock, which every enqueue into that lane also takes.

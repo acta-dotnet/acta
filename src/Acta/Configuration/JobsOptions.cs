@@ -238,7 +238,8 @@ public sealed class JobsOptions
     /// Selects the claim/dispatch strategy for the worker's execution loop.
     /// <see cref="ExecutionProfile.Buffered"/> (default) is the conservative two-phase path.
     /// <see cref="ExecutionProfile.Direct"/> uses the combined claim-execute path with no Dispatched
-    /// visibility window. Both commit every completion durably, per job.
+    /// visibility window. Both commit completions durably through the worker's finalizer, batched when they
+    /// queue up.
     /// </summary>
     public ExecutionProfile ExecutionProfile { get; set; } = ExecutionProfile.Buffered;
 }

@@ -218,9 +218,9 @@ repo's analyzer tier would defeat the reason it exists.
 
 ## SQL style
 
-Hand-written provider SQL (everything under `src/*/Sql/`; the generated `Schema/Migrations` and
-`docs/reference` files are emitter-owned) is maintained in one block style across all three
-dialects. No formatter owns it; `SqlStyleTests` enforces the machine-checkable floor (uppercase
+Hand-written SQL (every `*.sql` under `src/Acta/Operations/` and `src/Acta/Schema/Views/`; the
+generated `Schema/Migrations` and `docs/reference` files are emitter-owned) is maintained in one block
+style across all three dialects. No formatter owns it; `SqlStyleTests` enforces the machine-checkable floor (uppercase
 line-leading keywords, no tabs, no trailing whitespace) and the rest is convention. By example:
 
 ```sql

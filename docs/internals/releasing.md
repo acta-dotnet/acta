@@ -57,7 +57,7 @@ certified commit.
 
 ## Frozen contracts
 
-Five baselines fail a test on drift, so the suite above already catches an accidental change. What a
+Six baselines fail a test on drift, so the suite above already catches an accidental change. What a
 release adds is the judgement the test cannot make: **read each moved baseline and confirm the move was
 intended.** A regenerated baseline is indistinguishable from a deliberate one once committed.
 

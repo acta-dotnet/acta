@@ -89,8 +89,8 @@ Not when you need order. `ConcurrencyKey` is the middle rung of three, and only 
 anything:
 
 1. **Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
-   `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, and jobs that are immediately
-   due. That gives serial execution, not strict FIFO: retries, delayed eligibility, priority changes,
+   `MaxConcurrentExecutors = 1` (and `ClaimBatchSize = 1` on `Buffered`), equal priority, and jobs that
+   are immediately due. That gives serial execution, not strict FIFO: retries, delayed eligibility, priority changes,
    and operator actions all reorder the queue, and Acta does not enforce that only one process runs
    the namespace, so this is an operational promise you keep, not an invariant Acta checks. The claim
    scan orders by priority, then by next-run instant, then by `JobId`; `JobId` is a stable

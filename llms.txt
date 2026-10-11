@@ -10,7 +10,7 @@ complete demo apps under `demos/`. Start at useacta.net or github.com/acta-dotne
 
 Execution is at-least-once, and a handler re-enters from the top. After a crash, a lease expiry, a
 retry, or a resumed wait, Acta runs the handler method again from its first line. Completed durable
-slots — steps, variables, timers, signal waits — return their recorded results instead of repeating
+slots (steps, variables, timers, signal waits) return their recorded results instead of repeating
 their work; every bare line between them runs again on every entry. The model is checkpoints, not
 replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
 
@@ -66,8 +66,8 @@ public static class ShippingHandlers
 
 `dotnet run`, watch the job complete, open the dashboard. Rules this sample carries:
 
-- `[Job("ship-order")]` is required and kebab-case, `[a-z][a-z0-9]*(-[a-z0-9]+)*`: no dots, no
-  underscores, no doubled or trailing dash, at most 128 chars. The `sys.` prefix is reserved for Acta's own jobs. The name is
+- `[Job("ship-order")]` is required and a name: dotted kebab-case, `[a-z][a-z0-9-]*` segments joined by `.`
+  (`billing.send-invoice`), no underscores, no trailing dash, at most 128 chars. The bare `sys` and the `sys.` prefix are reserved for Acta's own jobs. The name is
   the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts.
 - `ShippingJobs` is the source-generated manifest, named from the LAST segment of the project's
   `RootNamespace` plus `Jobs` (`Users` → `UsersJobs`; a segment already ending in `Jobs` gets
@@ -106,7 +106,7 @@ public static class ShippingHandlers
 returns its recorded result instead of running the body. That promise has two conditions:
 
 - The outcome is durable only after it is recorded. A crash after the side effect ran but before
-  the outcome landed re-runs the body on replay — the body must be idempotent, usually via a
+  the outcome landed re-runs the body on replay, so the body must be idempotent, usually via a
   stable key derived from the job, never from the attempt.
 - Only step-wrapped work is skipped. Bare handler code between steps re-runs on every entry.
 
@@ -206,7 +206,7 @@ definition, puts the job in a lane: one job of the lane runs at a time, in enque
 FIFO message group. The jobs behind the head are `Blocked` until it finishes (Succeeded, Failed on
 its last attempt, or Cancelled), and a failing head keeps retrying in place, holding the lane. Rows
 staged in sequence through the outbox with a lane reach it in staging order, a rejected row keeping its place. An
-enqueue lane overrides the definition's. A lane is a name: ASCII kebab-case up to 128 characters,
+enqueue lane overrides the definition's. A lane is a name: ASCII dotted kebab-case up to 128 characters,
 lowercased on input. Rules that bite: never enqueue a child into the lane of an unfinished ancestor (refused
 at enqueue), never put a lane on a scheduled definition (refused), give waits across lanes a timeout,
 and restart of a finished laned job runs that job again, right after the lane's current head.
@@ -248,7 +248,7 @@ blob storage with the job carrying a reference: URI, checksum, size.
 
 ## When you are unsure
 
-Every pattern above exists as a compiled, runnable example under `concepts/` in the repository —
+Every pattern above exists as a compiled, runnable example under `concepts/` in the repository:
 numbered rungs from fundamentals to chaos recovery, each with a README. The demo apps under
 `demos/` are complete deployable applications built only from the published packages. Deeper docs:
 the `docs/` tree in the repository; start at useacta.net.

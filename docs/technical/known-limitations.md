@@ -249,8 +249,8 @@ that needs a bounded wait needs a different design.
 Three levels are available, and only the third one orders anything.
 
 **Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
-`MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, and jobs that are due
-immediately. This yields serial execution, not strict FIFO: retries, delayed eligibility, priority
+`MaxConcurrentExecutors = 1` (and `ClaimBatchSize = 1` on `Buffered`), equal priority, and jobs that
+are due immediately. This yields serial execution, not strict FIFO: retries, delayed eligibility, priority
 changes, and operator actions move a row's next-run instant and reorder what is claimed next. Acta
 does not enforce that only one process claims a namespace, so the single-process condition is an
 operational promise, not a runtime invariant.

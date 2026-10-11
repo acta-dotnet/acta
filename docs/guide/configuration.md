@@ -118,12 +118,15 @@ That intermediate state is useful when operators care about "claimed but not yet
 visible state.
 
 `Direct` claims straight into execution. It removes the `Dispatched` visibility window and reduces
-round trips while keeping per-job completion durable on SQL Server and PostgreSQL. On SQLite, Direct
-also uses SQLite's faster synchronous mode, appropriate for local and embedded scenarios where that
-tradeoff is accepted.
+round trips; completions commit the same way on both profiles. On SQLite, Direct also uses SQLite's
+faster synchronous mode, appropriate for local and embedded scenarios where that tradeoff is accepted.
 
-Both profiles write each completion in its own transaction, so a finished handler's result is never
-held in memory waiting for a batch when the process stops.
+On both profiles an executor hands each finished attempt to the worker's one finalizer, which writes
+the plain completions waiting for it (a one-shot job landing Succeeded or Failed) in one transaction,
+up to 128 of them or 4 MiB of results, and every other shape per job, and repeats a write until it
+lands. A lone completion is written at once; a batch forms only when the writes fall behind, and then
+waits up to 50 ms to fill. A graceful stop lets the finalizer land what is waiting; a hard stop leaves
+those rows for recovery, which re-runs them under the failure budget.
 
 Tune profiles together with `MaxConcurrentExecutors` and `ClaimBatchSize`. Measure after each change:
 throughput gains that overload the database, downstream APIs, or the connection pool are not real

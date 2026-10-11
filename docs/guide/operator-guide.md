@@ -61,8 +61,8 @@ The same rows are readable through `IActaOperations.Workers.ListAsync`, filtered
 ## Common queries
 
 Read freely — the views exist for it. Repair through the control verbs, not through UPDATE. The
-schema's own checks guard row *shape* (lease all-or-nothing, valid status codes, paired payload
-formats, non-negative counters), but they cannot guard *history*: the runtime fences every mutation
+schema's own checks guard row *shape* (lease all-or-nothing, paired payload formats, non-negative
+counters), but they cannot guard *history*: the runtime fences every mutation
 on version counters and lease ownership, so a hand-edited `version`, `execution_number`, or lease
 column produces a row the engine either refuses to touch or mistakes for another worker's — with no
 constraint to stop you. Every control verb (restart, cancel, reschedule, purge) makes its change
@@ -98,7 +98,7 @@ SELECT namespace, COUNT(*) AS ready
  WHERE status = 'ready'
  GROUP BY namespace;
 
--- One tenant's work, by the business key the caller enqueued with (keys fold lowercase).
+-- One tenant's work, by the tenant name the caller enqueued with (names fold lowercase).
 SELECT job_id, job_ref, namespace, job_name, status
   FROM acta.jobs_view
  WHERE tenant_name = :tenant_name;
@@ -279,9 +279,9 @@ A tenant is registered with `ITenants.RegisterAsync(tenantName, displayName, des
 `POST /tenants`; an enqueue that names an unregistered tenant is refused.
 
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):
-`POST /tenants`, `POST /tenants/{key}/suspend|resume`, `PATCH /tenants/{key}`, `POST /namespaces/{name}/suspend|resume`,
+`POST /tenants`, `POST /tenants/{tenantName}/suspend|resume`, `PATCH /tenants/{tenantName}`, `POST /namespaces/{name}/suspend|resume`,
 `PATCH /namespaces/{name}`. Reads are ungated: `GET /tenants` pages the catalog and
-`GET /tenants/{key}` is the point read (`ITenants.GetAsync` in code).
+`GET /tenants/{tenantName}` is the point read (`ITenants.GetAsync` in code).
 
 An enqueue that trips a tenant or namespace guard throws a typed `EnqueueRejectedException` whose
 `Reason` is machine-readable: `NamespaceSuspended`, `TenantSuspended`, `TenantUnknown`,
@@ -492,10 +492,9 @@ to `IJobs.RaiseSignalAsync`. Signals are operator control: the endpoint is mappe
 `EnableControls = true` and, like the destructive verbs, requires the `X-Acta-Control: true`
 confirmation header (missing or wrong header answers 400). An empty body raises a presence-only
 signal; a non-empty `application/json` body is stored verbatim and a handler reads it via
-`ctx.WaitSignalAsync<T>(name)`. Signal names are validated as kebab at the edge, which is what
-rejects forged internal names: the `sys.`-prefixed internal names (such as the `sys.child.`
-child-latch names) are rejected as reserved, and their dotted shape is not valid kebab either. The outcome
-maps to 200, 409 (terminal job), or 404.
+`ctx.WaitSignalAsync<T>(name)`. A signal name is validated as a name at the edge, with the `sys.`
+prefix reserved, which is what rejects forged internal names such as the `sys.child.` child-latch
+names. The outcome maps to 200, 409 (terminal job), or 404.
 
 A read-side `GET /capabilities` reports `{ controlsEnabled, version, provider, schema, confirmationHeader }`
 so dashboards can show or hide edit UI without probing a control route; it is always mapped and
@@ -528,7 +527,7 @@ for the read surface as authorization to read every payload the ledger holds. Se
 
 Register an `IActaControlAuthorizer` and every control request asks it first: a denial answers 403
 before the verb runs, and reads never ask. Each request names its verb, derived from the route:
-`/jobs/{jobRef}/cancel` is `cancel`, `/tenants/{key}/suspend` is `tenants.suspend`, and where one
+`/jobs/{jobRef}/cancel` is `cancel`, `/tenants/{tenantName}/suspend` is `tenants.suspend`, and where one
 route carries two mutations the method says which, as in `tags.add` and `tags.remove`. The request's
 `HttpContext` carries the route values, method, and claims for a rule that needs more. The verbs:
 

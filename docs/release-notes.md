@@ -43,10 +43,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `claim_job`, and `access_checkpoint`. The SQL Server baseline is re-cut, and the object package moves
   to revision 58.
 - **The Bulk execution profile is gone.** `ExecutionProfile.Bulk` is removed; set `Direct`, the profile
-  Bulk built on. Every completion is now written in its own transaction, so a crash never re-runs a
-  handler that already finished. The cost is throughput: in the rc.4 round, PostgreSQL drain at sixteen
-  workers ran about 29,000 jobs a second on Bulk and about 10,000 on Direct. The installed routines
-  lose `complete_executions_batch`, and the object package moves to revision 8.
+  Bulk built on. Bulk batched completions under relaxed durability; every profile now batches them
+  through the worker's finalizer at full durability (see "Execution engine" below), so a crash re-runs
+  only the handlers whose completions had not been written yet.
 - **`ClaimBatchSize` sets only the Buffered batch.** A Direct claim now takes a row for every free
   executor, up to `MaxConcurrentExecutors`, instead of stopping at `ClaimBatchSize`. A Direct worker that
   used `ClaimBatchSize` to keep its claims small lowers `MaxConcurrentExecutors` instead.

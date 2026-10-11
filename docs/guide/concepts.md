@@ -168,7 +168,7 @@ There are three levels to choose between, and only the third one orders anything
 
 | Level | What it gives you | How you get it |
 | --- | --- | --- |
-| **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, jobs due immediately. |
+| **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1` (and `ClaimBatchSize = 1` on `Buffered`), equal priority, jobs due immediately. |
 | **Bounded unordered work** | At most N jobs at a time per key (N = 1 by default), unbounded wait for any individual job. | `ConcurrencyKey`, sized by `[Job(ConcurrencyLimit = N)]`. |
 | **Strict ordered processing** | Item N+1 starts only after item N finished: succeeded, failed for good, or cancelled. | A lane: `.Lane("customer-42")` on the enqueue, or `[Job(Lane = "...")]` on the definition. |
 
@@ -184,10 +184,9 @@ items.
 A lane runs its jobs one at a time, in enqueue order. It is Acta's equivalent of an SQS FIFO message
 group. A job joins a lane through `.Lane("customer-42")` on the enqueue, or through
 `[Job(Lane = "...")]` on its definition. An enqueue lane overrides the definition's lane, and an
-enqueue cannot clear it. Lane names follow the concurrency-key rule: 1 to 128 characters from
-`a-z A-Z 0-9 . - _ : / @ + =`, trimmed and stored lowercased, never under the reserved `sys.` prefix,
-and scoped to the namespace. Different
-lanes run in parallel, and jobs without a lane are unaffected.
+enqueue cannot clear it. A lane name is a name like a job name: ASCII `dotted.kebab-case` of at most
+128 characters, trimmed and lowercased on input, never under the reserved `sys.` prefix, and scoped
+to the namespace. Different lanes run in parallel, and jobs without a lane are unaffected.
 
 Only a lane's head is claimable. The jobs behind it wait as `Blocked`, outside the claim scan, so a
 deep lane costs a claim nothing. When the head reaches a terminal status (Succeeded, Failed on its

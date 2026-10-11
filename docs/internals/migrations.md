@@ -97,9 +97,9 @@ spec per provider executes the committed file verbatim against a fresh schema, s
 bytes are proven, not assumed.
 
 Persisted code columns share an unsigned-byte logical contract but use provider-native physical
-types: SQL Server `tinyint`, PostgreSQL `smallint`, and SQLite `INTEGER`. Generated assigned-value
-checks reject every unassigned closed-family value (including `255`); payload-format columns use
-separate range checks so consumer formats through `255` remain valid.
+types: SQL Server `tinyint`, PostgreSQL `smallint`, and SQLite `INTEGER`. No column constrains its
+code values (see [Adding a value to a code family](#adding-a-value-to-a-code-family)); payload-format
+columns carry a byte range check so consumer formats through `255` remain valid.
 
 ## How versioning works
 
@@ -147,8 +147,8 @@ Everything else is a **`-- WARNING` / `-- TODO`** comment for you to hand-edit: 
 guesses destructive or ambiguous DDL:
 
 - removed/renamed/type-changed/nullability-changed columns, primary-key changes;
-- a new `Code`/`Byte`/`Bytes` column's synthetic `ck_` constraint, and a `NOT NULL`-without-default
-  column's backfill (both `-- TODO`).
+- a new `Byte`/`Bytes` column's synthetic `ck_` constraint (a `Code` column carries none), and a
+  `NOT NULL`-without-default column's backfill (both `-- TODO`).
 
 Routine and operator-view changes never appear here: their bodies are installed by
 `SqlObjectInstaller`, not by migrations.
