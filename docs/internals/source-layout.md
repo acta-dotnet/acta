@@ -110,7 +110,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `DuplicateShapeTests` | no two types declaring the same property names, except types of different operations or routes, each owned by the folder that declares it |
 | `RouteBodyTests` | a route's body is its own `XRequest`, on no other route, and it answers an `XResponse`, the SDK's or its own; every request and response in `Acta.AspNetCore` sits in the folder named for it |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
-| `FileLengthTests` | at most 600 lines per source file; the 150-line method cap is MA0051's, in the build |
+| `FileLengthTests` | at most 700 lines per source file; the 150-line method cap is MA0051's, in the build |
 | `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
 | `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta` |
 
