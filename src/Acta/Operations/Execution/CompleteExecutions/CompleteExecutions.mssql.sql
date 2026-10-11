@@ -44,15 +44,17 @@ BEGIN
         INNER JOIN {{schema}}.jobs j ON j.id = c.job_id;
 
         SELECT
-            @lanes = MAX(CASE WHEN x.lane_id IS NOT NULL THEN 1 ELSE 0 END),
-            @children = MAX(CASE WHEN x.parent_id IS NOT NULL THEN 1 ELSE 0 END),
-            @waits = MAX(CASE WHEN c.wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
+            @lanes = MAX(CASE WHEN lane_id IS NOT NULL THEN 1 ELSE 0 END),
+            @children = MAX(CASE WHEN parent_id IS NOT NULL THEN 1 ELSE 0 END)
+        FROM @rows;
+
+        SELECT
+            @waits = MAX(CASE WHEN wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
             @shapes = MAX(
-                CASE WHEN c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL OR c.final_status IS NOT NULL THEN 1 ELSE 0 END
+                CASE WHEN reschedule_status_code IS NOT NULL OR handler_status_code IS NOT NULL OR final_status IS NOT NULL THEN 1 ELSE 0 END
             ),
-            @recurring = MAX(CASE WHEN c.final_status IS NOT NULL THEN 1 ELSE 0 END)
-        FROM @p_batch c
-        LEFT JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number;
+            @recurring = MAX(CASE WHEN final_status IS NOT NULL THEN 1 ELSE 0 END)
+        FROM @p_batch;
 
         IF @lanes = 1
             BEGIN
@@ -79,21 +81,12 @@ BEGIN
                     AND s.name = c.wait_signal_name
             OPTION (FORCE ORDER, LOOP JOIN);
 
-        -- The update locks each row through its clustered key in job_id order.
+        /* The update locks each row through its clustered key in job_id order. The next run is written apart, only for
+           the shapes that move it, so a batch of landings leaves next_run_at_utc and its index alone; a row being completed
+           is Executing and still carries the instant it was claimed on, so a re-armed row is never Ready without one. */
         UPDATE r
         SET
             status_code = s.to_status,
-            next_run_at_utc = CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
-                WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
-                WHEN c.reschedule_status_code IS NOT NULL
-                    THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
-                WHEN c.handler_status_code = 30 /* JobStatusCode.Paused */ THEN @now
-                WHEN c.handler_status_code IS NOT NULL THEN NULL
-                WHEN c.final_status IS NOT NULL THEN c.job_next_run_at_utc
-                ELSE r.next_run_at_utc
-            END,
             failure_count = COALESCE(c.failure_count, r.failure_count),
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
@@ -127,6 +120,24 @@ BEGIN
             r.execution_number = x.execution_number
             AND r.status_code = 50 /* JobStatusCode.Executing */
             AND r.leased_by_worker_id = @p_leased_by_worker_id;
+
+        IF @shapes = 1
+            UPDATE r
+            SET next_run_at_utc = CASE
+                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
+                WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
+                WHEN c.reschedule_status_code IS NOT NULL
+                    THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
+                -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                WHEN c.handler_status_code = 30 /* JobStatusCode.Paused */ THEN @now
+                WHEN c.handler_status_code IS NOT NULL THEN NULL
+                ELSE c.job_next_run_at_utc
+            END
+            FROM @done d
+            INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
+            INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+            INNER JOIN {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
+            WHERE c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL OR c.final_status IS NOT NULL;
 
         -- fk_results_jobs seeks each job by key (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
