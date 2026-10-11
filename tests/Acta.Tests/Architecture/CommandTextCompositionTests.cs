@@ -73,6 +73,7 @@ public sealed class CommandTextCompositionTests
         // The unparented enqueue. The loaded script loses its marked child-only statement and gains
         // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueJob"] = (1, "embedded SQL with a marked section removed"),
+        ["Acta.Sqlite/Services/SqliteDialect.cs::BindCompleteExecutions"] = (1, "embedded SQL with marked sections removed"),
         // Migration and object installation. The text is an embedded DDL resource (M-numbered
         // migration scripts, provider view and routine bodies) split into batches by the provider
         // hooks; the only substitution is {{schema}}, and the CREATE VIEW wrapper's qualified name is

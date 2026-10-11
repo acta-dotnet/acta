@@ -105,14 +105,30 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_locks", SqlDbType.NVarChar, DbParams.JsonHeldLocks(locks));
     }
 
-    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) =>
+    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema)
+    {
+        var sql = (SqlCommand)command;
         AddParameter(
-            (SqlCommand)command,
+            sql,
             "@p_batch",
             SqlDbType.Structured,
             SqlServerTableParameters.BuildCompleteExecutionsRecords(request.Completions),
             typeName: $"{schema}.complete_executions_batch"
         );
+
+        // An omitted table-valued parameter is an empty table, so a batch with no recurring fire sends none.
+        var advances = request.Completions.SelectMany(c => c.ScheduleAdvances ?? []).ToList();
+        if (advances.Count > 0)
+        {
+            AddParameter(
+                sql,
+                "@p_schedule_advances",
+                SqlDbType.Structured,
+                SqlServerTableParameters.BuildScheduleAdvanceRecords(advances)!,
+                typeName: $"{schema}.advance_schedules_batch"
+            );
+        }
+    }
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {

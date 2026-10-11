@@ -1,9 +1,6 @@
 namespace Acta;
 
-/// <summary>
-/// A batch of plain terminal completions by one worker: one-shot attempts landing Succeeded or Failed, with no
-/// recurring fire, re-arm, suspend, signal, handler status, or deadline cancel, written in one transaction.
-/// </summary>
+/// <summary>A batch of completions by one worker, of every shape, written in one transaction.</summary>
 internal sealed record CompleteExecutionsCommand(int WorkerId, IReadOnlyList<CompleteExecutionsValues> Completions);
 
 /// <summary>
@@ -43,6 +40,12 @@ internal sealed record CompleteExecutionsValues(
     public int RecurringResultCap { get; init; }
 
     public IReadOnlyList<ScheduleAdvance>? ScheduleAdvances { get; init; }
+
+    /// <summary>The job is in a lane, as its claim read it; lane_id never changes.</summary>
+    public bool HasLane { get; init; }
+
+    /// <summary>The job has a parent, as its claim read it; parent_id never changes.</summary>
+    public bool HasParent { get; init; }
 
     /// <summary>The row for a planned per-job command.</summary>
     public static CompleteExecutionsValues From(CompleteExecutionCommand command) =>

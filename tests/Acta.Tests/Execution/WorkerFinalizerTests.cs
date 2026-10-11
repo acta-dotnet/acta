@@ -158,14 +158,11 @@ public sealed class WorkerFinalizerTests
         var session = new ScriptedSession(call =>
             call.Stem switch
             {
-                "CompleteExecution" when Interlocked.Increment(ref writes) == 1 => FailOnce(failed),
-                "CompleteExecution" => new CompleteExecutionResponse(
-                    CompleteExecutionAction.Completed,
-                    (byte)JobStatusCode.Ready,
-                    FinalNextRunAtUtc: null,
-                    DateTime.UtcNow,
-                    ParentReleased: false
-                ),
+                "CompleteExecutions" when Interlocked.Increment(ref writes) == 1 => FailOnce(failed),
+                "CompleteExecutions" => new List<CompleteExecutionsRow>
+                {
+                    new(42, 3, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Ready, null, DateTime.UtcNow, false, false),
+                },
                 "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(42, ExecutionNumber: 3, LockKey: null, Renewed: true, null),
                 _ => throw new NotSupportedException(call.Stem),
             }
@@ -218,8 +215,8 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
-    [Fact(DisplayName = "Plain completions waiting together are written in one call, and a row it leaves to its job is written alone")]
-    public async Task Plain_completions_waiting_together_are_written_in_one_call()
+    [Fact(DisplayName = "Completions waiting together are written in one call")]
+    public async Task Completions_waiting_together_are_written_in_one_call()
     {
         var ct = TestContext.Current.CancellationToken;
         var session = new ScriptedSession(call =>
@@ -227,17 +224,10 @@ public sealed class WorkerFinalizerTests
             {
                 "CompleteExecutions" => new List<CompleteExecutionsRow>
                 {
-                    new(1, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, DateTime.UtcNow),
-                    new(2, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, DateTime.UtcNow),
-                    new(3, 0, CompleteExecutionsAction.PerJob, (byte)JobStatusCode.Executing, DateTime.UtcNow),
+                    new(1, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
+                    new(2, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
+                    new(3, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
                 },
-                "CompleteExecution" => new CompleteExecutionResponse(
-                    CompleteExecutionAction.Completed,
-                    (byte)JobStatusCode.Succeeded,
-                    FinalNextRunAtUtc: null,
-                    DateTime.UtcNow,
-                    ParentReleased: false
-                ),
                 _ => throw new NotSupportedException(call.Stem),
             }
         );
@@ -268,10 +258,9 @@ public sealed class WorkerFinalizerTests
 
         await finalizer.RunLoopAsync(ct);
 
-        Assert.Equal(["CompleteExecutions", "CompleteExecution"], session.Calls.Select(call => call.Stem));
+        Assert.Equal(["CompleteExecutions"], session.Calls.Select(call => call.Stem));
         using var batch = JsonDocument.Parse((string)session.Calls[0].Parameters["p_completions"]!);
         Assert.Equal([1L, 2L, 3L], batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()));
-        Assert.Equal(3L, session.Calls[1].Get(ActaSchema.Job.Id));
         Assert.Equal(0, registry.Count());
     }
 

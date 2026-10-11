@@ -503,6 +503,39 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_duration_ms", NpgsqlDbType.Integer, completions.Select(c => c.DurationMs).ToArray());
         AddArray(postgres, "@p_failure_counts", NpgsqlDbType.Integer, completions.Select(c => c.FailureCount).ToArray());
         AddArray(postgres, "@p_retention_seconds", NpgsqlDbType.Integer, completions.Select(c => c.RetentionSeconds).ToArray());
+        AddArray(
+            postgres,
+            "@p_reschedule_status_codes",
+            NpgsqlDbType.Smallint,
+            completions.Select(c => (short?)c.RescheduleStatusCode).ToArray()
+        );
+        AddArray(
+            postgres,
+            "@p_reschedule_delay_seconds",
+            NpgsqlDbType.Integer,
+            completions.Select(c => c.RescheduleDelaySeconds).ToArray()
+        );
+        AddArray(
+            postgres,
+            "@p_reschedule_resume_at_utc",
+            NpgsqlDbType.TimestampTz,
+            completions.Select(c => c.RescheduleResumeAtUtc).ToArray()
+        );
+        AddArray(postgres, "@p_wait_signal_names", NpgsqlDbType.Varchar, completions.Select(c => c.WaitSignalName).ToArray());
+        AddArray(
+            postgres,
+            "@p_handler_status_codes",
+            NpgsqlDbType.Smallint,
+            completions.Select(c => (short?)c.HandlerStatusCode).ToArray()
+        );
+        AddArray(postgres, "@p_final_statuses", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.FinalStatus).ToArray());
+        AddArray(postgres, "@p_job_next_run_at_utc", NpgsqlDbType.TimestampTz, completions.Select(c => c.JobNextRunAtUtc).ToArray());
+        AddArray(postgres, "@p_recurring_result_caps", NpgsqlDbType.Integer, completions.Select(c => c.RecurringResultCap).ToArray());
+
+        var advances = completions.SelectMany(c => c.ScheduleAdvances ?? []).ToList();
+        AddArray(postgres, "@p_advance_schedule_ids", NpgsqlDbType.Bigint, advances.Select(a => a.ScheduleId).ToArray());
+        AddArray(postgres, "@p_advance_next_runs", NpgsqlDbType.TimestampTz, advances.Select(a => a.NextRunAtUtc).ToArray());
+        AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, advances.Select(a => a.ExpectedVersion).ToArray());
     }
 
     /// <summary>Npgsql parameter primitives the dialect's own binders use to shape command parameters.</summary>

@@ -6,10 +6,10 @@ namespace Acta;
 
 /// <summary>
 /// Writes each execution's completion: the one-shot retry budget and its Strict deadline guard, the
-/// <c>complete_execution</c> command for each completion shape (including the recurring-completion outcome math), the
-/// write, repeated until it lands, and the wakes and follow-ups its final state calls for. Its loops take what the
-/// executors completed and write the plain completions together in one <c>complete_executions</c> call, so an executor
-/// is free as soon as its completion is built, while the entry stays held, and renewed, until the write commits.
+/// <c>complete_executions</c> row for each completion shape (including the recurring-completion outcome math), the
+/// write, repeated until it lands, and the wakes and follow-ups its final state calls for. Its loop takes what the
+/// executors completed and writes them together in one <c>complete_executions</c> call, so an executor is free as soon
+/// as its completion is built, while the entry stays held, and renewed, until the write commits.
 /// </summary>
 internal sealed partial class WorkerFinalizer(
     ExecutionOperations execution,
@@ -116,61 +116,41 @@ internal sealed partial class WorkerFinalizer(
     }
 
     /// <summary>Writes <paramref name="entry"/>'s completion on its own and removes the entry.</summary>
-    public async Task<RunOnceStatus> FinalizeAsync(InFlightJob entry, CancellationToken hostCt)
-    {
-        try
-        {
-            return await LandAsync(Plan(entry), batched: null, hostCt);
-        }
-        finally
-        {
-            registry.Remove(entry);
-        }
-    }
+    public async Task<RunOnceStatus> FinalizeAsync(InFlightJob entry, CancellationToken hostCt) =>
+        (await FinalizeAsync([entry], hostCt))[0];
 
-    /// <summary>Writes the plain completions in one call and the rest per job, then removes every entry.</summary>
-    private async Task FinalizeAsync(List<InFlightJob> entries, CancellationToken hostCt)
+    /// <summary>Writes the completions in one call, lands each answer, and removes every entry.</summary>
+    private async Task<RunOnceStatus[]> FinalizeAsync(List<InFlightJob> entries, CancellationToken hostCt)
     {
         try
         {
             var writes = entries.Select(Plan).ToList();
-            var plain = writes.Where(write => write.Plain).ToDictionary(write => write.Entry.Key);
-            var perJob = new List<PlannedWrite>();
-            if (plain.Count > 0)
+            var batch = new CompleteExecutionsCommand(
+                WorkerId,
+                [
+                    .. writes.Select(write =>
+                        CompleteExecutionsValues.From(write.Command) with
+                        {
+                            HasLane = write.Entry.Claim.LaneId is not null,
+                            HasParent = write.Entry.Claim.ParentId is not null,
+                        }
+                    ),
+                ]
+            );
+            var answer = await RepeatAsync(
+                token => execution.CompleteExecutionsAsync(batch, token),
+                log,
+                batch.Completions[0].JobId,
+                hostCt,
+                metrics
+            );
+            var rows = answer.Rows.ToDictionary(row => (row.JobId, row.ExecutionNumber));
+            var statuses = new RunOnceStatus[writes.Count];
+            for (var i = 0; i < writes.Count; i++)
             {
-                var batch = new CompleteExecutionsCommand(
-                    WorkerId,
-                    [.. plain.Values.Select(write => CompleteExecutionsValues.From(write.Command))]
-                );
-                var answer = await RepeatAsync(
-                    token => execution.CompleteExecutionsAsync(batch, token),
-                    log,
-                    batch.Completions[0].JobId,
-                    hostCt,
-                    metrics
-                );
-                foreach (var row in answer.Rows)
-                {
-                    // Completed, NotOwner, and AlreadyTerminal share their values with the per-job write's answers, and
-                    // the batch takes no job with a next run to report or a parent to release.
-                    var write = plain[(row.JobId, row.ExecutionNumber)];
-                    if (row.Action == CompleteExecutionsAction.PerJob)
-                    {
-                        perJob.Add(write);
-                    }
-                    else
-                    {
-                        await LandAsync(
-                            write,
-                            new((CompleteExecutionAction)row.Action, row.FinalStatusCode, null, row.DbNowUtc, false),
-                            hostCt
-                        );
-                    }
-                }
+                statuses[i] = await LandAsync(writes[i], rows[writes[i].Entry.Key], hostCt);
             }
-
-            perJob.AddRange(writes.Where(write => !write.Plain));
-            await Task.WhenAll(perJob.Select(write => LandAsync(write, batched: null, hostCt)));
+            return statuses;
         }
         finally
         {
@@ -225,19 +205,16 @@ internal sealed partial class WorkerFinalizer(
     }
 
     /// <summary>
-    /// Writes <paramref name="write"/> per job unless a batch already answered it, then what follows: a skip when the
-    /// row no longer matches (NotOwner, AlreadyTerminal), since the entry can outlive its lease while it waits;
-    /// otherwise the wakes, descendant cancel, and metric its final state calls for, none of them for a hand-back,
-    /// since every claim loop re-polls within its delay.
+    /// What follows <paramref name="write"/>'s answer: a skip when the row no longer matched (NotOwner,
+    /// AlreadyTerminal), since the entry can outlive its lease while it waits; otherwise the wakes, descendant cancel,
+    /// and metric its final state calls for, none of them for a hand-back, since every claim loop re-polls within its delay.
     /// </summary>
-    private async Task<RunOnceStatus> LandAsync(PlannedWrite write, CompleteExecutionResponse? batched, CancellationToken hostCt)
+    private async Task<RunOnceStatus> LandAsync(PlannedWrite write, CompleteExecutionsRow complete, CancellationToken hostCt)
     {
-        var (entry, completion, command, status) = write;
+        var (entry, completion, _, status) = write;
         var job = entry.Claim;
         var ns = context.WorkerRegistration!.NamespaceName;
-        var complete =
-            batched ?? await RepeatAsync(token => execution.CompleteExecutionAsync(command, token), log, job.JobId, hostCt, metrics);
-        if (complete.Action != CompleteExecutionAction.Completed)
+        if (complete.Action != CompleteExecutionsAction.Completed)
         {
             // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
             // committed and lost its answer, so the compare-and-swap completed no work.
@@ -369,12 +346,12 @@ internal sealed partial class WorkerFinalizer(
 
     /// <summary>
     /// Publishes on the FINAL state the routine reports, never the category the caller guessed: a signal that arrived
-    /// Set while the handler ran lands the job Ready inside complete_execution, which no other publish site sees. A
+    /// Set while the handler ran lands the job Ready inside complete_executions, which no other publish site sees. A
     /// final Ready wakes the namespace's claim loops (due now is WorkAvailable, a run time ahead of db_now is
     /// HorizonChanged so sleeping loops re-read their horizon); a final terminal status wakes the job's completion
     /// channel for a colocated RunAndWaitAsync caller.
     /// </summary>
-    private async Task WakeAsync(CompleteExecutionResponse complete, ClaimedJob job, string ns, CancellationToken ct)
+    private async Task WakeAsync(CompleteExecutionsRow complete, ClaimedJob job, string ns, CancellationToken ct)
     {
         if (complete.FinalStatusCode == (byte)JobStatusCode.Ready)
         {
@@ -389,14 +366,14 @@ internal sealed partial class WorkerFinalizer(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(job.JobId), WorkerWakeupReason.JobFinished, ct);
         }
 
-        // The completion handed a lane to its next member inside complete_execution; lanes are namespace-scoped,
+        // The completion handed a lane to its next member inside complete_executions; lanes are namespace-scoped,
         // so the member is claimable in this namespace.
         if (complete.LanePromoted)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(ns), WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        // A terminal child's raise flipped its Suspended parent to Ready inside complete_execution;
+        // A terminal child's raise flipped its Suspended parent to Ready inside complete_executions;
         // the routine knows only the parent's numeric namespace id, so every worker namespace hears it.
         if (complete.ParentReleased)
         {
@@ -410,11 +387,5 @@ internal sealed partial class WorkerFinalizer(
         ExecutionCompletion Completion,
         CompleteExecutionCommand Command,
         RunOnceStatus Status
-    )
-    {
-        /// <summary>A one-shot landing Succeeded or Failed with nothing else to write, so <c>complete_executions</c> takes it.</summary>
-        public bool Plain =>
-            Command
-                is { RescheduleStatusCode: null, HandlerStatusCode: null, FinalStatus: null, WaitSignalName: null, ScheduleAdvances: null };
-    }
+    );
 }

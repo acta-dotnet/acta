@@ -7,14 +7,14 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
-/// Conformance for the batch of plain terminal completions (<c>complete_executions</c>). Every job is claimed straight
-/// to Executing and completed without running its handler.
+/// Conformance for the batch completion (<c>complete_executions</c>). Every job is claimed straight to Executing and
+/// completed without running its handler.
 /// </summary>
 [ConformanceSpec(
     "execution.complete-executions",
-    "A batch of plain terminal completions lands what one completion per job lands",
+    "A batch of completions lands what one completion per job lands",
     Area = "Execution",
-    Contract = "A plain terminal completion batch writes what one completion per job writes, answers a parented or laned job PerJob, and touches no row it does not complete."
+    Contract = "A completion batch writes what one completion per job writes, sets a child's latch, hands a lane on, and touches no row it does not complete."
 )]
 public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -66,25 +66,33 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         }
     }
 
-    [Fact(DisplayName = "A job with a parent and a job in a lane are answered PerJob and left Executing")]
-    public async Task Parented_and_laned_jobs_are_answered_per_job_and_left_executing()
+    [Fact(DisplayName = "A child sets its latch on the parent and a lane head hands the lane on, in the same batch")]
+    public async Task Child_and_lane_head_complete_in_one_batch()
     {
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
         var parent = await Jobs.EnqueueAsync(AddNumbers(), ct);
         var child = await ExecutingAsync(AddNumbers() with { ParentJobId = parent.JobId }, workerId, ct);
-        var laned = await ExecutingAsync(
-            new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("batch", "head")), Lane: "batch"),
+        var lane = $"batch-{Guid.NewGuid():N}";
+        var head = await ExecutingAsync(
+            new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, "head")), Lane: lane),
             workerId,
             ct
         );
-        var before = (await StateAsync(child.JobId, ct), await StateAsync(laned.JobId, ct));
+        var next = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, "next")), Lane: lane),
+            ct
+        );
 
-        var answers = await CompleteAsync(workerId, [Plain(child), Plain(laned)], ct);
+        var answers = await CompleteAsync(workerId, [Plain(child), Plain(head)], ct);
 
-        Assert.Equal((CompleteExecutionsAction.PerJob, (byte?)JobStatusCode.Executing), Answer(answers, child));
-        Assert.Equal((CompleteExecutionsAction.PerJob, (byte?)JobStatusCode.Executing), Answer(answers, laned));
-        Assert.Equal(before, (await StateAsync(child.JobId, ct), await StateAsync(laned.JobId, ct)));
+        Assert.Equal((CompleteExecutionsAction.Completed, (byte?)JobStatusCode.Succeeded), Answer(answers, child));
+        Assert.Equal((CompleteExecutionsAction.Completed, (byte?)JobStatusCode.Succeeded), Answer(answers, head));
+        Assert.True(answers[head.JobId].LanePromoted);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(next.JobId, ct)).Status);
+        var latchName = $"sys.child.{child.JobId}";
+        var latch = await Db.From<CheckpointEntity>().Where(c => c.JobId == parent.JobId && c.Name == latchName).SingleOrDefaultAsync(ct);
+        Assert.Equal(CheckpointStatusCode.Set, latch?.Status);
     }
 
     [Fact(DisplayName = "A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched")]
@@ -136,7 +144,11 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
 
     // A success with no result, the shape each fact varies.
     private static CompleteExecutionsValues Plain(ClaimedJob job) =>
-        new(job.JobId, job.ExecutionNumber, true, JobPayloadFormat.None.Id, ReadOnlyMemory<byte>.Empty, null, null, 5, null, 3600);
+        new(job.JobId, job.ExecutionNumber, true, JobPayloadFormat.None.Id, ReadOnlyMemory<byte>.Empty, null, null, 5, null, 3600)
+        {
+            HasLane = job.LaneId is not null,
+            HasParent = job.ParentId is not null,
+        };
 
     private static CompleteExecutionCommand PerJob(CompleteExecutionsValues values, int workerId) =>
         new(

@@ -260,7 +260,7 @@ internal sealed class WorkerExecutorHarness(
                 "StartExecution" => Start(),
                 "StartStep" => StartStep(call.Get(ActaSchema.Step.Name)),
                 "CompleteStep" => CompleteStep(),
-                "CompleteExecution" => Complete(BoundCompletion.Read(call)),
+                "CompleteExecutions" => BoundCompletion.Read(call).Select(Complete).ToList(),
                 // The deadline path cancels descendants, and a harness job has none.
                 "GetChildJobIds" => Array.Empty<long>(),
                 _ => throw new NotSupportedException(call.Stem),
@@ -298,33 +298,39 @@ internal sealed class WorkerExecutorHarness(
             return new CompleteStepResponse(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
         }
 
-        private CompleteExecutionResponse Complete(BoundCompletion completion)
+        private CompleteExecutionsRow Complete(BoundCompletion completion)
         {
             _submitted.Add(completion);
             if (completionAction != CompleteExecutionAction.Completed)
             {
                 // The CAS matched no row: nothing is written, and the reported status is the row's
                 // current one rather than anything this attempt asked for.
-                return new CompleteExecutionResponse(
-                    completionAction,
+                return new CompleteExecutionsRow(
+                    completion.JobId,
+                    completion.ExecutionNumber,
+                    (CompleteExecutionsAction)completionAction,
                     (byte)JobStatusCode.Executing,
                     FinalNextRunAtUtc: null,
                     DateTime.UtcNow,
-                    ParentReleased: false
+                    ParentReleased: false,
+                    LanePromoted: false
                 );
             }
 
             _applied.Add(completion);
-            return new CompleteExecutionResponse(
-                CompleteExecutionAction.Completed,
+            return new CompleteExecutionsRow(
+                completion.JobId,
+                completion.ExecutionNumber,
+                CompleteExecutionsAction.Completed,
                 FinalStatus(completion),
                 FinalNextRunAtUtc: null,
                 DateTime.UtcNow,
-                ParentReleased: false
+                ParentReleased: false,
+                LanePromoted: false
             );
         }
 
-        // Mirrors what complete_execution lands the job in for the shapes this harness produces: a
+        // Mirrors what complete_executions lands the job in for the shapes this harness produces: a
         // re-arm goes Ready, a handler-control decision takes the requested status, and everything
         // else follows the attempt outcome.
         private static byte FinalStatus(BoundCompletion completion) =>

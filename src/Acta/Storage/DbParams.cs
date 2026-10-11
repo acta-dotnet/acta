@@ -130,8 +130,8 @@ internal static class DbParams
     }
 
     /// <summary>
-    /// A batch's completions as JSON array text, each result as base64, for SQLite's batch completion, which expands them
-    /// with json_each.
+    /// A batch's completions as JSON array text for SQLite's batch completion, which expands them with jsonb_each: each
+    /// result as base64, and a null field left out, since every row is parsed and a missing key reads as null.
     /// </summary>
     public static string JsonCompletions(IReadOnlyList<CompleteExecutionsValues> completions)
     {
@@ -139,30 +139,49 @@ internal static class DbParams
         for (var i = 0; i < completions.Count; i++)
         {
             var c = completions[i];
-            if (i > 0)
-            {
-                text.Append(',');
-            }
+            text.Append(i > 0 ? ",{" : "{");
+            text.Append(CultureInfo.InvariantCulture, $"\"job_id\":{c.JobId},\"execution_number\":{c.ExecutionNumber}");
             text.Append(
                 CultureInfo.InvariantCulture,
-                $"{{\"job_id\":{c.JobId},\"execution_number\":{c.ExecutionNumber},\"succeeded\":{(c.Succeeded ? "true" : "false")},"
+                $",\"succeeded\":{(c.Succeeded ? "true" : "false")},\"result_format_id\":{c.ResultFormatId}"
             );
-            text.Append(
-                CultureInfo.InvariantCulture,
-                $"\"result_format_id\":{c.ResultFormatId},\"result\":\"{Convert.ToBase64String(c.Result.Span)}\","
-            );
-            text.Append(
-                CultureInfo.InvariantCulture,
-                $"\"reason_code\":{JsonNumber((byte?)c.EventReasonCode)},\"reason_message\":{JsonText(c.ReasonMessage)},"
-            );
-            text.Append(
-                CultureInfo.InvariantCulture,
-                $"\"duration_ms\":{JsonNumber(c.DurationMs)},\"failure_count\":{JsonNumber(c.FailureCount)},"
-            );
-            text.Append(CultureInfo.InvariantCulture, $"\"retention_seconds\":{JsonNumber(c.RetentionSeconds)}}}");
+            text.Append(CultureInfo.InvariantCulture, $",\"result\":\"{Convert.ToBase64String(c.Result.Span)}\"");
+            Field(text, "reason_code", (byte?)c.EventReasonCode);
+            Field(text, "reason_message", c.ReasonMessage);
+            Field(text, "duration_ms", c.DurationMs);
+            Field(text, "failure_count", c.FailureCount);
+            Field(text, "retention_seconds", c.RetentionSeconds);
+            Field(text, "reschedule_status_code", c.RescheduleStatusCode);
+            Field(text, "reschedule_delay_seconds", c.RescheduleDelaySeconds);
+            Field(text, "reschedule_resume_at_utc", UnixMs(c.RescheduleResumeAtUtc));
+            Field(text, "wait_signal_name", c.WaitSignalName);
+            Field(text, "handler_status_code", c.HandlerStatusCode);
+            Field(text, "final_status", (byte?)c.FinalStatus);
+            Field(text, "job_next_run_at_utc", UnixMs(c.JobNextRunAtUtc));
+            Field(text, "recurring_result_cap", c.RecurringResultCap == 0 ? null : c.RecurringResultCap);
+            text.Append('}');
         }
         return text.Append(']').ToString();
     }
+
+    private static void Field(StringBuilder text, string name, long? value)
+    {
+        if (value is { } number)
+        {
+            text.Append(CultureInfo.InvariantCulture, $",\"{name}\":{number}");
+        }
+    }
+
+    private static void Field(StringBuilder text, string name, string? value)
+    {
+        if (value is not null)
+        {
+            text.Append(CultureInfo.InvariantCulture, $",\"{name}\":\"{JsonEncodedText.Encode(value)}\"");
+        }
+    }
+
+    private static long? UnixMs(DateTime? value) =>
+        value is { } instant ? new DateTimeOffset(ToUtc(instant)).ToUnixTimeMilliseconds() : null;
 
     private static string JsonNumber(long? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "null";
 

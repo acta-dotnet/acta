@@ -52,7 +52,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ClaimJob` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimJobSpec` |
 | `ClaimJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
 | `CompleteExecution` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionSchedulesChangedSpec` |
-| `CompleteExecutions` | · | · | · | routine | routine | inline | `events`, `results`, `runtimes` | `CompleteExecutionsSpec` |
+| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionsSpec` |
 | `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
 | `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |
 | `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | `GetStaleChildLatchesSpec` |

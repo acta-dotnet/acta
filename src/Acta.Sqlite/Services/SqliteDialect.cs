@@ -178,8 +178,49 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_locks", DbParams.JsonHeldLocks(locks));
     }
 
-    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) =>
-        AddText(command, "@p_completions", DbParams.JsonCompletions(request.Completions));
+    /// <summary>
+    /// The batch as JSON, with each section of the script cut when no row of the batch needs it, because SQLite
+    /// prepares every statement of a command on each call: a batch of plain landings runs only the base statements.
+    /// </summary>
+    public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema)
+    {
+        var rows = request.Completions;
+        var sql = command.CommandText;
+        sql = rows.Any(c => c.WaitSignalName is not null) ? sql : WithoutSection(sql, "waits");
+        sql = rows.Any(c => c.RescheduleStatusCode is not null || c.HandlerStatusCode is not null || c.FinalStatus is not null)
+            ? sql
+            : WithoutSection(sql, "shapes");
+        sql = rows.Any(c => c.HasParent) ? sql : WithoutSection(sql, "children");
+        sql = rows.Any(c => c.HasLane) ? sql : WithoutSection(sql, "lanes");
+        if (rows.Any(c => c.FinalStatus is not null))
+        {
+            AddText(command, "@p_schedule_advances", JsonScheduleAdvances([.. rows.SelectMany(c => c.ScheduleAdvances ?? [])]));
+        }
+        else
+        {
+            sql = WithoutSection(sql, "recurring");
+        }
+
+        command.CommandText = sql;
+        AddText(command, "@p_completions", DbParams.JsonCompletions(rows));
+    }
+
+    /// <summary>The script without every <c>-- begin name</c> ... <c>-- end name</c> section.</summary>
+    internal static string WithoutSection(string sql, string name)
+    {
+        var begin = $"-- begin {name}";
+        var end = $"-- end {name}";
+        for (var start = sql.IndexOf(begin, StringComparison.Ordinal); start >= 0; start = sql.IndexOf(begin, StringComparison.Ordinal))
+        {
+            var stop = sql.IndexOf(end, start, StringComparison.Ordinal);
+            if (stop < 0)
+            {
+                break;
+            }
+            sql = sql[..start] + sql[(stop + end.Length)..];
+        }
+        return sql;
+    }
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
@@ -409,9 +450,11 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableInt(command, "@p_job_next_run_at_utc", request.JobNextRunAtUtc is { } nextRun ? ToUnixMs(nextRun) : null);
         AddNullableInt(command, "@p_failure_count", request.FailureCount);
         AddInt(command, "@p_recurring_result_cap", request.RecurringResultCap);
+        AddText(command, "@p_schedule_advances", JsonScheduleAdvances(request.ScheduleAdvances ?? []));
+    }
 
-        var advances = request.ScheduleAdvances ?? (IReadOnlyList<ScheduleAdvance>)[];
-        var json = JsonArray(
+    private static string JsonScheduleAdvances(IReadOnlyList<ScheduleAdvance> advances) =>
+        JsonArray(
             advances,
             (writer, advance, _) =>
             {
@@ -427,8 +470,6 @@ internal sealed class SqliteDialect : ISqlDialect
                 }
             }
         );
-        AddText(command, "@p_schedule_advances", json);
-    }
 
     /// <summary>Typed SQLite parameter primitives the dialect's own binders use.</summary>
     private static void AddText(DbCommand command, string name, string value) =>

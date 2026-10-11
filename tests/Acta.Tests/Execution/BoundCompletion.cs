@@ -1,11 +1,14 @@
+using System.Text.Json;
 using Acta.Tests.Runtime;
 
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// One completion as the runner bound it for <c>complete_execution</c>, read back through the specs that bound it.
+/// One completion as the runner bound it for <c>complete_executions</c>, read back through the specs that bound it.
 /// </summary>
 internal sealed record BoundCompletion(
+    long JobId,
+    int ExecutionNumber,
     bool Succeeded,
     EventReasonCode? EventReasonCode,
     string? ReasonMessage,
@@ -32,16 +35,28 @@ internal sealed record BoundCompletion(
             _ => CompletionKind.Failed,
         };
 
-    public static BoundCompletion Read(BoundCall call) =>
+    /// <summary>Every completion the call bound, from SQLite's JSON batch, the shape the scripted sessions run.</summary>
+    public static IReadOnlyList<BoundCompletion> Read(BoundCall call)
+    {
+        using var batch = JsonDocument.Parse((string)call.Parameters["p_completions"]!);
+        return [.. batch.RootElement.EnumerateArray().Select(Read)];
+    }
+
+    private static BoundCompletion Read(JsonElement row) =>
         new(
-            call.Get(ActaSchema.Sql.ExecutionSucceeded),
-            call.Get(ActaSchema.Event.ReasonCode),
-            call.Get(ActaSchema.Event.ReasonMessage),
-            call.Get(ActaSchema.Sql.RescheduleStatusCode),
-            call.Get(ActaSchema.Sql.RescheduleDelaySeconds),
-            call.Get(ActaSchema.Sql.RescheduleResumeAtUtc),
-            call.Get(ActaSchema.Sql.HandlerStatusCode),
-            (JobStatusCode?)call.Get(ActaSchema.Sql.FinalStatus),
-            call.Get(ActaSchema.Sql.FailureCount)
+            row.GetProperty("job_id").GetInt64(),
+            row.GetProperty("execution_number").GetInt32(),
+            row.GetProperty("succeeded").GetBoolean(),
+            (EventReasonCode?)Number(row, "reason_code"),
+            row.TryGetProperty("reason_message", out var message) ? message.GetString() : null,
+            (byte?)Number(row, "reschedule_status_code"),
+            (int?)Number(row, "reschedule_delay_seconds"),
+            Number(row, "reschedule_resume_at_utc") is { } ms ? DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime : null,
+            (byte?)Number(row, "handler_status_code"),
+            (JobStatusCode?)Number(row, "final_status"),
+            (int?)Number(row, "failure_count")
         );
+
+    private static long? Number(JsonElement row, string name) =>
+        row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt64() : null;
 }

@@ -1,11 +1,14 @@
+using System.Collections;
+using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Acta.Tests.Conformance.Testing;
 
-internal sealed class InjectedProviderError(string where = "before CompleteExecution")
+internal sealed class InjectedProviderError(string where = "before CompleteExecutions")
     : System.Data.Common.DbException($"Injected provider error {where}.");
 
 internal sealed class StoreFaultPlan
@@ -97,15 +100,10 @@ internal sealed class StoreFaultPlan
     /// </remarks>
     public void RunBeforeCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeComplete, action);
 
-    public void MaybeThrowBefore(string operation, long jobId)
+    public void MaybeThrowBefore(IReadOnlyList<long> jobIds)
     {
-        if (operation != "CompleteExecution")
-        {
-            return;
-        }
-
         var only = Interlocked.Read(ref _failOnlyJob);
-        if (only != 0 && jobId != only)
+        if (only != 0 && !jobIds.Contains(only))
         {
             return;
         }
@@ -124,17 +122,17 @@ internal sealed class StoreFaultPlan
         switch (Interlocked.Exchange(ref _throwBeforeComplete, 0))
         {
             case 1:
-                throw new TimeoutException("Injected transient failure before CompleteExecution.");
+                throw new TimeoutException("Injected transient failure before CompleteExecutions.");
             case 2:
                 throw new InjectedProviderError();
         }
     }
 
-    public void MaybeThrowAfter(string operation)
+    public void MaybeThrowAfter()
     {
-        if (operation == "CompleteExecution" && Interlocked.Exchange(ref _throwAfterComplete, 0) == 1)
+        if (Interlocked.Exchange(ref _throwAfterComplete, 0) == 1)
         {
-            throw new TimeoutException("Injected transient failure after CompleteExecution.");
+            throw new TimeoutException("Injected transient failure after CompleteExecutions.");
         }
     }
 
@@ -189,9 +187,17 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
             await plan.RunBeforeStartAsync();
         }
 
+        if (command.Operation == "CompleteExecutions")
+        {
+            plan.MaybeThrowBefore(BoundJobIds(bind));
+        }
+
         var rows = await inner.ExecuteAsync(command, bind, mapRow, ct);
         switch (command.Operation)
         {
+            case "CompleteExecutions":
+                plan.MaybeThrowAfter();
+                break;
             case "ClaimJobs" or "ClaimJob":
                 plan.MaybeThrowAfterClaim();
                 break;
@@ -211,24 +217,8 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
         CancellationToken ct
     ) => inner.ExecuteInTransactionAsync(transaction, command, bind, mapRow, ct);
 
-    public async Task<T?> ExecuteSingleAsync<T>(
-        StoreCommand command,
-        Action<DbCommand> bind,
-        Func<DbDataReader, T> mapRow,
-        CancellationToken ct
-    )
-        where T : class
-    {
-        if (command.Operation != "CompleteExecution")
-        {
-            return await inner.ExecuteSingleAsync(command, bind, mapRow, ct);
-        }
-
-        plan.MaybeThrowBefore(command.Operation, BoundJobId(bind));
-        var result = await inner.ExecuteSingleAsync(command, bind, mapRow, ct);
-        plan.MaybeThrowAfter(command.Operation);
-        return result;
-    }
+    public Task<T?> ExecuteSingleAsync<T>(StoreCommand command, Action<DbCommand> bind, Func<DbDataReader, T> mapRow, CancellationToken ct)
+        where T : class => inner.ExecuteSingleAsync(command, bind, mapRow, ct);
 
     public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) => inner.ExecuteAsync(command, bind, ct);
 
@@ -240,14 +230,24 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
         CancellationToken ct
     ) => inner.RunInOwnedTransactionAsync(work, ct);
 
-    // The job a completion names, read by binding it onto a command the provider never opens or runs.
-    private long BoundJobId(Action<DbCommand> bind)
+    // The jobs a completion batch names, read by binding it onto a command the provider never opens or runs: SQL
+    // Server streams table-valued records, PostgreSQL binds an array, and SQLite binds JSON text.
+    private IReadOnlyList<long> BoundJobIds(Action<DbCommand> bind)
     {
         using var connection = dialect.CreateConnection(string.Empty);
         using var probe = connection.CreateCommand();
         bind(probe);
-        var jobId = probe.Parameters.Cast<DbParameter>().First(p => p.ParameterName.TrimStart('@', ':') == ActaSchema.Job.Id.ParameterName);
-        return Convert.ToInt64(jobId.Value, CultureInfo.InvariantCulture);
+        var parameters = probe.Parameters.Cast<DbParameter>().ToDictionary(p => p.ParameterName.TrimStart('@', ':'));
+        if (parameters.TryGetValue("p_job_ids", out var ids))
+        {
+            return (long[])ids.Value!;
+        }
+        if (parameters.TryGetValue("p_completions", out var json))
+        {
+            using var batch = JsonDocument.Parse((string)json.Value!);
+            return [.. batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64())];
+        }
+        return [.. ((IEnumerable)parameters["p_batch"].Value!).Cast<IDataRecord>().Select(row => row.GetInt64(1))];
     }
 }
 

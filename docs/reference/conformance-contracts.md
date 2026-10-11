@@ -848,11 +848,11 @@
 - **Guarantees:**
   - The timeout fires the handler token, the job lands Failed, and the reason is ExecutionTimeout distinct from external cancel
 
-### A batch of plain terminal completions lands what one completion per job lands
-- **Contract:** A plain terminal completion batch writes what one completion per job writes, answers a parented or laned job PerJob, and touches no row it does not complete.
+### A batch of completions lands what one completion per job lands
+- **Contract:** A completion batch writes what one completion per job writes, sets a child's latch, hands a lane on, and touches no row it does not complete.
 - **Guarantees:**
   - Two successes and an exhausted failure land the runtime, result, and finished-event rows the per-job write lands
-  - A job with a parent and a job in a lane are answered PerJob and left Executing
+  - A child sets its latch on the parent and a lane head hands the lane on, in the same batch
   - A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched
   - At the failures-only audit level a success writes a finished event only when it answers a recorded failure
 
