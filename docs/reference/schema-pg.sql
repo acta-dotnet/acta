@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 61)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 62)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4046,6 +4046,8 @@ BEGIN
         FROM acta.runtimes r
         WHERE
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            -- ix_runtimes_worker_inflight's filter restated: a partial index serves only a query that states it.
+            AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < now()
             AND r.namespace_id = p_namespace_id
             AND r.lane_id IS NOT NULL
@@ -4196,6 +4198,8 @@ BEGIN
         INNER JOIN acta.definitions jd ON jd.id = j.definition_id
         WHERE
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            -- ix_runtimes_worker_inflight's filter restated: a partial index serves only a query that states it.
+            AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < now()
             AND r.namespace_id = p_namespace_id
             AND (r.lane_id IS NULL OR r.lane_id = ANY (v_lanes))
@@ -5401,7 +5405,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.61-7d3ff2baffbc98bea03df011868cf3dd', 'acta');
+VALUES (-1, 'objects-1.62-5673a6b7b1a5866b676eb5b4b310d9ad', 'acta');
 
 COMMIT;
 

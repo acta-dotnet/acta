@@ -79,6 +79,8 @@ BEGIN
         FROM {{schema}}.runtimes r
         WHERE
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            -- ix_runtimes_worker_inflight's filter restated: a partial index serves only a query that states it.
+            AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < now()
             AND r.namespace_id = p_namespace_id
             AND r.lane_id IS NOT NULL
@@ -229,6 +231,8 @@ BEGIN
         INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
         WHERE
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            -- ix_runtimes_worker_inflight's filter restated: a partial index serves only a query that states it.
+            AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < now()
             AND r.namespace_id = p_namespace_id
             AND (r.lane_id IS NULL OR r.lane_id = ANY (v_lanes))

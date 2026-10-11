@@ -307,6 +307,11 @@ settles, and what an operator sees when it fails.
 
 ### Fixes
 
+- **Recovery reads only the in-flight rows on PostgreSQL and SQLite.** Its reads of stuck jobs left out
+  `leased_by_worker_id IS NOT NULL`, part of `ix_runtimes_worker_inflight`'s filter, so neither planner
+  could use the partial index and every recovery pass scanned all of `runtimes`, retained rows included.
+  The reads now restate the filter, and plan tests on both providers pin the index. SQL Server already
+  named the index. The object package moves to revision 62.
 - **Raising or resolving an alert no longer deadlocks against a purge of its job on PostgreSQL.** The
   two routines took the job row `FOR KEY SHARE`, and PostgreSQL's key-share path can join a `FOR UPDATE`
   taken while it rechecks the row instead of waiting for it. They now take `FOR SHARE`. A deadlock was
