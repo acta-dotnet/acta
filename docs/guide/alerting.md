@@ -80,7 +80,7 @@ Only `job.execution-finished` events, and only four shapes of them (`GetAlertabl
 
 All of this rides the event stream, so the job's `AuditLevel` decides whether alerting can see the job
 at all. The default `Audit` writes every `job.execution-finished`. **`AuditLevel = Failures` writes it
-for a failed attempt that carries no reschedule** (`CompleteExecution.*.sql`): not a success,
+for a failed attempt that carries no reschedule** (`CompleteExecutions.*.sql`): not a success,
 not an attempt the job is being re-armed from, and not a handler that cancelled or paused its own
 job. Two things follow, and the first one surprises people.
 

@@ -122,9 +122,9 @@ round trips; completions commit the same way on both profiles. On SQLite, Direct
 faster synchronous mode, appropriate for local and embedded scenarios where that tradeoff is accepted.
 
 On both profiles an executor hands each finished attempt to the worker's one finalizer, which writes
-the plain completions waiting for it (a one-shot job landing Succeeded or Failed) in one transaction,
-up to 128 of them or 4 MiB of results, and every other shape per job, and repeats a write until it
-lands. A lone completion is written at once; a batch forms only when the writes fall behind, and then
+the completions waiting for it in one transaction, whatever their shape (success, failure, retry,
+wait, recurring fire, child, lane member), up to 128 of them or 4 MiB of results, and repeats a write
+until it lands. A lone completion is written at once; a batch forms only when the writes fall behind, and then
 waits up to 50 ms to fill. A graceful stop lets the finalizer land what is waiting; a hard stop leaves
 those rows for recovery, which re-runs them under the failure budget.
 

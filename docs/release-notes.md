@@ -235,14 +235,17 @@ settles, and what an operator sees when it fails.
   in the same call, so the lock-lease loop and `extend_lock` are gone, and a hold the call does not
   answer cancels the attempt at once. The object package moves through revisions 52 to 55 with these
   signatures.
-- **Plain completions can land in one call.** `complete_executions` (thirty routines again) writes
-  a batch of one-shot executions landing Succeeded or Failed in one transaction: the runtime rows
-  locked in job order, the results, and the finished events under the same audit rule as the per-job
-  write. A row with a parent, in a lane, or on any other shape (recurring, re-arm, suspend, signal, a
-  handler's cancel or pause) is answered "per job" and written through `complete_execution` as
-  before, so every lane hand-off and child latch still runs under its own locks. PostgreSQL takes
-  the batch as arrays, SQL Server as the table type `complete_executions_batch` (the schema baseline
-  is re-cut for it), and SQLite as JSON text; the object package moves to revision 57.
+- **One routine lands every completion.** `complete_executions` writes a batch of completions of any
+  shape in one transaction: successes and failures, retries and other re-arms, signal waits, a
+  handler's fail, cancel, or pause, recurring fires with their schedule advances, children setting
+  their parent's latch, and lane hand-offs. Each shape is one set-based step, skipped when no row
+  needs it, and the locks follow the order the per-job routine kept: lanes, awaited signal slots, the
+  rows themselves in job order, schedules, then parents. `complete_execution` is gone, so twenty-nine
+  routines remain, and a laned or parented job no longer takes a second call. PostgreSQL takes the
+  batch as arrays, SQL Server as the table type `complete_executions_batch`, which gains a column
+  per shape (the schema baseline is re-cut), and SQLite as JSON read through `jsonb_each`, with each
+  section a batch does not need cut before the script is prepared. The claims return each job's
+  `lane_id` and `parent_id` for that cut. The object package moves to revision 65.
 - **Definition policy reloads on the heartbeat.** The call also answers the namespace's newest
   definition change, and the worker re-reads its effective policy only when that moved: an override
   reaches every worker within one heartbeat, and the one-second policy-reload loop is gone.
@@ -272,7 +275,7 @@ settles, and what an operator sees when it fails.
   `ClaimBatchSize`: on SQL Server every claim seek walks the ghost records earlier claims left at the
   head of the claim index, so the fewer claims a drain takes, the fewer walks it pays. An executor is freed the moment its completion is built: the entry moves to
   the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of results, writes
-  the plain ones in one `complete_executions` call and the rest per job at once, repeats a write
+  them in one `complete_executions` call whatever their shape, repeats a write
   until it lands, and then wakes whoever waits. A lone completion is written at once; a batch that
   finds a backlog waits up to 50 ms for it to fill, so batches form when the writes fall behind and
   stay full while they do. The entry stays renewed while it waits, and the channel

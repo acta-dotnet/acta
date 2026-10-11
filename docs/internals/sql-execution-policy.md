@@ -5,7 +5,7 @@ everything else through embedded SQL and installed views; SQLite runs every muta
 inside a transaction the session owns.
 
 This is the execution policy referenced by [the design decisions](design.md). The server providers
-each install thirty routines: enqueue, claim, start and complete (per job and in a batch), the step and slot writes, leases,
+each install twenty-nine routines: enqueue, claim, start, complete (one batch call for every completion shape), the step and slot writes, leases,
 recovery, retention, alert raise and settlement, outbox signals, and definition and schedule
 registration. Every other operation, control verbs included, is embedded SQL on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
@@ -102,7 +102,7 @@ compile. The claim batch, the single claim, batch completion, and the stuck-job 
 `StartExecution` does not: it filters on a point predicate and always seeks.
 
 Statements that touch many `runtimes` rows lock the base row first and never hold an index key while
-waiting for one. `StartExecution` and `CompleteExecution` change `status_code` and
+waiting for one. `StartExecution` and `CompleteExecutions` change `status_code` and
 `leased_by_worker_id`, both key columns of `ix_runtimes_worker_inflight`, so they lock the clustered
 row and then move the index key; a worker heartbeat that walked that index instead would hold the key
 and wait for the row, which is the inversion that deadlocks. `ExtendWorkerLeases` therefore reads the
@@ -120,7 +120,7 @@ well inside the lease window. The lock holds renew first and without skipping: n
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
 Statements that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
-and `complete_execution` both do. `ResetJobState` takes the `runtimes` row and then deletes the
+and `complete_executions` both do. `ResetJobState` takes the `runtimes` row and then deletes the
 job's checkpoints, and `PurgeJob` reaches them through the cascade from the job row; both run on a
 job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
 exception, taking the
@@ -219,9 +219,10 @@ the lock.
   sibling in that lane holds the lane and waits for the parent.
 - An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
   rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
-  invisible to every other transaction, so no settle can contend for it. The completion batch
-  (`CompleteExecutions`) takes no lane lock and no parent lock: it answers a laned or parented row
-  "per job" and never touches it, so only the per-job completion runs the lane hand-off.
+  invisible to every other transaction, so no settle can contend for it.
+- The completion batch (`CompleteExecutions`) locks every lane its rows belong to first, in id order,
+  then the awaited signal slots, its own `runtimes` rows in `job_id` order, schedules, and last the
+  parents' latches and `runtimes` rows in parent id order, and promotes each settled lane once.
 - The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
   no row, and the next pass inserts the lane again.
 - On SQL Server every lane lock is an `UPDLOCK` seek by `id` on the clustered key. A lookup by name

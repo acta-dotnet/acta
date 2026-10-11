@@ -93,7 +93,7 @@
       <h2>The pipeline inside one worker.</h2>
       <figure class="eng-figure">
         <div class="eng-scroll">
-          <svg viewBox="0 0 1280 470" role="img" aria-label="One worker: the claimer takes one row per free executor on Direct, or up to 32 on Buffered, per call against permits and hands them through the Claimed channel to N executors; each executor hands its completion through the Completed channel to one finalizer, which writes up to 128 plain completions in one call and the rest per job; the heartbeat renews the registry's held set in one call every 45 seconds; a full Completed channel blocks the executors, which hold their permits, which stops the claimer.">
+          <svg viewBox="0 0 1280 470" role="img" aria-label="One worker: the claimer takes one row per free executor on Direct, or up to 32 on Buffered, per call against permits and hands them through the Claimed channel to N executors; each executor hands its completion through the Completed channel to one finalizer, which writes up to 128 completions of any shape in one call; the heartbeat renews the registry's held set in one call every 45 seconds; a full Completed channel blocks the executors, which hold their permits, which stops the claimer.">
             <defs>
               <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
               <marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
@@ -111,10 +111,7 @@
             <text class="tm" x="520" y="130">Buffered only, per job</text>
             <line class="ln acc" x1="850" y1="168" x2="850" y2="90" marker-end="url(#ah-acc)"/>
             <text class="code acc-t" x="842" y="114" text-anchor="end">complete_executions</text>
-            <text class="tm" x="842" y="130" text-anchor="end">≤ 128 plain rows</text>
-            <line class="ln" x1="1000" y1="168" x2="1000" y2="90" marker-end="url(#ah)"/>
-            <text class="code" x="992" y="114" text-anchor="end">complete_execution</text>
-            <text class="tm" x="992" y="130" text-anchor="end">the rest, per job</text>
+            <text class="tm" x="842" y="130" text-anchor="end">≤ 128 rows, any shape</text>
             <line class="ln" x1="1100" y1="168" x2="1100" y2="90" marker-end="url(#ah)"/>
             <text class="code" x="1110" y="114">extend_worker_leases</text>
             <text class="tm" x="1110" y="130">held set + locks, 1 call</text>
@@ -180,7 +177,7 @@
             <text class="tm" x="1157" y="372" text-anchor="end">snapshot · re-arm · cancel</text>
           </svg>
         </div>
-        <figcaption>One worker process. Every arrow into the database is one round trip; the dashed one happens only on the Buffered profile. The green call carries the plain completions together, and everything else is written per job, all of a batch's per-job writes at once. The amber loop is the backpressure: when the database is slow, intake stops instead of memory growing.</figcaption>
+        <figcaption>One worker process. Every arrow into the database is one round trip; the dashed one happens only on the Buffered profile. The green call carries every completion of a batch together, whatever its shape. The amber loop is the backpressure: when the database is slow, intake stops instead of memory growing.</figcaption>
       </figure>
     </section>
 
@@ -191,7 +188,7 @@
         <div class="ref-row"><dt>Claimer</dt><dd>Takes the minimum permits (one on Direct, a whole batch of 32 on Buffered), then any more that are free (every free executor on Direct, up to 32 on Buffered), and claims that many rows in one call. On Direct, after a claim that found work, it first lets the executors take those rows and collects every permit they free, so the next claim asks for all of them instead of the one or two free at that instant. Unused permits go back at once. An empty claim sleeps until the next row is due, at least 50 ms and at most 1 s, jittered up to 100 ms, and a wakeup ends the sleep early. A failed claim backs off a full second.</dd></div>
         <div class="ref-row"><dt>The recovery slot</dt><dd>When a claim returns the namespace's <code>sys.recovery</code> row, it runs on its own task without a permit, so a worker whose executors are all busy still sweeps. A slot monitor also checks it every seven minutes.</dd></div>
         <div class="ref-row"><dt>Executor</dt><dd>Skips an entry whose deadline already fired. On Buffered it moves the row to Executing first, repeating the start until it lands or the deadline fires. Then admission (concurrency slot, rate meter), the handler, and the completion record. It hands the entry to the finalizer and only then returns its permit.</dd></div>
-        <div class="ref-row"><dt>Finalizer</dt><dd>One per worker. Reads one completion, then everything already waiting, up to 128 completions or 4 MiB of results; if that first read found a backlog, it waits up to 50 ms more to fill the batch, and a lone completion never waits. A plain completion, a one-shot job landing Succeeded or Failed, goes into one <code>complete_executions</code> call. Everything else, and any row the batch hands back because it sits in a lane or has a parent, goes through <code>complete_execution</code>, all at once. Each write repeats until it lands; then the wakes, the metric, and the entry is removed.</dd></div>
+        <div class="ref-row"><dt>Finalizer</dt><dd>One per worker. Reads one completion, then everything already waiting, up to 128 completions or 4 MiB of results; if that first read found a backlog, it waits up to 50 ms more to fill the batch, and a lone completion never waits. They all go into one <code>complete_executions</code> call, whatever their shape: a success or failure, a retry, a signal wait, a recurring fire, a child telling its parent, a lane handing on. The write repeats until it lands; then the wakes, the metric, and the entry is removed.</dd></div>
         <div class="ref-row"><dt>Heartbeat</dt><dd>Every 45 s it snapshots the registry and makes one call with the held (job, execution) pairs and lock holds. A renewed row re-arms its entry's deadline. A row locked by another transaction keeps its deadline for the next beat. A row not answered cancels a Claimed or Executing entry, while a Finalizing entry is left to its write. A lock not renewed cancels its attempt. When the namespace's newest definition change moved, it reloads the policy.</dd></div>
       </dl>
     </section>

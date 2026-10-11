@@ -24,7 +24,7 @@ after 1.0.0 is a breaking change, not a cleanup.
 - **`pause` stops a runnable thing's progress; `suspend` closes admission of new work.** This is
   why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
   pause rather than suspend.
-- **An execution completes; the finalizer writes the completion.** `CompleteExecution` is the
+- **An execution completes; the finalizer writes the completion.** `CompleteExecutions` is the
   operation, `ExecutionCompletion` is what an attempt leaves for it, and `WorkerFinalizer` writes it.
   "Settle" is retired for executions; alert delivery keeps its own settlement vocabulary.
 - **`State` is in memory, `Code` is persisted.** An enum a running process keeps for itself takes
@@ -221,7 +221,7 @@ free and it grows with every line anyone adds.
   which is the whole point of splitting categorical from cardinal.
 - **`Outcome` values are PascalCase; `Operation` and `Reason` values are kebab-case.** The split is not
   cosmetic, it follows what the value *is*. An `Outcome` reports a state C# already names - a
-  `RunOnceStatus`, a `CompleteExecutionAction` - so it mirrors the enum member exactly (`Succeeded`,
+  `RunOnceStatus`, a `CompleteExecutionsAction` - so it mirrors the enum member exactly (`Succeeded`,
   `NothingClaimed`), and the handful of sites with no enum behind them spell their literal the same way
   (`Bounced`, `Suppressed`, `Quarantined`). `Operation` and `Reason` are invented labels rather than
   enum members - `concurrency-key-admission`, `outbox-relay`, `key-held`, `unknown-job` - so they take
