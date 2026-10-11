@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **229 columns**, **34 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **229 columns**, **33 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -418,7 +418,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `job_id`<a id="column-acta-runtimes--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; primary key (1:1 with `jobs`) and CASCADE FK, so a purged job sweeps its runtime row in the same transaction. Supplied by enqueue, never DB-assigned. |
-| `namespace_id`<a id="column-acta-runtimes--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the owning Job's namespace, denormalized so the hot claim, reclaim, and retention scans filter and seek without joining `jobs` (`ix_runtimes_claim_ready` / `ix_runtimes_retention` lead with it). Written once at insert, never updated. |
+| `namespace_id`<a id="column-acta-runtimes--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the owning Job's namespace, denormalized so the hot claim and the reclaim filter and seek without joining `jobs` (`ix_runtimes_claim_ready` leads with it). Written once at insert, never updated. |
 | `lane_id`<a id="column-acta-runtimes--lane-id"></a> | `Int64` | · | yes | · | · | The owning Job's lane, NULL for an unlaned Job. Written once at insert, never updated. A laned Job enters Ready only while no older member of its lane is unfinished; otherwise it enters `Blocked` and the settle of the member ahead of it promotes it. |
 | `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled). |
 | `priority_code`<a id="column-acta-runtimes--priority-code"></a> | `Byte` | · | no | · | [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) (`job-priority`) | Claim-order key set from the definition policy, definition override, or per-enqueue override. |
@@ -436,7 +436,6 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
 | `ix_runtimes_claim_ready` | `namespace_id`, `priority_code` DESC, `next_run_at_utc`, `job_id`, `status_code` | not unique | `status_code IN (10, 20) AND next_run_at_utc IS NOT NULL` | `claim_hot_path` |
-| `ix_runtimes_retention` | `namespace_id`, `retention_until_utc`, `job_id` | not unique | `retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)` | `maintenance` |
 | `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)` | `heartbeat` |
 | `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)` | `lane` |
 | `ix_runtimes_lane_member` | `lane_id` | not unique | `lane_id IS NOT NULL` | `maintenance` |

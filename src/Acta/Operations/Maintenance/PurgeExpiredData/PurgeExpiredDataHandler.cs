@@ -18,11 +18,12 @@ internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeSection, (int)command.Section));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeCutoffUtc, command.CutoffUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBatchSize, command.BatchSize));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBeforeJobId, command.BeforeJobId));
             },
-            static reader => reader.GetInt32(0),
+            static reader => new PurgeExpiredDataResponse(reader.GetInt32(0), reader.GetInt64(1)),
             ct
         );
 
-        return new PurgeExpiredDataResponse(rows.Single());
+        return rows.Single();
     }
 }

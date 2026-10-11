@@ -289,6 +289,14 @@ settles, and what an operator sees when it fails.
   and compressing a full page held the latch the other finalizers were waiting on; without it the
   SQL Server Direct drain at sixteen workers ran about 4% faster. `events` keeps page compression.
   The SQL Server baseline is re-cut.
+- **Retention purge walks `runtimes` instead of an index.** `ix_runtimes_retention` is gone: every
+  completion appended to its last page. `sys.retention` now walks `runtimes` down by job id from
+  where its previous tick stopped (its `purge-cursor` job variable), up to two million rows a tick,
+  and deletes its own namespace's expired jobs as before; a job now goes within one walk of its
+  deadline rather than at the next tick. The SQL Server Direct drain at sixteen workers ran about 8%
+  faster; PostgreSQL is unchanged. `purge_expired_data` takes the cursor (`p_before_job_id`,
+  default 0) and answers where the walk stopped. The baselines are re-cut and the object package
+  moves to revision 61.
 
 ### Additions
 

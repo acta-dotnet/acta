@@ -3,13 +3,17 @@ CREATE OR REPLACE FUNCTION {{schema}}.purge_expired_data(
     p_namespace_id INT,
     p_section INT,
     p_cutoff_utc TIMESTAMPTZ,
-    p_batch_size INT
+    p_batch_size INT,
+    p_before_job_id BIGINT DEFAULT 0
 )
-RETURNS TABLE (deleted_count INT)
+RETURNS TABLE (deleted_count INT, next_job_id BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_rows INT := 0;
+    v_next BIGINT := 0;
+    v_below BIGINT;
+    v_slice_end BIGINT;
     v_ids BIGINT[];
     v_lock_keys TEXT[];
     v_alerts_slot_id BIGINT;
@@ -20,11 +24,22 @@ BEGIN
 
     CASE p_section
     WHEN 1 THEN
+        /* No retention index: walk runtimes downward from the cursor, ten batches a slice, and delete this
+           namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
+           A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
+        v_below := CASE WHEN p_before_job_id = 0 THEN 9223372036854775807 ELSE p_before_job_id END;
+        SELECT min(s.job_id) INTO v_slice_end FROM (
+            SELECT r.job_id FROM {{schema}}.runtimes r
+            WHERE r.job_id < v_below
+            ORDER BY r.job_id DESC
+            LIMIT p_batch_size * 10) s;
         SELECT array_agg(q.id) INTO v_ids FROM (
             SELECT j.id FROM {{schema}}.jobs j
             JOIN {{schema}}.runtimes r ON r.job_id = j.id
             WHERE
-                r.namespace_id = p_namespace_id
+                r.job_id < v_below
+                AND r.job_id >= v_slice_end
+                AND r.namespace_id = p_namespace_id
                 AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                 AND r.retention_until_utc IS NOT NULL
                 AND r.retention_until_utc <= p_cutoff_utc
@@ -46,10 +61,15 @@ BEGIN
                     SELECT 1 FROM {{schema}}.schedules s
                     JOIN {{schema}}.definitions d ON d.id = j.definition_id
                     WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */)
-            ORDER BY r.retention_until_utc, r.job_id
+            ORDER BY r.job_id DESC
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
+        v_next := CASE
+            WHEN v_slice_end IS NULL THEN 0
+            WHEN v_rows = p_batch_size THEN (SELECT min(x) FROM unnest(v_ids) x)
+            ELSE v_slice_end
+        END;
         IF v_rows > 0 THEN
             PERFORM 1 FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids) ORDER BY s.id FOR UPDATE;
             DELETE FROM {{schema}}.tags t
@@ -185,6 +205,6 @@ BEGIN
         GET DIAGNOSTICS v_rows = ROW_COUNT;
     END CASE;
 
-    RETURN QUERY SELECT v_rows;
+    RETURN QUERY SELECT v_rows, v_next;
 END;
 $$;

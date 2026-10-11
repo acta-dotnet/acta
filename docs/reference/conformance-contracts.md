@@ -1666,6 +1666,12 @@
 - **Guarantees:**
   - Eight retention sweeps racing over a thousand expired lock rows reap them all without a deadlock
 
+### Purge walks runtimes downward from its cursor and wraps at the oldest row
+- **Contract:** The jobs walk deletes only its namespace's expired jobs below the cursor, answers a full batch's last delete as the next cursor, and zero at the oldest row.
+- **Guarantees:**
+  - A full batch answers its last delete as the next cursor
+  - A walk from the newest row deletes the namespace's expired jobs and wraps at the oldest row
+
 ### Purge reaps expired jobs events alerts and terminal workers within batches
 - **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
 - **Guarantees:**

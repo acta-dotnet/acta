@@ -3,7 +3,8 @@ CREATE OR ALTER PROCEDURE {{schema}}.purge_expired_data
     @p_namespace_id INT,
     @p_section INT,
     @p_cutoff_utc DATETIME2(7),
-    @p_batch_size INT
+    @p_batch_size INT,
+    @p_before_job_id BIGINT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -18,6 +19,7 @@ BEGIN
             THROW 50002, 'Invalid retention section or batch size.', 1;
 
         DECLARE @rows INT = 0;
+        DECLARE @next_job_id BIGINT = 0;
         DECLARE @del TABLE (id BIGINT NOT NULL);
         DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
@@ -28,12 +30,28 @@ BEGIN
             BEGIN
                 DELETE @del;
 
+                /* No retention index: walk runtimes downward from the cursor, ten batches a slice, and delete this
+                   namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
+                   A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
+                DECLARE @below BIGINT = CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END;
+                DECLARE @slice_end BIGINT = (
+                    SELECT MIN(s.job_id)
+                    FROM (
+                        SELECT TOP (@p_batch_size * 10) r.job_id
+                        FROM {{schema}}.runtimes r
+                        WHERE r.job_id < @below
+                        ORDER BY r.job_id DESC
+                    ) s
+                );
+
                 INSERT INTO @del (id)
                 SELECT TOP (@p_batch_size) j.id
                 FROM {{schema}}.runtimes r WITH (UPDLOCK, READPAST)
                 INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, READPAST) ON j.id = r.job_id
                 WHERE
-                    r.namespace_id = @p_namespace_id
+                    r.job_id < @below
+                    AND r.job_id >= @slice_end
+                    AND r.namespace_id = @p_namespace_id
                     AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                     AND r.retention_until_utc IS NOT NULL
                     AND r.retention_until_utc <= @p_cutoff_utc
@@ -60,7 +78,13 @@ BEGIN
                         INNER JOIN {{schema}}.definitions d ON d.id = j.definition_id
                         WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */
                     )
-                ORDER BY r.retention_until_utc, r.job_id;
+                ORDER BY r.job_id DESC;
+
+                SET @next_job_id = CASE
+                    WHEN @slice_end IS NULL THEN 0
+                    WHEN (SELECT COUNT(*) FROM @del) = @p_batch_size THEN (SELECT MIN(id) FROM @del)
+                    ELSE @slice_end
+                END;
 
                 DELETE @schedule_del;
                 INSERT INTO @schedule_del (id)
@@ -285,7 +309,7 @@ BEGIN
                 SET @rows = @@ROWCOUNT;
             END;
 
-        SELECT @rows AS deleted_count;
+        SELECT @rows AS deleted_count, @next_job_id AS next_job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

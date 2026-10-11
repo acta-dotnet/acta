@@ -244,6 +244,9 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int> PurgeBatchSize = Scalar<int>("p_batch_size", DbKind.Int32, nullable: false);
 
+        /// <summary>The jobs walk's cursor: the section reads the runtimes rows below this job id, or from the newest when zero.</summary>
+        public static readonly DbValueSpec<long> PurgeBeforeJobId = Scalar<long>("p_before_job_id", DbKind.Int64, nullable: false);
+
         /// <summary>
         /// List-read paging: rows requested per page plus one row to detect HasMore.
         /// </summary>

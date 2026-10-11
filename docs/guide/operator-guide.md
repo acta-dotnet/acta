@@ -581,7 +581,10 @@ workers.tags.remove
 Every terminal landing stamps `retention_until_utc` from the definition's `JobRetention` policy
 (default 90 days); the framework `sys.retention` job purges terminal rows past that deadline in
 batches, along with `events` / `alerts` / terminal-worker rows past their `JobsOptions` windows
-(`JobEventsRetention`, `AlertRetention`, `WorkerRetention`). A row with a NULL
+(`JobEventsRetention`, `AlertRetention`, `WorkerRetention`). No index finds expired jobs: each hourly
+tick walks `runtimes` down by job id from where the last tick stopped (its `purge-cursor` job
+variable), up to two million rows, and deletes the namespace's expired jobs it passes, so a job goes
+within one walk of its deadline rather than at it. A row with a NULL
 `retention_until_utc` is never purged; only terminal rows ever carry one. Substrate rows
 (checkpoints, steps, results) delete with their job.
 

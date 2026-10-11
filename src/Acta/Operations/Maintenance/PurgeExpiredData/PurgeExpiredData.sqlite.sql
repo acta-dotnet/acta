@@ -1,5 +1,6 @@
 -- Only the selected section can stage rows; SQLite owns one immediate transaction for the file.
 DROP TABLE IF EXISTS temp._purge_skip;
+DROP TABLE IF EXISTS temp._purge_slice;
 DROP TABLE IF EXISTS temp._purge_jobs;
 DROP TABLE IF EXISTS temp._purge_events;
 DROP TABLE IF EXISTS temp._purge_alerts;
@@ -8,12 +9,31 @@ DROP TABLE IF EXISTS temp._purge_workers;
 DROP TABLE IF EXISTS temp._purge_locks;
 DROP TABLE IF EXISTS temp._purge_lanes;
 
+-- No retention index: walk runtimes downward from the cursor, ten batches a slice, and delete this namespace's
+-- expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive. A full batch ends the
+-- slice at its last delete; the oldest row answers zero, and the walk restarts.
+CREATE TEMP TABLE _purge_slice AS
+SELECT
+    CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END AS below,
+    (
+        SELECT MIN(s.job_id)
+        FROM (
+            SELECT r.job_id
+            FROM {{schema}}.runtimes r
+            WHERE @p_section = 1 AND r.job_id < CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END
+            ORDER BY r.job_id DESC
+            LIMIT @p_batch_size * 10
+        ) s
+    ) AS slice_end;
+
 CREATE TEMP TABLE _purge_jobs AS
 SELECT r.job_id AS id
 FROM {{schema}}.runtimes r
 JOIN {{schema}}.jobs j ON j.id = r.job_id
 WHERE
     @p_section = 1
+    AND r.job_id < (SELECT below FROM temp._purge_slice)
+    AND r.job_id >= (SELECT slice_end FROM temp._purge_slice)
     AND r.namespace_id = @p_namespace_id
     AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND r.retention_until_utc IS NOT NULL
@@ -34,7 +54,7 @@ WHERE
         SELECT 1 FROM {{schema}}.schedules s
         JOIN {{schema}}.definitions d ON d.id = j.definition_id
         WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */)
-ORDER BY r.retention_until_utc, r.job_id
+ORDER BY r.job_id DESC
 LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags
@@ -155,4 +175,9 @@ SELECT
     + (SELECT COUNT(*) FROM temp._purge_skip)
     + (SELECT COUNT(*) FROM temp._purge_workers)
     + (SELECT COUNT(*) FROM temp._purge_locks)
-    + (SELECT COUNT(*) FROM temp._purge_lanes) AS deleted_count;
+    + (SELECT COUNT(*) FROM temp._purge_lanes) AS deleted_count,
+    CASE
+        WHEN @p_section <> 1 OR (SELECT slice_end FROM temp._purge_slice) IS NULL THEN 0
+        WHEN (SELECT COUNT(*) FROM temp._purge_jobs) = @p_batch_size THEN (SELECT MIN(id) FROM temp._purge_jobs)
+        ELSE (SELECT slice_end FROM temp._purge_slice)
+    END AS next_job_id;

@@ -26,6 +26,9 @@ internal sealed class RetentionJob(
     private const int BatchSize = 1000;
     private const int MaxIterations = 50;
 
+    /// <summary>The job variable that keeps the jobs walk's position from one tick to the next.</summary>
+    private const string JobsCursorVariable = "purge-cursor";
+
     /// <summary>
     /// These casts truncate nothing: JobsOptionsValidator already rejected any events or alerts
     /// window that is not a whole number of days. Without that rule a 47-hour alert window would
@@ -51,18 +54,20 @@ internal sealed class RetentionJob(
     [JobSchedule("default", Cron.Hourly)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
-        await PurgeExpiredDataAsync(
+        var swept = await PurgeExpiredDataAsync(
             new RetentionSweep(
                 ctx.NamespaceId,
                 _eventsRetentionDays,
                 _alertRetentionDays,
                 _workerRetentionSeconds,
                 BatchSize,
-                MaxIterations
+                MaxIterations,
+                await ctx.GetVariableOrDefaultAsync(JobsCursorVariable, 0L, ct)
             ),
             count => LogUndeliveredPurge(ctx, count),
             ct
         );
+        await ctx.SetVariableAsync(JobsCursorVariable, swept.JobsCursor, ct);
     }
 
     public Task<RetentionSweepCounts> PurgeExpiredDataAsync(RetentionSweep command, CancellationToken ct) =>
@@ -80,8 +85,10 @@ internal sealed class RetentionJob(
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
         ArgumentOutOfRangeException.ThrowIfNegative(command.MaxIterations);
+        ArgumentOutOfRangeException.ThrowIfNegative(command.MaxJobSlices);
         var now = await clock.GetUtcNowAsync(ct);
         var counts = new int[8];
+        var cursor = command.JobsCursor;
         try
         {
             for (var index = 0; index < counts.Length; index++)
@@ -96,6 +103,24 @@ internal sealed class RetentionJob(
                     _ => now,
                 };
                 var batch = new PurgeExpiredDataCommand(command.NamespaceId, section, cutoff, command.BatchSize);
+                if (section == RetentionSection.Jobs)
+                {
+                    // A slice with nothing expired is no reason to stop: the walk ends at the oldest row, after
+                    // MaxJobSlices slices, or once a delete budget's worth of jobs is gone.
+                    var deleteBudget = (long)command.MaxIterations * command.BatchSize;
+                    for (var slice = 0; slice < command.MaxJobSlices && counts[index] < deleteBudget; slice++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var walked = await maintenance.PurgeExpiredDataAsync(batch with { BeforeJobId = cursor }, ct);
+                        counts[index] = checked(counts[index] + walked.Purged);
+                        cursor = walked.NextJobId;
+                        if (cursor == 0)
+                        {
+                            break;
+                        }
+                    }
+                    continue;
+                }
                 for (var iteration = 0; iteration < command.MaxIterations; iteration++)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -108,7 +133,7 @@ internal sealed class RetentionJob(
                 }
             }
 
-            return new RetentionSweepCounts(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7]);
+            return new RetentionSweepCounts(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7], cursor);
         }
         finally
         {

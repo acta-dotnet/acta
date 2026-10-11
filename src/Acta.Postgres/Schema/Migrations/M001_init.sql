@@ -259,7 +259,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (id)
 );
 CREATE INDEX IF NOT EXISTS ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
-CREATE INDEX IF NOT EXISTS ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
 CREATE INDEX IF NOT EXISTS ix_runtimes_worker_inflight ON {{schema}}.runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 CREATE INDEX IF NOT EXISTS ix_runtimes_lane ON {{schema}}.runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50);
 CREATE INDEX IF NOT EXISTS ix_runtimes_lane_member ON {{schema}}.runtimes (lane_id) WHERE lane_id IS NOT NULL;
@@ -400,7 +399,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-5bfdaedfe4ba0ebc9d0967e77268cefb', '{{schema}}')
+VALUES (0, 'baseline-6ddda4059754bc4e81643f6e74f61b7d', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

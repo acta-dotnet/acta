@@ -7,7 +7,7 @@ namespace Acta;
 /// job takes its rows with it (<c>fk_results_jobs ON DELETE CASCADE</c>). The latest result is one primary-key seek.
 /// </summary>
 // No page compression: every completion appends here, and compressing a full tail page holds the latch the other
-// finalizers wait on; dropping it gained about 4% of SQL Server drain at 16 workers.
+// finalizers wait on.
 [DbTable("results")]
 // OptimizeForSequentialKey: results arrive by ascending job id, so they insert at this key's tail; a
 // per-index page-latch attribution measured 17 s of wait on that tail page at 16 workers.

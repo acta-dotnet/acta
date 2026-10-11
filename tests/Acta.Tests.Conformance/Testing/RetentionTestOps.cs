@@ -16,12 +16,21 @@ internal static class RetentionTestOps
         int workerRetentionSeconds,
         int batchSize,
         int maxIterations,
-        CancellationToken ct
+        CancellationToken ct,
+        long jobsCursor = 0
     ) =>
         ActivatorUtilities
             .CreateInstance<RetentionJob>(services)
             .PurgeExpiredDataAsync(
-                new RetentionSweep(namespaceId, eventsRetentionDays, alertRetentionDays, workerRetentionSeconds, batchSize, maxIterations),
+                new RetentionSweep(
+                    namespaceId,
+                    eventsRetentionDays,
+                    alertRetentionDays,
+                    workerRetentionSeconds,
+                    batchSize,
+                    maxIterations,
+                    jobsCursor
+                ),
                 ct
             );
 
@@ -77,7 +86,8 @@ internal static class RetentionTestOps
                 workerRetentionSeconds,
                 batchSize,
                 maxIterations,
-                ct
+                ct,
+                total.JobsCursor
             );
             total = new RetentionSweepCounts(
                 total.Jobs + result.Jobs,
@@ -86,7 +96,8 @@ internal static class RetentionTestOps
                 total.UndeliveredAlertsPurged + result.UndeliveredAlertsPurged,
                 total.Workers + result.Workers,
                 total.Locks + result.Locks,
-                total.Lanes + result.Lanes
+                total.Lanes + result.Lanes,
+                result.JobsCursor
             );
             if (await settled() || attempt >= maxAttempts)
             {

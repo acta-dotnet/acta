@@ -6,7 +6,7 @@ namespace Acta.Tests.Runtime;
 public sealed class RetentionJobTests
 {
     private static readonly DateTime Now = new(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2);
+    private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2, MaxJobSlices: 2);
 
     [Fact]
     public async Task Sections_are_ordered_bounded_and_share_one_database_clock_read()
@@ -17,12 +17,13 @@ public sealed class RetentionJobTests
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(16, store.Calls.Count);
-        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2), result);
+        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2, 999), result);
         for (var index = 0; index < 8; index++)
         {
             var first = store.Calls[index * 2];
             Assert.Equal((RetentionSection)(index + 1), first.Section);
-            Assert.Equal(first, store.Calls[index * 2 + 1]);
+            // The jobs walk's two calls differ only in the cursor.
+            Assert.Equal(first with { BeforeJobId = 0 }, store.Calls[index * 2 + 1] with { BeforeJobId = 0 });
             Assert.Equal(42, first.NamespaceId);
             Assert.Equal(10, first.BatchSize);
             Assert.Equal(
@@ -39,12 +40,26 @@ public sealed class RetentionJobTests
     }
 
     [Fact]
-    public async Task Empty_batch_ends_only_its_section()
+    public async Task Empty_batch_ends_only_its_section_but_not_the_jobs_walk()
     {
+        // A jobs slice with nothing expired says nothing about the slices below it, so the walk goes on.
         var store = new Store(static _ => 0);
         var result = await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
-        Assert.Equal(8, store.Calls.Count);
-        Assert.Equal(default, result);
+        Assert.Equal(9, store.Calls.Count);
+        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
+    }
+
+    [Fact]
+    public async Task The_jobs_walk_continues_from_the_cursor_and_ends_at_the_oldest_row()
+    {
+        var store = new Store(static _ => 1, static command => command.BeforeJobId == 70 ? 0 : 70);
+        var result = await Job(store.Handler, new Clock())
+            .PurgeExpiredDataAsync(Sweep with { JobsCursor = 500 }, TestContext.Current.CancellationToken);
+
+        var jobs = store.Calls.Where(c => c.Section == RetentionSection.Jobs).ToList();
+        Assert.Equal([500L, 70L], jobs.Select(c => c.BeforeJobId));
+        Assert.Equal(0, result.JobsCursor);
+        Assert.Equal(2, result.Jobs);
     }
 
     [Fact]
@@ -105,6 +120,19 @@ public sealed class RetentionJobTests
         Assert.Empty(store.Calls);
     }
 
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(10, 2)]
+    public async Task The_jobs_walk_spends_its_slices_apart_from_its_deletes(int deletedPerSlice, int expectedSlices)
+    {
+        // Nothing expired: the walk takes every slice it is given. Ten a slice: it stops at the delete budget of
+        // MaxIterations x BatchSize = 20, though slices remain.
+        var store = new Store(_ => deletedPerSlice);
+        await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expectedSlices, store.Calls.Count(c => c.Section == RetentionSection.Jobs));
+    }
+
     private static RetentionJob Job(PurgeExpiredDataHandler purge, IClockOperations clock) =>
         new(new MaintenanceOperations(purge), clock, Options.Create(new JobsOptions()));
 
@@ -116,7 +144,8 @@ public sealed class RetentionJobTests
     }
 
     /// <summary>The real purge handler over a scripted session that decodes each bound batch back into its command.</summary>
-    internal sealed class Store(Func<PurgeExpiredDataCommand, int> execute)
+    /// <remarks>The jobs walk answers <paramref name="next"/>, by default one row below the cursor, never the end.</remarks>
+    internal sealed class Store(Func<PurgeExpiredDataCommand, int> execute, Func<PurgeExpiredDataCommand, long>? next = null)
     {
         public List<PurgeExpiredDataCommand> Calls { get; } = [];
 
@@ -128,10 +157,16 @@ public sealed class RetentionJobTests
                         call.Get(ActaSchema.Job.NamespaceId),
                         (RetentionSection)call.Get(ActaSchema.Sql.PurgeSection),
                         call.Get(ActaSchema.Sql.PurgeCutoffUtc),
-                        call.Get(ActaSchema.Sql.PurgeBatchSize)
+                        call.Get(ActaSchema.Sql.PurgeBatchSize),
+                        call.Get(ActaSchema.Sql.PurgeBeforeJobId)
                     );
                     Calls.Add(command);
-                    return execute(command);
+                    var nextJobId =
+                        command.Section != RetentionSection.Jobs ? 0
+                        : next is not null ? next(command)
+                        : command.BeforeJobId == 0 ? 1000
+                        : command.BeforeJobId - 1;
+                    return new PurgeExpiredDataResponse(execute(command), nextJobId);
                 }),
                 ScriptedSession.Dialect
             );

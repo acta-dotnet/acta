@@ -39,15 +39,7 @@ namespace Acta;
     Filter = "status_code IN (10, 20) AND next_run_at_utc IS NOT NULL",
     Usage = "claim_hot_path"
 )]
-// OptimizeForSequentialKey: retention instants ascend, so completions insert at this index's tail; a
-// per-index page-latch attribution measured 9.5 s of wait on that tail page at 16 workers.
-[DbIndex(
-    Name = "ix_runtimes_retention",
-    Columns = ["namespace_id", "retention_until_utc", "job_id"],
-    Filter = "retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)",
-    Usage = "maintenance",
-    OptimizeForSequentialKey = true
-)]
+// No retention index: every completion appended to its tail, so purge_expired_data walks runtimes by job id instead.
 // status_code stays in the filter but out of the key, which is all the heartbeat needs: keying on it
 // would move every in-flight entry to a new key on the Dispatched-to-Executing transition, and one
 // worker's entries share a leaf page, so that write lands on this index's hottest page.
@@ -100,9 +92,9 @@ internal sealed class RuntimeEntity : IEntity<long>
     public long Id { get; init; }
 
     /// <summary>
-    /// Immutable copy of the owning Job's namespace, denormalized so the hot claim, reclaim, and
-    /// retention scans filter and seek without joining <c>jobs</c> (<c>ix_runtimes_claim_ready</c> /
-    /// <c>ix_runtimes_retention</c> lead with it). Written once at insert, never updated.
+    /// Immutable copy of the owning Job's namespace, denormalized so the hot claim and the reclaim
+    /// filter and seek without joining <c>jobs</c> (<c>ix_runtimes_claim_ready</c> leads with it).
+    /// Written once at insert, never updated.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }
