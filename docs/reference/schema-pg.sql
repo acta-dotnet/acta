@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 62)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 63)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1090,7 +1090,9 @@ RETURNS TABLE (
     job_ref UUID,
     tenant_id INT,
     db_now TIMESTAMPTZ,
-    next_ready_at_utc TIMESTAMPTZ
+    next_ready_at_utc TIMESTAMPTZ,
+    lane_id BIGINT,
+    parent_id BIGINT
 )
 LANGUAGE sql
 AS $$
@@ -1123,7 +1125,7 @@ AS $$
             r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, r.version, j.job_ref, c.from_status
+            r.failure_count, r.version, j.job_ref, c.from_status, r.lane_id, j.parent_id
     ),
     started_event AS (
         INSERT INTO acta.events (
@@ -1186,7 +1188,9 @@ AS $$
         u.job_ref,
         u.tenant_id,
         NULL::timestamptz AS db_now,
-        NULL::timestamptz AS next_ready_at_utc
+        NULL::timestamptz AS next_ready_at_utc,
+        u.lane_id,
+        u.parent_id
     FROM updated u;
 $$;
 
@@ -1216,7 +1220,9 @@ RETURNS TABLE (
     job_ref UUID,
     tenant_id INT,
     db_now TIMESTAMPTZ,
-    next_ready_at_utc TIMESTAMPTZ
+    next_ready_at_utc TIMESTAMPTZ,
+    lane_id BIGINT,
+    parent_id BIGINT
 )
 LANGUAGE sql
 AS $$
@@ -1294,7 +1300,9 @@ AS $$
             r.failure_count,
             r.version,
             j.job_ref,
-            c.from_status
+            c.from_status,
+            r.lane_id,
+            j.parent_id
     ),
     started_event AS (
         INSERT INTO acta.events (
@@ -1363,7 +1371,9 @@ AS $$
         u.job_ref,
         u.tenant_id,
         NULL::timestamptz AS db_now,
-        NULL::timestamptz AS next_ready_at_utc
+        NULL::timestamptz AS next_ready_at_utc,
+        u.lane_id,
+        u.parent_id
     FROM updated u
     UNION ALL
     SELECT
@@ -1408,7 +1418,9 @@ AS $$
                     )
                 ORDER BY r.next_run_at_utc
                 LIMIT 1
-            ) head)
+            ) head),
+        NULL::bigint,
+        NULL::bigint
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;
@@ -5405,7 +5417,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.62-5673a6b7b1a5866b676eb5b4b310d9ad', 'acta');
+VALUES (-1, 'objects-1.63-1e6a3ce2b4ac4d90c521263d786c18ca', 'acta');
 
 COMMIT;
 

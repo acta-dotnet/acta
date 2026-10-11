@@ -20,5 +20,7 @@ internal sealed record ClaimJobRow(
     Guid? JobRef,
     int? TenantId,
     DateTime? DbNowUtc,
-    DateTime? NextReadyAtUtc
+    DateTime? NextReadyAtUtc,
+    long? LaneId,
+    long? ParentId
 ) : IClaimColumns;

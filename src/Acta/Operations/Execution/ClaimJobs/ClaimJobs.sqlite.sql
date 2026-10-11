@@ -119,7 +119,9 @@ SELECT
     j.job_ref,
     j.tenant_id,
     NULL AS db_now,
-    NULL AS next_ready_at_utc
+    NULL AS next_ready_at_utc,
+    r.lane_id,
+    j.parent_id
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id IN (SELECT id FROM temp._claimed)
@@ -168,6 +170,8 @@ SELECT
                 LIMIT 1
             ))
         FROM temp._claim_bands b
-    ) AS next_ready_at_utc
+    ) AS next_ready_at_utc,
+    NULL AS lane_id,
+    NULL AS parent_id
 WHERE NOT EXISTS (SELECT 1 FROM temp._claimed)
 ORDER BY id;

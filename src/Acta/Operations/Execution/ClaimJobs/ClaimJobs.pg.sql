@@ -24,7 +24,9 @@ RETURNS TABLE (
     job_ref UUID,
     tenant_id INT,
     db_now TIMESTAMPTZ,
-    next_ready_at_utc TIMESTAMPTZ
+    next_ready_at_utc TIMESTAMPTZ,
+    lane_id BIGINT,
+    parent_id BIGINT
 )
 LANGUAGE sql
 AS $$
@@ -102,7 +104,9 @@ AS $$
             r.failure_count,
             r.version,
             j.job_ref,
-            c.from_status
+            c.from_status,
+            r.lane_id,
+            j.parent_id
     ),
     started_event AS (
         INSERT INTO {{schema}}.events (
@@ -171,7 +175,9 @@ AS $$
         u.job_ref,
         u.tenant_id,
         NULL::timestamptz AS db_now,
-        NULL::timestamptz AS next_ready_at_utc
+        NULL::timestamptz AS next_ready_at_utc,
+        u.lane_id,
+        u.parent_id
     FROM updated u
     UNION ALL
     SELECT
@@ -216,7 +222,9 @@ AS $$
                     )
                 ORDER BY r.next_run_at_utc
                 LIMIT 1
-            ) head)
+            ) head),
+        NULL::bigint,
+        NULL::bigint
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;

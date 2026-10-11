@@ -41,7 +41,9 @@ BEGIN
                 audit_level_code TINYINT NOT NULL,
                 failure_count INT NOT NULL,
                 version INT NOT NULL,
-                from_status TINYINT NOT NULL
+                from_status TINYINT NOT NULL,
+                lane_id BIGINT NULL,
+                parent_id BIGINT NULL
             );
 
         WITH candidates AS (
@@ -69,13 +71,13 @@ BEGIN
             INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            INSERTED.failure_count, INSERTED.version, DELETED.status_code
+            INSERTED.failure_count, INSERTED.version, DELETED.status_code, INSERTED.lane_id, j.parent_id
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version, from_status
+                audit_level_code, failure_count, version, from_status, lane_id, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
         -- see docs/internals/sql-execution-policy.md.
@@ -133,7 +135,9 @@ BEGIN
             job_ref,
             tenant_id,
             CAST(NULL AS DATETIME2(7)) AS db_now,
-            CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc
+            CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
+            lane_id,
+            parent_id
         FROM @claimed;
 
         IF @entry_trancount = 0

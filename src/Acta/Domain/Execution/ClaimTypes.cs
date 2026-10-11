@@ -22,6 +22,7 @@ internal sealed record ClaimOptions(
 /// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion. <c>Version</c>
 /// is <c>runtimes.version</c> as of this claim (the claim bumps it), threaded into <c>start_execution</c> as the CAS
 /// guard: a reclaim or steal between claim and start bumps it, so a stale claim fails to start instead of double-executing.
+/// <c>LaneId</c> and <c>ParentId</c> never change after insert, so the completion trusts them as the claim read them.
 /// </summary>
 internal sealed record ClaimedJob(
     long JobId,
@@ -39,7 +40,9 @@ internal sealed record ClaimedJob(
     DateTime LeaseExpiresAtUtc,
     DateTime CreatedAtUtc,
     int FailureCount,
-    int Version
+    int Version,
+    long? LaneId = null,
+    long? ParentId = null
 )
 {
     /// <summary>Reads a job row of either claim routine; the horizon sentinel row is the claim scan's own.</summary>
@@ -62,7 +65,9 @@ internal sealed record ClaimedJob(
             LeaseExpiresAtUtc: Required(row.LeaseExpiresAtUtc, "lease_expires_at_utc"),
             CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
             FailureCount: Required(row.FailureCount, "failure_count"),
-            Version: Required(row.Version, "version")
+            Version: Required(row.Version, "version"),
+            LaneId: row.LaneId,
+            ParentId: row.ParentId
         );
 
     private static T Required<T>(T? value, string column)
@@ -120,4 +125,8 @@ internal interface IClaimColumns
     DateTime? DbNowUtc { get; }
 
     DateTime? NextReadyAtUtc { get; }
+
+    long? LaneId { get; }
+
+    long? ParentId { get; }
 }

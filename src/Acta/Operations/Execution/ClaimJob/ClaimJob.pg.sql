@@ -23,7 +23,9 @@ RETURNS TABLE (
     job_ref UUID,
     tenant_id INT,
     db_now TIMESTAMPTZ,
-    next_ready_at_utc TIMESTAMPTZ
+    next_ready_at_utc TIMESTAMPTZ,
+    lane_id BIGINT,
+    parent_id BIGINT
 )
 LANGUAGE sql
 AS $$
@@ -56,7 +58,7 @@ AS $$
             r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, r.version, j.job_ref, c.from_status
+            r.failure_count, r.version, j.job_ref, c.from_status, r.lane_id, j.parent_id
     ),
     started_event AS (
         INSERT INTO {{schema}}.events (
@@ -119,6 +121,8 @@ AS $$
         u.job_ref,
         u.tenant_id,
         NULL::timestamptz AS db_now,
-        NULL::timestamptz AS next_ready_at_utc
+        NULL::timestamptz AS next_ready_at_utc,
+        u.lane_id,
+        u.parent_id
     FROM updated u;
 $$;

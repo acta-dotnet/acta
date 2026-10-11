@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 62)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 63)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1497,7 +1497,9 @@ BEGIN
                 audit_level_code TINYINT NOT NULL,
                 failure_count INT NOT NULL,
                 version INT NOT NULL,
-                from_status TINYINT NOT NULL
+                from_status TINYINT NOT NULL,
+                lane_id BIGINT NULL,
+                parent_id BIGINT NULL
             );
 
         WITH candidates AS (
@@ -1525,13 +1527,13 @@ BEGIN
             INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            INSERTED.failure_count, INSERTED.version, DELETED.status_code
+            INSERTED.failure_count, INSERTED.version, DELETED.status_code, INSERTED.lane_id, j.parent_id
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version, from_status
+                audit_level_code, failure_count, version, from_status, lane_id, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
         -- see docs/internals/sql-execution-policy.md.
@@ -1589,7 +1591,9 @@ BEGIN
             job_ref,
             tenant_id,
             CAST(NULL AS DATETIME2(7)) AS db_now,
-            CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc
+            CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
+            lane_id,
+            parent_id
         FROM @claimed;
 
         IF @entry_trancount = 0
@@ -1655,7 +1659,9 @@ BEGIN
                 audit_level_code TINYINT NOT NULL,
                 failure_count INT NOT NULL,
                 version INT NOT NULL,
-                from_status TINYINT NOT NULL
+                from_status TINYINT NOT NULL,
+                lane_id BIGINT NULL,
+                parent_id BIGINT NULL
             );
 
         /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
@@ -1735,13 +1741,15 @@ BEGIN
             j.audit_level_code,
             INSERTED.failure_count,
             INSERTED.version,
-            DELETED.status_code
+            DELETED.status_code,
+            INSERTED.lane_id,
+            j.parent_id
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version, from_status
+                audit_level_code, failure_count, version, from_status, lane_id, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
         -- see docs/internals/sql-execution-policy.md.
@@ -1804,7 +1812,9 @@ BEGIN
                     job_ref,
                     tenant_id,
                     CAST(NULL AS DATETIME2(7)) AS db_now,
-                    CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc
+                    CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
+                    lane_id,
+                    parent_id
                 FROM @claimed
                 ORDER BY id;
             END
@@ -1853,7 +1863,9 @@ BEGIN
                                 )
                             ORDER BY r.next_run_at_utc ASC
                         ) head
-                    ) AS next_ready_at_utc;
+                    ) AS next_ready_at_utc,
+                    CAST(NULL AS BIGINT) AS lane_id,
+                    CAST(NULL AS BIGINT) AS parent_id;
             END
 
         IF @entry_trancount = 0
@@ -6151,7 +6163,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.62-59035948ce7e0af42438f663ffcb29dc', 'acta'
+SELECT -1, 'objects-1.63-c16ea3b90efc7c0c446c4d20f7838991', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_execution', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO
