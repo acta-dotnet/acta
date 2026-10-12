@@ -74,12 +74,11 @@ finalizer fills, executors then block on it while they still hold their claim pe
 stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes
 rather than abandoning it to run more handlers whose completions would be abandoned in turn. Repairing
 the underlying database failure lets the pending completions land without restarting the worker, as
-long as each entry still owns its row. Recovery itself is unaffected, because the slot monitor runs
-the sweep outside the executor pool; a worker whose executors are all held cannot claim the
-`sys.recovery` slot itself, so under saturation the monitor's seven-minute check is what sweeps.
+long as each entry still owns its row. Recovery itself is unaffected: the heartbeat takes the recovery
+pass and runs it outside the executor pool, so a worker whose executors are all held still sweeps.
 
 A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
-lapses, `sys.recovery` reclaims it, and the handler runs again. A graceful drain keeps repeating
+lapses, crash recovery reclaims it, and the handler runs again. A graceful drain keeps repeating
 while the host's shutdown budget lasts, so completions land; a hard stop ends the repeat and leaves
 the row for recovery.
 
@@ -114,22 +113,13 @@ expires with its lease TTL, so one slot of that key is unavailable for up to tha
 the meter charged without answering is spent: the job is metered again when it returns, so a lost
 answer costs the meter one turn of capacity and never admits extra.
 
-Crash recovery has one bootstrap dependency. The reclaim sweep, which returns a job whose lease
-lapsed to `Ready`, runs from the `sys.recovery` recurring slot, and that slot is an ordinary job: a
-worker claims it and can die holding it. Reclaim covers every other stranded row in the namespace,
-including the other system slots, but it cannot free the slot it runs from, because a stranded
-`sys.recovery` means the sweep never executes. Every later stranded job then queues behind it.
-Every worker watches that one slot: one guarded statement at startup and then every seven minutes,
-each worker offset by a random slice of that window, that re-arms the slot only if it is in flight
-under a lapsed lease. The check runs on the worker's own timer rather than through an executor, so
-saturated executors cannot starve it, and having re-armed the slot the same check offers to run it,
-claiming that one job id and executing it outside the executor pool. Ordinary claiming still takes
-the slot as it always did and remains the usual path, so with executors free the slot's own
-once-a-minute schedule governs and nothing here changes; the slot's lease decides between them, so
-only one runs a pass. Whichever worker's check falls next finds a stranded slot, so a fleet finds it
-sooner and a lone worker can take the whole seven minutes. That interval is the bound for the case
-it exists for, a worker with nothing free to claim the slot: detection, re-arming, and now the sweep
-too. The other stranded jobs in the namespace wait behind it. Nothing sweeps the namespace outside `sys.recovery` itself, by design.
+Crash recovery runs on the heartbeat, and its cadence is the lease. The reclaim sweep, which returns a
+job whose lease lapsed to `Ready`, runs once per lease per namespace: the heartbeat call that finds the
+namespace's pass due moves the due time one lease on in the same statement, and that worker runs the pass
+beside its heartbeat, outside the executor pool. A worker that dies mid-pass holds nothing, so the next pass
+falls to whichever worker's heartbeat finds it due. A killed worker's jobs are therefore back within two
+leases, six minutes at the default heartbeat, and a pass that fails waits out its interval. Recovery adds
+no statement of its own beyond the pass; the check rides the heartbeat every worker already sends.
 
 Acta does not provide deterministic workflow replay. The model is checkpoints, not replay: durable
 slots record completed work and return stored results on re-entry, but the handler can re-enter from

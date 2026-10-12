@@ -38,7 +38,7 @@ There are exactly two ways a worker process ends, and the terminal status names 
 | Status | What happened | Event and reason |
 |---|---|---|
 | `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `121 worker.stopped` / `100 worker.clean-shutdown` |
-| `Dead = 200` | Heartbeat went stale past the liveness window; `sys.recovery` flipped it | `122 worker.died` / `101 worker.heartbeat-stale` |
+| `Dead = 200` | Heartbeat went stale past the liveness window; crash recovery flipped it | `122 worker.died` / `101 worker.heartbeat-stale` |
 
 On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. A worker
 killed outright never reaches the clean path, so it stays `Active`, or `Draining` if the kill landed
@@ -371,7 +371,7 @@ Worker:
 - Recovery should return it to Ready on the next maintenance tick.
 
 Next actions:
-- Wait for sys.recovery to reclaim the job on the next maintenance tick.
+- Wait for crash recovery to reclaim the job on its next pass.
 - Cancel the job if it should not continue.
 ```
 
@@ -638,8 +638,8 @@ deleting evidence.
 
 ## What maintenance does for you
 
-Workers heartbeat their leases (`HeartbeatInterval`); `sys.recovery` reclaims jobs whose lease
-lapsed (back to Ready in budget, terminal Failed past `MaxAttempts`, with retention stamped),
+Workers heartbeat their leases (`HeartbeatInterval`), and once a lease one worker's heartbeat takes
+the namespace's recovery pass, which reclaims jobs whose lease lapsed (back to Ready in budget, terminal Failed past `MaxAttempts`, with retention stamped),
 marks silent workers Dead after `WorkerDeadAfter`, and re-raises any child-completion latch a crash
 left pending; `sys.retention` runs the purge. If a job looks stuck in `Executing`, check the
 worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.

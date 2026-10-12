@@ -33,7 +33,7 @@ after 1.0.0 is a breaking change, not a cleanup.
 - **A background loop is named for its agent; a channel for what crosses it.** A worker's own agents
   take the `Worker` prefix, as its runtime and context do: `WorkerClaimer`, `WorkerExecutor`,
   `WorkerFinalizer`, `WorkerHeartbeat` (the established word, kept over an invented agent noun). A loop
-  that serves a system job is named for its job's work (`RecoverySlotMonitor`). The channels between the
+  that serves a system job is named for its job's work (`OutboxRelay`). The channels between the
   worker's agents are `Claimed` and `Completed`.
 
 ## Identifier suffixes

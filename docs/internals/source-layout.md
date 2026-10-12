@@ -81,7 +81,7 @@ src/Acta.AspNetCore/Operations/Jobs/
 
 - `Catalog/`: what a deployment declares, written at startup: `CatalogRegistrar` collects and validates the descriptors, registers the definitions, overlays each with its effective policy, and reconciles the definition-sourced schedules; contract drift, the overlay, manifest generation, the meter check, and `SystemJobs` sit beside it.
 - `Worker/`: one worker's runtime: `WorkerRuntime`, its host and startup, `WorkerRuntimeInitializer` (the worker row, clock skew, the Stopped stamp), the `WorkerContext` the hot path reads, and the worker's agents with what they share: `WorkerClaimer`, `WorkerExecutor`, `WorkerFinalizer`, `WorkerHeartbeat`, and the `InFlightJobRegistry` that holds each claim from its claim to its written completion. `Worker/Context/` is what a handler talks to: `RuntimeJobContext`, the checkpoint slot, and the signals a step throws.
-- `Recovery/`, `Retention/`, `Alerting/`, `Outbox/`: the four system jobs (`sys.recovery`, `sys.retention`, `sys.alerts`, `sys.outbox`) and what they run; `Outbox/` also holds the staging core the provider packages share.
+- `Recovery/`, `Retention/`, `Alerting/`, `Outbox/`: the recovery pass the heartbeat runs, and the three system jobs (`sys.retention`, `sys.alerts`, `sys.outbox`) and what they run; `Outbox/` also holds the staging core the provider packages share.
 - `Wakeup/`: the wake transport and publisher.
 - `Telemetry/`: `ActaMetrics`, the one meter.
 

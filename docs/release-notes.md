@@ -52,6 +52,12 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   (code 40) no longer exists, `jobs_view` and the HTTP API never report `dispatched`, and a query that
   filtered on `dispatched` or `executing` filters on `executing` alone. The baselines are re-cut and the
   object package moves to revision 76.
+- **`sys.recovery` is gone.** Crash recovery runs on the workers' heartbeat instead of a recurring job (see
+  "Execution engine" below), so the `sys.recovery` definition, its slot, and its schedule no longer exist. A
+  script or dashboard that triggered, paused, or filtered on that job has nothing to address: recovery runs
+  once a lease, `HeartbeatInterval` x4, and `acta.recovery.passes` counts its passes. `RegisterSystemJobs`
+  still turns it off. `namespaces` gains `recovery_due_at_utc`, the baselines are re-cut, and the object
+  package moves to revision 77.
 - **`acta.executing` is now `acta.jobs.inflight`.** The gauge reports every job the worker holds, tagged
   `namespace` and `state` (`claimed`, `executing`, `finalizing`); a dashboard that read `acta.executing`
   reads `acta.jobs.inflight` filtered to `state = executing`.
@@ -142,7 +148,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
   stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
-  Twenty-eight routines remain (enqueue, claim, complete, steps, signals, locks and meters, recovery,
+  Twenty-seven routines remain (enqueue, claim, complete, steps, signals, locks and meters, recovery,
   retention, alert projection, the outbox inbox, and definition and schedule registration). Four of them
   take new names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A
   database keeps the routines it already has, so older workers still find them during a rolling deploy;
@@ -231,7 +237,7 @@ settles, and what an operator sees when it fails.
   whose answer was lost after it committed) never lapsed and nothing ever ran or reclaimed it; the
   worker carried an orphan release, a two-beat candidate list, and per-execution owner entries to patch
   each hole. The call now takes the (job, execution) pairs and the lock holds the process holds and
-  answers each: a row nothing holds lapses and `sys.recovery` takes it. A claim whose answer was lost is
+  answers each: a row nothing holds lapses and crash recovery takes it. A claim whose answer was lost is
   treated like a worker that crashed right after claiming, which is what it is from the ledger's side.
   Handler locks and the concurrency slot renew in the same call, so the lock-lease loop and
   `extend_lock` are gone, and a hold the call does not answer cancels the attempt at once. The object
@@ -264,20 +270,18 @@ settles, and what an operator sees when it fails.
   `start_execution`, the profiles, `ClaimBatchSize`, and the claim's `version` column are gone. Recovery
   charges every stranded attempt, since every claimed attempt has started. The object package moves to
   revisions 75 and 76.
-- **An attempt cancels on its own lease deadline.** Each claim carries a deadline armed from the
-  claim's request start and re-armed by the heartbeat on every confirmed renewal, half the base
-  runway before the lease lapses, so a database outage stops the handler with nothing watching; the
-  watchdog loop is gone. A single-shot run (`RunOnceAsync`, the CLI's `jobs debug`) carries no
-  deadline, as before, so a debugger pause never cancels it on resume; the recovery slot monitor's
-  pass carries one.
+- **An attempt cancels on its own lease deadline.** Each claim carries a deadline armed from the claim's
+  request start and re-armed by the heartbeat on every confirmed renewal, half the base runway before
+  the lease lapses, so a database outage stops the handler with nothing watching; the watchdog loop is
+  gone. A single-shot run (`RunOnceAsync`, the CLI's `jobs debug`) carries no deadline, as before, so a
+  debugger pause never cancels it on resume.
 - **One in-flight registry, keyed by execution.** Every claim the worker holds is one entry, from
   the claim to its completion write, and the heartbeat renews exactly that set. A stale attempt
   never shares an entry with the claim that replaced it, so it is never kept alive by the
   replacement's renewal and is cancelled on the next beat. `acta.jobs.inflight` reports the entries
   by state.
 - **Three agents: one claimer, the executors, one finalizer.** The claimer takes a permit for every free
-  executor, claims that many rows in one call, and hands each to the executor loops through a channel;
-  the `sys.recovery` slot runs on its own task without a permit, so a saturated worker still sweeps.
+  executor, claims that many rows in one call, and hands each to the executor loops through a channel.
   After a claim that found work, the claimer lets the executors take those rows before it claims again,
   so the next claim asks for every executor that came free rather than the one or two free at that
   instant, and claims per job halve. Fewer, larger claims matter most on SQL Server, where every claim
@@ -316,10 +320,19 @@ settles, and what an operator sees when it fails.
   batch: on the bench box the drain lost 4% and sixteen or more executors lost nothing, but one to eight
   executors lost 29% to 42% of their throughput, where each commit carries few rows. The `AtMostOnce()`
   caveat for SQLite is gone.
-- **The system slots claim at Realtime.** `sys.outbox`, `sys.alerts`, `sys.retention`, and
-  `sys.recovery` claimed at Critical, and claims take priority bands strictly in order, so a
-  sustained Realtime backlog held them for as long as it lasted. They now claim at Realtime and take
-  their turn by due time.
+- **Crash recovery rides the heartbeat.** Recovery ran from the `sys.recovery` slot, an ordinary job a worker
+  could die holding, and then the sweep that would free it never ran; a seven-minute slot monitor in every
+  worker, `repair_recovery_slot`, and a claimer path that ran the slot without an executor permit existed to
+  patch that. Now `extend_worker_leases` takes the namespace's recovery pass when `recovery_due_at_utc`
+  has passed, moving it one lease on in the same call and skipping a namespace row another transaction
+  holds, and the worker whose heartbeat took it runs the pass beside the loop. One worker runs each pass, a
+  saturated worker still sweeps, a worker that dies mid-pass holds nothing back, and recovery sends no
+  statement beyond the pass itself. A dead worker's jobs are back within two leases, six minutes at the
+  default heartbeat; the certification gates passed with every orphaned attempt reclaimed and nothing
+  stranded, the server gates running about 90 s longer than with a one-minute pass.
+- **The system slots claim at Realtime.** `sys.outbox`, `sys.alerts`, and `sys.retention` claimed at
+  Critical, and claims take priority bands strictly in order, so a sustained Realtime backlog held them
+  for as long as it lasted. They now claim at Realtime and take their turn by due time.
 
 ### Additions
 

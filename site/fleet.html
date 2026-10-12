@@ -92,7 +92,7 @@
               </table>
             </div>
             <div class="fleet-shared">
-              <div id="fleet-recovery"><i>System slot</i><b>sys.recovery</b><span>Due in 40 s</span></div>
+              <div id="fleet-recovery"><i>Namespace row</i><b>recovery pass</b><span>Due in 40 s</span></div>
               <div id="fleet-key"><i>Concurrency key row</i><b>rebuild:acme</b><span>Free</span></div>
               <div id="fleet-meter"><i>Rate meter row</i><b>send-invoice · 10/s</b><span>Idle</span></div>
             </div>
@@ -107,7 +107,7 @@
       <div class="facts">
         <div>
           <b>The claim is the election</b>
-          <p>sys.recovery, sys.retention, sys.alerts and sys.outbox are recurring slots like any schedule: each fires once per cadence, run by whichever worker claims it. No worker is special, so there is nothing to fail over.</p>
+          <p>sys.retention, sys.alerts and sys.outbox are recurring slots like any schedule: each fires once per cadence, run by whichever worker claims it. Crash recovery rides the heartbeat instead, so it cannot get stuck behind the crash it repairs. No worker is special, so there is nothing to fail over.</p>
         </div>
         <div>
           <b>One setting, three windows</b>

@@ -244,7 +244,7 @@ The source reads `acta_outbox` in the provider's default schema; `source.Table` 
 name another one, and must match the table the producer stages into. `source.QuarantineThreshold`
 (default 5) sets how many recoverable rejections a row takes before it is quarantined.
 
-Registration adds the `sys.outbox` job plus its `sys.recovery` and `sys.alerts` dependencies to that
+Registration adds the `sys.outbox` job plus crash recovery and the `sys.alerts` job to that
 namespace, even when `JobsOptions.RegisterSystemJobs` is `false`: that switch suppresses automatically
 added framework jobs, not the dependencies of a relay you asked for. It does not force `sys.retention`. A
 namespace registers zero or one source; a process with several `Run` namespaces can attach one source to

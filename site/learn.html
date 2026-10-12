@@ -442,7 +442,7 @@ Total:  5,426.50
           <a href="assets/learn-jobs.webp" title="Open the full-size screenshot"><img src="assets/learn-jobs.webp" width="1600" height="511" loading="lazy" alt="The Acta dashboard Jobs page listing one monthly-sales-report job as Succeeded with 1 attempt, and three jobs named sys.retention, sys.recovery, and sys.alerts, marked System and Ready, all in the reports namespace." /></a>
           <figcaption>The Jobs page after the first report. The three System jobs are Acta's own housekeeping.</figcaption>
         </figure>
-        <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.recovery</code> is the one that rescues work from processes that have died; you will watch it do that shortly. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
+        <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
         <p>Click your report's ref. The detail page shows the job's name, namespace, and status, an Attempts line reading "1 started, 0 consecutive failures", and a timeline with two events: execution started, and a completion a few milliseconds later. The Input and Result tabs show the stored JSON. The Actions panel says "Job controls are disabled on this host", and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
         <aside class="callout" aria-label="Sidebar: the same facts from the terminal">
           <h3>The same facts, from the terminal</h3>
@@ -652,18 +652,18 @@ Executing, but its lease expired 1s ago.
 Worker:
 - Worker 1.0.0 (wrk_01m3f3q9fneq0svyyy2j88dh22), lease expired at 2026-09-26T15:00:58.2790000Z.
 - Last heartbeat at 2026-09-26T15:00:50.2790000Z.
-- Recovery should return it to Ready on the next maintenance tick.
+- Recovery should return it to Ready on its next pass.
 
 Durable work:
 - Step "load-sales" succeeded and will not rerun.
 - Step "write-report" is in progress.
 
 Next actions:
-- Wait for sys.recovery to reclaim the job on the next maintenance tick.
+- Wait for crash recovery to reclaim the job on its next pass.
 - Cancel the job if it should not continue.</code></pre>
         </figure>
         <p>The job still claims to be executing, because the process running it never said otherwise, but its lease has expired and nothing has renewed it. The first step's outcome is recorded; the second step started and never finished. Run the command in the first seconds after the kill and you will see "Lease expires in 5s" instead: until the lease runs out, a dead process and a slow one look the same, and Acta waits before deciding.</p>
-        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. <code>sys.recovery</code> runs once a minute, so within about a minute it finds the expired lease, marks the old attempt as orphaned, and returns the job to Ready, and the new process's worker claims it:</p>
+        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. Recovery rides the worker's heartbeat and runs once a lease, eight seconds here, so within seconds the new process finds the expired lease, marks the old attempt as orphaned, returns the job to Ready, and claims it:</p>
         <figure class="listing output">
           <figcaption><span class="note">Terminal 1 after the restart, from our test run (trimmed)</span></figcaption>
           <pre><code>info: Reports.SalesReportJobs[0]
@@ -674,7 +674,7 @@ info: Reports.SalesReportJobs[0]
         <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. In our run the app came back a few seconds after 15:01 UTC, just missing that minute's recovery pass; the 15:02 pass reclaimed the job, and the report was written fifteen seconds later.</p>
         <figure class="shot">
           <a href="assets/learn-recovered.webp" title="Open the full-size screenshot"><img src="assets/learn-recovered.webp" width="1600" height="1068" loading="lazy" alt="The dashboard's Executions tab for the recovered job. Execution 2 succeeded in about 15 seconds on one worker. Execution 1, on a different worker, is marked Orphaned with the reason job.lease-expired: Worker lease expired; reclaimed by the sys.recovery system job." /></a>
-          <figcaption>One job, two executions on two different worker processes. The first was orphaned by the kill and reclaimed by <code>sys.recovery</code>.</figcaption>
+          <figcaption>One job, two executions on two different worker processes. The first was orphaned by the kill and reclaimed by crash recovery.</figcaption>
         </figure>
         <p>The Executions tab tells the story in two rows, each with its own worker ref, because every run of the application registers as a new worker. The Details tab lists both steps as "succeeded and will not rerun", and the failure count is 1: an attempt lost to a dead process counts against the retry budget like any other failed attempt.</p>
         <p>Now remove the <code>Task.Delay</code> line and its comment from <code>write-report</code>. Its work is done.</p>
@@ -694,7 +694,7 @@ info: Reports.SalesReportJobs[0]
         <p>A few choices in this tutorial were made for a laptop and deserve a second look before real traffic arrives.</p>
         <ul class="plain">
           <li><strong>Schema.</strong> Leave <code>ApplyMigrationsOnStartup</code> off outside Development and apply Acta's schema from your deployment pipeline, as described in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md#migration-ownership">the production guide</a>.</li>
-          <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations; with the default, a crashed process's jobs are reclaimed within a few minutes rather than a minute. The <code>Task.Delay</code> should already be gone.</li>
+          <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations; with the default, a crashed process's jobs are reclaimed within about six minutes rather than seconds. The <code>Task.Delay</code> should already be gone.</li>
           <li><strong>The dashboard.</strong> It stays local-only and read-only until you change it. To reach it from other machines, turn off <code>LocalOnly</code> and put it behind your own authentication and authorization; enable controls only there. The guide's section on <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md#dashboard-exposure-and-auth">dashboard exposure</a> shows how.</li>
           <li><strong>The database.</strong> SQLite is an embedded, single-machine store. When the application runs on more than one server, switch to <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UsePostgres</code> or <code>UseSqlServer</code>; the jobs themselves do not change.</li>
           <li><strong>Where results go.</strong> Our reports land on the local disk, which is fine for one machine. Across several servers, write them to shared storage and keep only a reference in the job's result.</li>

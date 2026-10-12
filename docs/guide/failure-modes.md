@@ -8,8 +8,8 @@ expected transition and the application responsibility behind it.
 
 ## …a worker crashes before starting the handler?
 
-The claim already moved the job to `Executing` under the worker lease. When the lease expires,
-`sys.recovery` returns it to `Ready` while retry budget remains, or marks it `Failed` when the budget
+The claim already moved the job to `Executing` under the worker lease. After the lease expires,
+the next recovery pass returns it to `Ready` while retry budget remains, or marks it `Failed` when the budget
 is exhausted (a recurring slot always returns to `Ready`, for its next occurrence). No handler side
 effect occurred, but the lost attempt counts against the budget like any other crashed attempt.
 

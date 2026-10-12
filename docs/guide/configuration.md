@@ -61,11 +61,11 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `SafetyPollInterval` | 1 second | per process | Idle polling ceiling when no wakeup is received. Must be at least 1 second. |
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
 | `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
-| `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before `sys.recovery` marks a worker Dead. |
+| `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before crash recovery marks a worker Dead. |
 | `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. Must be at least one day. |
 | `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetention` | 90 | cluster data | Retention for alert rows, and the hard cap: a row past it is deleted whether or not delivery settled, and a pass that aged out an unsettled one logs one warning. Also prunes the projector's `alerts-skip-*` variables. |
-| `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts`, `sys.recovery`, and `sys.retention` recurring jobs for each worker namespace. **Setting this `false` disables crash recovery**: `sys.recovery` is the only thing that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay `Executing` behind a lapsed lease permanently. The runtime warns at startup when it is off. An explicit `AddOutboxRelay` still registers `sys.outbox` with its `sys.recovery` and `sys.alerts` dependencies when this is `false`; it never adds `sys.retention`. |
+| `RegisterSystemJobs` | `true` | per process | Registers the `sys.alerts` and `sys.retention` recurring jobs for each worker namespace and runs crash recovery on the worker's heartbeat. **Setting this `false` disables crash recovery**: it is the only thing that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay `Executing` behind a lapsed lease permanently. The runtime warns at startup when it is off. An explicit `AddOutboxRelay` still brings `sys.outbox` with crash recovery and `sys.alerts` when this is `false`; it never adds `sys.retention`. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling: caller-controlled inline writes (enqueue inputs, variables, progress, step results, signal values) throw past it, an oversize handler result is dropped, and it also caps the HTTP request body. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
@@ -77,8 +77,9 @@ alert settings, or lease/heartbeat relationships fail fast.
 
 The coordination triple can create double execution or stale-worker misclassification if workers
 disagree, and nothing can verify that agreement at runtime. So it is a single knob: set
-`HeartbeatInterval` and the lease and dead-worker windows derive from it at x4 and x7. Keep that one
-value the same across every replica of a namespace and the proportions cannot drift.
+`HeartbeatInterval` and the lease and dead-worker windows derive from it at x4 and x7, and crash
+recovery runs once a lease. Keep that one value the same across every replica of a namespace and the
+proportions cannot drift.
 
 Shorten it to make a crash demo watchable - a 1-second beat gives a 4-second lease and a 7-second
 dead-worker window - and lengthen it to cut idle database chatter. Long-running handlers do not need a
@@ -115,6 +116,13 @@ until it lands. A lone completion is written at once; a batch forms only when th
 waits up to 50 ms to fill. A graceful stop lets the finalizer land what is waiting; a hard stop leaves
 those rows for recovery, which re-runs them under the failure budget.
 
+Crash recovery rides the heartbeat. The heartbeat call that finds the namespace's recovery pass due
+moves the due time one lease on in the same statement, and that worker runs the pass: it marks silent
+workers Dead, returns jobs whose lease lapsed to `Ready` (or `Failed` past their budget), and re-raises
+child latches a crash left pending. One worker runs each pass, a worker whose executors are all busy
+still sweeps, and a worker that dies mid-pass holds nothing back. A dead worker's jobs are back within
+two leases, six minutes at the default heartbeat. `acta.recovery.passes` counts the passes by outcome.
+
 Tune `MaxConcurrentExecutors` against the database's capacity. Measure after each change:
 throughput gains that overload the database, downstream APIs, or the connection pool are not real
 capacity.
@@ -129,7 +137,7 @@ outbox-specific window, so a worker crash can leave claimed source rows invisibl
 `QuarantineThreshold` on the source builder is the recoverable-failure count at which a row quarantines
 (default 5); malformed and oversize rows quarantine immediately regardless.
 
-Registering a relay adds `sys.outbox` plus its `sys.recovery` and `sys.alerts` dependencies even when
+Registering a relay adds `sys.outbox` plus crash recovery and `sys.alerts` even when
 `RegisterSystemJobs` is `false`, because those are dependencies of a relay you asked for, not
 automatically added framework jobs. It never forces `sys.retention`. The source provider is selected on
 the builder and is independent of the ledger provider. Full guide:

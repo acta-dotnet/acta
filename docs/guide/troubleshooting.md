@@ -11,7 +11,7 @@ schedule downtime, purge, or restore: see [What happens if…](./failure-modes.m
 For any single stuck, waiting, or failed job, run `<app> jobs explain <job-ref|id>` first. It reads
 the same `runtimes` / lease / worker / checkpoint / step / event rows the checks below describe, in
 one consistent snapshot, and states in plain English where the work is, why it moved there, and the
-next action (raise a signal, wait for `sys.recovery`, resume, restart, or inspect the timeline). The
+next action (raise a signal, wait for crash recovery, resume, restart, or inspect the timeline). The
 manual checks below are for triaging many jobs at once, confirming what `explain` reports, or when
 you only have SQL access. The dashboard's per-job Explain panel renders the same account.
 
@@ -49,7 +49,7 @@ For query shapes, see [`operator-guide.md`](./operator-guide.md#common-queries).
 `executing` is a lease-owned state. Check `acta.jobs_view.leased_by_worker_id`
 and `lease_expires_at_utc`, then check `acta.workers_view.last_seen_at_utc`.
 
-If the worker is gone, system maintenance reclaims expired leases through `sys.recovery` and moves
+If the worker is gone, crash recovery reclaims expired leases on its next pass and moves
 the job back to `Ready` while retry budget remains. If the worker is alive, inspect handler logs and
 the job's event timeline.
 

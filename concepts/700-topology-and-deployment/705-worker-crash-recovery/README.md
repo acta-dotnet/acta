@@ -21,8 +21,8 @@ replay after the process disappears at the worst moment.
 
 ## Why this design
 
-Acta's claim, worker heartbeat, lease, and recovery transitions are SQL operations. `sys.recovery` is a
-normal competitively claimed recurring job, so no worker is a permanent leader. The lab kills worker A
+Acta's claim, worker heartbeat, lease, and recovery transitions are SQL operations. Recovery rides every
+worker's heartbeat: the heartbeat that finds the namespace's pass due runs it, so no worker is a permanent leader. The lab kills worker A
 mid-attempt and lets worker B recover the same durable identity.
 
 ## Trade-offs

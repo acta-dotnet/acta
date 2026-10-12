@@ -17,7 +17,7 @@ Acta is SQL-native durable work for .NET. It records jobs, retries, schedules, c
 
 One work-unit shape for every kind of work, source-generated dispatch with zero runtime reflection on the hot path, one handler and one SQL file per dialect for every operation, durable coordination composed from ordinary jobs, and an append-only event ledger of every lifecycle transition and execution attempt.
 
-**Leaderless** means every worker is a peer, every claim is a competitive race, and there is no persistent leader role, election, or lock. System maintenance runs as ordinary recurring `[Job]`s claimed via the same `Status: Ready -> Executing` discipline as user code; singleton-per-namespace comes from row-level claim mutual exclusion, not coordinated leadership.
+**Leaderless** means every worker is a peer, every claim is a competitive race, and there is no persistent leader role, election, or lock. Crash recovery rides every worker's heartbeat, and the other system maintenance runs as ordinary recurring `[Job]`s claimed via the same `Status: Ready -> Executing` discipline as user code; singleton-per-namespace comes from row-level claim mutual exclusion, not coordinated leadership.
 
 ## What Acta is not
 
@@ -39,7 +39,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 
 1. **Acta observes work lifecycle, not message flow.** Every Job has a durable record, every transition is captured in `JobEvent`, every job tree has lineage, all queryable in SQL. The event ledger persists past Job retention.
 2. **SQL is the operational interface; curated views are the supported query surface.** Acta's runtime queries the same database operators query. No proprietary query layer, no opaque storage format. Operators write ad-hoc queries against production data without coordinating with the framework; the curated views are the stable surface, storage tables are not a compatibility contract.
-3. **No control plane, no leader.** Every worker is a peer. System maintenance is recurring `[Job]`s claimed competitively per namespace, not leader-elected work. No `Supervisor`, no `ILeaderTask`, no auxiliary services. The worker process is the unit of operation.
+3. **No control plane, no leader.** Every worker is a peer. System maintenance is recurring `[Job]`s claimed competitively per namespace, and crash recovery is a pass whichever heartbeat finds due takes, not leader-elected work. No `Supervisor`, no `ILeaderTask`, no auxiliary services. The worker process is the unit of operation.
 4. **Distributed correctness without distributed operations.** Maintenance scheduling, lease reclamation, RCSI-correct concurrency, rate limiting, transition event ledger, idempotency horizons, deadline-bound retries are done in code. The target is one operator on commodity SQL Server / Postgres with nothing else to run. Execution is at-least-once over SQL claims and leases; handlers own side-effect idempotency.
 
 ## The core principle
@@ -65,7 +65,7 @@ Examples:
 - Coordinating jobs are ordinary jobs, no dedicated coordinator table.
 - The `DeduplicationKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
 - Domain metadata lives as fields on the input record, cross-cutting searchable metadata as `Tag` rows: no `JobMeta` table.
-- System jobs (`sys.alerts`, `sys.recovery`, `sys.retention`, and `sys.outbox` where a relay is registered) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
+- System jobs (`sys.alerts`, `sys.retention`, and `sys.outbox` where a relay is registered) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
 - Per-attempt history is paired `JobEvent(job.execution-started)` + `JobEvent(job.execution-finished)` joined on `(JobId, ExecutionNumber)`: no separate execution table.
 - Lanes earned the `lanes` table. A laned enqueue needs a row to lock until it commits, so two producers cannot interleave out of order, and the lane name is stored once. A hash on `runtimes` has no row to lock and can merge two lanes; `locks` rows are expiring leases, a different lifecycle.
 
@@ -105,7 +105,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Substrate
 
-- **Twenty-eight installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step and slot writes, leases, recovery, retention, alert raise and settlement, outbox signals, and definition and schedule registration are routines; reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that.
+- **Twenty-seven installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step and slot writes, leases, recovery, retention, alert raise and settlement, outbox signals, and definition and schedule registration are routines; reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that.
 - **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, `operations.md`, `conformance-contracts.md`, the provisioning scripts, and each provider's `M001_init.sql` are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
 - **Every operation is one handler over `IDbSession` and `ISqlDialect`, written once, with its SQL beside it per dialect.** Providers own executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
 - **`JobEvent` is the execution ledger AND the audit timeline.** Paired `started`/`finished` events on `(JobId, ExecutionNumber)` carry per-attempt history; no per-attempt table. *Reason:* one append-only substrate, one retention sweep.
@@ -125,7 +125,7 @@ Reopening an entry means writing a proposal, not editing this file.
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
 - **One `WorkerRuntime` per `Run(...)`; enqueue-only hosts register nothing.** A process running several `Run(...)` calls fans out one claimer, executor set, finalizer, and heartbeat per namespace. `Reference(...)` and enqueue-only frontends create no worker registration and write no catalog rows; typed enqueue resolves `(namespace, jobName)` to ids via SQL JOIN at INSERT time. *Reason:* routing lives in the database, so worker-hosted and enqueue-only deployments share one enqueue code path and a frontend can enqueue for a namespace it never claims.
 - **Tenant is validated identity, not an isolation primitive.** The catalog is global per store; enqueue validates and stamps it, children inherit it, and suspension is admission control only. No tenant-aware claim fairness, per-tenant limits, data security, or failure domain; that isolation = application enforcement + separate deployments. *Reason:* an audit/query scope is a cheap nullable column; fairness would widen every hot index.
-- **System jobs are namespace-local.** `sys.alerts`/`sys.recovery`/`sys.retention`/`sys.outbox` live in the target's own namespace. *Reason:* a global namespace would violate the firewall.
+- **System jobs are namespace-local.** `sys.alerts`/`sys.retention`/`sys.outbox` live in the target's own namespace, and so does each recovery pass. *Reason:* a global namespace would violate the firewall.
 
 ### Behavior
 
@@ -142,7 +142,8 @@ Reopening an entry means writing a proposal, not editing this file.
 - **One execution path, no profile.** A worker claims a row for every free executor. Every completion commits in a database transaction, in one batch the finalizer writes in one call whatever its shape, and a drain lands every completion the executors produced; there is no relaxed-durability mode. *Reason:* a terminal result never reverts after an unclean shutdown, which is the point of a durable ledger; a group-committed profile bought throughput by giving that up, and a buffered profile bought a visible claimed state at the price of a commit per job.
 - **Pause is sticky.** No `PauseUntilUtc`, no auto-resume sweep. *Reason:* bounded pause is composable by the caller.
 - **Backoff is one expression column** (`backoff`, e.g. `"1m..8h x2 ±10%"`, with override/effective pair). Supersedes the earlier four-typed-columns decision (2026-07-09): the attribute is authored as a single DSL string, so storing parsed knobs was lossy and unfaithful; the shared parser validates at compile time and at override write, and SQL never computes with it.
-- **System jobs are alerted like any job.** `sys.recovery`/`sys.retention` failures project alerts at `Critical` (`AlertProfile = SysCritical`) to the implicit `default` log channel unless overridden. *Reason:* maintenance failures ride the same alert substrate they maintain.
+- **Crash recovery rides the heartbeat, not a job.** The heartbeat call that finds the namespace's `recovery_due_at_utc` passed moves it one lease on in the same statement, and that worker runs the pass beside its heartbeat. *Reason:* a recovery job could be stranded by the crash it exists to repair, which needed a slot monitor and a repair routine of its own; the heartbeat runs on every worker anyway, so the gate costs no statement, nothing can strand it, and a worker whose executors are all busy still sweeps. The interval is the lease because a lapsed lease is what a pass reclaims.
+- **System jobs are alerted like any job.** `sys.retention` failures project alerts at `Critical` (`AlertProfile = SysCritical`) to the implicit `default` log channel unless overridden. *Reason:* maintenance failures ride the same alert substrate they maintain.
 
 ### Storage and naming
 

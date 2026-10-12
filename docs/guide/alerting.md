@@ -481,8 +481,8 @@ count is per incident rather than per window: it fires once the Nth failure sinc
 lands, however slowly that takes. If you want a recurring job to stop rather than keep failing, that
 is a handler decision — `ctx.FailAsync` — not a profile one.
 
-**System work.** `SysCritical` is reserved for Acta's own jobs (`sys.alerts`, `sys.recovery`,
-`sys.retention`, `sys.outbox`) and behaves as `OnFailure` pinned to `Critical` severity. There is no
+**System work.** `SysCritical` is reserved for Acta's own jobs (`sys.alerts`, `sys.retention`,
+`sys.outbox`) and behaves as `OnFailure` pinned to `Critical` severity. There is no
 reason for an application job to declare it: the same emissions are available from `OnFailure`, and
 taking `Critical` for application work removes the one severity that distinguishes framework failure
 from application failure on a shared channel.

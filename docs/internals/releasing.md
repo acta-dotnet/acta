@@ -32,9 +32,8 @@ certified commit.
   `WorkerCrashRecoveryChaosSpec` on every provider, and `WorkerFinalizerTests` for the repeat itself.
 - A completion that commits and loses its response is reconciled by the repeat, not rerun, and never
   advances a recurring slot twice: the after-commit case in `CompleteAndClockChaosSpec`.
-- The recovery sweep runs while every executor is busy, because it runs outside the executor pool,
-  and a stranded `sys.recovery` slot is re-armed under a guard by any live worker:
-  `RecoverySlotMonitorSpec`.
+- The recovery sweep runs while every executor is busy, because the heartbeat takes it and runs it
+  outside the executor pool, and one heartbeat takes each due pass: `RecoveryPassSpec`.
 - Incidents at the failures-only audit level close on the success that answers the failure, and
   only that one: `FailuresAuditFailureEventSpec` pins a first-claim success writing nothing, a
   restarted success resolving, and a recurring slot resolving on its next fire and then staying

@@ -111,8 +111,8 @@ SELECT job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased
  ORDER BY lease_expires_at_utc, job_id;
 ```
 
-If the worker is gone and the lease has expired, `sys.recovery` should reclaim the job within its
-maintenance cadence.
+If the worker is gone and the lease has expired, crash recovery reclaims the job on its next pass,
+within one more lease.
 
 ## Event Timeline
 
@@ -207,7 +207,7 @@ SELECT namespace, worker_id, host, status, deployment_version, max_concurrency, 
  ORDER BY last_seen_at_utc DESC;
 ```
 
-`sys.recovery` marks Active and Draining workers Dead when `last_seen_at_utc` falls past
+Crash recovery marks Active and Draining workers Dead when `last_seen_at_utc` falls past
 `JobsOptions.WorkerDeadAfter`. A Dead worker that heartbeats again, after a database outage for
 example, turns Active again.
 
