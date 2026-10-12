@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 73)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 74)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1448,7 +1448,8 @@ CREATE OR REPLACE FUNCTION acta.complete_executions(
     p_recurring_result_caps INT[],
     p_advance_schedule_ids BIGINT[],
     p_advance_next_runs TIMESTAMPTZ[],
-    p_advance_versions INT[]
+    p_advance_versions INT[],
+    p_plain BOOLEAN
 )
 RETURNS TABLE (
     job_id BIGINT,
@@ -1470,6 +1471,114 @@ DECLARE
     v_released BIGINT[];
     v_promoted BIGINT[];
 BEGIN
+    -- A plain batch (the binder marks one with no shape, lane, or parent) lands, stores, audits, and answers in one
+    -- statement, so it pays for one plan and one executor start rather than one per step.
+    IF p_plain THEN
+        RETURN QUERY
+        WITH completions AS (
+            SELECT *
+            FROM unnest(
+                p_job_ids, p_execution_numbers, p_succeeded, p_result_format_ids, p_results,
+                p_reason_codes, p_reason_messages, p_duration_ms, p_failure_counts, p_retention_seconds
+            ) AS c (
+                job_id, execution_number, succeeded, result_format_id, result,
+                reason_code, reason_message, duration_ms, failure_count, retention_seconds
+            )
+        ),
+        eligible AS (
+            SELECT r.job_id, r.execution_number
+            FROM acta.runtimes r
+            INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
+            WHERE r.status_code = 50 /* JobStatusCode.Executing */ AND r.leased_by_worker_id = p_leased_by_worker_id
+            ORDER BY r.job_id
+            FOR UPDATE OF r
+        ),
+        done AS (
+            UPDATE acta.runtimes r
+            SET
+                status_code = CASE WHEN c.succeeded THEN 100 /* JobStatusCode.Succeeded */ ELSE 200 /* JobStatusCode.Failed */ END,
+                failure_count = COALESCE(c.failure_count, r.failure_count),
+                leased_by_worker_id = NULL,
+                lease_expires_at_utc = NULL,
+                retention_until_utc = COALESCE(now() + c.retention_seconds * INTERVAL '1 second', r.retention_until_utc),
+                modified_at_utc = now(),
+                version = r.version + 1
+            FROM eligible e
+            INNER JOIN completions c ON c.job_id = e.job_id AND c.execution_number = e.execution_number
+            INNER JOIN acta.jobs j ON j.id = e.job_id
+            WHERE r.job_id = e.job_id
+            RETURNING
+                r.job_id, r.execution_number, r.status_code, r.next_run_at_utc, c.succeeded, c.result_format_id, c.result,
+                c.reason_code, c.reason_message, c.duration_ms, j.namespace_id, j.lineage_root_id, j.definition_id,
+                j.tenant_id, j.audit_level_code, j.job_ref
+        ),
+        stored AS (
+            INSERT INTO acta.results (job_id, execution_number, result_format_id, result, created_at_utc)
+            SELECT d.job_id, d.execution_number, d.result_format_id, d.result, now()
+            FROM done d
+            WHERE d.result_format_id <> 0 /* JobPayloadFormat.None */
+        ),
+        finished AS (
+            INSERT INTO acta.events (
+                event_code, created_at_utc, namespace_id,
+                actor_code, actor,
+                job_id, job_ref, execution_number,
+                lineage_root_id, definition_id, tenant_id,
+                worker_id,
+                from_status_code, to_status_code,
+                execution_status_code, duration_ms,
+                reason_code, reason_message
+            )
+            SELECT
+                41 /* EventCode.JobExecutionFinished */, now(), d.namespace_id,
+                70 /* ActorCode.Worker */, NULL,
+                d.job_id, d.job_ref, d.execution_number,
+                COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
+                p_leased_by_worker_id,
+                50 /* JobStatusCode.Executing */, d.status_code,
+                CASE WHEN d.succeeded THEN 100 /* ExecutionStatusCode.Succeeded */ ELSE 200 /* ExecutionStatusCode.Failed */ END,
+                d.duration_ms,
+                d.reason_code, d.reason_message
+            FROM done d
+            WHERE
+                d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+                OR (
+                    d.audit_level_code = 10 /* DefinitionAuditLevelCode.Failures */
+                    AND (
+                        NOT d.succeeded
+                        OR COALESCE((
+                            SELECT e.execution_status_code
+                            FROM acta.events e
+                            WHERE e.job_id = d.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                            ORDER BY e.created_at_utc DESC, e.id DESC
+                            LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */
+                    )
+                )
+        )
+        -- runtimes reads as it stood before the update, so a row this call completed takes its state from done.
+        SELECT
+            c.job_id,
+            c.execution_number,
+            CAST(CASE
+                WHEN d.execution_number = c.execution_number THEN 1 /* CompleteExecutionsAction.Completed */
+                WHEN
+                    r.status_code IS NULL
+                    OR r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
+                WHEN r.leased_by_worker_id IS DISTINCT FROM p_leased_by_worker_id THEN 2 /* CompleteExecutionsAction.NotOwner */
+                ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
+            END AS SMALLINT),
+            COALESCE(d.status_code, r.status_code),
+            CASE WHEN d.job_id IS NULL THEN r.next_run_at_utc ELSE d.next_run_at_utc END,
+            now(),
+            CAST(0 AS SMALLINT),
+            CAST(0 AS SMALLINT)
+        FROM completions c
+        LEFT JOIN done d ON d.job_id = c.job_id
+        LEFT JOIN acta.runtimes r ON r.job_id = c.job_id;
+        RETURN;
+    END IF;
+
     /* Every completion takes the same steps, each skipped when no row needs it. Locks are taken lanes first, then
        awaited signal slots, own runtimes, schedules, parent latches, and parent runtimes, each in key order
        (docs/internals/sql-execution-policy.md, "Lane lock order"). lane_id and parent_id never change. */
@@ -5181,7 +5290,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.73-515f36467f2ef3202ddeb80e2ed9ef6e', 'acta');
+VALUES (-1, 'objects-1.74-a9758d743b0daaf457e3a524058b18f3', 'acta');
 
 COMMIT;
 
