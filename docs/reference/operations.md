@@ -205,7 +205,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ExtendWorkerLeases` | · | · | · | routine | routine | inline | `locks`, `namespaces`, `runtimes`, `workers` | `ExtendWorkerLeasesRaceSpec`, `ExtendWorkerLeasesReviveSpec`, `ExtendWorkerLeasesSpec` |
 | `GetWorker` | `IWorkers.GetAsync` | `GET /workers/{workerRef}` | · | inline | inline | inline | · | `GetWorkerSpec` |
 | `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` | · | inline | inline | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec` |
-| `MarkDeadWorkers` | · | · | · | routine | routine | inline | `events`, `workers` | `MarkDeadWorkersSpec` |
+| `MarkDeadWorkers` | · | · | · | inline | inline | inline | `events`, `workers` | `MarkDeadWorkersSpec` |
 | `StartWorker` | · | · | · | inline | inline | inline | `events`, `namespaces`, `workers` | `StartWorkerIdAllocationSpec`, `StartWorkerSpec` |
 | `StopWorker` | · | · | · | inline | inline | inline | `events`, `workers` | `StopWorkerSpec` |
 

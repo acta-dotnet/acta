@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 80)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 81)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3033,81 +3033,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.mark_dead_workers(
-    p_dead_after_seconds INT
-)
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_marked INT;
-BEGIN
-    WITH doomed AS (
-        SELECT id
-        FROM acta.workers
-        WHERE
-            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
-            -- dead as an active one; nothing else ever moves a Draining row.
-            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-            AND last_seen_at_utc < now() - (p_dead_after_seconds * INTERVAL '1 second')
-        FOR UPDATE SKIP LOCKED
-    ),
-
-    dead AS (
-        UPDATE acta.workers w
-        SET
-            status_code = 200 /* WorkerStatusCode.Dead */,
-            modified_at_utc = now(),
-            version = version + 1
-        FROM doomed d
-        WHERE w.id = d.id
-        RETURNING w.id, w.namespace_id, w.worker_ref
-    ),
-
-    evt AS (
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        SELECT
-            122 /* EventCode.WorkerDied */,
-            now(),
-            d.namespace_id,
-            70 /* ActorCode.Worker */,
-            d.worker_ref::TEXT,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            d.id,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            101 /* EventReasonCode.WorkerHeartbeatStale */,
-            NULL
-        FROM dead d
-        RETURNING 1
-    )
-
-    SELECT count(*) INTO v_marked FROM dead;
-    RETURN v_marked;
-END;
-$$;
-
 -- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
 -- pending command has outlived the worker-dead window, reject otherwise.
 CREATE OR REPLACE FUNCTION acta.park_outbox_signal(
@@ -4921,7 +4846,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.80-1660f76b01211e5d8f0c6de5ea2dec9c', 'acta');
+VALUES (-1, 'objects-1.81-680c3987ee2b9c583689eda707402a63', 'acta');
 
 COMMIT;
 

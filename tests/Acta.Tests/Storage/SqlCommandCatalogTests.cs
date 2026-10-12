@@ -24,7 +24,6 @@ public sealed class SqlCommandCatalogTests
         "EnqueueJob",
         "EnqueueJobs",
         "ExtendWorkerLeases",
-        "MarkDeadWorkers",
         "ParkOutboxSignal",
         "PurgeExpiredData",
         "RaiseAlert",

@@ -50,4 +50,4 @@ SET
     version = version + 1
 WHERE id IN (SELECT id FROM temp._dead_workers);
 
-SELECT (SELECT COUNT(*) FROM temp._dead_workers);
+SELECT (SELECT COUNT(*) FROM temp._dead_workers) AS marked;

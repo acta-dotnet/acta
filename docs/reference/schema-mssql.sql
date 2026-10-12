@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 80)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 81)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -3513,68 +3513,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.mark_dead_workers
-    @p_dead_after_seconds INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
-
-        UPDATE acta.workers WITH (ROWLOCK, READPAST)
-        SET
-            status_code = 200 /* WorkerStatusCode.Dead */,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
-        OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
-        WHERE
-            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
-            -- dead as an active one; nothing else ever moves a Draining row.
-            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-            AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor, job_id, execution_number,
-            lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
-            execution_status_code, duration_ms, reason_code, reason_message
-        )
-        SELECT
-            122 /* EventCode.WorkerDied */,
-            SYSUTCDATETIME(),
-            m.namespace_id,
-            70 /* ActorCode.Worker */,
-            LOWER(CONVERT(varchar(36), m.worker_ref)),
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            m.id,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            101 /* EventReasonCode.WorkerHeartbeatStale */,
-            NULL
-        FROM @marked m;
-
-        SELECT COUNT(*) FROM @marked;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
 -- pending command has outlived the worker-dead window, reject otherwise.
 CREATE OR ALTER PROCEDURE acta.park_outbox_signal
@@ -5540,9 +5478,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.80-cf68b9e8a668122b3c47ab7fa1fd92c3', 'acta'
+SELECT -1, 'objects-1.81-575a10ff884c8c182e2aa95d725b2a3e', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 33;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 32;
 GO
 COMMIT TRANSACTION;
 GO

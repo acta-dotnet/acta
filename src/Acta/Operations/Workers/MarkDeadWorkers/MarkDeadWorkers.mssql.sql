@@ -1,62 +1,56 @@
-CREATE OR ALTER PROCEDURE {{schema}}.mark_dead_workers
-    @p_dead_after_seconds INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
 
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
+DECLARE @entry_trancount INT = @@TRANCOUNT;
+BEGIN TRY
+    IF @entry_trancount = 0
+        BEGIN TRANSACTION;
 
-        DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
+    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
 
-        UPDATE {{schema}}.workers WITH (ROWLOCK, READPAST)
-        SET
-            status_code = 200 /* WorkerStatusCode.Dead */,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
-        OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
-        WHERE
-            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
-            -- dead as an active one; nothing else ever moves a Draining row.
-            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-            AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
+    UPDATE {{schema}}.workers WITH (ROWLOCK, READPAST)
+    SET
+        status_code = 200 /* WorkerStatusCode.Dead */,
+        modified_at_utc = SYSUTCDATETIME(),
+        version = version + 1
+    OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
+    WHERE
+        -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
+        -- dead as an active one; nothing else ever moves a Draining row.
+        status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+        AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
 
-        INSERT INTO {{schema}}.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor, job_id, execution_number,
-            lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
-            execution_status_code, duration_ms, reason_code, reason_message
-        )
-        SELECT
-            122 /* EventCode.WorkerDied */,
-            SYSUTCDATETIME(),
-            m.namespace_id,
-            70 /* ActorCode.Worker */,
-            LOWER(CONVERT(varchar(36), m.worker_ref)),
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            m.id,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            101 /* EventReasonCode.WorkerHeartbeatStale */,
-            NULL
-        FROM @marked m;
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id, actor_code, actor, job_id, execution_number,
+        lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
+        execution_status_code, duration_ms, reason_code, reason_message
+    )
+    SELECT
+        122 /* EventCode.WorkerDied */,
+        SYSUTCDATETIME(),
+        m.namespace_id,
+        70 /* ActorCode.Worker */,
+        LOWER(CONVERT(varchar(36), m.worker_ref)),
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        m.id,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        101 /* EventReasonCode.WorkerHeartbeatStale */,
+        NULL
+    FROM @marked m;
 
-        SELECT COUNT(*) FROM @marked;
+    SELECT COUNT(*) AS marked FROM @marked;
 
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
+    IF @entry_trancount = 0
+        COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @entry_trancount = 0 AND XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
