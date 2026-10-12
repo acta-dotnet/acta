@@ -216,8 +216,7 @@ latency, failure rate, and downstream saturation.
 ## Execution profiles
 
 `Buffered` is the conservative default, and `Direct` trades the `Dispatched` visibility window for
-fewer round trips. Completions commit the same way on both, through the worker's finalizer; on
-SQLite, `Direct` also relaxes the commit fsync. The full profile guide, including how the finalizer
+fewer round trips. Completions commit the same way on both, through the worker's finalizer. The full profile guide, including how the finalizer
 batches completions, is in [Configuration](./configuration.md#execution-profiles).
 
 ## Database clock and lease safety

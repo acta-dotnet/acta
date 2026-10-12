@@ -20,7 +20,7 @@ public static class SqliteActaBuilderExtensions
             builder,
             DbProvider.Sqlite,
             configure,
-            static sp => new SqliteDialect(sp.GetRequiredService<IOptions<JobsOptions>>().Value.ExecutionProfile)
+            static _ => new SqliteDialect()
         );
         acta.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<SqliteProviderOptions>, SqliteProviderOptionsValidator>()

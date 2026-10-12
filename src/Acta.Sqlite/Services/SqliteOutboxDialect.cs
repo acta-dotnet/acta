@@ -18,7 +18,7 @@ internal sealed class SqliteOutboxDialect : OutboxSourceDialect
     /// </summary>
     public const string InstantFormat = "yyyy-MM-dd HH:mm:ss.fff";
 
-    private readonly SqliteDialect _inner = new(ExecutionProfile.Direct);
+    private readonly SqliteDialect _inner = new();
 
     public override DbProvider Provider => DbProvider.Sqlite;
 

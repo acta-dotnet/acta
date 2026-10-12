@@ -67,9 +67,6 @@ public sealed class CommandTextCompositionTests
         // contexts, and runs before the connection is opened.
         ["Acta.Postgres/Schema/PostgresSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (1, "database name, ValidateDatabaseName"),
         ["Acta.SqlServer/Schema/SqlServerSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (2, "database name, ValidateDatabaseName"),
-        // Per-connection PRAGMAs. The one interpolated hole is NORMAL or FULL, picked from the
-        // ExecutionProfile enum in the constructor; there is no third value it can hold.
-        ["Acta.Sqlite/Services/SqliteDialect.cs::OnStateChange"] = (1, "literal PRAGMA text, enum-chosen synchronous mode"),
         // The unparented enqueue. The loaded script loses its marked child-only statement and gains
         // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueJob"] = (1, "embedded SQL with a marked section removed"),

@@ -34,7 +34,7 @@ public sealed class AlertProjectionSafeHorizonTests
         var session = new BindCapturingSession();
         var handler = new GetAlertableEventsHandler(
             session,
-            new SqliteDialect(ExecutionProfile.Direct),
+            new SqliteDialect(),
             new SqliteProviderOptions { ConnectionString = "Data Source=:memory:", CommandTimeout = TimeSpan.FromSeconds(45) }
         );
 
@@ -50,7 +50,7 @@ public sealed class AlertProjectionSafeHorizonTests
         Assert.Equal(nowUtc.AddSeconds(-90), horizonUtc);
         Assert.Equal("GetAlertableEvents", session.Stem);
         // Both instants reach the SQL bound the way the dialect binds every instant, under their own names.
-        var dialect = new SqliteDialect(ExecutionProfile.Direct);
+        var dialect = new SqliteDialect();
         var parameters = session.Command.Parameters.Cast<DbParameter>().ToList();
         Assert.Equal(
             dialect.CreateParameter(ActaSchema.Sql.AlertHorizonUtc, horizonUtc).Value,

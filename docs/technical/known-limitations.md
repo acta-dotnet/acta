@@ -166,11 +166,8 @@ semantics; the application still owns external side-effect safety.
 `AtMostOnce()` is for selected step bodies where duplicate execution is worse than an ambiguous
 outcome. If the worker dies after Acta records the step start but before recording the outcome,
 replay does not run the body again and the handler must reconcile whether the external side effect
-happened. That rests on the start marker being durable: on SQLite under Direct, which runs with
-`synchronous = NORMAL`, power loss or an OS crash can lose it and the body runs again; a
-`ctx.ResetStateAsync` commits before the completion does, so a crash between the two re-runs the fire
-with no step rows. Use Buffered on SQLite, and per-period step names in recurring jobs, for
-at-most-once work.
+happened. A `ctx.ResetStateAsync` commits before the completion does, so a crash between the two
+re-runs the fire with no step rows; use per-period step names in recurring jobs for at-most-once work.
 
 The application owns side-effect safety. External systems such as payment providers, email
 providers, webhooks, object storage, and partner APIs need deduplication keys, `AtMostOnce()`

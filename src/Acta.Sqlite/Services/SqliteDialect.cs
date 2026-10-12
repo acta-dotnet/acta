@@ -24,15 +24,10 @@ internal sealed class SqliteDialect : ISqlDialect
 
     /// <summary>
     /// Per-connection PRAGMAs, set on every open. journal_mode (WAL) persists in the file header and is
-    /// set once by the migrator; synchronous is per-connection and chosen by the execution profile.
+    /// set once by the migrator; synchronous is per-connection, and FULL syncs every commit, so a committed
+    /// completion survives power loss under every execution profile.
     /// </summary>
-    private readonly string _connectionPragmas;
-
-    public SqliteDialect(ExecutionProfile profile)
-    {
-        var synchronous = profile == ExecutionProfile.Direct ? "NORMAL" : "FULL";
-        _connectionPragmas = $"PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA synchronous = {synchronous};";
-    }
+    private const string ConnectionPragmas = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA synchronous = FULL;";
 
     public DbProvider Provider => DbProvider.Sqlite;
 
@@ -107,7 +102,7 @@ internal sealed class SqliteDialect : ISqlDialect
         InstallFunctions(connection);
 
         using var pragma = connection.CreateCommand();
-        pragma.CommandText = _connectionPragmas;
+        pragma.CommandText = ConnectionPragmas;
         pragma.ExecuteNonQuery();
     }
 

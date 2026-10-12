@@ -20,7 +20,7 @@ internal sealed class ScriptedSession : DbSessionStub
     /// <summary>An answer that awaits, for a test that gates or delays the database call.</summary>
     public ScriptedSession(Func<BoundCall, CancellationToken, Task<object?>> answer) => _answer = answer;
 
-    public static readonly ISqlDialect Dialect = new SqliteDialect(ExecutionProfile.Direct);
+    public static readonly ISqlDialect Dialect = new SqliteDialect();
 
     /// <summary>The service graph over a session no call may reach, for a collaborator a test never exercises.</summary>
     public static ServiceProvider Unreachable { get; } = new ScriptedSession(static _ => throw new NotSupportedException()).Services();
