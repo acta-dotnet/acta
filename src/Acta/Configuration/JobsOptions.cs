@@ -63,11 +63,11 @@ public sealed class JobsOptions
     internal TimeSpan ClaimIdleJitterMax { get; set; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
-    /// Per-process number of Ready jobs a <see cref="ExecutionProfile.Buffered"/> claim pulls into the
-    /// dispatch channel, one batch ahead of the executors. Default 32, which amortises the per-poll
-    /// round-trip under load; excess drains as executors free up. <see cref="ExecutionProfile.Direct"/>
-    /// ignores it: a Direct claim takes a row for every free executor. Must be positive; startup
-    /// validation rejects a value below 1.
+    /// Per-process number of Ready jobs a <see cref="ExecutionProfile.Buffered"/> claim pulls one batch ahead of the
+    /// executors. Default 32, which amortises the per-poll round-trip under load. The rows ahead wait Dispatched for
+    /// this worker's executors, so behind long handlers they wait while other workers idle; lower it, or use Direct,
+    /// for long-running work. <see cref="ExecutionProfile.Direct"/> ignores it and takes a row per free executor. Must
+    /// be positive; startup validation rejects a value below 1.
     /// </summary>
     public int ClaimBatchSize { get; set; } = 32;
 

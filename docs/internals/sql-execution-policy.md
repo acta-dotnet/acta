@@ -119,8 +119,11 @@ well inside the lease window. The lock holds renew first and without skipping: n
 `locks` and `runtimes`, so there is no order to keep against. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
-Statements that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
-and `complete_executions` both do. `ResetJobState` takes the `runtimes` row and then deletes the
+Statements that lock both `checkpoints` and `runtimes` take the checkpoint slot first. `raise_signal` does,
+and `complete_executions` takes the slots its rows await before their `runtimes` rows; a child that
+lands then takes its parent's latch before the parent's `runtimes` row, both after its own. A batch
+holding a parent and one of its grandchildren can therefore deadlock with a batch landing the child
+between them; the victim's write repeats. `ResetJobState` takes the `runtimes` row and then deletes the
 job's checkpoints, and `PurgeJob` reaches them through the cascade from the job row; both run on a
 job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
 exception, taking the
