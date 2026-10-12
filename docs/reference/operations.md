@@ -16,7 +16,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListAlertsFilterMatrixSpec`, `ListAlertsSpec` |
 | `RaiseAlert` | · | · | · | routine | routine | inline | `alerts` | `RaiseAlertRefStabilitySpec`, `RaiseAlertSpec` |
 | `ResolveAlert` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | inline | inline | inline | `alerts`, `events` | `ResolveAlertSpec` |
-| `ResolveAlerts` | · | · | · | routine | routine | inline | `alerts` | `ResolveAlertsSpec` |
+| `ResolveAlerts` | · | · | · | inline | inline | inline | `alerts` | `ResolveAlertsSpec` |
 | `UpdateAlertDelivery` | · | · | · | inline | inline | inline | `alerts` | `UpdateAlertDeliverySpec` |
 
 ## Capabilities

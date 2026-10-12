@@ -35,7 +35,6 @@ public sealed class SqlCommandCatalogTests
         "RegisterSchedules",
         "ReleaseLock",
         "ReserveRate",
-        "ResolveAlerts",
         "StartStep",
         "WaitSignal",
     ];

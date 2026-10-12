@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 79)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 80)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -5275,76 +5275,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.resolve_alerts
-    @p_namespace_id INT,
-    @p_job_id BIGINT,
-    @p_source_event_id BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
-        -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
-        -- and re-checked; the held job row keeps a raise from adding one meanwhile.
-        DECLARE @job_locked BIGINT;
-        SELECT @job_locked = j.id
-        FROM acta.jobs j WITH (UPDLOCK, ROWLOCK)
-        WHERE j.id = @p_job_id;
-
-        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @candidates (id)
-        SELECT a.id
-        FROM acta.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
-        WHERE
-            a.namespace_id = @p_namespace_id
-            AND a.job_id = @p_job_id
-            AND a.resolved_at_utc IS NULL;
-
-        UPDATE a
-        SET
-            resolved_at_utc = SYSUTCDATETIME(),
-            last_projected_event_id = @p_source_event_id,
-            /* Closing the incident settles its delivery too: a notification queued for a condition that has
-               cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
-               row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
-            delivery_status_code = CASE
-                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE a.delivery_status_code
-            END,
-            retry_after_utc = NULL,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = a.version + 1
-        FROM acta.alerts a WITH (FORCESEEK)
-        INNER JOIN @candidates c ON c.id = a.id
-        WHERE
-            a.namespace_id = @p_namespace_id
-            AND a.job_id = @p_job_id
-            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
-            AND a.kind_code IN (
-                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
-            )
-            AND a.resolved_at_utc IS NULL
-            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < @p_source_event_id);
-
-        SELECT @@ROWCOUNT AS resolved_count;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.start_step
     @p_job_id BIGINT,
     @p_name VARCHAR(128),
@@ -5610,9 +5540,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.79-8c16e8d6c471a6079296c2c22b2f36f8', 'acta'
+SELECT -1, 'objects-1.80-cf68b9e8a668122b3c47ab7fa1fd92c3', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'resolve_alerts', 'start_step', 'wait_signal')) = 34;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 33;
 GO
 COMMIT TRANSACTION;
 GO
