@@ -34,7 +34,6 @@ public sealed partial class TvpParityTests
         ["register_definitions_batch"] = "name",
         ["register_slots_batch"] = "definition_id",
         ["register_schedules_batch"] = "definition_id, name",
-        ["advance_schedules_batch"] = "schedule_id",
     };
 
     [Fact]

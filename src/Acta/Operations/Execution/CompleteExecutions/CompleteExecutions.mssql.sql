@@ -1,7 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.complete_executions
     @p_leased_by_worker_id INT,
     @p_batch {{schema}}.complete_executions_batch READONLY,
-    @p_schedule_advances {{schema}}.advance_schedules_batch READONLY
+    @p_schedule_advances NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -171,7 +171,9 @@ BEGIN
                     NULL, NULL,
                     NULL, NULL,
                     NULL, js.name
-                FROM @p_schedule_advances adv
+                FROM OPENJSON(@p_schedule_advances) WITH (
+                    schedule_id BIGINT '$.schedule_id', next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
+                ) adv
                 INNER JOIN {{schema}}.schedules js ON js.id = adv.schedule_id
                 INNER JOIN @done d ON d.job_id = js.job_id
                 INNER JOIN {{schema}}.jobs j ON j.id = d.job_id
@@ -190,7 +192,9 @@ BEGIN
                     js.paused_until_utc = NULL,
                     js.modified_at_utc = @now,
                     js.version = js.version + 1
-                FROM @p_schedule_advances adv
+                FROM OPENJSON(@p_schedule_advances) WITH (
+                    schedule_id BIGINT '$.schedule_id', next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
+                ) adv
                 INNER JOIN {{schema}}.schedules js ON js.id = adv.schedule_id
                 INNER JOIN @done d ON d.job_id = js.job_id
                 WHERE

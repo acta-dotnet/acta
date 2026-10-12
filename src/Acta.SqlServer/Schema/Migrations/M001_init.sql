@@ -552,17 +552,6 @@ EXEC(N'CREATE TYPE {{schema}}.register_definitions_batch AS TABLE (
 );');
 GO
 
--- Per-schedule cursor advances applied on a recurring slot fire.
--- One row per due schedule; next_run_at_utc NULL clears the cursor (schedule exhausted).
--- expected_version is the schedule version the plan read; NULL applies the advance unguarded.
-IF TYPE_ID(N'{{schema}}.advance_schedules_batch') IS NULL
-EXEC(N'CREATE TYPE {{schema}}.advance_schedules_batch AS TABLE (
-    schedule_id      BIGINT       NOT NULL PRIMARY KEY,
-    next_run_at_utc  DATETIME2(3) NULL,
-    expected_version INT          NULL
-);');
-GO
-
 -- Per-definition recurring slot batch: one row per definition reconciled in a single
 -- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
 -- deduplication_key is the slot job's natural key (the job name).
@@ -599,7 +588,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-ff279981e3e07c8114020731859d92ce', '{{schema}}');
+VALUES (0, 'baseline-290cb6ca8b85a13aa66e03dbc85747bd', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

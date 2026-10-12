@@ -307,38 +307,6 @@ internal static class SqlServerTableParameters
         }
     }
 
-    internal static readonly SqlMetaData[] ScheduleAdvanceColumns =
-    [
-        new("schedule_id", SqlDbType.BigInt),
-        new("next_run_at_utc", SqlDbType.DateTime2),
-        new("expected_version", SqlDbType.Int),
-    ];
-
-    internal static IEnumerable<SqlDataRecord>? BuildScheduleAdvanceRecords(IReadOnlyList<ScheduleAdvance>? advances)
-    {
-        return advances is not { Count: > 0 } ? null : Stream(advances);
-
-        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<ScheduleAdvance> advances)
-        {
-            var record = new SqlDataRecord(ScheduleAdvanceColumns);
-            foreach (var advance in advances)
-            {
-                record.SetInt64(0, advance.ScheduleId);
-                SetNullableDateTime(record, 1, advance.NextRunAtUtc);
-                if (advance.ExpectedVersion is { } expected)
-                {
-                    record.SetInt32(2, expected);
-                }
-                else
-                {
-                    record.SetDBNull(2);
-                }
-
-                yield return record;
-            }
-        }
-    }
-
     /// <summary>
     /// The TVP CREATE TYPE bodies live in M001 (emitted from tools/Acta.Emit's SqlServerDdlDialect),
     /// while the SqlDataRecord shapes bind positionally against them here; TvpParityTests compares the
@@ -355,7 +323,6 @@ internal static class SqlServerTableParameters
         ["register_definitions_batch"] = DefinitionColumns,
         ["register_slots_batch"] = SlotColumns,
         ["register_schedules_batch"] = ScheduleUpsertColumns,
-        ["advance_schedules_batch"] = ScheduleAdvanceColumns,
     };
 
     /// <summary>

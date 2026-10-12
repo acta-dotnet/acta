@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using Microsoft.Data.SqlClient;
 
 namespace Acta.SqlServer;
@@ -116,17 +117,11 @@ internal sealed class SqlServerDialect : ISqlDialect
             typeName: $"{schema}.complete_executions_batch"
         );
 
-        // An omitted table-valued parameter is an empty table, so a batch with no recurring fire sends none.
+        // JSON text rather than a second table-valued parameter, which SQL Server would build on every call even empty.
         var advances = request.Completions.SelectMany(c => c.ScheduleAdvances ?? []).ToList();
         if (advances.Count > 0)
         {
-            AddParameter(
-                sql,
-                "@p_schedule_advances",
-                SqlDbType.Structured,
-                SqlServerTableParameters.BuildScheduleAdvanceRecords(advances)!,
-                typeName: $"{schema}.advance_schedules_batch"
-            );
+            AddParameter(sql, "@p_schedule_advances", SqlDbType.NVarChar, JsonScheduleAdvances(advances), size: -1);
         }
     }
 
@@ -242,6 +237,20 @@ internal sealed class SqlServerDialect : ISqlDialect
             }
         );
     }
+
+    /// <summary>The batch's schedule advances as JSON text, each instant as an ISO-8601 UTC string, for OPENJSON.</summary>
+    private static string JsonScheduleAdvances(IReadOnlyList<ScheduleAdvance> advances) =>
+        "["
+        + string.Join(
+            ",",
+            advances.Select(advance =>
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{{\"schedule_id\":{advance.ScheduleId},\"next_run_at_utc\":{(advance.NextRunAtUtc is { } next ? $"\"{DbParams.ToUtc(next):yyyy-MM-ddTHH:mm:ss.fff}\"" : "null")},\"expected_version\":{advance.ExpectedVersion?.ToString(CultureInfo.InvariantCulture) ?? "null"}}}"
+                )
+            )
+        )
+        + "]";
 
     private static void AddParameter(
         SqlCommand command,
