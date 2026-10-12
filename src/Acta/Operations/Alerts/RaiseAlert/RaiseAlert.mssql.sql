@@ -1,154 +1,137 @@
-CREATE OR ALTER PROCEDURE {{schema}}.raise_alert
-    @p_namespace_name VARCHAR(128),
-    @p_job_id BIGINT,
-    @p_origin_code TINYINT,
-    @p_severity_code TINYINT,
-    @p_kind_code TINYINT,
-    @p_title NVARCHAR(512),
-    @p_message NVARCHAR(512),
-    @p_channel_name VARCHAR(128),
-    @p_delivery_status_code TINYINT,
-    @p_deduplication_key VARCHAR(128),
-    @p_source_event_id BIGINT,
-    @p_alert_ref UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
 
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
+DECLARE @entry_trancount INT = @@TRANCOUNT;
+BEGIN TRY
+    IF @entry_trancount = 0
+        BEGIN TRANSACTION;
 
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+    DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
-        DECLARE @v_ns INT = (
-            SELECT id FROM {{schema}}.namespaces
-            WHERE name = @p_namespace_name
+    DECLARE @v_ns INT = (
+        SELECT id FROM {{schema}}.namespaces
+        WHERE name = @p_namespace_name
+    );
+    IF @v_ns IS NULL
+        THROW 50000, 'raise_alert: unknown namespace', 1;
+
+    -- The job row is locked before any of its alert rows, as purge_job and resolve_alerts lock it
+    -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
+    -- job rather than deadlocking with it or landing an alert on the deleted job.
+    DECLARE @v_job_ref UNIQUEIDENTIFIER;
+    SELECT @v_job_ref = job_ref
+    FROM {{schema}}.jobs WITH (UPDLOCK, ROWLOCK)
+    WHERE id = @p_job_id;
+
+    IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
+        THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id', 1;
+
+    IF @p_deduplication_key IS NULL
+        BEGIN
+            INSERT INTO {{schema}}.alerts (
+                namespace_id, alert_ref, job_id, job_ref,
+                origin_code, severity_code, kind_code, title, message, channel_name,
+                deduplication_key, occurrence_count, last_projected_event_id,
+                delivery_status_code, retry_count,
+                created_at_utc, modified_at_utc, version
+            )
+            VALUES (
+                @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                NULL, 1, @p_source_event_id,
+                @p_delivery_status_code, 0,
+                @now, @now, 0
+            );
+            SELECT 1, @p_source_event_id;
+            GOTO Finish;
+        END
+
+    DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
+
+    -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
+    -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
+    -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
+    UPDATE ja
+    SET
+        job_id = @p_job_id,
+        job_ref = @v_job_ref,
+        origin_code = @p_origin_code,
+        severity_code = @p_severity_code,
+        kind_code = @p_kind_code,
+        title = @p_title,
+        message = @p_message,
+        channel_name = @p_channel_name,
+        occurrence_count = ja.occurrence_count + 1,
+        last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
+        modified_at_utc = @now,
+        version = ja.version + 1
+    OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+    FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+    WHERE
+        ja.namespace_id = @v_ns
+        AND ja.deduplication_key = @p_deduplication_key
+        AND ja.resolved_at_utc IS NULL
+        AND (
+            @p_source_event_id IS NULL
+            OR ja.last_projected_event_id IS NULL
+            OR @p_source_event_id > ja.last_projected_event_id
         );
-        IF @v_ns IS NULL
-            THROW 50000, 'raise_alert: unknown namespace', 1;
 
-        -- The job row is locked before any of its alert rows, as purge_job and resolve_alerts lock it
-        -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
-        -- job rather than deadlocking with it or landing an alert on the deleted job.
-        DECLARE @v_job_ref UNIQUEIDENTIFIER;
-        SELECT @v_job_ref = job_ref
-        FROM {{schema}}.jobs WITH (UPDLOCK, ROWLOCK)
-        WHERE id = @p_job_id;
-
-        IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
-            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id', 1;
-
-        IF @p_deduplication_key IS NULL
-            BEGIN
-                INSERT INTO {{schema}}.alerts (
-                    namespace_id, alert_ref, job_id, job_ref,
-                    origin_code, severity_code, kind_code, title, message, channel_name,
-                    deduplication_key, occurrence_count, last_projected_event_id,
-                    delivery_status_code, retry_count,
-                    created_at_utc, modified_at_utc, version
-                )
-                VALUES (
-                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                    NULL, 1, @p_source_event_id,
-                    @p_delivery_status_code, 0,
-                    @now, @now, 0
-                );
-                SELECT 1, @p_source_event_id;
-                GOTO Finish;
-            END
-
-        DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
-
-        -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
-        -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
-        -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
-        UPDATE ja
-        SET
-            job_id = @p_job_id,
-            job_ref = @v_job_ref,
-            origin_code = @p_origin_code,
-            severity_code = @p_severity_code,
-            kind_code = @p_kind_code,
-            title = @p_title,
-            message = @p_message,
-            channel_name = @p_channel_name,
-            occurrence_count = ja.occurrence_count + 1,
-            last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
-            modified_at_utc = @now,
-            version = ja.version + 1
-        OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-        FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
-        WHERE
-            ja.namespace_id = @v_ns
-            AND ja.deduplication_key = @p_deduplication_key
-            AND ja.resolved_at_utc IS NULL
-            AND (
-                @p_source_event_id IS NULL
-                OR ja.last_projected_event_id IS NULL
-                OR @p_source_event_id > ja.last_projected_event_id
+    IF NOT EXISTS (SELECT 1 FROM @updated)
+        BEGIN
+            -- No open row took it, or one is there and held a replayed event back. The insert opens a
+            -- fresh incident only when neither holds: no open row at all, AND - the ghost guard - no
+            -- row of this identity already marked at or past this event.
+            INSERT INTO {{schema}}.alerts (
+                namespace_id, alert_ref, job_id, job_ref,
+                origin_code, severity_code, kind_code, title, message, channel_name,
+                deduplication_key, occurrence_count, last_projected_event_id,
+                delivery_status_code, retry_count,
+                created_at_utc, modified_at_utc, version
+            )
+            OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+            SELECT
+                @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                @p_deduplication_key, 1, @p_source_event_id,
+                @p_delivery_status_code, 0,
+                @now, @now, 0
+            -- No lock hint: this reads the whole identity, resolved rows included, which the
+            -- unresolved-only index cannot serve - hinting it would hold a scan's worth of locks
+            -- and the UPDATE above already serializes raisers of this identity.
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.alerts AS g
+                WHERE
+                    g.namespace_id = @v_ns
+                    AND g.deduplication_key = @p_deduplication_key
+                    AND (g.resolved_at_utc IS NULL OR g.last_projected_event_id >= @p_source_event_id)
             );
 
-        IF NOT EXISTS (SELECT 1 FROM @updated)
-            BEGIN
-                -- No open row took it, or one is there and held a replayed event back. The insert opens a
-                -- fresh incident only when neither holds: no open row at all, AND - the ghost guard - no
-                -- row of this identity already marked at or past this event.
-                INSERT INTO {{schema}}.alerts (
-                    namespace_id, alert_ref, job_id, job_ref,
-                    origin_code, severity_code, kind_code, title, message, channel_name,
-                    deduplication_key, occurrence_count, last_projected_event_id,
-                    delivery_status_code, retry_count,
-                    created_at_utc, modified_at_utc, version
-                )
-                OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-                SELECT
-                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                    @p_deduplication_key, 1, @p_source_event_id,
-                    @p_delivery_status_code, 0,
-                    @now, @now, 0
-                -- No lock hint: this reads the whole identity, resolved rows included, which the
-                -- unresolved-only index cannot serve - hinting it would hold a scan's worth of locks
-                -- and the UPDATE above already serializes raisers of this identity.
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM {{schema}}.alerts AS g
+            IF NOT EXISTS (SELECT 1 FROM @updated)
+                BEGIN
+                    -- Nothing written: a replay-held update or a ghost-blocked insert. The newest
+                    -- row has already absorbed this event or a newer one, so its count and mark
+                    -- re-assert only this event's own escalation, never a neighbour's.
+                    INSERT INTO @updated (occurrence_count, last_projected_event_id)
+                    SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
+                    FROM {{schema}}.alerts AS ja
                     WHERE
-                        g.namespace_id = @v_ns
-                        AND g.deduplication_key = @p_deduplication_key
-                        AND (g.resolved_at_utc IS NULL OR g.last_projected_event_id >= @p_source_event_id)
-                );
+                        ja.namespace_id = @v_ns
+                        AND ja.deduplication_key = @p_deduplication_key
+                    ORDER BY ja.id DESC;
+                END
+        END
 
-                IF NOT EXISTS (SELECT 1 FROM @updated)
-                    BEGIN
-                        -- Nothing written: a replay-held update or a ghost-blocked insert. The newest
-                        -- row has already absorbed this event or a newer one, so its count and mark
-                        -- re-assert only this event's own escalation, never a neighbour's.
-                        INSERT INTO @updated (occurrence_count, last_projected_event_id)
-                        SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
-                        FROM {{schema}}.alerts AS ja
-                        WHERE
-                            ja.namespace_id = @v_ns
-                            AND ja.deduplication_key = @p_deduplication_key
-                        ORDER BY ja.id DESC;
-                    END
-            END
+    SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
 
-        SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
+Finish:
 
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
+    IF @entry_trancount = 0
+        COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @entry_trancount = 0 AND XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;

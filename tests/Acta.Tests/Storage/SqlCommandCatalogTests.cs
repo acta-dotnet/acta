@@ -26,7 +26,6 @@ public sealed class SqlCommandCatalogTests
         "ExtendWorkerLeases",
         "ParkOutboxSignal",
         "PurgeExpiredData",
-        "RaiseAlert",
         "RaiseSignal",
         "ReclaimStuckJobs",
         "RecordOutboxEvent",

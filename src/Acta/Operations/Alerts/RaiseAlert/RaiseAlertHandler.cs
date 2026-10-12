@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="AlertsOperations.RaiseAlertAsync"/>: one routine call answering the post-raise occurrence.</summary>
+/// <summary><see cref="AlertsOperations.RaiseAlertAsync"/>: one batch answering the post-raise occurrence.</summary>
 internal sealed class RaiseAlertHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<RaiseAlertResponse> HandleAsync(RaiseAlertCommand command, CancellationToken ct)
