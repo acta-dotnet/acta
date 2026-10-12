@@ -242,10 +242,18 @@ settles, and what an operator sees when it fails.
   needs it, and the locks follow the order the per-job routine kept: lanes, awaited signal slots, the
   rows themselves in job order, schedules, then parents. `complete_execution` is gone, so twenty-nine
   routines remain, and a laned or parented job no longer takes a second call. PostgreSQL takes the
-  batch as arrays, SQL Server as the table type `complete_executions_batch`, which gains a column
-  per shape (the schema baseline is re-cut), and SQLite as JSON read through `jsonb_each`, with each
-  section a batch does not need cut before the script is prepared. The claims return each job's
-  `lane_id` and `parent_id` for that cut. The object package moves to revision 65.
+  batch as arrays; SQL Server as the table type `complete_executions_batch`, which gains a column
+  per shape and is keyed by job and execution so the procedure's joins seek it (the schema baseline
+  is re-cut), with the schedule advances as JSON, so `advance_schedules_batch` is gone; and SQLite as
+  JSON read through `jsonb_each`, with each section a batch does not need cut before the script is
+  prepared. The claims return each job's `lane_id` and `parent_id` for that cut, and a batch with no
+  shape, lane, or parent skips every optional step on SQL Server and lands in one statement on
+  PostgreSQL. A row that re-arms, waits, or fires on a schedule takes its status and its next run in
+  one statement, so it enters the claim index once, at its new instant. Against the build before the
+  fold, in interleaved rounds on one machine: PostgreSQL drain and throughput within 1.5% either way
+  and latency 3% better; SQL Server drain and latency within 2% and throughput inside its run-to-run
+  spread, -3% to +3% back to back; SQLite drained 8% to 13% faster before the sync change below. The
+  object package moves to revision 74.
 - **Definition policy reloads on the heartbeat.** The call also answers the namespace's newest
   definition change, and the worker re-reads its effective policy only when that moved: an override
   reaches every worker within one heartbeat, and the one-second policy-reload loop is gone.
@@ -259,7 +267,8 @@ settles, and what an operator sees when it fails.
   claim's request start and re-armed by the heartbeat on every confirmed renewal, half the base
   runway before the lease lapses, so a database outage stops the handler with nothing watching; the
   watchdog loop is gone. A single-shot run (`RunOnceAsync`, the CLI's `jobs debug`) carries no
-  deadline, as before, so a debugger pause never cancels it on resume.
+  deadline, as before, so a debugger pause never cancels it on resume; the recovery slot monitor's
+  pass carries one.
 - **One in-flight registry, keyed by execution.** Every claim the worker holds is one entry, from
   the claim to its completion write, and the heartbeat renews exactly that set. A stale attempt
   never shares an entry with the claim that replaced it, so it is never kept alive by the
@@ -276,7 +285,10 @@ settles, and what an operator sees when it fails.
   head of the claim index, so the fewer claims a drain takes, the fewer walks it pays. An executor is freed the moment its completion is built: the entry moves to
   the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of results, writes
   them in one `complete_executions` call whatever their shape, repeats a write
-  until it lands, and then wakes whoever waits. A lone completion is written at once; a batch that
+  until it lands, and then wakes whoever waits. A batch still failing after three tries is written
+  row by row, and a row still failing alone repeats apart while the finalizer goes on to the
+  completions behind it, so one bad row holds only itself; once as many rows repeat apart as the
+  worker has executors, the finalizer repeats in place. A lone completion is written at once; a batch that
   finds a backlog waits up to 50 ms for it to fill, so batches form when the writes fall behind and
   stay full while they do. The entry stays renewed while it waits, and the channel
   between executors and finalizer is bounded, so a failing database fills it, blocks the executors
@@ -299,6 +311,16 @@ settles, and what an operator sees when it fails.
   faster; PostgreSQL is unchanged. `purge_expired_data` takes the cursor (`p_before_job_id`,
   default 0) and answers where the walk stopped. The baselines are re-cut and the object package
   moves to revision 61.
+- **SQLite syncs every commit under both profiles.** Direct ran SQLite with `synchronous = NORMAL`,
+  so a power loss or an OS crash could drop the last commits, a finished job's result among them.
+  Every connection now runs with `synchronous = FULL`. Completions commit in batches, so a busy
+  worker pays one sync per batch: on the bench box the drain lost 4% and sixteen or more executors
+  lost nothing, but one to eight executors lost 29% to 42% of their throughput, where each commit
+  carries few rows. The `AtMostOnce()` caveat for SQLite Direct is gone.
+- **The system slots claim at Realtime.** `sys.outbox`, `sys.alerts`, `sys.retention`, and
+  `sys.recovery` claimed at Critical, and claims take priority bands strictly in order, so a
+  sustained Realtime backlog held them for as long as it lasted. They now claim at Realtime and take
+  their turn by due time.
 
 ### Additions
 
@@ -309,6 +331,10 @@ settles, and what an operator sees when it fails.
 
 ### Fixes
 
+- **The SQL Server claim no longer deadlocks with an operator verb.** The claim held update locks on
+  claim-index keys and then waited for each row, while a verb that changes a due Ready row locks the
+  row first and the key after. The claim's update now skips a row another transaction holds, and does
+  not claim it. The object package moves to revision 69.
 - **Recovery reads only the in-flight rows on PostgreSQL and SQLite.** Its reads of stuck jobs left out
   `leased_by_worker_id IS NOT NULL`, part of `ix_runtimes_worker_inflight`'s filter, so neither planner
   could use the partial index and every recovery pass scanned all of `runtimes`, retained rows included.
