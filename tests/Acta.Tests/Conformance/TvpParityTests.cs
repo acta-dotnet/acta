@@ -30,7 +30,7 @@ public sealed partial class TvpParityTests
     {
         ["enqueue_jobs_batch"] = "ordinal",
         ["enqueue_tags_batch"] = "ordinal, name",
-        ["complete_executions_batch"] = "ordinal",
+        ["complete_executions_batch"] = "job_id, execution_number",
         ["register_definitions_batch"] = "name",
         ["register_slots_batch"] = "definition_id",
         ["register_schedules_batch"] = "definition_id, name",

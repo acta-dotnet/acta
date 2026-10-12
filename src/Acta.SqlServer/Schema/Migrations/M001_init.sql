@@ -492,10 +492,9 @@ EXEC(N'CREATE TYPE {{schema}}.enqueue_tags_batch AS TABLE (
 GO
 
 -- Per-completion batch: one row per completion by one worker, whose id is a scalar.
--- Consumed by acta.complete_executions's @p_batch sproc parameter.
+-- Consumed by acta.complete_executions's @p_batch sproc parameter, which joins it by its key.
 IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
-    ordinal                  INT            NOT NULL PRIMARY KEY,
     job_id                   BIGINT         NOT NULL,
     execution_number         INT            NOT NULL,
     succeeded                BIT            NOT NULL,
@@ -513,7 +512,8 @@ EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
     handler_status_code      TINYINT        NULL,
     final_status             TINYINT        NULL,
     job_next_run_at_utc      DATETIME2(3)   NULL,
-    recurring_result_cap     INT            NULL
+    recurring_result_cap     INT            NULL,
+    PRIMARY KEY (job_id, execution_number)
 );');
 GO
 
@@ -588,7 +588,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-290cb6ca8b85a13aa66e03dbc85747bd', '{{schema}}');
+VALUES (0, 'baseline-a1f8e8ed5887f47b858d38076685ca29', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

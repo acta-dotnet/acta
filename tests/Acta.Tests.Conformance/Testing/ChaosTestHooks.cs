@@ -247,7 +247,7 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
             using var batch = JsonDocument.Parse((string)json.Value!);
             return [.. batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64())];
         }
-        return [.. ((IEnumerable)parameters["p_batch"].Value!).Cast<IDataRecord>().Select(row => row.GetInt64(1))];
+        return [.. ((IEnumerable)parameters["p_batch"].Value!).Cast<IDataRecord>().Select(row => row.GetInt64(row.GetOrdinal("job_id")))];
     }
 }
 

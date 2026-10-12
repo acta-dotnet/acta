@@ -153,10 +153,9 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             GO
 
             -- Per-completion batch: one row per completion by one worker, whose id is a scalar.
-            -- Consumed by acta.complete_executions's @p_batch sproc parameter.
+            -- Consumed by acta.complete_executions's @p_batch sproc parameter, which joins it by its key.
             IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
-                ordinal                  INT            NOT NULL PRIMARY KEY,
                 job_id                   BIGINT         NOT NULL,
                 execution_number         INT            NOT NULL,
                 succeeded                BIT            NOT NULL,
@@ -174,7 +173,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 handler_status_code      TINYINT        NULL,
                 final_status             TINYINT        NULL,
                 job_next_run_at_utc      DATETIME2(3)   NULL,
-                recurring_result_cap     INT            NULL
+                recurring_result_cap     INT            NULL,
+                PRIMARY KEY (job_id, execution_number)
             );');
             GO
 

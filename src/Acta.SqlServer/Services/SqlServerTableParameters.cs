@@ -108,7 +108,6 @@ internal static class SqlServerTableParameters
 
     internal static readonly SqlMetaData[] CompleteExecutionsColumns =
     [
-        new("ordinal", SqlDbType.Int),
         new("job_id", SqlDbType.BigInt),
         new("execution_number", SqlDbType.Int),
         new("succeeded", SqlDbType.Bit),
@@ -132,29 +131,27 @@ internal static class SqlServerTableParameters
     internal static IEnumerable<SqlDataRecord> BuildCompleteExecutionsRecords(IReadOnlyList<CompleteExecutionsValues> completions)
     {
         var record = new SqlDataRecord(CompleteExecutionsColumns);
-        for (var i = 0; i < completions.Count; i++)
+        foreach (var completion in completions)
         {
-            var completion = completions[i];
-            record.SetInt32(0, i);
-            record.SetInt64(1, completion.JobId);
-            record.SetInt32(2, completion.ExecutionNumber);
-            record.SetBoolean(3, completion.Succeeded);
-            record.SetByte(4, completion.ResultFormatId);
+            record.SetInt64(0, completion.JobId);
+            record.SetInt32(1, completion.ExecutionNumber);
+            record.SetBoolean(2, completion.Succeeded);
+            record.SetByte(3, completion.ResultFormatId);
             // A result with a format and no bytes is still a result, bound zero-length: results.result is NOT NULL.
-            SetBytesOrNull(record, 5, completion.Result, completion.ResultFormatId != JobPayloadFormat.None.Id);
-            SetNullableByte(record, 6, (byte?)completion.EventReasonCode);
-            SetNullableString(record, 7, completion.ReasonMessage);
-            SetNullableInt32(record, 8, completion.DurationMs);
-            SetNullableInt32(record, 9, completion.FailureCount);
-            SetNullableInt32(record, 10, completion.RetentionSeconds);
-            SetNullableByte(record, 11, completion.RescheduleStatusCode);
-            SetNullableInt32(record, 12, completion.RescheduleDelaySeconds);
-            SetNullableDateTime(record, 13, completion.RescheduleResumeAtUtc);
-            SetNullableString(record, 14, completion.WaitSignalName);
-            SetNullableByte(record, 15, completion.HandlerStatusCode);
-            SetNullableByte(record, 16, (byte?)completion.FinalStatus);
-            SetNullableDateTime(record, 17, completion.JobNextRunAtUtc);
-            SetNullableInt32(record, 18, completion.RecurringResultCap);
+            SetBytesOrNull(record, 4, completion.Result, completion.ResultFormatId != JobPayloadFormat.None.Id);
+            SetNullableByte(record, 5, (byte?)completion.EventReasonCode);
+            SetNullableString(record, 6, completion.ReasonMessage);
+            SetNullableInt32(record, 7, completion.DurationMs);
+            SetNullableInt32(record, 8, completion.FailureCount);
+            SetNullableInt32(record, 9, completion.RetentionSeconds);
+            SetNullableByte(record, 10, completion.RescheduleStatusCode);
+            SetNullableInt32(record, 11, completion.RescheduleDelaySeconds);
+            SetNullableDateTime(record, 12, completion.RescheduleResumeAtUtc);
+            SetNullableString(record, 13, completion.WaitSignalName);
+            SetNullableByte(record, 14, completion.HandlerStatusCode);
+            SetNullableByte(record, 15, (byte?)completion.FinalStatus);
+            SetNullableDateTime(record, 16, completion.JobNextRunAtUtc);
+            SetNullableInt32(record, 17, completion.RecurringResultCap);
             yield return record;
         }
     }
