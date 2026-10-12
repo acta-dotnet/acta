@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
@@ -64,6 +65,12 @@ internal sealed partial class WorkerFinalizer(
     /// <summary>The first delay between repeated writes; null keeps the one-second curve. Tests set zero.</summary>
     internal TimeSpan? RepeatFirstDelay { get; init; }
 
+    // Rows still failing alone after BatchTries, each repeating apart from the loop so it holds only itself. The bound
+    // is the executor count: past it the loop repeats in place, so a failure that refuses every completion still stops
+    // intake (docs/technical/known-limitations.md, the completion backpressure).
+    private readonly ConcurrentDictionary<InFlightJob, Task> _apart = new();
+    private readonly int _apartLimit = options.MaxConcurrentExecutors;
+
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
@@ -97,7 +104,7 @@ internal sealed partial class WorkerFinalizer(
                 try
                 {
                     metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
-                    await FinalizeAsync(entries, hostCt);
+                    await FinalizeAsync(entries, apart: true, hostCt);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
                 {
@@ -109,6 +116,9 @@ internal sealed partial class WorkerFinalizer(
         {
             // A hard stop: completions still queued re-run after recovery, as an interrupted write does.
         }
+
+        // A drain ends once the rows repeating apart land; a hard stop ends their repeats.
+        await Task.WhenAll(_apart.Values);
     }
 
     /// <summary>Waits for another completion until the window closes or the channel ends; false when nothing more comes.</summary>
@@ -126,13 +136,14 @@ internal sealed partial class WorkerFinalizer(
 
     /// <summary>Writes <paramref name="entry"/>'s completion on its own and removes the entry.</summary>
     public async Task<RunOnceStatus> FinalizeAsync(InFlightJob entry, CancellationToken hostCt) =>
-        (await FinalizeAsync([entry], hostCt))[0];
+        (await FinalizeAsync([entry], apart: false, hostCt))[0];
 
     /// <summary>
     /// Writes the completions in one call, lands each answer, and removes every entry. A batch still failing after
-    /// <see cref="BatchTries"/> tries is written row by row, each row landed and removed as soon as it commits.
+    /// <see cref="BatchTries"/> tries is written row by row, each row landed and removed as soon as it commits; with
+    /// <paramref name="apart"/>, a row still failing alone after as many tries repeats apart from the caller.
     /// </summary>
-    private async Task<RunOnceStatus[]> FinalizeAsync(List<InFlightJob> entries, CancellationToken hostCt)
+    private async Task<RunOnceStatus[]> FinalizeAsync(List<InFlightJob> entries, bool apart, CancellationToken hostCt)
     {
         try
         {
@@ -152,14 +163,14 @@ internal sealed partial class WorkerFinalizer(
                         BatchTries
                     );
                 }
-                catch (Exception) when (!hostCt.IsCancellationRequested)
+                catch (Exception ex) when (!hostCt.IsCancellationRequested)
                 {
-                    log.LogError("WorkerRuntime: a batch of {Count} completions kept failing; writing each alone.", writes.Count);
+                    log.LogError(ex, "WorkerRuntime: a batch of {Count} completions kept failing; writing each alone.", writes.Count);
                 }
             }
             if (answer is null)
             {
-                return await Task.WhenAll(writes.Select(write => FinalizeAloneAsync(write, hostCt)));
+                return await Task.WhenAll(writes.Select(write => FinalizeAloneAsync(write, apart, hostCt)));
             }
 
             var rows = answer.Rows.ToDictionary(row => (row.JobId, row.ExecutionNumber));
@@ -172,17 +183,85 @@ internal sealed partial class WorkerFinalizer(
         }
         finally
         {
-            foreach (var entry in entries)
+            foreach (var entry in entries.Where(entry => !_apart.ContainsKey(entry)))
             {
                 registry.Remove(entry);
             }
         }
     }
 
-    /// <summary>Writes one row alone until it lands, then lands its answer and removes its entry.</summary>
-    private async Task<RunOnceStatus> FinalizeAloneAsync(PlannedWrite write, CancellationToken hostCt)
+    /// <summary>
+    /// Writes one row alone until it lands. With <paramref name="apart"/>, a row still failing after
+    /// <see cref="BatchTries"/> tries repeats apart while there is room, and answers NothingClaimed for now.
+    /// </summary>
+    private async Task<RunOnceStatus> FinalizeAloneAsync(PlannedWrite write, bool apart, CancellationToken hostCt)
     {
-        var answer = await RepeatAsync(token => CompleteAsync([write], token), log, write.Row.JobId, hostCt, metrics, RepeatFirstDelay);
+        if (apart)
+        {
+            try
+            {
+                return await WriteAloneAsync(write, BatchTries, hostCt);
+            }
+            catch (Exception ex) when (!hostCt.IsCancellationRequested)
+            {
+                if (SetApart(write, ex, hostCt))
+                {
+                    return RunOnceStatus.NothingClaimed;
+                }
+            }
+        }
+        return await WriteAloneAsync(write, int.MaxValue, hostCt);
+    }
+
+    /// <summary>Starts <paramref name="write"/>'s repeat apart, unless as many rows as the bound already repeat apart.</summary>
+    private bool SetApart(PlannedWrite write, Exception ex, CancellationToken hostCt)
+    {
+        lock (_apart)
+        {
+            if (_apart.Count >= _apartLimit)
+            {
+                return false;
+            }
+            _apart[write.Entry] = RepeatApartAsync(write, hostCt);
+        }
+        log.LogError(ex, "WorkerRuntime: job {JobId}'s completion keeps failing alone; it repeats apart from the others.", write.Row.JobId);
+        return true;
+    }
+
+    private async Task RepeatApartAsync(PlannedWrite write, CancellationToken hostCt)
+    {
+        // Yields first, so the repeat never runs under SetApart's lock; taking the lock to leave the set waits for the add.
+        await Task.Yield();
+        try
+        {
+            await WriteAloneAsync(write, int.MaxValue, hostCt);
+        }
+        catch (Exception) when (hostCt.IsCancellationRequested)
+        {
+            // A hard stop: the row falls to recovery, as an interrupted write does.
+        }
+        finally
+        {
+            lock (_apart)
+            {
+                _apart.TryRemove(write.Entry, out _);
+            }
+            registry.Remove(write.Entry);
+        }
+    }
+
+    /// <summary>Writes one row alone until it lands or <paramref name="tries"/> run out, then lands its answer and removes its entry.</summary>
+    private async Task<RunOnceStatus> WriteAloneAsync(PlannedWrite write, int tries, CancellationToken hostCt)
+    {
+        var answer = await RepeatAsync(
+            token => CompleteAsync([write], token),
+            log,
+            write.Row.JobId,
+            hostCt,
+            metrics,
+            RepeatFirstDelay,
+            tries
+        );
         var status = await LandAsync(write, answer.Rows[0], hostCt);
         registry.Remove(write.Entry);
         return status;

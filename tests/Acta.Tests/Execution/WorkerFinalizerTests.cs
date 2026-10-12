@@ -264,8 +264,8 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
-    [Fact(DisplayName = "A row the database keeps refusing is written alone, and the rest of its batch lands")]
-    public async Task A_refused_row_is_written_alone_while_its_batch_lands()
+    [Fact(DisplayName = "A row the database keeps refusing holds only itself: its batch and the completions behind it land")]
+    public async Task A_refused_row_holds_only_itself()
     {
         var ct = TestContext.Current.CancellationToken;
         var batchTries = 0;
@@ -316,7 +316,7 @@ public sealed class WorkerFinalizerTests
         {
             RepeatFirstDelay = TimeSpan.Zero,
         };
-        foreach (var jobId in new long[] { 1, 2, 3 })
+        async Task CompleteAsync(long jobId)
         {
             var entry = WorkerHeartbeatLeaseRunwayTests.Entry(jobId, state: InFlightJobState.Finalizing);
             entry.Descriptor = Descriptor;
@@ -324,18 +324,28 @@ public sealed class WorkerFinalizerTests
             registry.TryAdd(entry);
             await registry.Completed.Writer.WriteAsync(entry, ct);
         }
-        registry.Completed.Writer.Complete();
+        async Task WaitForOnlyRefusedAsync()
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (registry.Count() > 1 && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(10, ct);
+            }
+            Assert.Equal(2, Assert.Single(registry.Snapshot()).Key.JobId);
+        }
+        foreach (var jobId in new long[] { 1, 2, 3 })
+        {
+            await CompleteAsync(jobId);
+        }
 
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = finalizer.RunLoopAsync(stop.Token);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (registry.Count() > 1 && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10, ct);
-        }
-
+        await WaitForOnlyRefusedAsync();
         Assert.Equal(WorkerFinalizer.BatchTries, batchTries);
-        Assert.Equal(2, Assert.Single(registry.Snapshot()).Key.JobId);
+
+        // The refused row repeats apart, so the loop goes on to the next completion.
+        await CompleteAsync(4);
+        await WaitForOnlyRefusedAsync();
         await stop.CancelAsync();
         await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
     }

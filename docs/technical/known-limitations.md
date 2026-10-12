@@ -67,10 +67,12 @@ write is repeated the same way, until it lands or the claim's own lease deadline
 
 The executor is freed as soon as its completion is built; the entry stays held, renewed by the
 heartbeat, until the finalizer lands the write. That is still deliberate backpressure, one channel
-later: there is one finalizer per worker, a write that keeps failing holds it, the channel between
-executors and finalizer fills, executors then block on it while they still hold their claim
-permits, and the claimer stops. A failing database stops intake instead of
-growing memory. Acta keeps the finalization it owes rather than abandoning it to run more handlers
+later. There is one finalizer per worker, and a batch that keeps failing is written row by row, so
+every row that can land does. A row that still fails alone repeats apart from the finalizer, which
+goes on to the completions behind it, so one bad row holds only itself. Once as many rows repeat
+apart as the worker has executors, the finalizer repeats in place: the channel between executors and
+finalizer fills, executors then block on it while they still hold their claim permits, and the
+claimer stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes rather than abandoning it to run more handlers
 whose completions would be abandoned in turn. Repairing the underlying database failure lets the
 pending completions land without restarting the worker, as long as each entry still owns its row.
 Recovery itself is unaffected, because the slot monitor runs the sweep outside the executor pool;
