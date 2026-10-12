@@ -38,7 +38,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetDefinitionContractsSpec`, `GetDefinitionSpec` |
 | `GetDefinitionContracts` | · | · | · | inline | inline | inline | · | `GetDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
-| `RegisterDefinitions` | · | · | · | routine | routine | inline | `definitions` | `RegisterDefinitionsSpec` |
+| `RegisterDefinitions` | · | · | · | inline | inline | inline | `definitions` | `RegisterDefinitionsSpec` |
 | `ResolveDefinitionId` | · | · | · | · | · | · | · | `ResolveDefinitionIdSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `definitions`, `events`, `runtimes` | `RetireDefinitionSpec` |
 | `SetDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | `definitions`, `events` | `SetDefinitionOverridesBindMatrixSpec`, `SetDefinitionOverridesSpec` |

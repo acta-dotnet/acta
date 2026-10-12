@@ -29,7 +29,6 @@ public sealed class SqlCommandCatalogTests
         "RaiseSignal",
         "ReclaimStuckJobs",
         "RecordOutboxEvent",
-        "RegisterDefinitions",
         "RegisterSchedules",
         "ReleaseLock",
         "ReserveRate",

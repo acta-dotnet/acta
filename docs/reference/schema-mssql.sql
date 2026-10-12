@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 82)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 83)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4517,137 +4517,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.register_definitions
-    @p_namespace_id INT,
-    @p_manifest_generation DATETIME2(7),
-    @p_definitions acta.register_definitions_batch READONLY
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        UPDATE jd SET
-            status_code = 10 /* DefinitionStatusCode.Active */,
-            input_type_name = src.input_type_name,
-            output_type_name = src.output_type_name,
-            input_format_id = src.input_format_id,
-            input_format_name = src.input_format_name,
-            output_format_id = src.output_format_id,
-            output_format_name = src.output_format_name,
-            priority_code = src.priority_code,
-            max_attempts = src.max_attempts,
-            concurrency_limit = src.concurrency_limit,
-            rate_limit = src.rate_limit,
-            rate_name = src.rate_name,
-            lane = src.lane,
-            backoff = src.backoff,
-            execution_timeout_seconds = src.execution_timeout_seconds,
-            deadline_seconds = src.deadline_seconds,
-            deadline_behavior_code = src.deadline_behavior_code,
-            retention_seconds = src.retention_seconds,
-            audit_level_code = src.audit_level_code,
-            alert_profile_code = src.alert_profile_code,
-            tenant_requirement_code = src.tenant_requirement_code,
-            alert_channel_name = src.alert_channel_name,
-            runbook_url = src.runbook_url,
-            display_name = src.display_name,
-            description = src.description,
-            definition_hash = src.definition_hash,
-            manifest_generation_at_utc = @p_manifest_generation,
-            modified_at_utc = @now,
-            version = jd.version + 1
-        FROM acta.definitions jd
-        INNER JOIN @p_definitions src
-            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name
-        WHERE
-            @p_manifest_generation >= jd.manifest_generation_at_utc
-            AND (
-                jd.status_code <> 10 /* DefinitionStatusCode.Active */
-                OR jd.definition_hash <> src.definition_hash
-            );
-
-        INSERT INTO acta.definitions (
-            namespace_id, name, status_code,
-            input_type_name, output_type_name,
-            input_format_id, input_format_name,
-            output_format_id, output_format_name,
-            priority_code, max_attempts, concurrency_limit,
-            rate_limit, rate_name, lane,
-            backoff,
-            execution_timeout_seconds,
-            deadline_seconds,
-            deadline_behavior_code,
-            retention_seconds,
-            audit_level_code, alert_profile_code,
-            tenant_requirement_code,
-            alert_channel_name, runbook_url,
-            display_name, description,
-            definition_hash, manifest_generation_at_utc,
-            created_at_utc, modified_at_utc, version
-        )
-        SELECT
-            @p_namespace_id,
-            src.name,
-            10 /* DefinitionStatusCode.Active */,
-            src.input_type_name,
-            src.output_type_name,
-            src.input_format_id,
-            src.input_format_name,
-            src.output_format_id,
-            src.output_format_name,
-            src.priority_code,
-            src.max_attempts,
-            src.concurrency_limit,
-            src.rate_limit,
-            src.rate_name,
-            src.lane,
-            src.backoff,
-            src.execution_timeout_seconds,
-            src.deadline_seconds,
-            src.deadline_behavior_code,
-            src.retention_seconds,
-            src.audit_level_code,
-            src.alert_profile_code,
-            src.tenant_requirement_code,
-            src.alert_channel_name,
-            src.runbook_url,
-            src.display_name,
-            src.description,
-            src.definition_hash,
-            @p_manifest_generation,
-            @now,
-            @now,
-            0
-        FROM @p_definitions src
-        WHERE NOT EXISTS (
-            SELECT 1 FROM acta.definitions jd
-            WHERE jd.namespace_id = @p_namespace_id AND jd.name = src.name
-        );
-
-        SELECT
-            jd.name AS def_name,
-            jd.id AS def_id
-        FROM @p_definitions src
-        INNER JOIN acta.definitions jd
-            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.register_schedules
     @p_namespace_id INT,
     @p_definitions acta.register_slots_batch READONLY,
@@ -5324,9 +5193,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.82-ac3dd054b3236265aa20f6896a5e7fb3', 'acta'
+SELECT -1, 'objects-1.83-b51336062a6c68551394c89aede93f87', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 31;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_schedules', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 30;
 GO
 COMMIT TRANSACTION;
 GO

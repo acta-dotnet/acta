@@ -71,7 +71,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         return result.Count != rows.Count
             ? throw new InvalidOperationException(
                 $"register_definitions returned {result.Count} name-to-id rows for {rows.Count} input definitions. "
-                    + "The routine must return exactly one row per registered definition."
+                    + "The registration must return exactly one row per registered definition."
             )
             : new RegisterDefinitionsResponse(result);
     }

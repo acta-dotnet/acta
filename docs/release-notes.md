@@ -148,7 +148,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
   stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
-  Twenty-two routines remain (enqueue, claim, complete, steps, signals, locks and meters, recovery,
+  Twenty-one routines remain (enqueue, claim, complete, steps, signals, locks and meters, recovery,
   retention, alert projection, the outbox inbox, and definition and schedule registration). Four of them
   take new names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A
   database keeps the routines it already has, so older workers still find them during a rolling deploy;
