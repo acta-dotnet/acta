@@ -9,11 +9,7 @@ builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
     // One executor at a time, so claim order is observable.
-    j.ConfigureOptions(o =>
-    {
-        o.MaxConcurrentExecutors = 1;
-        o.ClaimBatchSize = 1;
-    });
+    j.ConfigureOptions(o => o.MaxConcurrentExecutors = 1);
     j.Run<PriorityJobs>("priority");
 });
 

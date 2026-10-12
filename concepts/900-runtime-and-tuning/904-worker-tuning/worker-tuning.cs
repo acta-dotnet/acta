@@ -1,5 +1,5 @@
-// Concept: ConfigureOptions knobs - MaxConcurrentExecutors, ClaimBatchSize, SafetyPollInterval,
-// ExecutionProfile.Direct - and how the worker respects the concurrency cap.
+// Concept: ConfigureOptions knobs - MaxConcurrentExecutors and SafetyPollInterval - and how the worker
+// respects the concurrency cap.
 using Acta;
 using Acta.Concepts.WorkerTuning;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,22 +15,15 @@ builder.Services.UseActa(j =>
 
     j.ConfigureOptions(o =>
     {
-        // Cap simultaneous in-flight executions at Cap. Under Direct, which this sample runs, each claim
-        // takes only as many rows as there are free executors, so excess work stays Ready in the database
-        // until a slot opens. Fixed at startup; not autoscaled.
+        // Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are
+        // free executors, so excess work stays Ready in the database until a slot opens. Fixed at startup;
+        // not autoscaled.
         o.MaxConcurrentExecutors = Cap;
-
-        // Pull at most 8 Ready rows per claim poll, so a burst of free executors is filled in a few
-        // round trips without one oversized claim.
-        o.ClaimBatchSize = 8;
 
         // Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects
         // lower values as a DB-traffic guard). The wakeup signal fires immediately after the batch
         // enqueue below, so the poll interval is not on the critical path for this run.
         o.SafetyPollInterval = TimeSpan.FromSeconds(1);
-
-        // Direct profile: combined claim-execute path (no Dispatched visibility window).
-        o.ExecutionProfile = ExecutionProfile.Direct;
     });
 
     j.Run<WorkerTuningJobs>("worker-tuning");
@@ -48,7 +41,7 @@ var requests = Enumerable
     .Select(i => new EnqueueJobRequest("worker-tuning", "slow-task", JobPayload.Json(new SlowTask(i))))
     .ToList();
 
-Console.WriteLine($"Enqueuing {BatchSize} jobs (cap={Cap}, batchSize=8, profile=Direct)...");
+Console.WriteLine($"Enqueuing {BatchSize} jobs (cap={Cap})...");
 await jobs.EnqueueBatchAsync(requests);
 Console.WriteLine("Batch enqueued. Worker is draining.");
 
