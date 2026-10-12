@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 68)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 69)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1524,9 +1524,10 @@ BEGIN
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status, lane_id, parent_id
             )
-        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
-        -- see docs/internals/sql-execution-policy.md.
-        FROM acta.runtimes r WITH (FORCESEEK)
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
+        -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
+        -- order (docs/internals/sql-execution-policy.md); a skipped candidate is simply not claimed.
+        FROM acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
@@ -1740,9 +1741,10 @@ BEGIN
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 audit_level_code, failure_count, version, from_status, lane_id, parent_id
             )
-        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
-        -- see docs/internals/sql-execution-policy.md.
-        FROM acta.runtimes r WITH (FORCESEEK)
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
+        -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
+        -- order (docs/internals/sql-execution-policy.md); a skipped candidate is simply not claimed.
+        FROM acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN @candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
@@ -5990,7 +5992,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.68-a8c45861ef3a78eb00d74ad737a8bcb4', 'acta'
+SELECT -1, 'objects-1.69-1c644cc4b88ac23eea61b6fcbe33a864', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
 GO
