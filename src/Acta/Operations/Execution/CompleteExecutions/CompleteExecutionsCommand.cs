@@ -46,4 +46,13 @@ internal sealed record CompleteExecutionsValues(
 
     /// <summary>The job has a parent, as its claim read it; parent_id never changes.</summary>
     public bool HasParent { get; init; }
+
+    /// <summary>A landing with no shape field, lane, or parent: the routine writes only its own row, result, and event.</summary>
+    public bool IsPlain =>
+        RescheduleStatusCode is null
+        && HandlerStatusCode is null
+        && FinalStatus is null
+        && WaitSignalName is null
+        && !HasLane
+        && !HasParent;
 }

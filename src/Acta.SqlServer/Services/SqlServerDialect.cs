@@ -116,6 +116,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             SqlServerTableParameters.BuildCompleteExecutionsRecords(request.Completions),
             typeName: $"{schema}.complete_executions_batch"
         );
+        AddParameter(sql, "@p_plain", SqlDbType.Bit, request.Completions.All(c => c.IsPlain));
 
         // JSON text rather than a second table-valued parameter, which SQL Server would build on every call even empty.
         var advances = request.Completions.SelectMany(c => c.ScheduleAdvances ?? []).ToList();
