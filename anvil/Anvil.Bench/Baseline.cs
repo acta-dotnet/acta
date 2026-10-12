@@ -28,7 +28,7 @@ public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, i
     public IReadOnlyList<int>? DrainWorkers { get; init; }
 
     /// <summary>
-    /// How many namespaces a multi-worker drain spreads its workers and backlog over, as a deployment runs several
+    /// The fewest namespaces a multi-worker drain spreads its workers and backlog over, as a deployment runs several
     /// with a few workers each: the claim index leads with the namespace, so each has its own claim head.
     /// </summary>
     public int Namespaces { get; init; } = MinNamespaces;
@@ -36,6 +36,24 @@ public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, i
     public const int MinNamespaces = 2;
 
     public const int MaxNamespaces = 4;
+
+    /// <summary>The most workers a drain puts in one namespace, the ceiling the production guide sets.</summary>
+    public const int MaxWorkersPerNamespace = 16;
+
+    /// <summary>The most workers a drain can spread, at <see cref="MaxWorkersPerNamespace"/> in each of the most namespaces.</summary>
+    public const int MaxDrainWorkers = MaxNamespaces * MaxWorkersPerNamespace;
+
+    /// <summary>
+    /// The namespaces a drain of <paramref name="workers"/> spreads over: none past one for a single worker, else at
+    /// least <see cref="Namespaces"/> and as many more as keep each at <see cref="MaxWorkersPerNamespace"/> or fewer.
+    /// </summary>
+    public int NamespacesFor(int workers) =>
+        workers <= 1 ? 1
+        : workers > MaxDrainWorkers
+            ? throw new ArgumentException(
+                $"{workers} drain workers need more than {MaxNamespaces} namespaces of {MaxWorkersPerNamespace}; the most is {MaxDrainWorkers}."
+            )
+        : Math.Min(workers, Math.Max(Namespaces, (workers + MaxWorkersPerNamespace - 1) / MaxWorkersPerNamespace));
 }
 
 public sealed record BaselineEnvironmentInfo(
@@ -302,7 +320,7 @@ public static class BaselineSuite
                     workers,
                     rows: 0,
                     iterations: 200,
-                    namespaces: workers > 1 ? Math.Min(preset.Namespaces, workers) : 1
+                    namespaces: preset.NamespacesFor(workers)
                 );
             }
 

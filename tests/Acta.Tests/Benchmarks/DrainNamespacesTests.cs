@@ -1,3 +1,4 @@
+using System.Globalization;
 using Anvil.Bench;
 using Xunit;
 
@@ -5,8 +6,8 @@ namespace Acta.Tests.Benchmarks;
 
 /// <summary>
 /// A multi-worker drain spreads its workers and backlog over two to four namespaces, as a deployment runs several
-/// namespaces of a few workers each; a one-worker drain stays in one, and a baseline captured before the spread reads
-/// back as the one namespace it ran in.
+/// namespaces of a few workers each, never more than 16 workers in one; a one-worker drain stays in one, and a baseline
+/// captured before the spread reads back as the one namespace it ran in.
 /// </summary>
 public sealed class DrainNamespacesTests
 {
@@ -37,6 +38,27 @@ public sealed class DrainNamespacesTests
         Assert.All(drains.Where(s => s.Key.Workers == 2), s => Assert.Equal(2, s.Key.Namespaces));
         Assert.All(drains.Where(s => s.Key.Workers == 16), s => Assert.Equal(4, s.Key.Namespaces));
     }
+
+    [Theory]
+    [InlineData(32, 2)]
+    [InlineData(33, 3)]
+    [InlineData(48, 3)]
+    [InlineData(64, 4)]
+    public void More_workers_take_more_namespaces_so_none_holds_more_than_sixteen(int workers, int namespaces)
+    {
+        var options = BenchRunOptions.Parse(["--db", "pg", "--drain-workers", workers.ToString(CultureInfo.InvariantCulture)]);
+        var drain = Assert.Single(
+            BaselineSuite.Cells(options.Apply(BaselineSuite.ReleasePreset)),
+            s => s.Scenario == "drain" && s.Provider == "pg" && s.KeyProfile == ExecutionProfile.Direct
+        );
+
+        Assert.Equal(namespaces, drain.Key.Namespaces);
+        Assert.True(workers <= namespaces * BenchPreset.MaxWorkersPerNamespace);
+    }
+
+    [Fact]
+    public void A_drain_of_more_than_sixty_four_workers_is_refused() =>
+        Assert.Throws<ArgumentException>(() => BenchRunOptions.Parse(["--db", "pg", "--drain-workers", "16,65"]));
 
     [Theory]
     [InlineData("1")]

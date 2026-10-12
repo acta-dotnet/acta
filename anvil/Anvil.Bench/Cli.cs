@@ -110,6 +110,12 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
             else if (args[i] == "--drain-workers")
             {
                 drainWorkers = [.. args[++i].Split(',').Select(w => PositiveFromArg("--drain-workers", w))];
+                if (drainWorkers.FirstOrDefault(w => w > BenchPreset.MaxDrainWorkers) is > 0 and var tooMany)
+                {
+                    throw new ArgumentException(
+                        $"--drain-workers takes at most {BenchPreset.MaxDrainWorkers} ({BenchPreset.MaxNamespaces} namespaces of {BenchPreset.MaxWorkersPerNamespace}), not {tooMany}."
+                    );
+                }
             }
             else if (args[i] == "--jobs")
             {
@@ -413,8 +419,9 @@ public static class BenchCli
             Options:
               --scenario <name>     Measure only this scenario; repeat to select several.
               --drain-workers <n,...>  The worker counts the drain cells sweep on PostgreSQL and SQL Server.
-              --namespaces <N>      The namespaces a multi-worker drain spreads its workers and backlog over, 2 to 4.
-                                    Default 2. A one-worker drain runs in one.
+              --namespaces <N>      The fewest namespaces a multi-worker drain spreads its workers and backlog over,
+                                    2 to 4, default 2; raised as needed to keep each at 16 workers or fewer, so
+                                    --drain-workers takes at most 64. A one-worker drain runs in one.
               --jobs <N>            The backlog each cell drains, in place of the preset's.
               --seed-history <N>    Seed N terminal jobs (runtime, event, and result rows each) into every cell after
                                     its schema reset and before its timed window, dated across the last 30 days, so the
