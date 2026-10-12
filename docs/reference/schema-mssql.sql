@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 77)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 78)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -5645,47 +5645,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.update_alert_delivery
-    @p_id BIGINT,
-    @p_version INT,
-    @p_delivery_status_code TINYINT,
-    @p_retry_count INT,
-    @p_retry_after_utc DATETIME2(7)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        /* Compare-and-swap on the version the delivery read handed out: an attempt whose row moved while the
-           send was in flight - resolved by an operator, or settled by a competing worker - writes nothing and
-           returns no row, and the caller treats the empty result as "the newer state stands". */
-        UPDATE acta.alerts
-        SET
-            delivery_status_code = @p_delivery_status_code,
-            retry_count = @p_retry_count,
-            retry_after_utc = @p_retry_after_utc,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
-        OUTPUT INSERTED.id
-        WHERE
-            id = @p_id
-            AND version = @p_version;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
@@ -5798,9 +5757,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.77-87035acb8787b170d4b7aa0906f28980', 'acta'
+SELECT -1, 'objects-1.78-4a6814e8c0b53c7c29f2f5e7e481b05e', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'resolve_alerts', 'start_step', 'update_alert_delivery', 'wait_signal')) = 36;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'resolve_alerts', 'start_step', 'wait_signal')) = 35;
 GO
 COMMIT TRANSACTION;
 GO

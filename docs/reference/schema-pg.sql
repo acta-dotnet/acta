@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 77)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 78)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4960,32 +4960,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.update_alert_delivery(
-    p_id BIGINT,
-    p_version INT,
-    p_delivery_status_code SMALLINT,
-    p_retry_count INT,
-    p_retry_after_utc TIMESTAMPTZ
-)
-RETURNS TABLE (id BIGINT)
-LANGUAGE sql
-AS $$
-/* Compare-and-swap on the version the delivery read handed out: an attempt whose row moved while the
-   send was in flight - resolved by an operator, or settled by a competing worker - writes nothing and
-   returns no row, and the caller treats the empty result as "the newer state stands". */
-UPDATE acta.alerts
-SET
-    delivery_status_code = p_delivery_status_code,
-    retry_count = p_retry_count,
-    retry_after_utc = p_retry_after_utc,
-    modified_at_utc = now(),
-    version = version + 1
-WHERE
-    id = p_id
-    AND version = p_version
-RETURNING id;
-$$;
-
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
@@ -5119,7 +5093,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.77-bb22b0d67554c6865b6fb5163220d868', 'acta');
+VALUES (-1, 'objects-1.78-6f67fab2e950ece8fe3944db3b5ed76c', 'acta');
 
 COMMIT;
 

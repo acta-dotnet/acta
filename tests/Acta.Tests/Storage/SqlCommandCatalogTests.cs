@@ -38,7 +38,6 @@ public sealed class SqlCommandCatalogTests
         "ReserveRate",
         "ResolveAlerts",
         "StartStep",
-        "UpdateAlertDelivery",
         "WaitSignal",
     ];
 
