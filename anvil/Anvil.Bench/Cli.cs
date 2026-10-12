@@ -68,6 +68,8 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
         preset with
         {
             Jobs = Jobs ?? preset.Jobs,
+            DrainJobs = Jobs ?? preset.DrainJobs,
+            SqliteDrainJobs = Jobs ?? preset.SqliteDrainJobs,
             DrainWorkers = DrainWorkers ?? preset.DrainWorkers,
             Namespaces = Namespaces ?? preset.Namespaces,
         };
@@ -283,7 +285,7 @@ public static class BenchCli
         {
             Console.WriteLine("Select benchmark preset:");
             Console.WriteLine("  1) quick    - local 5-10 minute run for one database");
-            Console.WriteLine("  2) release  - the release round's matrix, about 15 minutes a database");
+            Console.WriteLine("  2) release  - the release round's matrix, about half an hour a database");
             Console.WriteLine("  3) full     - canonical full matrix");
             Console.Write("Choice [1]: ");
             var raw = Console.ReadLine();

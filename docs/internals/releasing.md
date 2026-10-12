@@ -143,7 +143,9 @@ below are what the rounds on this machine cost to learn.
   so take readings minutes apart and start only when several agree. A probe in a tight loop is itself
   a write load and keeps the drive from recovering.
 - Run the `release` preset on the candidate: every execution profile at the quick matrix's points, one
-  warmup and one measured run, about twenty minutes a database. Compare against the previous tag's
+  warmup and one measured run, about half an hour a database. Its drains are sustained: 500,000 jobs on
+  PostgreSQL and SQL Server and 100,000 on SQLite, all due at one instant, so a drain measures what the
+  engine sustains, not how fast the preload came due. Compare against the previous tag's
   round on this machine: drain, enqueue, latency, and the list query reproduce from day to day within a
   few percent. A cell that looks like a finding is rerun on both trees, back to back, with
   `--scenario`, at least twice each, and only a gap that survives the reruns is reported as one. The

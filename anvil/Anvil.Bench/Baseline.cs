@@ -28,6 +28,18 @@ public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, i
     public IReadOnlyList<int>? DrainWorkers { get; init; }
 
     /// <summary>
+    /// The backlog a drain cell drains; null means <c>Jobs</c>. A drain is the engine's sustained capacity, so it needs
+    /// a backlog that keeps every worker busy for seconds; at <c>Jobs</c> a server provider is done before it is warm.
+    /// </summary>
+    public int? DrainJobs { get; init; }
+
+    /// <summary>
+    /// SQLite's drain backlog; null means <see cref="DrainJobs"/>. One writer drains Buffered near a thousand jobs a
+    /// second, so a server provider's backlog would run a SQLite Buffered cell past its drain deadline.
+    /// </summary>
+    public int? SqliteDrainJobs { get; init; }
+
+    /// <summary>
     /// The fewest namespaces a multi-worker drain spreads its workers and backlog over, as a deployment runs several
     /// with a few workers each: the claim index leads with the namespace, so each has its own claim head.
     /// </summary>
@@ -173,12 +185,23 @@ public static class BaselineSuite
         EnqueueBatchJobs: 500_000,
         QueryRows: 100_000,
         FullMatrix: true
-    );
+    )
+    {
+        DrainJobs = SustainedDrainJobs,
+        SqliteDrainJobs = SqliteSustainedDrainJobs,
+    };
+
+    /// <summary>The backlog the full and release drains drain on a server provider, seconds of sustained work for every worker.</summary>
+    public const int SustainedDrainJobs = 500_000;
+
+    /// <summary>The backlog the full and release drains drain on SQLite.</summary>
+    public const int SqliteSustainedDrainJobs = 100_000;
 
     // The release round's preset: every execution profile at the quick matrix's points, one warmup and
-    // one measured run, about fifteen minutes a database. It is always run beside the previous release in
-    // the same hour, candidate then control per database, because the rig moves cells by a third between
-    // hours and only an adjacent pair carries a verdict; the full matrix stays for investigating a cell.
+    // one measured run, its drains sustained over 500,000 jobs (100,000 on SQLite), about half an hour a
+    // database. It is always run beside the previous release in the same hour, candidate then control per
+    // database, because the rig moves cells by a third between hours and only an adjacent pair carries a
+    // verdict; the full matrix stays for investigating a cell.
     public static readonly BenchPreset ReleasePreset = new(
         "release",
         new BaselinePolicy(1, 1, "single"),
@@ -189,6 +212,8 @@ public static class BaselineSuite
     )
     {
         Profiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct],
+        DrainJobs = SustainedDrainJobs,
+        SqliteDrainJobs = SqliteSustainedDrainJobs,
     };
 
     /// <summary>One rate cell: the rate its meter is overridden to, and the load put through it.</summary>
@@ -313,7 +338,7 @@ public static class BaselineSuite
                     dbVersion,
                     keyProfile: profile,
                     actualProfile: profile,
-                    jobs: preset.Jobs,
+                    jobs: (provider == "sqlite" ? preset.SqliteDrainJobs : null) ?? preset.DrainJobs ?? preset.Jobs,
                     executors: DrainExecutors,
                     claimBatch: 32,
                     payloadBytes: 0,
