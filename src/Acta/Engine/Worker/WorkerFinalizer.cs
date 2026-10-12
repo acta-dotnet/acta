@@ -55,6 +55,15 @@ internal sealed partial class WorkerFinalizer(
     /// </summary>
     public static readonly TimeSpan BatchWindow = TimeSpan.FromMilliseconds(50);
 
+    /// <summary>
+    /// How many times a batch is tried before each of its rows is written alone, so a row the database keeps refusing
+    /// holds only itself: the others land, and it repeats alone until it lands or the worker stops.
+    /// </summary>
+    internal const int BatchTries = 3;
+
+    /// <summary>The first delay between repeated writes; null keeps the one-second curve. Tests set zero.</summary>
+    internal TimeSpan? RepeatFirstDelay { get; init; }
+
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
@@ -119,20 +128,40 @@ internal sealed partial class WorkerFinalizer(
     public async Task<RunOnceStatus> FinalizeAsync(InFlightJob entry, CancellationToken hostCt) =>
         (await FinalizeAsync([entry], hostCt))[0];
 
-    /// <summary>Writes the completions in one call, lands each answer, and removes every entry.</summary>
+    /// <summary>
+    /// Writes the completions in one call, lands each answer, and removes every entry. A batch still failing after
+    /// <see cref="BatchTries"/> tries is written row by row, each row landed and removed as soon as it commits.
+    /// </summary>
     private async Task<RunOnceStatus[]> FinalizeAsync(List<InFlightJob> entries, CancellationToken hostCt)
     {
         try
         {
             var writes = entries.Select(Plan).ToList();
-            var batch = new CompleteExecutionsCommand(WorkerId, [.. writes.Select(write => write.Row)]);
-            var answer = await RepeatAsync(
-                token => execution.CompleteExecutionsAsync(batch, token),
-                log,
-                batch.Completions[0].JobId,
-                hostCt,
-                metrics
-            );
+            CompleteExecutionsResponse? answer = null;
+            if (writes.Count > 1)
+            {
+                try
+                {
+                    answer = await RepeatAsync(
+                        token => CompleteAsync(writes, token),
+                        log,
+                        writes[0].Row.JobId,
+                        hostCt,
+                        metrics,
+                        RepeatFirstDelay,
+                        BatchTries
+                    );
+                }
+                catch (Exception) when (!hostCt.IsCancellationRequested)
+                {
+                    log.LogError("WorkerRuntime: a batch of {Count} completions kept failing; writing each alone.", writes.Count);
+                }
+            }
+            if (answer is null)
+            {
+                return await Task.WhenAll(writes.Select(write => FinalizeAloneAsync(write, hostCt)));
+            }
+
             var rows = answer.Rows.ToDictionary(row => (row.JobId, row.ExecutionNumber));
             var statuses = new RunOnceStatus[writes.Count];
             for (var i = 0; i < writes.Count; i++)
@@ -149,6 +178,18 @@ internal sealed partial class WorkerFinalizer(
             }
         }
     }
+
+    /// <summary>Writes one row alone until it lands, then lands its answer and removes its entry.</summary>
+    private async Task<RunOnceStatus> FinalizeAloneAsync(PlannedWrite write, CancellationToken hostCt)
+    {
+        var answer = await RepeatAsync(token => CompleteAsync([write], token), log, write.Row.JobId, hostCt, metrics, RepeatFirstDelay);
+        var status = await LandAsync(write, answer.Rows[0], hostCt);
+        registry.Remove(write.Entry);
+        return status;
+    }
+
+    private Task<CompleteExecutionsResponse> CompleteAsync(List<PlannedWrite> writes, CancellationToken ct) =>
+        execution.CompleteExecutionsAsync(new CompleteExecutionsCommand(WorkerId, [.. writes.Select(write => write.Row)]), ct);
 
     /// <summary>Plans <paramref name="entry"/>'s write and the status it reports once the write lands.</summary>
     private PlannedWrite Plan(InFlightJob entry)
@@ -252,7 +293,8 @@ internal sealed partial class WorkerFinalizer(
     /// Repeats a write an execution cannot afford to lose until it lands or the worker stops: an abandoned completion
     /// leaves the row Executing until its lease lapses, and recovery then charges a failure and runs the job again.
     /// The write is a compare-and-swap, so repeating is safe, and every failure is repeated, since a defect that loops
-    /// loudly costs less than a finished execution charged and run twice. The token bounds only the waits between tries.
+    /// loudly costs less than a finished execution charged and run twice. The token bounds only the waits between tries;
+    /// <paramref name="tries"/> bounds the tries for a caller with a fallback, and the last failure is rethrown.
     /// </summary>
     internal static async Task<T> RepeatAsync<T>(
         Func<CancellationToken, Task<T>> write,
@@ -260,7 +302,8 @@ internal sealed partial class WorkerFinalizer(
         long jobId,
         CancellationToken ct,
         ActaMetrics? metrics = null,
-        TimeSpan? firstDelay = null
+        TimeSpan? firstDelay = null,
+        int tries = int.MaxValue
     )
     {
         // A zero first delay is the test seam: the curve stays at zero however many tries it takes.
@@ -280,6 +323,11 @@ internal sealed partial class WorkerFinalizer(
                 // so whatever the write threw propagates as it is and the row falls to recovery.
                 catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
+                    if (attempt >= tries)
+                    {
+                        throw;
+                    }
+
                     var delay = TimeSpan.FromSeconds(BackoffSchedule.ComputeDelaySeconds(attempt, backoff));
                     // Diagnostics cannot be allowed to end the repeat: a metrics listener or a logger that
                     // throws would abandon the row the repeat exists to keep.

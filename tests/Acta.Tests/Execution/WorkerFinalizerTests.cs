@@ -264,6 +264,82 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
+    [Fact(DisplayName = "A row the database keeps refusing is written alone, and the rest of its batch lands")]
+    public async Task A_refused_row_is_written_alone_while_its_batch_lands()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var batchTries = 0;
+        // Each call yields, so the refused row's zero-delay repeat cannot spin the test's own thread.
+        var session = new ScriptedSession(
+            async (call, _) =>
+            {
+                await Task.Yield();
+                using var batch = JsonDocument.Parse((string)call.Parameters["p_completions"]!);
+                var jobs = batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()).ToList();
+                if (jobs.Count > 1)
+                {
+                    Interlocked.Increment(ref batchTries);
+                }
+                if (jobs.Contains(2))
+                {
+                    throw new ProviderDown();
+                }
+                return (object?)
+                    jobs.Select(id => new CompleteExecutionsRow(
+                            id,
+                            0,
+                            CompleteExecutionsAction.Completed,
+                            (byte)JobStatusCode.Succeeded,
+                            null,
+                            DateTime.UtcNow,
+                            false,
+                            false
+                        ))
+                        .ToList();
+            }
+        );
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new WorkerFinalizer(
+            session.Services().GetRequiredService<ExecutionOperations>(),
+            null!,
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        )
+        {
+            RepeatFirstDelay = TimeSpan.Zero,
+        };
+        foreach (var jobId in new long[] { 1, 2, 3 })
+        {
+            var entry = WorkerHeartbeatLeaseRunwayTests.Entry(jobId, state: InFlightJobState.Finalizing);
+            entry.Descriptor = Descriptor;
+            entry.Completion = new ExecutionCompletion(CompletionKind.Succeeded);
+            registry.TryAdd(entry);
+            await registry.Completed.Writer.WriteAsync(entry, ct);
+        }
+        registry.Completed.Writer.Complete();
+
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var loop = finalizer.RunLoopAsync(stop.Token);
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (registry.Count() > 1 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10, ct);
+        }
+
+        Assert.Equal(WorkerFinalizer.BatchTries, batchTries);
+        Assert.Equal(2, Assert.Single(registry.Snapshot()).Key.JobId);
+        await stop.CancelAsync();
+        await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
+    }
+
     // A one-shot definition: the batch reads only its retention, and the plan its budget and deadline behavior.
     private static readonly JobDescriptor Descriptor = new(
         "receipt",

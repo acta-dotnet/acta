@@ -81,7 +81,11 @@ internal sealed class ScriptedSession : DbSessionStub
             command.Operation,
             cmd.Parameters.Cast<DbParameter>().ToDictionary(p => p.ParameterName.TrimStart('@'), p => (object?)p.Value)
         );
-        Calls.Add(call);
+        // Writes can run side by side, as the finalizer's row-by-row fallback does.
+        lock (Calls)
+        {
+            Calls.Add(call);
+        }
         return _answer(call, ct);
     }
 }
