@@ -76,7 +76,7 @@ BEGIN
                 UPDATE x
                 SET sig_state = s.status_code, sig_due = s.due_at_utc
                 FROM @rows x
-                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
+                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
                 INNER JOIN {{schema}}.checkpoints s WITH (UPDLOCK, HOLDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
@@ -127,7 +127,8 @@ BEGIN
         WHERE
             r.execution_number = x.execution_number
             AND r.status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = @p_leased_by_worker_id;
+            AND r.leased_by_worker_id = @p_leased_by_worker_id
+        OPTION (FORCE ORDER);
 
         -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
         IF @shapes = 1
@@ -380,7 +381,8 @@ BEGIN
                         latch_state TINYINT NULL,
                         parent_status TINYINT NULL,
                         parent_execution INT NULL,
-                        PRIMARY KEY (parent_id, child_id)
+                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
+                        PRIMARY KEY (parent_id, latch_name)
                     );
 
                     INSERT INTO #parents (parent_id, child_id, latch_name, envelope, reason_code, reason_message)

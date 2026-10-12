@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 70)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 71)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1560,7 +1560,7 @@ BEGIN
             END AS to_status
         ) t
         WHERE r.job_id = e.job_id
-        RETURNING r.job_id, r.execution_number, e.lane_id, e.parent_id, c.result_format_id, c.result
+        RETURNING r.job_id, r.execution_number, r.status_code, e.lane_id, e.parent_id, c.result_format_id, c.result
     ),
     stored AS (
         INSERT INTO acta.results (job_id, execution_number, result_format_id, result, created_at_utc)
@@ -1570,7 +1570,12 @@ BEGIN
     )
     SELECT
         array_agg(d.job_id),
-        array_agg(d.job_id) FILTER (WHERE d.parent_id IS NOT NULL),
+        -- Only a child that landed terminal touches its parent, so only its parent is locked.
+        array_agg(d.job_id) FILTER (
+            WHERE
+                d.parent_id IS NOT NULL
+                AND d.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        ),
         array_agg(d.job_id) FILTER (WHERE d.lane_id IS NOT NULL)
     INTO v_done, v_children, v_laned
     FROM done d;
@@ -5174,7 +5179,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.70-eb2d37567e1a1197e0601c084677d3b7', 'acta');
+VALUES (-1, 'objects-1.71-488fbe692da5d77e865821494368f787', 'acta');
 
 COMMIT;
 

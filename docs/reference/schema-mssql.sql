@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 70)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 71)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1947,7 +1947,7 @@ BEGIN
                 UPDATE x
                 SET sig_state = s.status_code, sig_due = s.due_at_utc
                 FROM @rows x
-                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
+                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
                 INNER JOIN acta.checkpoints s WITH (UPDLOCK, HOLDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
@@ -1998,7 +1998,8 @@ BEGIN
         WHERE
             r.execution_number = x.execution_number
             AND r.status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = @p_leased_by_worker_id;
+            AND r.leased_by_worker_id = @p_leased_by_worker_id
+        OPTION (FORCE ORDER);
 
         -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
         IF @shapes = 1
@@ -2251,7 +2252,8 @@ BEGIN
                         latch_state TINYINT NULL,
                         parent_status TINYINT NULL,
                         parent_execution INT NULL,
-                        PRIMARY KEY (parent_id, child_id)
+                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
+                        PRIMARY KEY (parent_id, latch_name)
                     );
 
                     INSERT INTO #parents (parent_id, child_id, latch_name, envelope, reason_code, reason_message)
@@ -6000,7 +6002,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.70-ff42e964d3c21627382c1acfbbf2fa2b', 'acta'
+SELECT -1, 'objects-1.71-8b42cc1dfc44cb51152ce33ca28b447b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
 GO
