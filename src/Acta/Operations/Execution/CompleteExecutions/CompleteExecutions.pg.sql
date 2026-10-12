@@ -211,13 +211,13 @@ BEGIN
         SET
             status_code = CASE WHEN w.wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END,
             next_run_at_utc = w.wake
-        FROM unnest(p_job_ids, p_final_statuses) AS c (job_id, final_status)
+        FROM unnest(p_job_ids, p_execution_numbers, p_final_statuses) AS c (job_id, execution_number, final_status)
         CROSS JOIN LATERAL (
             SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END) AS wake
             FROM {{schema}}.schedules js
             WHERE js.job_id = c.job_id AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
         ) w
-        WHERE r.job_id = c.job_id AND c.final_status IS NOT NULL AND c.job_id = ANY (v_done);
+        WHERE r.job_id = c.job_id AND r.execution_number = c.execution_number AND c.final_status IS NOT NULL AND c.job_id = ANY (v_done);
 
         DELETE FROM {{schema}}.results res
         USING (
@@ -226,7 +226,9 @@ BEGIN
                 k.execution_number,
                 c.cap,
                 ROW_NUMBER() OVER (PARTITION BY k.job_id ORDER BY k.execution_number DESC) AS newest
-            FROM unnest(p_job_ids, p_final_statuses, p_recurring_result_caps) AS c (job_id, final_status, cap)
+            FROM unnest(p_job_ids, p_execution_numbers, p_final_statuses, p_recurring_result_caps) AS c (job_id, execution_number, final_status, cap)
+            -- Only the row that completed: a stale execution of the same job in the batch would count each result twice.
+            INNER JOIN {{schema}}.runtimes r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
             INNER JOIN {{schema}}.results k ON k.job_id = c.job_id
             WHERE c.final_status IS NOT NULL AND c.cap > 0 AND c.job_id = ANY (v_done)
         ) old

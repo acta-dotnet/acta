@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 72)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 73)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1639,13 +1639,13 @@ BEGIN
         SET
             status_code = CASE WHEN w.wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END,
             next_run_at_utc = w.wake
-        FROM unnest(p_job_ids, p_final_statuses) AS c (job_id, final_status)
+        FROM unnest(p_job_ids, p_execution_numbers, p_final_statuses) AS c (job_id, execution_number, final_status)
         CROSS JOIN LATERAL (
             SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END) AS wake
             FROM acta.schedules js
             WHERE js.job_id = c.job_id AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
         ) w
-        WHERE r.job_id = c.job_id AND c.final_status IS NOT NULL AND c.job_id = ANY (v_done);
+        WHERE r.job_id = c.job_id AND r.execution_number = c.execution_number AND c.final_status IS NOT NULL AND c.job_id = ANY (v_done);
 
         DELETE FROM acta.results res
         USING (
@@ -1654,7 +1654,9 @@ BEGIN
                 k.execution_number,
                 c.cap,
                 ROW_NUMBER() OVER (PARTITION BY k.job_id ORDER BY k.execution_number DESC) AS newest
-            FROM unnest(p_job_ids, p_final_statuses, p_recurring_result_caps) AS c (job_id, final_status, cap)
+            FROM unnest(p_job_ids, p_execution_numbers, p_final_statuses, p_recurring_result_caps) AS c (job_id, execution_number, final_status, cap)
+            -- Only the row that completed: a stale execution of the same job in the batch would count each result twice.
+            INNER JOIN acta.runtimes r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
             INNER JOIN acta.results k ON k.job_id = c.job_id
             WHERE c.final_status IS NOT NULL AND c.cap > 0 AND c.job_id = ANY (v_done)
         ) old
@@ -5179,7 +5181,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.72-488fbe692da5d77e865821494368f787', 'acta');
+VALUES (-1, 'objects-1.73-515f36467f2ef3202ddeb80e2ed9ef6e', 'acta');
 
 COMMIT;
 
