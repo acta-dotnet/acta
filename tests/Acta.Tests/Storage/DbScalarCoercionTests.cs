@@ -37,7 +37,9 @@ public sealed class DbScalarCoercionTests
     [Fact]
     public void Required_scalar_empty_value_uses_clear_message()
     {
-        var ex = Assert.Throws<InvalidOperationException>(() => DbScalarCoercion.Resolve<int>("StartExecution", "missing action")(null));
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            DbScalarCoercion.Resolve<int>("CompleteExecutions", "missing action")(null)
+        );
 
         Assert.Equal("missing action", ex.Message);
     }

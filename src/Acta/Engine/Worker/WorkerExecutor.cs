@@ -5,12 +5,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Acta;
 
 /// <summary>
-/// Executes one already-claimed job up to its completion: starts a Dispatched claim, resolves the descriptor, opens
-/// the per-attempt DI scope, reads what the attempt needs, builds the <see cref="RuntimeJobContext"/> and publishes it
-/// on the scope, then runs <see cref="ExecutionAdmission"/>, which completes a refused attempt, and
-/// <see cref="HandlerInvocation"/>, which completes an admitted one. Its loops take what <see cref="WorkerClaimer"/>
-/// claimed and hand each completion to <see cref="WorkerFinalizer"/>, so an executor is free as soon as the completion is
-/// built. A claim this deployment carries no handler for completes as a hand-back to Ready.
+/// Executes one already-claimed job up to its completion: resolves the descriptor, opens the per-attempt DI scope,
+/// reads what the attempt needs, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope, then runs
+/// <see cref="ExecutionAdmission"/>, which completes a refused attempt, and <see cref="HandlerInvocation"/>, which
+/// completes an admitted one. Its loops take what <see cref="WorkerClaimer"/> claimed and hand each completion to
+/// <see cref="WorkerFinalizer"/>, so an executor is free as soon as the completion is built. A claim this deployment
+/// carries no handler for completes as a hand-back to Ready.
 /// </summary>
 internal sealed class WorkerExecutor(
     LocksOperations locks,
@@ -137,7 +137,7 @@ internal sealed class WorkerExecutor(
             var (namespaceId, workerId) = context.ResolveWorker(namespaceName);
             // The heartbeat found the row gone, or the lease lapsed while the claim waited for an executor: the
             // row is no longer this worker's to run.
-            if (entry.AttemptToken.IsCancellationRequested || !entry.Started && !await StartAsync(entry, workerId))
+            if (entry.AttemptToken.IsCancellationRequested)
             {
                 return false;
             }
@@ -242,38 +242,6 @@ internal sealed class WorkerExecutor(
                 registry.Remove(entry);
             }
         }
-    }
-
-    /// <summary>
-    /// Moves a Dispatched claim to Executing, repeated until it answers or the entry's attempt token stops it, since a
-    /// start abandoned after the claim leaves the row to wait out its lease; a start that committed and lost its
-    /// answer is answered Started again.
-    /// </summary>
-    private async Task<bool> StartAsync(InFlightJob entry, int workerId)
-    {
-        var job = entry.Claim;
-        var start = await WorkerFinalizer.RepeatAsync(
-            token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, _options.LeaseTtlSeconds, token),
-            _log,
-            job.JobId,
-            entry.AttemptToken,
-            metrics
-        );
-        if (start.Action == StartExecutionAction.Started)
-        {
-            return true;
-        }
-
-        // The claim was lost before execution began: reclaimed by recovery, reassigned, or moved out of
-        // Dispatched by an operator control verb between claim and start. The start mutated nothing; clean
-        // skip, and the row is re-claimed on the next tick.
-        _log.LogInformation(
-            "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: ({Outcome}); skipping.",
-            job.JobId,
-            $"execution number {job.ExecutionNumber}",
-            start.Action.ToString()
-        );
-        return false;
     }
 
     /// <summary>

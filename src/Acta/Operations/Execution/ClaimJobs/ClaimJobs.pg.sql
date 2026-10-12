@@ -3,7 +3,6 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_jobs(
     p_leased_by_worker_id INT,
     p_claim_limit INT,
     p_lease_ttl_seconds INT,
-    p_start_executing BOOLEAN,
     p_excluded_definition_ids INT[] DEFAULT '{}'
 )
 RETURNS TABLE (
@@ -20,7 +19,6 @@ RETURNS TABLE (
     lease_expires_at_utc TIMESTAMPTZ,
     created_at_utc TIMESTAMPTZ,
     failure_count INT,
-    version INT,
     job_ref UUID,
     tenant_id INT,
     db_now TIMESTAMPTZ,
@@ -77,7 +75,7 @@ AS $$
     updated AS (
         UPDATE {{schema}}.runtimes r
         SET
-            status_code = CASE WHEN p_start_executing THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+            status_code = 50 /* JobStatusCode.Executing */,
             execution_number = r.execution_number + 1,
             leased_by_worker_id = p_leased_by_worker_id,
             lease_expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
@@ -102,7 +100,6 @@ AS $$
             j.created_at_utc,
             j.audit_level_code,
             r.failure_count,
-            r.version,
             j.job_ref,
             c.from_status,
             r.lane_id,
@@ -148,9 +145,7 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE
-            p_start_executing
-            AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+        WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     ),
 
@@ -171,7 +166,6 @@ AS $$
         now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
         u.created_at_utc,
         u.failure_count,
-        u.version,
         u.job_ref,
         u.tenant_id,
         NULL::timestamptz AS db_now,
@@ -194,7 +188,6 @@ AS $$
         NULL::timestamptz,
         NULL::timestamptz,
         NULL::smallint,
-        NULL::int,
         NULL::uuid,
         NULL::int,
         c.db_now,

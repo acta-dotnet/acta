@@ -84,8 +84,6 @@ internal sealed record BurstOptions
 
     public int Executors { get; init; } = 16;
 
-    public int ClaimBatch { get; init; } = 64;
-
     /// <summary>Jobs the self-healed sweep amends to succeed and restarts.</summary>
     public int Healed { get; init; } = 200;
 
@@ -122,7 +120,6 @@ internal sealed record BurstOptions
             RunId = runId,
             Events = events,
             Executors = Int(args, "--executors", 16),
-            ClaimBatch = Int(args, "--claim-batch", 64),
             // Subsets, not the whole backlog: both sweeps prove a property that holds per row, and running
             // them over 100,000 rows would spend the run's wall clock re-proving one fact.
             Healed = Math.Min(Int(args, "--healed", 200), events),
@@ -145,7 +142,6 @@ internal sealed record BurstOptions
         Console.WriteLine("    --namespace <name>            job namespace (default: acta-burst)");
         Console.WriteLine("    --events <n>                  alertable events to seed (default: 10000)");
         Console.WriteLine("    --executors <n>               executor slots on the harness worker (default: 16)");
-        Console.WriteLine("    --claim-batch <n>             claim batch size (default: 64)");
         Console.WriteLine("    --healed <n>                  jobs the self-healed sweep succeeds (default: 200)");
         Console.WriteLine("    --stuck <n>                   alerts the retention check ages out (default: 200)");
         Console.WriteLine("    --page-depth <n>              pages of 100 the pagination probe walks (default: 50)");

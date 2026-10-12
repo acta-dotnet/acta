@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     "chaos.claim-control-races",
     "Claim and operator-control races have one legal final state",
     Area = "Chaos",
-    Contract = "Concurrent claims and control verbs at dispatched/executing boundaries resolve to exactly one legal state with explicit events."
+    Contract = "Concurrent claims and control verbs at the executing boundary resolve to exactly one legal state with explicit events."
 )]
 public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -48,37 +48,17 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
             .ClaimJobAsync(new ClaimOptions(ns, worker2, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
         await Task.WhenAll(first, second);
 
-        // --- 2. Exactly one wins; the row is Dispatched to the winner with no events yet.
+        // --- 2. Exactly one wins; the row is Executing under the winner, with its one execution-started event.
         var winners = (await first).Jobs.Concat((await second).Jobs).ToList();
         var winner = Assert.Single(winners);
         var winningWorker = (await first).Jobs.Count == 1 ? worker1 : worker2;
 
         // Read the runtime row directly to assert lease ownership and the execution number.
         var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Dispatched, job!.Status);
+        Assert.Equal(JobStatusCode.Executing, job!.Status);
         Assert.Equal(winningWorker, job.LeasedByWorkerId);
         Assert.Equal(winner.ExecutionNumber, job.ExecutionNumber);
-        Assert.Empty(await GetEventsByJobId.Run(Services, enqueued.JobId, ct));
-    }
-
-    [Fact(DisplayName = "Pause while dispatched is rejected")]
-    public async Task Pause_while_dispatched_is_rejected()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
-        var dialect = Services.GetRequiredService<ISqlDialect>();
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
-
-        // --- 1. Claim the row so it is Dispatched.
-        Assert.Single(await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct));
-
-        // --- 2. Pause is rejected and leaves the row Dispatched with no JobPaused event.
-        var pause = await Jobs.PauseAsync(enqueued, "race pause", ct: ct);
-        Assert.Equal(ControlAction.Rejected, pause.Action);
-        Assert.Equal(JobStatusCode.Dispatched, pause.Status);
-        Assert.Equal(JobStatusCode.Dispatched, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        Assert.DoesNotContain(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobPaused);
+        Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
 
     [Fact(DisplayName = "Restart while executing is rejected")]

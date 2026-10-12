@@ -29,7 +29,6 @@ public sealed class QueryScenario : IScenario
                 Provider = p.Provider,
                 Schema = schema,
                 Executors = 1,
-                ClaimBatch = 1,
                 SeedHistory = cfg.SeedHistory,
             },
             ct

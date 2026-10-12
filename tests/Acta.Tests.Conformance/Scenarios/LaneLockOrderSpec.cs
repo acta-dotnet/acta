@@ -212,10 +212,6 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         var workerId = Assert.IsType<WorkerEntity>(worker).Id;
         var claimed = Assert.Single(await store.ClaimJobAsync(ns, workerId, leaseTtl, job.JobId, ct));
-        Assert.Equal(
-            StartExecutionAction.Started,
-            (await store.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)).Action
-        );
         return () => store.CompleteAsync(workerId, CompletionTestOps.Landing(claimed), ct);
     }
 

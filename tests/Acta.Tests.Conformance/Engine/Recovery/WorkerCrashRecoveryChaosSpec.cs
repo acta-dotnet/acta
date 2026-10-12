@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Engine.Recovery;
     "chaos.worker-crash-recovery",
     "Worker crash boundaries recover through one legal final state",
     Area = "Chaos",
-    Contract = "A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state."
+    Contract = "A crash after the claim, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state."
 )]
 public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -25,8 +25,8 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         _faults = services.AddStoreFaultInjection();
     }
 
-    [Fact(DisplayName = "Claim-only crash recovers uncharged, with no execution-started event and an orphaned recovery event")]
-    public async Task Worker_crashes_after_claim_before_StartExecution()
+    [Fact(DisplayName = "Crash after the claim orphans and charges the started execution before retry and finishes once")]
+    public async Task Worker_crashes_after_claim_before_handler_completes()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -34,51 +34,8 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // --- 1. Claim the row, then crash before StartExecution by expiring the lease.
-        var claimed = Assert.Single(
-            await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
-        );
-        Assert.Equal(enqueued.JobId, claimed.JobId);
-        await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
-
-        // --- 2. Reclaim returns the job to Ready, failure_count unchanged, with no execution-started event.
-        Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
-        var reclaimed = await Jobs.GetAsync(enqueued, ct);
-        Assert.NotNull(reclaimed);
-        Assert.Equal(JobStatusCode.Ready, reclaimed!.Status);
-        Assert.Equal(0, reclaimed.FailureCount);
-
-        var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobExecutionStarted);
-        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Dispatched, JobStatusCode.Ready);
-
-        // --- 3. A later tick completes the job exactly once.
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
-    }
-
-    [Fact(DisplayName = "Crash after start orphans and charges the started execution before retry and finishes once")]
-    public async Task Worker_crashes_after_StartExecution_before_handler_completes()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
-        var dialect = Services.GetRequiredService<ISqlDialect>();
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
-
-        // --- 1. Claim and start, then crash before the handler completes by expiring the lease.
-        var claimed = Assert.Single(
-            await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
-        );
-        Assert.Equal(
-            StartExecutionAction.Started,
-            (
-                await Services
-                    .GetRequiredService<ExecutionOperations>()
-                    .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, LeaseTtlSeconds, ct)
-            ).Action
-        );
+        // --- 1. Claim, which starts the execution, then crash before the handler completes by expiring the lease.
+        Assert.Single(await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, worker, LeaseTtlSeconds, enqueued, ct));
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
 
         // --- 2. Reclaim orphans the started execution before retry and charges it.

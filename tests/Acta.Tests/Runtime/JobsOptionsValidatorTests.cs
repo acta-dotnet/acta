@@ -39,14 +39,6 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void ClaimBatchSize_below_one_fails()
-    {
-        var result = Validate(o => o.ClaimBatchSize = 0);
-        Assert.True(result.Failed);
-        Assert.Contains("ClaimBatchSize", result.FailureMessage);
-    }
-
-    [Fact]
     public void MaxConcurrentExecutors_below_one_fails()
     {
         var result = Validate(o => o.MaxConcurrentExecutors = 0);
@@ -170,14 +162,6 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
-    public void ClaimBatchSize_above_max_fails()
-    {
-        var result = Validate(o => o.ClaimBatchSize = 10_001);
-        Assert.True(result.Failed);
-        Assert.Contains("ClaimBatchSize", result.FailureMessage);
-    }
-
-    [Fact]
     public void MaxConcurrentExecutors_above_max_fails()
     {
         var result = Validate(o => o.MaxConcurrentExecutors = 100_000);
@@ -260,12 +244,10 @@ public sealed class JobsOptionsValidatorTests
         {
             o.AlertChannelValidationMode = (AlertChannelValidationMode)99;
             o.PayloadContractDriftMode = (PayloadContractDriftMode)99;
-            o.ExecutionProfile = (ExecutionProfile)99;
         });
         Assert.True(result.Failed);
         Assert.Contains("AlertChannelValidationMode", result.FailureMessage);
         Assert.Contains("PayloadContractDriftMode", result.FailureMessage);
-        Assert.Contains("ExecutionProfile", result.FailureMessage);
     }
 
     [Fact]
@@ -273,13 +255,11 @@ public sealed class JobsOptionsValidatorTests
     {
         var result = Validate(o =>
         {
-            o.ClaimBatchSize = 0;
             o.MaxConcurrentExecutors = -1;
             o.MaxInlinePayloadBytes = 0;
         });
         Assert.True(result.Failed);
         var failures = result.Failures!.ToList();
-        Assert.Contains(failures, f => f.Contains("ClaimBatchSize"));
         Assert.Contains(failures, f => f.Contains("MaxConcurrentExecutors"));
         Assert.Contains(failures, f => f.Contains("MaxInlinePayloadBytes"));
     }

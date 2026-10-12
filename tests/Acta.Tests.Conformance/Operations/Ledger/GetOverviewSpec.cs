@@ -98,7 +98,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     /// so no system jobs and no schedules) and pins all overview counters to exact values.
     /// <para>
     /// <list type="bullet">
-    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + StartExecution + CompleteExecutions.</item>
+    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + CompleteExecutions.</item>
     ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
     ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseAlert.</item>
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
@@ -170,27 +170,11 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var j3 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
         var j4 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
 
-        // j3 → Executing: claim + StartExecution, leave running (no CompleteExecutions call).
+        // j3 → Executing: claim, leave running (no CompleteExecutions call).
         var c3 = Assert.Single(await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, w1!.Id, LeaseTtl, j3, ct));
-        Assert.Equal(
-            StartExecutionAction.Started,
-            (
-                await Services
-                    .GetRequiredService<ExecutionOperations>()
-                    .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, LeaseTtl, ct)
-            ).Action
-        );
 
-        // j4 → Failed: claim + start + ctx.FailAsync-style complete (HandlerStatusCode = 200 bypasses the failure budget).
+        // j4 → Failed: claim + ctx.FailAsync-style complete (HandlerStatusCode = 200 bypasses the failure budget).
         var c4 = Assert.Single(await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, w1.Id, LeaseTtl, j4, ct));
-        Assert.Equal(
-            StartExecutionAction.Started,
-            (
-                await Services
-                    .GetRequiredService<ExecutionOperations>()
-                    .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, LeaseTtl, ct)
-            ).Action
-        );
         var cr4 = await Services
             .GetRequiredService<ExecutionOperations>()
             .CompleteAsync(

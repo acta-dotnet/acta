@@ -7,62 +7,20 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
-/// Conformance for <c>sys.recovery</c>'s recovery routine (<c>reclaim_stuck_jobs</c>). LeaseTtlSeconds
-/// is overridden negative so a claim stamps <c>lease_expires_at_utc</c> in the past - deterministically
+/// Conformance for <c>sys.recovery</c>'s recovery routine (<c>reclaim_stuck_jobs</c>). A claim with a
+/// negative lease TTL stamps <c>lease_expires_at_utc</c> in the past - deterministically
 /// simulating a worker that claimed a job then died long enough ago for its lease to lapse, with no
-/// real-time wait. A stuck job (Dispatched|Executing + expired lease) returns to Ready on reclaim, or
+/// real-time wait. A stuck job (Executing + expired lease) returns to Ready on reclaim, or
 /// goes terminal Failed once <c>failure_count</c> reaches the definition's MaxAttempts.
 /// </summary>
 [ConformanceSpec(
     "reclaim-stuck-jobs.recovery",
     "Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts",
     Area = "Recovery",
-    Contract = "An expired-lease job returns to Ready, charged a failure only when it was Executing, or lands terminal Failed once MaxAttempts is reached."
+    Contract = "An expired-lease job returns to Ready charged one failure, or lands terminal Failed once MaxAttempts is reached."
 )]
 public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Claim with a negative TTL so the lease lands in the past, deterministically simulating a worker
-    // that claimed then died long enough ago for its lease to lapse. Passed straight to ClaimJobAsync,
-    // never through JobsOptions - production options reject a non-positive lease (JobsOptionsValidator).
-    private const int LeaseTtlSeconds = -5;
-
-    [Fact(
-        DisplayName = "Expired-lease Dispatched job returns to Ready with lease cleared, failure_count unchanged, and an Orphaned execution-finished event from the system actor"
-    )]
-    public async Task Reclaim_returns_a_stuck_job_to_ready_and_emits_the_event()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var workerId = await WorkerIdAsync(Db, ns, ct);
-
-        var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
-            ct
-        );
-
-        var dialect = Services.GetRequiredService<ISqlDialect>();
-        var claim = await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
-        Assert.Equal(enqueued.JobId, Assert.Single(claim).JobId);
-
-        var reclaimed = await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct);
-        Assert.Equal(1, reclaimed.Reclaimed);
-
-        var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Ready, job.Status);
-        Assert.Null(job.LeasedByWorkerId);
-        Assert.Null(job.LeaseExpiresAtUtc);
-        Assert.Equal(0, job.FailureCount);
-
-        var events = await Db.From<EventEntity>()
-            .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
-            .ToListAsync(ct);
-        var reclaimEvent = Assert.Single(events);
-        Assert.Equal(ActorCode.Sys, reclaimEvent.ActorCode);
-        Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Ready, reclaimEvent.ToStatus);
-        Assert.Equal(EventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
-    }
-
     [Fact(DisplayName = "Job goes terminal Failed once failure_count reaches MaxAttempts")]
     public async Task Reclaim_fails_the_job_once_max_attempts_is_reached()
     {
@@ -99,45 +57,6 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         }
     }
 
-    [Fact(
-        DisplayName = "A Dispatched job reclaimed one failure short of MaxAttempts stays Ready uncharged; its next lost started attempt fails it"
-    )]
-    public async Task Dispatched_reclaim_on_the_last_attempt_is_uncharged()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var workerId = await WorkerIdAsync(Db, ns, ct);
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "add-numbers").SingleOrDefaultAsync(ct);
-        var maxAttempts = def!.MaxAttempts;
-
-        var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
-            ct
-        );
-
-        // One failure short of MaxAttempts, so a charged reclaim would fail the job.
-        var spent = maxAttempts - 1;
-        await Db.From<RuntimeEntity>()
-            .Where(r => r.Id == enqueued.JobId)
-            .UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = spent }, ct);
-
-        Assert.Single(await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct));
-        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
-
-        var uncharged = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Ready, uncharged.Status);
-        Assert.Equal(spent, uncharged.FailureCount);
-        Assert.Null(uncharged.RetentionUntilUtc);
-
-        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, enqueued.JobId, ct);
-        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
-
-        var failed = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Failed, failed.Status);
-        Assert.Equal(maxAttempts, failed.FailureCount);
-        Assert.NotNull(failed.RetentionUntilUtc);
-    }
-
     [Fact(DisplayName = "Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped")]
     public async Task Executing_lease_expiry_is_reclaimed_and_returns_job_to_ready()
     {
@@ -152,17 +71,11 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
 
-        // Claim with a live lease, then transition to Executing. The job lands Executing(50).
+        // Claim with a live lease; the claim lands the job Executing.
         const int LiveLeaseTtl = 30;
         var claimed = Assert.Single(
             await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
-        var started = (
-            await Services
-                .GetRequiredService<ExecutionOperations>()
-                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
-        ).Action;
-        Assert.Equal(StartExecutionAction.Started, started);
 
         // Back-date the lease so the Executing row is eligible for reclaim.
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
@@ -180,7 +93,9 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
             .ToListAsync(ct);
         var reclaimEvent = Assert.Single(events);
+        Assert.Equal(ActorCode.Sys, reclaimEvent.ActorCode);
         Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
+        Assert.Equal(JobStatusCode.Ready, reclaimEvent.ToStatus);
         Assert.Equal(EventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
     }
 
@@ -203,12 +118,6 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var claimed = Assert.Single(
             await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
-        var started = (
-            await Services
-                .GetRequiredService<ExecutionOperations>()
-                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)
-        ).Action;
-        Assert.Equal(StartExecutionAction.Started, started);
 
         // One direct reclaim pass: must NOT touch the live-lease Executing row.
         var result = await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, ct);
@@ -246,10 +155,6 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         const int LiveLeaseTtl = 30;
         const string TimerName = "t.stale-worker";
         var claimed = Assert.Single(await execution.ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
-        Assert.Equal(
-            StartExecutionAction.Started,
-            (await execution.StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, LiveLeaseTtl, ct)).Action
-        );
 
         var armed = await execution.ArmOrConsumeSleepTimerAsync(
             new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),

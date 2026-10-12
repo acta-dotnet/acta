@@ -9,9 +9,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
-/// Conformance for <c>JobsOptions.ClaimBatchSize</c> and the empty-claim sentinel. A single claim tick
-/// returns up to the configured batch size, and the dispatch loop hands every claimed row to its
-/// executors so a backlog still drains cleanly. An empty claim returns exactly one horizon sentinel
+/// Conformance for the claim's batch cap and the empty-claim sentinel. A single claim tick returns up to
+/// the rows it asks for, one per free executor in the worker loop, and the loop hands every claimed row to
+/// its executors so a backlog still drains cleanly. An empty claim returns exactly one horizon sentinel
 /// instead: the routine's clock and the earliest Ready row's effective run time - due-now rows
 /// included, so a claim that found due work it could not take reports a horizon at/before now rather
 /// than "nothing scheduled". System jobs are disabled so the namespace's only Ready rows are the
@@ -25,7 +25,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     "claim-jobs.size-cap",
     "Claim caps at the batch size, reports the horizon, and skips excluded rows",
     Area = "Claim",
-    Contract = "A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both."
+    Contract = "A claim returns up to the rows it asks for, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both."
 )]
 public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -36,7 +36,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         base.ConfigureServices(services, testNamespace);
         services.Configure<JobsOptions>(o =>
         {
-            o.ClaimBatchSize = Batch;
+            o.MaxConcurrentExecutors = Batch;
             o.RegisterSystemJobs = false;
         });
     }

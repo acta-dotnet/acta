@@ -63,15 +63,6 @@ public sealed class JobsOptions
     internal TimeSpan ClaimIdleJitterMax { get; set; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
-    /// Per-process number of Ready jobs a <see cref="ExecutionProfile.Buffered"/> claim pulls one batch ahead of the
-    /// executors. Default 32, which amortises the per-poll round-trip under load. The rows ahead wait Dispatched for
-    /// this worker's executors, so behind long handlers they wait while other workers idle; lower it, or use Direct,
-    /// for long-running work. <see cref="ExecutionProfile.Direct"/> ignores it and takes a row per free executor. Must
-    /// be positive; startup validation rejects a value below 1.
-    /// </summary>
-    public int ClaimBatchSize { get; set; } = 32;
-
-    /// <summary>
     /// Fixed re-arm delay in seconds for a claimed concurrency-key job that finds its key lock held at
     /// execution admission. The loser returns to Ready with <c>next_run_at_utc</c> pushed this far
     /// forward (budget-neutral), so the delay is the contention throttle (no backoff, no counter).
@@ -233,15 +224,6 @@ public sealed class JobsOptions
     /// warning when the skew is understood and accepted. Default <c>false</c> (fail-loud).
     /// </summary>
     public bool AllowClockSkew { get; set; }
-
-    /// <summary>
-    /// Selects the claim/dispatch strategy for the worker's execution loop.
-    /// <see cref="ExecutionProfile.Buffered"/> (default) is the conservative two-phase path.
-    /// <see cref="ExecutionProfile.Direct"/> uses the combined claim-execute path with no Dispatched
-    /// visibility window. Both commit completions durably through the worker's finalizer, batched when they
-    /// queue up.
-    /// </summary>
-    public ExecutionProfile ExecutionProfile { get; set; } = ExecutionProfile.Buffered;
 }
 
 /// <summary>
@@ -271,19 +253,4 @@ public enum AlertChannelValidationMode : byte
 
     /// <summary>Throw at worker initialization if any alerting definition routes to an unregistered channel.</summary>
     Fail = 2,
-}
-
-/// <summary>
-/// Selects the claim/dispatch strategy for the worker's execution loop; see
-/// JobsOptions.ExecutionProfile. Both profiles commit every completion durably, per job. On SQLite, Direct
-/// additionally sets PRAGMA synchronous = NORMAL (vs FULL on Buffered), trading a power-loss window for far
-/// fewer commit fsyncs.
-/// </summary>
-public enum ExecutionProfile : byte
-{
-    /// <summary>Buffered two-phase: batched claim to Dispatched, Channel, per-job start_execution. Fully durable. Default.</summary>
-    Buffered = 0,
-
-    /// <summary>Combined claim-execute via a semaphore coordinator; no Dispatched window. Lower per-job latency; on SQLite relaxes commit fsync to PRAGMA synchronous = NORMAL.</summary>
-    Direct = 1,
 }

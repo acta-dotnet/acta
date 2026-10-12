@@ -29,7 +29,6 @@ public sealed class PurgeScenario : IScenario
             Provider = p.Provider,
             Schema = schema,
             Executors = p.Executors,
-            ClaimBatch = p.ClaimBatch,
             RegisterSystemJobs = true,
             // Seeded events land inside this cell's expired set by design: the sweep it measures is
             // the one that deletes them, which is the point of purging against a populated ledger.

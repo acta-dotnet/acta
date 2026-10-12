@@ -19,10 +19,9 @@ internal sealed class InFlightJob : IDisposable
     private volatile InFlightJobState _state;
     private int _permit;
 
-    public InFlightJob(ClaimedJob claim, TimeSpan? leaseRunway, CancellationToken hostCt, bool started = false, bool holdsPermit = false)
+    public InFlightJob(ClaimedJob claim, TimeSpan? leaseRunway, CancellationToken hostCt, bool holdsPermit = false)
     {
         Claim = claim;
-        Started = started;
         _permit = holdsPermit ? 1 : 0;
         if (leaseRunway is { } runway)
         {
@@ -43,9 +42,6 @@ internal sealed class InFlightJob : IDisposable
         (TimeSpan.FromSeconds(options.LeaseTtlSeconds) + options.HeartbeatInterval) / 2;
 
     public ClaimedJob Claim { get; }
-
-    /// <summary>Whether the claim itself started the execution (Direct), so no start is written for it.</summary>
-    public bool Started { get; }
 
     public (long JobId, int ExecutionNumber) Key => (Claim.JobId, Claim.ExecutionNumber);
 

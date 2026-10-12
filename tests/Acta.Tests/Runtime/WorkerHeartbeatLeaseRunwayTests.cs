@@ -192,8 +192,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
                 NextRunAtUtc: null,
                 LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
                 CreatedAtUtc: DateTime.UtcNow,
-                FailureCount: 0,
-                Version: 1
+                FailureCount: 0
             ),
             leaseRunway,
             CancellationToken.None

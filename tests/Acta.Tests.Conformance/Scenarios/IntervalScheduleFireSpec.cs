@@ -169,7 +169,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
 
         // Real DB clock >> 2024-epoch cursor: the slot is always past-due without advancing the fake clock.
 
-        // Worker 1 claims the slot (Ready → Dispatched, execution_number bumped to 1).
+        // Worker 1 claims the slot (Ready → Executing, execution_number bumped to 1).
         var claim1 = (
             await Services
                 .GetRequiredService<ExecutionOperations>()
@@ -178,7 +178,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Single(claim1);
         Assert.Equal(1, claim1[0].ExecutionNumber);
 
-        // Worker 2 attempts the same slot: finds it Dispatched, not Ready.
+        // Worker 2 attempts the same slot: finds it Executing, not Ready.
         var claim2 = (
             await Services
                 .GetRequiredService<ExecutionOperations>()

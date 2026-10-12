@@ -3,7 +3,6 @@ CREATE OR ALTER PROCEDURE {{schema}}.claim_jobs
     @p_leased_by_worker_id INT,
     @p_claim_limit INT,
     @p_lease_ttl_seconds INT,
-    @p_start_executing BIT,
     @p_excluded_definition_ids NVARCHAR(MAX) = NULL
 AS
 BEGIN
@@ -50,7 +49,6 @@ BEGIN
                 created_at_utc DATETIME2(3) NOT NULL,
                 audit_level_code TINYINT NOT NULL,
                 failure_count INT NOT NULL,
-                version INT NOT NULL,
                 from_status TINYINT NOT NULL,
                 lane_id BIGINT NULL,
                 parent_id BIGINT NULL
@@ -109,7 +107,7 @@ BEGIN
 
         UPDATE r
         SET
-            status_code = CASE WHEN @p_start_executing = 1 THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+            status_code = 50 /* JobStatusCode.Executing */,
             execution_number = r.execution_number + 1,
             leased_by_worker_id = @p_leased_by_worker_id,
             lease_expires_at_utc = @lease_expires,
@@ -132,7 +130,6 @@ BEGIN
             j.created_at_utc,
             j.audit_level_code,
             INSERTED.failure_count,
-            INSERTED.version,
             DELETED.status_code,
             INSERTED.lane_id,
             j.parent_id
@@ -141,7 +138,7 @@ BEGIN
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version, from_status, lane_id, parent_id
+                audit_level_code, failure_count, from_status, lane_id, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
         -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
@@ -150,40 +147,37 @@ BEGIN
         INNER JOIN @candidates c ON c.id = r.job_id
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
 
-        IF @p_start_executing = 1
-            BEGIN
-                INSERT INTO {{schema}}.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                SELECT
-                    40 /* EventCode.JobExecutionStarted */,
-                    @now,
-                    c.namespace_id,
-                    70 /* ActorCode.Worker */,
-                    NULL,
-                    c.id,
-                    c.job_ref,
-                    c.execution_number,
-                    COALESCE(c.lineage_root_id, c.id),
-                    c.definition_id,
-                    c.tenant_id,
-                    @p_leased_by_worker_id,
-                    c.from_status,
-                    50 /* JobStatusCode.Executing */,
-                    50 /* ExecutionStatusCode.Executing */,
-                    NULL,
-                    NULL,
-                    NULL
-                FROM @claimed c
-                WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
-            END
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id, tenant_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            40 /* EventCode.JobExecutionStarted */,
+            @now,
+            c.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            c.id,
+            c.job_ref,
+            c.execution_number,
+            COALESCE(c.lineage_root_id, c.id),
+            c.definition_id,
+            c.tenant_id,
+            @p_leased_by_worker_id,
+            c.from_status,
+            50 /* JobStatusCode.Executing */,
+            50 /* ExecutionStatusCode.Executing */,
+            NULL,
+            NULL,
+            NULL
+        FROM @claimed c
+        WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
         IF EXISTS (SELECT 1 FROM @claimed)
             BEGIN
@@ -201,7 +195,6 @@ BEGIN
                     @lease_expires AS lease_expires_at_utc,
                     created_at_utc,
                     failure_count,
-                    version,
                     job_ref,
                     tenant_id,
                     CAST(NULL AS DATETIME2(7)) AS db_now,
@@ -227,7 +220,6 @@ BEGIN
                     CAST(NULL AS DATETIME2(3)) AS lease_expires_at_utc,
                     CAST(NULL AS DATETIME2(3)) AS created_at_utc,
                     CAST(NULL AS INT) AS failure_count,
-                    CAST(NULL AS INT) AS version,
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,
                     @now AS db_now,

@@ -74,7 +74,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var reclaimed = await ReadJobAsync(stranded.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Null(reclaimed.LeasedByWorkerId);
-        Assert.Equal(0, reclaimed.FailureCount);
+        Assert.Equal(1, reclaimed.FailureCount);
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);

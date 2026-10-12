@@ -22,8 +22,6 @@ public sealed class ThroughputScenario : IScenario
                 Provider = p.Provider,
                 Schema = schema,
                 Executors = p.Executors,
-                ClaimBatch = p.ClaimBatch,
-                Profile = p.Profile,
                 SeedHistory = cfg.SeedHistory,
             },
             ct

@@ -79,7 +79,7 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
     private async Task<int> ClaimAsync(NpgsqlConnection conn, int ns, int workerId, CancellationToken ct)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT id FROM {Schema.SchemaName}.claim_jobs(@ns, @worker, 16, 30, false) WHERE id IS NOT NULL";
+        cmd.CommandText = $"SELECT id FROM {Schema.SchemaName}.claim_jobs(@ns, @worker, 16, 30) WHERE id IS NOT NULL";
         cmd.Parameters.AddWithValue("ns", ns);
         cmd.Parameters.AddWithValue("worker", workerId);
         var claimed = 0;

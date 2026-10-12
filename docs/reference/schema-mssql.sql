@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 74)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 75)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1447,8 +1447,7 @@ CREATE OR ALTER PROCEDURE acta.claim_job
     @p_namespace_id INT,
     @p_leased_by_worker_id INT,
     @p_lease_ttl_seconds INT,
-    @p_id BIGINT,
-    @p_start_executing BIT
+    @p_id BIGINT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1485,7 +1484,6 @@ BEGIN
                 created_at_utc DATETIME2(3) NOT NULL,
                 audit_level_code TINYINT NOT NULL,
                 failure_count INT NOT NULL,
-                version INT NOT NULL,
                 from_status TINYINT NOT NULL,
                 lane_id BIGINT NULL,
                 parent_id BIGINT NULL
@@ -1506,7 +1504,7 @@ BEGIN
 
         UPDATE r
         SET
-            status_code = CASE WHEN @p_start_executing = 1 THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+            status_code = 50 /* JobStatusCode.Executing */,
             execution_number = r.execution_number + 1,
             leased_by_worker_id = @p_leased_by_worker_id,
             lease_expires_at_utc = @lease_expires,
@@ -1516,13 +1514,13 @@ BEGIN
             INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            INSERTED.failure_count, INSERTED.version, DELETED.status_code, INSERTED.lane_id, j.parent_id
+            INSERTED.failure_count, DELETED.status_code, INSERTED.lane_id, j.parent_id
         INTO
             @claimed (
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version, from_status, lane_id, parent_id
+                audit_level_code, failure_count, from_status, lane_id, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
         -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
@@ -1531,37 +1529,34 @@ BEGIN
         INNER JOIN candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
-        IF @p_start_executing = 1
-            BEGIN
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id, actor_code, actor,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id, worker_id,
-                    from_status_code, to_status_code, execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                SELECT
-                    40 /* EventCode.JobExecutionStarted */,
-                    @now,
-                    c.namespace_id,
-                    70 /* ActorCode.Worker */,
-                    NULL,
-                    c.id,
-                    c.job_ref,
-                    c.execution_number,
-                    COALESCE(c.lineage_root_id, c.id),
-                    c.definition_id,
-                    c.tenant_id,
-                    @p_leased_by_worker_id,
-                    c.from_status,
-                    50 /* JobStatusCode.Executing */,
-                    50 /* ExecutionStatusCode.Executing */,
-                    NULL,
-                    NULL,
-                    NULL
-                FROM @claimed c
-                WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
-            END
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id, tenant_id, worker_id,
+            from_status_code, to_status_code, execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            40 /* EventCode.JobExecutionStarted */,
+            @now,
+            c.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            c.id,
+            c.job_ref,
+            c.execution_number,
+            COALESCE(c.lineage_root_id, c.id),
+            c.definition_id,
+            c.tenant_id,
+            @p_leased_by_worker_id,
+            c.from_status,
+            50 /* JobStatusCode.Executing */,
+            50 /* ExecutionStatusCode.Executing */,
+            NULL,
+            NULL,
+            NULL
+        FROM @claimed c
+        WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
         SELECT
             id,
@@ -1577,7 +1572,6 @@ BEGIN
             @lease_expires AS lease_expires_at_utc,
             created_at_utc,
             failure_count,
-            version,
             job_ref,
             tenant_id,
             CAST(NULL AS DATETIME2(7)) AS db_now,
@@ -1601,7 +1595,6 @@ CREATE OR ALTER PROCEDURE acta.claim_jobs
     @p_leased_by_worker_id INT,
     @p_claim_limit INT,
     @p_lease_ttl_seconds INT,
-    @p_start_executing BIT,
     @p_excluded_definition_ids NVARCHAR(MAX) = NULL
 AS
 BEGIN
@@ -1648,7 +1641,6 @@ BEGIN
                 created_at_utc DATETIME2(3) NOT NULL,
                 audit_level_code TINYINT NOT NULL,
                 failure_count INT NOT NULL,
-                version INT NOT NULL,
                 from_status TINYINT NOT NULL,
                 lane_id BIGINT NULL,
                 parent_id BIGINT NULL
@@ -1707,7 +1699,7 @@ BEGIN
 
         UPDATE r
         SET
-            status_code = CASE WHEN @p_start_executing = 1 THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+            status_code = 50 /* JobStatusCode.Executing */,
             execution_number = r.execution_number + 1,
             leased_by_worker_id = @p_leased_by_worker_id,
             lease_expires_at_utc = @lease_expires,
@@ -1730,7 +1722,6 @@ BEGIN
             j.created_at_utc,
             j.audit_level_code,
             INSERTED.failure_count,
-            INSERTED.version,
             DELETED.status_code,
             INSERTED.lane_id,
             j.parent_id
@@ -1739,7 +1730,7 @@ BEGIN
                 id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                audit_level_code, failure_count, version, from_status, lane_id, parent_id
+                audit_level_code, failure_count, from_status, lane_id, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
         -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
@@ -1748,40 +1739,37 @@ BEGIN
         INNER JOIN @candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
-        IF @p_start_executing = 1
-            BEGIN
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                SELECT
-                    40 /* EventCode.JobExecutionStarted */,
-                    @now,
-                    c.namespace_id,
-                    70 /* ActorCode.Worker */,
-                    NULL,
-                    c.id,
-                    c.job_ref,
-                    c.execution_number,
-                    COALESCE(c.lineage_root_id, c.id),
-                    c.definition_id,
-                    c.tenant_id,
-                    @p_leased_by_worker_id,
-                    c.from_status,
-                    50 /* JobStatusCode.Executing */,
-                    50 /* ExecutionStatusCode.Executing */,
-                    NULL,
-                    NULL,
-                    NULL
-                FROM @claimed c
-                WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
-            END
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id, tenant_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            40 /* EventCode.JobExecutionStarted */,
+            @now,
+            c.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            c.id,
+            c.job_ref,
+            c.execution_number,
+            COALESCE(c.lineage_root_id, c.id),
+            c.definition_id,
+            c.tenant_id,
+            @p_leased_by_worker_id,
+            c.from_status,
+            50 /* JobStatusCode.Executing */,
+            50 /* ExecutionStatusCode.Executing */,
+            NULL,
+            NULL,
+            NULL
+        FROM @claimed c
+        WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
         IF EXISTS (SELECT 1 FROM @claimed)
             BEGIN
@@ -1799,7 +1787,6 @@ BEGIN
                     @lease_expires AS lease_expires_at_utc,
                     created_at_utc,
                     failure_count,
-                    version,
                     job_ref,
                     tenant_id,
                     CAST(NULL AS DATETIME2(7)) AS db_now,
@@ -1825,7 +1812,6 @@ BEGIN
                     CAST(NULL AS DATETIME2(3)) AS lease_expires_at_utc,
                     CAST(NULL AS DATETIME2(3)) AS created_at_utc,
                     CAST(NULL AS INT) AS failure_count,
-                    CAST(NULL AS INT) AS version,
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,
                     @now AS db_now,
@@ -3597,8 +3583,8 @@ BEGIN
         /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
            version bump: a lease refresh is not a claim-generation change. */
-        -- Read the matched ids first so the update locks base rows only, never an index key; start_execution
-        -- and complete_executions lock in the other order. See docs/internals/sql-execution-policy.md.
+        -- Read the matched ids first so the update locks base rows only, never an index key;
+        -- complete_executions locks in the other order. See docs/internals/sql-execution-policy.md.
         DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
         INSERT INTO @matched (job_id, execution_number)
         SELECT r.job_id, r.execution_number
@@ -5572,135 +5558,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.start_execution
-    @p_id BIGINT,
-    @p_leased_by_worker_id INT,
-    @p_execution_number INT,
-    @p_lease_ttl_seconds INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @action TINYINT;
-        DECLARE @started TABLE (
-            id BIGINT NOT NULL,
-            from_status TINYINT NOT NULL,
-            job_ref UNIQUEIDENTIFIER NOT NULL,
-            namespace_id INT NOT NULL,
-            lineage_root_id BIGINT NULL,
-            definition_id INT NOT NULL,
-            tenant_id INT NULL,
-            execution_number INT NOT NULL,
-            audit_level_code TINYINT NOT NULL
-        );
-
-        /* The update locks the row it reads, so Started always comes from the row as it is and never from a
-           snapshot. A start that committed and lost its answer finds the row Executing under this worker at this
-           execution and is answered Started again: the lease is refreshed, the version and the ledger are not touched. */
-        UPDATE r
-        SET
-            status_code = 50 /* JobStatusCode.Executing */,
-            lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
-            modified_at_utc = @now,
-            version = r.version + CASE WHEN r.status_code = 40 /* JobStatusCode.Dispatched */ THEN 1 ELSE 0 END
-        OUTPUT
-            INSERTED.job_id,
-            DELETED.status_code,
-            j.job_ref,
-            j.namespace_id,
-            j.lineage_root_id,
-            j.definition_id,
-            j.tenant_id,
-            INSERTED.execution_number,
-            j.audit_level_code
-        INTO @started
-        FROM acta.runtimes r
-        INNER JOIN acta.jobs j ON j.id = r.job_id
-        WHERE
-            r.job_id = @p_id
-            AND r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.execution_number = @p_execution_number
-            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
-
-        IF EXISTS (SELECT 1 FROM @started)
-            BEGIN
-                SET @action = 1 /* StartExecutionAction.Started */;
-
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                SELECT
-                    40 /* EventCode.JobExecutionStarted */,
-                    @now,
-                    st.namespace_id,
-                    70 /* ActorCode.Worker */,
-                    NULL,
-                    st.id,
-                    st.job_ref,
-                    st.execution_number,
-                    COALESCE(st.lineage_root_id, st.id),
-                    st.definition_id,
-                    st.tenant_id,
-                    @p_leased_by_worker_id,
-                    40 /* JobStatusCode.Dispatched */,
-                    50 /* JobStatusCode.Executing */,
-                    50 /* ExecutionStatusCode.Executing */,
-                    NULL,
-                    NULL,
-                    NULL
-                FROM @started st
-                WHERE st.from_status = 40 /* JobStatusCode.Dispatched */ AND st.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
-            END
-        ELSE
-            BEGIN
-                DECLARE @curWorker INT, @curStatus TINYINT;
-                SELECT
-                    @curStatus = r.status_code,
-                    @curWorker = r.leased_by_worker_id
-                FROM acta.runtimes r
-                WHERE r.job_id = @p_id;
-
-                SET @action = CASE
-                    WHEN
-                        @curStatus IS NULL
-                        OR @curStatus IN (
-                            100 /* JobStatusCode.Succeeded */,
-                            200 /* JobStatusCode.Failed */,
-                            220 /* JobStatusCode.Cancelled */
-                        )
-                        THEN 4 /* StartExecutionAction.AlreadyTerminal */
-                    WHEN @curWorker <> @p_leased_by_worker_id OR @curWorker IS NULL
-                        THEN 2 /* StartExecutionAction.NotOwner */
-                    ELSE 3 /* StartExecutionAction.LostClaim */
-                END;
-            END
-
-        SELECT @action AS action;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.start_step
     @p_job_id BIGINT,
     @p_name VARCHAR(128),
@@ -6007,9 +5864,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.74-1a20d5c49ce74c675d1dd93ef2fe4612', 'acta'
+SELECT -1, 'objects-1.75-1a420c7ca09407b7fc744598ec500b9d', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_step', 'update_alert_delivery', 'wait_signal')) = 37;
 GO
 COMMIT TRANSACTION;
 GO

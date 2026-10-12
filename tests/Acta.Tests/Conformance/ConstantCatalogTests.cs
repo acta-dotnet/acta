@@ -8,7 +8,7 @@ public sealed class ConstantCatalogTests
     [Theory]
     [InlineData("JobStatusCode.Ready", 10)]
     [InlineData("TagMutationAction.NotFound", 2)]
-    [InlineData("StartExecutionAction.LostClaim", 3)]
+    [InlineData("CompleteExecutionsAction.AlreadyTerminal", 3)]
     [InlineData("JobPayloadFormat.Json", 1)]
     public void Resolves_every_supported_constant_shape(string symbol, int expected)
     {
@@ -19,13 +19,13 @@ public sealed class ConstantCatalogTests
     [Fact]
     public void Rejects_an_unknown_enum_member()
     {
-        Assert.False(ConstantCatalog.IsKnownCode("StartExecutionAction.NoSuchThing"));
+        Assert.False(ConstantCatalog.IsKnownCode("CompleteExecutionsAction.NoSuchThing"));
     }
 
     [Fact]
     public void Constant_names_are_case_sensitive()
     {
-        Assert.False(ConstantCatalog.IsKnownCode("startExecutionAction.LostClaim"));
+        Assert.False(ConstantCatalog.IsKnownCode("completeExecutionsAction.AlreadyTerminal"));
     }
 
     [Fact]

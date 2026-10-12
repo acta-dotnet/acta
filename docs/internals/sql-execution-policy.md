@@ -5,7 +5,7 @@ everything else through embedded SQL and installed views; SQLite runs every muta
 inside a transaction the session owns.
 
 This is the execution policy referenced by [the design decisions](design.md). The server providers
-each install twenty-nine routines: enqueue, claim, start, complete (one batch call for every completion shape), the step and slot writes, leases,
+each install twenty-eight routines: enqueue, claim, complete (one batch call for every completion shape), the step and slot writes, leases,
 recovery, retention, alert raise and settlement, outbox signals, and definition and schedule
 registration. Every other operation, control verbs included, is embedded SQL on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
@@ -99,12 +99,11 @@ row, escalate to a table lock once the backlog passes the escalation threshold, 
 so every concurrent insert waits out the whole statement. `pk_runtimes` is keyed on `job_id` and every
 such join predicate resolves through it, so a seek is always available and the hint cannot fail to
 compile. The claim batch, the single claim, batch completion, and the stuck-job reclaim all take it.
-`StartExecution` does not: it filters on a point predicate and always seeks.
 
 Statements that touch many `runtimes` rows lock the base row first and never hold an index key while
-waiting for one. `StartExecution` and `CompleteExecutions` change `status_code` and
-`leased_by_worker_id`, both key columns of `ix_runtimes_worker_inflight`, so they lock the clustered
-row and then move the index key; a worker heartbeat that walked that index instead would hold the key
+waiting for one. `CompleteExecutions` changes `status_code` and
+`leased_by_worker_id`, both key columns of `ix_runtimes_worker_inflight`, so it locks the clustered
+row and then moves the index key; a worker heartbeat that walked that index instead would hold the key
 and wait for the row, which is the inversion that deadlocks. `ExtendWorkerLeases` therefore reads the
 in-flight ids first and updates through a primary-key seek.
 

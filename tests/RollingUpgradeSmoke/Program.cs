@@ -17,7 +17,8 @@ var provider = args[0];
 var schema = args[1];
 var mode = args[2];
 var provision = mode == "provision";
-var profile = Enum.Parse<ExecutionProfile>(args[3]);
+
+// args[3] is the execution profile the previous generation still takes; this generation has none.
 var connection =
     Environment.GetEnvironmentVariable(provider == "pg" ? "ACTA_TEST_PG" : "ACTA_TEST_MSSQL")
     ?? throw new InvalidOperationException("The provider test connection string is required.");
@@ -52,9 +53,7 @@ builder.Services.UseActa(j =>
 // four intervals long, so a probe that outlived it without a renewal would be reclaimable.
 builder.Services.Configure<JobsOptions>(o =>
 {
-    o.ExecutionProfile = profile;
     o.MaxConcurrentExecutors = 4;
-    o.ClaimBatchSize = 4;
     o.HeartbeatInterval = TimeSpan.FromSeconds(1);
 });
 using var host = builder.Build();
@@ -104,8 +103,8 @@ try
     }
     Console.WriteLine(
         mode == "overlap"
-            ? $"PASS {provider} {profile} {mode}: 8 completions/results, heartbeat renewal, checkpoints."
-            : $"PASS {provider} {profile} {mode}: 8 completions/results, heartbeat renewal, checkpoints, 2 recurring rollovers."
+            ? $"PASS {provider} {mode}: 8 completions/results, heartbeat renewal, checkpoints."
+            : $"PASS {provider} {mode}: 8 completions/results, heartbeat renewal, checkpoints, 2 recurring rollovers."
     );
 }
 finally
@@ -133,7 +132,7 @@ async Task HoldAsync()
                 + $"completed by process {result?.Value}, holder {Environment.ProcessId}."
         );
     }
-    Console.WriteLine($"PASS {provider} {profile} hold: execution held across the other generation's provisioning, then completed.");
+    Console.WriteLine($"PASS {provider} hold: execution held across the other generation's provisioning, then completed.");
 }
 
 async Task VerifyProbeAsync(EnqueueJobResponse job, int expected)

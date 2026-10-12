@@ -14,10 +14,7 @@ internal sealed class InFlightJobRegistry
 
     public InFlightJobRegistry(JobsOptions options)
     {
-        var permits =
-            options.ExecutionProfile == ExecutionProfile.Direct
-                ? options.MaxConcurrentExecutors
-                : options.MaxConcurrentExecutors + options.ClaimBatchSize;
+        var permits = options.MaxConcurrentExecutors;
         Permits = new SemaphoreSlim(permits, permits);
         Claimed = Channel.CreateBounded<InFlightJob>(permits);
         // Room for a full batch and the executors behind it, so a batch can grow while the finalizers write.
@@ -25,8 +22,8 @@ internal sealed class InFlightJobRegistry
     }
 
     /// <summary>
-    /// One per entry from its claim until its executor lets it go, so claiming never outruns the executors: Direct
-    /// claims only for a free executor, and Buffered holds at most one batch ahead of them.
+    /// One per entry from its claim until its executor lets it go, so claiming never outruns the executors: a claim
+    /// takes a row only for a free executor.
     /// </summary>
     public SemaphoreSlim Permits { get; }
 

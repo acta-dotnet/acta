@@ -740,9 +740,6 @@ enum Acta.ExecutionBehavior
     Indeterminate = 6
     Live = 1
     Succeeded = 2
-enum Acta.ExecutionProfile
-    Buffered = 0
-    Direct = 1
 enum Acta.ExecutionStatusCode
     Cancelled = 220
     Executing = 50
@@ -1588,12 +1585,10 @@ static class Acta.JobStatusExtensions
 sealed class Acta.JobsOptions
     .ctor()
     Acta.AlertChannelValidationMode AlertChannelValidationMode { get;set; }
-    Acta.ExecutionProfile ExecutionProfile { get;set; }
     Acta.PayloadContractDriftMode PayloadContractDriftMode { get;set; }
     System.Boolean AllowClockSkew { get;set; }
     System.Boolean RegisterSystemJobs { get;set; }
     System.Int32 AlertFailureThreshold { get;set; }
-    System.Int32 ClaimBatchSize { get;set; }
     System.Int32 LeaseTtlSeconds { get; }
     System.Int32 MaxConcurrentExecutors { get;set; }
     System.Int32 MaxInlinePayloadBytes { get;set; }

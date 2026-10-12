@@ -25,8 +25,7 @@ public sealed class RuntimeJobContextCancellationTests
                 NextRunAtUtc: null,
                 LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
                 CreatedAtUtc: DateTime.UtcNow,
-                FailureCount: 0,
-                Version: 1
+                FailureCount: 0
             ),
             jobName: "step-host",
             namespaceName: "test",
@@ -76,8 +75,7 @@ public sealed class RuntimeJobContextCancellationTests
                 NextRunAtUtc: null,
                 LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
                 CreatedAtUtc: DateTime.UtcNow,
-                FailureCount: 0,
-                Version: 1
+                FailureCount: 0
             ),
             jobName: "step-host",
             namespaceName: "test",

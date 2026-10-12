@@ -230,7 +230,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ReclaimStuckJobsHandler>();
         services.TryAddSingleton<RecordNoteHandler>();
         services.TryAddSingleton<RepairRecoverySlotHandler>();
-        services.TryAddSingleton<StartExecutionHandler>();
         services.TryAddSingleton<StartStepHandler>();
         services.TryAddSingleton<ExecutionOperations>();
 

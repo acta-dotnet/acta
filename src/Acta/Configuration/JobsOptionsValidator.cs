@@ -88,11 +88,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.ClaimIdleJitterMax must be between 0 and 1s.");
         }
 
-        if (options.ClaimBatchSize < 1)
-        {
-            failures.Add("JobsOptions.ClaimBatchSize must be >= 1: it is the per-poll claim count.");
-        }
-
         if (options.MaxConcurrentExecutors < 1)
         {
             failures.Add("JobsOptions.MaxConcurrentExecutors must be >= 1: a worker with no executors claims nothing.");
@@ -205,11 +200,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.SafetyPollInterval must be <= 1h: it bounds discovery of work with no delivered wake.");
         }
 
-        if (options.ClaimBatchSize > 10_000)
-        {
-            failures.Add("JobsOptions.ClaimBatchSize must be <= 10000.");
-        }
-
         if (options.MaxConcurrentExecutors > 1024)
         {
             failures.Add("JobsOptions.MaxConcurrentExecutors must be <= 1024.");
@@ -260,11 +250,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         if (!Enum.IsDefined(options.PayloadContractDriftMode))
         {
             failures.Add($"JobsOptions.PayloadContractDriftMode has undefined value {(byte)options.PayloadContractDriftMode}.");
-        }
-
-        if (!Enum.IsDefined(options.ExecutionProfile))
-        {
-            failures.Add($"JobsOptions.ExecutionProfile has undefined value {(byte)options.ExecutionProfile}.");
         }
     }
 }

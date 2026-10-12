@@ -50,15 +50,7 @@ internal sealed class StoreFaultPlan
 
     public void SkewGetUtcNowBy(TimeSpan skew) => _getUtcNowSkew = skew;
 
-    private Func<Task>? _beforeStart;
-    private int _throwAfterStart;
     private int _throwGetUtcNow;
-
-    /// <summary>Runs <paramref name="action"/> once, between an attempt's claim and its start write.</summary>
-    public void RunBeforeStartOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeStart, action);
-
-    /// <summary>Lets the next start write commit and then loses its answer, the way a dropped connection would.</summary>
-    public void ThrowAfterStartOnce() => Interlocked.Exchange(ref _throwAfterStart, 1);
 
     private int _throwAfterClaim;
 
@@ -75,16 +67,6 @@ internal sealed class StoreFaultPlan
 
     /// <summary>Fails the next database clock read with a provider error.</summary>
     public void ThrowGetUtcNowOnce() => Interlocked.Exchange(ref _throwGetUtcNow, 1);
-
-    public Task RunBeforeStartAsync() => Interlocked.Exchange(ref _beforeStart, null) is { } action ? action() : Task.CompletedTask;
-
-    public void MaybeThrowAfterStart()
-    {
-        if (Interlocked.Exchange(ref _throwAfterStart, 0) == 1)
-        {
-            throw new InjectedProviderError("after StartExecution");
-        }
-    }
 
     public bool TakeGetUtcNowFault() => Interlocked.Exchange(ref _throwGetUtcNow, 0) == 1;
 
@@ -182,11 +164,6 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
         CancellationToken ct
     )
     {
-        if (command.Operation == "StartExecution")
-        {
-            await plan.RunBeforeStartAsync();
-        }
-
         if (command.Operation == "CompleteExecutions")
         {
             plan.MaybeThrowBefore(BoundJobIds(bind));
@@ -200,9 +177,6 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
                 break;
             case "ClaimJobs" or "ClaimJob":
                 plan.MaybeThrowAfterClaim();
-                break;
-            case "StartExecution":
-                plan.MaybeThrowAfterStart();
                 break;
         }
 

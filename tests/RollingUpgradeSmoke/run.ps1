@@ -107,10 +107,8 @@ foreach ($provider in $Providers) {
             @{ Phase = 'sequential'; Generation = 'current'; Mode = 'old-sql-rejected'; Profile = 'Direct'; ExpectedFailure = $true },
             @{ Phase = 'sequential'; Generation = 'current'; Mode = 'provision'; Profile = 'Direct' }
         )
-        foreach ($profile in @('Buffered', 'Direct', 'Bulk')) {
-            $sequence += @{ Phase = 'sequential'; Generation = 'previous'; Mode = 'verify'; Profile = $profile }
-            $sequence += @{ Phase = 'sequential'; Generation = 'current'; Mode = 'verify'; Profile = $profile }
-        }
+        $sequence += @{ Phase = 'sequential'; Generation = 'previous'; Mode = 'verify'; Profile = 'Direct' }
+        $sequence += @{ Phase = 'sequential'; Generation = 'current'; Mode = 'verify'; Profile = 'Direct' }
         foreach ($phase in $sequence) { Invoke-Phase $provider $schema $phase }
     }
 
@@ -133,13 +131,11 @@ foreach ($provider in $Providers) {
         # The current generation provisions under the held execution, then both generations run side by
         # side with migrations disabled, each worker free to claim the other's jobs.
         Invoke-Phase $provider $schema @{ Phase = 'overlap'; Generation = 'current'; Mode = 'provision'; Profile = 'Direct' }
-        foreach ($profile in @('Buffered', 'Direct', 'Bulk')) {
-            $pair = @(
-                (Start-Phase $provider $schema @{ Phase = 'overlap'; Generation = 'previous'; Mode = 'overlap'; Profile = $profile }),
-                (Start-Phase $provider $schema @{ Phase = 'overlap'; Generation = 'current'; Mode = 'overlap'; Profile = $profile })
-            )
-            foreach ($started in $pair) { Wait-Phase $provider $started }
-        }
+        $pair = @(
+            (Start-Phase $provider $schema @{ Phase = 'overlap'; Generation = 'previous'; Mode = 'overlap'; Profile = 'Direct' }),
+            (Start-Phase $provider $schema @{ Phase = 'overlap'; Generation = 'current'; Mode = 'overlap'; Profile = 'Direct' })
+        )
+        foreach ($started in $pair) { Wait-Phase $provider $started }
 
         # Only now may the held execution complete, on the current generation's objects.
         New-Item -ItemType File -Path (Join-Path $overlapDir 'release') | Out-Null

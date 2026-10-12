@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The worker-shutdown drain contract, shared across every <see cref="ExecutionProfile"/>: a graceful
+/// The worker-shutdown drain contract: a graceful
 /// stop must never finalize an in-flight job. When the worker token is cancelled while a handler is mid
 /// execution, the executing row is left Executing with its lease intact and NO completion is written, so
 /// <c>sys.recovery</c> reclaims it after the lease lapses and the job re-runs - the documented
@@ -15,26 +15,25 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// </summary>
 /// <remarks>
 /// A shutdown-cancelled handler maps to <c>CompletionKind.Failed</c> with no reason, so without the runner's
-/// worker-shutdown guard a routine restart would finalize every in-flight job as terminal Failed. Concrete
-/// per-profile specs derive from this base.
+/// worker-shutdown guard a routine restart would finalize every in-flight job as terminal Failed.
 /// </remarks>
-public abstract class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[ConformanceSpec(
+    "runtime.worker-shutdown-drain",
+    "A worker stop leaves an in-flight job reclaimable, never Failed",
+    Area = "Recovery",
+    Contract = "A graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
+)]
+public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A hang guard, not a measurement: these specs drive the real claim loop and its DB round-trips,
     // which run slow under the suite's cross-test parallelism and finish well under a second in
     // isolation. Nothing here asserts on how long the drain took. See SpecWaits.
     private static readonly TimeSpan Timeout = SpecWaits.Gate;
 
-    /// <summary>The profile under test; each concrete spec pins one.</summary>
-    protected abstract ExecutionProfile Profile { get; }
-
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);
-        services.Configure<JobsOptions>(o =>
-        {
-            o.ExecutionProfile = Profile;
-        });
+        services.Configure<JobsOptions>(o => { });
     }
 
     // Drive the real claim/dispatch loop under a worker-scoped token (the token base.StopAsync cancels on a
@@ -60,7 +59,7 @@ public abstract class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceF
         return enqueued;
     }
 
-    protected async Task ShutdownLeavesInFlightJobReclaimableAsync(CancellationToken ct)
+    private async Task ShutdownLeavesInFlightJobReclaimableAsync(CancellationToken ct)
     {
         var enqueued = await RunInFlightThenShutdownAsync(ct);
 
@@ -73,7 +72,7 @@ public abstract class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
-    protected async Task ShutdownAbandonedJobIsReclaimedAndRetriedAsync(CancellationToken ct)
+    private async Task ShutdownAbandonedJobIsReclaimedAndRetriedAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var enqueued = await RunInFlightThenShutdownAsync(ct);
@@ -91,44 +90,12 @@ public abstract class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(1, reclaimed.FailureCount);
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Orphaned, ct));
     }
-}
 
-/// <summary>Worker-shutdown drain under the Buffered (channel-dispatch) profile.</summary>
-[ConformanceSpec(
-    "runtime.worker-shutdown-drain.standard",
-    "Buffered worker stop leaves an in-flight job reclaimable, never Failed",
-    Area = "Recovery",
-    Contract = "Under the Buffered profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
-)]
-public sealed class BufferedWorkerShutdownDrainSpec : WorkerShutdownDrainSpec
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
-
-    [Fact(DisplayName = "Buffered: a worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion")]
+    [Fact(DisplayName = "A worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion")]
     public Task Worker_shutdown_leaves_an_in_flight_job_reclaimable() =>
         ShutdownLeavesInFlightJobReclaimableAsync(TestContext.Current.CancellationToken);
 
-    [Fact(DisplayName = "Buffered: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)")]
-    public Task Shutdown_abandoned_job_is_reclaimed_and_retried() =>
-        ShutdownAbandonedJobIsReclaimedAndRetriedAsync(TestContext.Current.CancellationToken);
-}
-
-/// <summary>Worker-shutdown drain under the Direct (combined claim-execute) profile.</summary>
-[ConformanceSpec(
-    "runtime.worker-shutdown-drain.fast",
-    "Direct worker stop leaves an in-flight job reclaimable, never Failed",
-    Area = "Recovery",
-    Contract = "Under the Direct profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
-)]
-public sealed class DirectWorkerShutdownDrainSpec : WorkerShutdownDrainSpec
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
-
-    [Fact(DisplayName = "Direct: a worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion")]
-    public Task Worker_shutdown_leaves_an_in_flight_job_reclaimable() =>
-        ShutdownLeavesInFlightJobReclaimableAsync(TestContext.Current.CancellationToken);
-
-    [Fact(DisplayName = "Direct: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)")]
+    [Fact(DisplayName = "After a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)")]
     public Task Shutdown_abandoned_job_is_reclaimed_and_retried() =>
         ShutdownAbandonedJobIsReclaimedAndRetriedAsync(TestContext.Current.CancellationToken);
 }

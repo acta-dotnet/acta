@@ -106,7 +106,6 @@ public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
         cmd.Parameters.AddWithValue("@p_leased_by_worker_id", workerId);
         cmd.Parameters.AddWithValue("@p_claim_limit", 16);
         cmd.Parameters.AddWithValue("@p_lease_ttl_seconds", 30);
-        cmd.Parameters.AddWithValue("@p_start_executing", 0);
         cmd.Parameters.AddWithValue("@p_excluded_definition_ids", DBNull.Value);
         return cmd;
     }

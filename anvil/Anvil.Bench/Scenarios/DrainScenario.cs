@@ -27,8 +27,6 @@ public sealed class DrainScenario : IScenario
             Provider = p.Provider,
             Schema = schema,
             Executors = p.Executors,
-            ClaimBatch = p.ClaimBatch,
-            Profile = p.Profile,
             SeedHistory = cfg.SeedHistory,
             // Fast heartbeat so lease extension runs inside short benchmark cells.
             LeaseTtlSeconds = 30,

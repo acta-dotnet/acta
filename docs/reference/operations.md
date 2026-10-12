@@ -58,7 +58,6 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
 | `RecordNote` | · | · | · | inline | inline | inline | `events` | `RecordNoteSpec` |
 | `RepairRecoverySlot` | · | · | · | routine | routine | inline | `events`, `runtimes` | `RepairRecoverySlotSpec` |
-| `StartExecution` | · | · | · | routine | routine | inline | `events`, `runtimes` | `StartExecutionSpec` |
 | `StartStep` | · | · | · | routine | routine | inline | `steps` | `StartStepSpec` |
 
 ## Jobs

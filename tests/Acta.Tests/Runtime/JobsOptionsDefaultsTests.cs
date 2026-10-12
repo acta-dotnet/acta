@@ -9,12 +9,6 @@ namespace Acta.Tests.Runtime;
 public sealed class JobsOptionsDefaultsTests
 {
     [Fact]
-    public void Default_ClaimBatchSize_is_32()
-    {
-        Assert.Equal(32, new JobsOptions().ClaimBatchSize);
-    }
-
-    [Fact]
     public void Default_ConcurrencyKeyBounceDelaySeconds_is_2()
     {
         Assert.Equal(2, new JobsOptions().ConcurrencyKeyBounceDelaySeconds);

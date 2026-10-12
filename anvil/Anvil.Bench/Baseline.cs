@@ -21,9 +21,6 @@ public sealed record BaselinePolicy(int WarmupIterations, int MeasuredRepeats, s
 /// </summary>
 public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, int EnqueueBatchJobs, int QueryRows, bool FullMatrix)
 {
-    /// <summary>The execution profiles the matrix covers; null means both on the full matrix and Direct otherwise.</summary>
-    public IReadOnlyList<ExecutionProfile>? Profiles { get; init; }
-
     /// <summary>The worker counts the drain cells sweep on a server provider; null means 1, 4, and 16 on the full matrix and 1 and 16 otherwise.</summary>
     public IReadOnlyList<int>? DrainWorkers { get; init; }
 
@@ -34,8 +31,8 @@ public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, i
     public int? DrainJobs { get; init; }
 
     /// <summary>
-    /// SQLite's drain backlog; null means <see cref="DrainJobs"/>. One writer drains Buffered near a thousand jobs a
-    /// second, so a server provider's backlog would run a SQLite Buffered cell past its drain deadline.
+    /// SQLite's drain backlog; null means <see cref="DrainJobs"/>. SQLite has one writer, so a server provider's
+    /// backlog would run a SQLite cell past its drain deadline.
     /// </summary>
     public int? SqliteDrainJobs { get; init; }
 
@@ -103,23 +100,18 @@ public sealed record BaselineCellKey(
     string Scenario,
     string Provider,
     string DatabaseEngineMajorVersion,
-    string? ExecutionProfile,
     int Jobs,
     int Executors,
-    int ClaimBatch,
     int PayloadBytes,
     int Workers,
     int Rows,
     int Iterations,
-    // The rate scenario's two dimensions. Default so every other scenario's key is unchanged and a
-    // baseline captured before the scenario existed still reads back.
+    // The rate scenario's two dimensions; every other scenario leaves them at their defaults.
     string? Rate = null,
     int SideJobs = 0,
-    // The lanes and claim-skew workload shape. Default so a baseline captured before lanes existed still
-    // reads back, its cells keyed exactly as before.
+    // The lanes and claim-skew workload shape.
     string? Variant = null,
-    // The namespaces a multi-worker drain spreads over. Default so a baseline captured before the drain
-    // spread still reads back, as the one namespace it ran in.
+    // The namespaces a multi-worker drain spreads over.
     int Namespaces = 1
 );
 
@@ -154,7 +146,6 @@ public sealed record BaselineCellSpec(
     string Scenario,
     string ActualScenario,
     string Provider,
-    ExecutionProfile? KeyProfile,
     CellParams ActualParams,
     BaselineCellKey Key
 );
@@ -162,7 +153,7 @@ public sealed record BaselineCellSpec(
 public delegate Task<CellResult> BaselineCellRunner(BaselineCellSpec spec, int repeatIndex, bool warmup, CancellationToken ct);
 
 /// <summary>
-/// The committed baseline suite. Names describe what is measured; sizes, profiles, and prefetch live in
+/// The committed baseline suite. Names describe what is measured; sizes live in
 /// the cell parameters so the JSON remains explicit.
 /// </summary>
 public static class BaselineSuite
@@ -197,7 +188,7 @@ public static class BaselineSuite
     /// <summary>The backlog the full and release drains drain on SQLite.</summary>
     public const int SqliteSustainedDrainJobs = 100_000;
 
-    // The release round's preset: every execution profile at the quick matrix's points, one warmup and
+    // The release round's preset: the quick matrix's points, one warmup and
     // one measured run, its drains sustained over 500,000 jobs (100,000 on SQLite), about half an hour a
     // database. It is always run beside the previous release in the same hour, candidate then control per
     // database, because the rig moves cells by a third between hours and only an adjacent pair carries a
@@ -211,7 +202,6 @@ public static class BaselineSuite
         FullMatrix: false
     )
     {
-        Profiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct],
         DrainJobs = SustainedDrainJobs,
         SqliteDrainJobs = SqliteSustainedDrainJobs,
     };
@@ -237,7 +227,6 @@ public static class BaselineSuite
     ];
 
     private static readonly string[] Providers = ["sqlite", "pg", "mssql"];
-    private static readonly ExecutionProfile[] ExecutionProfiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct];
 
     // A drain worker runs the MaxConcurrentExecutors default of a box with 16 or more logical processors, so the
     // cell measures the claims a default worker takes. A constant, because the default varies by box and a key must not.
@@ -274,7 +263,6 @@ public static class BaselineSuite
     )
     {
         var specs = new List<BaselineCellSpec>();
-        var profiles = preset.Profiles ?? (preset.FullMatrix ? ExecutionProfiles : [ExecutionProfile.Direct]);
         var throughputExecutors = preset.FullMatrix ? new[] { 1, 2, 4, 8, 16, 32 } : [1, 8, 32];
         var producerCounts = preset.FullMatrix ? new[] { 1, 4, 16 } : [1, 16];
 
@@ -283,7 +271,6 @@ public static class BaselineSuite
             var dbVersion =
                 databases is not null && databases.TryGetValue(provider, out var db) ? db.DatabaseEngineMajorVersion : "unknown";
 
-            foreach (var profile in profiles)
             foreach (var executors in throughputExecutors)
             {
                 Add(
@@ -292,11 +279,8 @@ public static class BaselineSuite
                     actualScenario: "throughput",
                     provider,
                     dbVersion,
-                    keyProfile: profile,
-                    actualProfile: profile,
                     jobs: preset.Jobs,
                     executors,
-                    claimBatch: executors * 2,
                     payloadBytes: 0,
                     workers: 1,
                     rows: 0,
@@ -304,7 +288,6 @@ public static class BaselineSuite
                 );
             }
 
-            foreach (var profile in profiles)
             {
                 Add(
                     specs,
@@ -312,11 +295,8 @@ public static class BaselineSuite
                     actualScenario: "latency",
                     provider,
                     dbVersion,
-                    keyProfile: profile,
-                    actualProfile: profile,
                     jobs: 0,
                     executors: 1,
-                    claimBatch: 2,
                     payloadBytes: 0,
                     workers: 1,
                     rows: 0,
@@ -327,7 +307,6 @@ public static class BaselineSuite
             // SQLite is single-writer, so multi-worker drain just re-measures that it does not scale.
             IReadOnlyList<int> drainWorkers =
                 provider == "sqlite" ? [1] : preset.DrainWorkers ?? (preset.FullMatrix ? [1, 4, 16] : [1, 16]);
-            foreach (var profile in profiles)
             foreach (var workers in drainWorkers)
             {
                 Add(
@@ -336,11 +315,8 @@ public static class BaselineSuite
                     actualScenario: "drain",
                     provider,
                     dbVersion,
-                    keyProfile: profile,
-                    actualProfile: profile,
                     jobs: (provider == "sqlite" ? preset.SqliteDrainJobs : null) ?? preset.DrainJobs ?? preset.Jobs,
                     executors: DrainExecutors,
-                    claimBatch: 32,
                     payloadBytes: 0,
                     workers,
                     rows: 0,
@@ -357,17 +333,13 @@ public static class BaselineSuite
                     actualScenario: "enqueue",
                     provider,
                     dbVersion,
-                    keyProfile: null,
-                    actualProfile: ExecutionProfile.Direct,
                     jobs: preset.Jobs,
                     executors: 0,
-                    claimBatch: 0,
                     payloadBytes: 0,
                     workers: producers,
                     rows: 0,
                     iterations: 200,
-                    actualExecutors: 1,
-                    actualClaimBatch: 2
+                    actualExecutors: 1
                 );
             }
 
@@ -379,17 +351,13 @@ public static class BaselineSuite
                     actualScenario: "enqueue-batch",
                     provider,
                     dbVersion,
-                    keyProfile: null,
-                    actualProfile: ExecutionProfile.Direct,
                     jobs: preset.EnqueueBatchJobs,
                     executors: 0,
-                    claimBatch: 0,
                     payloadBytes: 0,
                     workers: producers,
                     rows: 0,
                     iterations: 200,
-                    actualExecutors: 1,
-                    actualClaimBatch: 2
+                    actualExecutors: 1
                 );
             }
 
@@ -399,17 +367,13 @@ public static class BaselineSuite
                 actualScenario: "query",
                 provider,
                 dbVersion,
-                keyProfile: null,
-                actualProfile: ExecutionProfile.Direct,
                 jobs: 0,
                 executors: 0,
-                claimBatch: 0,
                 payloadBytes: 0,
                 workers: 0,
                 rows: preset.QueryRows,
                 iterations: 200,
-                actualExecutors: 1,
-                actualClaimBatch: 2
+                actualExecutors: 1
             );
 
             foreach (var cell in RateCells)
@@ -425,11 +389,8 @@ public static class BaselineSuite
                     actualScenario: "rate",
                     provider,
                     dbVersion,
-                    keyProfile: null,
-                    actualProfile: ExecutionProfile.Direct,
                     jobs: cell.Jobs,
                     executors: 16,
-                    claimBatch: 32,
                     payloadBytes: 0,
                     workers: cell.Workers,
                     rows: 0,
@@ -441,7 +402,6 @@ public static class BaselineSuite
 
             // The throughput shape at its eight-executor point, so the unlaned cell and throughput's
             // e=8 cell measure the same thing and each lanes table carries its own control.
-            foreach (var profile in profiles)
             foreach (var variant in LanesScenario.Variants)
             {
                 Add(
@@ -450,11 +410,8 @@ public static class BaselineSuite
                     actualScenario: "lanes",
                     provider,
                     dbVersion,
-                    keyProfile: profile,
-                    actualProfile: profile,
                     jobs: LanesJobs(preset, variant),
                     executors: 8,
-                    claimBatch: 16,
                     payloadBytes: 0,
                     workers: 1,
                     rows: 0,
@@ -464,7 +421,6 @@ public static class BaselineSuite
             }
 
             // The drain shape at its one-worker point; the none cell is the table's own control.
-            foreach (var profile in profiles)
             foreach (var variant in ClaimSkewScenario.Variants)
             {
                 Add(
@@ -473,11 +429,8 @@ public static class BaselineSuite
                     actualScenario: "claim-skew",
                     provider,
                     dbVersion,
-                    keyProfile: profile,
-                    actualProfile: profile,
                     jobs: ClaimSkewScenario.DueJobs,
                     executors: 16,
-                    claimBatch: 32,
                     payloadBytes: 0,
                     workers: 1,
                     rows: 0,
@@ -490,14 +443,8 @@ public static class BaselineSuite
         return scenarios is null ? specs : [.. specs.Where(s => scenarios.Any(token => MatchesScenarioToken(s, token)))];
     }
 
-    // A scenario token is "scenario" or "scenario:profile" (e.g. "throughput:bulk"), so targeted
-    // A/B runs can skip execution profiles that never touch the code under test.
-    private static bool MatchesScenarioToken(BaselineCellSpec spec, string token)
-    {
-        var parts = token.Split(':', 2);
-        return string.Equals(spec.Scenario, parts[0], StringComparison.OrdinalIgnoreCase)
-            && (parts.Length == 1 || string.Equals(spec.KeyProfile?.ToString(), parts[1], StringComparison.OrdinalIgnoreCase));
-    }
+    private static bool MatchesScenarioToken(BaselineCellSpec spec, string token) =>
+        string.Equals(spec.Scenario, token, StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyList<string> NormalizeProviders(IReadOnlyList<string>? providers)
     {
@@ -532,17 +479,13 @@ public static class BaselineSuite
         string actualScenario,
         string provider,
         string dbVersion,
-        ExecutionProfile? keyProfile,
-        ExecutionProfile actualProfile,
         int jobs,
         int executors,
-        int claimBatch,
         int payloadBytes,
         int workers,
         int rows,
         int iterations,
         int? actualExecutors = null,
-        int? actualClaimBatch = null,
         string? rate = null,
         int sideJobs = 0,
         string? variant = null,
@@ -553,10 +496,8 @@ public static class BaselineSuite
             scenario,
             provider,
             dbVersion,
-            keyProfile?.ToString(),
             jobs,
             executors,
-            claimBatch,
             payloadBytes,
             workers,
             rows,
@@ -570,18 +511,16 @@ public static class BaselineSuite
             provider,
             jobs,
             actualExecutors ?? Math.Max(1, executors),
-            actualClaimBatch ?? Math.Max(1, claimBatch),
             payloadBytes,
             iterations,
             Math.Max(1, workers),
             rows,
-            actualProfile,
             rate,
             sideJobs,
             variant,
             namespaces
         );
-        specs.Add(new BaselineCellSpec(scenario, actualScenario, provider, keyProfile, actual, key));
+        specs.Add(new BaselineCellSpec(scenario, actualScenario, provider, actual, key));
     }
 }
 
@@ -985,16 +924,12 @@ public static class BaselineReport
     }
 
     /// <summary>
-    /// One cell's parameters as a short line: scenario, provider, profile, then only the sweep
+    /// One cell's parameters as a short line: scenario, provider, then only the sweep
     /// dimensions that cell actually uses. Shared by the live progress bar and the report.
     /// </summary>
     public static string DescribeCell(BaselineCellKey c)
     {
         var parts = new List<string> { c.Scenario, c.Provider };
-        if (c.ExecutionProfile is { } profile)
-        {
-            parts.Add(profile.ToLowerInvariant());
-        }
         if (c.Rate is { } rate)
         {
             parts.Add(rate);
@@ -1010,10 +945,6 @@ public static class BaselineReport
         if (c.Executors > 0)
         {
             parts.Add($"e={c.Executors}");
-        }
-        if (c.ClaimBatch > 0)
-        {
-            parts.Add($"b={c.ClaimBatch}");
         }
         if (c.Workers > 0)
         {
@@ -1066,14 +997,6 @@ public static class BaselineReport
         cell.MedianMetrics.ExtraMetrics is { } extra && extra.TryGetValue(key, out var value) ? value : 0;
 
     // Production default first, then the combined claim-execute path, rather than alphabetically.
-    private static readonly string[] ProfileRank = ["Buffered", "Direct"];
-
-    private static int ProfileOrder(string? profile)
-    {
-        var i = Array.IndexOf(ProfileRank, profile);
-        return i >= 0 ? i : ProfileRank.Length;
-    }
-
     private static void AppendThroughput(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
     {
         var rows = cells.Where(c => c.Key.Scenario == "throughput").ToArray();
@@ -1086,15 +1009,7 @@ public static class BaselineReport
         sb.AppendLine();
         sb.AppendLine("One worker process; executors swept per worker. Cells are median jobs/s.");
         sb.AppendLine();
-        PivotByProfile(
-            sb,
-            rows,
-            k => k.Executors,
-            e => $"e={e}",
-            m => m.JobsPerSecond,
-            "jobs/s",
-            k => $"{k.ExecutionProfile}, {k.Executors} executors"
-        );
+        PivotByProvider(sb, rows, k => k.Executors, e => $"e={e}", m => m.JobsPerSecond, "jobs/s", k => $"{k.Executors} executors");
     }
 
     private static void AppendDrain(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
@@ -1112,14 +1027,14 @@ public static class BaselineReport
             $"A preloaded backlog drained by N worker processes, {rows[0].Key.Executors} executors each{SpreadNote(rows)}. Cells are median jobs/s."
         );
         sb.AppendLine();
-        PivotByProfile(
+        PivotByProvider(
             sb,
             rows,
             k => k.Workers,
             w => $"w={w}",
             m => m.DrainPerSecond,
             "jobs/s",
-            k => $"{k.ExecutionProfile}, {k.Workers} worker{(k.Workers == 1 ? "" : "s")}"
+            k => $"{k.Workers} worker{(k.Workers == 1 ? "" : "s")}"
         );
     }
 
@@ -1130,10 +1045,9 @@ public static class BaselineReport
         return spreads.Length == 0 ? "" : $", several workers spread over {string.Join(" or ", spreads)} namespaces";
     }
 
-    // Profiles as rows, one swept dimension (executors or workers) as columns, one metric per cell, plus a
-    // peak callout - a compact matrix that scans far better than one row per (profile, dimension) tuple.
-    // Groups by provider and only prints a provider subheading when more than one provider is present.
-    private static void PivotByProfile(
+    // Providers as rows, one swept dimension (executors or workers) as columns, one metric per cell, plus a peak
+    // callout per provider - a compact matrix that scans far better than one row per cell.
+    private static void PivotByProvider(
         StringBuilder sb,
         IReadOnlyList<BaselineCellResult> rows,
         Func<BaselineCellKey, int> column,
@@ -1143,83 +1057,72 @@ public static class BaselineReport
         Func<BaselineCellKey, string> peakWhere
     )
     {
-        var multiProvider = rows.Select(r => r.Key.Provider).Distinct().Count() > 1;
-        foreach (var group in rows.GroupBy(r => r.Key.Provider).OrderBy(g => g.Key, StringComparer.Ordinal))
+        var columns = rows.Select(r => column(r.Key)).Distinct().Order().ToArray();
+        var byCell = rows.ToDictionary(r => (r.Key.Provider, column(r.Key)));
+        sb.Append("| provider |");
+        foreach (var c in columns)
         {
-            if (multiProvider)
-            {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"### {group.Key}");
-                sb.AppendLine();
-            }
+            sb.Append(CultureInfo.InvariantCulture, $" {columnHeader(c)} |");
+        }
+        sb.AppendLine();
+        sb.Append("| --- |");
+        foreach (var _ in columns)
+        {
+            sb.Append(" ---: |");
+        }
+        sb.AppendLine();
 
-            var columns = group.Select(r => column(r.Key)).Distinct().OrderBy(x => x).ToArray();
-            var profiles = group.Select(r => r.Key.ExecutionProfile).Distinct().OrderBy(ProfileOrder).ToArray();
-            var byCell = group.ToDictionary(r => (r.Key.ExecutionProfile, column(r.Key)));
-
-            sb.Append("| profile |");
+        var providers = rows.Select(r => r.Key.Provider).Distinct().Order(StringComparer.Ordinal).ToArray();
+        foreach (var provider in providers)
+        {
+            sb.Append(CultureInfo.InvariantCulture, $"| {provider} |");
             foreach (var c in columns)
             {
-                sb.Append(CultureInfo.InvariantCulture, $" {columnHeader(c)} |");
+                var text = byCell.TryGetValue((provider, c), out var cell)
+                    ? (cell.Status == "ok" ? FormatWhole(value(cell.MedianMetrics)) : cell.Status)
+                    : "-";
+                sb.Append(CultureInfo.InvariantCulture, $" {text} |");
             }
             sb.AppendLine();
-            sb.Append("| --- |");
-            foreach (var _ in columns)
-            {
-                sb.Append(" ---: |");
-            }
-            sb.AppendLine();
+        }
+        sb.AppendLine();
 
-            foreach (var profile in profiles)
-            {
-                sb.Append(CultureInfo.InvariantCulture, $"| {profile} |");
-                foreach (var c in columns)
-                {
-                    var text = byCell.TryGetValue((profile, c), out var cell)
-                        ? (cell.Status == "ok" ? FormatWhole(value(cell.MedianMetrics)) : cell.Status)
-                        : "-";
-                    sb.Append(CultureInfo.InvariantCulture, $" {text} |");
-                }
-                sb.AppendLine();
-            }
-            sb.AppendLine();
-
-            var peak = group.Where(r => r.Status == "ok").OrderByDescending(r => value(r.MedianMetrics)).FirstOrDefault();
+        foreach (var provider in providers)
+        {
+            var peak = rows.Where(r => r.Key.Provider == provider && r.Status == "ok").MaxBy(r => value(r.MedianMetrics));
             if (peak is not null)
             {
                 sb.AppendLine(
                     CultureInfo.InvariantCulture,
-                    $"Peak: {FormatWhole(value(peak.MedianMetrics))} {unit} ({peakWhere(peak.Key)})."
+                    $"Peak on {provider}: {FormatWhole(value(peak.MedianMetrics))} {unit} ({peakWhere(peak.Key)})."
                 );
-                sb.AppendLine();
             }
         }
+        sb.AppendLine();
     }
 
     private static void AppendLatency(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
     {
-        var rows = cells
-            .Where(c => c.Key.Scenario == "latency")
-            .OrderBy(c => c.Key.Provider, StringComparer.Ordinal)
-            .ThenBy(c => ProfileOrder(c.Key.ExecutionProfile))
-            .ToArray();
+        var rows = cells.Where(c => c.Key.Scenario == "latency").OrderBy(c => c.Key.Provider, StringComparer.Ordinal).ToArray();
         if (rows.Length == 0)
         {
             return;
         }
 
-        var multiProvider = rows.Select(r => r.Key.Provider).Distinct().Count() > 1;
         sb.AppendLine("## Latency: per-job round-trip ms (lower is better)");
         sb.AppendLine();
         sb.AppendLine("One executor, one job at a time.");
         sb.AppendLine();
-        sb.AppendLine(multiProvider ? "| provider | profile | p50 | p95 | p99 |" : "| profile | p50 | p95 | p99 |");
-        sb.AppendLine(multiProvider ? "| --- | --- | ---: | ---: | ---: |" : "| --- | ---: | ---: | ---: |");
+        sb.AppendLine("| provider | p50 | p95 | p99 |");
+        sb.AppendLine("| --- | ---: | ---: | ---: |");
         foreach (var row in rows)
         {
             var k = row.Key;
             var m = row.MedianMetrics;
-            var lead = multiProvider ? $"| {k.Provider} | {k.ExecutionProfile} |" : $"| {k.ExecutionProfile} |";
-            sb.AppendLine(CultureInfo.InvariantCulture, $"{lead} {m.P50LatencyMs:F2} | {m.P95LatencyMs:F2} | {m.P99LatencyMs:F2} |");
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"| {k.Provider} | {m.P50LatencyMs:F2} | {m.P95LatencyMs:F2} | {m.P99LatencyMs:F2} |"
+            );
         }
         sb.AppendLine();
     }
@@ -1369,7 +1272,6 @@ public static class BaselineReport
         var rows = cells
             .Where(c => c.Key.Scenario == "lanes")
             .OrderBy(c => c.Key.Provider, StringComparer.Ordinal)
-            .ThenBy(c => ProfileOrder(c.Key.ExecutionProfile))
             .ThenBy(c => Array.IndexOf(LanesScenario.Variants, c.Key.Variant))
             .ToArray();
         if (rows.Length == 0)
@@ -1384,15 +1286,15 @@ public static class BaselineReport
                 + "(limit 1), and one lane holding every job. Pickup is enqueue to handler entry."
         );
         sb.AppendLine();
-        sb.AppendLine("| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |");
-        sb.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | --- |");
+        sb.AppendLine("| provider | cell | jobs | jobs/s | p50 | p99 | status |");
+        sb.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | --- |");
         foreach (var row in rows)
         {
             var k = row.Key;
             var m = row.MedianMetrics;
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
-                $"| {k.Provider} | {k.ExecutionProfile} | {k.Variant} | {k.Jobs} | {FormatWhole(m.JobsPerSecond)} | {m.P50LatencyMs:F1} "
+                $"| {k.Provider} | {k.Variant} | {k.Jobs} | {FormatWhole(m.JobsPerSecond)} | {m.P50LatencyMs:F1} "
                     + $"| {m.P99LatencyMs:F1} | {row.Status} |"
             );
         }
@@ -1405,7 +1307,6 @@ public static class BaselineReport
         var rows = cells
             .Where(c => c.Key.Scenario == "claim-skew")
             .OrderBy(c => c.Key.Provider, StringComparer.Ordinal)
-            .ThenBy(c => ProfileOrder(c.Key.ExecutionProfile))
             .ThenBy(c => Array.IndexOf(ClaimSkewScenario.Variants, c.Key.Variant))
             .ToArray();
         if (rows.Length == 0)
@@ -1422,15 +1323,15 @@ public static class BaselineReport
                 + "instant to handler entry."
         );
         sb.AppendLine();
-        sb.AppendLine("| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |");
-        sb.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | --- |");
+        sb.AppendLine("| provider | cell | jobs | jobs/s | p50 | p99 | status |");
+        sb.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | --- |");
         foreach (var row in rows)
         {
             var k = row.Key;
             var m = row.MedianMetrics;
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
-                $"| {k.Provider} | {k.ExecutionProfile} | {k.Variant} | {k.Jobs} | {FormatWhole(m.DrainPerSecond)} | {m.P50LatencyMs:F1} "
+                $"| {k.Provider} | {k.Variant} | {k.Jobs} | {FormatWhole(m.DrainPerSecond)} | {m.P50LatencyMs:F1} "
                     + $"| {m.P99LatencyMs:F1} | {row.Status} |"
             );
         }

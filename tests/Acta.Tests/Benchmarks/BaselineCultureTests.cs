@@ -12,8 +12,8 @@ public sealed class BaselineCultureTests
         var markdown = UnderDecimalCommaCulture(() => BaselineReport.Markdown(Fixture()));
 
         Assert.Contains("- RAM: 95.8 GB", markdown);
-        Assert.Contains("| Direct | 12346 |", markdown);
-        Assert.Contains("Peak: 12346 jobs/s", markdown);
+        Assert.Contains("| pg | 12346 |", markdown);
+        Assert.Contains("Peak on pg: 12346 jobs/s", markdown);
         Assert.Contains("| pg | 4 | 23457 | 23.45 |", markdown);
         Assert.Contains("| pg | 100000 | 12.34 | 23.45 | 34.56 |", markdown);
         Assert.DoesNotMatch(@"\d[,.]\d{3}\b", markdown);
@@ -89,7 +89,7 @@ public sealed class BaselineCultureTests
 
         BaselineCellResult Cell(string scenario, int workers = 1, int rows = 0) =>
             new(
-                new BaselineCellKey(scenario, "pg", "18", scenario == "query-list" ? null : "Direct", 100000, 4, 8, 0, workers, rows, 200),
+                new BaselineCellKey(scenario, "pg", "18", 100000, 4, 0, workers, rows, 200),
                 "ok",
                 metrics,
                 [metrics, metrics, metrics],

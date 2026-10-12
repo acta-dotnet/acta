@@ -50,9 +50,8 @@ HAVING COUNT(DISTINCT worker_id) > 1;
 -- ---------------------------------------------------------------------------------------------
 -- No attempt starts twice, and no started attempt is left unclosed.
 --
--- A 41 with no 40 is LEGAL and deliberately not asserted against: a worker that dies after claim but
--- before StartExecution produces exactly that, and recovery closes it as orphaned -
--- WorkerCrashRecoveryChaosSpec covers that case by name.
+-- A 41 with no 40 is LEGAL and deliberately not asserted against: a job audited at failures writes
+-- no 40 when it is claimed, and recovery still closes its lost attempt as orphaned with a 41.
 --
 -- Run only after the workload has quiesced. Mid-flight this reports every attempt currently
 -- executing as "started but not finished", which is a false failure, not a finding - observed live
@@ -291,7 +290,7 @@ WHERE  e.event_code = 90
 -- each is checked against its own budgets, so one meter admitting on another's turns fails too.
 --
 -- The witness is the `metered-admitted` note each metered body writes as its first action (event
--- code 90), one per admitted attempt. Admission is metered per attempt, after start_execution and
+-- code 90), one per admitted attempt. Admission is metered per attempt, after the claim and
 -- before the body, so a reclaimed attempt that runs again is metered again; `steps` keeps one row
 -- per (job, name) and updates it in place, so it cannot count starts at all.
 --

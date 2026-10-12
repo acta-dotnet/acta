@@ -339,10 +339,9 @@
   - A stale attempt's cleanup removes only its own tracking entry, the external cancel reaches the replacement via heartbeat, and the job settles Cancelled once
 
 ### Claim and operator-control races have one legal final state
-- **Contract:** Concurrent claims and control verbs at dispatched/executing boundaries resolve to exactly one legal state with explicit events.
+- **Contract:** Concurrent claims and control verbs at the executing boundary resolve to exactly one legal state with explicit events.
 - **Guarantees:**
   - Two claimers cannot both own one job
-  - Pause while dispatched is rejected
   - Restart while executing is rejected
   - Cancel while executing records both execution-finished Cancelled and job-cancelled
   - Resume after pause returns to Ready
@@ -373,10 +372,9 @@
   - Lost wake notification is recovered by the safety poll path
 
 ### Worker crash boundaries recover through one legal final state
-- **Contract:** A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.
+- **Contract:** A crash after the claim, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.
 - **Guarantees:**
-  - Claim-only crash recovers uncharged, with no execution-started event and an orphaned recovery event
-  - Crash after start orphans and charges the started execution before retry and finishes once
+  - Crash after the claim orphans and charges the started execution before retry and finishes once
   - Crash before CompleteExecutions does not replay the durable step on recovery
   - Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once
   - Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed
@@ -446,15 +444,14 @@
 ### A by-id claim takes exactly the named due job or nothing
 - **Contract:** ClaimJob leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan.
 - **Guarantees:**
-  - The named Ready job goes Dispatched under the worker's lease, one attempt and one version on
-  - A claim that starts executing lands the job Executing, with a started event when the job is audited
+  - The named Ready job goes Executing under the worker's lease, one attempt and one version on, with a started event when audited
   - A Suspended job whose wait deadline has passed is claimed, and one waiting with no deadline is not
   - A job not yet due, paused, or named under another namespace is not claimed and keeps its version
   - A job already claimed is not claimed again and keeps its first lease
   - Without a job id the claim takes a single job by the scan, whatever batch size it was asked for
 
 ### Claim caps at the batch size, reports the horizon, and skips excluded rows
-- **Contract:** A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.
+- **Contract:** A claim returns up to the rows it asks for, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.
 - **Guarantees:**
   - A single claim is capped at the batch size and a non-empty claim carries no horizon
   - A drained sentinel reports no due work and a delayed row bounds the horizon
@@ -861,11 +858,9 @@
 - **Guarantees:**
   - A lease renewal racing a held child completion finishes without a deadlock
 
-### StartExecution and CompleteExecutions no-op outcomes return exact action enums
-- **Contract:** No-op StartExecution and CompleteExecutions outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.
+### CompleteExecutions no-op outcomes return exact action enums
+- **Contract:** No-op CompleteExecutions outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.
 - **Guarantees:**
-  - StartExecution with wrong worker returns NotOwner and writes no job.execution-started event
-  - StartExecution on a terminal job returns AlreadyTerminal and writes no additional started event
   - CompleteExecutions with wrong worker returns NotOwner and writes no job.execution-finished event
   - Second CompleteExecutions on a terminal job returns AlreadyTerminal with no additional finished event
   - Stale CompleteExecutions by a displaced worker returns NotOwner and leaves job owned by the new claimant
@@ -906,7 +901,7 @@
 - **Contract:** The heartbeat extends a held lease without a version bump and stamps last_seen, while a leased row the process does not hold lapses to recovery.
 - **Guarantees:**
   - The heartbeat pushes a held lease further out, advances worker last_seen, and the lease survives a reclaim sweep
-  - The heartbeat leaves the runtime version of a buffered claim alone, and the claim then starts
+  - The heartbeat leaves a claimed job's runtime version alone, and the job stays Executing
   - A leased row the process does not hold is neither renewed nor answered, and recovery reclaims it once its lease lapses
 
 ### A job's child list holds its direct children, finished ones included
@@ -967,22 +962,10 @@
   - One JobStateReset event is emitted with the Job actor and no status transition
   - Reset below the audit level clears the rows but emits no event
 
-### The Buffered pipeline drains a backlog exactly once
-- **Contract:** Under ExecutionProfile.Buffered the claimer and its executors drain a backlog exactly once, starting each Dispatched claim before it runs.
+### The worker pipeline drains a backlog exactly once
+- **Contract:** The claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip.
 - **Guarantees:**
-  - Buffered: every enqueued job executes exactly once and the whole backlog drains to completion
-
-### The Direct pipeline drains a backlog exactly once
-- **Contract:** Under ExecutionProfile.Direct the claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip.
-- **Guarantees:**
-  - Direct: every enqueued job executes exactly once and the whole backlog drains to completion
-
-### Start execution matches the claim on worker and execution number
-- **Contract:** Start moves this worker's claim at its execution to Executing, answers a replay Started without a second event, and refuses another execution as LostClaim.
-- **Guarantees:**
-  - A claim starts, and a replayed start is answered Started without a second event or version bump
-  - A start for an execution the row has moved past is refused as LostClaim and the job stays Dispatched
-  - A claim whose lease lapsed but was not reclaimed starts, and the start renews its lease
+  - Every enqueued job executes exactly once and the whole backlog drains to completion
 
 ### Starting a step invokes, replays, suspends, or refuses from the slot's state
 - **Contract:** A step start invokes a new or due slot as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted slot.
@@ -1101,15 +1084,10 @@
   - A pass in another namespace leaves this namespace's stranded lane alone
   - One pass repairs at most a hundred stranded lanes of the thousand it visits
 
-### Under the Buffered profile each lane runs one member at a time in enqueue order
-- **Contract:** Under the Buffered profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
+### Each lane runs one member at a time in enqueue order
+- **Contract:** With several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
 - **Guarantees:**
-  - Buffered: each lane drains in order with one member in flight while lanes run in parallel
-
-### Under the Direct profile each lane runs one member at a time in enqueue order
-- **Contract:** Under the Direct profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
-- **Guarantees:**
-  - Direct: each lane drains in order with one member in flight while lanes run in parallel
+  - Each lane drains in order with one member in flight while lanes run in parallel
 
 ## Locks
 
@@ -1588,11 +1566,9 @@
   - A due sys.recovery tick reclaims the stranded job, raises the latch its crashed child never set, and wakes both channels
 
 ### Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts
-- **Contract:** An expired-lease job returns to Ready, charged a failure only when it was Executing, or lands terminal Failed once MaxAttempts is reached.
+- **Contract:** An expired-lease job returns to Ready charged one failure, or lands terminal Failed once MaxAttempts is reached.
 - **Guarantees:**
-  - Expired-lease Dispatched job returns to Ready with lease cleared, failure_count unchanged, and an Orphaned execution-finished event from the system actor
   - Job goes terminal Failed once failure_count reaches MaxAttempts
-  - A Dispatched job reclaimed one failure short of MaxAttempts stays Ready uncharged; its next lost started attempt fails it
   - Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped
   - Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event
   - A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone
@@ -1613,32 +1589,16 @@
   - A slot under a live lease, or not in flight at all, is reported healthy and left as it was
   - A lapsed slot named under a namespace that does not hold it is reported missing and stays stranded
 
-### A Buffered worker with every executor held still runs the recovery sweep
-- **Contract:** A recovery slot claimed by the Buffered claimer runs outside the channel without a permit, so a stranded job is reclaimed while every executor is held.
+### A drain finishes the in-flight job, then Active to Draining to Stopped
+- **Contract:** A graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
 - **Guarantees:**
-  - A stranded job is reclaimed while the Buffered worker's only executor is held by another job
+  - A graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
 
-### Direct drain finishes the in-flight job, then Active to Draining to Stopped
-- **Contract:** Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
+### A worker stop leaves an in-flight job reclaimable, never Failed
+- **Contract:** A graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed.
 - **Guarantees:**
-  - Direct: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
-
-### Buffered drain finishes the in-flight job, then Active to Draining to Stopped
-- **Contract:** Under the Buffered profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
-- **Guarantees:**
-  - Buffered: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
-
-### Direct worker stop leaves an in-flight job reclaimable, never Failed
-- **Contract:** Under the Direct profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed.
-- **Guarantees:**
-  - Direct: a worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion
-  - Direct: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)
-
-### Buffered worker stop leaves an in-flight job reclaimable, never Failed
-- **Contract:** Under the Buffered profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed.
-- **Guarantees:**
-  - Buffered: a worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion
-  - Buffered: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)
+  - A worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion
+  - After a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)
 
 ## Results
 
@@ -1697,30 +1657,19 @@
 
 ## Runtime
 
-### A Buffered worker claims one batch ahead and a drain runs it
-- **Contract:** A Buffered worker with every executor held claims at most one batch ahead, the heartbeat renews the rows waiting for an executor, and a drain runs them.
-- **Guarantees:**
-  - A heartbeat renews the rows claimed ahead of a held executor, and no second batch is claimed
-  - A drain keeps renewing the rows claimed ahead and runs them once the executor frees
-
 ### A claim whose answer was lost lapses to recovery
-- **Contract:** A row leased by this worker that no attempt or buffered claim holds is not renewed by the heartbeat, and recovery returns it to Ready once its lease lapses.
+- **Contract:** A row leased by this worker that no attempt holds is not renewed by the heartbeat, and recovery returns it to Ready once its lease lapses.
 - **Guarantees:**
-  - A Dispatched row whose claim answer was lost is not renewed, is reclaimed uncharged, and then runs once
-  - An Executing row whose combined claim answer was lost is not renewed and is reclaimed charged, like a crash after start
+  - An Executing row whose claim answer was lost is not renewed and is reclaimed charged, like a crash after start
 
 ### Two generations share a namespace and the rollback still runs
 - **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
 - **Guarantees:**
   - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
 
-### A claim survives what happens between its claim and its handler
-- **Contract:** An operator verb does not refuse a start, a replayed start answers Started and runs once, a reclaimed row is a clean skip, and a failing setup read is repeated.
+### A failing setup read after the claim is repeated
+- **Contract:** A read that fails between the claim and the handler is repeated, and the attempt completes.
 - **Guarantees:**
-  - A reprioritize between the claim and the start does not refuse the start
-  - A start that fails before it commits, with a reprioritize in its retry window, lands on the retry
-  - A start that commits and loses its answer is answered Started again, runs the handler once, and writes one started event
-  - A row recovery reclaimed between the claim and the start is a clean skip
   - A clock read that fails once after the claim is repeated, and the recurring fire completes
 
 ## Scheduling
@@ -2341,7 +2290,6 @@
 | `SchedulesView` | yes | yes | yes |
 | `SetDefinitionOverrides` | yes | yes | yes |
 | `SetScheduleOverrides` | yes | yes | yes |
-| `StartExecution` | yes | yes | yes |
 | `StartStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |
 | `StepsView` | yes | yes | yes |

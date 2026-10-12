@@ -22,8 +22,10 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Fact(DisplayName = "The named Ready job goes Dispatched under the worker's lease, one attempt and one version on")]
-    public async Task Named_ready_job_is_dispatched_under_the_lease()
+    [Fact(
+        DisplayName = "The named Ready job goes Executing under the worker's lease, one attempt and one version on, with a started event when audited"
+    )]
+    public async Task Named_ready_job_goes_executing_under_the_lease()
     {
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
@@ -33,36 +35,18 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var claimed = Assert.Single(await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1), enqueued.JobId, ct));
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Dispatched, after.Status);
+        Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.Equal(workerId, after.LeasedByWorkerId);
         Assert.True(after.LeaseExpiresAtUtc > DateTime.UtcNow);
         Assert.Equal(before.ExecutionNumber + 1, after.ExecutionNumber);
         Assert.Equal(before.Version + 1, after.Version);
 
-        // The claim carries what the runner needs without reading jobs again, and the version is the start CAS token.
+        // The claim carries what the runner needs without reading jobs again.
         Assert.Equal(enqueued.JobId, claimed.JobId);
         Assert.Equal(enqueued.JobRef.Value, claimed.JobRef);
         Assert.Equal(after.ExecutionNumber, claimed.ExecutionNumber);
-        Assert.Equal(after.Version, claimed.Version);
         Assert.Equal(before.DefinitionId, claimed.DefinitionId);
         Assert.False(claimed.Input.IsEmpty);
-        Assert.Empty(await StartedEventsAsync(enqueued.JobId, ct));
-    }
-
-    [Fact(DisplayName = "A claim that starts executing lands the job Executing, with a started event when the job is audited")]
-    public async Task Start_executing_claim_lands_executing()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var workerId = await WorkerIdAsync(ct);
-        var enqueued = await EnqueueAsync(ct);
-
-        var claimed = Assert.Single(
-            await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 1, StartExecuting: true), enqueued.JobId, ct)
-        );
-
-        var after = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Executing, after.Status);
-        Assert.Equal(workerId, after.LeasedByWorkerId);
 
         var started = await StartedEventsAsync(enqueued.JobId, ct);
         if (after.AuditLevel == DefinitionAuditLevelCode.Audit)
@@ -91,7 +75,7 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         await SuspendAsync(unbounded.JobId, nextRunAtUtc: null, ct);
 
         Assert.Equal(deadlinePassed.JobId, Assert.Single(await ClaimUntilTakenAsync(request, deadlinePassed.JobId, ct)).JobId);
-        Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(deadlinePassed.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(deadlinePassed.JobId, ct)).Status);
 
         var waiting = await ReadJobAsync(unbounded.JobId, ct);
         Assert.Empty((await Execution.ClaimJobAsync(request, LeaseTtlSeconds, unbounded.JobId, ct)).Jobs);

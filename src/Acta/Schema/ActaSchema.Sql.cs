@@ -72,12 +72,6 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int> LeasedByWorkerId = Scalar<int>("p_leased_by_worker_id", DbKind.Int32, nullable: false);
 
-        /// <summary>
-        /// Claim routines can either transition straight to execution for the combined loop or land
-        /// in the dispatched state for buffered executor startup.
-        /// </summary>
-        public static readonly DbValueSpec<bool> StartExecuting = Scalar<bool>("p_start_executing", DbKind.Boolean, nullable: false);
-
         public static readonly DbValueSpec<int> WorkerId = Scalar<int>("p_worker_id", DbKind.Int32, nullable: false);
 
         /// <summary>

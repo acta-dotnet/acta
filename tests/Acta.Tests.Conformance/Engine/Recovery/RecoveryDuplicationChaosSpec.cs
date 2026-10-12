@@ -62,7 +62,7 @@ public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<Conforman
 
         // Read the runtime row directly to assert which worker holds the execution lease.
         var row = await ReadJobAsync(maintenanceJob.Id, ct);
-        Assert.Equal(JobStatusCode.Dispatched, row!.Status);
+        Assert.Equal(JobStatusCode.Executing, row!.Status);
         Assert.Contains(row.LeasedByWorkerId, workers.Select(w => (int?)w.Id));
     }
 

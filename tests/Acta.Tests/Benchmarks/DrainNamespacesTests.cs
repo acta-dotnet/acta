@@ -6,19 +6,10 @@ namespace Acta.Tests.Benchmarks;
 
 /// <summary>
 /// A multi-worker drain spreads its workers and backlog over two to four namespaces, as a deployment runs several
-/// namespaces of a few workers each, never more than 16 workers in one; a one-worker drain stays in one, and a baseline
-/// captured before the spread reads back as the one namespace it ran in.
+/// namespaces of a few workers each, never more than 16 workers in one; a one-worker drain stays in one.
 /// </summary>
 public sealed class DrainNamespacesTests
 {
-    // An rc.3 full-matrix round on PostgreSQL, captured before drains spread over namespaces.
-    private static readonly string Rc3Baseline = Path.Combine(
-        BaselineCapture.RepoRoot(),
-        "docs",
-        "benchmarks",
-        "baseline-20260921T184939Z.json"
-    );
-
     [Fact]
     public void A_multi_worker_drain_spreads_over_two_namespaces_by_default()
     {
@@ -49,7 +40,7 @@ public sealed class DrainNamespacesTests
         var options = BenchRunOptions.Parse(["--db", "pg", "--drain-workers", workers.ToString(CultureInfo.InvariantCulture)]);
         var drain = Assert.Single(
             BaselineSuite.Cells(options.Apply(BaselineSuite.ReleasePreset)),
-            s => s.Scenario == "drain" && s.Provider == "pg" && s.KeyProfile == ExecutionProfile.Direct
+            s => s.Scenario == "drain" && s.Provider == "pg"
         );
 
         Assert.Equal(namespaces, drain.Key.Namespaces);
@@ -65,12 +56,4 @@ public sealed class DrainNamespacesTests
     [InlineData("5")]
     public void The_namespaces_option_takes_two_to_four(string value) =>
         Assert.Throws<ArgumentException>(() => BenchRunOptions.Parse(["--db", "pg", "--namespaces", value]));
-
-    [Fact]
-    public void A_baseline_from_before_the_spread_reads_back_in_one_namespace()
-    {
-        var rc3 = BaselineCapture.Read(Rc3Baseline);
-
-        Assert.All(rc3.Cells, c => Assert.Equal(1, c.Key.Namespaces));
-    }
 }

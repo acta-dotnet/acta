@@ -24,8 +24,6 @@ public sealed class LatencyScenario : IScenario
                 Provider = p.Provider,
                 Schema = schema,
                 Executors = Math.Max(1, p.Executors),
-                ClaimBatch = Math.Max(1, p.ClaimBatch),
-                Profile = p.Profile,
                 SeedHistory = cfg.SeedHistory,
             },
             ct

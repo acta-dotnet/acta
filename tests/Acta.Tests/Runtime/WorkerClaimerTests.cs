@@ -5,8 +5,8 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// How many rows the claimer asks for in each profile, and what it does when the claim query itself fails - a
-/// database outage, a failover, a connection pool exhausted - in both profiles, which share the one loop. A failed claim must not tear the loop down and must not
+/// How many rows the claimer asks for, and what it does when the claim query itself fails - a database outage, a
+/// failover, a connection pool exhausted. A failed claim must not tear the loop down and must not
 /// retry at the anti-spin poll floor either - the floor exists for deadline races, and hammering a down database at
 /// that cadence spams errors many times a second - so it backs off a full safety interval and says how long it is
 /// waiting. A stop landing during that backoff, or on the claim call itself, must end the loop cleanly rather than
@@ -16,34 +16,29 @@ public sealed class WorkerClaimerTests
 {
     private const string Namespace = "orders";
 
-    [Theory]
-    [InlineData(ExecutionProfile.Direct, 4)]
-    [InlineData(ExecutionProfile.Buffered, 2)]
-    public async Task A_direct_claim_asks_for_every_free_executor_and_a_buffered_claim_for_one_batch(ExecutionProfile profile, int expected)
+    [Fact]
+    public async Task A_claim_asks_for_every_free_executor()
     {
-        // Direct starts what it claims, so it asks for a row per free executor whatever the batch size; Buffered
-        // claims one batch ahead of its executors.
+        // A claim starts what it claims, so it asks for a row per free executor.
         using var cts = new CancellationTokenSource();
         var store = new ClaimStore(_ =>
         {
             cts.Cancel();
             return [];
         });
-        var (claimer, _) = Claimer(store, new RecordingLogger(), profile, TimeSpan.FromMinutes(10), executors: 4, claimBatch: 2);
+        var (claimer, _) = Claimer(store, new RecordingLogger(), TimeSpan.FromMinutes(10), executors: 4);
 
         await claimer.RunAsync(cts.Token, cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
-        Assert.Equal([expected], store.Limits);
+        Assert.Equal([4], store.Limits);
     }
 
-    [Theory]
-    [InlineData(ExecutionProfile.Buffered)]
-    [InlineData(ExecutionProfile.Direct)]
-    public async Task A_failing_claim_backs_off_and_keeps_claiming(ExecutionProfile profile)
+    [Fact]
+    public async Task A_failing_claim_backs_off_and_keeps_claiming()
     {
         var log = new RecordingLogger();
         var store = new ClaimStore(_ => throw new InvalidOperationException("synthetic database outage"));
-        var (claimer, registry) = Claimer(store, log, profile, TimeSpan.FromMilliseconds(20));
+        var (claimer, registry) = Claimer(store, log, TimeSpan.FromMilliseconds(20));
 
         using var cts = new CancellationTokenSource();
         var running = claimer.RunAsync(cts.Token, cts.Token);
@@ -57,7 +52,7 @@ public sealed class WorkerClaimerTests
 
         Assert.All(ClaimErrors(log), e => Assert.Contains("backing off 20ms before retry", e.Message, StringComparison.Ordinal));
         Assert.True(store.Calls >= 2);
-        Assert.Equal(Capacity(profile), registry.Permits.CurrentCount);
+        Assert.Equal(Executors, registry.Permits.CurrentCount);
     }
 
     [Fact]
@@ -72,7 +67,7 @@ public sealed class WorkerClaimerTests
             cts.Cancel();
             throw new InvalidOperationException("synthetic connection torn down at shutdown");
         });
-        var (claimer, _) = Claimer(store, log, ExecutionProfile.Buffered, TimeSpan.FromMinutes(10));
+        var (claimer, _) = Claimer(store, log, TimeSpan.FromMinutes(10));
 
         await claimer.RunAsync(cts.Token, cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
@@ -92,40 +87,32 @@ public sealed class WorkerClaimerTests
             cts.Cancel();
             throw new OperationCanceledException(cts.Token);
         });
-        var (claimer, registry) = Claimer(store, log, ExecutionProfile.Direct, TimeSpan.FromMinutes(10));
+        var (claimer, registry) = Claimer(store, log, TimeSpan.FromMinutes(10));
 
         await claimer.RunAsync(cts.Token, cts.Token).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain(log.Entries, e => e.Level == LogLevel.Error);
         Assert.Equal(1, store.Calls);
-        Assert.Equal(Capacity(ExecutionProfile.Direct), registry.Permits.CurrentCount);
+        Assert.Equal(Executors, registry.Permits.CurrentCount);
     }
 
     private static IReadOnlyList<RecordingLogger.Entry> ClaimErrors(RecordingLogger log) =>
         [.. log.Entries.Where(e => e.Level == LogLevel.Error && e.Message.Contains("claim iteration failed", StringComparison.Ordinal))];
 
-    private static int Capacity(ExecutionProfile profile) => profile == ExecutionProfile.Direct ? 2 : 4;
+    private const int Executors = 2;
 
     // The executor is null: these arms claim no row, so a null is the strongest statement that nothing runs.
     private static (WorkerClaimer Claimer, InFlightJobRegistry Registry) Claimer(
         ClaimStore store,
         RecordingLogger log,
-        ExecutionProfile profile,
         TimeSpan safetyPoll,
-        int executors = 2,
-        int claimBatch = 2
+        int executors = Executors
     )
     {
         var context = new WorkerContext(new WorkerRegistration(Namespace, null, null, [], []));
         context.NamespaceIds[Namespace] = 1;
         context.WorkerIdByNamespace[Namespace] = 1;
-        var options = new JobsOptions
-        {
-            ExecutionProfile = profile,
-            SafetyPollInterval = safetyPoll,
-            MaxConcurrentExecutors = executors,
-            ClaimBatchSize = claimBatch,
-        };
+        var options = new JobsOptions { SafetyPollInterval = safetyPoll, MaxConcurrentExecutors = executors };
         var registry = new InFlightJobRegistry(options);
         return (new WorkerClaimer(store.Execution(), executor: null!, options, context, registry, new IdleWakeup(), log), registry);
     }

@@ -16,7 +16,6 @@ internal sealed record ClaimJobsRow(
     DateTime? LeaseExpiresAtUtc,
     DateTime? CreatedAtUtc,
     int? FailureCount,
-    int? Version,
     Guid? JobRef,
     int? TenantId,
     DateTime? DbNowUtc,

@@ -70,8 +70,6 @@ internal sealed class BurstHost : IAsyncDisposable
                 // After UseLocalDatabase, which caps executors at 4 for a dev box; the burst seeding phase
                 // is a throughput phase and sizes itself.
                 o.MaxConcurrentExecutors = options.Executors;
-                o.ClaimBatchSize = options.ClaimBatch;
-                o.ExecutionProfile = ExecutionProfile.Direct;
                 // The harness makes the sys.alerts slot due and then waits for it; a one-second safety
                 // poll bounds how long "due" takes to become "claimed" when a wake is missed.
                 o.SafetyPollInterval = TimeSpan.FromSeconds(1);

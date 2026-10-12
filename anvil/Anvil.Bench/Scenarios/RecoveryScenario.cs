@@ -23,7 +23,6 @@ public sealed class RecoveryScenario : IScenario
             Provider = p.Provider,
             Schema = schema,
             Executors = Math.Max(1, p.Executors),
-            ClaimBatch = p.ClaimBatch,
             LeaseTtlSeconds = cfg.LeaseTtlSeconds,
             RegisterSystemJobs = true,
             SeedHistory = cfg.SeedHistory,

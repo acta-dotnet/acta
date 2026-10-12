@@ -13,7 +13,7 @@ if (args[0] == "purge-smoke")
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
     var metrics = await new PurgeScenario().RunAsync(
-        new CellParams(args[1], Jobs: 200, Executors: 4, ClaimBatch: 16, PayloadBytes: 0, Iterations: 1, Rows: 200),
+        new CellParams(args[1], Jobs: 200, Executors: 4, PayloadBytes: 0, Iterations: 1, Rows: 200),
         BenchIdentity.NewSchema(DateTime.UtcNow),
         new BenchConfig(SeedHistory: 50),
         timeout.Token
@@ -91,7 +91,6 @@ var schema = BenchIdentity.NewSchema(DateTime.UtcNow);
 // The run itself plus the drain budget and the settle time around it.
 const int deadlinePaddingSeconds = 180;
 const int executors = 4;
-const int claimBatch = 16;
 const int seededHistory = 10_000;
 using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(durationSeconds + deadlinePaddingSeconds));
 var ct = deadline.Token;
@@ -100,9 +99,7 @@ await using var host = await BenchHost.StartAsync(
     {
         Provider = provider,
         Schema = schema,
-        Profile = ExecutionProfile.Buffered,
         Executors = executors,
-        ClaimBatch = claimBatch,
         RegisterSystemJobs = true,
         JobEventsRetentionDays = 1,
         SeedHistory = seededHistory,
@@ -246,14 +243,12 @@ var maintenance = provider switch
 var evidence = new
 {
     Provider = provider,
-    Profile = "Buffered",
     Schema = schema,
     RuntimeVersion = runtimeVersion,
     DurationSeconds = durationSeconds,
     TargetRatePerSecond = rate,
     ActualRatePerSecond = emitted / (double)durationSeconds,
     Executors = executors,
-    ClaimBatch = claimBatch,
     SeededHistory = seededHistory,
     Emitted = emitted,
     HandlerEntries = host.Sink.Samples.Count,
@@ -290,7 +285,7 @@ var evidence = new
 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
 await File.WriteAllTextAsync(output, JsonSerializer.Serialize(evidence, new JsonSerializerOptions { WriteIndented = true }), ct);
 Console.WriteLine(
-    $"PASS {provider} Buffered: {emitted} durable completions; pickup p95/p99 {pickup.P95:F2}/{pickup.P99:F2}ms; durable probes p95/p99 {durable.P95:F2}/{durable.P99:F2}ms; {retentionPasses} retention passes. {output}"
+    $"PASS {provider}: {emitted} durable completions; pickup p95/p99 {pickup.P95:F2}/{pickup.P99:F2}ms; durable probes p95/p99 {durable.P95:F2}/{durable.P99:F2}ms; {retentionPasses} retention passes. {output}"
 );
 
 async Task MonitorAsync(CancellationToken token)

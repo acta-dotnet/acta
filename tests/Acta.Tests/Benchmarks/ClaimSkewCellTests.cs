@@ -10,32 +10,25 @@ namespace Acta.Tests.Benchmarks;
 public sealed class ClaimSkewCellTests
 {
     [Fact]
-    public void Full_matrix_has_every_claim_skew_cell_on_every_profile_and_provider()
+    public void Full_matrix_has_every_claim_skew_cell_on_every_provider()
     {
         var cells = BaselineSuite.Cells(BaselineSuite.FullPreset).Where(s => s.Scenario == "claim-skew").ToList();
 
-        Assert.Equal(3 * 2 * ClaimSkewScenario.Variants.Length, cells.Count);
+        Assert.Equal(3 * ClaimSkewScenario.Variants.Length, cells.Count);
         foreach (var provider in new[] { "sqlite", "pg", "mssql" })
         {
-            foreach (var profile in new[] { ExecutionProfile.Buffered, ExecutionProfile.Direct })
-            {
-                Assert.Equal(
-                    ClaimSkewScenario.Variants,
-                    cells.Where(s => s.Provider == provider && s.KeyProfile == profile).Select(s => s.ActualParams.Variant)
-                );
-            }
+            Assert.Equal(ClaimSkewScenario.Variants, cells.Where(s => s.Provider == provider).Select(s => s.ActualParams.Variant));
         }
         Assert.All(cells, s => Assert.Equal(ClaimSkewScenario.DueJobs, s.ActualParams.Jobs));
         Assert.All(cells, s => Assert.Equal(s.Key.Variant, s.ActualParams.Variant));
     }
 
     [Fact]
-    public void Quick_runs_the_same_due_backlog_on_direct_only()
+    public void Quick_runs_the_same_due_backlog()
     {
         var cells = BaselineSuite.Cells(BaselineSuite.QuickPreset, providers: ["pg"], scenarios: ["claim-skew"]);
 
         Assert.Equal(ClaimSkewScenario.Variants, cells.Select(s => s.ActualParams.Variant));
-        Assert.All(cells, s => Assert.Equal(ExecutionProfile.Direct, s.KeyProfile));
         Assert.All(cells, s => Assert.Equal(ClaimSkewScenario.DueJobs, s.ActualParams.Jobs));
     }
 
@@ -46,10 +39,8 @@ public sealed class ClaimSkewCellTests
             "claim-skew",
             "pg",
             "18",
-            "Direct",
             ClaimSkewScenario.DueJobs,
             16,
-            32,
             0,
             1,
             0,
@@ -70,9 +61,9 @@ public sealed class ClaimSkewCellTests
             [new BaselineCellResult(key, "ok", metrics, [metrics], ["ok"])]
         );
 
-        Assert.Equal("claim-skew pg direct parked j=10000 e=16 b=32 w=1", BaselineReport.DescribeCell(key));
+        Assert.Equal("claim-skew pg parked j=10000 e=16 w=1", BaselineReport.DescribeCell(key));
         var markdown = BaselineReport.Markdown(baseline);
         Assert.Contains("## Claim skew", markdown);
-        Assert.Contains("| pg | Direct | parked | 10000 | 4321 | 1.5 | 3.5 | ok |", markdown);
+        Assert.Contains("| pg | parked | 10000 | 4321 | 1.5 | 3.5 | ok |", markdown);
     }
 }

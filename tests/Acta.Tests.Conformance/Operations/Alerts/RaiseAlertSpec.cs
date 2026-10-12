@@ -264,8 +264,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             NextRunAtUtc: null,
             LeaseExpiresAtUtc: default,
             CreatedAtUtc: default,
-            FailureCount: 0,
-            Version: 0
+            FailureCount: 0
         );
 
         return new RuntimeJobContext(

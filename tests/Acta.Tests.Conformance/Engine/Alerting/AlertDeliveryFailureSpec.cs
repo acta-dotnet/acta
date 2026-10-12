@@ -555,8 +555,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             NextRunAtUtc: null,
             LeaseExpiresAtUtc: new DateTime(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             CreatedAtUtc: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            FailureCount: 0,
-            Version: 0
+            FailureCount: 0
         );
         return new RuntimeJobContext(
             slot,

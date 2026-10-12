@@ -47,33 +47,4 @@ public sealed class WorkerExecutorUnsupportedClaimTests
         Assert.Contains("no handler in this deployment", warning.Message, StringComparison.Ordinal);
         Assert.Contains("definition_id 1", warning.Message, StringComparison.Ordinal);
     }
-
-    [Fact]
-    public async Task A_provider_error_on_the_start_write_is_retried_before_the_release()
-    {
-        var harness = new WorkerExecutorHarness(startFailsOnce: true);
-
-        var outcome = await harness.RunWithNoDescriptorAsync();
-
-        // The start CAS is repeated like the completion: one dropped connection must not escape to
-        // the worker loop, which would leave the Dispatched row waiting out its lease.
-        Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(2, harness.StartAttempts);
-        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
-    }
-
-    [Fact]
-    public async Task A_claim_lost_before_the_release_writes_nothing()
-    {
-        // The row was reclaimed, reassigned, or moved by a control verb between claim and release.
-        // Submitting a completion for a row this worker no longer owns is exactly what the start CAS
-        // exists to prevent, so the release is abandoned, not forced.
-        var harness = new WorkerExecutorHarness(startAction: StartExecutionAction.LostClaim);
-
-        var outcome = await harness.RunWithNoDescriptorAsync();
-
-        Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
-        Assert.Equal(1, harness.StartAttempts);
-        Assert.Empty(harness.Submitted);
-    }
 }

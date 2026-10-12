@@ -1,14 +1,12 @@
 namespace Acta;
 
 /// <summary>
-/// The execution runtime's writes and reads: the claim scan and by-id claim, the start CAS, the per-attempt
-/// completion and the batch of plain ones, the stuck-job reclaim, the durable step transitions, and the durable-context
+/// The execution runtime's writes and reads: the claim scan and by-id claim, the batched completion, the stuck-job reclaim, the durable step transitions, and the durable-context
 /// subfeatures (checkpoint slot CRUD, child-latch reads, sleep-timer arm/consume).
 /// </summary>
 internal sealed class ExecutionOperations(
     ClaimJobsHandler claimJobs,
     ClaimJobHandler claimJob,
-    StartExecutionHandler startExecution,
     CompleteExecutionsHandler completeExecutions,
     ReclaimStuckJobsHandler reclaimStuckJobs,
     RepairRecoverySlotHandler repairRecoverySlot,
@@ -22,8 +20,7 @@ internal sealed class ExecutionOperations(
 )
 {
     /// <summary>
-    /// Atomic batched claim: transitions <c>Ready</c> to <c>Dispatched</c> (or straight to
-    /// <c>Executing</c> for the combined loop), stamping the execution lease columns and incrementing
+    /// Atomic batched claim: transitions <c>Ready</c> to <c>Executing</c> and inlines <c>job.execution-started</c>, stamping the execution lease columns and incrementing
     /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED.
     /// Empty claim carries the horizon sentinel.
     /// </summary>
@@ -37,20 +34,6 @@ internal sealed class ExecutionOperations(
     /// </summary>
     public Task<ClaimJobResponse> ClaimJobAsync(ClaimOptions options, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
         claimJob.HandleAsync(new ClaimJobCommand(options, leaseTtlSeconds, jobId), ct);
-
-    /// <summary>
-    /// Transitions <c>Dispatched</c> to <c>Executing</c> and inlines <c>job.execution-started</c>, matched on
-    /// <c>(jobId, workerId, expectedExecutionNumber)</c>. A row already Executing under this worker at this execution
-    /// is a start that committed and lost its answer: it answers Started again, refreshes the lease, and writes no
-    /// second event. Non-owner, lost-claim, and already-terminal cases return a discriminated action instead of throwing.
-    /// </summary>
-    public Task<StartExecutionResponse> StartExecutionAsync(
-        long jobId,
-        int workerId,
-        int expectedExecutionNumber,
-        int leaseTtlSeconds,
-        CancellationToken ct
-    ) => startExecution.HandleAsync(new StartExecutionCommand(jobId, workerId, expectedExecutionNumber, leaseTtlSeconds), ct);
 
     /// <summary>
     /// Finalizes a batch of attempts in one transaction, each CAS-guarded on (job id, worker, execution number): flips the

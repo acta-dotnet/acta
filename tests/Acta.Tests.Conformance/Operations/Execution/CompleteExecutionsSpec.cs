@@ -164,7 +164,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private async Task<ClaimedJob> ClaimExecutingAsync(long jobId, int workerId, CancellationToken ct)
     {
-        var options = new ClaimOptions(Runtime.RegisteredNamespaceIds[TestNamespace], workerId, MaxBatch: 1, StartExecuting: true);
+        var options = new ClaimOptions(Runtime.RegisteredNamespaceIds[TestNamespace], workerId, MaxBatch: 1);
         return Assert.Single((await Execution.ClaimJobAsync(options, LeaseTtl, jobId, ct)).Jobs);
     }
 

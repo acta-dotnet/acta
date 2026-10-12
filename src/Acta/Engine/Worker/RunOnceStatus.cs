@@ -5,12 +5,7 @@ namespace Acta;
 /// </summary>
 internal enum RunOnceStatus : byte
 {
-    /// <summary>
-    /// Nothing executed this tick: either no Ready job was claimable, or a claimed job's
-    /// <c>start_execution</c> CAS missed (the row was reclaimed, reassigned, or moved out of
-    /// Dispatched by an operator control verb between claim and start). Either way the worker
-    /// mutated nothing and backs off.
-    /// </summary>
+    /// <summary>Nothing executed this tick: no Ready job was claimable, so the worker mutated nothing and backs off.</summary>
     NothingClaimed = 1,
 
     /// <summary>Claimed and ran a job; handler completed; row terminal-<c>Succeeded</c>.</summary>

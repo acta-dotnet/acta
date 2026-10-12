@@ -232,7 +232,7 @@ public static class MeteredJob
 
     // The note is the whole evidence for the rate contract, and it is written before anything else so
     // it stands for the instant the handler was admitted. Admission is metered per attempt, after
-    // start_execution and before this body, so a reclaimed attempt that runs again is metered again -
+    // the claim and before this body, so a reclaimed attempt that runs again is metered again -
     // which makes admitted handler starts the quantity the contract bounds. `steps` cannot count them:
     // it keeps one row per (job, name) and updates it in place. Every event carries the database's own
     // stamp, so the windows are measured on one clock rather than on each worker's.

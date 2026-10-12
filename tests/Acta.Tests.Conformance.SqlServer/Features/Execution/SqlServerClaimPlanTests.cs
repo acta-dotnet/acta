@@ -74,7 +74,6 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
         cmd.Parameters.AddWithValue("@p_leased_by_worker_id", workerId);
         cmd.Parameters.AddWithValue("@p_claim_limit", 16);
         cmd.Parameters.AddWithValue("@p_lease_ttl_seconds", 30);
-        cmd.Parameters.AddWithValue("@p_start_executing", false);
 
         var claimed = 0;
         var plans = new List<XDocument>();

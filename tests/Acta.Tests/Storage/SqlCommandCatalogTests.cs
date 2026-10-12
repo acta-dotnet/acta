@@ -38,7 +38,6 @@ public sealed class SqlCommandCatalogTests
         "RepairRecoverySlot",
         "ReserveRate",
         "ResolveAlerts",
-        "StartExecution",
         "StartStep",
         "UpdateAlertDelivery",
         "WaitSignal",

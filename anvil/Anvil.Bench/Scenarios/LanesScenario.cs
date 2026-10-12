@@ -47,8 +47,6 @@ public sealed class LanesScenario : IScenario
                 Provider = p.Provider,
                 Schema = schema,
                 Executors = p.Executors,
-                ClaimBatch = p.ClaimBatch,
-                Profile = p.Profile,
                 SeedHistory = cfg.SeedHistory,
             },
             ct

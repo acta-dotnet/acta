@@ -12,8 +12,6 @@ internal static class AnvilWorkerPreset
     // claim contention is exactly what the ownership check is looking at. A certification run
     // overrides it with --certify-executors; the dashboard always uses this default.
     public const int Executors = 8;
-    public const int ClaimBatch = 8;
-    public const string Profile = "direct";
 }
 
 /// <summary>
@@ -162,8 +160,6 @@ public sealed class WorkerProcessLauncher(
         AddArgument(start, "--provider", provider);
         AddArgument(start, "--namespace", namespaceName);
         AddArgument(start, "--executors", ExecutorsPerWorker.ToString(CultureInfo.InvariantCulture));
-        AddArgument(start, "--profile", AnvilWorkerPreset.Profile);
-        AddArgument(start, "--claim-batch", AnvilWorkerPreset.ClaimBatch.ToString(CultureInfo.InvariantCulture));
         AddArgument(start, "--outbox-source", outboxSourcePath);
         AddArgument(start, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         return start;

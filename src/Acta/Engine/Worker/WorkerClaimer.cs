@@ -4,11 +4,11 @@ using Microsoft.Extensions.Logging;
 namespace Acta;
 
 /// <summary>
-/// The worker's one claim loop, for both profiles: it takes permits, claims that many rows, and hands each to the
-/// executors through the registry's <c>Claimed</c> channel, which holds every permit so the hand-off never blocks. A
-/// claimed <c>sys.recovery</c> slot runs on its own task without a permit, but claiming it takes a free permit, so a
-/// worker whose executors are all held sweeps only through RecoverySlotMonitor. An empty claim sleeps until the claim
-/// horizon, cut short by a wakeup.
+/// The worker's one claim loop: it takes a permit for every free executor, claims that many rows straight to Executing,
+/// and hands each to the executors through the registry's <c>Claimed</c> channel, which holds every permit so the
+/// hand-off never blocks. A claimed <c>sys.recovery</c> slot runs on its own task without a permit, but claiming it
+/// takes a free permit, so a worker whose executors are all held sweeps only through RecoverySlotMonitor. An empty
+/// claim sleeps until the claim horizon, cut short by a wakeup.
 /// </summary>
 internal sealed class WorkerClaimer(
     ExecutionOperations execution,
@@ -23,9 +23,8 @@ internal sealed class WorkerClaimer(
 {
     private readonly TimeSpan _leaseRunway = InFlightJob.LeaseRunway(options);
 
-    // Direct claims a row for every free executor; Buffered claims one batch ahead of them.
-    private readonly int _maxClaim =
-        options.ExecutionProfile == ExecutionProfile.Direct ? options.MaxConcurrentExecutors : options.ClaimBatchSize;
+    // A claim takes a row for every free executor.
+    private readonly int _maxClaim = options.MaxConcurrentExecutors;
 
     // The recovery slots this loop claimed, chained so one runs at a time; awaited when the loop ends.
     private Task _recovery = Task.CompletedTask;
@@ -42,8 +41,6 @@ internal sealed class WorkerClaimer(
         {
             var ns = context.WorkerRegistration!.NamespaceName;
             var (namespaceId, workerId) = context.ResolveWorker(ns);
-            var direct = options.ExecutionProfile == ExecutionProfile.Direct;
-            var minimum = direct ? 1 : options.ClaimBatchSize;
             var handedOff = false;
             log.LogInformation(
                 "WorkerRuntime: starting claim/dispatch loop with {Count} executors, safety poll {DurationMs}ms ({Detail}).",
@@ -57,11 +54,8 @@ internal sealed class WorkerClaimer(
                 ClaimJobsResponse result;
                 try
                 {
-                    for (; permits < minimum; permits++)
-                    {
-                        await registry.Permits.WaitAsync(stop.Token);
-                    }
-                    permits = await TakeFreePermitsAsync(permits, settle: direct && handedOff, stop.Token);
+                    await registry.Permits.WaitAsync(stop.Token);
+                    permits = await TakeFreePermitsAsync(1, settle: handedOff, stop.Token);
 
                     var claimedAt = Stopwatch.GetTimestamp();
                     result = await execution.ClaimJobsAsync(
@@ -69,7 +63,6 @@ internal sealed class WorkerClaimer(
                             namespaceId,
                             workerId,
                             MaxBatch: permits,
-                            StartExecuting: direct,
                             ExcludedDefinitionIds: context.UnsupportedDefinitionIdsSnapshot
                         ),
                         options.LeaseTtlSeconds,
@@ -82,7 +75,7 @@ internal sealed class WorkerClaimer(
                     {
                         metrics?.RecordClaim(ns, "claimed");
                         var slot = claimed.JobId == slotJobId;
-                        var entry = new InFlightJob(claimed, runway, hostCt, started: direct, holdsPermit: !slot);
+                        var entry = new InFlightJob(claimed, runway, hostCt, holdsPermit: !slot);
                         registry.TryAdd(entry);
                         if (slot)
                         {

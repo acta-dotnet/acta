@@ -14,7 +14,7 @@ WHERE
 
 UPDATE {{schema}}.runtimes
 SET
-    status_code = CASE WHEN @p_start_executing = 1 THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+    status_code = 50 /* JobStatusCode.Executing */,
     execution_number = execution_number + 1,
     leased_by_worker_id = @p_leased_by_worker_id,
     lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000,
@@ -65,9 +65,7 @@ SELECT
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN temp._claimed_by_id c ON c.id = j.id
-WHERE
-    @p_start_executing = 1
-    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
+WHERE j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
 SELECT
     j.id,
@@ -83,7 +81,6 @@ SELECT
     {{now}} + (@p_lease_ttl_seconds) * 1000 AS lease_expires_at_utc,
     j.created_at_utc,
     r.failure_count,
-    r.version,
     j.job_ref,
     j.tenant_id,
     NULL AS db_now,

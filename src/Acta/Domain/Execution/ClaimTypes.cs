@@ -8,19 +8,13 @@ namespace Acta;
 /// scan and the empty-claim horizon skip an excluded row, so a worker whose only due work is excluded sleeps instead
 /// of spinning at the anti-spin floor.
 /// </summary>
-internal sealed record ClaimOptions(
-    int NamespaceId,
-    int WorkerId,
-    int MaxBatch,
-    bool StartExecuting = false,
-    int[]? ExcludedDefinitionIds = null
-);
+internal sealed record ClaimOptions(int NamespaceId, int WorkerId, int MaxBatch, int[]? ExcludedDefinitionIds = null);
 
 /// <summary>
 /// One claimed row: the full job row needed to dispatch, and for the runner to take the <c>concurrency_key</c> slot
 /// before the handler, without re-reading <c>jobs</c>; tags and schedules load separately on demand, never joined into
-/// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion; a start matches
-/// on worker and <c>ExecutionNumber</c> alone, which only a claim moves. <c>LaneId</c> and <c>ParentId</c> never change after insert, so the completion trusts them as the claim read them.
+/// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion; a completion
+/// matches on worker and <c>ExecutionNumber</c>, which only a claim moves. <c>LaneId</c> and <c>ParentId</c> never change after insert, so the completion trusts them as the claim read them.
 /// </summary>
 internal sealed record ClaimedJob(
     long JobId,
@@ -38,7 +32,6 @@ internal sealed record ClaimedJob(
     DateTime LeaseExpiresAtUtc,
     DateTime CreatedAtUtc,
     int FailureCount,
-    int Version,
     long? LaneId = null,
     long? ParentId = null
 )
@@ -63,7 +56,6 @@ internal sealed record ClaimedJob(
             LeaseExpiresAtUtc: Required(row.LeaseExpiresAtUtc, "lease_expires_at_utc"),
             CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
             FailureCount: Required(row.FailureCount, "failure_count"),
-            Version: Required(row.Version, "version"),
             LaneId: row.LaneId,
             ParentId: row.ParentId
         );
@@ -113,8 +105,6 @@ internal interface IClaimColumns
     DateTime? CreatedAtUtc { get; }
 
     int? FailureCount { get; }
-
-    int? Version { get; }
 
     Guid? JobRef { get; }
 

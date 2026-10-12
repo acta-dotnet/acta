@@ -86,7 +86,6 @@ public class RecurringOutcomeTests
             NextRunAtUtc: null,
             LeaseExpiresAtUtc: default,
             CreatedAtUtc: default,
-            FailureCount: failureCount,
-            Version: 1
+            FailureCount: failureCount
         );
 }

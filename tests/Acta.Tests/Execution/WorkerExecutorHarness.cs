@@ -22,8 +22,6 @@ internal sealed class WorkerExecutorHarness(
     int maxAttempts = 3,
     int failureCount = 0,
     int? maxInlinePayloadBytes = null,
-    StartExecutionAction startAction = StartExecutionAction.Started,
-    bool startFailsOnce = false,
     string? concurrencyKey = null,
     int? concurrencyLimit = null,
     bool slotGranted = true,
@@ -49,7 +47,7 @@ internal sealed class WorkerExecutorHarness(
 
     // The entry RunAsync runs, linked from the worker token as the claimer links it.
     private InFlightJob? _entry;
-    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce);
+    private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
     private readonly RecordingLogger _log = new();
@@ -67,8 +65,6 @@ internal sealed class WorkerExecutorHarness(
     public IReadOnlyList<BoundCompletion> Submitted => _store.Submitted;
 
     /// <summary>How many times the runner issued the start write.</summary>
-    public int StartAttempts => _store.StartAttempts;
-
     /// <summary>Every log line the runner wrote, for the arms whose whole contract is what they say.</summary>
     public IReadOnlyList<LogEntry> Log => _log.Entries;
 
@@ -177,8 +173,7 @@ internal sealed class WorkerExecutorHarness(
             NextRunAtUtc: null,
             LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
             CreatedAtUtc: deadlineAtUtc?.AddSeconds(-1) ?? DateTime.UtcNow,
-            FailureCount: failureCount,
-            Version: 1
+            FailureCount: failureCount
         );
 
     private static JobDescriptor Descriptor(
@@ -220,29 +215,20 @@ internal sealed class WorkerExecutorHarness(
             DeadlineSeconds = deadlineAtUtc is null ? null : 1,
         };
 
-    // The real execution group over a scripted session. Only the five calls one attempt makes are
+    // The real execution group over a scripted session. Only the calls one attempt makes are
     // answered; everything else throws so a future change that starts leaning on another call is
     // visible rather than silent.
-    private sealed class ScriptedExecutionStore(
-        CompleteStepOutcomeCode stepOutcome,
-        CompleteExecutionsAction completionAction,
-        StartExecutionAction startAction,
-        bool startFailsOnce
-    )
+    private sealed class ScriptedExecutionStore(CompleteStepOutcomeCode stepOutcome, CompleteExecutionsAction completionAction)
     {
         private readonly List<BoundCompletion> _submitted = [];
         private readonly List<BoundCompletion> _applied = [];
         private readonly List<string> _startedSteps = [];
-        private bool _startFailsOnce = startFailsOnce;
         private ServiceProvider? _services;
 
         public ExecutionOperations Execution => Services().GetRequiredService<ExecutionOperations>();
 
         /// <summary>The jobs operations over the same session: a handler cancel walks the children the store never stages.</summary>
         public JobsOperations Jobs => Services().GetRequiredService<JobsOperations>();
-
-        /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
-        public int StartAttempts { get; private set; }
 
         public IReadOnlyList<BoundCompletion> Submitted => _submitted;
         public IReadOnlyList<BoundCompletion> Applied => _applied;
@@ -257,7 +243,6 @@ internal sealed class WorkerExecutorHarness(
         private object? Answer(BoundCall call) =>
             call.Stem switch
             {
-                "StartExecution" => Start(),
                 "StartStep" => StartStep(call.Get(ActaSchema.Step.Name)),
                 "CompleteStep" => CompleteStep(),
                 "CompleteExecutions" => BoundCompletion.Read(call).Select(Complete).ToList(),
@@ -265,17 +250,6 @@ internal sealed class WorkerExecutorHarness(
                 "GetChildJobIds" => Array.Empty<long>(),
                 _ => throw new NotSupportedException(call.Stem),
             };
-
-        private byte Start()
-        {
-            StartAttempts++;
-            if (_startFailsOnce)
-            {
-                _startFailsOnce = false;
-                throw new ProviderDown();
-            }
-            return (byte)startAction;
-        }
 
         private StartStepResponse StartStep(string name)
         {

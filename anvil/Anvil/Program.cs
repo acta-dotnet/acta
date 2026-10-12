@@ -107,10 +107,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
     var outboxDb = new AnvilOutboxDatabase(Path.Combine(Path.GetTempPath(), $"anvil-outbox-{id.Schema}-{id.Namespace}.db"), session);
     builder.Services.UseActa(j =>
     {
-        // Shared local-dev bootstrap, then ExecutionProfile.Direct (2 write txns/job; on SQLite
-        // synchronous=NORMAL, no per-commit fsync) so concurrent workers stay usable on one .db file.
         j.UseLocalDatabase(builder.Configuration, id.Schema, provider);
-        j.ConfigureOptions(o => o.ExecutionProfile = ExecutionProfile.Direct);
         j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
         // The dashboard only enqueues and reads; every provider drains through real worker child processes
         // (WorkerProcessLauncher), so SPAWN/CRASH/DRAIN exercise true multi-process claim and reclaim.
@@ -219,8 +216,6 @@ static async Task RunWorkerAsync(string[] args)
     var ns = Required(args, "--namespace");
     var outboxSource = Required(args, "--outbox-source");
     var executors = GetArg(args, "--executors") is { } e && int.TryParse(e, out var ex) ? ex : 4;
-    var profile = ParseExecutionProfile(GetArg(args, "--profile"));
-    var claimBatch = GetArg(args, "--claim-batch") is { } c && int.TryParse(c, out var cb) && cb >= 1 ? cb : 8;
 
     if (GetArg(args, "--parent-pid") is { } p && int.TryParse(p, out var pid))
     {
@@ -239,9 +234,7 @@ static async Task RunWorkerAsync(string[] args)
         // Lease/heartbeat/dead-worker windows stay at the framework production defaults.
         j.ConfigureOptions(o =>
         {
-            o.ExecutionProfile = profile;
             o.MaxConcurrentExecutors = executors;
-            o.ClaimBatchSize = claimBatch;
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
             o.DeploymentVersion = workerName;
         });
@@ -279,13 +272,6 @@ static string? GetArg(string[] args, string name)
     var i = Array.IndexOf(args, name);
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
 }
-
-static ExecutionProfile ParseExecutionProfile(string? s) =>
-    s?.Trim().ToLowerInvariant() switch
-    {
-        "buffered" => ExecutionProfile.Buffered,
-        _ => ExecutionProfile.Direct,
-    };
 
 /// <summary>
 /// One place owns the loopback address the dashboard binds, prints, and opens in the browser.

@@ -113,8 +113,6 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
-        // The combined claim is the poll loop's shape and the only one that writes the started event
-        // itself; RunOnceAsync claims to Dispatched, so start_execution owns the event there instead.
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
@@ -122,7 +120,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         var claimed = await Services
             .GetRequiredService<ExecutionOperations>()
-            .ClaimJobsAsync(new ClaimOptions(ns, worker!.Id, MaxBatch: 8, StartExecuting: true), leaseTtl, ct);
+            .ClaimJobsAsync(new ClaimOptions(ns, worker!.Id, MaxBatch: 8), leaseTtl, ct);
         Assert.Contains(claimed.Jobs, j => j.JobId == enqueued.JobId);
 
         // The row came from Suspended, so the timeline says Suspended. A hard-coded Ready would assert

@@ -7,18 +7,21 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// Exactly-once under each <see cref="ExecutionProfile"/>: the claimer and its executors drain a backlog with every
+/// Exactly-once: the claimer and its executors drain a backlog with every
 /// job run once. Runs the pipeline until the LoadExecutionCounter has one count per job, then asserts the count equals
-/// the enqueued total: a single O(1) exactly-once plus full-drain proof. Each profile is its own contract below.
+/// the enqueued total: a single O(1) exactly-once plus full-drain proof.
 /// </summary>
-public abstract class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+[ConformanceSpec(
+    "runtime.combined-dispatch-parity",
+    "The worker pipeline drains a backlog exactly once",
+    Area = "Execution",
+    Contract = "The claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip."
+)]
+public sealed class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int JobCount = 50;
 
     private const int Executors = 8;
-
-    /// <summary>The execution profile the pipeline runs under.</summary>
-    protected abstract ExecutionProfile Profile { get; }
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
@@ -26,12 +29,11 @@ public abstract class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixtur
         services.AddSingleton<LoadExecutionCounter>();
         services.Configure<JobsOptions>(o =>
         {
-            o.ExecutionProfile = Profile;
             o.MaxConcurrentExecutors = Executors;
         });
     }
 
-    protected async Task DrainsABacklogExactlyOnceAsync(CancellationToken ct)
+    private async Task DrainsABacklogExactlyOnceAsync(CancellationToken ct)
     {
         var counter = Services.GetRequiredService<LoadExecutionCounter>();
 
@@ -57,32 +59,7 @@ public abstract class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixtur
 
         Assert.Equal(JobCount, counter.Executions);
     }
-}
 
-[ConformanceSpec(
-    "runtime.combined-dispatch-parity",
-    "The Direct pipeline drains a backlog exactly once",
-    Area = "Execution",
-    Contract = "Under ExecutionProfile.Direct the claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip."
-)]
-public sealed class DirectDispatchParitySpec : DispatchParitySpec
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
-
-    [Fact(DisplayName = "Direct: every enqueued job executes exactly once and the whole backlog drains to completion")]
-    public Task Drains_a_backlog_exactly_once() => DrainsABacklogExactlyOnceAsync(TestContext.Current.CancellationToken);
-}
-
-[ConformanceSpec(
-    "runtime.buffered-dispatch-parity",
-    "The Buffered pipeline drains a backlog exactly once",
-    Area = "Execution",
-    Contract = "Under ExecutionProfile.Buffered the claimer and its executors drain a backlog exactly once, starting each Dispatched claim before it runs."
-)]
-public sealed class BufferedDispatchParitySpec : DispatchParitySpec
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
-
-    [Fact(DisplayName = "Buffered: every enqueued job executes exactly once and the whole backlog drains to completion")]
+    [Fact(DisplayName = "Every enqueued job executes exactly once and the whole backlog drains to completion")]
     public Task Drains_a_backlog_exactly_once() => DrainsABacklogExactlyOnceAsync(TestContext.Current.CancellationToken);
 }

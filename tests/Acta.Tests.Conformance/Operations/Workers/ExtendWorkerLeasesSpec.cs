@@ -54,7 +54,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(definitions.Max(d => d.ModifiedAtUtc), answer.DefinitionsModifiedAtUtc);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Dispatched, job!.Status);
+        Assert.Equal(JobStatusCode.Executing, job!.Status);
         Assert.NotNull(job.LeaseExpiresAtUtc);
         Assert.True(job.LeaseExpiresAtUtc > leaseAfterClaim, "heartbeat should push the lease further out");
 
@@ -65,12 +65,12 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // A live (heartbeat-fresh) lease is not stuck - reclaim finds nothing and leaves it claimed.
         Assert.Equal(0, (await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);
         var still = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Dispatched, still!.Status);
+        Assert.Equal(JobStatusCode.Executing, still!.Status);
         Assert.Equal(workerId, still.LeasedByWorkerId);
     }
 
-    [Fact(DisplayName = "The heartbeat leaves the runtime version of a buffered claim alone, and the claim then starts")]
-    public async Task Buffered_claim_survives_a_heartbeat_then_starts()
+    [Fact(DisplayName = "The heartbeat leaves a claimed job's runtime version alone, and the job stays Executing")]
+    public async Task Heartbeat_leaves_the_runtime_version_alone()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -86,6 +86,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var claimed = Assert.Single(
             await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct)
         );
+        var version = (await ReadJobAsync(enqueued.JobId, ct)).Version;
 
         // A lease refresh is not a claim-generation change: an operator verb's expected version must still hold.
         var extended = (
@@ -94,15 +95,8 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
                 .ExtendWorkerLeasesAsync(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], [], ct)
         ).Leases;
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
-        Assert.Equal(claimed.Version, (await ReadJobAsync(enqueued.JobId, ct)).Version);
+        Assert.Equal(version, (await ReadJobAsync(enqueued.JobId, ct)).Version);
 
-        var action = (
-            await Services
-                .GetRequiredService<ExecutionOperations>()
-                .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, leaseTtl, ct)
-        ).Action;
-
-        Assert.Equal(StartExecutionAction.Started, action);
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Executing, snapshot!.Status);
     }
@@ -151,7 +145,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var reclaimed = await ReadJobAsync(lost.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Null(reclaimed.LeasedByWorkerId);
-        Assert.Equal(0, reclaimed.FailureCount);
-        Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(held.JobId, ct)).Status);
+        Assert.Equal(1, reclaimed.FailureCount);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(held.JobId, ct)).Status);
     }
 }

@@ -747,10 +747,6 @@ public sealed record BenchHostOptions
     public required string Provider { get; init; }
     public required string Schema { get; init; }
     public int Executors { get; init; } = 16;
-    public int ClaimBatch { get; init; } = 64;
-
-    /// <summary>The execution profile (Buffered or Direct) the host runs under; defaults to Direct for throughput runs.</summary>
-    public ExecutionProfile Profile { get; init; } = ExecutionProfile.Direct;
 
     /// <summary>Short for the recovery scenario so a lapsed lease is observable in seconds; null keeps the default.</summary>
     public int? LeaseTtlSeconds { get; init; }
@@ -949,8 +945,6 @@ public sealed class BenchHost : IAsyncDisposable
             j.ConfigureOptions(o =>
             {
                 o.MaxConcurrentExecutors = opt.Executors;
-                o.ClaimBatchSize = opt.ClaimBatch;
-                o.ExecutionProfile = opt.Profile;
                 o.RegisterSystemJobs = opt.RegisterSystemJobs;
                 if (opt.LeaseTtlSeconds is { } lease)
                 {

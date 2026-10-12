@@ -16,11 +16,11 @@ public sealed class SeedHistoryTests
     [Fact]
     public void Seed_history_parses_next_to_the_other_scripted_options()
     {
-        var options = BenchRunOptions.Parse(["--db", "sqlite", "--seed-history", "20000", "--scenario", "throughput:direct"]);
+        var options = BenchRunOptions.Parse(["--db", "sqlite", "--seed-history", "20000", "--scenario", "throughput"]);
 
         Assert.Equal(20000, options.SeedHistory);
         Assert.Equal(["sqlite"], options.Providers);
-        Assert.Equal(["throughput:direct"], options.Scenarios);
+        Assert.Equal(["throughput"], options.Scenarios);
     }
 
     [Theory]
@@ -54,7 +54,7 @@ public sealed class SeedHistoryTests
         );
 
         Assert.Contains("## Seeded history: rows in the ledger per cell", markdown);
-        Assert.Contains("| throughput pg direct j=1000 e=8 b=16 w=1 | 20000 | 21000 | 21000 | 20000 | 20000 |", markdown);
+        Assert.Contains("| throughput pg j=1000 e=8 w=1 | 20000 | 21000 | 21000 | 20000 | 20000 |", markdown);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class SeedHistoryTests
             Cells:
             [
                 new BaselineCellResult(
-                    new BaselineCellKey("throughput", "pg", "18", "Direct", 1000, 8, 16, 0, 1, 0, 200),
+                    new BaselineCellKey("throughput", "pg", "18", 1000, 8, 0, 1, 0, 200),
                     "ok",
                     metrics,
                     [metrics],

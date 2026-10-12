@@ -2,8 +2,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_job(
     p_namespace_id INT,
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,
-    p_id BIGINT,
-    p_start_executing BOOLEAN
+    p_id BIGINT
 )
 RETURNS TABLE (
     id BIGINT,
@@ -19,7 +18,6 @@ RETURNS TABLE (
     lease_expires_at_utc TIMESTAMPTZ,
     created_at_utc TIMESTAMPTZ,
     failure_count INT,
-    version INT,
     job_ref UUID,
     tenant_id INT,
     db_now TIMESTAMPTZ,
@@ -45,7 +43,7 @@ AS $$
     updated AS (
         UPDATE {{schema}}.runtimes r
         SET
-            status_code = CASE WHEN p_start_executing THEN 50 /* JobStatusCode.Executing */ ELSE 40 /* JobStatusCode.Dispatched */ END,
+            status_code = 50 /* JobStatusCode.Executing */,
             execution_number = r.execution_number + 1,
             leased_by_worker_id = p_leased_by_worker_id,
             lease_expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
@@ -58,7 +56,7 @@ AS $$
             r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
             r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
             j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, r.version, j.job_ref, c.from_status, r.lane_id, j.parent_id
+            r.failure_count, j.job_ref, c.from_status, r.lane_id, j.parent_id
     ),
     started_event AS (
         INSERT INTO {{schema}}.events (
@@ -100,7 +98,7 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE p_start_executing AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+        WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     )
     SELECT
@@ -117,7 +115,6 @@ AS $$
         now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
         u.created_at_utc,
         u.failure_count,
-        u.version,
         u.job_ref,
         u.tenant_id,
         NULL::timestamptz AS db_now,

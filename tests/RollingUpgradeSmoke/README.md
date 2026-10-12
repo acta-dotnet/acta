@@ -31,8 +31,7 @@ phase below is the default.
    rc.3 did; a pair where both releases record one runs `-Phases Overlap` instead.
 3. The current binary provisions, which installs the current views and routines and records the
    package.
-4. The previous binary and the current binary each run with migrations disabled under Buffered,
-   Direct, and Bulk. A phase enqueues eight jobs and reads back eight results, holds an attempt across
+4. The previous binary and the current binary each run with migrations disabled. A phase enqueues eight jobs and reads back eight results, holds an attempt across
    a real heartbeat interval, persists a step, and triggers a daily recurring slot twice, checking that
    each rollover keeps its latest result.
 
@@ -51,8 +50,7 @@ while it is under way. It uses its own `acta_overlap_*` schema, with the same st
    blocks, heartbeating, until a `release` file appears there.
 3. The current binary provisions, installing the current migrations, views, and routines under the
    held execution.
-4. For Buffered, Direct, and Bulk in turn, a previous worker and a current worker run at the same time
-   with migrations disabled. Each enqueues eight probes and reads back eight results, and either
+4. A previous worker and a current worker run at the same time with migrations disabled. Each enqueues eight probes and reads back eight results, and either
    worker may run the other's jobs. The recurring rollovers are left out, because two processes
    triggering the same slot would race each other's result check.
 5. The script writes `release`. The held probe completes, and the hold phase passes only when the job

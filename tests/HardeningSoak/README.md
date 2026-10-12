@@ -19,7 +19,7 @@ from `ACTA_TEST_MSSQL`; SQLite gets its own file under the temp folder.
 
 ## What a run does
 
-Buffered execution, four executors, ten thousand terminal jobs seeded as history, then audited jobs
+Four executors, ten thousand terminal jobs seeded as history, then audited jobs
 with results at the offered rate for the run length. Every ten seconds the harness backdates all
 events by two days and triggers the retention slot, so a sweep with real rows to delete runs beside
 the workload; each sweep must leave no expired event behind. Roughly once a second a probe follows

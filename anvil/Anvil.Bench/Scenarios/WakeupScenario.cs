@@ -95,7 +95,6 @@ public sealed class WakeupScenario : IScenario
             Provider = p.Provider,
             Schema = schema,
             Executors = 1,
-            ClaimBatch = 1,
             SafetyPollInterval = poll,
             Wakeup = mode,
             RedisConfig = redis,
