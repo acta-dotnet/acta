@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 71)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 72)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1907,13 +1907,18 @@ BEGIN
         );
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           skips them all on three checks. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
+           reads no lane or parent and skips them all. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
            each in key order (docs/internals/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
-        INSERT INTO @rows (job_id, execution_number, lane_id, parent_id)
-        SELECT c.job_id, c.execution_number, r.lane_id, j.parent_id
-        FROM @p_batch c
-        INNER JOIN acta.runtimes r ON r.job_id = c.job_id
-        INNER JOIN acta.jobs j ON j.id = c.job_id;
+        IF @p_plain = 1
+            INSERT INTO @rows (job_id, execution_number)
+            SELECT c.job_id, c.execution_number
+            FROM @p_batch c;
+        ELSE
+            INSERT INTO @rows (job_id, execution_number, lane_id, parent_id)
+            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_id
+            FROM @p_batch c
+            INNER JOIN acta.runtimes r ON r.job_id = c.job_id
+            INNER JOIN acta.jobs j ON j.id = c.job_id;
 
         IF @p_plain = 0
             BEGIN
@@ -6002,7 +6007,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.71-8b42cc1dfc44cb51152ce33ca28b447b', 'acta'
+SELECT -1, 'objects-1.72-1a20d5c49ce74c675d1dd93ef2fe4612', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
 GO

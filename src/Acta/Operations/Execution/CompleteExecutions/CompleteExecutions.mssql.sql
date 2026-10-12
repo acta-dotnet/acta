@@ -36,13 +36,18 @@ BEGIN
         );
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           skips them all on three checks. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
+           reads no lane or parent and skips them all. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
            each in key order (docs/internals/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
-        INSERT INTO @rows (job_id, execution_number, lane_id, parent_id)
-        SELECT c.job_id, c.execution_number, r.lane_id, j.parent_id
-        FROM @p_batch c
-        INNER JOIN {{schema}}.runtimes r ON r.job_id = c.job_id
-        INNER JOIN {{schema}}.jobs j ON j.id = c.job_id;
+        IF @p_plain = 1
+            INSERT INTO @rows (job_id, execution_number)
+            SELECT c.job_id, c.execution_number
+            FROM @p_batch c;
+        ELSE
+            INSERT INTO @rows (job_id, execution_number, lane_id, parent_id)
+            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_id
+            FROM @p_batch c
+            INNER JOIN {{schema}}.runtimes r ON r.job_id = c.job_id
+            INNER JOIN {{schema}}.jobs j ON j.id = c.job_id;
 
         IF @p_plain = 0
             BEGIN
