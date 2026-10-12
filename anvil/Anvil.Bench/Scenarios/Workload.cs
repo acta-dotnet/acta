@@ -20,7 +20,8 @@ internal static class Workload
     /// Enqueues <paramref name="count"/> jobs in chunks, stamping each request with the current
     /// Stopwatch timestamp at submit time. <paramref name="laneOf"/> names each job's lane by its index,
     /// and <paramref name="priority"/> overrides the definition's priority. With <paramref name="namespaces"/>
-    /// the jobs are dealt round-robin over that many namespaces, each chunk in one. Returns the elapsed enqueue window.
+    /// the jobs are dealt round-robin over that many namespaces, each chunk in one. <paramref name="dueAtUtc"/> makes
+    /// every job due at that one instant in place of <paramref name="delaySeconds"/>. Returns the elapsed enqueue window.
     /// </summary>
     public static async Task<TimeSpan> EnqueueAsync(
         IJobs jobs,
@@ -33,7 +34,8 @@ internal static class Workload
         int workMs = 0,
         Func<int, string?>? laneOf = null,
         JobPriorityCode? priority = null,
-        int namespaces = 1
+        int namespaces = 1,
+        DateTime? dueAtUtc = null
     )
     {
         var pad = Pad(payloadBytes);
@@ -51,7 +53,8 @@ internal static class Workload
                     ConcurrencyKey: concurrencyKey,
                     Lane: laneOf?.Invoke(i),
                     Priority: priority,
-                    DelaySeconds: delaySeconds
+                    DelaySeconds: dueAtUtc is null ? delaySeconds : null,
+                    NextRunAtUtc: dueAtUtc
                 )
             );
             if (batch.Count == EnqueueChunk)
@@ -121,9 +124,11 @@ internal static class Workload
     }
 
     /// <summary>
-    /// Enqueues a backlog future-dated behind a computed horizon so nothing is Ready, waits out the
+    /// Enqueues a backlog due at one instant behind a computed horizon so nothing is Ready, waits out the
     /// horizon, and returns the enqueue-phase elapsed window plus the Stopwatch timestamp at which the rows
-    /// became due. Callers time the drain from now and read queue-residence latency as
+    /// became due. One instant, not a delay per row: a delay counts from each row's own enqueue, so the backlog
+    /// would come due at the rate it was enqueued and pace the drain to the enqueue. A preload that runs past its
+    /// horizon throws rather than measure such a drain. Callers time the drain from now and read queue-residence latency as
     /// (sample.Entry - releaseStamp). <paramref name="alongsideCount"/> rides the same horizon, so a cell
     /// can release a second workload against the same executors at the same instant. <paramref name="priority"/>
     /// overrides the main workload's priority, and <paramref name="namespaces"/> deals the main workload over that
@@ -143,8 +148,9 @@ internal static class Workload
         int namespaces = 1
     )
     {
-        var horizonSeconds = Math.Max(5, (count + alongsideCount) / 25_000 + 3);
+        var horizonSeconds = Math.Max(5, (count + alongsideCount) / 10_000 + 3);
         var enqueueStart = Stopwatch.GetTimestamp();
+        var dueAt = DateTime.UtcNow.AddSeconds(horizonSeconds);
         var enqueue = await EnqueueAsync(
             jobs,
             count,
@@ -155,7 +161,8 @@ internal static class Workload
             concurrencyKey: concurrencyKey,
             workMs: workMs,
             priority: priority,
-            namespaces: namespaces
+            namespaces: namespaces,
+            dueAtUtc: dueAt
         );
         if (alongsideCount > 0)
         {
@@ -166,11 +173,18 @@ internal static class Workload
                 horizonSeconds,
                 ct,
                 jobName: alongsideJobName,
-                workMs: workMs
+                workMs: workMs,
+                dueAtUtc: dueAt
             );
         }
         var releaseStamp = enqueueStart + (long)(horizonSeconds * Stopwatch.Frequency);
         var remainingMs = Stats.Ms(releaseStamp - Stopwatch.GetTimestamp());
+        if (remainingMs <= 0)
+        {
+            throw new InvalidOperationException(
+                $"The preload of {count + alongsideCount} jobs took {enqueue.TotalSeconds:F1}s, past its {horizonSeconds}s horizon, so rows came due while it ran."
+            );
+        }
         if (remainingMs > 0)
         {
             await Task.Delay(TimeSpan.FromMilliseconds(remainingMs), ct);
