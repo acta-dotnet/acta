@@ -1,215 +1,192 @@
-CREATE OR REPLACE FUNCTION {{schema}}.register_schedules(
-    p_namespace_id INT,
-    p_d_job_ref UUID [],
-    p_d_definition_id INT [],
-    p_d_deduplication_key VARCHAR [],
-    p_d_input_format_id SMALLINT [],
-    p_d_input BYTEA [],
-    p_d_audit_level SMALLINT [],
-    p_d_slot_status SMALLINT [],
-    p_d_slot_next_run_at_utc TIMESTAMPTZ [],
-    p_s_definition_id INT [],
-    p_s_name VARCHAR [],
-    p_s_expression VARCHAR [],
-    p_s_time_zone VARCHAR [],
-    p_s_expression_kind SMALLINT [],
-    p_s_misfire SMALLINT [],
-    p_s_next_run_at_utc TIMESTAMPTZ [],
-    p_s_description VARCHAR []
-)
-RETURNS TABLE (out_definition_id INT, out_slot_id BIGINT)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    CREATE TEMP TABLE _reg_slots (definition_id INT PRIMARY KEY, slot_id BIGINT NOT NULL) ON COMMIT DROP;
+-- One batch, one implicit transaction; only the final SELECT returns rows.
+DROP TABLE IF EXISTS pg_temp._reg_slots;
+CREATE TEMP TABLE _reg_slots (definition_id INT PRIMARY KEY, slot_id BIGINT NOT NULL) ON COMMIT DROP;
 
-    WITH defs AS (
-        SELECT *
-        FROM unnest(
-            p_d_job_ref, p_d_definition_id, p_d_deduplication_key, p_d_input_format_id, p_d_input,
-            p_d_audit_level, p_d_slot_status, p_d_slot_next_run_at_utc)
-        AS d(job_ref, definition_id, deduplication_key, input_format_id, input, audit_level, slot_status, slot_next_run)
-    ),
-    upserted AS (
-        INSERT INTO {{schema}}.jobs (
-            job_ref,
-            lineage_root_id,
-            parent_id,
-            deduplication_key,
-            correlation_key,
-            namespace_id,
-            definition_id,
-            input_format_id,
-            input,
-            concurrency_key,
-            audit_level_code,
-            created_at_utc)
-        SELECT
-            d.job_ref,
-            NULL,
-            NULL,
-            d.deduplication_key,
-            NULL,
-            p_namespace_id,
-            d.definition_id,
-            d.input_format_id,
-            d.input,
-            NULL,
-            d.audit_level,
-            now()
-        FROM defs AS d
-        ORDER BY d.deduplication_key
-        ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL
-        DO UPDATE SET
-            input_format_id = EXCLUDED.input_format_id,
-            input = EXCLUDED.input,
-            audit_level_code = EXCLUDED.audit_level_code
-        -- A row already holding the key is the slot only when it owns schedules; an ordinary job that took
-        -- the key is left untouched and missing from the result, which fails the worker's startup.
-        WHERE EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = {{schema}}.jobs.id)
-        RETURNING {{schema}}.jobs.definition_id, {{schema}}.jobs.id
-    )
-    INSERT INTO _reg_slots (definition_id, slot_id)
-    SELECT definition_id, id FROM upserted;
-
-    INSERT INTO {{schema}}.runtimes (
-        job_id,
-        namespace_id,
-        status_code,
-        priority_code,
-        next_run_at_utc,
-        execution_number,
-        failure_count,
-        retention_until_utc,
-        modified_at_utc,
-        version)
-    SELECT
-        sl.slot_id,
-        p_namespace_id,
-        d.slot_status,
-        jd.priority_code_effective,
-        d.slot_next_run,
-        0,
-        0,
-        NULL,
-        now(),
-        0
+WITH defs AS (
+    SELECT *
     FROM unnest(
-        p_d_definition_id, p_d_slot_status, p_d_slot_next_run_at_utc)
-    AS d(definition_id, slot_status, slot_next_run)
-    INNER JOIN _reg_slots AS sl ON sl.definition_id = d.definition_id
-    INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
-    ON CONFLICT (job_id) DO UPDATE SET
-        status_code = EXCLUDED.status_code,
-        priority_code = EXCLUDED.priority_code,
-        next_run_at_utc = EXCLUDED.next_run_at_utc,
-        modified_at_utc = now(),
-        version = {{schema}}.runtimes.version + 1
-    WHERE
-        -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
-        {{schema}}.runtimes.status_code NOT IN (
-            50 /* JobStatusCode.Executing */,
-            100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
-        AND NOT ({{schema}}.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND {{schema}}.runtimes.next_run_at_utc IS NOT NULL)
-        -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
-        -- signal woke after the start read it would otherwise go back to sleep.
-        AND {{schema}}.runtimes.status_code <> 20 /* JobStatusCode.Suspended */
-        AND EXCLUDED.status_code <> 20 /* JobStatusCode.Suspended */
-        -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
-        AND (
-            {{schema}}.runtimes.status_code IS DISTINCT FROM EXCLUDED.status_code
-            OR {{schema}}.runtimes.priority_code IS DISTINCT FROM EXCLUDED.priority_code
-            OR {{schema}}.runtimes.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
-        );
-
-    INSERT INTO {{schema}}.schedules (
+        @p_d_job_ref, @p_d_definition_id, @p_d_deduplication_key, @p_d_input_format_id, @p_d_input,
+        @p_d_audit_level, @p_d_slot_status, @p_d_slot_next_run_at_utc)
+    AS d(job_ref, definition_id, deduplication_key, input_format_id, input, audit_level, slot_status, slot_next_run)
+),
+upserted AS (
+    INSERT INTO {{schema}}.jobs (
+        job_ref,
+        lineage_root_id,
+        parent_id,
+        deduplication_key,
+        correlation_key,
         namespace_id,
-        job_id,
         definition_id,
-        name,
-        origin_code,
-        expression,
-        time_zone_id,
-        expression_kind_code,
-        misfire_strategy_code,
-        next_run_at_utc,
-        expression_override,
-        time_zone_id_override,
-        status_code,
-        paused_until_utc,
-        description,
-        created_at_utc,
-        modified_at_utc,
-        version)
+        input_format_id,
+        input,
+        concurrency_key,
+        audit_level_code,
+        created_at_utc)
     SELECT
-        p_namespace_id,
-        sl.slot_id,
-        s.definition_id,
-        s.name,
-        40 /* ScheduleOriginCode.Definition */,
-        s.expression,
-        s.time_zone,
-        s.expression_kind,
-        s.misfire,
-        s.next_run,
+        d.job_ref,
         NULL,
         NULL,
-        10 /* ScheduleStatusCode.Active */,
+        d.deduplication_key,
         NULL,
-        s.description,
-        now(),
-        now(),
-        0
-    FROM unnest(
-        p_s_definition_id, p_s_name, p_s_expression, p_s_time_zone,
-        p_s_expression_kind, p_s_misfire, p_s_next_run_at_utc, p_s_description)
-    AS s(definition_id, name, expression, time_zone, expression_kind, misfire, next_run, description)
-    INNER JOIN _reg_slots AS sl ON sl.definition_id = s.definition_id
-    ON CONFLICT (job_id, name) DO UPDATE SET
-        expression = EXCLUDED.expression,
-        time_zone_id = EXCLUDED.time_zone_id,
-        expression_kind_code = EXCLUDED.expression_kind_code,
-        -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
-        expression_override = CASE WHEN {{schema}}.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
-            THEN NULL ELSE {{schema}}.schedules.expression_override END,
-        misfire_strategy_code = EXCLUDED.misfire_strategy_code,
-        next_run_at_utc = EXCLUDED.next_run_at_utc,
-        definition_id = EXCLUDED.definition_id,
-        status_code = CASE WHEN {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
-            THEN 10 /* ScheduleStatusCode.Active */ ELSE {{schema}}.schedules.status_code END,
-        description = EXCLUDED.description,
-        modified_at_utc = now(),
-        version = {{schema}}.schedules.version + 1
-    WHERE
-        {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
-        OR {{schema}}.schedules.expression IS DISTINCT FROM EXCLUDED.expression
-        OR {{schema}}.schedules.time_zone_id IS DISTINCT FROM EXCLUDED.time_zone_id
-        OR {{schema}}.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
-        OR {{schema}}.schedules.misfire_strategy_code IS DISTINCT FROM EXCLUDED.misfire_strategy_code
-        OR {{schema}}.schedules.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
-        OR {{schema}}.schedules.definition_id IS DISTINCT FROM EXCLUDED.definition_id
-        OR {{schema}}.schedules.description IS DISTINCT FROM EXCLUDED.description;
+        @p_namespace_id,
+        d.definition_id,
+        d.input_format_id,
+        d.input,
+        NULL,
+        d.audit_level,
+        now()
+    FROM defs AS d
+    ORDER BY d.deduplication_key
+    ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL
+    DO UPDATE SET
+        input_format_id = EXCLUDED.input_format_id,
+        input = EXCLUDED.input,
+        audit_level_code = EXCLUDED.audit_level_code
+    -- A row already holding the key is the slot only when it owns schedules; an ordinary job that took
+    -- the key is left untouched and missing from the result, which fails the worker's startup.
+    WHERE EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = {{schema}}.jobs.id)
+    RETURNING {{schema}}.jobs.definition_id, {{schema}}.jobs.id
+)
+INSERT INTO _reg_slots (definition_id, slot_id)
+SELECT definition_id, id FROM upserted;
 
-    UPDATE {{schema}}.schedules AS js
-    SET
-        status_code = 230 /* ScheduleStatusCode.Orphaned */,
-        paused_until_utc = NULL,
-        modified_at_utc = now(),
-        version = js.version + 1
-    FROM _reg_slots AS sl
-    WHERE
-        js.job_id = sl.slot_id
-        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-        AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
-        AND NOT EXISTS (
-            SELECT 1
-            FROM unnest(p_s_definition_id, p_s_name) AS s(definition_id, name)
-            WHERE
-                s.definition_id = sl.definition_id
-                AND s.name = js.name
-        );
+INSERT INTO {{schema}}.runtimes (
+    job_id,
+    namespace_id,
+    status_code,
+    priority_code,
+    next_run_at_utc,
+    execution_number,
+    failure_count,
+    retention_until_utc,
+    modified_at_utc,
+    version)
+SELECT
+    sl.slot_id,
+    @p_namespace_id,
+    d.slot_status,
+    jd.priority_code_effective,
+    d.slot_next_run,
+    0,
+    0,
+    NULL,
+    now(),
+    0
+FROM unnest(
+    @p_d_definition_id, @p_d_slot_status, @p_d_slot_next_run_at_utc)
+AS d(definition_id, slot_status, slot_next_run)
+INNER JOIN _reg_slots AS sl ON sl.definition_id = d.definition_id
+INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
+ON CONFLICT (job_id) DO UPDATE SET
+    status_code = EXCLUDED.status_code,
+    priority_code = EXCLUDED.priority_code,
+    next_run_at_utc = EXCLUDED.next_run_at_utc,
+    modified_at_utc = now(),
+    version = {{schema}}.runtimes.version + 1
+WHERE
+    -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
+    {{schema}}.runtimes.status_code NOT IN (
+        50 /* JobStatusCode.Executing */,
+        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
+    AND NOT ({{schema}}.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND {{schema}}.runtimes.next_run_at_utc IS NOT NULL)
+    -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
+    -- signal woke after the start read it would otherwise go back to sleep.
+    AND {{schema}}.runtimes.status_code <> 20 /* JobStatusCode.Suspended */
+    AND EXCLUDED.status_code <> 20 /* JobStatusCode.Suspended */
+    -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
+    AND (
+        {{schema}}.runtimes.status_code IS DISTINCT FROM EXCLUDED.status_code
+        OR {{schema}}.runtimes.priority_code IS DISTINCT FROM EXCLUDED.priority_code
+        OR {{schema}}.runtimes.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
+    );
 
-    RETURN QUERY SELECT r.definition_id, r.slot_id FROM _reg_slots AS r;
-END;
-$$;
+INSERT INTO {{schema}}.schedules (
+    namespace_id,
+    job_id,
+    definition_id,
+    name,
+    origin_code,
+    expression,
+    time_zone_id,
+    expression_kind_code,
+    misfire_strategy_code,
+    next_run_at_utc,
+    expression_override,
+    time_zone_id_override,
+    status_code,
+    paused_until_utc,
+    description,
+    created_at_utc,
+    modified_at_utc,
+    version)
+SELECT
+    @p_namespace_id,
+    sl.slot_id,
+    s.definition_id,
+    s.name,
+    40 /* ScheduleOriginCode.Definition */,
+    s.expression,
+    s.time_zone,
+    s.expression_kind,
+    s.misfire,
+    s.next_run,
+    NULL,
+    NULL,
+    10 /* ScheduleStatusCode.Active */,
+    NULL,
+    s.description,
+    now(),
+    now(),
+    0
+FROM unnest(
+    @p_s_definition_id, @p_s_name, @p_s_expression, @p_s_time_zone,
+    @p_s_expression_kind, @p_s_misfire, @p_s_next_run_at_utc, @p_s_description)
+AS s(definition_id, name, expression, time_zone, expression_kind, misfire, next_run, description)
+INNER JOIN _reg_slots AS sl ON sl.definition_id = s.definition_id
+ON CONFLICT (job_id, name) DO UPDATE SET
+    expression = EXCLUDED.expression,
+    time_zone_id = EXCLUDED.time_zone_id,
+    expression_kind_code = EXCLUDED.expression_kind_code,
+    -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
+    expression_override = CASE WHEN {{schema}}.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
+        THEN NULL ELSE {{schema}}.schedules.expression_override END,
+    misfire_strategy_code = EXCLUDED.misfire_strategy_code,
+    next_run_at_utc = EXCLUDED.next_run_at_utc,
+    definition_id = EXCLUDED.definition_id,
+    status_code = CASE WHEN {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
+        THEN 10 /* ScheduleStatusCode.Active */ ELSE {{schema}}.schedules.status_code END,
+    description = EXCLUDED.description,
+    modified_at_utc = now(),
+    version = {{schema}}.schedules.version + 1
+WHERE
+    {{schema}}.schedules.status_code = 230 /* ScheduleStatusCode.Orphaned */
+    OR {{schema}}.schedules.expression IS DISTINCT FROM EXCLUDED.expression
+    OR {{schema}}.schedules.time_zone_id IS DISTINCT FROM EXCLUDED.time_zone_id
+    OR {{schema}}.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
+    OR {{schema}}.schedules.misfire_strategy_code IS DISTINCT FROM EXCLUDED.misfire_strategy_code
+    OR {{schema}}.schedules.next_run_at_utc IS DISTINCT FROM EXCLUDED.next_run_at_utc
+    OR {{schema}}.schedules.definition_id IS DISTINCT FROM EXCLUDED.definition_id
+    OR {{schema}}.schedules.description IS DISTINCT FROM EXCLUDED.description;
+
+UPDATE {{schema}}.schedules AS js
+SET
+    status_code = 230 /* ScheduleStatusCode.Orphaned */,
+    paused_until_utc = NULL,
+    modified_at_utc = now(),
+    version = js.version + 1
+FROM _reg_slots AS sl
+WHERE
+    js.job_id = sl.slot_id
+    AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(@p_s_definition_id, @p_s_name) AS s(definition_id, name)
+        WHERE
+            s.definition_id = sl.definition_id
+            AND s.name = js.name
+    );
+
+SELECT r.definition_id, r.slot_id FROM _reg_slots AS r;

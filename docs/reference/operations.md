@@ -153,7 +153,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
-| `RegisterSchedules` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterSchedulesMisfireMatrixSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesSpec` |
+| `RegisterSchedules` | · | · | · | inline | inline | inline | `jobs`, `runtimes`, `schedules` | `RegisterSchedulesMisfireMatrixSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesSpec` |
 | `ResolveScheduleTarget` | · | · | · | · | · | · | · | `ResolveScheduleTargetSpec` |
 | `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `ResumeScheduleSpec` |
 | `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `SetScheduleOverridesSpec` |
