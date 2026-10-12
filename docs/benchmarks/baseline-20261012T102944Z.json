@@ -1,0 +1,2369 @@
+{
+  "schemaVersion": 2,
+  "preset": "release",
+  "capturedAtUtc": "2026-10-12T10:29:44Z",
+  "engineVersion": "1.0.0-rc.4.329\u002B4f410f6862061bb810fc1458ea837c8855516657",
+  "gitCommit": "4f410f68",
+  "gitDirty": false,
+  "policy": {
+    "warmupIterations": 1,
+    "measuredRepeats": 1,
+    "aggregation": "single"
+  },
+  "environment": {
+    "dotnetVersion": ".NET 10.0.12",
+    "os": "Microsoft Windows 10.0.26300",
+    "cpuModel": "Intel(R) Core(TM) i9-14900K",
+    "logicalProcessorCount": 32,
+    "totalMemoryBytes": 102818476032,
+    "disk": "NVMe SOLIDIGM SSDPFKKW010X7 [SSD]; NVMe SOLIDIGM SSDPFKKW020X7 [SSD]"
+  },
+  "databases": [
+    {
+      "provider": "sqlite",
+      "databaseServerVersion": "3.53.3",
+      "databaseEngineMajorVersion": "3",
+      "databaseProviderVersion": "10.0.12.0",
+      "databaseLocation": "sqlite:D:\\Dev\\bench-tmp/acta-anvil-bench-*.db",
+      "connectionStringFingerprint": "07abf9d167ae0def"
+    }
+  ],
+  "cells": [
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 5000,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 106.33900618682677,
+        "enqueuePerSecond": 24087.539901009848,
+        "drainPerSecond": 0,
+        "durationMs": 47019.4351,
+        "p50LatencyMs": 23680.7748,
+        "p95LatencyMs": 44396.8036,
+        "p99LatencyMs": 46377.4022,
+        "maxLatencyMs": 46849.5004,
+        "meanLatencyMs": 23563.813391280026,
+        "enqueueDurationMs": 207.5762,
+        "drainDurationMs": 47019.4351,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 106.33900618682677,
+          "enqueuePerSecond": 24087.539901009848,
+          "drainPerSecond": 0,
+          "durationMs": 47019.4351,
+          "p50LatencyMs": 23680.7748,
+          "p95LatencyMs": 44396.8036,
+          "p99LatencyMs": 46377.4022,
+          "maxLatencyMs": 46849.5004,
+          "meanLatencyMs": 23563.813391280026,
+          "enqueueDurationMs": 207.5762,
+          "drainDurationMs": 47019.4351,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 5000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 281.4773661572872,
+        "enqueuePerSecond": 22001.077172738376,
+        "drainPerSecond": 0,
+        "durationMs": 17763.4176,
+        "p50LatencyMs": 9269.7563,
+        "p95LatencyMs": 16306.3092,
+        "p99LatencyMs": 17183.7439,
+        "maxLatencyMs": 17574.5553,
+        "meanLatencyMs": 9269.692521700004,
+        "enqueueDurationMs": 227.26160000000002,
+        "drainDurationMs": 17763.4176,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 281.4773661572872,
+          "enqueuePerSecond": 22001.077172738376,
+          "drainPerSecond": 0,
+          "durationMs": 17763.4176,
+          "p50LatencyMs": 9269.7563,
+          "p95LatencyMs": 16306.3092,
+          "p99LatencyMs": 17183.7439,
+          "maxLatencyMs": 17574.5553,
+          "meanLatencyMs": 9269.692521700004,
+          "enqueueDurationMs": 227.26160000000002,
+          "drainDurationMs": 17763.4176,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 5000,
+        "executors": 32,
+        "claimBatch": 64,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 251.15032625884052,
+        "enqueuePerSecond": 14026.535961793961,
+        "drainPerSecond": 0,
+        "durationMs": 19908.3954,
+        "p50LatencyMs": 14476.615,
+        "p95LatencyMs": 18396.6825,
+        "p99LatencyMs": 18619.8086,
+        "maxLatencyMs": 19590.9733,
+        "meanLatencyMs": 11359.066812660027,
+        "enqueueDurationMs": 356.4672,
+        "drainDurationMs": 19908.3954,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 251.15032625884052,
+          "enqueuePerSecond": 14026.535961793961,
+          "drainPerSecond": 0,
+          "durationMs": 19908.3954,
+          "p50LatencyMs": 14476.615,
+          "p95LatencyMs": 18396.6825,
+          "p99LatencyMs": 18619.8086,
+          "maxLatencyMs": 19590.9733,
+          "meanLatencyMs": 11359.066812660027,
+          "enqueueDurationMs": 356.4672,
+          "drainDurationMs": 19908.3954,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 5000,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 1058.1065564091418,
+        "enqueuePerSecond": 4067.6899401716023,
+        "drainPerSecond": 0,
+        "durationMs": 4725.422,
+        "p50LatencyMs": 1749.5352,
+        "p95LatencyMs": 3321.1049,
+        "p99LatencyMs": 3482.6111,
+        "maxLatencyMs": 3534.5883,
+        "meanLatencyMs": 1775.446566059998,
+        "enqueueDurationMs": 1229.1989,
+        "drainDurationMs": 4725.422,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 1058.1065564091418,
+          "enqueuePerSecond": 4067.6899401716023,
+          "drainPerSecond": 0,
+          "durationMs": 4725.422,
+          "p50LatencyMs": 1749.5352,
+          "p95LatencyMs": 3321.1049,
+          "p99LatencyMs": 3482.6111,
+          "maxLatencyMs": 3534.5883,
+          "meanLatencyMs": 1775.446566059998,
+          "enqueueDurationMs": 1229.1989,
+          "drainDurationMs": 4725.422,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 5000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 3721.022998526847,
+        "enqueuePerSecond": 20573.202334153244,
+        "drainPerSecond": 0,
+        "durationMs": 1343.7165,
+        "p50LatencyMs": 662.5759,
+        "p95LatencyMs": 1063.3557,
+        "p99LatencyMs": 1133.0803,
+        "maxLatencyMs": 1138.2255,
+        "meanLatencyMs": 655.3928361800007,
+        "enqueueDurationMs": 243.03459999999998,
+        "drainDurationMs": 1343.7165,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 3721.022998526847,
+          "enqueuePerSecond": 20573.202334153244,
+          "drainPerSecond": 0,
+          "durationMs": 1343.7165,
+          "p50LatencyMs": 662.5759,
+          "p95LatencyMs": 1063.3557,
+          "p99LatencyMs": 1133.0803,
+          "maxLatencyMs": 1138.2255,
+          "meanLatencyMs": 655.3928361800007,
+          "enqueueDurationMs": 243.03459999999998,
+          "drainDurationMs": 1343.7165,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 5000,
+        "executors": 32,
+        "claimBatch": 64,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 6146.277722017381,
+        "enqueuePerSecond": 23399.51965466053,
+        "drainPerSecond": 0,
+        "durationMs": 813.5005,
+        "p50LatencyMs": 417.1276,
+        "p95LatencyMs": 606.1078,
+        "p99LatencyMs": 635.7488,
+        "maxLatencyMs": 637.4572,
+        "meanLatencyMs": 409.9272525400002,
+        "enqueueDurationMs": 213.6796,
+        "drainDurationMs": 813.5005,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 6146.277722017381,
+          "enqueuePerSecond": 23399.51965466053,
+          "drainPerSecond": 0,
+          "durationMs": 813.5005,
+          "p50LatencyMs": 417.1276,
+          "p95LatencyMs": 606.1078,
+          "p99LatencyMs": 635.7488,
+          "maxLatencyMs": 637.4572,
+          "meanLatencyMs": 409.9272525400002,
+          "enqueueDurationMs": 213.6796,
+          "drainDurationMs": 813.5005,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 29.136023097174405,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 6864.3549,
+        "p50LatencyMs": 16.7963,
+        "p95LatencyMs": 17.6177,
+        "p99LatencyMs": 32.2795,
+        "maxLatencyMs": 32.8884,
+        "meanLatencyMs": 16.83986399999999,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 6864.3549,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 221,
+          "retainedResults": 221,
+          "retainedRuntimes": 221,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 29.136023097174405,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 6864.3549,
+          "p50LatencyMs": 16.7963,
+          "p95LatencyMs": 17.6177,
+          "p99LatencyMs": 32.2795,
+          "maxLatencyMs": 32.8884,
+          "meanLatencyMs": 16.83986399999999,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 6864.3549,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 29.296516518210964,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 6826.7502,
+        "p50LatencyMs": 19.5952,
+        "p95LatencyMs": 21.6413,
+        "p99LatencyMs": 23.2584,
+        "maxLatencyMs": 23.3221,
+        "meanLatencyMs": 19.45951450000001,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 6826.7502,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "retainedEvents": 2,
+          "retainedJobs": 221,
+          "retainedResults": 221,
+          "retainedRuntimes": 221,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 29.296516518210964,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 6826.7502,
+          "p50LatencyMs": 19.5952,
+          "p95LatencyMs": 21.6413,
+          "p99LatencyMs": 23.2584,
+          "maxLatencyMs": 23.3221,
+          "meanLatencyMs": 19.45951450000001,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 6826.7502,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 5000,
+        "executors": 64,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 24769.139237734697,
+        "drainPerSecond": 92.90759838568587,
+        "durationMs": 53816.9115,
+        "p50LatencyMs": 28169.8996,
+        "p95LatencyMs": 50026.8104,
+        "p99LatencyMs": 50787.7875,
+        "maxLatencyMs": 53832.7348,
+        "meanLatencyMs": 29070.33882284,
+        "enqueueDurationMs": 201.86409999999998,
+        "drainDurationMs": 53816.9115,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "overheadUsPerJob": 10763.382300000001,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0,
+          "workers": 1
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 24769.139237734697,
+          "drainPerSecond": 92.90759838568587,
+          "durationMs": 53816.9115,
+          "p50LatencyMs": 28169.8996,
+          "p95LatencyMs": 50026.8104,
+          "p99LatencyMs": 50787.7875,
+          "maxLatencyMs": 53832.7348,
+          "meanLatencyMs": 29070.33882284,
+          "enqueueDurationMs": 201.86409999999998,
+          "drainDurationMs": 53816.9115,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 10763.382300000001,
+            "workers": 1,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 5000,
+        "executors": 64,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 26115.633758530672,
+        "drainPerSecond": 9658.79719384897,
+        "durationMs": 517.6628,
+        "p50LatencyMs": 310.6479,
+        "p95LatencyMs": 524.8507,
+        "p99LatencyMs": 528.001,
+        "maxLatencyMs": 528.8352,
+        "meanLatencyMs": 305.42688964000024,
+        "enqueueDurationMs": 191.4562,
+        "drainDurationMs": 517.6628,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "overheadUsPerJob": 103.53255999999999,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0,
+          "workers": 1
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 26115.633758530672,
+          "drainPerSecond": 9658.79719384897,
+          "durationMs": 517.6628,
+          "p50LatencyMs": 310.6479,
+          "p95LatencyMs": 524.8507,
+          "p99LatencyMs": 528.001,
+          "maxLatencyMs": 528.8352,
+          "meanLatencyMs": 305.42688964000024,
+          "enqueueDurationMs": 191.4562,
+          "drainDurationMs": 517.6628,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 103.53255999999999,
+            "workers": 1,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 5000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 1259.9679847174955,
+        "drainPerSecond": 0,
+        "durationMs": 3968.3548,
+        "p50LatencyMs": 0.7363,
+        "p95LatencyMs": 0.9296,
+        "p99LatencyMs": 1.5625,
+        "maxLatencyMs": 17.1912,
+        "meanLatencyMs": 0.7936365400000052,
+        "enqueueDurationMs": 3968.3548,
+        "drainDurationMs": 0,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "producers": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 0,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 1259.9679847174955,
+          "drainPerSecond": 0,
+          "durationMs": 3968.3548,
+          "p50LatencyMs": 0.7363,
+          "p95LatencyMs": 0.9296,
+          "p99LatencyMs": 1.5625,
+          "maxLatencyMs": 17.1912,
+          "meanLatencyMs": 0.7936365400000052,
+          "enqueueDurationMs": 3968.3548,
+          "drainDurationMs": 0,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 0
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 5000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 1278.8092710193787,
+        "drainPerSecond": 0,
+        "durationMs": 3909.8872,
+        "p50LatencyMs": 0.7362,
+        "p95LatencyMs": 0.9313,
+        "p99LatencyMs": 1.6666,
+        "maxLatencyMs": 15.9776,
+        "meanLatencyMs": 0.7819300200000016,
+        "enqueueDurationMs": 3909.8872,
+        "drainDurationMs": 0,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "producers": 16,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 0,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 1278.8092710193787,
+          "drainPerSecond": 0,
+          "durationMs": 3909.8872,
+          "p50LatencyMs": 0.7362,
+          "p95LatencyMs": 0.9313,
+          "p99LatencyMs": 1.6666,
+          "maxLatencyMs": 15.9776,
+          "meanLatencyMs": 0.7819300200000016,
+          "enqueueDurationMs": 3909.8872,
+          "drainDurationMs": 0,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 0
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue-batch",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 200000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 25218.440555943045,
+        "drainPerSecond": 0,
+        "durationMs": 7930.7045,
+        "p50LatencyMs": 0,
+        "p95LatencyMs": 0,
+        "p99LatencyMs": 0,
+        "maxLatencyMs": 0,
+        "meanLatencyMs": 0,
+        "enqueueDurationMs": 7930.7045,
+        "drainDurationMs": 0,
+        "jobsObserved": 200000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "producers": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 200000,
+          "retainedResults": 0,
+          "retainedRuntimes": 200000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 25218.440555943045,
+          "drainPerSecond": 0,
+          "durationMs": 7930.7045,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 7930.7045,
+          "drainDurationMs": 0,
+          "jobsObserved": 200000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "seedHistory": 0,
+            "retainedJobs": 200000,
+            "retainedRuntimes": 200000,
+            "retainedEvents": 2,
+            "retainedResults": 0
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue-batch",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 200000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 25178.75594838667,
+        "drainPerSecond": 0,
+        "durationMs": 7943.2042,
+        "p50LatencyMs": 0,
+        "p95LatencyMs": 0,
+        "p99LatencyMs": 0,
+        "maxLatencyMs": 0,
+        "meanLatencyMs": 0,
+        "enqueueDurationMs": 7943.2042,
+        "drainDurationMs": 0,
+        "jobsObserved": 200000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "producers": 16,
+          "retainedEvents": 2,
+          "retainedJobs": 200000,
+          "retainedResults": 0,
+          "retainedRuntimes": 200000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 25178.75594838667,
+          "drainPerSecond": 0,
+          "durationMs": 7943.2042,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 7943.2042,
+          "drainDurationMs": 0,
+          "jobsObserved": 200000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "seedHistory": 0,
+            "retainedJobs": 200000,
+            "retainedRuntimes": 200000,
+            "retainedEvents": 2,
+            "retainedResults": 0
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "query-list",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 0,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 0,
+        "rows": 50000,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 0,
+        "p50LatencyMs": 31.8484,
+        "p95LatencyMs": 32.718,
+        "p99LatencyMs": 33.094,
+        "maxLatencyMs": 33.094,
+        "meanLatencyMs": 32.01325,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 0,
+        "jobsObserved": 40,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "queryP95Ms": 32.718,
+          "retainedEvents": 2,
+          "retainedJobs": 50000,
+          "retainedResults": 0,
+          "retainedRuntimes": 50000,
+          "rows": 50000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 0,
+          "p50LatencyMs": 31.8484,
+          "p95LatencyMs": 32.718,
+          "p99LatencyMs": 33.094,
+          "maxLatencyMs": 33.094,
+          "meanLatencyMs": 32.01325,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 0,
+          "jobsObserved": 40,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "rows": 50000,
+            "queryP95Ms": 32.718,
+            "seedHistory": 0,
+            "retainedJobs": 50000,
+            "retainedRuntimes": 50000,
+            "retainedEvents": 2,
+            "retainedResults": 0
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "rate",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 3000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 3,
+        "rows": 0,
+        "iterations": 200,
+        "rate": "100/s",
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 339.0213583455758,
+        "enqueuePerSecond": 22425.78187488507,
+        "drainPerSecond": 0,
+        "durationMs": 10252.0094,
+        "p50LatencyMs": 4768.9946,
+        "p95LatencyMs": 8583.3493,
+        "p99LatencyMs": 8914.2822,
+        "maxLatencyMs": 10257.8766,
+        "meanLatencyMs": 4871.314962199997,
+        "enqueueDurationMs": 133.7746,
+        "drainDurationMs": 10252.0094,
+        "jobsObserved": 3000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "admitted": 3000,
+          "admittedPerSec": 339.0213583455758,
+          "admittedSpanSec": 8.849,
+          "attemptsPerJob": 1,
+          "burst": 100,
+          "contractExcess10s": 1800,
+          "contractExcess1s": 278,
+          "contractExcess5s": 1173,
+          "declaredPerSec": 100,
+          "intervalMs": 10,
+          "maxStartsIn1s": 578,
+          "rearmsPerJob": 0,
+          "reserveCallsPerSec": 339.0213583455758,
+          "retainedEvents": 6008,
+          "retainedJobs": 3000,
+          "retainedResults": 3000,
+          "retainedRuntimes": 3000,
+          "seedHistory": 0,
+          "workers": 3
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 339.0213583455758,
+          "enqueuePerSecond": 22425.78187488507,
+          "drainPerSecond": 0,
+          "durationMs": 10252.0094,
+          "p50LatencyMs": 4768.9946,
+          "p95LatencyMs": 8583.3493,
+          "p99LatencyMs": 8914.2822,
+          "maxLatencyMs": 10257.8766,
+          "meanLatencyMs": 4871.314962199997,
+          "enqueueDurationMs": 133.7746,
+          "drainDurationMs": 10252.0094,
+          "jobsObserved": 3000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "workers": 3,
+            "declaredPerSec": 100,
+            "burst": 100,
+            "intervalMs": 10,
+            "admitted": 3000,
+            "admittedPerSec": 339.0213583455758,
+            "admittedSpanSec": 8.849,
+            "attemptsPerJob": 1,
+            "rearmsPerJob": 0,
+            "reserveCallsPerSec": 339.0213583455758,
+            "maxStartsIn1s": 578,
+            "contractExcess1s": 278,
+            "contractExcess5s": 1173,
+            "contractExcess10s": 1800,
+            "seedHistory": 0,
+            "retainedJobs": 3000,
+            "retainedRuntimes": 3000,
+            "retainedEvents": 6008,
+            "retainedResults": 3000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "rate",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": null,
+        "jobs": 600,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": "600/m",
+        "sideJobs": 0,
+        "variant": null
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 224.5508982035928,
+        "enqueuePerSecond": 18046.903903244533,
+        "drainPerSecond": 0,
+        "durationMs": 3528.8619,
+        "p50LatencyMs": 2003.168,
+        "p95LatencyMs": 2735.2743,
+        "p99LatencyMs": 3220.6391,
+        "maxLatencyMs": 3531.6885,
+        "meanLatencyMs": 1684.5723705,
+        "enqueueDurationMs": 33.2467,
+        "drainDurationMs": 3528.8619,
+        "jobsObserved": 600,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "admitted": 600,
+          "admittedPerSec": 224.5508982035928,
+          "admittedSpanSec": 2.672,
+          "attemptsPerJob": 1,
+          "burst": 10,
+          "contractExcess10s": 480,
+          "contractExcess1s": 271,
+          "contractExcess5s": 530,
+          "declaredPerSec": 10,
+          "intervalMs": 100,
+          "maxStartsIn1s": 301,
+          "rearmsPerJob": 0,
+          "reserveCallsPerSec": 224.5508982035928,
+          "retainedEvents": 1204,
+          "retainedJobs": 600,
+          "retainedResults": 600,
+          "retainedRuntimes": 600,
+          "seedHistory": 0,
+          "workers": 1
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 224.5508982035928,
+          "enqueuePerSecond": 18046.903903244533,
+          "drainPerSecond": 0,
+          "durationMs": 3528.8619,
+          "p50LatencyMs": 2003.168,
+          "p95LatencyMs": 2735.2743,
+          "p99LatencyMs": 3220.6391,
+          "maxLatencyMs": 3531.6885,
+          "meanLatencyMs": 1684.5723705,
+          "enqueueDurationMs": 33.2467,
+          "drainDurationMs": 3528.8619,
+          "jobsObserved": 600,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "workers": 1,
+            "declaredPerSec": 10,
+            "burst": 10,
+            "intervalMs": 100,
+            "admitted": 600,
+            "admittedPerSec": 224.5508982035928,
+            "admittedSpanSec": 2.672,
+            "attemptsPerJob": 1,
+            "rearmsPerJob": 0,
+            "reserveCallsPerSec": 224.5508982035928,
+            "maxStartsIn1s": 301,
+            "contractExcess1s": 271,
+            "contractExcess5s": 530,
+            "contractExcess10s": 480,
+            "seedHistory": 0,
+            "retainedJobs": 600,
+            "retainedRuntimes": 600,
+            "retainedEvents": 1204,
+            "retainedResults": 600
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 5000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "unlaned"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 289.53483854002866,
+        "enqueuePerSecond": 20861.43542530417,
+        "drainPerSecond": 0,
+        "durationMs": 17269.079,
+        "p50LatencyMs": 8371.626,
+        "p95LatencyMs": 15669.4894,
+        "p99LatencyMs": 16557.757,
+        "maxLatencyMs": 17066.3861,
+        "meanLatencyMs": 8293.891878539995,
+        "enqueueDurationMs": 239.67669999999998,
+        "drainDurationMs": 17269.079,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 0,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 289.53483854002866,
+          "enqueuePerSecond": 20861.43542530417,
+          "drainPerSecond": 0,
+          "durationMs": 17269.079,
+          "p50LatencyMs": 8371.626,
+          "p95LatencyMs": 15669.4894,
+          "p99LatencyMs": 16557.757,
+          "maxLatencyMs": 17066.3861,
+          "meanLatencyMs": 8293.891878539995,
+          "enqueueDurationMs": 239.67669999999998,
+          "drainDurationMs": 17269.079,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 0,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 5000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "lane-wide"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 291.253903333843,
+        "enqueuePerSecond": 17090.230950544974,
+        "drainPerSecond": 0,
+        "durationMs": 17167.1519,
+        "p50LatencyMs": 8157.1865,
+        "p95LatencyMs": 16273.1354,
+        "p99LatencyMs": 16525.7355,
+        "maxLatencyMs": 16917.7145,
+        "meanLatencyMs": 8231.244762300035,
+        "enqueueDurationMs": 292.5648,
+        "drainDurationMs": 17167.1519,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 1000,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 291.253903333843,
+          "enqueuePerSecond": 17090.230950544974,
+          "drainPerSecond": 0,
+          "durationMs": 17167.1519,
+          "p50LatencyMs": 8157.1865,
+          "p95LatencyMs": 16273.1354,
+          "p99LatencyMs": 16525.7355,
+          "maxLatencyMs": 16917.7145,
+          "meanLatencyMs": 8231.244762300035,
+          "enqueueDurationMs": 292.5648,
+          "drainDurationMs": 17167.1519,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 1000,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 1000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "key-hot"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 132.55351218425255,
+        "enqueuePerSecond": 25479.005299633103,
+        "drainPerSecond": 0,
+        "durationMs": 7544.123,
+        "p50LatencyMs": 3128.3447,
+        "p95LatencyMs": 5014.0237,
+        "p99LatencyMs": 5840.1513,
+        "maxLatencyMs": 7544.0094,
+        "meanLatencyMs": 2885.5225243,
+        "enqueueDurationMs": 39.248,
+        "drainDurationMs": 7544.123,
+        "jobsObserved": 1000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 0,
+          "retainedEvents": 2,
+          "retainedJobs": 1000,
+          "retainedResults": 1000,
+          "retainedRuntimes": 1000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 132.55351218425255,
+          "enqueuePerSecond": 25479.005299633103,
+          "drainPerSecond": 0,
+          "durationMs": 7544.123,
+          "p50LatencyMs": 3128.3447,
+          "p95LatencyMs": 5014.0237,
+          "p99LatencyMs": 5840.1513,
+          "maxLatencyMs": 7544.0094,
+          "meanLatencyMs": 2885.5225243,
+          "enqueueDurationMs": 39.248,
+          "drainDurationMs": 7544.123,
+          "jobsObserved": 1000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 0,
+            "seedHistory": 0,
+            "retainedJobs": 1000,
+            "retainedRuntimes": 1000,
+            "retainedEvents": 2,
+            "retainedResults": 1000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 1000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "lane-deep"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 64.02862991524901,
+        "enqueuePerSecond": 25245.0027517053,
+        "drainPerSecond": 0,
+        "durationMs": 15618.0134,
+        "p50LatencyMs": 7836.3173,
+        "p95LatencyMs": 14855.7499,
+        "p99LatencyMs": 15477.3498,
+        "maxLatencyMs": 15617.8657,
+        "meanLatencyMs": 7830.465488399991,
+        "enqueueDurationMs": 39.6118,
+        "drainDurationMs": 15618.0134,
+        "jobsObserved": 1000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 1000,
+          "retainedResults": 1000,
+          "retainedRuntimes": 1000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 64.02862991524901,
+          "enqueuePerSecond": 25245.0027517053,
+          "drainPerSecond": 0,
+          "durationMs": 15618.0134,
+          "p50LatencyMs": 7836.3173,
+          "p95LatencyMs": 14855.7499,
+          "p99LatencyMs": 15477.3498,
+          "maxLatencyMs": 15617.8657,
+          "meanLatencyMs": 7830.465488399991,
+          "enqueueDurationMs": 39.6118,
+          "drainDurationMs": 15618.0134,
+          "jobsObserved": 1000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 1,
+            "seedHistory": 0,
+            "retainedJobs": 1000,
+            "retainedRuntimes": 1000,
+            "retainedEvents": 2,
+            "retainedResults": 1000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 5000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "unlaned"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 3788.3847668442386,
+        "enqueuePerSecond": 22383.16213198724,
+        "drainPerSecond": 0,
+        "durationMs": 1319.8237,
+        "p50LatencyMs": 645.4513,
+        "p95LatencyMs": 1072.6609,
+        "p99LatencyMs": 1127.6334,
+        "maxLatencyMs": 1133.1428,
+        "meanLatencyMs": 652.503738760001,
+        "enqueueDurationMs": 223.3822,
+        "drainDurationMs": 1319.8237,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 0,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 3788.3847668442386,
+          "enqueuePerSecond": 22383.16213198724,
+          "drainPerSecond": 0,
+          "durationMs": 1319.8237,
+          "p50LatencyMs": 645.4513,
+          "p95LatencyMs": 1072.6609,
+          "p99LatencyMs": 1127.6334,
+          "maxLatencyMs": 1133.1428,
+          "meanLatencyMs": 652.503738760001,
+          "enqueueDurationMs": 223.3822,
+          "drainDurationMs": 1319.8237,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 0,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 5000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "lane-wide"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 3632.769704270023,
+        "enqueuePerSecond": 19042.30171156016,
+        "drainPerSecond": 0,
+        "durationMs": 1376.3603,
+        "p50LatencyMs": 673.9766,
+        "p95LatencyMs": 1106.8531,
+        "p99LatencyMs": 1133.5107,
+        "maxLatencyMs": 1157.7952,
+        "meanLatencyMs": 679.1083006400003,
+        "enqueueDurationMs": 262.5733,
+        "drainDurationMs": 1376.3603,
+        "jobsObserved": 5000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 1000,
+          "retainedEvents": 2,
+          "retainedJobs": 5000,
+          "retainedResults": 5000,
+          "retainedRuntimes": 5000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 3632.769704270023,
+          "enqueuePerSecond": 19042.30171156016,
+          "drainPerSecond": 0,
+          "durationMs": 1376.3603,
+          "p50LatencyMs": 673.9766,
+          "p95LatencyMs": 1106.8531,
+          "p99LatencyMs": 1133.5107,
+          "maxLatencyMs": 1157.7952,
+          "meanLatencyMs": 679.1083006400003,
+          "enqueueDurationMs": 262.5733,
+          "drainDurationMs": 1376.3603,
+          "jobsObserved": 5000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 1000,
+            "seedHistory": 0,
+            "retainedJobs": 5000,
+            "retainedRuntimes": 5000,
+            "retainedEvents": 2,
+            "retainedResults": 5000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 1000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "key-hot"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 147.32231599107573,
+        "enqueuePerSecond": 26322.43935309973,
+        "drainPerSecond": 0,
+        "durationMs": 6787.8379,
+        "p50LatencyMs": 1430.6136,
+        "p95LatencyMs": 5842.4757,
+        "p99LatencyMs": 6621.4079,
+        "maxLatencyMs": 6787.6404,
+        "meanLatencyMs": 2235.053052100001,
+        "enqueueDurationMs": 37.9904,
+        "drainDurationMs": 6787.8379,
+        "jobsObserved": 1000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 0,
+          "retainedEvents": 2,
+          "retainedJobs": 1000,
+          "retainedResults": 1000,
+          "retainedRuntimes": 1000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 147.32231599107573,
+          "enqueuePerSecond": 26322.43935309973,
+          "drainPerSecond": 0,
+          "durationMs": 6787.8379,
+          "p50LatencyMs": 1430.6136,
+          "p95LatencyMs": 5842.4757,
+          "p99LatencyMs": 6621.4079,
+          "maxLatencyMs": 6787.6404,
+          "meanLatencyMs": 2235.053052100001,
+          "enqueueDurationMs": 37.9904,
+          "drainDurationMs": 6787.8379,
+          "jobsObserved": 1000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 0,
+            "seedHistory": 0,
+            "retainedJobs": 1000,
+            "retainedRuntimes": 1000,
+            "retainedEvents": 2,
+            "retainedResults": 1000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "lanes",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 1000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "lane-deep"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 64.32853457475397,
+        "enqueuePerSecond": 25060.01874489402,
+        "drainPerSecond": 0,
+        "durationMs": 15545.201000000001,
+        "p50LatencyMs": 7794.1681,
+        "p95LatencyMs": 14792.7548,
+        "p99LatencyMs": 15408.1984,
+        "maxLatencyMs": 15544.9918,
+        "meanLatencyMs": 7791.447288000005,
+        "enqueueDurationMs": 39.9042,
+        "drainDurationMs": 15545.201000000001,
+        "jobsObserved": 1000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "lanes": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 1000,
+          "retainedResults": 1000,
+          "retainedRuntimes": 1000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 64.32853457475397,
+          "enqueuePerSecond": 25060.01874489402,
+          "drainPerSecond": 0,
+          "durationMs": 15545.201000000001,
+          "p50LatencyMs": 7794.1681,
+          "p95LatencyMs": 14792.7548,
+          "p99LatencyMs": 15408.1984,
+          "maxLatencyMs": 15544.9918,
+          "meanLatencyMs": 7791.447288000005,
+          "enqueueDurationMs": 39.9042,
+          "drainDurationMs": 15545.201000000001,
+          "jobsObserved": 1000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "lanes": 1,
+            "seedHistory": 0,
+            "retainedJobs": 1000,
+            "retainedRuntimes": 1000,
+            "retainedEvents": 2,
+            "retainedResults": 1000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "claim-skew",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "none"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 26634.783055696797,
+        "drainPerSecond": 303.9094070370375,
+        "durationMs": 32904.542499999996,
+        "p50LatencyMs": 11783.5533,
+        "p95LatencyMs": 30226.2474,
+        "p99LatencyMs": 31917.9972,
+        "maxLatencyMs": 32913.4206,
+        "meanLatencyMs": 13873.094966730016,
+        "enqueueDurationMs": 375.4489,
+        "drainDurationMs": 32904.542499999996,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "backgroundJobs": 0,
+          "retainedEvents": 2,
+          "retainedJobs": 10000,
+          "retainedResults": 10000,
+          "retainedRuntimes": 10000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 26634.783055696797,
+          "drainPerSecond": 303.9094070370375,
+          "durationMs": 32904.542499999996,
+          "p50LatencyMs": 11783.5533,
+          "p95LatencyMs": 30226.2474,
+          "p99LatencyMs": 31917.9972,
+          "maxLatencyMs": 32913.4206,
+          "meanLatencyMs": 13873.094966730016,
+          "enqueueDurationMs": 375.4489,
+          "drainDurationMs": 32904.542499999996,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "backgroundJobs": 0,
+            "seedHistory": 0,
+            "retainedJobs": 10000,
+            "retainedRuntimes": 10000,
+            "retainedEvents": 2,
+            "retainedResults": 10000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "claim-skew",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "parked"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 26411.817280935105,
+        "drainPerSecond": 283.2221019595092,
+        "durationMs": 35307.9789,
+        "p50LatencyMs": 19047.678,
+        "p95LatencyMs": 33232.0248,
+        "p99LatencyMs": 34231.7364,
+        "maxLatencyMs": 35322.5501,
+        "meanLatencyMs": 18288.021131909998,
+        "enqueueDurationMs": 378.6184,
+        "drainDurationMs": 35307.9789,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "backgroundJobs": 50000,
+          "retainedEvents": 2,
+          "retainedJobs": 60000,
+          "retainedResults": 10000,
+          "retainedRuntimes": 60000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 26411.817280935105,
+          "drainPerSecond": 283.2221019595092,
+          "durationMs": 35307.9789,
+          "p50LatencyMs": 19047.678,
+          "p95LatencyMs": 33232.0248,
+          "p99LatencyMs": 34231.7364,
+          "maxLatencyMs": 35322.5501,
+          "meanLatencyMs": 18288.021131909998,
+          "enqueueDurationMs": 378.6184,
+          "drainDurationMs": 35307.9789,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "backgroundJobs": 50000,
+            "seedHistory": 0,
+            "retainedJobs": 60000,
+            "retainedRuntimes": 60000,
+            "retainedEvents": 2,
+            "retainedResults": 10000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "claim-skew",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "delayed-high"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 25228.768162505563,
+        "drainPerSecond": 269.770117202086,
+        "durationMs": 37068.5979,
+        "p50LatencyMs": 18862.4567,
+        "p95LatencyMs": 34882.5435,
+        "p99LatencyMs": 36201.0949,
+        "maxLatencyMs": 37069.4939,
+        "meanLatencyMs": 18234.510745160074,
+        "enqueueDurationMs": 396.37289999999996,
+        "drainDurationMs": 37068.5979,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "backgroundJobs": 200000,
+          "retainedEvents": 2,
+          "retainedJobs": 210000,
+          "retainedResults": 10000,
+          "retainedRuntimes": 210000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 25228.768162505563,
+          "drainPerSecond": 269.770117202086,
+          "durationMs": 37068.5979,
+          "p50LatencyMs": 18862.4567,
+          "p95LatencyMs": 34882.5435,
+          "p99LatencyMs": 36201.0949,
+          "maxLatencyMs": 37069.4939,
+          "meanLatencyMs": 18234.510745160074,
+          "enqueueDurationMs": 396.37289999999996,
+          "drainDurationMs": 37068.5979,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "backgroundJobs": 200000,
+            "seedHistory": 0,
+            "retainedJobs": 210000,
+            "retainedRuntimes": 210000,
+            "retainedEvents": 2,
+            "retainedResults": 10000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "claim-skew",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "none"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 25772.691050381487,
+        "drainPerSecond": 7492.462395518548,
+        "durationMs": 1334.6747,
+        "p50LatencyMs": 712.3477,
+        "p95LatencyMs": 1275.8587,
+        "p99LatencyMs": 1334.4072,
+        "maxLatencyMs": 1339.3559,
+        "meanLatencyMs": 721.3111417200007,
+        "enqueueDurationMs": 388.0076,
+        "drainDurationMs": 1334.6747,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "backgroundJobs": 0,
+          "retainedEvents": 2,
+          "retainedJobs": 10000,
+          "retainedResults": 10000,
+          "retainedRuntimes": 10000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 25772.691050381487,
+          "drainPerSecond": 7492.462395518548,
+          "durationMs": 1334.6747,
+          "p50LatencyMs": 712.3477,
+          "p95LatencyMs": 1275.8587,
+          "p99LatencyMs": 1334.4072,
+          "maxLatencyMs": 1339.3559,
+          "meanLatencyMs": 721.3111417200007,
+          "enqueueDurationMs": 388.0076,
+          "drainDurationMs": 1334.6747,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "backgroundJobs": 0,
+            "seedHistory": 0,
+            "retainedJobs": 10000,
+            "retainedRuntimes": 10000,
+            "retainedEvents": 2,
+            "retainedResults": 10000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "claim-skew",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "parked"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 26494.824765878482,
+        "drainPerSecond": 7336.284035681045,
+        "durationMs": 1363.0879,
+        "p50LatencyMs": 726.6872,
+        "p95LatencyMs": 1297.2771,
+        "p99LatencyMs": 1356.6345,
+        "maxLatencyMs": 1362.3784,
+        "meanLatencyMs": 729.8091709299995,
+        "enqueueDurationMs": 377.4322,
+        "drainDurationMs": 1363.0879,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "backgroundJobs": 50000,
+          "retainedEvents": 2,
+          "retainedJobs": 60000,
+          "retainedResults": 10000,
+          "retainedRuntimes": 60000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 26494.824765878482,
+          "drainPerSecond": 7336.284035681045,
+          "durationMs": 1363.0879,
+          "p50LatencyMs": 726.6872,
+          "p95LatencyMs": 1297.2771,
+          "p99LatencyMs": 1356.6345,
+          "maxLatencyMs": 1362.3784,
+          "meanLatencyMs": 729.8091709299995,
+          "enqueueDurationMs": 377.4322,
+          "drainDurationMs": 1363.0879,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "backgroundJobs": 50000,
+            "seedHistory": 0,
+            "retainedJobs": 60000,
+            "retainedRuntimes": 60000,
+            "retainedEvents": 2,
+            "retainedResults": 10000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "claim-skew",
+        "provider": "sqlite",
+        "databaseEngineMajorVersion": "3",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0,
+        "variant": "delayed-high"
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 26467.658109849253,
+        "drainPerSecond": 7061.386397298314,
+        "durationMs": 1416.1525,
+        "p50LatencyMs": 756.8119,
+        "p95LatencyMs": 1354.7633,
+        "p99LatencyMs": 1421.5851,
+        "maxLatencyMs": 1427.2748,
+        "meanLatencyMs": 773.9459322299978,
+        "enqueueDurationMs": 377.8196,
+        "drainDurationMs": 1416.1525,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "backgroundJobs": 200000,
+          "retainedEvents": 2,
+          "retainedJobs": 210000,
+          "retainedResults": 10000,
+          "retainedRuntimes": 210000,
+          "seedHistory": 0
+        },
+        "pageLatchByIndex": null
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 26467.658109849253,
+          "drainPerSecond": 7061.386397298314,
+          "durationMs": 1416.1525,
+          "p50LatencyMs": 756.8119,
+          "p95LatencyMs": 1354.7633,
+          "p99LatencyMs": 1421.5851,
+          "maxLatencyMs": 1427.2748,
+          "meanLatencyMs": 773.9459322299978,
+          "enqueueDurationMs": 377.8196,
+          "drainDurationMs": 1416.1525,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "backgroundJobs": 200000,
+            "seedHistory": 0,
+            "retainedJobs": 210000,
+            "retainedRuntimes": 210000,
+            "retainedEvents": 2,
+            "retainedResults": 10000
+          },
+          "pageLatchByIndex": null
+        }
+      ],
+      "repeatStatuses": [
+        "ok"
+      ]
+    }
+  ]
+}
