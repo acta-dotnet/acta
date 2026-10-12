@@ -40,18 +40,23 @@ internal sealed class WorkerExecutor(
     /// executor permit.
     /// </summary>
     public Task<RunOnceStatus> RunOnceAsync(string namespaceName, CancellationToken ct) =>
-        RunOnceCoreAsync(namespaceName, explicitJobId: null, ct);
+        RunOnceCoreAsync(namespaceName, explicitJobId: null, leaseRunway: null, ct);
 
     /// <summary>
-    /// Claim and run a specific Ready job by id (via the claim's <c>ExplicitJobIds</c> path),
-    /// for callers that already know which job to run. Still a single tick: the claim uses READPAST, so
-    /// a transiently-locked row yields <see cref="RunOnceStatus.NothingClaimed"/>, and the caller decides
-    /// whether to tick again.
+    /// Claim and run a specific Ready job by id (through <c>claim_job</c>), for callers that already know which job
+    /// to run. Still a single tick: the claim uses READPAST, so a transiently-locked row yields
+    /// <see cref="RunOnceStatus.NothingClaimed"/>, and the caller decides whether to tick again. With
+    /// <paramref name="leaseRunway"/> the attempt cancels on its own lease deadline, as a claimed one does.
     /// </summary>
-    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>
-        RunOnceCoreAsync(namespaceName, jobId, ct);
+    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct, TimeSpan? leaseRunway = null) =>
+        RunOnceCoreAsync(namespaceName, jobId, leaseRunway, ct);
 
-    private async Task<RunOnceStatus> RunOnceCoreAsync(string namespaceName, long? explicitJobId, CancellationToken ct)
+    private async Task<RunOnceStatus> RunOnceCoreAsync(
+        string namespaceName,
+        long? explicitJobId,
+        TimeSpan? leaseRunway,
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
         var (namespaceId, workerId) = context.ResolveWorker(namespaceName);
@@ -74,9 +79,9 @@ internal sealed class WorkerExecutor(
 
         metrics?.RecordClaim(namespaceName, "claimed");
 
-        // No lease deadline: the CLI's jobs debug run pumps the heartbeat around a handler a debugger may hold
-        // paused past it. The heartbeat still cancels the attempt once its row is gone.
-        var entry = new InFlightJob(claim.Jobs[0], leaseRunway: null, ct);
+        // No lease deadline unless the caller passes one: the CLI's jobs debug run pumps the heartbeat around a
+        // handler a debugger may hold paused past it. The heartbeat still cancels the attempt once its row is gone.
+        var entry = new InFlightJob(claim.Jobs[0], leaseRunway, ct);
         registry.TryAdd(entry);
         return await RunInlineAsync(entry, ct);
     }

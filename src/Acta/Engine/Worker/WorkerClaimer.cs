@@ -6,8 +6,9 @@ namespace Acta;
 /// <summary>
 /// The worker's one claim loop, for both profiles: it takes permits, claims that many rows, and hands each to the
 /// executors through the registry's <c>Claimed</c> channel, which holds every permit so the hand-off never blocks. A
-/// claimed <c>sys.recovery</c> slot runs on its own task without a permit, so a worker whose executors are all held
-/// still sweeps. An empty claim sleeps until the claim horizon, cut short by a wakeup.
+/// claimed <c>sys.recovery</c> slot runs on its own task without a permit, but claiming it takes a free permit, so a
+/// worker whose executors are all held sweeps only through RecoverySlotMonitor. An empty claim sleeps until the claim
+/// horizon, cut short by a wakeup.
 /// </summary>
 internal sealed class WorkerClaimer(
     ExecutionOperations execution,

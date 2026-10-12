@@ -135,8 +135,9 @@ internal sealed class WorkerRuntime
             _context,
             logger,
             // RunOnceAsync claims and executes without taking an executor permit, which is what lets the
-            // sweep run on a worker whose executors are all busy.
-            (namespaceName, slotJobId, token) => _executor.RunOnceAsync(namespaceName, slotJobId, token)
+            // sweep run on a worker whose executors are all busy; the pass cancels on its lease deadline.
+            (namespaceName, slotJobId, token) =>
+                _executor.RunOnceAsync(namespaceName, slotJobId, token, InFlightJob.LeaseRunway(options.Value))
         );
     }
 
@@ -277,7 +278,7 @@ internal sealed class WorkerRuntime
     public Task<RunOnceStatus> RunOnceAsync(string namespaceName, CancellationToken ct) => _executor.RunOnceAsync(namespaceName, ct);
 
     /// <summary>
-    /// Claim and run a specific Ready job by id (the claim's <c>ExplicitJobIds</c> path). One tick, no
+    /// Claim and run a specific Ready job by id (through <c>claim_job</c>). One tick, no
     /// retry: a transiently-locked row (READPAST) yields <see cref="RunOnceStatus.NothingClaimed"/>.
     /// </summary>
     public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>

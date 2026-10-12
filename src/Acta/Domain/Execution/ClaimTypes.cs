@@ -19,10 +19,8 @@ internal sealed record ClaimOptions(
 /// <summary>
 /// One claimed row: the full job row needed to dispatch, and for the runner to take the <c>concurrency_key</c> slot
 /// before the handler, without re-reading <c>jobs</c>; tags and schedules load separately on demand, never joined into
-/// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion. <c>Version</c>
-/// is <c>runtimes.version</c> as of this claim (the claim bumps it), threaded into <c>start_execution</c> as the CAS
-/// guard: a reclaim or steal between claim and start bumps it, so a stale claim fails to start instead of double-executing.
-/// <c>LaneId</c> and <c>ParentId</c> never change after insert, so the completion trusts them as the claim read them.
+/// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion; a start matches
+/// on worker and <c>ExecutionNumber</c> alone, which only a claim moves. <c>LaneId</c> and <c>ParentId</c> never change after insert, so the completion trusts them as the claim read them.
 /// </summary>
 internal sealed record ClaimedJob(
     long JobId,
