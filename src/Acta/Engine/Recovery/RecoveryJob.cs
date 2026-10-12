@@ -15,7 +15,7 @@ internal sealed class RecoveryJob(RecoveryPass pass)
     /// </summary>
     [Job(
         "sys.recovery",
-        Priority = JobPriorityCode.Critical,
+        Priority = JobPriorityCode.Realtime,
         AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]

@@ -47,7 +47,7 @@ internal sealed class RetentionJob(
 
     [Job(
         "sys.retention",
-        Priority = JobPriorityCode.Critical,
+        Priority = JobPriorityCode.Realtime,
         AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]

@@ -20,12 +20,15 @@ public class FrameworkJobPrioritySpec
         );
     }
 
+    // Claims are in strict priority order, so a system slot below Realtime would wait out any Realtime backlog.
     [Theory]
+    [InlineData("sys.alerts")]
+    [InlineData("sys.outbox")]
     [InlineData("sys.recovery")]
     [InlineData("sys.retention")]
-    public void Framework_maintenance_jobs_claim_at_critical_priority(string jobName)
+    public void Framework_jobs_claim_at_realtime_priority(string jobName)
     {
         var descriptor = Assert.Single(ActaJobs.Descriptors.Descriptors, d => d.JobName == jobName);
-        Assert.Equal(JobPriorityCode.Critical, descriptor.Priority);
+        Assert.Equal(JobPriorityCode.Realtime, descriptor.Priority);
     }
 }

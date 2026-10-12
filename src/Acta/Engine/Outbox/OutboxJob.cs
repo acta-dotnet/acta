@@ -14,7 +14,7 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations o
 {
     [Job(
         "sys.outbox",
-        Priority = JobPriorityCode.Critical,
+        Priority = JobPriorityCode.Realtime,
         AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]

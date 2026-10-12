@@ -86,7 +86,7 @@ internal sealed class AlertsJob(
     /// </summary>
     [Job(
         "sys.alerts",
-        Priority = JobPriorityCode.Critical,
+        Priority = JobPriorityCode.Realtime,
         AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
