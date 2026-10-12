@@ -264,6 +264,45 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
+    [Fact(DisplayName = "A completion whose row already landed still wakes its waiters, since a lost answer sent none")]
+    public async Task A_skipped_completion_still_wakes_its_waiters()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "CompleteExecutions" => new List<CompleteExecutionsRow>
+                {
+                    new(1, 0, CompleteExecutionsAction.AlreadyTerminal, (byte)JobStatusCode.Succeeded, null, DateTime.UtcNow, false, false),
+                },
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var wakeup = new RecordingWakeup();
+        var finalizer = new WorkerFinalizer(
+            session.Services().GetRequiredService<ExecutionOperations>(),
+            null!,
+            new WorkerWakeupPublisher(wakeup),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        );
+        var entry = WorkerHeartbeatLeaseRunwayTests.Entry(1, state: InFlightJobState.Finalizing);
+        entry.Descriptor = Descriptor;
+        entry.Completion = new ExecutionCompletion(CompletionKind.Succeeded);
+        registry.TryAdd(entry);
+
+        Assert.Equal(RunOnceStatus.NothingClaimed, await finalizer.FinalizeAsync(entry, ct));
+        Assert.Equal([WorkerWakeupChannel.JobCompletion(1)], wakeup.Woken);
+    }
+
     [Fact(DisplayName = "A row the database keeps refusing holds only itself: its batch and the completions behind it land")]
     public async Task A_refused_row_holds_only_itself()
     {
@@ -378,6 +417,20 @@ public sealed class WorkerFinalizerTests
     }
 
     private sealed class ProviderDown() : DbException("connection dropped");
+
+    private sealed class RecordingWakeup : IWorkerWakeup
+    {
+        public List<WorkerWakeupChannel> Woken { get; } = [];
+
+        public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)
+        {
+            Woken.Add(channel);
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
+            throw new NotSupportedException();
+    }
 
     // Stands in for any diagnostic sink that fails: the repeat's job is the row, not the log line.
     private sealed class ThrowingLogger : ILogger

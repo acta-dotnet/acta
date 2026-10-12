@@ -71,6 +71,9 @@ internal sealed partial class WorkerFinalizer(
     private readonly ConcurrentDictionary<InFlightJob, Task> _apart = new();
     private readonly int _apartLimit = options.MaxConcurrentExecutors;
 
+    // Descendant cancels the loop started and did not wait for; a drain waits for them.
+    private readonly List<Task> _cancels = [];
+
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
@@ -103,12 +106,17 @@ internal sealed partial class WorkerFinalizer(
 
                 try
                 {
-                    metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
+                    // Written first, so a metrics listener that throws cannot strand the batch unwritten.
                     await FinalizeAsync(entries, apart: true, hostCt);
+                    metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
+                catch (Exception ex)
                 {
-                    log.LogError(ex, "WorkerRuntime: finalizer faulted on {Count} completions.", entries.Count);
+                    // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
+                    if (!hostCt.IsCancellationRequested)
+                    {
+                        log.LogError(ex, "WorkerRuntime: finalizer faulted on {Count} completions.", entries.Count);
+                    }
                 }
             }
         }
@@ -117,8 +125,13 @@ internal sealed partial class WorkerFinalizer(
             // A hard stop: completions still queued re-run after recovery, as an interrupted write does.
         }
 
-        // A drain ends once the rows repeating apart land; a hard stop ends their repeats.
-        await Task.WhenAll(_apart.Values);
+        // A drain ends once the rows repeating apart land and the descendant cancels finish; a hard stop ends them.
+        Task[] cancels;
+        lock (_cancels)
+        {
+            cancels = [.. _cancels];
+        }
+        await Task.WhenAll(_apart.Values.Concat(cancels));
     }
 
     /// <summary>Waits for another completion until the window closes or the channel ends; false when nothing more comes.</summary>
@@ -177,7 +190,7 @@ internal sealed partial class WorkerFinalizer(
             var statuses = new RunOnceStatus[writes.Count];
             for (var i = 0; i < writes.Count; i++)
             {
-                statuses[i] = await LandAsync(writes[i], rows[writes[i].Entry.Key], hostCt);
+                statuses[i] = await LandAsync(writes[i], rows[writes[i].Entry.Key], apart, hostCt);
             }
             return statuses;
         }
@@ -200,7 +213,7 @@ internal sealed partial class WorkerFinalizer(
         {
             try
             {
-                return await WriteAloneAsync(write, BatchTries, hostCt);
+                return await WriteAloneAsync(write, BatchTries, apart, hostCt);
             }
             catch (Exception ex) when (!hostCt.IsCancellationRequested)
             {
@@ -210,7 +223,7 @@ internal sealed partial class WorkerFinalizer(
                 }
             }
         }
-        return await WriteAloneAsync(write, int.MaxValue, hostCt);
+        return await WriteAloneAsync(write, int.MaxValue, apart, hostCt);
     }
 
     /// <summary>Starts <paramref name="write"/>'s repeat apart, unless as many rows as the bound already repeat apart.</summary>
@@ -234,7 +247,7 @@ internal sealed partial class WorkerFinalizer(
         await Task.Yield();
         try
         {
-            await WriteAloneAsync(write, int.MaxValue, hostCt);
+            await WriteAloneAsync(write, int.MaxValue, apart: true, hostCt);
         }
         catch (Exception) when (hostCt.IsCancellationRequested)
         {
@@ -251,7 +264,7 @@ internal sealed partial class WorkerFinalizer(
     }
 
     /// <summary>Writes one row alone until it lands or <paramref name="tries"/> run out, then lands its answer and removes its entry.</summary>
-    private async Task<RunOnceStatus> WriteAloneAsync(PlannedWrite write, int tries, CancellationToken hostCt)
+    private async Task<RunOnceStatus> WriteAloneAsync(PlannedWrite write, int tries, bool apart, CancellationToken hostCt)
     {
         var answer = await RepeatAsync(
             token => CompleteAsync([write], token),
@@ -262,7 +275,7 @@ internal sealed partial class WorkerFinalizer(
             RepeatFirstDelay,
             tries
         );
-        var status = await LandAsync(write, answer.Rows[0], hostCt);
+        var status = await LandAsync(write, answer.Rows[0], apart, hostCt);
         registry.Remove(write.Entry);
         return status;
     }
@@ -314,26 +327,28 @@ internal sealed partial class WorkerFinalizer(
     }
 
     /// <summary>
-    /// What follows <paramref name="write"/>'s answer: a skip when the row no longer matched (NotOwner,
+    /// What follows <paramref name="write"/>'s answer: only the wakes when the row no longer matched (NotOwner,
     /// AlreadyTerminal), since the entry can outlive its lease while it waits; otherwise the wakes, descendant cancel,
-    /// and metric its final state calls for, none of them for a hand-back, since every claim loop re-polls within its delay.
+    /// and metric its final state calls for, none of them for a hand-back, since every claim loop re-polls within its
+    /// delay. With <paramref name="apart"/> the descendant cancel runs off the caller.
     /// </summary>
-    private async Task<RunOnceStatus> LandAsync(PlannedWrite write, CompleteExecutionsRow complete, CancellationToken hostCt)
+    private async Task<RunOnceStatus> LandAsync(PlannedWrite write, CompleteExecutionsRow complete, bool apart, CancellationToken hostCt)
     {
         var (entry, completion, _, status) = write;
         var job = entry.Claim;
         var ns = context.WorkerRegistration!.NamespaceName;
-        if (complete.Action != CompleteExecutionsAction.Completed)
+        var landed = complete.Action == CompleteExecutionsAction.Completed;
+        if (!landed)
         {
             // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
-            // committed and lost its answer, so the compare-and-swap completed no work.
+            // committed and lost its answer, so the compare-and-swap completed no work. The answer still carries
+            // the row's state, so its wakes go out: a lost answer sent none, and one for a moved row costs a poll.
             log.LogInformation(
                 "WorkerRuntime: ({Namespace}) job {JobId} completion skipped: ({Outcome}).",
                 ns,
                 job.JobId,
                 complete.Action.ToString()
             );
-            return RunOnceStatus.NothingClaimed;
         }
 
         if (entry.Descriptor is { } descriptor)
@@ -344,19 +359,29 @@ internal sealed partial class WorkerFinalizer(
 
                 // Handler cancel: cancel the descendant subtree as follow-up transactions (the completion
                 // above already raised this job's own latch in-routine); maintenance is the crash backstop.
-                if (completion.HandlerStatusCode == JobStatusCode.Cancelled)
+                if (landed && completion.HandlerStatusCode == JobStatusCode.Cancelled)
                 {
-                    await jobs.CancelDescendantsAsync(job.JobId, hostCt);
+                    if (apart)
+                    {
+                        CancelDescendantsApart(job.JobId, hostCt);
+                    }
+                    else
+                    {
+                        await jobs.CancelDescendantsAsync(job.JobId, hostCt);
+                    }
                 }
 
                 // reason_code is the failure cause's kebab (null on success).
-                metrics?.RecordExecution(
-                    ns,
-                    descriptor.JobName,
-                    OutcomeTag(completion.Outcome),
-                    completion.Reason?.Code,
-                    completion.DurationMs
-                );
+                if (landed)
+                {
+                    metrics?.RecordExecution(
+                        ns,
+                        descriptor.JobName,
+                        OutcomeTag(completion.Outcome),
+                        completion.Reason?.Code,
+                        completion.DurationMs
+                    );
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
             {
@@ -364,8 +389,42 @@ internal sealed partial class WorkerFinalizer(
             }
         }
 
+        if (!landed)
+        {
+            return RunOnceStatus.NothingClaimed;
+        }
         log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, status.ToString());
         return status;
+    }
+
+    /// <summary>
+    /// Cancels <paramref name="jobId"/>'s descendants off the loop, since a subtree is one transaction per descendant
+    /// and the completions behind it would wait; a drain waits for it.
+    /// </summary>
+    private void CancelDescendantsApart(long jobId, CancellationToken hostCt)
+    {
+        lock (_cancels)
+        {
+            _cancels.RemoveAll(cancel => cancel.IsCompleted);
+            _cancels.Add(CancelDescendantsAsync(jobId, hostCt));
+        }
+    }
+
+    private async Task CancelDescendantsAsync(long jobId, CancellationToken hostCt)
+    {
+        await Task.Yield();
+        try
+        {
+            await jobs.CancelDescendantsAsync(jobId, hostCt);
+        }
+        catch (Exception ex)
+        {
+            // A hard stop leaves the rest to maintenance, as a failure does.
+            if (!hostCt.IsCancellationRequested)
+            {
+                log.LogError(ex, "WorkerRuntime: cancelling job {JobId}'s descendants failed; maintenance is the backstop.", jobId);
+            }
+        }
     }
 
     /// <summary>
