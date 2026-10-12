@@ -225,14 +225,13 @@ less usable dashboard.
 ## An interactive view of the job pipeline
 
 The dashboard could show how many jobs are currently moving through the pipeline in one compact,
-interactive view. A pie or doughnut chart could divide the live population into Ready, Suspended,
-Paused, Dispatched, and Executing jobs, with the total number of non-terminal jobs in the middle.
+interactive view. A pie or doughnut chart could divide the live population into Ready, Blocked,
+Suspended, Paused, and Executing jobs, with the total number of non-terminal jobs in the middle.
 
 Every section should lead somewhere useful. Clicking the Ready section would open the jobs page with
 the Ready filter already applied. Clicking Suspended would show the jobs waiting on signals, children,
-or timers. Dispatched and Executing would open the corresponding in-flight jobs so an operator can
-see their workers and leases. The chart should behave as navigation into the existing job list, not
-as a decorative summary.
+or timers. Executing would open the in-flight jobs so an operator can see their workers and leases.
+The chart should behave as navigation into the existing job list, not as a decorative summary.
 
 A second breakdown could show which job definitions make up the pipeline. Selecting a definition
 would open its definition page, where the operator could see its configuration and performance

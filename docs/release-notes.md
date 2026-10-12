@@ -42,13 +42,16 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `advance_schedules_batch`), and `claim_batch`, `claim_one`, and `checkpoint_slot` are now `claim_jobs`,
   `claim_job`, and `access_checkpoint`. The SQL Server baseline is re-cut, and the object package moves
   to revision 58.
-- **The Bulk execution profile is gone.** `ExecutionProfile.Bulk` is removed; set `Direct`, the profile
-  Bulk built on. Bulk batched completions under relaxed durability; every profile now batches them
-  through the worker's finalizer at full durability (see "Execution engine" below), so a crash re-runs
-  only the handlers whose completions had not been written yet.
-- **`ClaimBatchSize` sets only the Buffered batch.** A Direct claim now takes a row for every free
-  executor, up to `MaxConcurrentExecutors`, instead of stopping at `ClaimBatchSize`. A Direct worker that
-  used `ClaimBatchSize` to keep its claims small lowers `MaxConcurrentExecutors` instead.
+- **Execution profiles and `ClaimBatchSize` are gone.** `JobsOptions.ExecutionProfile`, the
+  `ExecutionProfile` enum (Buffered, Direct, and Bulk), and `JobsOptions.ClaimBatchSize` are removed;
+  delete those settings. A worker claims a row for every free executor, up to `MaxConcurrentExecutors`,
+  so a worker that used `ClaimBatchSize` to keep its claims small lowers `MaxConcurrentExecutors`
+  instead. Every completion commits at full durability through the worker's finalizer (see "Execution
+  engine" below), so a crash re-runs only the handlers whose completions had not been written yet.
+- **`Dispatched` is gone.** A claim moves a job straight to `Executing`, so `JobStatusCode.Dispatched`
+  (code 40) no longer exists, `jobs_view` and the HTTP API never report `dispatched`, and a query that
+  filtered on `dispatched` or `executing` filters on `executing` alone. The baselines are re-cut and the
+  object package moves to revision 76.
 - **`acta.executing` is now `acta.jobs.inflight`.** The gauge reports every job the worker holds, tagged
   `namespace` and `state` (`claimed`, `executing`, `finalizing`); a dashboard that read `acta.executing`
   reads `acta.jobs.inflight` filtered to `state = executing`.
@@ -137,13 +140,13 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   A job without slots answers an empty `Items`, and a lookup that matches no job now answers `null` instead
   of an empty list, as `ITags.GetAsync` does.
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
-  inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and stop,
-  alert acknowledge and resolve, definition overrides, job notes, and the three tag writes. Twenty-nine routines
-  remain (enqueue, claim, start and complete, steps, signals, locks and meters, recovery, retention,
-  alert projection, the outbox inbox, and definition and schedule registration). Four of them take new
-  names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A database
-  keeps the routines it already has, so older workers still find them during a rolling deploy; drop
-  the retired ones once no older worker runs. The object package moves to revision 47; the minimum
+  inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
+  stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
+  Twenty-eight routines remain (enqueue, claim, complete, steps, signals, locks and meters, recovery,
+  retention, alert projection, the outbox inbox, and definition and schedule registration). Four of them
+  take new names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A
+  database keeps the routines it already has, so older workers still find them during a rolling deploy;
+  drop the retired ones once no older worker runs. The object package moves to revision 47; the minimum
   stays 9.
 - **Return types take one suffix per role.** What the handler waits return takes the `Outcome` noun of
   `JoinOutcome` and `MapOutcome`: `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with
@@ -223,46 +226,44 @@ The worker's execution machinery is rebuilt around one rule: the database renews
 process holds. Nothing a consumer calls changes; what changes is how a worker claims, runs, and
 settles, and what an operator sees when it fails.
 
-- **The heartbeat renews only what the process holds.** `extend_worker_leases` used to push every
-  row leased to the worker id forward from database state, so a row the process had lost track of
-  (a claim whose answer was lost after it committed) never
-  lapsed and nothing ever ran or reclaimed it; the worker carried an orphan release, a two-beat
-  candidate list, and per-execution owner entries to patch each hole. The call now takes the
-  (job, execution) pairs and the lock holds the process holds and answers each: a row nothing holds
-  lapses, `sys.recovery` takes it, and since a Dispatched reclaim is uncharged that costs the job
-  nothing. A Direct claim whose answer was lost is treated like a worker that crashed right after
-  claiming, which is what it is from the ledger's side. Handler locks and the concurrency slot renew
-  in the same call, so the lock-lease loop and `extend_lock` are gone, and a hold the call does not
-  answer cancels the attempt at once. The object package moves through revisions 52 to 55 with these
-  signatures.
+- **The heartbeat renews only what the process holds.** `extend_worker_leases` used to push every row
+  leased to the worker id forward from database state, so a row the process had lost track of (a claim
+  whose answer was lost after it committed) never lapsed and nothing ever ran or reclaimed it; the
+  worker carried an orphan release, a two-beat candidate list, and per-execution owner entries to patch
+  each hole. The call now takes the (job, execution) pairs and the lock holds the process holds and
+  answers each: a row nothing holds lapses and `sys.recovery` takes it. A claim whose answer was lost is
+  treated like a worker that crashed right after claiming, which is what it is from the ledger's side.
+  Handler locks and the concurrency slot renew in the same call, so the lock-lease loop and
+  `extend_lock` are gone, and a hold the call does not answer cancels the attempt at once. The object
+  package moves through revisions 52 to 55 with these signatures.
 - **One routine lands every completion.** `complete_executions` writes a batch of completions of any
-  shape in one transaction: successes and failures, retries and other re-arms, signal waits, a
-  handler's fail, cancel, or pause, recurring fires with their schedule advances, children setting
-  their parent's latch, and lane hand-offs. Each shape is one set-based step, skipped when no row
-  needs it, and the locks follow the order the per-job routine kept: lanes, awaited signal slots, the
-  rows themselves in job order, schedules, then parents. `complete_execution` is gone, so twenty-nine
-  routines remain, and a laned or parented job no longer takes a second call. PostgreSQL takes the
-  batch as arrays; SQL Server as the table type `complete_executions_batch`, which gains a column
-  per shape and is keyed by job and execution so the procedure's joins seek it (the schema baseline
-  is re-cut), with the schedule advances as JSON, so `advance_schedules_batch` is gone; and SQLite as
-  JSON read through `jsonb_each`, with each section a batch does not need cut before the script is
-  prepared. The claims return each job's `lane_id` and `parent_id` for that cut, and a batch with no
-  shape, lane, or parent skips every optional step on SQL Server and lands in one statement on
-  PostgreSQL. A row that re-arms, waits, or fires on a schedule takes its status and its next run in
-  one statement, so it enters the claim index once, at its new instant. Against the build before the
-  fold, in interleaved rounds on one machine: PostgreSQL drain and throughput within 1.5% either way
-  and latency 3% better; SQL Server drain and latency within 2% and throughput inside its run-to-run
-  spread, -3% to +3% back to back; SQLite drained 8% to 13% faster before the sync change below. The
-  object package moves to revision 74.
+  shape in one transaction: successes and failures, retries and other re-arms, signal waits, a handler's
+  fail, cancel, or pause, recurring fires with their schedule advances, children setting their parent's
+  latch, and lane hand-offs. Each shape is one set-based step, skipped when no row needs it, and the
+  locks follow the order the per-job routine kept: lanes, awaited signal slots, the rows themselves in
+  job order, schedules, then parents. `complete_execution` is gone, and a laned or parented job no
+  longer takes a second call. PostgreSQL takes the batch as arrays; SQL Server as the table type
+  `complete_executions_batch`, which gains a column per shape and is keyed by job and execution so the
+  procedure's joins seek it (the schema baseline is re-cut), with the schedule advances as JSON, so
+  `advance_schedules_batch` is gone; and SQLite as JSON read through `jsonb_each`, with each section a
+  batch does not need cut before the script is prepared. The claims return each job's `lane_id` and
+  `parent_id` for that cut, and a batch with no shape, lane, or parent skips every optional step on SQL
+  Server and lands in one statement on PostgreSQL. A row that re-arms, waits, or fires on a schedule
+  takes its status and its next run in one statement, so it enters the claim index once, at its new
+  instant. Against the build before the fold, in interleaved rounds on one machine: PostgreSQL drain and
+  throughput within 1.5% either way and latency 3% better; SQL Server drain and latency within 2% and
+  throughput inside its run-to-run spread, -3% to +3% back to back; SQLite drained 8% to 13% faster
+  before the sync change below. The object package moves to revision 74.
 - **Definition policy reloads on the heartbeat.** The call also answers the namespace's newest
   definition change, and the worker re-reads its effective policy only when that moved: an override
   reaches every worker within one heartbeat, and the one-second policy-reload loop is gone.
-- **A start is matched by worker and execution number alone.** `start_execution` dropped its
-  version and lease-expiry guards: only a claim bumps `execution_number`, so the pair identifies the
-  claim, and a replayed start (one that committed and lost its answer) finds the row Executing under
-  this worker at that execution and answers Started again, refreshing the lease and writing no
-  event. The read-the-row-back reconciliation and its `LeaseExpired` answer are gone, and an
-  operator verb that bumps a claimed row's version between claim and start no longer refuses it.
+- **A claim starts its jobs.** The Buffered profile claimed a batch ahead of the executors and started
+  each job with a commit of its own, which made a PostgreSQL drain about four times slower than Direct,
+  to keep a claimed-but-not-running status visible for milliseconds. Every claim now moves its rows
+  straight to Executing and writes the started event in the same statement, as Direct did, and
+  `start_execution`, the profiles, `ClaimBatchSize`, and the claim's `version` column are gone. Recovery
+  charges every stranded attempt, since every claimed attempt has started. The object package moves to
+  revisions 75 and 76.
 - **An attempt cancels on its own lease deadline.** Each claim carries a deadline armed from the
   claim's request start and re-armed by the heartbeat on every confirmed renewal, half the base
   runway before the lease lapses, so a database outage stops the handler with nothing watching; the
@@ -274,49 +275,47 @@ settles, and what an operator sees when it fails.
   never shares an entry with the claim that replaced it, so it is never kept alive by the
   replacement's renewal and is cancelled on the next beat. `acta.jobs.inflight` reports the entries
   by state.
-- **Three agents: one claimer, the executors, one finalizer.** The claimer serves both profiles:
-  it takes permits (one per free executor on Direct; a whole batch, held one batch ahead of the
-  executors, on Buffered), claims that many rows in one call, and hands each to the executor loops
-  through a channel; the `sys.recovery` slot runs on its own task without a permit, so a saturated
-  worker still sweeps. On Direct, after a claim that found work, the claimer lets the executors take
-  those rows before it claims again, so the next claim asks for every executor that came free rather
-  than the one or two free at that instant, and claims per job halve. That claim is not capped by
-  `ClaimBatchSize`: on SQL Server every claim seek walks the ghost records earlier claims left at the
-  head of the claim index, so the fewer claims a drain takes, the fewer walks it pays. An executor is freed the moment its completion is built: the entry moves to
-  the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of results, writes
-  them in one `complete_executions` call whatever their shape, repeats a write
-  until it lands, and then wakes whoever waits. A batch still failing after three tries is written
-  row by row, and a row still failing alone repeats apart while the finalizer goes on to the
-  completions behind it, so one bad row holds only itself; once as many rows repeat apart as the
-  worker has executors, the finalizer repeats in place. A lone completion is written at once; a batch that
-  finds a backlog waits up to 50 ms for it to fill, so batches form when the writes fall behind and
-  stay full while they do. The entry stays renewed while it waits, and the channel
-  between executors and finalizer is bounded, so a failing database fills it, blocks the executors
-  on their permits, and stops the claimer: intake stops instead of memory growing. In the engine
-  round, PostgreSQL Direct drained 23,349 jobs/s at sixteen workers against 9,333 per job, and SQL
-  Server Buffered 11,392 at thirty-two against 7,034. A drain stops the claimer, lets the
-  executors empty their channel (a prefetched Buffered batch included), and lets the finalizers
-  land what is left; a hard stop leaves the rows for recovery, the contract an interrupted write had.
-  The claim loop, the executing-attempt bookkeeping, the completion writer, and the shutdown-phase
-  helper are gone with it.
+- **Three agents: one claimer, the executors, one finalizer.** The claimer takes a permit for every free
+  executor, claims that many rows in one call, and hands each to the executor loops through a channel;
+  the `sys.recovery` slot runs on its own task without a permit, so a saturated worker still sweeps.
+  After a claim that found work, the claimer lets the executors take those rows before it claims again,
+  so the next claim asks for every executor that came free rather than the one or two free at that
+  instant, and claims per job halve. Fewer, larger claims matter most on SQL Server, where every claim
+  seek walks the ghost records earlier claims left at the head of the claim index, so the fewer claims a
+  drain takes, the fewer walks it pays. An executor is freed the moment its completion is built: the
+  entry moves to the finalizer, which takes whatever is waiting, up to 128 completions or 4 MiB of
+  results, writes them in one `complete_executions` call whatever their shape, repeats a write until it
+  lands, and then wakes whoever waits. A batch still failing after three tries is written row by row,
+  and a row still failing alone repeats apart while the finalizer goes on to the completions behind it,
+  so one bad row holds only itself; once as many rows repeat apart as the worker has executors, the
+  finalizer repeats in place. A lone completion is written at once; a batch that finds a backlog waits
+  up to 50 ms for it to fill, so batches form when the writes fall behind and stay full while they do.
+  The entry stays renewed while it waits, and the channel between executors and finalizer is bounded, so
+  a failing database fills it, blocks the executors on their permits, and stops the claimer: intake
+  stops instead of memory growing. In the engine round, PostgreSQL drained 23,349 jobs/s at sixteen
+  workers against 9,333 per job, and SQL Server, then on the Buffered profile, 11,392 at thirty-two
+  against 7,034. A drain stops the claimer, lets the executors empty their channel, and lets the
+  finalizers land what is left; a hard stop leaves the rows for recovery, the contract an interrupted
+  write had. The claim loop, the executing-attempt bookkeeping, the completion writer, and the
+  shutdown-phase helper are gone with it.
 - **`results` is no longer page-compressed on SQL Server.** Every completion appends to its last page,
   and compressing a full page held the latch the other finalizers were waiting on; without it the
-  SQL Server Direct drain at sixteen workers ran about 4% faster. `events` keeps page compression.
+  SQL Server drain at sixteen workers ran about 4% faster. `events` keeps page compression.
   The SQL Server baseline is re-cut.
 - **Retention purge walks `runtimes` instead of an index.** `ix_runtimes_retention` is gone: every
   completion appended to its last page. `sys.retention` now walks `runtimes` down by job id from
   where its previous tick stopped (its `purge-cursor` job variable), up to two million rows a tick,
   and deletes its own namespace's expired jobs as before; a job now goes within one walk of its
-  deadline rather than at the next tick. The SQL Server Direct drain at sixteen workers ran about 8%
+  deadline rather than at the next tick. The SQL Server drain at sixteen workers ran about 8%
   faster; PostgreSQL is unchanged. `purge_expired_data` takes the cursor (`p_before_job_id`,
   default 0) and answers where the walk stopped. The baselines are re-cut and the object package
   moves to revision 61.
-- **SQLite syncs every commit under both profiles.** Direct ran SQLite with `synchronous = NORMAL`,
-  so a power loss or an OS crash could drop the last commits, a finished job's result among them.
-  Every connection now runs with `synchronous = FULL`. Completions commit in batches, so a busy
-  worker pays one sync per batch: on the bench box the drain lost 4% and sixteen or more executors
-  lost nothing, but one to eight executors lost 29% to 42% of their throughput, where each commit
-  carries few rows. The `AtMostOnce()` caveat for SQLite Direct is gone.
+- **SQLite syncs every commit.** The Direct profile ran SQLite with `synchronous = NORMAL`, so a power
+  loss or an OS crash could drop the last commits, a finished job's result among them. Every connection
+  now runs with `synchronous = FULL`. Completions commit in batches, so a busy worker pays one sync per
+  batch: on the bench box the drain lost 4% and sixteen or more executors lost nothing, but one to eight
+  executors lost 29% to 42% of their throughput, where each commit carries few rows. The `AtMostOnce()`
+  caveat for SQLite is gone.
 - **The system slots claim at Realtime.** `sys.outbox`, `sys.alerts`, `sys.retention`, and
   `sys.recovery` claimed at Critical, and claims take priority bands strictly in order, so a
   sustained Realtime backlog held them for as long as it lasted. They now claim at Realtime and take
@@ -349,9 +348,6 @@ settles, and what an operator sees when it fails.
   it stores, so three claims inside half a millisecond could see the third turn a hair in the future
   and book it instead of admitting it. The routine now works at the column's precision; the object
   package moves to revision 48.
-- **Recovery no longer charges a job for a claim that never started.** `reclaim_stuck_jobs` and
-  `repair_recovery_slot` charge a failure only for an attempt that was Executing, so a Dispatched row whose
-  lease lapsed returns to Ready with its failure count unchanged; the object package moves to revision 51.
 
 ## 1.0.0-rc.4
 

@@ -168,7 +168,7 @@ There are three levels to choose between, and only the third one orders anything
 
 | Level | What it gives you | How you get it |
 | --- | --- | --- |
-| **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1` (and `ClaimBatchSize = 1` on `Buffered`), equal priority, jobs due immediately. |
+| **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1`, equal priority, jobs due immediately. |
 | **Bounded unordered work** | At most N jobs at a time per key (N = 1 by default), unbounded wait for any individual job. | `ConcurrencyKey`, sized by `[Job(ConcurrencyLimit = N)]`. |
 | **Strict ordered processing** | Item N+1 starts only after item N finished: succeeded, failed for good, or cancelled. | A lane: `.Lane("customer-42")` on the enqueue, or `[Job(Lane = "...")]` on the definition. |
 

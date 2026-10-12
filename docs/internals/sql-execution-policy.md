@@ -230,8 +230,7 @@ the lock.
 - On SQL Server every lane lock is an `UPDLOCK` seek by `id` on the clustered key. A lookup by name
   resolves the id first without a lock, because `ux_lanes_namespace_name` covers `id`, so a lock taken
   through it would land on that index's key alone and never meet a lock taken by id.
-- A lane runs at most one member at a time: Ready, Suspended, Dispatched, and Executing are the running
-  statuses. A restarted member is older than the members already waiting, so it can wait Blocked below
+- A lane runs at most one member at a time: Ready, Suspended, and Executing are the running statuses. A restarted member is older than the members already waiting, so it can wait Blocked below
   the running one.
 - Promotion re-reads under the lock: it takes the lowest-id unfinished member of the lane, promotes it
   when it is Blocked and no member runs, and otherwise leaves it as the head. A single settle ends the

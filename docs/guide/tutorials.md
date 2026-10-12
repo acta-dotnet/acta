@@ -207,7 +207,7 @@ independent jobs through enqueue operations.
 | 802 | [testing-durable-jobs](../../concepts/800-testing/802-testing-durable-jobs/) | Test a durable, multi-step job (step + approval signal) deterministically: drive suspend, raise the typed signal, drive resume; assert run-once across the replay |
 | 901 | [native-aot-json](../../concepts/900-runtime-and-tuning/901-native-aot-json/) | AOT-safe JSON payloads: `UseJsonPayloads(JsonSerializerContext)` + `JobPayload.Json(value, typeInfo)` |
 | 903 | [redis-wakeup](../../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis pub/sub wakes workers across processes (run worker + enqueue roles) |
-| 904 | [worker-tuning](../../concepts/900-runtime-and-tuning/904-worker-tuning/) | Worker tuning: `MaxConcurrentExecutors`, `ClaimBatchSize`, `SafetyPollInterval`, `ExecutionProfile.Direct` |
+| 904 | [worker-tuning](../../concepts/900-runtime-and-tuning/904-worker-tuning/) | Worker tuning: `MaxConcurrentExecutors` and `SafetyPollInterval` |
 
 Multi-project, production-shape apps live one folder per demo under [demos/](../../demos/), since each
 spans several projects rather than a single-project concept rung. The ladder links to them directly when

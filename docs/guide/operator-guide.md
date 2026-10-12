@@ -23,7 +23,7 @@ Reference docs: [`data-model.md`](../reference/data-model.md) (every table and c
 ## Status quick reference
 
 Live statuses: `Ready = 10`, `Blocked = 15` (a laned job waiting behind its lane's head), `Suspended = 20`,
-`Paused = 30`, `Dispatched = 40`, `Executing = 50`.
+`Paused = 30`, `Executing = 50`.
 Terminal statuses follow the band rule: `100` is success (`Succeeded`), `200+` is unsuccessful
 (`Failed = 200`, `Cancelled = 220`). The reason for a transition lives on `events`, not on the
 runtime row.
@@ -113,7 +113,7 @@ SELECT tenant_name, COUNT(*) AS ready
 -- In-flight work and who holds it.
 SELECT job_id, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
   FROM acta.jobs_view
- WHERE status IN ('dispatched', 'executing');
+ WHERE status = 'executing';
 
 -- The whole timeline for a job tree (parents + children share lineage_root_id).
 SELECT created_at_utc, job_id, event, from_status, to_status, reason, reason_message, detail_format, detail_text
@@ -211,20 +211,20 @@ Read from the provider routines, not from intent. Every verb answers one of thre
 since you read it), and nothing is written. All four carry the same body, so a
 client reads `action`, the resulting `status`, and the row's `version` without special-casing the code.
 
-`R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `D` Dispatched · `X` Executing · `✓` Succeeded ·
-`F` Failed · `C` Cancelled. **A** applied, **409** rejected.
+`R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `X` Executing · `✓` Succeeded · `F` Failed ·
+`C` Cancelled. **A** applied, **409** rejected.
 
-| Verb | R | B | S | P | D | X | ✓ | F | C | Result on applied |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `pause` | A | A | A | A | 409 | 409 | 409 | 409 | 409 | Paused |
-| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane |
-| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane; failure budget, retention, and Exhausted steps reset |
-| `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
-| `purge` | 409 | 409 | 409 | 409 | 409 | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
-| `reschedule` | A | A | A | A | 409 | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane |
-| `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
-| `input` (amend) | A | A | A | A | 409 | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job waiting on that name goes Ready |
+| Verb | R | B | S | P | X | ✓ | F | C | Result on applied |
+|---|---|---|---|---|---|---|---|---|---|
+| `pause` | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
+| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane |
+| `restart` | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane; failure budget, retention, and Exhausted steps reset |
+| `cancel` | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
+| `purge` | 409 | 409 | 409 | 409 | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
+| `reschedule` | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane |
+| `reprioritize` | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
+| `input` (amend) | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
+| `signal` | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job waiting on that name goes Ready |
 
 Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
 Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
@@ -243,8 +243,8 @@ Five rules the table cannot show:
 - **`signal` on a Paused job** records the slot and leaves the job Paused. The signal is not lost;
   it is waiting for a `resume`.
 - **`input` on a terminal job is allowed**, which looks odd until you want it: amend the input of a
-  failed job, then `restart` it. Only Dispatched and Executing reject, because those are the two
-  states where a worker may already have read the payload. A job that stored no input has nothing to
+  failed job, then `restart` it. Only Executing rejects, because that is the state where a worker
+  may already have read the payload. A job that stored no input has nothing to
   amend and answers `409` from the endpoint before the routine is reached.
 - **`restart` and `resume` have two more refusals.** A finished laned job is not restarted while an
   unfinished ancestor or descendant sits in its lane, and a recurring job whose schedules offer no
@@ -414,7 +414,7 @@ in this process through the normal durable pipeline. Set a breakpoint in the han
 session, including during breakpoint stops. A live worker can still steal the job between the reset
 and the claim; in that case the CLI reports the job was not claimable and exits 1. The exit code
 reflects the handler outcome: a thrown handler exits 1 even when the retry budget re-arms the job.
-A Dispatched or Executing job is refused. A laned job that restarts behind a running member is
+An Executing job is refused. A laned job that restarts behind a running member is
 reported Blocked and exits 0 without running. `--break` raises the debugger at the handler seam
 instead of relying on a breakpoint; `jobs signal --value <json>` raises the signal with a payload.
 
@@ -519,7 +519,7 @@ any other format renders as a hex preview with base64 copy and a file download. 
 mapped regardless of `EnableControls` and never passes through `IActaControlAuthorizer`, so the only
 thing that withholds a body is size: past `JobsOptions.MaxInlinePayloadBytes` the read ships the
 format identity and byte length with `truncated: true` and no body. With controls enabled, a json or
-text input is also editable in place unless the job is dispatched or executing. Treat authorization
+text input is also editable in place unless the job is executing. Treat authorization
 for the read surface as authorization to read every payload the ledger holds. See
 `concepts/000-fundamentals/022-dashboard` for a runnable host.
 
@@ -641,7 +641,7 @@ deleting evidence.
 Workers heartbeat their leases (`HeartbeatInterval`); `sys.recovery` reclaims jobs whose lease
 lapsed (back to Ready in budget, terminal Failed past `MaxAttempts`, with retention stamped),
 marks silent workers Dead after `WorkerDeadAfter`, and re-raises any child-completion latch a crash
-left pending; `sys.retention` runs the purge. If a job looks stuck in `Dispatched`/`Executing`, check the
+left pending; `sys.retention` runs the purge. If a job looks stuck in `Executing`, check the
 worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
 Deployment, exposure, migrations, alert channels, and the production checklist are in the

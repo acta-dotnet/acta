@@ -107,7 +107,7 @@ claim batch, DB capacity, and whether jobs are due yet.
 ```sql
 SELECT job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
   FROM acta.jobs_view
- WHERE status IN ('dispatched', 'executing')
+ WHERE status = 'executing'
  ORDER BY lease_expires_at_utc, job_id;
 ```
 

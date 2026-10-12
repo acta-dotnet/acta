@@ -44,9 +44,9 @@ Then check workers:
 
 For query shapes, see [`operator-guide.md`](./operator-guide.md#common-queries).
 
-## A Job Is Stuck In Dispatched Or Executing
+## A Job Is Stuck In Executing
 
-`dispatched` and `executing` are lease-owned states. Check `acta.jobs_view.leased_by_worker_id`
+`executing` is a lease-owned state. Check `acta.jobs_view.leased_by_worker_id`
 and `lease_expires_at_utc`, then check `acta.workers_view.last_seen_at_utc`.
 
 If the worker is gone, system maintenance reclaims expired leases through `sys.recovery` and moves

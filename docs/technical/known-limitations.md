@@ -36,11 +36,10 @@ row and carries the difference themselves.
 Acta jobs are at-least-once. A handler can run more than once after a crash, completion-write
 failure, lease expiry, retry, or worker shutdown before completion is recorded.
 
-A worker renews only the executions it holds in memory, so a claim that committed and lost its
-answer on the way back (a Direct claim above all, which is Executing from the claim) is treated like a
-worker that crashed right after claiming: nothing renews it, recovery reclaims it after the lease and
-charges it as a crash at that instant would. A Buffered claim lost the same way was never started and
-is reclaimed uncharged. An operator override reaches a worker on its next heartbeat, read when the
+A worker renews only the executions it holds in memory, so a claim that committed and lost its answer
+on the way back is treated like a worker that crashed right after claiming: the row is `Executing`
+from the claim, nothing renews it, and recovery reclaims it after the lease and charges it as a crash
+at that instant would. An operator override reaches a worker on its next heartbeat, read when the
 namespace's newest definition change moved; two edits of one namespace committed within the same
 instant in reverse order can leave one of them unseen until the next edit.
 
@@ -60,23 +59,23 @@ second to a thirty-second ceiling with jitter. Every failure is repeated, a prov
 defect alike: the write is a compare-and-swap that is safe to resubmit, and a completion abandoned
 part way leaves the row `Executing` under a lease the worker's heartbeat keeps renewing, which
 recovery cannot reclaim while the heartbeat reaches the database. A database outage longer than the
-lease lets every lease lapse, and recovery then reclaims the row and re-runs it, finished or not. A defect in the completion path therefore loops instead of surfacing
-once, so it is logged at `Warning` for the first three tries and at `Error` after, always naming the
-job id, and `acta.completions.unsettled` counts the writes in that state. A Buffered worker's start
-write is repeated the same way, until it lands or the claim's own lease deadline ends it.
+lease lets every lease lapse, and recovery then reclaims the row and re-runs it, finished or not. A
+defect in the completion path therefore loops instead of surfacing once, so it is logged at `Warning`
+for the first three tries and at `Error` after, always naming the job id, and
+`acta.completions.unsettled` counts the writes in that state.
 
 The executor is freed as soon as its completion is built; the entry stays held, renewed by the
 heartbeat, until the finalizer lands the write. That is still deliberate backpressure, one channel
 later. There is one finalizer per worker, and a batch that keeps failing is written row by row, so
 every row that can land does. A row that still fails alone repeats apart from the finalizer, which
-goes on to the completions behind it, so one bad row holds only itself. Once as many rows repeat
-apart as the worker has executors, the finalizer repeats in place: the channel between executors and
-finalizer fills, executors then block on it while they still hold their claim permits, and the
-claimer stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes rather than abandoning it to run more handlers
-whose completions would be abandoned in turn. Repairing the underlying database failure lets the
-pending completions land without restarting the worker, as long as each entry still owns its row.
-Recovery itself is unaffected, because the slot monitor runs the sweep outside the executor pool;
-a Buffered worker whose executors are all held and whose buffer is not empty cannot claim the
+goes on to the completions behind it, so one bad row holds only itself. Once as many rows repeat apart
+as the worker has executors, the finalizer repeats in place: the channel between executors and
+finalizer fills, executors then block on it while they still hold their claim permits, and the claimer
+stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes
+rather than abandoning it to run more handlers whose completions would be abandoned in turn. Repairing
+the underlying database failure lets the pending completions land without restarting the worker, as
+long as each entry still owns its row. Recovery itself is unaffected, because the slot monitor runs
+the sweep outside the executor pool; a worker whose executors are all held cannot claim the
 `sys.recovery` slot itself, so under saturation the monitor's seven-minute check is what sweeps.
 
 A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
@@ -248,11 +247,11 @@ that needs a bounded wait needs a different design.
 Three levels are available, and only the third one orders anything.
 
 **Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
-`MaxConcurrentExecutors = 1` (and `ClaimBatchSize = 1` on `Buffered`), equal priority, and jobs that
-are due immediately. This yields serial execution, not strict FIFO: retries, delayed eligibility, priority
-changes, and operator actions move a row's next-run instant and reorder what is claimed next. Acta
-does not enforce that only one process claims a namespace, so the single-process condition is an
-operational promise, not a runtime invariant.
+`MaxConcurrentExecutors = 1`, equal priority, and jobs that are due immediately. This yields serial
+execution, not strict FIFO: retries, delayed eligibility, priority changes, and operator actions move
+a row's next-run instant and reorder what is claimed next. Acta does not enforce that only one process
+claims a namespace, so the single-process condition is an operational promise, not a runtime
+invariant.
 
 **Exclusive unordered work.** `ConcurrencyKey`, under the contract above.
 

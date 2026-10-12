@@ -142,8 +142,8 @@ below are what the rounds on this machine cost to learn.
   flushes per second after sustained writes, stays there for hours, and flaps between the two states,
   so take readings minutes apart and start only when several agree. A probe in a tight loop is itself
   a write load and keeps the drive from recovering.
-- Run the `release` preset on the candidate: every execution profile at the quick matrix's points, one
-  warmup and one measured run, about half an hour a database. Its drains are sustained: 500,000 jobs on
+- Run the `release` preset on the candidate: the quick matrix's points, one warmup and one measured
+  run, about half an hour a database. Its drains are sustained: 500,000 jobs on
   PostgreSQL and SQL Server and 100,000 on SQLite, all due at one instant, so a drain measures what the
   engine sustains, not how fast the preload came due. Compare against the previous tag's
   round on this machine: drain, enqueue, latency, and the list query reproduce from day to day within a
@@ -161,7 +161,7 @@ below are what the rounds on this machine cost to learn.
   its next cell the moment the harness process is killed; list processes by command line
   (`Win32_Process`) and confirm `pg_stat_activity` is empty before starting another round.
 - The `throughput` cells at 1 and 8 executors are bimodal in every tree measured: one run lands at
-  about 165 jobs/s for Buffered at one executor and the next at about 410, for the same binary. Read
+  about 165 jobs/s at one executor and the next at about 410, for the same binary. Read
   drain, enqueue, and latency for the verdict, and never compare versions on those cells.
 - `--seed-history N` measures the minute after a million-row bulk change, not a populated steady state,
   until the harness gets a settle step after seeding; report it as informational.

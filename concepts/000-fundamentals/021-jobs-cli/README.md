@@ -61,8 +61,8 @@ operator surfaces; application code should normally call `IJobs`.
 
 Stop terminal 1. Run `info`, `events`, and `explain` again from the same configured store. Reads do not
 need the original worker process. Compare that with `debug`, a mutation: it restarts a job that is not `Ready` (reason
-`cli debug`, failure budget reset), then claims and executes it in-process. It refuses a `Dispatched` or
-`Executing` job, and may report a laned job `Blocked` behind its lane's head instead of running it.
+`cli debug`, failure budget reset), then claims and executes it in-process. It refuses an `Executing`
+job, and may report a laned job `Blocked` behind its lane's head instead of running it.
 
 ## When not to use
 

@@ -93,7 +93,7 @@
       <h2>The pipeline inside one worker.</h2>
       <figure class="eng-figure">
         <div class="eng-scroll">
-          <svg viewBox="0 0 1280 470" role="img" aria-label="One worker: the claimer takes one row per free executor on Direct, or up to 32 on Buffered, per call against permits and hands them through the Claimed channel to N executors; each executor hands its completion through the Completed channel to one finalizer, which writes up to 128 completions of any shape in one call; the heartbeat renews the registry's held set in one call every 45 seconds; a full Completed channel blocks the executors, which hold their permits, which stops the claimer.">
+          <svg viewBox="0 0 1280 470" role="img" aria-label="One worker: the claimer takes one row per free executor in one call against permits and hands them through the Claimed channel to N executors; each executor hands its completion through the Completed channel to one finalizer, which writes up to 128 completions of any shape in one call; the heartbeat renews the registry's held set in one call every 45 seconds; a full Completed channel blocks the executors, which hold their permits, which stops the claimer.">
             <defs>
               <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
               <marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
@@ -105,10 +105,7 @@
 
             <line class="ln" x1="115" y1="168" x2="115" y2="90" marker-end="url(#ah)" marker-start="url(#ah)"/>
             <text class="code" x="125" y="122">claim_jobs</text>
-            <text class="tm" x="125" y="138">free executors (Direct) · ≤ 32 (Buffered), 1 call</text>
-            <line class="ln dash" x1="510" y1="148" x2="510" y2="90" marker-end="url(#ah)"/>
-            <text class="code" x="520" y="114">start_execution</text>
-            <text class="tm" x="520" y="130">Buffered only, per job</text>
+            <text class="tm" x="125" y="138">a row per free executor, 1 call</text>
             <line class="ln acc" x1="850" y1="168" x2="850" y2="90" marker-end="url(#ah-acc)"/>
             <text class="code acc-t" x="842" y="114" text-anchor="end">complete_executions</text>
             <text class="tm" x="842" y="130" text-anchor="end">≤ 128 rows, any shape</text>
@@ -119,8 +116,8 @@
             <rect class="box" x="30" y="170" width="170" height="100" rx="4"/>
             <text class="tt" x="44" y="194">WorkerClaimer</text>
             <text class="tm" x="44" y="214">1 loop</text>
-            <text class="tm" x="44" y="231">waits for permits:</text>
-            <text class="tm" x="44" y="248">Direct 1, Buffered 32</text>
+            <text class="tm" x="44" y="231">waits for 1 permit,</text>
+            <text class="tm" x="44" y="248">then takes all free</text>
 
             <text class="code" x="240" y="182">Claimed</text>
             <rect class="box" x="240" y="190" width="140" height="56" rx="3"/>
@@ -177,7 +174,7 @@
             <text class="tm" x="1157" y="372" text-anchor="end">snapshot · re-arm · cancel</text>
           </svg>
         </div>
-        <figcaption>One worker process. Every arrow into the database is one round trip; the dashed one happens only on the Buffered profile. The green call carries every completion of a batch together, whatever its shape. The amber loop is the backpressure: when the database is slow, intake stops instead of memory growing.</figcaption>
+        <figcaption>One worker process. Every arrow into the database is one round trip. The green call carries every completion of a batch together, whatever its shape. The amber loop is the backpressure: when the database is slow, intake stops instead of memory growing.</figcaption>
       </figure>
     </section>
 
@@ -185,9 +182,9 @@
       <p class="record">What each stage decides</p>
       <h2>What each stage decides.</h2>
       <dl class="ref">
-        <div class="ref-row"><dt>Claimer</dt><dd>Takes the minimum permits (one on Direct, a whole batch of 32 on Buffered), then any more that are free (every free executor on Direct, up to 32 on Buffered), and claims that many rows in one call. On Direct, after a claim that found work, it first lets the executors take those rows and collects every permit they free, so the next claim asks for all of them instead of the one or two free at that instant. Unused permits go back at once. An empty claim sleeps until the next row is due, at least 50 ms and at most 1 s, jittered up to 100 ms, and a wakeup ends the sleep early. A failed claim backs off a full second.</dd></div>
+        <div class="ref-row"><dt>Claimer</dt><dd>Waits for one permit, then takes every other free one, and claims that many rows in one call, each moved straight to Executing. After a claim that found work, it first lets the executors take those rows and collects every permit they free, so the next claim asks for all of them instead of the one or two free at that instant. Unused permits go back at once. An empty claim sleeps until the next row is due, at least 50 ms and at most 1 s, jittered up to 100 ms, and a wakeup ends the sleep early. A failed claim backs off a full second.</dd></div>
         <div class="ref-row"><dt>The recovery slot</dt><dd>When a claim returns the namespace's <code>sys.recovery</code> row, it runs on its own task without a permit, so a worker whose executors are all busy still sweeps. A slot monitor also checks it every seven minutes.</dd></div>
-        <div class="ref-row"><dt>Executor</dt><dd>Skips an entry whose deadline already fired. On Buffered it moves the row to Executing first, repeating the start until it lands or the deadline fires. Then admission (concurrency slot, rate meter), the handler, and the completion record. It hands the entry to the finalizer and only then returns its permit.</dd></div>
+        <div class="ref-row"><dt>Executor</dt><dd>Skips an entry whose deadline already fired. Then admission (concurrency slot, rate meter), the handler, and the completion record. It hands the entry to the finalizer and only then returns its permit.</dd></div>
         <div class="ref-row"><dt>Finalizer</dt><dd>One per worker. Reads one completion, then everything already waiting, up to 128 completions or 4 MiB of results; if that first read found a backlog, it waits up to 50 ms more to fill the batch, and a lone completion never waits. They all go into one <code>complete_executions</code> call, whatever their shape: a success or failure, a retry, a signal wait, a recurring fire, a child telling its parent, a lane handing on. The write repeats until it lands; then the wakes, the metric, and the entry is removed.</dd></div>
         <div class="ref-row"><dt>Heartbeat</dt><dd>Every 45 s it snapshots the registry and makes one call with the held (job, execution) pairs and lock holds. A renewed row re-arms its entry's deadline. A row locked by another transaction keeps its deadline for the next beat. A row not answered cancels a Claimed or Executing entry, while a Finalizing entry is left to its write. A lock not renewed cancels its attempt. When the namespace's newest definition change moved, it reloads the policy.</dd></div>
       </dl>
@@ -229,15 +226,14 @@
     <section class="wrap">
       <p class="record">Every cap and threshold</p>
       <h2>Every cap and threshold, and what it bounds.</h2>
-      <p class="lede">Values are the defaults. Only the heartbeat interval, the executor count, the claim batch size, the safety poll, and the execution profile are settable; everything else is a constant or derives from them.</p>
+      <p class="lede">Values are the defaults. Only the heartbeat interval, the executor count, and the safety poll are settable; everything else is a constant or derives from them.</p>
       <div class="eng-table">
         <table class="eng-caps">
           <thead><tr><th scope="col">Threshold</th><th scope="col">Value</th><th scope="col">What it bounds</th></tr></thead>
           <tbody>
             <tr><th class="grp" scope="rowgroup" colspan="3">Claiming</th></tr>
             <tr><td><code>MaxConcurrentExecutors</code></td><td class="v">4 per core, 8 to 64</td><td>Executor loops per worker. A 2-core container gets 8, an 8-core host 32, anything from 16 cores up gets 64.</td></tr>
-            <tr><td><code>ClaimBatchSize</code></td><td class="v">32</td><td>Rows one Buffered claim call may take. A Direct claim ignores it and takes one row per free executor, up to <code>MaxConcurrentExecutors</code>.</td></tr>
-            <tr><td>Permits</td><td class="v">Direct N · Buffered N + 32</td><td>Claims held and not yet handed to the finalizer. Direct claims only for a free executor; Buffered runs at most one batch ahead.</td></tr>
+            <tr><td>Permits</td><td class="v">N</td><td>Claims held and not yet handed to the finalizer. A claim takes a row only for a free executor.</td></tr>
             <tr><td><code>Claimed</code> channel</td><td class="v">= permits</td><td>Sized so the claimer's hand-off never blocks.</td></tr>
             <tr><td><code>SafetyPollInterval</code></td><td class="v">1 s</td><td>The longest idle sleep, the back-off after a failed claim, and the delay on a claim handed back for want of a handler.</td></tr>
             <tr><td>Poll floor · idle jitter</td><td class="v">50 ms · ≤ 100 ms</td><td>The shortest idle sleep, and the spread that keeps idle workers from claiming in lockstep.</td></tr>
@@ -249,7 +245,7 @@
             <tr><td>Batch size</td><td class="v">128</td><td>Completions in one <code>complete_executions</code> call.</td></tr>
             <tr><td>Batch bytes</td><td class="v">4 MiB</td><td>Result bytes in one call; a larger single result is written alone.</td></tr>
             <tr><td>Batch window</td><td class="v">50 ms</td><td>Extra wait to fill a batch, only when its first read found a backlog.</td></tr>
-            <tr><td>Write repeat</td><td class="v">1 s → 30 s, ±25 %</td><td>Back-off between tries of a failed start or completion: Warning for three tries, then Error, until it lands or the worker stops.</td></tr>
+            <tr><td>Write repeat</td><td class="v">1 s → 30 s, ±25 %</td><td>Back-off between tries of a failed completion: Warning for three tries, then Error, until it lands or the worker stops.</td></tr>
             <tr><th class="grp" scope="rowgroup" colspan="3">Leases and recovery</th></tr>
             <tr><td><code>HeartbeatInterval</code></td><td class="v">45 s</td><td>Renewal cadence, and the one timing value an operator sets.</td></tr>
             <tr><td>Lease</td><td class="v">180 s, 4 beats</td><td>How long a row stays this worker's without a renewal.</td></tr>
@@ -263,10 +259,9 @@
 
     <section class="wrap">
       <p class="record">A row's status</p>
-      <h2>A job's status on Direct and Buffered workers.</h2>
+      <h2>A job's status, and its entry in the worker.</h2>
       <div class="facts">
-        <div><b>Direct</b><p class="eng-path">Ready → Executing → Succeeded | Failed | Ready</p><p>The claim itself starts the execution, so there is no separate start write. A claim whose answer was lost is treated as a crash right after it.</p></div>
-        <div><b>Buffered</b><p class="eng-path">Ready → Dispatched → Executing → done</p><p>The claim takes a batch ahead of the executors, and each executor starts its row. A row that runs out its lease before it starts goes back uncharged.</p></div>
+        <div><b>In the ledger</b><p class="eng-path">Ready → Executing → Succeeded | Failed | Ready</p><p>The claim itself starts the execution, so there is no separate start write. A claim whose answer was lost is treated as a crash right after it.</p></div>
         <div><b>In the registry</b><p class="eng-path">Claimed → Executing → Finalizing → removed</p><p>Reported by <code>acta.jobs.inflight</code>, tagged by state; batch sizes by <code>acta.completions.batch</code>.</p></div>
       </div>
       <p class="also">Also: <a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>

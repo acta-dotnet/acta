@@ -212,19 +212,12 @@ can have up to 96 handlers in flight before downstream throttles or job-level li
 
 Tune together:
 
-- `MaxConcurrentExecutors`: handler concurrency per process.
-- `ClaimBatchSize`: ready rows a `Buffered` claim pulls; a `Direct` claim takes one per free executor.
+- `MaxConcurrentExecutors`: handler concurrency per process, and the most rows one claim takes.
 - Database connection pool size.
 - Downstream rate limits and idempotency guarantees.
 
 Raise concurrency in steps and watch database CPU, lock waits, connection pool pressure, job
 latency, failure rate, and downstream saturation.
-
-## Execution profiles
-
-`Buffered` is the conservative default, and `Direct` trades the `Dispatched` visibility window for
-fewer round trips. Completions commit the same way on both, through the worker's finalizer. The full profile guide, including how the finalizer
-batches completions, is in [Configuration](./configuration.md#execution-profiles).
 
 ## Database clock and lease safety
 

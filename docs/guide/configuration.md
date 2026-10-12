@@ -22,9 +22,7 @@ builder.Services.UseActa(j =>
 
     j.ConfigureOptions(o =>
     {
-        o.ExecutionProfile = ExecutionProfile.Direct;
         o.MaxConcurrentExecutors = 32;
-        o.ClaimBatchSize = 64;
         o.DeploymentVersion = builder.Configuration["GIT_SHA"];
     });
 
@@ -59,10 +57,8 @@ alert settings, or lease/heartbeat relationships fail fast.
 
 | Option | Default | Scope | Notes |
 | --- | --- | --- | --- |
-| `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per process | Maximum in-flight handler executions per worker runtime. |
-| `ClaimBatchSize` | 32 | per process | Ready rows a `Buffered` claim pulls, one batch ahead of the executors. Raise with executor count and DB capacity. `Direct` ignores it and claims a row for every free executor. |
+| `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per process | Maximum in-flight handler executions per worker runtime. A claim takes one row for every free executor. |
 | `SafetyPollInterval` | 1 second | per process | Idle polling ceiling when no wakeup is received. Must be at least 1 second. |
-| `ExecutionProfile` | `Buffered` | per process | Claim/dispatch strategy. See the execution profile table below. |
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
 | `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
 | `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before `sys.recovery` marks a worker Dead. |
@@ -106,29 +102,20 @@ that.
 ...)]` default (90 days) that purges terminal job rows: events are the audit ledger, so the incident
 timeline survives well past the job row itself.
 
-## Execution profiles
+## How a worker claims and completes
 
-| Profile | Use when | Tradeoff |
-| --- | --- | --- |
-| Buffered | Conservative default | More observable state, more round trips |
-| Direct | Higher throughput with durable completion | Less `Dispatched` visibility |
+A worker claims one row for every free executor. The claim moves each row straight to `Executing` under the
+worker's lease and, for an audited job, writes `job.execution-started` in the same statement. No status sits
+between claimed and running.
 
-`Buffered` claims jobs into `Dispatched`, then starts execution with a second durable transition.
-That intermediate state is useful when operators care about "claimed but not yet running" as a
-visible state.
-
-`Direct` claims straight into execution. It removes the `Dispatched` visibility window and reduces
-round trips; completions commit the same way on both profiles. On SQLite, Direct also uses SQLite's
-faster synchronous mode, appropriate for local and embedded scenarios where that tradeoff is accepted.
-
-On both profiles an executor hands each finished attempt to the worker's one finalizer, which writes
+An executor hands each finished attempt to the worker's one finalizer, which writes
 the completions waiting for it in one transaction, whatever their shape (success, failure, retry,
 wait, recurring fire, child, lane member), up to 128 of them or 4 MiB of results, and repeats a write
 until it lands. A lone completion is written at once; a batch forms only when the writes fall behind, and then
 waits up to 50 ms to fill. A graceful stop lets the finalizer land what is waiting; a hard stop leaves
 those rows for recovery, which re-runs them under the failure budget.
 
-Tune profiles together with `MaxConcurrentExecutors` and `ClaimBatchSize`. Measure after each change:
+Tune `MaxConcurrentExecutors` against the database's capacity. Measure after each change:
 throughput gains that overload the database, downstream APIs, or the connection pool are not real
 capacity.
 
