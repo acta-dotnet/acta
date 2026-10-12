@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="WorkersOperations.ExtendWorkerLeasesAsync"/>: one round trip.</summary>
+/// <summary><see cref="WorkersOperations.ExtendWorkerLeasesAsync(ExtendWorkerLeasesCommand, CancellationToken)"/>: one round trip.</summary>
 internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ExtendWorkerLeasesResponse> HandleAsync(ExtendWorkerLeasesCommand command, CancellationToken ct)
@@ -13,6 +13,12 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, command.Draining));
                 dialect.BindHeldLeases(cmd, command.Executions, command.Locks);
+                // Last: PostgreSQL routine arguments are positional and this one ends extend_worker_leases' list.
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(
+                        new DbParameterSpec("p_recovery_interval_seconds", command.RecoveryIntervalSeconds, DbKind.Int32)
+                    )
+                );
             },
             DbProjectionResolver.Resolve<ExtendWorkerLeasesRow>(),
             ct
@@ -21,6 +27,7 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
         List<ExtendWorkerLeasesLease> leases = [];
         List<string> renewedLockKeys = [];
         DateTime? definitionsModifiedAtUtc = null;
+        var recoveryClaimed = false;
         foreach (var row in rows)
         {
             if (row.JobId is { } jobId)
@@ -34,9 +41,10 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
             else
             {
                 definitionsModifiedAtUtc = row.DefinitionsModifiedAtUtc;
+                recoveryClaimed = row.RecoveryClaimed;
             }
         }
 
-        return new ExtendWorkerLeasesResponse(leases, renewedLockKeys, definitionsModifiedAtUtc);
+        return new ExtendWorkerLeasesResponse(leases, renewedLockKeys, definitionsModifiedAtUtc, recoveryClaimed);
     }
 }

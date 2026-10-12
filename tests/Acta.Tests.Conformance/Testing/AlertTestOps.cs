@@ -222,7 +222,7 @@ internal static class AlertTestOps
         return id!.Value;
     }
 
-    // Claim with the lease already lapsed so the sys.recovery sweep reclaims the attempt with no
+    // Claim with the lease already lapsed so the recovery sweep reclaims the attempt with no
     // real-time wait, exactly as ReclaimStuckJobsSpec does. Never reaches JobsOptions, which rejects a
     // non-positive lease.
     private const int ExpiredLeaseTtlSeconds = -5;

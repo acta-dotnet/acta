@@ -38,7 +38,7 @@ internal sealed partial class RuntimeJobContext
     /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLock's
     /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is
     /// exact, so two keys that differ only by case are two groups. A key derived from a definition name
-    /// may be a system job's (sys.recovery with a limit), which the key rule allows.
+    /// may be a system job's (sys.retention with a limit), which the key rule allows.
     /// </summary>
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {

@@ -95,12 +95,8 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// </summary>
     public ConcurrentDictionary<long, byte> RecurringSlotJobIds { get; } = new();
 
-    /// <summary>
-    /// The <c>sys.recovery</c> slot job id per namespace this worker registered, captured at the startup
-    /// schedule upsert. The recovery monitor checks exactly this row and never recreates it: a slot an
-    /// operator removed stays removed.
-    /// </summary>
-    public ConcurrentDictionary<int, long> RecoverySlotJobIdByNamespace { get; } = new();
+    /// <summary>Whether this worker runs crash recovery for its namespace, decided at registration.</summary>
+    public bool RunsRecovery { get; set; }
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
 

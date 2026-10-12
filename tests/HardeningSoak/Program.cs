@@ -320,7 +320,7 @@ async Task MonitorAsync(CancellationToken token)
                 counts.Ready,
                 counts.Executing,
                 LastWorkerSeen = await ScalarAsync($"SELECT MAX(last_seen_at_utc) FROM {qualified}.workers", token),
-                RecoveryExecution = await ScalarAsync($"SELECT MAX(r.execution_number) FROM {JobsOf(BenchHost.RecoveryJobName)}", token),
+                RecoveryDueAtUtc = await ScalarAsync($"SELECT MAX(recovery_due_at_utc) FROM {qualified}.namespaces", token),
                 DeadlineCanceled = ct.IsCancellationRequested,
                 ProducerFinished = elapsed.Elapsed.TotalSeconds >= durationSeconds,
             };

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// Test-side model of the production <c>sys.recovery</c> sweep, which runs <c>reclaim_stuck_jobs</c>
+/// Test-side model of the production recovery pass's sweep, which runs <c>reclaim_stuck_jobs</c>
 /// on a timer, repeatedly. A single sweep can transiently skip an otherwise-eligible row:
 /// <c>reclaim_stuck_jobs</c> reads the stuck set <c>WITH (READPAST)</c>, so a row momentarily locked
 /// by a concurrent transaction is skipped this pass and caught the next. Conformance specs run in

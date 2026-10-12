@@ -32,6 +32,7 @@ internal sealed class ActaMetrics : IDisposable
     private readonly Counter<long> _wakeupWaits;
     private readonly UpDownCounter<long> _unsettledCompletions;
     private readonly Histogram<int> _completionBatches;
+    private readonly Counter<long> _recoveryPasses;
 
     /// <summary>
     /// Each worker registers its namespace's live in-flight count by state; the observable gauge reads them
@@ -84,6 +85,11 @@ internal sealed class ActaMetrics : IDisposable
             "acta.completions.batch",
             "{completion}",
             "Completions the finalizer wrote in one call."
+        );
+        _recoveryPasses = Meter.CreateCounter<long>(
+            "acta.recovery.passes",
+            "{pass}",
+            "Recovery passes this process ran, tagged by outcome: completed or failed."
         );
         Meter.CreateObservableGauge(
             "acta.jobs.inflight",
@@ -195,6 +201,10 @@ internal sealed class ActaMetrics : IDisposable
     /// <summary>How many completions each finalizer call carried: the batching an operator's load actually gets.</summary>
     public void RecordCompletionBatch(string @namespace, int count) =>
         _completionBatches.Record(count, new KeyValuePair<string, object?>("namespace", @namespace));
+
+    /// <summary>outcome is one of { completed, failed }; a failed pass waits out the interval its heartbeat moved.</summary>
+    public void RecordRecoveryPass(string @namespace, string outcome) =>
+        _recoveryPasses.Add(1, new TagList { { "namespace", @namespace }, { "outcome", outcome } });
 
     public void RecordAlertProjectionSkip(string @namespace, string reason) =>
         _alertProjectionSkips.Add(1, new TagList { { "namespace", @namespace }, { "reason", reason } });

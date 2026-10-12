@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
-/// Conformance for <c>sys.recovery</c>'s recovery routine (<c>reclaim_stuck_jobs</c>). A claim with a
+/// Conformance for crash recovery's reclaim routine (<c>reclaim_stuck_jobs</c>). A claim with a
 /// negative lease TTL stamps <c>lease_expires_at_utc</c> in the past - deterministically
 /// simulating a worker that claimed a job then died long enough ago for its lease to lapse, with no
 /// real-time wait. A stuck job (Executing + expired lease) returns to Ready on reclaim, or

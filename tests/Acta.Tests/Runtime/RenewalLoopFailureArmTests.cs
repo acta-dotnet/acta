@@ -46,6 +46,7 @@ public sealed class RenewalLoopFailureArmTests
             Registration,
             context,
             new InFlightJobRegistry(new JobsOptions()),
+            recoveryPass: null!,
             log
         );
 
@@ -68,6 +69,7 @@ public sealed class RenewalLoopFailureArmTests
             Registration,
             context,
             new InFlightJobRegistry(new JobsOptions()),
+            recoveryPass: null!,
             log
         );
 
@@ -93,6 +95,7 @@ public sealed class RenewalLoopFailureArmTests
             Registration,
             context,
             new InFlightJobRegistry(new JobsOptions()),
+            recoveryPass: null!,
             log
         );
 
@@ -119,6 +122,7 @@ public sealed class RenewalLoopFailureArmTests
             Registration,
             context,
             registry,
+            recoveryPass: null!,
             new RecordingLogger()
         );
 

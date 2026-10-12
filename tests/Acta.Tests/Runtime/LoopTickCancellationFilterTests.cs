@@ -39,6 +39,7 @@ public sealed class LoopTickCancellationFilterTests
             registration,
             context,
             new InFlightJobRegistry(new JobsOptions()),
+            recoveryPass: null!,
             logger
         );
 
@@ -82,6 +83,7 @@ public sealed class LoopTickCancellationFilterTests
             registration,
             context,
             new InFlightJobRegistry(new JobsOptions()),
+            recoveryPass: null!,
             logger
         );
 
@@ -116,6 +118,7 @@ public sealed class LoopTickCancellationFilterTests
             registration,
             context,
             new InFlightJobRegistry(new JobsOptions()),
+            recoveryPass: null!,
             logger
         );
 

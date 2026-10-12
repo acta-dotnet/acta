@@ -56,7 +56,7 @@ internal sealed class WorkerEntity : IEntity<int>
     public int NamespaceId { get; init; }
 
     /// <summary>
-    /// Worker lifecycle status, written by the <c>StartWorker</c> handler at startup. <c>sys.recovery</c>
+    /// Worker lifecycle status, written by the <c>StartWorker</c> handler at startup. Crash recovery
     /// flips stale rows to <c>Dead</c> when <see cref="LastHeartbeatAtUtc"/> falls past
     /// <c>JobsOptions.WorkerDeadAfter</c>, alongside its stuck-job lease reclaim.
     /// </summary>

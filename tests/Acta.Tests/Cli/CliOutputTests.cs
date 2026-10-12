@@ -361,7 +361,7 @@ public class CliOutputTests
                 Expired: true,
                 WorkerLastHeartbeatAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
                 WorkerStale: true,
-                RecoveryExpectation: "Recovery should return it to Ready on the next maintenance tick.",
+                RecoveryExpectation: "Recovery should return it to Ready on its next pass.",
                 WorkerRef: ExplainWorkerRef
             ),
             LastExecutedBy: null,
@@ -369,7 +369,7 @@ public class CliOutputTests
             Reason: "worker shutdown",
             NextActions:
             [
-                new GetJobExplanationAction("wait-recovery", "wait for sys.recovery to reclaim the job on the next maintenance tick"),
+                new GetJobExplanationAction("wait-recovery", "wait for crash recovery to reclaim the job on its next pass"),
                 new GetJobExplanationAction("cancel", "cancel the job if it should not continue"),
             ]
         );
@@ -384,7 +384,7 @@ public class CliOutputTests
         Assert.Contains("- Last heartbeat at 2026-07-04T11:56:00.0000000Z.", text);
         Assert.Contains("- Worker is marked Dead.", text);
         Assert.Contains("Next actions:", text);
-        Assert.Contains("- Wait for sys.recovery to reclaim the job on the next maintenance tick.", text);
+        Assert.Contains("- Wait for crash recovery to reclaim the job on its next pass.", text);
         Assert.Contains("- Cancel the job if it should not continue.", text);
     }
 
@@ -705,7 +705,7 @@ public class CliOutputTests
                 Expired: true,
                 WorkerLastHeartbeatAtUtc: new DateTime(2026, 7, 4, 11, 56, 0, DateTimeKind.Utc),
                 WorkerStale: true,
-                RecoveryExpectation: "Recovery should return it to Ready on the next maintenance tick.",
+                RecoveryExpectation: "Recovery should return it to Ready on its next pass.",
                 WorkerRef: SentinelWorkerRef
             ),
             LastExecutedBy: null,

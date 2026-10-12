@@ -29,7 +29,7 @@ public interface IWorkerBuilder
     /// <summary>
     /// Attach a single external-outbox relay source to this worker namespace: the relay claims due <c>acta_outbox</c>
     /// rows, translates them, and enqueues into the ledger via <c>sys.outbox</c>. Registration adds <c>sys.outbox</c>
-    /// with its <c>sys.recovery</c> and <c>sys.alerts</c> dependencies even when automatic framework-job registration
+    /// with its crash recovery and <c>sys.alerts</c> dependencies even when automatic framework-job registration
     /// is off, and never forces <c>sys.retention</c>. A namespace registers zero or one source; the source provider is
     /// selected on <paramref name="configure"/> and is independent of the ledger provider. Nothing connects to the
     /// source at startup; connectivity and shape are validated inside <c>sys.outbox</c>.

@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
-/// Conformance for <c>sys.recovery</c>'s dead-worker sweep (<c>mark_dead_workers</c>), now namespace-agnostic:
+/// Conformance for crash recovery's dead-worker sweep (<c>mark_dead_workers</c>), now namespace-agnostic:
 /// a sweep flips every Active or Draining worker whose <c>last_seen_at_utc</c> is past the dead-after window
 /// to Dead across all namespaces, emitting one <c>worker.died</c> event per worker into that worker's own
 /// namespace.

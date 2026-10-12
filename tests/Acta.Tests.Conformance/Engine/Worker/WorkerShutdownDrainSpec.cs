@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// The worker-shutdown drain contract: a graceful
 /// stop must never finalize an in-flight job. When the worker token is cancelled while a handler is mid
 /// execution, the executing row is left Executing with its lease intact and NO completion is written, so
-/// <c>sys.recovery</c> reclaims it after the lease lapses and the job re-runs - the documented
+/// crash recovery reclaims it after the lease lapses and the job re-runs - the documented
 /// worker-shutdown -&gt; retry/reclaim contract.
 /// </summary>
 /// <remarks>
@@ -64,7 +64,7 @@ public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFix
         var enqueued = await RunInFlightThenShutdownAsync(ct);
 
         // The worker wrote NO completion: the row is still Executing and still leased, exactly the
-        // reclaimable state sys.recovery keys on, not a terminal Failed with an execution-finished event.
+        // reclaimable state crash recovery keys on, not a terminal Failed with an execution-finished event.
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.NotNull(after.LeasedByWorkerId);
@@ -78,7 +78,7 @@ public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFix
         var enqueued = await RunInFlightThenShutdownAsync(ct);
 
         // The job is Executing with a live lease. In production the heartbeat stopped at shutdown, so the
-        // lease simply runs out; lapse it deterministically, then sweep sys.recovery.
+        // lease simply runs out; lapse it deterministically, then run the recovery sweep.
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
 

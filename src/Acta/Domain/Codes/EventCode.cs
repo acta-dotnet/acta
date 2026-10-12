@@ -156,7 +156,7 @@ public enum EventCode : byte
     [Code("worker.stopped", "Worker process shut down cleanly (Status: Active/Draining to Stopped).")]
     WorkerStopped = 121,
 
-    [Code("worker.died", "Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead.")]
+    [Code("worker.died", "Worker heartbeat went stale; crash recovery flipped the worker to Dead.")]
     WorkerDied = 122,
 
     /// <summary>

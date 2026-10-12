@@ -6,13 +6,10 @@ namespace Acta;
 /// <summary>
 /// The worker's one claim loop: it takes a permit for every free executor, claims that many rows straight to Executing,
 /// and hands each to the executors through the registry's <c>Claimed</c> channel, which holds every permit so the
-/// hand-off never blocks. A claimed <c>sys.recovery</c> slot runs on its own task without a permit, but claiming it
-/// takes a free permit, so a worker whose executors are all held sweeps only through RecoverySlotMonitor. An empty
-/// claim sleeps until the claim horizon, cut short by a wakeup.
+/// hand-off never blocks. An empty claim sleeps until the claim horizon, cut short by a wakeup.
 /// </summary>
 internal sealed class WorkerClaimer(
     ExecutionOperations execution,
-    WorkerExecutor executor,
     JobsOptions options,
     WorkerContext context,
     InFlightJobRegistry registry,
@@ -25,9 +22,6 @@ internal sealed class WorkerClaimer(
 
     // A claim takes a row for every free executor.
     private readonly int _maxClaim = options.MaxConcurrentExecutors;
-
-    // The recovery slots this loop claimed, chained so one runs at a time; awaited when the loop ends.
-    private Task _recovery = Task.CompletedTask;
 
     /// <summary>
     /// Claims until <paramref name="drainCt"/> or <paramref name="hostCt"/> ends a wait. The claim itself runs on
@@ -70,22 +64,13 @@ internal sealed class WorkerClaimer(
                     );
                     var runway = _leaseRunway - Stopwatch.GetElapsedTime(claimedAt);
                     handedOff = result.Jobs.Count > 0;
-                    context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId);
                     foreach (var claimed in result.Jobs)
                     {
                         metrics?.RecordClaim(ns, "claimed");
-                        var slot = claimed.JobId == slotJobId;
-                        var entry = new InFlightJob(claimed, runway, hostCt, holdsPermit: !slot);
+                        var entry = new InFlightJob(claimed, runway, hostCt, holdsPermit: true);
                         registry.TryAdd(entry);
-                        if (slot)
-                        {
-                            RunRecovery(entry, hostCt);
-                        }
-                        else
-                        {
-                            permits--;
-                            registry.Claimed.Writer.TryWrite(entry);
-                        }
+                        permits--;
+                        registry.Claimed.Writer.TryWrite(entry);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested)
@@ -124,13 +109,12 @@ internal sealed class WorkerClaimer(
         finally
         {
             registry.Claimed.Writer.TryComplete();
-            await _recovery;
         }
     }
 
     /// <summary>
-    /// Adds every permit free now to <paramref name="permits"/>. With <paramref name="settle"/>, after a Direct claim
-    /// that handed rows off, it first lets the executors take them and yields while their permits keep coming back, so
+    /// Adds every permit free now to <paramref name="permits"/>. With <paramref name="settle"/>, after a claim that
+    /// handed rows off, it first lets the executors take them and yields while their permits keep coming back, so
     /// the next claim asks for every executor a quick job frees rather than the first one or two: each claim is a round
     /// trip and a commit on the drain's one serial path. A yield that frees nothing ends the wait, so long handlers
     /// cost it one yield.
@@ -190,29 +174,5 @@ internal sealed class WorkerClaimer(
         var jitterTicks = jitterMax > TimeSpan.Zero ? Random.Shared.NextInt64(jitterMax.Ticks + 1) : 0;
         var jittered = baseDelay + TimeSpan.FromTicks(jitterTicks);
         return jittered > safetyPoll ? safetyPoll : jittered;
-    }
-
-    private void RunRecovery(InFlightJob slot, CancellationToken hostCt)
-    {
-        var previous = _recovery;
-        _recovery = Task.Run(
-            async () =>
-            {
-                await previous;
-                try
-                {
-                    await executor.RunInlineAsync(slot, hostCt);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
-                {
-                    log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", slot.Claim.JobId);
-                }
-                catch (OperationCanceledException)
-                {
-                    // A hard stop: the slot lapses to recovery like any other claim, and the chain stays awaitable.
-                }
-            },
-            CancellationToken.None
-        );
     }
 }

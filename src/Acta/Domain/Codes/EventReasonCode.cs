@@ -28,7 +28,7 @@ public enum EventReasonCode : byte
     [Code("job.unhandled-exception", "Handler threw an exception that was not raised via ctx.Fail.")]
     JobUnhandledException = 20,
 
-    [Code("job.lease-expired", "Worker lease expired; the sys.recovery system job reclaimed the Job.")]
+    [Code("job.lease-expired", "Worker lease expired; crash recovery reclaimed the Job.")]
     JobLeaseExpired = 21,
 
     [Code("job.execution-timeout", "Execution exceeded JobDefinition.ExecutionTimeout for this attempt.")]
@@ -136,7 +136,7 @@ public enum EventReasonCode : byte
 
     [Code(
         "job.lane-repaired",
-        "The Job's lane had no live head: its lowest-id unfinished member was Blocked with nothing ahead to settle. The sys.recovery system job released that member to Ready."
+        "The Job's lane had no live head: its lowest-id unfinished member was Blocked with nothing ahead to settle. Crash recovery released that member to Ready."
     )]
     JobLaneRepaired = 67,
 
@@ -146,6 +146,6 @@ public enum EventReasonCode : byte
     [Code("worker.clean-shutdown", "Worker process exited cleanly via SIGTERM / IHostedService.StopAsync.")]
     WorkerCleanShutdown = 100,
 
-    [Code("worker.heartbeat-stale", "Worker heartbeat exceeded the liveness window; the sys.recovery system job flipped Status to Dead.")]
+    [Code("worker.heartbeat-stale", "Worker heartbeat exceeded the liveness window; crash recovery flipped Status to Dead.")]
     WorkerHeartbeatStale = 101,
 }

@@ -8,7 +8,7 @@ namespace Acta;
 /// </summary>
 public static class NameSyntax
 {
-    /// <summary>The system reservation prefix: names under it belong to Acta (<c>sys.recovery</c>).</summary>
+    /// <summary>The system reservation prefix: names under it belong to Acta (<c>sys.retention</c>).</summary>
     public const string SystemPrefix = "sys.";
 
     /// <summary>The bare reserved name: the seeded <c>sys</c> namespace.</summary>

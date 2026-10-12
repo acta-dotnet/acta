@@ -75,7 +75,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IWorkerWakeup, InProcessWakeup>();
         services.TryAddSingleton<WorkerWakeupPublisher>();
 
-        // One recovery pass, shared by the sys.recovery handler and the test host's recovery drive.
+        // One recovery pass, shared by the worker heartbeat that takes it and the test host's recovery drive.
         services.TryAddSingleton<RecoveryPass>();
 
         // The three built-in serializers register through TryAddEnumerable so the registry's
@@ -229,7 +229,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetStaleChildLatchesHandler>();
         services.TryAddSingleton<ReclaimStuckJobsHandler>();
         services.TryAddSingleton<RecordNoteHandler>();
-        services.TryAddSingleton<RepairRecoverySlotHandler>();
         services.TryAddSingleton<StartStepHandler>();
         services.TryAddSingleton<ExecutionOperations>();
 

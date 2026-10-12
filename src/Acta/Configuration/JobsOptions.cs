@@ -83,7 +83,7 @@ public sealed class JobsOptions
     /// <summary>
     /// Derived, <see cref="HeartbeatInterval"/> x4: worker-wide lease window in seconds, set on every claim and
     /// refreshed by the heartbeat while a handler executes. The multiple keeps a live worker's own jobs from being
-    /// reclaimed mid-run: it can miss three beats before <c>sys.recovery</c> may take its leases. Long-running
+    /// reclaimed mid-run: it can miss three beats before crash recovery may take its leases. Long-running
     /// handlers stay alive through heartbeating, not a longer lease, and there is no per-definition override, which
     /// would re-add a JOIN to <c>definitions</c> on the hot claim path. Default 180s.
     /// </summary>
@@ -95,9 +95,9 @@ public sealed class JobsOptions
 
     /// <summary>
     /// Derived, <see cref="HeartbeatInterval"/> x7, the lease window plus three further beats: how long a worker may
-    /// go without heartbeating before <c>sys.recovery</c> flips its <c>workers</c> row from Active to Dead, measured
+    /// go without heartbeating before crash recovery flips its <c>workers</c> row from Active to Dead, measured
     /// against <c>last_seen_at_utc</c>. The margin past the lease keeps a worker whose leases just lapsed from being
-    /// retired while it might still recover; <c>sys.recovery</c> applies the running worker's value, the second reason
+    /// retired while it might still recover; crash recovery applies the running worker's value, the second reason
     /// this is derived. The retention sweep deletes Dead rows past <see cref="WorkerRetention"/>. Default 315s.
     /// </summary>
     public TimeSpan WorkerDeadAfter
@@ -138,12 +138,12 @@ public sealed class JobsOptions
         ?? "Production";
 
     /// <summary>
-    /// When <c>true</c> (default), each worker namespace auto-registers <c>sys.alerts</c>, <c>sys.recovery</c>, and
-    /// <c>sys.retention</c> with their recurring slots (idempotent, and may differ per process). <strong>Turning it
-    /// off disables crash recovery:</strong> <c>sys.recovery</c> alone marks dead workers and reclaims their in-flight
-    /// jobs, so without it a dead worker's jobs stay <c>Executing</c> forever; the runtime warns at startup, and
-    /// "driven externally" means you wrote the reclaim sweep yourself. <c>sys.outbox</c> registers only with
-    /// <c>AddOutboxRelay</c>, which re-registers <c>sys.recovery</c> and <c>sys.alerts</c> even when this is false.
+    /// When <c>true</c> (default), each worker namespace auto-registers <c>sys.alerts</c> and <c>sys.retention</c>
+    /// with their recurring slots (idempotent, and may differ per process), and the worker runs crash recovery.
+    /// <strong>Turning it off disables crash recovery:</strong> crash recovery alone marks dead workers and reclaims
+    /// their in-flight jobs, so without it a dead worker's jobs stay <c>Executing</c> forever; the runtime warns at
+    /// startup, and "driven externally" means you wrote the reclaim sweep yourself. <c>sys.outbox</c> registers only
+    /// with <c>AddOutboxRelay</c>, which brings crash recovery and <c>sys.alerts</c> even when this is false.
     /// </summary>
     public bool RegisterSystemJobs { get; set; } = true;
 

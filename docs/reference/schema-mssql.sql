@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 76)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 77)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -3523,7 +3523,8 @@ CREATE OR ALTER PROCEDURE acta.extend_worker_leases
     @p_lease_ttl_seconds INT,
     @p_draining BIT,
     @p_executions NVARCHAR(MAX),
-    @p_locks NVARCHAR(MAX)
+    @p_locks NVARCHAR(MAX),
+    @p_recovery_interval_seconds INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3607,12 +3608,25 @@ BEGIN
             r.leased_by_worker_id = @p_leased_by_worker_id
             AND r.status_code = 50 /* JobStatusCode.Executing */;
 
+        -- Takes the namespace's recovery pass when it is due, moving the next one an interval out; this worker runs it.
+        -- A namespace row another transaction holds is skipped, so the heartbeat never waits on it.
+        DECLARE @recovery_claimed BIT = 0;
+        IF @p_recovery_interval_seconds IS NOT NULL
+            BEGIN
+                UPDATE n
+                SET recovery_due_at_utc = DATEADD(SECOND, @p_recovery_interval_seconds, @now)
+                FROM acta.namespaces n WITH (ROWLOCK, READPAST)
+                WHERE n.id = @namespace_id AND (n.recovery_due_at_utc IS NULL OR n.recovery_due_at_utc <= @now);
+                SET @recovery_claimed = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;
+            END;
+
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
             CAST(NULL AS INT) AS execution_number,
             l.lock_key,
             CAST(1 AS BIT) AS renewed,
-            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc
+            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
+            CAST(0 AS BIT) AS recovery_claimed
         FROM @lock_renewed l
         UNION ALL
         SELECT
@@ -3620,7 +3634,8 @@ BEGIN
             m.execution_number,
             CAST(NULL AS VARCHAR(256)),
             CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
-            CAST(NULL AS DATETIME2(3))
+            CAST(NULL AS DATETIME2(3)),
+            CAST(0 AS BIT)
         FROM @matched m
         LEFT JOIN @renewed n ON n.job_id = m.job_id
         UNION ALL
@@ -3630,7 +3645,8 @@ BEGIN
             CAST(NULL AS INT) AS execution_number,
             CAST(NULL AS VARCHAR(256)) AS lock_key,
             CAST(0 AS BIT) AS renewed,
-            MAX(d.modified_at_utc) AS definitions_modified_at_utc
+            MAX(d.modified_at_utc) AS definitions_modified_at_utc,
+            @recovery_claimed AS recovery_claimed
         FROM acta.definitions d
         WHERE d.namespace_id = @namespace_id;
 
@@ -4614,7 +4630,7 @@ BEGIN
             NULL,
             NULL,
             67 /* EventReasonCode.JobLaneRepaired */,
-            N'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
+            N'Lane had no live head; crash recovery released its lowest Blocked member.'
         FROM @repaired x
         INNER JOIN acta.jobs j ON j.id = x.id
         INNER JOIN acta.runtimes r ON r.job_id = x.id
@@ -4740,7 +4756,7 @@ BEGIN
                what tells the two messages apart. */
             CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
                 THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
-                ELSE N'Worker lease expired; reclaimed by the sys.recovery system job.'
+                ELSE N'Worker lease expired; reclaimed by crash recovery.'
             END
         FROM @reclaimed
         WHERE audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
@@ -5279,79 +5295,6 @@ BEGIN
     END CATCH;
 END;
 GO
--- Re-arms one namespace's sys.recovery slot when it is stranded; see Execution.RepairRecoverySlotAsync.
-CREATE OR ALTER PROCEDURE acta.repair_recovery_slot
-    @p_namespace_id INT,
-    @p_job_id BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL, from_status TINYINT NOT NULL);
-
-        UPDATE r
-        SET
-            status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = @now,
-            failure_count = r.failure_count + 1,
-            leased_by_worker_id = NULL,
-            lease_expires_at_utc = NULL,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT inserted.job_id, deleted.execution_number, deleted.status_code INTO @repaired (job_id, execution_number, from_status)
-        FROM acta.runtimes r WITH (FORCESEEK)
-        WHERE
-            r.job_id = @p_job_id
-            AND r.namespace_id = @p_namespace_id
-            AND r.status_code = 50 /* JobStatusCode.Executing */
-            AND r.lease_expires_at_utc IS NOT NULL
-            AND r.lease_expires_at_utc < @now;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id, tenant_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        SELECT
-            41 /* EventCode.JobExecutionFinished */, @now, j.namespace_id,
-            10 /* ActorCode.Sys */, NULL,
-            j.id, j.job_ref, x.execution_number,
-            COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
-            NULL,
-            x.from_status, 10 /* JobStatusCode.Ready */,
-            230 /* ExecutionStatusCode.Orphaned */, NULL,
-            21 /* EventReasonCode.JobLeaseExpired */,
-            N'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
-        FROM @repaired x
-        INNER JOIN acta.jobs j ON j.id = x.job_id;
-
-        SELECT CASE
-            WHEN EXISTS (SELECT 1 FROM @repaired) THEN 2 /* RepairRecoverySlotOutcomeCode.Repaired */
-            WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = @p_job_id AND r.namespace_id = @p_namespace_id) THEN 1 /* RepairRecoverySlotOutcomeCode.Healthy */
-            ELSE 0 /* RepairRecoverySlotOutcomeCode.Missing */ END AS outcome;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
@@ -5855,9 +5798,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.76-fec9d69b6b7686146a350985c14e83af', 'acta'
+SELECT -1, 'objects-1.77-87035acb8787b170d4b7aa0906f28980', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_step', 'update_alert_delivery', 'wait_signal')) = 37;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'reserve_rate', 'resolve_alerts', 'start_step', 'update_alert_delivery', 'wait_signal')) = 36;
 GO
 COMMIT TRANSACTION;
 GO

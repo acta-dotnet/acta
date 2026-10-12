@@ -52,7 +52,7 @@ internal sealed class WorkerRuntimeHost(
     /// in-flight leases while handlers run to completion; once every runtime reports no in-flight work the base
     /// <see cref="BackgroundService"/> cancels <see cref="ExecuteAsync"/> and each worker is stamped <c>Stopped</c>. The
     /// in-flight wait is bounded by the host's shutdown token (<c>HostOptions.ShutdownTimeout</c>); past it the base
-    /// stop cancels the stragglers and <c>sys.recovery</c> reclaims them. The Draining and Stopped writes share a short
+    /// stop cancels the stragglers and crash recovery reclaims them. The Draining and Stopped writes share a short
     /// timeout on that deadline and a failed one never blocks the others; a hard kill skips this path, and the worker is reaped Dead.
     /// </summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
@@ -159,7 +159,7 @@ internal sealed class WorkerRuntimeHost(
     /// the host shutdown token. Awaiting the loop (not a sampled in-flight count) so
     /// channel-buffered claims are run too. A drain that does not finish within
     /// HostOptions.ShutdownTimeout cancels the token; the base stop then ends the stragglers and
-    /// sys.recovery reclaims them.
+    /// crash recovery reclaims them.
     /// </summary>
     private async Task WaitForDrainAsync(CancellationToken cancellationToken)
     {

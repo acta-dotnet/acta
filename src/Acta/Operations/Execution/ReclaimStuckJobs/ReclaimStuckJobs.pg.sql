@@ -183,7 +183,7 @@ BEGIN
         NULL,
         NULL,
         67 /* EventReasonCode.JobLaneRepaired */,
-        'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
+        'Lane had no live head; crash recovery released its lowest Blocked member.'
     FROM {{schema}}.jobs j
     INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
     WHERE
@@ -309,7 +309,7 @@ BEGIN
                what tells the two messages apart. */
             CASE WHEN r.new_status = 20 /* JobStatusCode.Suspended */
                 THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
-                ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
+                ELSE 'Worker lease expired; reclaimed by crash recovery.' END
         FROM reclaimed r
         WHERE r.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */)
     )

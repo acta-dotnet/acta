@@ -184,8 +184,8 @@ WHERE  s.status_code = 100
 -- whose chaos was demonstrably real. It is reported as a number, never asserted.
 --
 -- Note what this implies about run length, with the real numbers: JobsOptions.LeaseTtlSeconds
--- defaults to 180 and sys.recovery fires once a minute, so a killed worker's job is not reclaimable
--- for up to ~4 minutes. A workload that drains faster than that reports zero reclaims no matter how
+-- defaults to 180 and the recovery pass runs once a lease, so a killed worker's job is not reclaimable
+-- for up to ~6 minutes. A workload that drains faster than that reports zero reclaims no matter how
 -- many workers were killed, and that is INCONCLUSIVE, not PASS. Size the run by duration against
 -- that floor, never by job count: a 1,000-job crash run drains in ~3.5 minutes and can finish before
 -- the first lease lapses.

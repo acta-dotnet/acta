@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
 
 /// <summary>
 /// Conformance for system-job auto-registration: <c>InitializeAsync</c> registers the
-/// <c>sys.recovery</c> system definition, its recurring slot (deduplication_key = the job name), and its
+/// <c>sys.alerts</c> system definition, its recurring slot (deduplication_key = the job name), and its
 /// schedule into the worker's namespace. The one spec that opts back into
 /// <see cref="ActaRuntimeTestBase{ConformanceFixture,TManifest}.RegisterSystemJobs"/>; every other execution
 /// spec keeps the slots out so a single drive deterministically claims its own probe.
@@ -24,21 +24,19 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
     protected override bool RegisterSystemJobs => true;
 
-    [Fact(
-        DisplayName = "Init makes the sys.recovery definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule"
-    )]
+    [Fact(DisplayName = "Init makes the sys.alerts definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule")]
     public async Task Initialize_auto_registers_the_maintenance_system_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.alerts").SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
         // The recurring slot job carries the job name as its deduplication_key.
         var slot = await Db.From<JobEntity>()
-            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.recovery")
+            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.alerts")
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);

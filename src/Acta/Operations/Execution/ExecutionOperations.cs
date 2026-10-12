@@ -1,15 +1,15 @@
 namespace Acta;
 
 /// <summary>
-/// The execution runtime's writes and reads: the claim scan and by-id claim, the batched completion, the stuck-job reclaim, the durable step transitions, and the durable-context
-/// subfeatures (checkpoint slot CRUD, child-latch reads, sleep-timer arm/consume).
+/// The execution runtime's writes and reads: the claim scan and by-id claim, the batched completion, the stuck-job
+/// reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint slot CRUD, child-latch reads,
+/// sleep-timer arm/consume).
 /// </summary>
 internal sealed class ExecutionOperations(
     ClaimJobsHandler claimJobs,
     ClaimJobHandler claimJob,
     CompleteExecutionsHandler completeExecutions,
     ReclaimStuckJobsHandler reclaimStuckJobs,
-    RepairRecoverySlotHandler repairRecoverySlot,
     StartStepHandler startStep,
     CompleteStepHandler completeStep,
     AccessCheckpointHandler accessCheckpoint,
@@ -54,16 +54,6 @@ internal sealed class ExecutionOperations(
     /// </summary>
     public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
-
-    /// <summary>
-    /// Re-arms the namespace's <c>sys.recovery</c> slot when it is in flight under a lapsed lease, in one
-    /// guarded update that records the lost attempt's finished event in the same transaction. The
-    /// guard reads the lease against database time inside the statement, so a heartbeat that renewed
-    /// it is never overtaken and two workers checking at once commit one repair between them. Reports
-    /// whether the row was missing, healthy, or repaired; a missing slot is never recreated here.
-    /// </summary>
-    public Task<RepairRecoverySlotResponse> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
-        repairRecoverySlot.HandleAsync(new RepairRecoverySlotCommand(namespaceId, jobId), ct);
 
     /// <summary>
     /// Reads or inserts the <c>(job_id, name)</c> step slot under a job-row lock and decides

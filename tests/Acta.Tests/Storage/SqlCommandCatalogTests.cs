@@ -35,7 +35,6 @@ public sealed class SqlCommandCatalogTests
         "RegisterDefinitions",
         "RegisterSchedules",
         "ReleaseLock",
-        "RepairRecoverySlot",
         "ReserveRate",
         "ResolveAlerts",
         "StartStep",

@@ -16,6 +16,7 @@ WHERE id = @p_leased_by_worker_id;
 -- The answer is the last result set, so the locks and rows to renew are captured before the updates.
 DROP TABLE IF EXISTS temp._ewl_locks;
 DROP TABLE IF EXISTS temp._ewl_renewed;
+DROP TABLE IF EXISTS temp._ewl_recovery;
 
 -- Lock holds renew first: a hold whose token moved is not answered, and the attempt that relied on it stops.
 CREATE TEMP TABLE _ewl_locks AS
@@ -49,10 +50,30 @@ UPDATE {{schema}}.runtimes
 SET lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000
 WHERE job_id IN (SELECT job_id FROM temp._ewl_renewed);
 
-SELECT NULL AS job_id, NULL AS execution_number, l.lock_key, 1 AS renewed, NULL AS definitions_modified_at_utc
+-- Takes the namespace's recovery pass when it is due, moving the next one an interval out; this worker runs it.
+-- The script holds the one write lock, so reading the due time and moving it cannot interleave with another worker.
+CREATE TEMP TABLE _ewl_recovery AS
+SELECT n.id
+FROM {{schema}}.namespaces n
+WHERE
+    @p_recovery_interval_seconds IS NOT NULL
+    AND n.id = (SELECT w.namespace_id FROM {{schema}}.workers w WHERE w.id = @p_leased_by_worker_id)
+    AND (n.recovery_due_at_utc IS NULL OR n.recovery_due_at_utc <= {{now}});
+
+UPDATE {{schema}}.namespaces
+SET recovery_due_at_utc = {{now}} + @p_recovery_interval_seconds * 1000
+WHERE id IN (SELECT id FROM temp._ewl_recovery);
+
+SELECT
+    NULL AS job_id,
+    NULL AS execution_number,
+    l.lock_key,
+    1 AS renewed,
+    NULL AS definitions_modified_at_utc,
+    0 AS recovery_claimed
 FROM temp._ewl_locks l
 UNION ALL
-SELECT n.job_id, n.execution_number, NULL, 1, NULL
+SELECT n.job_id, n.execution_number, NULL, 1, NULL, 0
 FROM temp._ewl_renewed n
 UNION ALL
 -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
@@ -61,6 +82,7 @@ SELECT
     NULL AS execution_number,
     NULL AS lock_key,
     0 AS renewed,
-    MAX(d.modified_at_utc) AS definitions_modified_at_utc
+    MAX(d.modified_at_utc) AS definitions_modified_at_utc,
+    (SELECT COUNT(*) FROM temp._ewl_recovery) AS recovery_claimed
 FROM {{schema}}.definitions d
 WHERE d.namespace_id = (SELECT w.namespace_id FROM {{schema}}.workers w WHERE w.id = @p_leased_by_worker_id);

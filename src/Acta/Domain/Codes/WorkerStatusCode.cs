@@ -22,6 +22,6 @@ public enum WorkerStatusCode : byte
     [Code("stopped", "Worker shut down cleanly; terminal success.")]
     Stopped = 100,
 
-    [Code("dead", "Heartbeat went stale; sys.recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again.")]
+    [Code("dead", "Heartbeat went stale; crash recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again.")]
     Dead = 200,
 }

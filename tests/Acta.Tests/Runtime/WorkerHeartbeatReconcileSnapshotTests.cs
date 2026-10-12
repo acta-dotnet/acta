@@ -34,6 +34,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
             registration,
             context,
             registry,
+            recoveryPass: null!,
             NullLogger.Instance
         );
 

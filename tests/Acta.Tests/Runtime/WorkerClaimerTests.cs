@@ -114,7 +114,7 @@ public sealed class WorkerClaimerTests
         context.WorkerIdByNamespace[Namespace] = 1;
         var options = new JobsOptions { SafetyPollInterval = safetyPoll, MaxConcurrentExecutors = executors };
         var registry = new InFlightJobRegistry(options);
-        return (new WorkerClaimer(store.Execution(), executor: null!, options, context, registry, new IdleWakeup(), log), registry);
+        return (new WorkerClaimer(store.Execution(), options, context, registry, new IdleWakeup(), log), registry);
     }
 
     private static async Task WaitUntil(Func<bool> condition, TimeSpan timeout)

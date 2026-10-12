@@ -757,7 +757,7 @@ public sealed record BenchHostOptions
     /// <summary>Set to 0 for the purge scenario so every event qualifies as expired; null keeps the default.</summary>
     public int? JobEventsRetentionDays { get; init; }
 
-    /// <summary>Recovery and purge need the system <c>sys.recovery</c> / <c>sys.retention</c> jobs.</summary>
+    /// <summary>Recovery and purge need crash recovery and the <c>sys.retention</c> job.</summary>
     public bool RegisterSystemJobs { get; init; }
 
     public BenchWakeupMode Wakeup { get; init; } = BenchWakeupMode.InProcess;
@@ -820,9 +820,6 @@ public sealed class BenchHost : IAsyncDisposable
 
     /// <summary>The blocking probe job name used by the recovery scenario.</summary>
     public const string BlockJobName = "bench-block";
-
-    /// <summary>The system recovery job; enqueued by the recovery scenario to force a reclaim sweep.</summary>
-    public const string RecoveryJobName = "sys.recovery";
 
     /// <summary>The system retention job; enqueued by the purge scenario to sweep expired data.</summary>
     public const string RetentionJobName = "sys.retention";

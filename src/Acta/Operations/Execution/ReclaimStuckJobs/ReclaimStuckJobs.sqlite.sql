@@ -105,7 +105,7 @@ SELECT
     NULL,
     NULL,
     67 /* EventReasonCode.JobLaneRepaired */,
-    'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
+    'Lane had no live head; crash recovery released its lowest Blocked member.'
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN temp._repair_lanes rl ON rl.id = j.id
@@ -201,7 +201,7 @@ SELECT
     21 /* EventReasonCode.JobLeaseExpired */,
     CASE WHEN rj.wait_resolved = 1
         THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
-        ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
+        ELSE 'Worker lease expired; reclaimed by crash recovery.' END
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN temp._reclaim_jobs rj ON rj.id = j.id

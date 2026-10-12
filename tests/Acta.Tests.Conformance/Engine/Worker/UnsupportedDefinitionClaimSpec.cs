@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// a job with no handler behind it. The contract is that the claim is handed back: Ready, lease
 /// cleared, retry budget untouched, due again after a short delay. Refusing it by throwing would
 /// leave the row leased instead, because the claim has already stamped the lease, until it lapsed
-/// for <c>sys.recovery</c> to reclaim.
+/// for crash recovery to reclaim.
 /// <para>The bounce also teaches the worker: the definition is excluded from its later claims, so the
 /// cost of an incapable deployment is one bounce per definition rather than one per job per
 /// safety-poll interval. The exclusion is per process and reaches the scanning claim only - a caller

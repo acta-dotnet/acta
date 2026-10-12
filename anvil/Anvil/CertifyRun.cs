@@ -16,55 +16,13 @@ namespace Anvil;
 /// collide on here.
 /// </para>
 /// <para>
-/// The other reason is that the timings stop being copied. The warm-up window is
-/// <c>LeaseTtlSeconds</c> plus the recovery cadence, both read from the running configuration rather
-/// than pasted into a script that goes stale the moment either is tuned.
+/// The other reason is that the timings stop being copied. The warm-up window is two leases: a killed
+/// worker's lease lapses within one, and the recovery pass that reclaims it runs once a lease. Both come
+/// from the running configuration rather than a script that goes stale the moment the heartbeat is tuned.
 /// </para>
 /// </remarks>
 internal static class CertifyRun
 {
-    // Fallback only, used when sys.recovery's schedule cannot be read. Never the source of truth:
-    // a hardcoded cadence here would be the same copied constant this class exists to remove, one
-    // level down, and it would silently mis-size the warm-up the moment the schedule changed.
-    private static readonly TimeSpan RecoveryCadenceFallback = TimeSpan.FromMinutes(1);
-
-    /// <summary>
-    /// The real cadence of <c>sys.recovery</c>, taken from its registered schedule and measured as
-    /// the gap between its next two firings rather than assumed from the cron text.
-    /// </summary>
-    private static async Task<TimeSpan> RecoveryCadenceAsync(IServiceScopeFactory scopes, string jobNamespace, CancellationToken ct)
-    {
-        try
-        {
-            using var scope = scopes.CreateScope();
-            var operations = scope.ServiceProvider.GetRequiredService<IActaOperations>();
-            var page = await operations.Schedules.ListAsync(
-                new ListSchedulesQuery(JobNamespace: jobNamespace, JobName: "sys.recovery", PageSize: 1),
-                ct
-            );
-            if (page.Items is [{ Expression: { Length: > 0 } expression }, ..])
-            {
-                var cron = Cronos.CronExpression.Parse(
-                    expression,
-                    expression.Split(' ').Length > 5 ? Cronos.CronFormat.IncludeSeconds : Cronos.CronFormat.Standard
-                );
-                var first = cron.GetNextOccurrence(DateTime.UtcNow);
-                var second = first is { } f ? cron.GetNextOccurrence(f) : null;
-                if (first is { } a && second is { } b)
-                {
-                    return b - a;
-                }
-            }
-        }
-        catch
-        {
-            // A lab tool must not fail a run because it could not read a schedule; the fallback is
-            // the shipped default and the header prints whatever was used.
-        }
-
-        return RecoveryCadenceFallback;
-    }
-
     public static async Task<int> ExecuteAsync(
         IServiceProvider services,
         RunIdentity id,
@@ -123,13 +81,10 @@ internal static class CertifyRun
             return 1;
         }
 
-        // Read AFTER registration, not before: the worker registers sys.recovery's schedule at
-        // startup, so reading earlier finds nothing and silently falls back - which is exactly what
-        // happened the first time, printing the default while the schedule said otherwise.
-        var cadence = await RecoveryCadenceAsync(scopes, id.Namespace, ct);
-        var warmUp = TimeSpan.FromSeconds(options.LeaseTtlSeconds) + cadence;
+        // A killed worker's lease lapses within one lease, and the recovery pass runs once a lease.
+        var warmUp = TimeSpan.FromSeconds(2 * options.LeaseTtlSeconds);
         Console.WriteLine(
-            $"  Reclaim is impossible for the first {warmUp.TotalSeconds:0}s (lease {options.LeaseTtlSeconds}s + recovery cadence {cadence.TotalSeconds:0}s)"
+            $"  Reclaim is impossible for the first {warmUp.TotalSeconds:0}s (lease {options.LeaseTtlSeconds}s + one recovery interval, the lease)"
         );
 
         if (chaos <= warmUp)
@@ -322,7 +277,7 @@ internal static class CertifyRun
     // Resolving it from the root provider worked only outside Development, where scope validation is
     // off - in Development the certification aborted at its first read.
     // Quiesce asks about THIS run's seeded work, not the namespace: the namespace always holds the
-    // recurring jobs (sys.recovery, sys.alerts, sys.retention, sys.outbox, and Anvil's own pulse),
+    // recurring jobs (sys.alerts, sys.retention, sys.outbox, and Anvil's own pulse),
     // which sit Ready between firings forever. Waiting for a namespace-wide ready count of zero
     // therefore never completed - it timed out at 10000 of 10000 jobs done with five schedules
     // parked. The seeder stamps every job it enqueues with the run id as its correlation key, so

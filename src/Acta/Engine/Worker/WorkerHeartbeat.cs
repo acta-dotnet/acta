@@ -5,12 +5,12 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one
-/// <see cref="WorkersOperations.ExtendWorkerLeasesAsync"/> call stamps <c>workers.last_seen_at_utc</c> and renews every lock
-/// hold and execution lease this process holds, so a leased row nothing holds lapses to recovery. It re-arms a running
-/// attempt's lease deadline on a confirmed renewal, cancels one whose execution or held lock an authoritative refresh
-/// drops, and re-overlays the definitions' effective policy when the namespace's catalog changed. A call that throws
-/// moves no deadline, so an outage cancels each attempt by its deadline alone; a no-op in enqueue-only mode.
+/// The worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> one call stamps <c>last_seen_at_utc</c>
+/// and renews every lock hold and execution lease this process holds, so a leased row nothing holds lapses to recovery;
+/// it re-arms a renewed attempt's deadline, cancels one the refresh drops, and re-overlays a changed catalog, and a
+/// call that throws moves no deadline. The same call takes the namespace's recovery pass when it is due, moving it one
+/// lease on, and this worker runs <see cref="RecoveryPass"/> beside the loop: one worker per pass, a busy worker still
+/// sweeps, and one that dies mid-pass holds nothing back.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     WorkersOperations workers,
@@ -19,7 +19,9 @@ internal sealed class WorkerHeartbeat(
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     InFlightJobRegistry registry,
-    ILogger log
+    RecoveryPass recoveryPass,
+    ILogger log,
+    ActaMetrics? metrics = null
 )
 {
     private readonly WorkersOperations _workers = workers;
@@ -30,6 +32,9 @@ internal sealed class WorkerHeartbeat(
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly TimeSpan _leaseRunway = InFlightJob.LeaseRunway(options.Value);
+
+    // The recovery passes this loop took, chained so one runs at a time; the beat never waits on one.
+    private Task _recovery = Task.CompletedTask;
 
     // The namespace's newest definitions.modified_at_utc at the last overlay. Touched only under the tick gate.
     private DateTime? _definitionsModifiedAtUtc;
@@ -64,7 +69,7 @@ internal sealed class WorkerHeartbeat(
             // interval (PeriodicTimer fires after one period).
             try
             {
-                await TickAsync(ct);
+                await TickAsync(takeRecovery: true, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -81,7 +86,7 @@ internal sealed class WorkerHeartbeat(
             {
                 try
                 {
-                    await TickAsync(ct);
+                    await TickAsync(takeRecovery: true, ct);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -96,6 +101,10 @@ internal sealed class WorkerHeartbeat(
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // Normal shutdown.
+        }
+        finally
+        {
+            await _recovery;
         }
     }
 
@@ -114,16 +123,18 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        await TickAsync(ct);
+        await TickAsync(takeRecovery: false, ct);
     }
 
     /// <summary>
     /// One worker-heartbeat pass: renew the leases of the executions this process holds, re-arm each still-owned
     /// entry's lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
-    /// when it changed. The deterministic single-shot the loop drives per tick; tests drive it via
-    /// WorkerRuntime.RunHeartbeatOnceAsync.
+    /// when it changed. The deterministic single-shot tests drive via WorkerRuntime.RunHeartbeatOnceAsync; it takes no
+    /// recovery pass, which only the loop does.
     /// </summary>
-    public async Task TickAsync(CancellationToken ct)
+    public Task TickAsync(CancellationToken ct) => TickAsync(takeRecovery: false, ct);
+
+    private async Task TickAsync(bool takeRecovery, CancellationToken ct)
     {
         // Refresh every worker's leases first and union the still-owned ids, THEN feed once: the registry
         // holds every worker's jobs, so feeding per worker would see another worker's jobs as "dropped" and
@@ -157,9 +168,18 @@ internal sealed class WorkerHeartbeat(
             DateTime? definitionsModifiedAtUtc = null;
             try
             {
-                foreach (var workerId in _context.WorkerIdByNamespace.Values)
+                // A draining worker takes no new pass: it is about to stop, and the pass would hold up its exit.
+                int? recoveryInterval = takeRecovery && _context.RunsRecovery && !_draining ? _leaseTtlSeconds : null;
+                foreach (var (namespaceName, workerId) in _context.WorkerIdByNamespace)
                 {
-                    var answer = await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, held, heldLocks, ct);
+                    var answer = await _workers.ExtendWorkerLeasesAsync(
+                        new ExtendWorkerLeasesCommand(workerId, _leaseTtlSeconds, _draining, held, heldLocks, recoveryInterval),
+                        ct
+                    );
+                    if (answer.RecoveryClaimed)
+                    {
+                        RunRecovery(namespaceName, ct);
+                    }
                     renewedLocks.UnionWith(answer.RenewedLockKeys);
                     definitionsModifiedAtUtc = answer.DefinitionsModifiedAtUtc;
                     foreach (var lease in answer.Leases)
@@ -192,6 +212,46 @@ internal sealed class WorkerHeartbeat(
         {
             _tickGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Runs the pass this loop's call took, after any earlier one, on a task of its own. A pass that fails waits out
+    /// the interval its call already moved, like any worker's; a hard stop cancels it, and the next pass falls to
+    /// whichever worker takes it when it comes due.
+    /// </summary>
+    private void RunRecovery(string namespaceName, CancellationToken ct)
+    {
+        if (!_context.NamespaceIds.TryGetValue(namespaceName, out var namespaceId))
+        {
+            return;
+        }
+
+        var previous = _recovery;
+        _recovery = Task.Run(
+            async () =>
+            {
+                await previous;
+                try
+                {
+                    await recoveryPass.RunAsync(namespaceId, namespaceName, ct);
+                    metrics?.RecordRecoveryPass(namespaceName, "completed");
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // A hard stop; the next pass falls to whichever worker takes it.
+                }
+                catch (Exception ex)
+                {
+                    metrics?.RecordRecoveryPass(namespaceName, "failed");
+                    _log.LogError(
+                        ex,
+                        "Namespace ({Namespace}): the recovery pass failed; the next one runs when it comes due.",
+                        namespaceName
+                    );
+                }
+            },
+            CancellationToken.None
+        );
     }
 
     /// <summary>

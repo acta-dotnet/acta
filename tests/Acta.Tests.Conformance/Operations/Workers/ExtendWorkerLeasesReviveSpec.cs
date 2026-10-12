@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
 /// Conformance for a heartbeat that reaches a worker already marked Dead (<c>extend_worker_leases</c>): a
-/// database outage longer than the dead-after window lets <c>sys.recovery</c> mark a live fleet Dead, and
+/// database outage longer than the dead-after window lets crash recovery mark a live fleet Dead, and
 /// the first heartbeat after it makes each worker Active again, or Draining when it is mid-drain, so a later
 /// clean stop still lands Stopped. The rows are set Dead directly rather than aged and swept, so no sibling
 /// spec's global sweep can race the arrangement.

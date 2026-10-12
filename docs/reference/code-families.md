@@ -222,7 +222,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ScheduleTriggered` | 104 | `schedule.triggered` | Operator fired a schedule manually; the slot's cursor was pulled to now. ReasonMessage carries the schedule name. | Active |
 | `WorkerStarted` | 120 | `worker.started` | Worker process registered; a workers row was appended (Status: Active). | Active |
 | `WorkerStopped` | 121 | `worker.stopped` | Worker process shut down cleanly (Status: Active/Draining to Stopped). | Active |
-| `WorkerDied` | 122 | `worker.died` | Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead. | Active |
+| `WorkerDied` | 122 | `worker.died` | Worker heartbeat went stale; crash recovery flipped the worker to Dead. | Active |
 | `AlertAcknowledged` | 140 | `alert.acknowledged` | Operator acknowledged an alert; ReasonMessage carries the alert id and note. | Active |
 | `AlertResolved` | 141 | `alert.resolved` | Operator manually resolved an alert; ReasonMessage carries the alert id and note. | Active |
 | `OutboxRequeued` | 180 | `outbox.requeued` | An operator command returned quarantined outbox rows to Pending; ReasonMessage carries the justification and the row ids. | Active |
@@ -241,7 +241,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Reason id not recognized by this build; the row was written by a newer Acta. | Active |
 | `Unclassified` | 10 | `job.unclassified` | None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage. | Active |
 | `JobUnhandledException` | 20 | `job.unhandled-exception` | Handler threw an exception that was not raised via ctx.Fail. | Active |
-| `JobLeaseExpired` | 21 | `job.lease-expired` | Worker lease expired; the sys.recovery system job reclaimed the Job. | Active |
+| `JobLeaseExpired` | 21 | `job.lease-expired` | Worker lease expired; crash recovery reclaimed the Job. | Active |
 | `JobExecutionTimeout` | 22 | `job.execution-timeout` | Execution exceeded JobDefinition.ExecutionTimeout for this attempt. | Active |
 | `JobNonRetryableException` | 23 | `job.non-retryable-exception` | Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException); terminal Failed without consuming the retry budget. | Active |
 | `JobDeadlineExceeded` | 24 | `job.deadline-exceeded` | Job passed its whole-job deadline; the engine terminated it Cancelled without consuming the retry budget. | Active |
@@ -262,9 +262,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobResultOversized` | 64 | `job.result-oversized` | The handler returned successfully but its serialized result exceeded MaxInlinePayloadBytes, so the body was dropped rather than persisted. The job still succeeded; a typed read of the missing result throws. | Active |
 | `JobWaitTimedOut` | 65 | `job.wait-timed-out` | A durable wait (signal or child) passed the absolute expiration stored on its checkpoint slot before it was satisfied. An expired signal wait terminates the waiting Job Cancelled; an expired child wait leaves the waiting Job running and cancels the abandoned child and its descendants. Neither consumes the retry budget. | Active |
 | `JobRateLimited` | 66 | `job.rate-limited` | A claimed job reached its definition's rate limit at execution admission; the meter reserved its turn and the job re-armed Ready at exactly that instant (budget-neutral). Not a failure: it never writes a Failures-level event and never raises an alert. | Active |
-| `JobLaneRepaired` | 67 | `job.lane-repaired` | The Job's lane had no live head: its lowest-id unfinished member was Blocked with nothing ahead to settle. The sys.recovery system job released that member to Ready. | Active |
+| `JobLaneRepaired` | 67 | `job.lane-repaired` | The Job's lane had no live head: its lowest-id unfinished member was Blocked with nothing ahead to settle. Crash recovery released that member to Ready. | Active |
 | `WorkerCleanShutdown` | 100 | `worker.clean-shutdown` | Worker process exited cleanly via SIGTERM / IHostedService.StopAsync. | Active |
-| `WorkerHeartbeatStale` | 101 | `worker.heartbeat-stale` | Worker heartbeat exceeded the liveness window; the sys.recovery system job flipped Status to Dead. | Active |
+| `WorkerHeartbeatStale` | 101 | `worker.heartbeat-stale` | Worker heartbeat exceeded the liveness window; crash recovery flipped Status to Dead. | Active |
 
 ### `ExecutionStatusCode` · `execution-status` <a id="code-family-executionstatuscode"></a>
 
@@ -278,7 +278,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Paused` | 152 | `paused` | Handler threw PauseJobException. | Active |
 | `Failed` | 200 | `failed` | Handler threw or ctx.Fail called. Charges failure budget. | Active |
 | `Cancelled` | 220 | `cancelled` | Handler ended via cancel; does not charge budget. | Active |
-| `Orphaned` | 230 | `orphaned` | Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget only for an attempt that had started. | Active |
+| `Orphaned` | 230 | `orphaned` | Lease lapsed past grace; reclaimed by crash recovery and charged to the failure budget. | Active |
 
 ### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
 
@@ -403,5 +403,5 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Active` | 10 | `active` | Polling claim; accepting work. | Active |
 | `Draining` | 80 | `draining` | Worker stopped polling; finishing in-flight. | Active |
 | `Stopped` | 100 | `stopped` | Worker shut down cleanly; terminal success. | Active |
-| `Dead` | 200 | `dead` | Heartbeat went stale; sys.recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again. | Active |
+| `Dead` | 200 | `dead` | Heartbeat went stale; crash recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again. | Active |
 

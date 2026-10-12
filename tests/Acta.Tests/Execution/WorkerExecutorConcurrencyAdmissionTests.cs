@@ -87,13 +87,13 @@ public sealed class WorkerExecutorConcurrencyAdmissionTests
     {
         // The default key is the definition name, and a system job may carry a limit; the public
         // system-prefix rule belongs to enqueue keys, which were validated there already. A rejection
-        // here would bounce every attempt of sys.recovery without ever running it.
-        var harness = new WorkerExecutorHarness(concurrencyLimit: 2, jobName: "sys.recovery");
+        // here would bounce every attempt of sys.retention without ever running it.
+        var harness = new WorkerExecutorHarness(concurrencyLimit: 2, jobName: "sys.retention");
 
         var outcome = await harness.RunAsync();
 
         Assert.Equal(RunOnceStatus.Completed, outcome);
-        Assert.EndsWith(".sem.sys.recovery", Assert.Single(harness.SlotRequests).KeyPrefix, StringComparison.Ordinal);
+        Assert.EndsWith(".sem.sys.retention", Assert.Single(harness.SlotRequests).KeyPrefix, StringComparison.Ordinal);
     }
 
     [Fact]

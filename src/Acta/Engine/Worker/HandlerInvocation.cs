@@ -51,7 +51,7 @@ internal sealed class HandlerInvocation(
                 // Worker shutdown cancelled this attempt: the worker token itself is cancelled, not
                 // just the per-attempt token (an external operator cancel or a stolen lease cancels
                 // only the attempt token via the heartbeat, leaving ct live). Leave the row Executing
-                // and write NOTHING - sys.recovery reclaims it after the lease lapses, honoring the
+                // and write NOTHING - crash recovery reclaims it after the lease lapses, honoring the
                 // documented worker-shutdown -> retry/reclaim contract; completing here would finalize a
                 // never-failed attempt as terminal Failed.
                 log.LogInformation("WorkerRuntime: job {JobId} interrupted by worker shutdown; left Executing for recovery.", job.JobId);

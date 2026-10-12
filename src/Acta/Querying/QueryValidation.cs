@@ -92,7 +92,7 @@ internal static class QueryValidation
 
     /// <summary>
     /// Validates an optional job-name filter and its namespace dependency.
-    /// System names such as <c>sys.recovery</c> are accepted so operators can filter system jobs.
+    /// System names such as <c>sys.retention</c> are accepted so operators can filter system jobs.
     /// Returns the name folded to lowercase, or null when input is null.
     /// </summary>
     public static string? ValidateJobName(string? value, string? namespaceValue, string paramName)

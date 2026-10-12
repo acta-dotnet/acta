@@ -233,7 +233,7 @@ public interface IJobs
     /// <summary>
     /// Explain the durable state of the job identified by <paramref name="job"/> in plain English:
     /// its status and what it means, the signal or timer it waits on, which steps ran, its execution
-    /// lease and the owning worker's liveness, what <c>sys.recovery</c> will do, and the operator's
+    /// lease and the owning worker's liveness, what crash recovery will do, and the operator's
     /// next move. Returns <c>null</c> when no row matches. Composed from the same durable rows an
     /// operator could read directly - SQL is the operational interface. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.

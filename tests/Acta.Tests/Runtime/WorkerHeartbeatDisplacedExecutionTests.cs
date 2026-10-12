@@ -37,6 +37,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
             new WorkerRegistration("orders", null, null, [], []),
             context,
             registry,
+            recoveryPass: null!,
             NullLogger.Instance
         );
 

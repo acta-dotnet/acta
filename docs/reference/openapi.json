@@ -9207,7 +9207,7 @@
             ]
           }
         },
-        "description": "The execution lease on an Executing Job and the liveness of the worker holding it. When\nbool GetJobExplanationLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on its next tick;\nstring GetJobExplanationLease.RecoveryExpectation says so in prose. string? GetJobExplanationLease.WorkerName is the worker's deployment version, and\nbool GetJobExplanationLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? GetJobExplanationLease.WorkerRef and string? GetJobExplanationLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
+        "description": "The execution lease on an Executing Job and the liveness of the worker holding it. When\nbool GetJobExplanationLease.Expired is true the lease has lapsed and crash recovery reclaims the Job on its next pass;\nstring GetJobExplanationLease.RecoveryExpectation says so in prose. string? GetJobExplanationLease.WorkerName is the worker's deployment version, and\nbool GetJobExplanationLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? GetJobExplanationLease.WorkerRef and string? GetJobExplanationLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
       },
       "GetJobExplanationResponse": {
         "required": [

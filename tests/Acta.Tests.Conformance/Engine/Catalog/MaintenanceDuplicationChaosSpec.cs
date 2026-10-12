@@ -3,7 +3,7 @@ using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Engine.Recovery;
+namespace Acta.Tests.Conformance.Engine.Catalog;
 
 [ConformanceSpec(
     "chaos.maintenance-duplication",
@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Engine.Recovery;
     Area = "Chaos",
     Contract = "Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker."
 )]
-public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A normal positive lease; the race here is decided by claim ownership.
     private const int LeaseTtlSeconds = 60;
@@ -31,7 +31,7 @@ public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 2. Registration is idempotent: one definition, one slot job, one schedule.
         var maintenanceDefinition = Assert.Single(
-            await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").ToListAsync(ct)
+            await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.retention").ToListAsync(ct)
         );
         var maintenanceJob = Assert.Single(
             await Db.From<JobEntity>().Where(j => j.NamespaceId == ns && j.DefinitionId == maintenanceDefinition.Id).ToListAsync(ct)

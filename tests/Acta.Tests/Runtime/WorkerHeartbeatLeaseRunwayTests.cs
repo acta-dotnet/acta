@@ -218,6 +218,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             Registration,
             context,
             _registry,
+            recoveryPass: null!,
             NullLogger.Instance
         );
     }

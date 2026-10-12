@@ -30,7 +30,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
 
     /// <summary>
     /// Whether <c>InitializeAsync</c> registers the system recurring slots (<c>sys.alerts</c> /
-    /// <c>sys.recovery</c> / <c>sys.retention</c>) into this test's namespace. Default <c>false</c>:
+    /// <c>sys.retention</c>) into this test's namespace. Default <c>false</c>:
     /// tests drive their own enqueued probe, and a due framework slot would otherwise race
     /// <see cref="WorkerRuntime.RunOnceAsync(string, System.Threading.CancellationToken)"/> for the
     /// claim. Specs that assert system-job behavior override to <c>true</c>.

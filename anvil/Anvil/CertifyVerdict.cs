@@ -85,7 +85,7 @@ internal static class CertifyVerdict
         if (failures is ["chaos-was-real"])
         {
             Console.WriteLine("  INCONCLUSIVE - no reclaims were observed, so the run proves nothing.");
-            Console.WriteLine("  Reclaim needs LeaseTtlSeconds (180s) plus a recovery tick: run for longer,");
+            Console.WriteLine("  Reclaim needs LeaseTtlSeconds (180s) plus one recovery interval, another lease: run for longer,");
             Console.WriteLine("  and size the run by duration rather than by job count.");
             Console.WriteLine();
             return 2;

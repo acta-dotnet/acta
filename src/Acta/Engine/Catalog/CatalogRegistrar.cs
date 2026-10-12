@@ -13,7 +13,6 @@ namespace Acta;
 internal sealed class CatalogRegistrar(
     DefinitionsOperations definitions,
     SchedulesOperations schedules,
-    ExecutionOperations execution,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     AlertRoutingCheck? alertRouting,
@@ -24,7 +23,6 @@ internal sealed class CatalogRegistrar(
 {
     private readonly DefinitionsOperations _definitions = definitions;
     private readonly SchedulesOperations _schedules = schedules;
-    private readonly ExecutionOperations _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly AlertRoutingCheck? _alertRouting = alertRouting;
@@ -82,7 +80,7 @@ internal sealed class CatalogRegistrar(
 
     public ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
     {
-        // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
+        // System jobs (e.g. sys.retention) auto-register into every worker namespace ahead
         // of the user manifests (the Acta assembly's own generated ActaJobs), so each namespace carries
         // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
         // maintenance). System jobs are identified by their reserved sys. names; every manifest's
@@ -90,15 +88,16 @@ internal sealed class CatalogRegistrar(
         var manifests = new List<JobDescriptorManifest>();
 
         var frameworkNames = SystemJobs.For(_options.Value.RegisterSystemJobs, registration.Relay is not null);
-        // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
+        // Crash recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
         // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
         // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
         // at startup instead, because someone switching these off to trim overhead is not expecting
         // to have switched off crash recovery.
-        if (!frameworkNames.Contains("sys.recovery"))
+        _context.RunsRecovery = SystemJobs.RunsRecovery(_options.Value.RegisterSystemJobs, registration.Relay is not null);
+        if (!_context.RunsRecovery)
         {
             _log.LogWarning(
-                "Namespace ({Namespace}): sys.recovery is not registered, so crashed workers are never marked dead and their "
+                "Namespace ({Namespace}): crash recovery is off, so crashed workers are never marked dead and their "
                     + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
                     + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
                 ns
@@ -405,29 +404,6 @@ internal sealed class CatalogRegistrar(
         foreach (var slot in slots)
         {
             _context.RecurringSlotJobIds[slot.SlotId] = 0;
-        }
-
-        // The recovery monitor watches exactly this row for the life of the worker, and the first
-        // check runs here, ahead of any periodic one: a slot a dead worker left in flight under a
-        // lapsed lease is re-armed at startup instead of waiting out a check interval. See
-        // RecoverySlotMonitor.
-        var recoveryDefinitionId = definitions.FirstOrDefault(d => d.JobName == "sys.recovery")?.DefinitionId;
-        if (
-            recoveryDefinitionId is { } recoveryDefId
-            && slots.Where(s => s.DefinitionId == recoveryDefId).Select(s => (long?)s.SlotId).FirstOrDefault() is { } recoverySlotId
-        )
-        {
-            _context.RecoverySlotJobIdByNamespace[namespaceId] = recoverySlotId;
-            var namespaceName = _context.NamespaceIds.First(kv => kv.Value == namespaceId).Key;
-            await RecoverySlotMonitor.CheckAndRepairAsync(
-                _execution,
-                publisher: null,
-                namespaceId,
-                namespaceName,
-                recoverySlotId,
-                _log,
-                ct
-            );
         }
     }
 

@@ -33,10 +33,7 @@ public enum ExecutionStatusCode : byte
     [Code("cancelled", "Handler ended via cancel; does not charge budget.")]
     Cancelled = 220,
 
-    [Code(
-        "orphaned",
-        "Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget only for an attempt that had started."
-    )]
+    [Code("orphaned", "Lease lapsed past grace; reclaimed by crash recovery and charged to the failure budget.")]
     Orphaned = 230,
 }
 

@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 76)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 77)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3056,14 +3056,23 @@ CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
     p_job_ids BIGINT[],
     p_execution_numbers INT[],
     p_lock_keys VARCHAR[],
-    p_hold_tokens UUID[]
+    p_hold_tokens UUID[],
+    p_recovery_interval_seconds INT
 )
-RETURNS TABLE (job_id BIGINT, execution_number INT, lock_key VARCHAR, renewed BOOLEAN, definitions_modified_at_utc TIMESTAMPTZ)
+RETURNS TABLE (
+    job_id BIGINT,
+    execution_number INT,
+    lock_key VARCHAR,
+    renewed BOOLEAN,
+    definitions_modified_at_utc TIMESTAMPTZ,
+    recovery_claimed BOOLEAN
+)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_expiry TIMESTAMPTZ := now() + (p_lease_ttl_seconds * INTERVAL '1 second');
     v_namespace_id INT;
+    v_recovery_claimed BOOLEAN := FALSE;
 BEGIN
     UPDATE acta.workers
     SET
@@ -3088,7 +3097,7 @@ BEGIN
     SET expires_at_utc = v_new_expiry
     FROM unnest(p_lock_keys, p_hold_tokens) AS h (lock_key, hold_token)
     WHERE k.lock_key = h.lock_key AND k.hold_token = h.hold_token
-    RETURNING NULL::BIGINT, NULL::INT, k.lock_key, TRUE, NULL::TIMESTAMPTZ;
+    RETURNING NULL::BIGINT, NULL::INT, k.lock_key, TRUE, NULL::TIMESTAMPTZ, FALSE;
 
     /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
@@ -3124,13 +3133,27 @@ BEGIN
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
         RETURNING r.job_id
     )
-    SELECT m.job_id, m.execution_number, NULL::VARCHAR, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ
+    SELECT m.job_id, m.execution_number, NULL::VARCHAR, e.job_id IS NOT NULL, NULL::TIMESTAMPTZ, FALSE
     FROM matched m
     LEFT JOIN extended e ON e.job_id = m.job_id;
 
+    -- Takes the namespace's recovery pass when it is due, moving the next one an interval out; this worker runs it.
+    -- A namespace row another transaction holds is skipped, so the heartbeat never waits on it.
+    IF p_recovery_interval_seconds IS NOT NULL THEN
+        UPDATE acta.namespaces n
+        SET recovery_due_at_utc = now() + (p_recovery_interval_seconds * INTERVAL '1 second')
+        WHERE n.id = (
+            SELECT n0.id
+            FROM acta.namespaces n0
+            WHERE n0.id = v_namespace_id AND (n0.recovery_due_at_utc IS NULL OR n0.recovery_due_at_utc <= now())
+            FOR UPDATE SKIP LOCKED
+        );
+        v_recovery_claimed := FOUND;
+    END IF;
+
     -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
     RETURN QUERY
-    SELECT NULL::BIGINT, NULL::INT, NULL::VARCHAR, FALSE, MAX(d.modified_at_utc)
+    SELECT NULL::BIGINT, NULL::INT, NULL::VARCHAR, FALSE, MAX(d.modified_at_utc), v_recovery_claimed
     FROM acta.definitions d
     WHERE d.namespace_id = v_namespace_id;
 END;
@@ -4026,7 +4049,7 @@ BEGIN
         NULL,
         NULL,
         67 /* EventReasonCode.JobLaneRepaired */,
-        'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
+        'Lane had no live head; crash recovery released its lowest Blocked member.'
     FROM acta.jobs j
     INNER JOIN acta.runtimes r ON r.job_id = j.id
     WHERE
@@ -4152,7 +4175,7 @@ BEGIN
                what tells the two messages apart. */
             CASE WHEN r.new_status = 20 /* JobStatusCode.Suspended */
                 THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
-                ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
+                ELSE 'Worker lease expired; reclaimed by crash recovery.' END
         FROM reclaimed r
         WHERE r.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */)
     )
@@ -4658,89 +4681,6 @@ AS $$
     RETURNING hold_token;
 $$;
 
--- Re-arms one namespace's sys.recovery slot when it is stranded; see Execution.RepairRecoverySlotAsync.
-CREATE OR REPLACE FUNCTION acta.repair_recovery_slot(
-    p_namespace_id INT,
-    p_job_id BIGINT
-)
-RETURNS TABLE (outcome INT)
-LANGUAGE sql
-AS $$
-WITH target AS (
-    -- Locked and read before the update so the event carries the stranded attempt's execution number.
-    SELECT r.job_id, r.execution_number, r.status_code AS from_status
-    FROM acta.runtimes r
-    WHERE
-        r.job_id = p_job_id
-        AND r.namespace_id = p_namespace_id
-        AND r.status_code = 50 /* JobStatusCode.Executing */
-        AND r.lease_expires_at_utc IS NOT NULL
-        AND r.lease_expires_at_utc < now()
-    FOR UPDATE
-),
-repaired AS (
-    UPDATE acta.runtimes r
-    SET
-        status_code = 10 /* JobStatusCode.Ready */,
-        next_run_at_utc = now(),
-        failure_count = r.failure_count + 1,
-        leased_by_worker_id = NULL,
-        lease_expires_at_utc = NULL,
-        modified_at_utc = now(),
-        version = r.version + 1
-    FROM target t
-    WHERE r.job_id = t.job_id
-    RETURNING r.job_id, t.execution_number, t.from_status
-),
-event_insert AS (
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    SELECT
-        41 /* EventCode.JobExecutionFinished */,
-        now(),
-        j.namespace_id,
-        10 /* ActorCode.Sys */,
-        NULL,
-        j.id,
-        j.job_ref,
-        x.execution_number,
-        COALESCE(j.lineage_root_id, j.id),
-        j.definition_id,
-        j.tenant_id,
-        NULL,
-        x.from_status,
-        10 /* JobStatusCode.Ready */,
-        230 /* ExecutionStatusCode.Orphaned */,
-        NULL,
-        21 /* EventReasonCode.JobLeaseExpired */,
-        'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
-    FROM repaired x
-    JOIN acta.jobs j ON j.id = x.job_id
-    RETURNING 1
-)
-SELECT CASE
-    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RepairRecoverySlotOutcomeCode.Repaired */
-    WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RepairRecoverySlotOutcomeCode.Healthy */
-    ELSE 0 /* RepairRecoverySlotOutcomeCode.Missing */ END AS outcome;
-$$;
-
 -- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
@@ -5179,7 +5119,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.76-bfbb3a1fdc3b9439b4388a515a82d951', 'acta');
+VALUES (-1, 'objects-1.77-bb22b0d67554c6865b6fb5163220d868', 'acta');
 
 COMMIT;
 

@@ -6,7 +6,7 @@ namespace Acta;
 internal readonly record struct RecoveryPassReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches, int RepairedLanes);
 
 /// <summary>
-/// One recovery pass, and the only implementation of one: the <c>sys.recovery</c> handler and the test host's recovery
+/// One recovery pass, and the only implementation of one: the worker heartbeat that takes a pass and the test host's recovery
 /// drive both call it, so neither models recovery differently. Three steps in order: <c>mark_dead_workers</c> sweeps all
 /// namespaces, retiring <c>workers</c> rows whose process stopped heartbeating past <c>JobsOptions.WorkerDeadAfter</c>;
 /// then, on the firing namespace only, <c>reclaim_stuck_jobs</c> recovers jobs whose lease expired past the heartbeat

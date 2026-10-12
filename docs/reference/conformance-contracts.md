@@ -313,7 +313,7 @@
 ### Init auto-registers system definitions, slots and schedules
 - **Contract:** InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule.
 - **Guarantees:**
-  - Init makes the sys.recovery definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule
+  - Init makes the sys.alerts definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule
   - Init makes the sys.retention definition Active with a Ready name-keyed slot and an hourly default schedule
 
 ### An invalid descriptor fails startup before the catalog is written
@@ -865,19 +865,6 @@
   - Second CompleteExecutions on a terminal job returns AlreadyTerminal with no additional finished event
   - Stale CompleteExecutions by a displaced worker returns NotOwner and leaves job owned by the new claimant
 
-### A stranded recovery slot is repaired under a guard by any worker
-- **Contract:** A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.
-- **Guarantees:**
-  - A recovery slot in flight under a live lease is left alone
-  - A recovery slot in flight under a lapsed lease is re-armed once, with the lost attempt recorded
-  - Two workers repairing the same lapsed slot at once commit one repair and one event
-  - A heartbeat renewal that commits while the repair waits on the row wins; the repair declines
-  - A recovery slot whose row is gone is reported missing and never recreated
-  - A worker starting over a lapsed recovery slot re-arms it before the catalog is read
-  - A survivor's monitor repairs the slot and runs the sweep itself, with no executor free and nothing restarted
-  - The monitor's own periodic loop repairs a stranded slot once its first delay elapses
-  - A graceful drain lets a recovery pass the monitor started finish, and then ends the loop
-
 ### Completing an in-flight attempt respects schedule changes made while it ran
 - **Contract:** A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion.
 - **Guarantees:**
@@ -1288,7 +1275,7 @@
 ### AddOutboxRelay dispatches sys.outbox and a broken source fails only it
 - **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick.
 - **Guarantees:**
-  - The relay registers sys.outbox (and sys.recovery) but not the automatic-only sys.retention
+  - The relay registers sys.outbox (and sys.alerts) but not the automatic-only sys.retention
   - A broken source fails only the sys.outbox tick while ordinary jobs still complete
 
 ### Relay crash windows never lose a row or duplicate a target job
@@ -1559,10 +1546,13 @@
 
 ## Recovery
 
-### One sys.recovery tick reclaims, releases, and wakes
-- **Contract:** One sys.recovery tick returns lease-expired jobs to Ready, re-raises child latches lost to a crash, and wakes the workers that can claim them.
+### The heartbeat takes each due recovery pass once
+- **Contract:** A heartbeat takes the namespace's recovery pass once per interval, and one pass reclaims lapsed leases, re-raises lost latches, and wakes workers.
 - **Guarantees:**
-  - A due sys.recovery tick reclaims the stranded job, raises the latch its crashed child never set, and wakes both channels
+  - A heartbeat takes a due pass and moves the next one an interval out; the next call does not take it
+  - Two heartbeats at once take a due pass once
+  - A heartbeat from a worker that runs no recovery never takes the pass
+  - One recovery pass reclaims the stranded job, raises the latch its crashed child never set, and wakes both channels
 
 ### Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts
 - **Contract:** An expired-lease job returns to Ready charged one failure, or lands terminal Failed once MaxAttempts is reached.
@@ -1580,13 +1570,6 @@
   - An expired slot the handler already passed does not make a later crash free
   - The uncharged reclaim still opens an incident under the job's own alert profile
   - A success after an uncharged reclaim resolves the incident it opened
-
-### A recovery slot is re-armed only when it is stranded in its own namespace
-- **Contract:** The repair re-arms the namespace's recovery slot Ready and due when its lease has lapsed in flight, and otherwise reports it healthy or missing untouched.
-- **Guarantees:**
-  - A slot in flight under a lapsed lease is re-armed Ready and due now, with the lost attempt recorded once
-  - A slot under a live lease, or not in flight at all, is reported healthy and left as it was
-  - A lapsed slot named under a namespace that does not hold it is reported missing and stays stranded
 
 ### A drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** A graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
@@ -2268,7 +2251,6 @@
 | `ReleaseClaimedOutbox` | yes | yes | yes |
 | `ReleaseLock` | yes | yes | yes |
 | `RemoveTags` | yes | yes | yes |
-| `RepairRecoverySlot` | yes | yes | yes |
 | `ReplaceTags` | yes | yes | yes |
 | `ReprioritizeJob` | yes | yes | yes |
 | `RequeueQuarantinedOutbox` | yes | yes | yes |

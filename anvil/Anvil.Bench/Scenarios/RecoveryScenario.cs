@@ -52,19 +52,14 @@ public sealed class RecoveryScenario : IScenario
         var killStamp = Stopwatch.GetTimestamp();
         cluster.Kill(enteredHost);
 
-        // Force the reclaim sweep: the survivor runs each enqueued maintenance pass, which reclaims the
-        // stuck job once its lease has lapsed.
-        var deadline = Stopwatch.StartNew();
-        var budget = TimeSpan.FromSeconds(cfg.LeaseTtlSeconds + 60);
-        while (cluster.Sink.Samples.IsEmpty && deadline.Elapsed < budget)
+        // The survivor's heartbeat takes the recovery pass once a lease, and the pass reclaims the stuck job
+        // once its lease has lapsed, so recovery lands within two leases of the kill.
+        var budget = TimeSpan.FromSeconds(2 * cfg.LeaseTtlSeconds + 60);
+        try
         {
-            await cluster.Jobs.EnqueueAsync(new EnqueueJobRequest(BenchHost.Namespace, BenchHost.RecoveryJobName), ct);
-            try
-            {
-                await cluster.Sink.Completed.WaitAsync(TimeSpan.FromSeconds(1), ct);
-            }
-            catch (TimeoutException) { }
+            await cluster.Sink.Completed.WaitAsync(budget, ct);
         }
+        catch (TimeoutException) { }
 
         if (!cluster.Sink.Samples.TryPeek(out var sample))
         {

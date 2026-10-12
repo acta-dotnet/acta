@@ -45,7 +45,7 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
     }
 
-    [Fact(DisplayName = "The relay registers sys.outbox (and sys.recovery) but not the automatic-only sys.retention")]
+    [Fact(DisplayName = "The relay registers sys.outbox (and sys.alerts) but not the automatic-only sys.retention")]
     public async Task Relay_registers_its_manifest_subset_without_automatic_jobs()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -53,10 +53,8 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
 
         var outbox = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.outbox").SingleOrDefaultAsync(ct);
         Assert.NotNull(outbox);
-        var recovery = await Db.From<DefinitionEntity>()
-            .Where(d => d.NamespaceId == ns && d.Name == "sys.recovery")
-            .SingleOrDefaultAsync(ct);
-        Assert.NotNull(recovery);
+        var alerts = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.alerts").SingleOrDefaultAsync(ct);
+        Assert.NotNull(alerts);
         // sys.retention is automatic-only; a relay must not pull it in.
         var retention = await Db.From<DefinitionEntity>()
             .Where(d => d.NamespaceId == ns && d.Name == "sys.retention")

@@ -71,14 +71,14 @@ namespace Acta;
 // Both directions, so with ck_runtimes_lease_consistency Executing and a complete lease pair are the same
 // fact. ClaimJob and ClaimJobs are the only routines that enter Executing, and each writes the lease in the
 // same statement. Every routine that nulls the lease leaves Executing in the same statement: CompleteExecutions,
-// ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
+// ReclaimStuckJobs, CancelJob, RestartJob.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code = 50 OR leased_by_worker_id IS NULL")]
 [DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code <> 50 OR leased_by_worker_id IS NOT NULL")]
 // A Ready row is due at a known instant, which is what lets ix_runtimes_claim_ready leave out NULL instants
 // without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
 // in the same statement or the one before it: EnqueueJob, EnqueueJobs, RegisterSchedules, RestartJob, ResumeJob,
 // RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecutions (re-arm and signal release),
-// ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.
+// ReclaimStuckJobs. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]
 internal sealed class RuntimeEntity : IEntity<long>
 {
@@ -157,7 +157,7 @@ internal sealed class RuntimeEntity : IEntity<long>
 
     /// <summary>
     /// Execution lease expiry instant; the heartbeat pushes it forward without bumping
-    /// <see cref="Version"/>, and <c>sys.recovery</c> reclaims in-flight rows past it.
+    /// <see cref="Version"/>, and crash recovery reclaims in-flight rows past it.
     /// </summary>
     [DbColumn("lease_expires_at_utc", DbKind.UtcInstant)]
     public DateTime? LeaseExpiresAtUtc { get; set; }

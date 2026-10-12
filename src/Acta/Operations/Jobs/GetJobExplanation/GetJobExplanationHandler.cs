@@ -153,7 +153,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 {
                     var lapsed = h.LeaseExpiresAtUtc is { } exp ? $"expired {Ago(exp, nowUtc)}" : "has expired";
                     headline = $"{status}, but its lease {lapsed}.";
-                    actions.Add(Move("wait-recovery", "wait for sys.recovery to reclaim the job on the next maintenance tick"));
+                    actions.Add(Move("wait-recovery", "wait for crash recovery to reclaim the job on its next pass"));
                     actions.Add(Move("cancel", "cancel the job if it should not continue"));
                 }
                 else
@@ -275,8 +275,8 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         {
             var budgetExhausted = h.FailureCount + 1 >= h.MaxAttemptsEffective;
             recovery = budgetExhausted
-                ? "Recovery should mark it Failed on the next maintenance tick because the retry budget is exhausted."
-                : "Recovery should return it to Ready on the next maintenance tick.";
+                ? "Recovery should mark it Failed on its next pass because the retry budget is exhausted."
+                : "Recovery should return it to Ready on its next pass.";
         }
         else
         {

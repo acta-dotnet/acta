@@ -23,7 +23,6 @@ internal sealed class WorkerRuntime
     private readonly WorkerClaimer _claimer;
     private readonly int _executorCount;
     private readonly WorkerHeartbeat _heartbeat;
-    private readonly RecoverySlotMonitor _recoveryMonitor;
 
     /// <summary>
     /// Cancelled by BeginDrainAsync to stop the claimer while the heartbeat and
@@ -70,7 +69,6 @@ internal sealed class WorkerRuntime
             new CatalogRegistrar(
                 rootServices.GetRequiredService<DefinitionsOperations>(),
                 rootServices.GetRequiredService<SchedulesOperations>(),
-                rootServices.GetRequiredService<ExecutionOperations>(),
                 clock,
                 serializers,
                 alertRouting,
@@ -111,7 +109,6 @@ internal sealed class WorkerRuntime
         );
         _claimer = new WorkerClaimer(
             rootServices.GetRequiredService<ExecutionOperations>(),
-            _executor,
             options.Value,
             _context,
             _registry,
@@ -126,18 +123,9 @@ internal sealed class WorkerRuntime
             workerRegistration,
             _context,
             _registry,
-            logger
-        );
-        _recoveryMonitor = new RecoverySlotMonitor(
-            rootServices.GetRequiredService<ExecutionOperations>(),
-            publisher,
-            workerRegistration,
-            _context,
+            rootServices.GetRequiredService<RecoveryPass>(),
             logger,
-            // RunOnceAsync claims and executes without taking an executor permit, which is what lets the
-            // sweep run on a worker whose executors are all busy; the pass cancels on its lease deadline.
-            (namespaceName, slotJobId, token) =>
-                _executor.RunOnceAsync(namespaceName, slotJobId, token, InFlightJob.LeaseRunway(options.Value))
+            metrics
         );
     }
 
@@ -187,12 +175,10 @@ internal sealed class WorkerRuntime
     /// </summary>
     public Task RunAsync(CancellationToken ct)
     {
-        // The claimer and the recovery monitor's checks stop on _drainCts (graceful drain) or ct (hard stop); the
-        // heartbeat and in-flight execution run on ct, so a drain finishes in-flight work, including a recovery pass
-        // the monitor started, before DrainCompletion completes.
+        // The claimer stops on _drainCts (graceful drain) or ct (hard stop); the heartbeat, the recovery pass it
+        // takes, and in-flight execution run on ct, so a drain finishes in-flight work before DrainCompletion completes.
         var pipeline = RunPipelineAsync(ct, _drainCts.Token);
-        var monitor = _recoveryMonitor.RunAsync(ct, _drainCts.Token);
-        DrainCompletion = Task.WhenAll(pipeline, monitor);
+        DrainCompletion = pipeline;
         return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct));
     }
 

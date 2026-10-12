@@ -190,6 +190,7 @@ public sealed class WorkerFinalizerTests
             context.WorkerRegistration,
             context,
             registry,
+            recoveryPass: null!,
             NullLogger.Instance
         );
 
