@@ -40,13 +40,11 @@ namespace Acta;
     Usage = "claim_hot_path"
 )]
 // No retention index: every completion appended to its tail, so purge_expired_data walks runtimes by job id instead.
-// status_code stays in the filter but out of the key, which is all the heartbeat needs: keying on it
-// would move every in-flight entry to a new key on the Dispatched-to-Executing transition, and one
-// worker's entries share a leaf page, so that write lands on this index's hottest page.
+// status_code stays in the filter but out of the key, which is all the heartbeat needs.
 [DbIndex(
     Name = "ix_runtimes_worker_inflight",
     Columns = ["leased_by_worker_id", "job_id"],
-    Filter = "leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)",
+    Filter = "leased_by_worker_id IS NOT NULL AND status_code = 50",
     Usage = "heartbeat"
 )]
 // A lane's unfinished members, in job-id order: enqueue asks whether the lane has one, and a settle
@@ -56,7 +54,7 @@ namespace Acta;
 [DbIndex(
     Name = "ix_runtimes_lane",
     Columns = ["lane_id", "job_id"],
-    Filter = "lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)",
+    Filter = "lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50)",
     Usage = "lane"
 )]
 // Every member of a lane, finished or not: retention asks whether any runtime still references a lane
@@ -70,12 +68,12 @@ namespace Acta;
     Sql = "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_runtimes_counters", Sql = "execution_number >= 0 AND failure_count >= 0")]
-// Both directions, so with ck_runtimes_lease_consistency an in-flight status and a complete lease pair
-// are the same fact. ClaimJob and ClaimJobs are the only routines that enter an in-flight status,
-// and each writes the lease in the same statement. Every routine that nulls the lease leaves 40/50 in
-// the same statement: CompleteExecutions, ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
-[DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
-[DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
+// Both directions, so with ck_runtimes_lease_consistency Executing and a complete lease pair are the same
+// fact. ClaimJob and ClaimJobs are the only routines that enter Executing, and each writes the lease in the
+// same statement. Every routine that nulls the lease leaves Executing in the same statement: CompleteExecutions,
+// ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
+[DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code = 50 OR leased_by_worker_id IS NULL")]
+[DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code <> 50 OR leased_by_worker_id IS NOT NULL")]
 // A Ready row is due at a known instant, which is what lets ix_runtimes_claim_ready leave out NULL instants
 // without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
 // in the same statement or the one before it: EnqueueJob, EnqueueJobs, RegisterSchedules, RestartJob, ResumeJob,
@@ -108,7 +106,7 @@ internal sealed class RuntimeEntity : IEntity<long>
     public long? LaneId { get; init; }
 
     /// <summary>
-    /// Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled).
+    /// Durable lifecycle of the Job (Paused / Suspended / Ready / Blocked / Executing / Succeeded / Failed / Cancelled).
     /// </summary>
     [DbColumn("status_code")]
     public JobStatusCode Status { get; set; }
@@ -152,7 +150,7 @@ internal sealed class RuntimeEntity : IEntity<long>
     /// validation in the claim routine. Paired with <see cref="LeaseExpiresAtUtc"/> by
     /// <c>ck_runtimes_lease_consistency</c>, and bound to <see cref="Status"/> in both directions by
     /// <c>ck_runtimes_status_lease</c> and <c>ck_runtimes_inflight_leased</c>: set exactly while the
-    /// status is <c>Dispatched</c> or <c>Executing</c>, NULL otherwise.
+    /// status is <c>Executing</c>, NULL otherwise.
     /// </summary>
     [DbColumn("leased_by_worker_id", DbKind.Int32)]
     public int? LeasedByWorkerId { get; set; }

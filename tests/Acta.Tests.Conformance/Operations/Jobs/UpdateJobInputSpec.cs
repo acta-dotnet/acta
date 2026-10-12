@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Operator UpdateJobInputAsync: amends a job's stored input payload. Allowed in any status except
-/// Dispatched/Executing (a mid-flight handler may already have read the input); the transition is
+/// Executing (a mid-flight handler may already have read the input); the transition is
 /// audited (job.input-amended) with bounded metadata (format name and byte count) about the
 /// previous payload in the event detail, never the payload itself.
 /// </summary>
@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "job.update-input",
     "Operator update-input amends stored input and audits bounded payload metadata.",
     Area = "Control",
-    Contract = "UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload."
+    Contract = "UpdateJobInput replaces a job's input in any status except Executing and audits job.input-amended with prior-payload metadata, never the payload."
 )]
 public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -110,27 +110,23 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         }
     }
 
-    [Fact(DisplayName = "UpdateJobInput rejects a Dispatched or Executing job and leaves its input unchanged")]
+    [Fact(DisplayName = "UpdateJobInput rejects an Executing job and leaves its input unchanged")]
     public async Task Amend_in_flight_job_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
         var newInput = JobPayload.Json(new AddNumbers(9, 9));
+        var oldInput = JobPayload.Json(new AddNumbers(1, 1));
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
+        await SetJobStatusAsync(enqueued.JobId, (byte)JobStatusCode.Executing, ct);
 
-        foreach (var status in new[] { JobStatusCode.Dispatched, JobStatusCode.Executing })
-        {
-            var oldInput = JobPayload.Json(new AddNumbers(1, 1));
-            var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
-            await SetJobStatusAsync(enqueued.JobId, (byte)status, ct);
+        var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "should not apply", ct: ct);
 
-            var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "should not apply", ct: ct);
+        Assert.Equal(ControlAction.Rejected, result.Action);
+        Assert.Equal(JobStatusCode.Executing, result.Status);
 
-            Assert.Equal(ControlAction.Rejected, result.Action);
-            Assert.Equal(status, result.Status);
-
-            var job = await ReadJobRowAsync(enqueued.JobId, ct);
-            Assert.Equal(oldInput.Data.ToArray(), job.Input);
-            Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobInputAmended, ct));
-        }
+        var job = await ReadJobRowAsync(enqueued.JobId, ct);
+        Assert.Equal(oldInput.Data.ToArray(), job.Input);
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobInputAmended, ct));
     }
 
     [Fact(DisplayName = "UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync")]

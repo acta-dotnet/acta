@@ -147,7 +147,6 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 }
                 break;
 
-            case JobStatusCode.Dispatched:
             case JobStatusCode.Executing:
                 lease = BuildLease(h, nowUtc);
                 if (lease is { Expired: true })
@@ -160,10 +159,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 else
                 {
                     var expires = h.LeaseExpiresAtUtc is { } exp ? $" Lease expires in {Humanize(exp - nowUtc)}." : "";
-                    headline =
-                        status == JobStatusCode.Executing
-                            ? $"Executing on {WorkerLabel(h)}.{expires}"
-                            : $"Dispatched to {WorkerLabel(h)}; the handler has not started yet.{expires}";
+                    headline = $"Executing on {WorkerLabel(h)}.{expires}";
                     actions.Add(Move("none", "no action needed unless the job exceeds its expected runtime"));
                 }
                 break;

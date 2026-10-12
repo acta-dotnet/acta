@@ -34,7 +34,7 @@ SELECT
     CASE
         WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN t.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
-        WHEN s.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* ControlAction.Rejected */
+        WHEN s.status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
         WHEN s.status_code = 30 /* JobStatusCode.Paused */ AND s.next_run_at_utc IS NOT NULL THEN 3 /* ControlAction.Rejected */
         WHEN s.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             THEN 3 /* ControlAction.Rejected */

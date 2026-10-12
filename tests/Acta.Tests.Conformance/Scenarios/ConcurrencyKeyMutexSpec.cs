@@ -186,7 +186,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
     }
 
     private Task<int> InFlightCountAsync(string key, CancellationToken ct) =>
-        CountByStatusAsync(key, s => s is JobStatusCode.Dispatched or JobStatusCode.Executing, ct);
+        CountByStatusAsync(key, s => s is JobStatusCode.Executing, ct);
 
     private async Task<int> TotalCountAsync(string key, CancellationToken ct)
     {

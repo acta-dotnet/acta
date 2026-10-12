@@ -108,7 +108,7 @@ BEGIN
     WHERE
         -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
         {{schema}}.runtimes.status_code NOT IN (
-            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
+            50 /* JobStatusCode.Executing */,
             100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
         AND NOT ({{schema}}.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND {{schema}}.runtimes.next_run_at_utc IS NOT NULL)

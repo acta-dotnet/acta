@@ -19,13 +19,13 @@ SELECT
                     AND o.lane_id IS NOT NULL
                     AND o.status_code IN (
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                     )
                     AND o.job_id <> r.job_id
                     AND (
                         o.status_code IN (
                             10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            50 /* JobStatusCode.Executing */
                         )
                         OR o.job_id < r.job_id
                     )

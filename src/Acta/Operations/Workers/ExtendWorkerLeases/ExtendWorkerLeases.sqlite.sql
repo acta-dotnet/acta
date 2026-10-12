@@ -36,7 +36,7 @@ SELECT r.job_id, r.execution_number
 FROM {{schema}}.runtimes r
 WHERE
     r.leased_by_worker_id = @p_leased_by_worker_id
-    AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    AND r.status_code = 50 /* JobStatusCode.Executing */
     AND EXISTS (
         SELECT 1
         FROM json_each(@p_executions) h

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **189 values**.
+This release: **29 families**, **188 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -308,8 +308,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Blocked` | 15 | `blocked` | Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready. | Active |
 | `Suspended` | 20 | `suspended` | Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync. | Active |
 | `Paused` | 30 | `paused` | Not running, awaiting an external trigger to resume. | Active |
-| `Dispatched` | 40 | `dispatched` | Claimed by a worker; lease active, handler invocation pending. | Active |
-| `Executing` | 50 | `executing` | Handler is running. JobEvent(job.execution-started) has been appended; matching job.execution-finished pending. | Active |
+| `Executing` | 50 | `executing` | Claimed by a worker under a live lease; its handler is running or about to start. | Active |
 | `Succeeded` | 100 | `succeeded` | Terminal success. | Active |
 | `Failed` | 200 | `failed` | Terminal failure: MaxAttempts exhausted, expiration fired, or ctx.Fail called. | Active |
 | `Cancelled` | 220 | `cancelled` | Terminal cancellation by IJobs.CancelAsync or ctx.Cancel. | Active |

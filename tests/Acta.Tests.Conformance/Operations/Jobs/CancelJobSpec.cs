@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "cancel-job.state-guard",
     "Cancel stamps retention once and rejects a re-cancel",
     Area = "Control",
-    Contract = "Cancel from Suspended or Dispatched applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping."
+    Contract = "Cancel from Suspended or Executing applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping."
 )]
 public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -41,16 +41,16 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             ("@p_id", jobId)
         );
 
-    [Fact(DisplayName = "Cancel from Suspended and Dispatched is Applied and stamps retention_until_utc")]
-    public async Task Cancel_from_Suspended_and_Dispatched_is_Applied_and_stamps_retention()
+    [Fact(DisplayName = "Cancel from Suspended and Executing is Applied and stamps retention_until_utc")]
+    public async Task Cancel_from_Suspended_and_Executing_is_Applied_and_stamps_retention()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput("cancel non-terminal");
 
         var suspendedJob = await EnqueueAsync(ct);
-        var dispatchedJob = await EnqueueAsync(ct);
+        var executingJob = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, suspendedJob, (byte)JobStatusCode.Suspended, ct);
-        await SetJobStatusAsync(Db, dispatchedJob, (byte)JobStatusCode.Dispatched, ct);
+        await SetJobStatusAsync(Db, executingJob, (byte)JobStatusCode.Executing, ct);
 
         // Default retention is 90 days so retention_until_utc will be ~now + 90d; capture a window.
         // Both ends come off the DATABASE clock, because the value being bracketed does: comparing a
@@ -58,23 +58,23 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // one-second lower bound, and skew is not what this fact is about.
         var tBefore = (await NowAsync(ct)).AddSeconds(-1);
         var cancelSuspended = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(suspendedJob, input, ct);
-        var cancelDispatched = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(dispatchedJob, input, ct);
+        var cancelExecuting = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(executingJob, input, ct);
         var tAfter = (await NowAsync(ct)).AddDays(91);
 
         Assert.Equal(ControlAction.Applied, cancelSuspended.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancelSuspended.Status);
-        Assert.Equal(ControlAction.Applied, cancelDispatched.Action);
-        Assert.Equal(JobStatusCode.Cancelled, cancelDispatched.Status);
+        Assert.Equal(ControlAction.Applied, cancelExecuting.Action);
+        Assert.Equal(JobStatusCode.Cancelled, cancelExecuting.Status);
 
         var suspendedState = await ReadJobAsync(suspendedJob, ct);
         Assert.Equal(JobStatusCode.Cancelled, suspendedState.Status);
         Assert.NotNull(suspendedState.RetentionUntilUtc);
         Assert.InRange(suspendedState.RetentionUntilUtc!.Value, tBefore, tAfter);
 
-        var dispatchedState = await ReadJobAsync(dispatchedJob, ct);
-        Assert.Equal(JobStatusCode.Cancelled, dispatchedState.Status);
-        Assert.NotNull(dispatchedState.RetentionUntilUtc);
-        Assert.InRange(dispatchedState.RetentionUntilUtc!.Value, tBefore, tAfter);
+        var executingState = await ReadJobAsync(executingJob, ct);
+        Assert.Equal(JobStatusCode.Cancelled, executingState.Status);
+        Assert.NotNull(executingState.RetentionUntilUtc);
+        Assert.InRange(executingState.RetentionUntilUtc!.Value, tBefore, tAfter);
     }
 
     [Fact(DisplayName = "Re-cancel of a Cancelled job is Rejected and does not re-stamp retention_until_utc")]

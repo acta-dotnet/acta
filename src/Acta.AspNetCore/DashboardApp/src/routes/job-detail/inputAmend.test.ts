@@ -2,11 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { amendBody, amendOutcomeMessage, inputAmendable } from './inputAmend.ts';
 
-test('input is amendable except while dispatched or executing', () => {
+test('input is amendable except while executing', () => {
   assert.equal(inputAmendable('ready'), true);
   assert.equal(inputAmendable('paused'), true);
   assert.equal(inputAmendable('failed'), true);
-  assert.equal(inputAmendable('dispatched'), false);
   assert.equal(inputAmendable('executing'), false);
 });
 

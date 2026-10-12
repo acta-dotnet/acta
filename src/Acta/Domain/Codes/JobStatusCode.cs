@@ -27,10 +27,7 @@ public enum JobStatusCode : byte
     [Code("paused", "Not running, awaiting an external trigger to resume.")]
     Paused = 30,
 
-    [Code("dispatched", "Claimed by a worker; lease active, handler invocation pending.")]
-    Dispatched = 40,
-
-    [Code("executing", "Handler is running. JobEvent(job.execution-started) has been appended; matching job.execution-finished pending.")]
+    [Code("executing", "Claimed by a worker under a live lease; its handler is running or about to start.")]
     Executing = 50,
 
     [Code("succeeded", "Terminal success.")]
@@ -51,6 +48,6 @@ public static partial class JobStatusExtensions
 
         public bool IsClaimable => value is JobStatusCode.Ready;
 
-        public bool IsActiveExecution => value is JobStatusCode.Dispatched or JobStatusCode.Executing;
+        public bool IsActiveExecution => value is JobStatusCode.Executing;
     }
 }

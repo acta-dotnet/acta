@@ -77,29 +77,6 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RepairRecoverySlotOutcomeCode.Healthy, await CheckAsync(slotId, ct));
     }
 
-    [Fact(
-        DisplayName = "A slot claimed but not yet started when its worker died is re-armed uncharged and recorded as lost from Dispatched"
-    )]
-    public async Task Lapsed_dispatched_slot_is_recorded_from_dispatched()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var slotId = await RecoverySlotIdAsync(ct);
-        await StrandAsync(slotId, JobStatusCode.Dispatched, DateTime.UtcNow.AddMinutes(-5), ct);
-        var before = await RuntimeAsync(slotId, ct);
-
-        Assert.Equal(RepairRecoverySlotOutcomeCode.Repaired, await CheckAsync(slotId, ct));
-
-        var after = await RuntimeAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, after.Status);
-        Assert.Equal(before.FailureCount, after.FailureCount);
-        var finished = await Db.From<EventEntity>()
-            .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber)
-            .ToListAsync(ct);
-        var lost = Assert.Single(finished);
-        Assert.Equal(JobStatusCode.Dispatched, lost.FromStatus);
-        Assert.Equal(JobStatusCode.Ready, lost.ToStatus);
-    }
-
     [Fact(DisplayName = "Two workers repairing the same lapsed slot at once commit one repair and one event")]
     public async Task Two_repairs_of_one_lapsed_slot_commit_once()
     {

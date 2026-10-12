@@ -40,7 +40,6 @@ BEGIN TRY
 
     IF
         @from_status IN (
-            40 /* JobStatusCode.Dispatched */,
             50 /* JobStatusCode.Executing */
         )
         BEGIN

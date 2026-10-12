@@ -917,7 +917,7 @@
           },
           {
             "Name": "ix_runtimes_lane",
-            "Signature": "I|cols=lane_id,job_id|inc=|desc=|filter=lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)|seq=False"
+            "Signature": "I|cols=lane_id,job_id|inc=|desc=|filter=lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50)|seq=False"
           },
           {
             "Name": "ix_runtimes_lane_member",
@@ -925,7 +925,7 @@
           },
           {
             "Name": "ix_runtimes_worker_inflight",
-            "Signature": "I|cols=leased_by_worker_id,job_id|inc=|desc=|filter=leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)|seq=False"
+            "Signature": "I|cols=leased_by_worker_id,job_id|inc=|desc=|filter=leased_by_worker_id IS NOT NULL AND status_code = 50|seq=False"
           }
         ],
         "Checks": [
@@ -939,7 +939,7 @@
           },
           {
             "Name": "ck_runtimes_inflight_leased",
-            "Sql": "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL"
+            "Sql": "status_code \u003C\u003E 50 OR leased_by_worker_id IS NOT NULL"
           },
           {
             "Name": "ck_runtimes_lease_consistency",
@@ -951,7 +951,7 @@
           },
           {
             "Name": "ck_runtimes_status_lease",
-            "Sql": "status_code IN (40, 50) OR leased_by_worker_id IS NULL"
+            "Sql": "status_code = 50 OR leased_by_worker_id IS NULL"
           }
         ],
         "ForeignKeys": [

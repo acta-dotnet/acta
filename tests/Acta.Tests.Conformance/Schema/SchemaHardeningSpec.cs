@@ -170,13 +170,11 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             );
 
         // The shape every claim writes: the in-flight status and the whole lease in one statement.
-        Assert.Equal(1, await SetLeasedAsync(JobStatusCode.Dispatched));
         Assert.Equal(1, await SetLeasedAsync(JobStatusCode.Executing));
 
         // Releasing the lease on the way out of flight is the control for the two rejections below.
         Assert.Equal(1, await SetUnleasedAsync(JobStatusCode.Ready));
 
-        await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Dispatched));
         await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Executing));
 
         // ck_runtimes_ready_due is the same shape of rule on the other hot column: a Ready row is due

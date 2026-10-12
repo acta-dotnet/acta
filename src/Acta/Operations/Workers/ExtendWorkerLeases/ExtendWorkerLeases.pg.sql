@@ -55,7 +55,7 @@ BEGIN
         WHERE
             (r0.job_id, r0.execution_number) IN (SELECT h.job_id, h.execution_number FROM held h)
             AND r0.leased_by_worker_id = p_leased_by_worker_id
-            AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r0.status_code = 50 /* JobStatusCode.Executing */
     ),
     locked AS (
         SELECT r1.job_id
@@ -63,7 +63,7 @@ BEGIN
         WHERE
             (r1.job_id, r1.execution_number) IN (SELECT h.job_id, h.execution_number FROM held h)
             AND r1.leased_by_worker_id = p_leased_by_worker_id
-            AND r1.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r1.status_code = 50 /* JobStatusCode.Executing */
         ORDER BY r1.job_id
         FOR UPDATE SKIP LOCKED
     ),

@@ -530,8 +530,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
                 // the schedule set's business, not this harness's - Ready under the timed pause ParkAsync
                 // takes, Paused if a slot ever computes an empty next-run - so the condition names the two
                 // in-flight statuses instead of guessing the resting one.
-                return slot.ExecutionNumber > before.ExecutionNumber
-                    && slot.Status is not (JobStatusCode.Dispatched or JobStatusCode.Executing);
+                return slot.ExecutionNumber > before.ExecutionNumber && slot.Status is not JobStatusCode.Executing;
             },
             InvocationTimeout,
             TimeSpan.FromMilliseconds(200),

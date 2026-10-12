@@ -62,7 +62,7 @@ BEGIN
                         AND m.lane_id IS NOT NULL
                         AND m.status_code IN (
                             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                         )
                     ORDER BY m.job_id
                 ) h
@@ -76,7 +76,7 @@ BEGIN
                             AND o.lane_id IS NOT NULL
                             AND o.status_code IN (
                                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                                50 /* JobStatusCode.Executing */
                             )
                     )
                 ORDER BY w.ord;
@@ -90,7 +90,7 @@ BEGIN
         SELECT r.job_id, r.lane_id
         FROM {{schema}}.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
         WHERE
-            r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            r.status_code = 50 /* JobStatusCode.Executing */
             AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < @now
             AND r.namespace_id = @p_namespace_id;
@@ -149,7 +149,7 @@ BEGIN
                 AND m.lane_id IS NOT NULL
                 AND m.status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
             ORDER BY m.job_id
         ) h
@@ -165,7 +165,7 @@ BEGIN
                     AND o.lane_id IS NOT NULL
                     AND o.status_code IN (
                         10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        50 /* JobStatusCode.Executing */
                     )
             );
 
@@ -207,12 +207,7 @@ BEGIN
             SELECT
                 r.job_id AS id,
                 r.status_code AS from_status,
-                /* A Dispatched row never started; only an Executing attempt is a failure. */
-                CASE
-                    WHEN r.status_code = 50 /* JobStatusCode.Executing */
-                        THEN r.failure_count + 1
-                    ELSE r.failure_count
-                END AS new_failure_count,
+                r.failure_count + 1 AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
                 /* The job was parked on THIS slot: the suspend copied the slot's due into
@@ -240,7 +235,7 @@ BEGIN
             INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
             INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
             WHERE
-                r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+                r.status_code = 50 /* JobStatusCode.Executing */
                 AND r.leased_by_worker_id IS NOT NULL
                 AND r.lease_expires_at_utc < @now
                 AND r.namespace_id = @p_namespace_id
@@ -350,7 +345,7 @@ BEGIN
                 AND m.lane_id IS NOT NULL
                 AND m.status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
             ORDER BY m.job_id
         ) h
@@ -366,7 +361,7 @@ BEGIN
                     AND o.lane_id IS NOT NULL
                     AND o.status_code IN (
                         10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        50 /* JobStatusCode.Executing */
                     )
             );
 

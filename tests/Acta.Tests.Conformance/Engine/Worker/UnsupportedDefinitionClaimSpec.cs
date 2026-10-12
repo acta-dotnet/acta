@@ -60,7 +60,8 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         Assert.NotNull(job.NextRunAtUtc);
         Assert.True(
             job.NextRunAtUtc >= job.ModifiedAtUtc.AddSeconds(RearmDelaySeconds),
-            "the re-arm pushed next_run_at_utc by the safety-poll interval"
+            $"the re-arm pushed next_run_at_utc by the safety-poll interval: next run {job.NextRunAtUtc:O}, modified "
+                + $"{job.ModifiedAtUtc:O}, delay {RearmDelaySeconds}s, version {job.Version}"
         );
 
         // Nothing is left in flight: the claim's entry leaves the registry with the hand-back, and the

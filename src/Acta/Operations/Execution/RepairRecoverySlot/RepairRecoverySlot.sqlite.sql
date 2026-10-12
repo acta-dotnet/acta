@@ -7,7 +7,7 @@ FROM {{schema}}.runtimes r
 WHERE
     r.job_id = @p_job_id
     AND r.namespace_id = @p_namespace_id
-    AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    AND r.status_code = 50 /* JobStatusCode.Executing */
     AND r.lease_expires_at_utc IS NOT NULL
     AND r.lease_expires_at_utc < {{now}};
 
@@ -54,10 +54,7 @@ UPDATE {{schema}}.runtimes
 SET
     status_code = 10 /* JobStatusCode.Ready */,
     next_run_at_utc = {{now}},
-    -- A Dispatched row never started; only an Executing attempt is a failure.
-    failure_count = CASE WHEN runtimes.status_code = 50 /* JobStatusCode.Executing */
-        THEN runtimes.failure_count + 1
-        ELSE runtimes.failure_count END,
+    failure_count = runtimes.failure_count + 1,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     modified_at_utc = {{now}},

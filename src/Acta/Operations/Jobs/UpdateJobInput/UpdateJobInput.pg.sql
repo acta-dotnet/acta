@@ -33,7 +33,7 @@ WHERE
     id = @p_id
     AND EXISTS (
         SELECT 1 FROM _update_job_input s
-        WHERE s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        WHERE s.from_status <> 50 /* JobStatusCode.Executing */
     );
 
 -- The event carries only bounded JSON metadata about the previous payload (format name and byte count), never
@@ -59,12 +59,12 @@ SELECT
 FROM _update_job_input s
 WHERE
     s.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
-    AND s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+    AND s.from_status <> 50 /* JobStatusCode.Executing */;
 
 SELECT
     CASE
         WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN s.from_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* ControlAction.Rejected */
+        WHEN s.from_status = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END::SMALLINT AS action,
     s.from_status AS status_code

@@ -390,7 +390,7 @@ public interface IJobs
 
     /// <summary>
     /// Amend the stored input payload of the job identified by <paramref name="job"/>, in any status except
-    /// <c>Dispatched</c> and <c>Executing</c>, where a handler may already have read it: an in-flight job is
+    /// <c>Executing</c>, where a handler may already have read it: an in-flight job is
     /// <see cref="ControlAction.Rejected"/>, a missing one <see cref="ControlAction.NotFound"/>. On success the input
     /// and format are replaced and the transition is audited (<c>job.input-amended</c>); the event detail carries the
     /// previous payload's format name and byte count, never the payload, so the amended-away value cannot outlive the

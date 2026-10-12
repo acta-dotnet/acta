@@ -33,7 +33,7 @@
     failureCount: number;
   }
 
-  const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Blocked', 'Dispatched', 'Executing', 'Done', 'Failed', 'Cancelled'];
+  const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Blocked', 'Executing', 'Done', 'Failed', 'Cancelled'];
   const initial = hashParams();
   const filters = createUrlFilters(
     { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantName: 'tenantName', lane: 'lane', tags: 'tags', view: 'view' },

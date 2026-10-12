@@ -283,7 +283,6 @@ export function statusClass(status: string): string {
     case 'critical':
       return 'bad';
     case 'executing':
-    case 'dispatched':
     case 'delivering':
       return 'run';
     case 'paused':
@@ -312,7 +311,6 @@ export function statusIcon(status: string): string {
     case 'cancelled':
       return 'x';
     case 'executing':
-    case 'dispatched':
     case 'delivering':
       return 'play';
     case 'paused':

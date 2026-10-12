@@ -86,7 +86,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var deduplicationKey = await EnqueueJob(ct);
 
         var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
-        var inflight = new List<JobStatusCode> { JobStatusCode.Ready, JobStatusCode.Dispatched, JobStatusCode.Executing };
+        var inflight = new List<JobStatusCode> { JobStatusCode.Ready, JobStatusCode.Executing };
         var rows = await Db.From<RuntimeEntity>().Where(r => r.Id == job!.Id && inflight.Contains(r.Status)).ToListAsync(ct);
 
         Assert.Single(rows);

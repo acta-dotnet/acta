@@ -9,7 +9,7 @@
 -- schemas). The runner substitutes it.
 --
 -- Codes, from source rather than memory:
---   JobStatusCode        Ready=10 Blocked=15 Suspended=20 Paused=30 Dispatched=40 Executing=50
+--   JobStatusCode        Ready=10 Blocked=15 Suspended=20 Paused=30 Executing=50
 --                        Succeeded=100 Failed=200 Cancelled=220
 --   ExecutionStatusCode  Executing=50 Succeeded=100 Rescheduled=150 Suspended=151 Paused=152
 --                        Failed=200 Cancelled=220 Orphaned=230
@@ -37,7 +37,7 @@
 -- incremented atomically on each claim and both 40/41 carry it beside `worker_id`, so a double-claim
 -- surfaces exactly, with no clock reasoning at all.
 --
--- This is NOT lease exclusivity. It cannot see a claim that died before emitting 40, and it cannot
+-- This is NOT lease exclusivity. It cannot see an attempt that wrote no 40, and it cannot
 -- detect two overlapping claims that carried different execution numbers. Report it by this name.
 SELECT 'exec-event-ownership' AS check_name, job_id, execution_number, COUNT(DISTINCT worker_id) AS workers
 FROM   {s}events
@@ -97,7 +97,7 @@ WHERE  e.event_code IN (40, 41)
 -- ---------------------------------------------------------------------------------------------
 -- 4. no stranded work                                    [QUIESCED ONLY]
 -- ---------------------------------------------------------------------------------------------
--- Nothing is left mid-flight once the run is over: no job still Dispatched or Executing.
+-- Nothing is left mid-flight once the run is over: no job still Executing.
 --
 -- Note what this does NOT assert: that every job Succeeded. A realistic workload contains shapes
 -- designed to fail - Anvil seeds `always-fails` - so "everything is Succeeded" would fail a healthy
@@ -110,7 +110,7 @@ SELECT 'no-stranded-work' AS check_name, r.job_id, r.status_code, r.leased_by_wo
 FROM   {s}runtimes r
 JOIN   {s}jobs j ON j.id = r.job_id
 JOIN   {s}definitions d ON d.id = j.definition_id
-WHERE  r.status_code IN (40, 50)
+WHERE  r.status_code = 50
   AND  NOT (d.name LIKE 'sys.%' AND r.lease_expires_at_utc > {now});
 
 -- ---------------------------------------------------------------------------------------------

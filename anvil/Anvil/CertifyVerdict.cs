@@ -93,7 +93,7 @@ internal static class CertifyVerdict
 
         Console.WriteLine($"  FAIL - {string.Join(", ", failures)}");
         Console.WriteLine("  If the run has not quiesced, checks marked QUIESCED ONLY report false failures:");
-        Console.WriteLine("  wait until no runtimes row is Dispatched or Executing, then re-run.");
+        Console.WriteLine("  wait until no runtimes row is Executing, then re-run.");
         Console.WriteLine();
         return 1;
     }

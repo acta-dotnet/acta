@@ -8,7 +8,7 @@ WHERE j.id = @p_id;
 
 -- The audit event carries only bounded JSON metadata about the previous payload (format name and
 -- byte count), never the payload itself. Emitted BEFORE the update so j.input_format_id / j.input
--- still hold the old value, and gated on the same non-dispatched/executing guard.
+-- still hold the old value, and gated on the same non-executing guard.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -69,7 +69,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
     AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
-    AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+    AND r.status_code <> 50 /* JobStatusCode.Executing */;
 
 UPDATE {{schema}}.jobs
 SET
@@ -82,12 +82,12 @@ WHERE
         FROM {{schema}}.runtimes r
         WHERE
             r.job_id = @p_id
-            AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */));
+            AND r.status_code <> 50 /* JobStatusCode.Executing */);
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
+        WHEN s.from_status <> 50 /* JobStatusCode.Executing */ THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     s.from_status AS status_code

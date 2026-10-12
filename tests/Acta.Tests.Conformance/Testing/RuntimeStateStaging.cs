@@ -13,7 +13,7 @@ internal static class RuntimeStateStaging
     public const int StagedWorkerId = int.MaxValue;
 
     public static Task SetStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        statusCode is (byte)JobStatusCode.Dispatched or (byte)JobStatusCode.Executing
+        statusCode is (byte)JobStatusCode.Executing
             ? db.ExecuteRawAsync(
                 "UPDATE {schema}.runtimes SET status_code = @p_status, leased_by_worker_id = @p_worker, lease_expires_at_utc = @p_expires "
                     + "WHERE job_id = @p_id",

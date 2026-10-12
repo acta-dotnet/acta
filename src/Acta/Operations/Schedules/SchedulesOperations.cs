@@ -58,8 +58,8 @@ internal sealed class SchedulesOperations(
     /// <summary>
     /// Registers every definition's recurring slot job and its schedules in one set-based call, answering each slot.
     /// Every host re-registers every slot at startup, so this runs against slots another host may be executing: it
-    /// re-asserts the declaration on an idle slot, overwriting an operator reprioritize, and leaves a Dispatched,
-    /// Executing, held, or finished slot as it stands.
+    /// re-asserts the declaration on an idle slot, overwriting an operator reprioritize, and leaves an Executing,
+    /// held, or finished slot as it stands.
     /// </summary>
     internal Task<RegisterSchedulesResponse> RegisterSchedulesAsync(RegisterSchedulesCommand command, CancellationToken ct) =>
         registerSchedules.HandleAsync(command, ct);

@@ -57,7 +57,7 @@ const executionEvents = [
     jobEventId: 89,
     eventCode: 'job.execution-started',
     createdAtUtc: '2026-07-14T07:59:00Z',
-    fromStatus: 'dispatched',
+    fromStatus: 'ready',
     toStatus: 'executing',
     executionStatus: 'executing',
     durationMs: null,

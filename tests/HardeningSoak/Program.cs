@@ -318,7 +318,6 @@ async Task MonitorAsync(CancellationToken token)
                 counts.Unfinished,
                 counts.Succeeded,
                 counts.Ready,
-                counts.Dispatched,
                 counts.Executing,
                 LastWorkerSeen = await ScalarAsync($"SELECT MAX(last_seen_at_utc) FROM {qualified}.workers", token),
                 RecoveryExecution = await ScalarAsync($"SELECT MAX(r.execution_number) FROM {JobsOf(BenchHost.RecoveryJobName)}", token),
@@ -396,7 +395,6 @@ async Task<StatusCounts> StatusCountsAsync(CancellationToken token)
         succeeded,
         Of(JobStatusCode.Failed),
         Of(JobStatusCode.Ready),
-        Of(JobStatusCode.Dispatched),
         Of(JobStatusCode.Executing),
         byStatus.Values.Sum() - succeeded
     );
@@ -420,4 +418,4 @@ DbConnection Open() =>
         _ => new SqliteConnection(ProviderConn.Resolve(provider, schema)),
     };
 
-internal sealed record StatusCounts(long Succeeded, long Failed, long Ready, long Dispatched, long Executing, long Unfinished);
+internal sealed record StatusCounts(long Succeeded, long Failed, long Ready, long Executing, long Unfinished);

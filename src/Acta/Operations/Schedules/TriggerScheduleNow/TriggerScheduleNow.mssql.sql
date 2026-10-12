@@ -58,7 +58,7 @@ BEGIN TRY
         END;
 
     -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
-    IF @slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    IF @slot_status = 50 /* JobStatusCode.Executing */
         OR (@slot_status = 30 /* JobStatusCode.Paused */ AND @slot_next IS NOT NULL)
         BEGIN
 

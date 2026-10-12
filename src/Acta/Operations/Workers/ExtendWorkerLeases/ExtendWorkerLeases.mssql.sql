@@ -73,7 +73,7 @@ BEGIN
         INNER JOIN @held h ON h.job_id = r.job_id AND h.execution_number = r.execution_number
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+            AND r.status_code = 50 /* JobStatusCode.Executing */;
 
         -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
         -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
@@ -85,7 +85,7 @@ BEGIN
         INNER JOIN @matched m ON m.job_id = r.job_id AND m.execution_number = r.execution_number
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+            AND r.status_code = 50 /* JobStatusCode.Executing */;
 
         SELECT
             CAST(NULL AS BIGINT) AS job_id,

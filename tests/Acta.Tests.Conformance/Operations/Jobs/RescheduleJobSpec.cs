@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Operator RescheduleAsync: moves a waiting job's next-run instant, re-arming Paused/Suspended rows
-/// Ready so the new instant actually fires; Dispatched/Executing/terminal rows are rejected.
+/// Ready so the new instant actually fires; Executing and terminal rows are rejected.
 /// </summary>
 [ConformanceSpec(
     "job.reschedule",

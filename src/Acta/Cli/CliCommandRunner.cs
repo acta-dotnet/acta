@@ -237,7 +237,7 @@ internal sealed class CliCommandRunner(
         var jobId = snapshot.JobId;
         var jobRef = snapshot.JobRef;
 
-        if (snapshot.Status is JobStatusCode.Executing or JobStatusCode.Dispatched)
+        if (snapshot.Status is JobStatusCode.Executing)
         {
             await error.WriteLineAsync($"job {jobRef} is currently {snapshot.Status}; cannot run it here.");
             return ExitRejected;

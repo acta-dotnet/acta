@@ -92,7 +92,7 @@ WHERE
             AND o.lane_id IS NOT NULL
             AND o.status_code IN (
                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                50 /* JobStatusCode.Executing */
             )
     )
     AND job_id = (
@@ -103,7 +103,7 @@ WHERE
             AND m.lane_id IS NOT NULL
             AND m.status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
             )
         ORDER BY m.job_id
         LIMIT 1

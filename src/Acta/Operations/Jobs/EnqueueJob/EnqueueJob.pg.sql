@@ -156,7 +156,7 @@ BEGIN
                 ar.lane_id = v_lane_id
                 AND ar.status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
         ) THEN
             RAISE EXCEPTION 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an unfinished ancestor, so it would wait behind the ancestor that waits for it.'
@@ -264,7 +264,7 @@ BEGIN
                         AND m.lane_id IS NOT NULL
                         AND m.status_code IN (
                             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                         )
                 )
                     THEN 15 /* JobStatusCode.Blocked */

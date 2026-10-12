@@ -1,12 +1,10 @@
 // Pure amend-input state logic, kept out of the panel component so node --test can exercise it
 // without the Svelte runtime (same split the rest of job-detail/*.ts uses).
 
-// A dispatched or executing job is in flight: the backend rejects an input amend for those two
-// statuses with 409, so the panel hides the editor rather than inviting a guaranteed rejection.
-const IN_FLIGHT_STATUSES = ['dispatched', 'executing'];
-
+// An executing job is in flight: the backend rejects an input amend for it with 409, so the panel
+// hides the editor rather than inviting a guaranteed rejection.
 export function inputAmendable(status: string): boolean {
-  return !IN_FLIGHT_STATUSES.includes(status);
+  return status !== 'executing';
 }
 
 // Builds the format-faithful amend body for the job's stored format. A text job amends its text field

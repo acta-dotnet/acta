@@ -574,7 +574,7 @@ BEGIN
                             AND h.lane_id IS NOT NULL
                             AND h.status_code IN (
                                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                             )
                         ORDER BY h.job_id
                     ) head

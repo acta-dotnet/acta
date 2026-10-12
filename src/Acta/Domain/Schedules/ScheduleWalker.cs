@@ -124,7 +124,7 @@ internal static class ScheduleWalker
         var schedules = new List<SlotSchedule>(declared.Count);
         var contributions = new List<DateTime?>(declared.Count);
         var slot = storedByName.Values.FirstOrDefault();
-        var inFlight = slot?.SlotStatus is JobStatusCode.Dispatched or JobStatusCode.Executing;
+        var inFlight = slot?.SlotStatus is JobStatusCode.Executing;
         var parked = IsParked(slot, storedByName.Values, nowUtc);
 
         foreach (var d in declared)

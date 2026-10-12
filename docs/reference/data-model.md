@@ -420,12 +420,12 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | `job_id`<a id="column-acta-runtimes--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; primary key (1:1 with `jobs`) and CASCADE FK, so a purged job sweeps its runtime row in the same transaction. Supplied by enqueue, never DB-assigned. |
 | `namespace_id`<a id="column-acta-runtimes--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the owning Job's namespace, denormalized so the hot claim and the reclaim filter and seek without joining `jobs` (`ix_runtimes_claim_ready` leads with it). Written once at insert, never updated. |
 | `lane_id`<a id="column-acta-runtimes--lane-id"></a> | `Int64` | · | yes | · | · | The owning Job's lane, NULL for an unlaned Job. Written once at insert, never updated. A laned Job enters Ready only while no older member of its lane is unfinished; otherwise it enters `Blocked` and the settle of the member ahead of it promotes it. |
-| `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled). |
+| `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Blocked / Executing / Succeeded / Failed / Cancelled). |
 | `priority_code`<a id="column-acta-runtimes--priority-code"></a> | `Byte` | · | no | · | [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) (`job-priority`) | Claim-order key set from the definition policy, definition override, or per-enqueue override. |
 | `next_run_at_utc`<a id="column-acta-runtimes--next-run-at-utc"></a> | `UtcInstant` | · | yes | · | · | Next claim instant; the hot-path claim filter compares against this. A `Ready` row always carries it, enforced by `ck_runtimes_ready_due`. On a `Suspended` row it carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait unclaimable while a bounded one wakes at its deadline. |
 | `execution_number`<a id="column-acta-runtimes--execution-number"></a> | `Int32` | · | no | · | · | Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a recurring slot claimed once a second for its whole life would take about sixty-eight years to exhaust it, and exhaustion lies outside the supported lifetime of one durable slot. The providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32 mapper rejects it on read), so the failure mode is an error, never a negative attempt number. |
 | `failure_count`<a id="column-acta-runtimes--failure-count"></a> | `Int32` | · | no | · | · | Failure counter for the current cycle, compared against `MaxAttempts` on a one-off job. A recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across occurrences. |
-| `leased_by_worker_id`<a id="column-acta-runtimes--leased-by-worker-id"></a> | `Int32` | · | yes | · | · | Worker that currently holds the in-flight execution lease, if any. No FK; write-time validation in the claim routine. Paired with `LeaseExpiresAtUtc` by `ck_runtimes_lease_consistency`, and bound to `Status` in both directions by `ck_runtimes_status_lease` and `ck_runtimes_inflight_leased`: set exactly while the status is `Dispatched` or `Executing`, NULL otherwise. |
+| `leased_by_worker_id`<a id="column-acta-runtimes--leased-by-worker-id"></a> | `Int32` | · | yes | · | · | Worker that currently holds the in-flight execution lease, if any. No FK; write-time validation in the claim routine. Paired with `LeaseExpiresAtUtc` by `ck_runtimes_lease_consistency`, and bound to `Status` in both directions by `ck_runtimes_status_lease` and `ck_runtimes_inflight_leased`: set exactly while the status is `Executing`, NULL otherwise. |
 | `lease_expires_at_utc`<a id="column-acta-runtimes--lease-expires-at-utc"></a> | `UtcInstant` | · | yes | · | · | Execution lease expiry instant; the heartbeat pushes it forward without bumping `Version`, and `sys.recovery` reclaims in-flight rows past it. |
 | `retention_until_utc`<a id="column-acta-runtimes--retention-until-utc"></a> | `UtcInstant` | · | yes | · | · | When `sys.retention` deletes the owning job row (this row cascades with it). |
 | `modified_at_utc`<a id="column-acta-runtimes--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the runtime row was last updated. Set server-side on every mutation. |
@@ -436,8 +436,8 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
 | `ix_runtimes_claim_ready` | `namespace_id`, `priority_code` DESC, `next_run_at_utc`, `job_id`, `status_code` | not unique | `status_code IN (10, 20) AND next_run_at_utc IS NOT NULL` | `claim_hot_path` |
-| `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)` | `heartbeat` |
-| `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)` | `lane` |
+| `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code = 50` | `heartbeat` |
+| `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50)` | `lane` |
 | `ix_runtimes_lane_member` | `lane_id` | not unique | `lane_id IS NOT NULL` | `maintenance` |
 
 **Check constraints**
@@ -447,8 +447,8 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | `ck_runtimes_blocked_lane` | `status_code <> 15 OR lane_id IS NOT NULL` |
 | `ck_runtimes_lease_consistency` | `(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)` |
 | `ck_runtimes_counters` | `execution_number >= 0 AND failure_count >= 0` |
-| `ck_runtimes_status_lease` | `status_code IN (40, 50) OR leased_by_worker_id IS NULL` |
-| `ck_runtimes_inflight_leased` | `status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL` |
+| `ck_runtimes_status_lease` | `status_code = 50 OR leased_by_worker_id IS NULL` |
+| `ck_runtimes_inflight_leased` | `status_code <> 50 OR leased_by_worker_id IS NOT NULL` |
 | `ck_runtimes_ready_due` | `status_code <> 10 OR next_run_at_utc IS NOT NULL` |
 
 **Foreign keys**

@@ -34,7 +34,7 @@ public interface ISchedules
         CancellationToken ct = default
     );
 
-    /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now: pulls the owning slot's cursor to the current instant so the next claim sweep picks it up immediately, leaving the schedule's own cursor (and cadence) untouched. <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="reasonMessage"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the reasonMessage is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first); a slot already Dispatched or Executing is Rejected (a fire is already in flight).</summary>
+    /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now: pulls the owning slot's cursor to the current instant so the next claim sweep picks it up immediately, leaving the schedule's own cursor (and cadence) untouched. <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="reasonMessage"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the reasonMessage is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first); a slot already Executing is Rejected (a fire is already in flight).</summary>
     ValueTask<TriggerScheduleNowResponse> TriggerNowAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,

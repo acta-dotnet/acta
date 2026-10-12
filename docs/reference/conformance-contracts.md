@@ -534,9 +534,9 @@
   - ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone
 
 ### Cancel stamps retention once and rejects a re-cancel
-- **Contract:** Cancel from Suspended or Dispatched applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping.
+- **Contract:** Cancel from Suspended or Executing applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping.
 - **Guarantees:**
-  - Cancel from Suspended and Dispatched is Applied and stamps retention_until_utc
+  - Cancel from Suspended and Executing is Applied and stamps retention_until_utc
   - Re-cancel of a Cancelled job is Rejected and does not re-stamp retention_until_utc
 
 ### An external cancel reaches the running handler's token via heartbeat
@@ -621,11 +621,11 @@
   - RescheduleAsync returns NotFound for an unknown lookup
 
 ### Operator update-input amends stored input and audits bounded payload metadata.
-- **Contract:** UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload.
+- **Contract:** UpdateJobInput replaces a job's input in any status except Executing and audits job.input-amended with prior-payload metadata, never the payload.
 - **Guarantees:**
   - UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count
   - UpdateJobInput audit metadata outlives the purged job without leaking payload bytes
-  - UpdateJobInput rejects a Dispatched or Executing job and leaves its input unchanged
+  - UpdateJobInput rejects an Executing job and leaves its input unchanged
   - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
   - UpdateJobInput stores the new payload's format id, so a text job amends as text
   - UpdateJobInput returns NotFound for an unknown lookup
@@ -870,7 +870,6 @@
 - **Guarantees:**
   - A recovery slot in flight under a live lease is left alone
   - A recovery slot in flight under a lapsed lease is re-armed once, with the lost attempt recorded
-  - A slot claimed but not yet started when its worker died is re-armed uncharged and recorded as lost from Dispatched
   - Two workers repairing the same lapsed slot at once commit one repair and one event
   - A heartbeat renewal that commits while the repair waits on the row wins; the repair declines
   - A recovery slot whose row is gone is reported missing and never recreated

@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 /// <summary>
 /// Operator manual trigger of a single named schedule: pulls the owning slot's cursor to now so the
 /// next claim sweep fires it immediately, leaving the schedule's own cursor (and cadence) untouched. A
-/// paused schedule or a slot already in flight (Dispatched/Executing) rejects rather than firing twice.
+/// paused schedule or a slot already in flight (Executing) rejects rather than firing twice.
 /// </summary>
 [ConformanceSpec(
     "schedule.trigger-now",
