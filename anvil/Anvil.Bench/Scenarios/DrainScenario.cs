@@ -5,7 +5,8 @@ namespace Anvil.Bench;
 
 /// <summary>
 /// Claim + execute + complete only, write cost removed. Parameterized by Workers (N>1 runs N in-process
-/// workers draining one preloaded backlog - the claim-contention sweep); SharedKey makes every job
+/// workers draining one preloaded backlog - the claim-contention sweep - spread over Namespaces, as a
+/// deployment runs several namespaces of a few workers each); SharedKey makes every job
 /// carry one concurrency key so the lock serializes them (the contention/fairness probe). The whole backlog
 /// is enqueued behind a future horizon (nothing Ready), then the horizon passes and a fully-preloaded
 /// queue drains; the timed window is pure drain. Reports drain jobs/sec, per-job overhead, worker count,
@@ -35,7 +36,7 @@ public sealed class DrainScenario : IScenario
 
         if (p.Workers > 1)
         {
-            await using var cluster = await BenchCluster.StartAsync(template, p.Workers, ct);
+            await using var cluster = await BenchCluster.StartAsync(template, p.Workers, ct, p.Namespaces);
             return await DrainCoreAsync(cluster.Jobs, cluster.Sink, p, cfg, p.Workers, ct);
         }
 
@@ -61,7 +62,8 @@ public sealed class DrainScenario : IScenario
             ct,
             concurrencyKey: cfg.SharedKey ? SharedKey : null,
             jobName: BenchHost.WorkloadJobName(cfg.AuditOn),
-            workMs: cfg.WorkMs
+            workMs: cfg.WorkMs,
+            namespaces: p.Namespaces
         );
 
         var drain = Stopwatch.StartNew();
@@ -70,7 +72,12 @@ public sealed class DrainScenario : IScenario
 
         var (P50, P95, P99, Max, Mean) = Workload.Latencies(sink, s => s.Entry - releaseStamp);
         var overheadUs = !sink.Samples.IsEmpty ? drain.Elapsed.TotalSeconds / sink.Samples.Count * 1e6 : 0;
-        var extra = new Dictionary<string, double> { ["overheadUsPerJob"] = overheadUs, ["workers"] = workers };
+        var extra = new Dictionary<string, double>
+        {
+            ["overheadUsPerJob"] = overheadUs,
+            ["workers"] = workers,
+            ["namespaces"] = p.Namespaces,
+        };
         if (cfg.SharedKey)
         {
             extra["fairnessSpread"] = P50 > 0 ? P99 / P50 : 0;

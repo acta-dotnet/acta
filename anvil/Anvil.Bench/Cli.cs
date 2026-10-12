@@ -60,18 +60,23 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
     /// <summary>The backlog from <c>--jobs</c>; null keeps the preset's.</summary>
     public int? Jobs { get; init; }
 
+    /// <summary>The namespaces from <c>--namespaces</c>; null keeps the preset's.</summary>
+    public int? Namespaces { get; init; }
+
     /// <summary>The preset with these overrides applied.</summary>
     public BenchPreset Apply(BenchPreset preset) =>
         preset with
         {
             Jobs = Jobs ?? preset.Jobs,
             DrainWorkers = DrainWorkers ?? preset.DrainWorkers,
+            Namespaces = Namespaces ?? preset.Namespaces,
         };
 
     /// <summary>
     /// Parses the arguments after the preset name. <c>--db</c> is required; <c>--scenario</c> repeats
     /// to select cells; <c>--seed-history</c> takes a non-negative count and defaults to 0, which is
-    /// the empty-ledger run; <c>--drain-workers 16,24,32</c> and <c>--jobs N</c> override the preset's.
+    /// the empty-ledger run; <c>--drain-workers 16,24,32</c>, <c>--jobs N</c>, and <c>--namespaces N</c> (2 to 4)
+    /// override the preset's.
     /// Throws <see cref="ArgumentException"/> on an unknown or malformed option.
     /// </summary>
     public static BenchRunOptions Parse(string[] args)
@@ -81,10 +86,11 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
         var seedHistory = 0;
         IReadOnlyList<int>? drainWorkers = null;
         int? jobs = null;
+        int? namespaces = null;
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] is not ("--db" or "--scenario" or "--seed-history" or "--drain-workers" or "--jobs"))
+            if (args[i] is not ("--db" or "--scenario" or "--seed-history" or "--drain-workers" or "--jobs" or "--namespaces"))
             {
                 throw new ArgumentException($"Unknown option '{args[i]}'.");
             }
@@ -109,6 +115,16 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
             {
                 jobs = PositiveFromArg("--jobs", args[++i]);
             }
+            else if (args[i] == "--namespaces")
+            {
+                namespaces = PositiveFromArg("--namespaces", args[++i]);
+                if (namespaces is < BenchPreset.MinNamespaces or > BenchPreset.MaxNamespaces)
+                {
+                    throw new ArgumentException(
+                        $"--namespaces takes {BenchPreset.MinNamespaces} to {BenchPreset.MaxNamespaces}, not {namespaces}."
+                    );
+                }
+            }
             else
             {
                 (scenarios ??= []).Add(args[++i]);
@@ -117,7 +133,12 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
 
         return db is null
             ? throw new ArgumentException("Missing --db sqlite|pg|mssql|all.")
-            : new BenchRunOptions(ProvidersFromDb(db), scenarios, seedHistory) { DrainWorkers = drainWorkers, Jobs = jobs };
+            : new BenchRunOptions(ProvidersFromDb(db), scenarios, seedHistory)
+            {
+                DrainWorkers = drainWorkers,
+                Jobs = jobs,
+                Namespaces = namespaces,
+            };
     }
 
     /// <summary>Expands a <c>--db</c> value to the providers it names; <c>all</c> is the full matrix.</summary>
@@ -382,7 +403,7 @@ public static class BenchCli
             Usage:
               acta-bench
               acta-bench quick --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
-              acta-bench full --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>] [--drain-workers <n,...>] [--jobs <N>]
+              acta-bench full --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>] [--drain-workers <n,...>] [--jobs <N>] [--namespaces <N>]
               acta-bench burst [options]   The sys.alerts burst certification; burst --help lists its options.
 
             Presets:
@@ -392,6 +413,8 @@ public static class BenchCli
             Options:
               --scenario <name>     Measure only this scenario; repeat to select several.
               --drain-workers <n,...>  The worker counts the drain cells sweep on PostgreSQL and SQL Server.
+              --namespaces <N>      The namespaces a multi-worker drain spreads its workers and backlog over, 2 to 4.
+                                    Default 2. A one-worker drain runs in one.
               --jobs <N>            The backlog each cell drains, in place of the preset's.
               --seed-history <N>    Seed N terminal jobs (runtime, event, and result rows each) into every cell after
                                     its schema reset and before its timed window, dated across the last 30 days, so the

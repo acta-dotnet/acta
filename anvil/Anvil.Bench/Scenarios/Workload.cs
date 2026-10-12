@@ -19,7 +19,8 @@ internal static class Workload
     /// <summary>
     /// Enqueues <paramref name="count"/> jobs in chunks, stamping each request with the current
     /// Stopwatch timestamp at submit time. <paramref name="laneOf"/> names each job's lane by its index,
-    /// and <paramref name="priority"/> overrides the definition's priority. Returns the elapsed enqueue window.
+    /// and <paramref name="priority"/> overrides the definition's priority. With <paramref name="namespaces"/>
+    /// the jobs are dealt round-robin over that many namespaces, each chunk in one. Returns the elapsed enqueue window.
     /// </summary>
     public static async Task<TimeSpan> EnqueueAsync(
         IJobs jobs,
@@ -31,17 +32,20 @@ internal static class Workload
         string? concurrencyKey = null,
         int workMs = 0,
         Func<int, string?>? laneOf = null,
-        JobPriorityCode? priority = null
+        JobPriorityCode? priority = null,
+        int namespaces = 1
     )
     {
         var pad = Pad(payloadBytes);
         var sw = Stopwatch.StartNew();
-        var batch = new List<EnqueueJobRequest>(Math.Min(EnqueueChunk, count));
+        var batches = Enumerable.Range(0, namespaces).Select(_ => new List<EnqueueJobRequest>(Math.Min(EnqueueChunk, count))).ToArray();
         for (var i = 0; i < count; i++)
         {
+            var ns = i % namespaces;
+            var batch = batches[ns];
             batch.Add(
                 new EnqueueJobRequest(
-                    BenchHost.Namespace,
+                    BenchHost.NamespaceAt(ns),
                     jobName,
                     BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp(), pad, workMs)),
                     ConcurrencyKey: concurrencyKey,
@@ -50,11 +54,15 @@ internal static class Workload
                     DelaySeconds: delaySeconds
                 )
             );
-            if (batch.Count == EnqueueChunk || i == count - 1)
+            if (batch.Count == EnqueueChunk)
             {
                 await jobs.EnqueueBatchAsync(batch, ct);
                 batch.Clear();
             }
+        }
+        foreach (var batch in batches.Where(batch => batch.Count > 0))
+        {
+            await jobs.EnqueueBatchAsync(batch, ct);
         }
         sw.Stop();
         return sw.Elapsed;
@@ -118,7 +126,8 @@ internal static class Workload
     /// became due. Callers time the drain from now and read queue-residence latency as
     /// (sample.Entry - releaseStamp). <paramref name="alongsideCount"/> rides the same horizon, so a cell
     /// can release a second workload against the same executors at the same instant. <paramref name="priority"/>
-    /// overrides the main workload's priority.
+    /// overrides the main workload's priority, and <paramref name="namespaces"/> deals the main workload over that
+    /// many namespaces.
     /// </summary>
     public static async Task<(TimeSpan Enqueue, long ReleaseStamp)> PreloadBehindHorizonAsync(
         IJobs jobs,
@@ -130,7 +139,8 @@ internal static class Workload
         int workMs = 0,
         int alongsideCount = 0,
         string alongsideJobName = BenchHost.JobName,
-        JobPriorityCode? priority = null
+        JobPriorityCode? priority = null,
+        int namespaces = 1
     )
     {
         var horizonSeconds = Math.Max(5, (count + alongsideCount) / 25_000 + 3);
@@ -144,7 +154,8 @@ internal static class Workload
             jobName: jobName,
             concurrencyKey: concurrencyKey,
             workMs: workMs,
-            priority: priority
+            priority: priority,
+            namespaces: namespaces
         );
         if (alongsideCount > 0)
         {

@@ -150,6 +150,9 @@ below are what the rounds on this machine cost to learn.
   `full` matrix stays for investigating a cell, never for the round. A previous tag whose harness
   predates a preset gets the preset backported into its worktree's harness alone, and the round's page
   says so.
+- A drain with more than one worker spreads its workers and its backlog over two namespaces, the
+  shape a deployment runs; `--namespaces` takes two to four. The cell key records the spread, so a round
+  from before it pairs with the candidate only on its one-worker drains.
 - One chain at a time. A stopped background chain leaves its child script alive, and that script starts
   its next cell the moment the harness process is killed; list processes by command line
   (`Win32_Process`) and confirm `pg_stat_activity` is empty before starting another round.

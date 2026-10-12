@@ -776,6 +776,9 @@ public sealed record BenchHostOptions
     /// <summary>Distinct per host within a cluster; surfaced to the recovery probe so it can name the killed worker.</summary>
     public int WorkerId { get; init; }
 
+    /// <summary>The namespace this host's worker runs; a cluster spreading over several sets it per host.</summary>
+    public string Namespace { get; init; } = BenchHost.Namespace;
+
     /// <summary>A cluster resets the schema once on host 0, then starts the rest with this false.</summary>
     public bool ResetSchema { get; init; } = true;
 
@@ -795,8 +798,11 @@ public sealed record BenchHostOptions
 /// </summary>
 public sealed class BenchHost : IAsyncDisposable
 {
-    /// <summary>The namespace every benchmark job is enqueued into.</summary>
+    /// <summary>The namespace every benchmark job is enqueued into, and the first of a spread drain's.</summary>
     public const string Namespace = "acta-bench";
+
+    /// <summary>The <paramref name="index"/>th namespace of a drain spread over several; the first is <see cref="Namespace"/>.</summary>
+    public static string NamespaceAt(int index) => index == 0 ? Namespace : $"{Namespace}-{index + 1}";
 
     /// <summary>The default benchmark job name, matching the <c>[Job]</c> attribute in <see cref="BenchHandler"/>.</summary>
     public const string JobName = "bench-run";
@@ -982,7 +988,7 @@ public sealed class BenchHost : IAsyncDisposable
             }
 
             j.UseJsonPayloads(BenchPayloadJsonContext.Default);
-            j.Run<BenchJobs>(Namespace);
+            j.Run<BenchJobs>(opt.Namespace);
         });
 
         var host = builder.Build();

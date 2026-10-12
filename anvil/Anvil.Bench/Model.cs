@@ -10,7 +10,8 @@ namespace Anvil.Bench;
 /// <c>Profile</c> selects the execution profile (Buffered or Direct) for the comparison scenarios.
 /// <c>Rate</c> is the rate scenario's declaration (<c>"100/s"</c>) and <c>SideJobs</c> the unmetered
 /// backlog it drains alongside; <c>Variant</c> names a lanes or claim-skew cell's workload shape. All three default so
-/// every other scenario is unaffected.
+/// every other scenario is unaffected. <c>Namespaces</c> is how many namespaces a multi-worker drain spreads its
+/// workers and backlog over.
 /// </summary>
 public sealed record CellParams(
     string Provider,
@@ -24,7 +25,8 @@ public sealed record CellParams(
     ExecutionProfile Profile = ExecutionProfile.Direct,
     string? Rate = null,
     int SideJobs = 0,
-    string? Variant = null
+    string? Variant = null,
+    int Namespaces = 1
 );
 
 /// <summary>

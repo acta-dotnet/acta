@@ -37,16 +37,24 @@ public sealed class BenchCluster : IAsyncDisposable
 
     /// <summary>
     /// Resets the schema once, then starts <paramref name="workers"/> hosts from the template, each with
-    /// the shared sink and recovery coordinator and a distinct worker id.
+    /// the shared sink and recovery coordinator and a distinct worker id, dealt round-robin over
+    /// <paramref name="namespaces"/> namespaces.
     /// </summary>
-    public static async Task<BenchCluster> StartAsync(BenchHostOptions template, int workers, CancellationToken ct)
+    public static async Task<BenchCluster> StartAsync(BenchHostOptions template, int workers, CancellationToken ct, int namespaces = 1)
     {
         var sink = template.Sink ?? new BenchSink();
         var recovery = template.Recovery ?? new RecoveryCoordinator();
         var hosts = new List<BenchHost>(workers);
         for (var i = 0; i < workers; i++)
         {
-            var opt = template with { Sink = sink, Recovery = recovery, WorkerId = i, ResetSchema = i == 0 };
+            var opt = template with
+            {
+                Sink = sink,
+                Recovery = recovery,
+                WorkerId = i,
+                ResetSchema = i == 0,
+                Namespace = BenchHost.NamespaceAt(i % namespaces),
+            };
             hosts.Add(await BenchHost.StartAsync(opt, ct));
         }
         return new BenchCluster(hosts, sink, recovery);

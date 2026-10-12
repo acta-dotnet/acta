@@ -26,6 +26,16 @@ public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, i
 
     /// <summary>The worker counts the drain cells sweep on a server provider; null means 1, 4, and 16 on the full matrix and 1 and 16 otherwise.</summary>
     public IReadOnlyList<int>? DrainWorkers { get; init; }
+
+    /// <summary>
+    /// How many namespaces a multi-worker drain spreads its workers and backlog over, as a deployment runs several
+    /// with a few workers each: the claim index leads with the namespace, so each has its own claim head.
+    /// </summary>
+    public int Namespaces { get; init; } = MinNamespaces;
+
+    public const int MinNamespaces = 2;
+
+    public const int MaxNamespaces = 4;
 }
 
 public sealed record BaselineEnvironmentInfo(
@@ -77,7 +87,10 @@ public sealed record BaselineCellKey(
     int SideJobs = 0,
     // The lanes and claim-skew workload shape. Default so a baseline captured before lanes existed still
     // reads back, its cells keyed exactly as before.
-    string? Variant = null
+    string? Variant = null,
+    // The namespaces a multi-worker drain spreads over. Default so a baseline captured before the drain
+    // spread still reads back, as the one namespace it ran in.
+    int Namespaces = 1
 );
 
 public sealed record BaselineMetrics(
@@ -288,7 +301,8 @@ public static class BaselineSuite
                     payloadBytes: 0,
                     workers,
                     rows: 0,
-                    iterations: 200
+                    iterations: 200,
+                    namespaces: workers > 1 ? Math.Min(preset.Namespaces, workers) : 1
                 );
             }
 
@@ -488,7 +502,8 @@ public static class BaselineSuite
         int? actualClaimBatch = null,
         string? rate = null,
         int sideJobs = 0,
-        string? variant = null
+        string? variant = null,
+        int namespaces = 1
     )
     {
         var key = new BaselineCellKey(
@@ -505,7 +520,8 @@ public static class BaselineSuite
             iterations,
             rate,
             sideJobs,
-            variant
+            variant,
+            namespaces
         );
         var actual = new CellParams(
             provider,
@@ -519,7 +535,8 @@ public static class BaselineSuite
             actualProfile,
             rate,
             sideJobs,
-            variant
+            variant,
+            namespaces
         );
         specs.Add(new BaselineCellSpec(scenario, actualScenario, provider, keyProfile, actual, key));
     }
@@ -1049,7 +1066,7 @@ public static class BaselineReport
         sb.AppendLine();
         sb.AppendLine(
             CultureInfo.InvariantCulture,
-            $"A preloaded backlog drained by N worker processes, {rows[0].Key.Executors} executors each. Cells are median jobs/s."
+            $"A preloaded backlog drained by N worker processes, {rows[0].Key.Executors} executors each{SpreadNote(rows)}. Cells are median jobs/s."
         );
         sb.AppendLine();
         PivotByProfile(
@@ -1061,6 +1078,13 @@ public static class BaselineReport
             "jobs/s",
             k => $"{k.ExecutionProfile}, {k.Workers} worker{(k.Workers == 1 ? "" : "s")}"
         );
+    }
+
+    /// <summary>Names the namespaces the multi-worker cells spread over, when any did.</summary>
+    private static string SpreadNote(IReadOnlyList<BaselineCellResult> rows)
+    {
+        var spreads = rows.Where(c => c.Key.Namespaces > 1).Select(c => c.Key.Namespaces).Distinct().Order().ToArray();
+        return spreads.Length == 0 ? "" : $", several workers spread over {string.Join(" or ", spreads)} namespaces";
     }
 
     // Profiles as rows, one swept dimension (executors or workers) as columns, one metric per cell, plus a
