@@ -17,7 +17,6 @@ public sealed class SqlCommandCatalogTests
         "AcquireLock",
         "AcquireSlot",
         "ArmOrConsumeSleepTimer",
-        "ClaimJob",
         "ClaimJobs",
         "CompleteExecutions",
         "CompleteStep",

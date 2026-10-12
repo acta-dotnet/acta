@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 78)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 79)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1064,132 +1064,6 @@ BEGIN
         RETURN QUERY SELECT 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */::SMALLINT, v_due;
     END IF;
 END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.claim_job(
-    p_namespace_id INT,
-    p_leased_by_worker_id INT,
-    p_lease_ttl_seconds INT,
-    p_id BIGINT
-)
-RETURNS TABLE (
-    id BIGINT,
-    namespace_id INT,
-    definition_id INT,
-    execution_number INT,
-    deduplication_key VARCHAR,
-    correlation_key VARCHAR,
-    concurrency_key VARCHAR,
-    input_format_id SMALLINT,
-    input BYTEA,
-    next_run_at_utc TIMESTAMPTZ,
-    lease_expires_at_utc TIMESTAMPTZ,
-    created_at_utc TIMESTAMPTZ,
-    failure_count INT,
-    job_ref UUID,
-    tenant_id INT,
-    db_now TIMESTAMPTZ,
-    next_ready_at_utc TIMESTAMPTZ,
-    lane_id BIGINT,
-    parent_id BIGINT
-)
-LANGUAGE sql
-AS $$
-    WITH candidates AS (
-        /* claim_jobs' due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
-           Suspended row with a NULL instant is an unbounded wait that never comes due. */
-        SELECT r.job_id AS id, r.status_code AS from_status
-        FROM acta.runtimes r
-        WHERE
-            r.job_id = p_id
-            AND r.namespace_id = p_namespace_id
-            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-            AND r.next_run_at_utc IS NOT NULL
-            AND r.next_run_at_utc <= now()
-        FOR UPDATE OF r SKIP LOCKED
-    ),
-    updated AS (
-        UPDATE acta.runtimes r
-        SET
-            status_code = 50 /* JobStatusCode.Executing */,
-            execution_number = r.execution_number + 1,
-            leased_by_worker_id = p_leased_by_worker_id,
-            lease_expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
-            modified_at_utc = now(),
-            version = r.version + 1
-        FROM candidates c
-        JOIN acta.jobs j ON j.id = c.id
-        WHERE r.job_id = c.id
-        RETURNING
-            r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
-            r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
-            j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-            r.failure_count, j.job_ref, c.from_status, r.lane_id, j.parent_id
-    ),
-    started_event AS (
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        SELECT
-            40 /* EventCode.JobExecutionStarted */,
-            now(),
-            u.namespace_id,
-            70 /* ActorCode.Worker */,
-            NULL,
-            u.id,
-            u.job_ref,
-            u.execution_number,
-            COALESCE(u.lineage_root_id, u.id),
-            u.definition_id,
-            u.tenant_id,
-            p_leased_by_worker_id,
-            u.from_status,
-            50 /* JobStatusCode.Executing */,
-            50 /* ExecutionStatusCode.Executing */,
-            NULL,
-            NULL,
-            NULL
-        FROM updated u
-        WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
-        RETURNING 1
-    )
-    SELECT
-        u.id,
-        u.namespace_id,
-        u.definition_id,
-        u.execution_number,
-        u.deduplication_key,
-        u.correlation_key,
-        u.concurrency_key,
-        u.input_format_id,
-        u.input,
-        u.next_run_at_utc,
-        now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
-        u.created_at_utc,
-        u.failure_count,
-        u.job_ref,
-        u.tenant_id,
-        NULL::timestamptz AS db_now,
-        NULL::timestamptz AS next_ready_at_utc,
-        u.lane_id,
-        u.parent_id
-    FROM updated u;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.claim_jobs(
@@ -5093,7 +4967,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.78-6f67fab2e950ece8fe3944db3b5ed76c', 'acta');
+VALUES (-1, 'objects-1.79-88098525bd1901df81e77b42378f13e9', 'acta');
 
 COMMIT;
 
