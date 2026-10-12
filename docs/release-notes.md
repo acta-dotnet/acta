@@ -148,12 +148,18 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
   stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
-  Twenty routines remain (enqueue, claim, complete, steps, signals, locks and meters, recovery,
-  retention, alert projection, the outbox inbox, and definition and schedule registration). Four of them
-  take new names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A
-  database keeps the routines it already has, so older workers still find them during a rolling deploy;
+  Twenty routines remain (enqueue, claim, complete, steps, signals, locks and meters, the heartbeat,
+  recovery, retention, and the outbox inbox; see the next bullet for the second pass). A database keeps the routines it already has, so older workers still find them during a rolling deploy;
   drop the retired ones once no older worker runs. The object package moves to revision 47; the minimum
   stays 9.
+- **A second pass moved seven cold routines inline.** `claim_job` (only RunOnce, `jobs debug`, and the
+  test host claim by id), `mark_dead_workers`, `raise_alert`, `resolve_alerts`, `update_alert_delivery`,
+  `register_definitions`, and `register_schedules` run as inline SQL on PostgreSQL and SQL Server, as they
+  already did on SQLite: one statement, or one batch in one implicit transaction whose only result is its last
+  SELECT. `purge_expired_data` and `reclaim_stuck_jobs` stay routines: a sweep calls the purge once per
+  slice and batch, and both re-check rows under their own locks, which inline SQL could only do with temp
+  tables built on every call, two to three times slower in the retention specs. The object package moves to
+  revision 84.
 - **Return types take one suffix per role.** What the handler waits return takes the `Outcome` noun of
   `JoinOutcome` and `MapOutcome`: `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with
   `SignalWaitResult<T>`) are now `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
