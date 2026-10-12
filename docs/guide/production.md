@@ -200,6 +200,13 @@ Each `Run<TManifest>(...)` registers one worker namespace in a process. You can 
 replicas of the same namespace for horizontal capacity; every worker is a peer and claims work
 competitively from SQL.
 
+Keep a namespace at 16 workers or fewer. Its workers all claim from one head of the claim index, which
+leads with the namespace, so past that each worker added makes claims queue on the head and
+completions wait on claims: on PostgreSQL a single namespace drained fastest at 16 workers and slower
+at 24 and 32. Size a namespace by its work (peak jobs per second times average handler seconds,
+divided by executors per worker) plus a spare for a crash or a deploy, and when it needs more than 16
+workers, split its work across a second namespace, which has a claim head of its own.
+
 `MaxConcurrentExecutors` is per process. If you run 6 replicas with 16 executors each, the namespace
 can have up to 96 handlers in flight before downstream throttles or job-level limits apply.
 
