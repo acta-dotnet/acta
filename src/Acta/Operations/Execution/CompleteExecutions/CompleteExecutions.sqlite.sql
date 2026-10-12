@@ -78,23 +78,9 @@ SET to_status = 10 /* JobStatusCode.Ready */
 WHERE wait_signal_name IS NOT NULL AND sig_state = 20 /* CheckpointStatusCode.Set */;
 -- end waits
 
-UPDATE {{schema}}.runtimes AS r
-SET
-    status_code = d.to_status,
-    failure_count = COALESCE(d.failure_count, r.failure_count),
-    leased_by_worker_id = NULL,
-    lease_expires_at_utc = NULL,
-    retention_until_utc = CASE
-        WHEN d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            THEN COALESCE({{now}} + d.retention_seconds * 1000, r.retention_until_utc)
-        ELSE r.retention_until_utc
-    END,
-    modified_at_utc = {{now}},
-    version = r.version + 1
-FROM temp._ces_done d
-WHERE r.job_id = d.job_id;
-
 -- begin shapes
+-- The next run goes first, while the row is still Executing: a timer consumed this attempt left it NULL, and
+-- ck_runtimes_ready_due holds a Ready row to one.
 UPDATE {{schema}}.runtimes AS r
 SET next_run_at_utc = CASE
     WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 20 /* CheckpointStatusCode.Set */ THEN {{now}}
@@ -110,6 +96,22 @@ WHERE
     r.job_id = d.job_id
     AND (d.reschedule_status_code IS NOT NULL OR d.handler_status_code IS NOT NULL OR d.final_status IS NOT NULL);
 -- end shapes
+
+UPDATE {{schema}}.runtimes AS r
+SET
+    status_code = d.to_status,
+    failure_count = COALESCE(d.failure_count, r.failure_count),
+    leased_by_worker_id = NULL,
+    lease_expires_at_utc = NULL,
+    retention_until_utc = CASE
+        WHEN d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            THEN COALESCE({{now}} + d.retention_seconds * 1000, r.retention_until_utc)
+        ELSE r.retention_until_utc
+    END,
+    modified_at_utc = {{now}},
+    version = r.version + 1
+FROM temp._ces_done d
+WHERE r.job_id = d.job_id;
 
 INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
 SELECT d.job_id, d.execution_number, d.result_format_id, d.result, {{now}}

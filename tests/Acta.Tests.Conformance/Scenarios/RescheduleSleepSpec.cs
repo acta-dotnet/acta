@@ -143,6 +143,26 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 
+    [Fact(DisplayName = "An attempt that consumes its timer and then re-arms lands Ready at the new instant")]
+    public async Task Consumed_timer_then_rearm_lands_ready()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-then-reschedule", JobPayload.None), ct);
+
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        var past = DateTime.UtcNow.AddMinutes(-1);
+        await SetJobNextRunAsync(Db, enqueued.JobId, past, ct);
+        await SetTimerDueAsync(Db, enqueued.JobId, "nap", past, ct);
+
+        // Consuming the timer clears the running row's next run; the re-arm's completion sets the new one.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        Assert.Equal(CheckpointStatusCode.Consumed, Assert.Single(await ReadTimersAsync(enqueued.JobId, ct)).Status);
+        var job = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Ready, job.Status);
+        Assert.True(job.NextRunAtUtc > DateTime.UtcNow.AddMinutes(5));
+    }
+
     [Fact(DisplayName = "Zero-delay sleep continues without arming a timer")]
     public async Task Zero_delay_sleep_continues_without_arming_a_timer()
     {

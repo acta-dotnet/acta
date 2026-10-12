@@ -1763,6 +1763,7 @@
   - First sleep arms one Pending timer and suspends the handler
   - Sleep rerun before due does not extend or duplicate the timer
   - Sleep rerun after due consumes the timer and the handler continues to Succeeded
+  - An attempt that consumes its timer and then re-arms lands Ready at the new instant
   - Zero-delay sleep continues without arming a timer
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer

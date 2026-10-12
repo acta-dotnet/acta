@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 69)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 70)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1956,15 +1956,15 @@ BEGIN
                 OPTION (FORCE ORDER, LOOP JOIN);
             END
 
-        /* The update locks each row through its clustered key in job_id order. The next run is written apart, only for
-           the shapes that move it, so a batch of landings leaves next_run_at_utc and its index alone; a row being completed
-           is Executing and still carries the instant it was claimed on, so a re-armed row is never Ready without one. */
+        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires on a schedule stays
+           Executing and leased here and takes its status with its next run below: it enters ix_runtimes_claim_ready once, a
+           timer consumed this attempt never meets ck_runtimes_ready_due, and a batch of landings never writes next_run_at_utc. */
         UPDATE r
         SET
-            status_code = s.to_status,
+            status_code = CASE WHEN s.shaped = 1 THEN r.status_code ELSE s.to_status END,
             failure_count = COALESCE(c.failure_count, r.failure_count),
-            leased_by_worker_id = NULL,
-            lease_expires_at_utc = NULL,
+            leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
+            lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,
             retention_until_utc = CASE
                 WHEN
                     s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
@@ -1975,7 +1975,7 @@ BEGIN
             modified_at_utc = @now,
             version = r.version + 1
         OUTPUT
-            INSERTED.job_id, INSERTED.execution_number, INSERTED.status_code, x.lane_id, x.parent_id
+            INSERTED.job_id, INSERTED.execution_number, s.to_status, x.lane_id, x.parent_id
         INTO @done (job_id, execution_number, status_code, lane_id, parent_id)
         FROM @rows x
         INNER JOIN acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = x.job_id
@@ -1989,30 +1989,38 @@ BEGIN
                 WHEN c.final_status IS NOT NULL THEN c.final_status
                 WHEN c.succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
                 ELSE 200 /* JobStatusCode.Failed */
-            END AS to_status
+            END AS to_status,
+            CASE
+                WHEN c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL OR c.final_status IS NOT NULL THEN 1
+                ELSE 0
+            END AS shaped
         ) s
         WHERE
             r.execution_number = x.execution_number
             AND r.status_code = 50 /* JobStatusCode.Executing */
             AND r.leased_by_worker_id = @p_leased_by_worker_id;
 
+        -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
         IF @shapes = 1
             UPDATE r
-            SET next_run_at_utc = CASE
-                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
-                WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
-                WHEN c.reschedule_status_code IS NOT NULL
-                    THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
-                WHEN c.handler_status_code = 30 /* JobStatusCode.Paused */ THEN @now
-                WHEN c.handler_status_code IS NOT NULL THEN NULL
-                ELSE c.job_next_run_at_utc
-            END
+            SET
+                status_code = d.status_code,
+                leased_by_worker_id = NULL,
+                lease_expires_at_utc = NULL,
+                next_run_at_utc = CASE
+                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
+                    WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
+                    WHEN c.reschedule_status_code IS NOT NULL
+                        THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
+                    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                    WHEN c.handler_status_code = 30 /* JobStatusCode.Paused */ THEN @now
+                    ELSE NULL
+                END
             FROM @done d
             INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
             INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
             INNER JOIN acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
-            WHERE c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL OR c.final_status IS NOT NULL;
+            WHERE (c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL) AND c.final_status IS NULL;
 
         -- fk_results_jobs seeks each job by key (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO acta.results (job_id, execution_number, result_format_id, result, created_at_utc)
@@ -2100,7 +2108,7 @@ BEGIN
                     WHERE c.final_status IS NOT NULL;
 
                     UPDATE r
-                    SET status_code = d.status_code, next_run_at_utc = d.slot_wake
+                    SET status_code = d.status_code, next_run_at_utc = d.slot_wake, leased_by_worker_id = NULL, lease_expires_at_utc = NULL
                     FROM @done d
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
                     INNER JOIN acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
@@ -5992,7 +6000,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.69-1c644cc4b88ac23eea61b6fcbe33a864', 'acta'
+SELECT -1, 'objects-1.70-ff42e964d3c21627382c1acfbbf2fa2b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_job', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 38;
 GO

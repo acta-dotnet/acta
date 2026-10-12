@@ -48,6 +48,13 @@ public static class JobSleepRescheduleProbes
         await ctx.SetVariableAsync("ran.after", true, ct);
     }
 
+    [Job("job-sleep-then-reschedule")]
+    public static async Task SleepThenReschedule(JobContext ctx, CancellationToken ct)
+    {
+        await ctx.SleepAsync("nap", TimeSpan.FromMinutes(10), "waiting", ct);
+        await ctx.RescheduleAsync(TimeSpan.FromMinutes(10), "cooldown", ct);
+    }
+
     [Job("job-sleep-zero")]
     public static async Task SleepZero(JobContext ctx, CancellationToken ct)
     {
