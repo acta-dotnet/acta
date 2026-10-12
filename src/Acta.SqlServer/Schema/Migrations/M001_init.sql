@@ -230,7 +230,8 @@ CREATE TABLE {{schema}}.namespaces (
     catalog_hash varchar(128) NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    version int DEFAULT 0 NOT NULL
+    version int DEFAULT 0 NOT NULL,
+    recovery_due_at_utc datetime2(3) NULL
     , CONSTRAINT pk_namespaces PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX ux_namespaces_name ON {{schema}}.namespaces (name);
@@ -588,7 +589,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-36813f4ee8433d91ac5bd5a70690266c', '{{schema}}');
+VALUES (0, 'baseline-0d7eacbcce7a45eb6e0035661cf1c587', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

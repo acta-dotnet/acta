@@ -803,6 +803,10 @@
           {
             "Name": "version",
             "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
+          },
+          {
+            "Name": "recovery_due_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
           }
         ],
         "Indexes": [

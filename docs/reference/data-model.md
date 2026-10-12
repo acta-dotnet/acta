@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **229 columns**, **33 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **230 columns**, **33 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -368,6 +368,7 @@ Service-owned execution boundary. One deployable service owns one `NamespaceEnti
 | `created_at_utc`<a id="column-acta-namespaces--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the namespace row was first created. Set server-side. |
 | `modified_at_utc`<a id="column-acta-namespaces--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the namespace row was last updated. Set server-side on every mutation. |
 | `version`<a id="column-acta-namespaces--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token; SPs manually increment on UPDATE. |
+| `recovery_due_at_utc`<a id="column-acta-namespaces--recovery-due-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the namespace's next recovery pass is due; NULL means due now. A worker runs the pass only when its update moves this one interval on, so one pass runs per namespace per interval, and a worker that dies mid-pass holds nothing. Not an operator setting, so it moves neither `Version` nor `ModifiedAtUtc`. |
 
 **Indexes**
 

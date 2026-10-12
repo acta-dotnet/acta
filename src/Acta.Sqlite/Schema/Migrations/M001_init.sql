@@ -205,7 +205,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
     catalog_hash text NULL,
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
-    version integer DEFAULT 0 NOT NULL
+    version integer DEFAULT 0 NOT NULL,
+    recovery_due_at_utc integer NULL
 ) STRICT;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_namespaces_name ON namespaces (name);
 
@@ -388,7 +389,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-b333e516e8db352492996ca31cf82f73', '{{schema}}')
+VALUES (0, 'baseline-38b3c2c7d6a93437777cfcd4f6b7cb3a', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

@@ -67,4 +67,12 @@ internal sealed class NamespaceEntity : IEntity<int>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
     [DbConcurrencyToken]
     public int Version { get; set; }
+
+    /// <summary>
+    /// When the namespace's next recovery pass is due; NULL means due now. A worker runs the pass only when its update
+    /// moves this one interval on, so one pass runs per namespace per interval, and a worker that dies mid-pass holds
+    /// nothing. Not an operator setting, so it moves neither <see cref="Version"/> nor <see cref="ModifiedAtUtc"/>.
+    /// </summary>
+    [DbColumn("recovery_due_at_utc", DbKind.UtcInstant)]
+    public DateTime? RecoveryDueAtUtc { get; set; }
 }

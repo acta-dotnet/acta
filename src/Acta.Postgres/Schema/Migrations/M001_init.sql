@@ -209,7 +209,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
     catalog_hash varchar(128) NULL,
     created_at_utc timestamptz DEFAULT now() NOT NULL,
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
-    version integer DEFAULT 0 NOT NULL
+    version integer DEFAULT 0 NOT NULL,
+    recovery_due_at_utc timestamptz NULL
     , CONSTRAINT pk_namespaces PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_namespaces_name ON {{schema}}.namespaces (name);
@@ -399,7 +400,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-650efa339f557bff962554ea8d5e1a1a', '{{schema}}')
+VALUES (0, 'baseline-3747aaa8e6baaa331e6214ee1bd09b4d', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')
