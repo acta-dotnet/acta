@@ -266,7 +266,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         }
 
         var expired = h.LeaseExpiresAtUtc is { } exp && exp < nowUtc;
-        // The recovery job flips a silent worker to Dead once it passes WorkerDeadAfter; that status is
+        // The recovery pass flips a silent worker to Dead once it passes WorkerDeadAfter; that status is
         // the authoritative staleness signal, so no threshold math is needed here.
         var stale = h.WorkerStatus == WorkerStatusCode.Dead;
 

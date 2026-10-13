@@ -58,7 +58,7 @@ public sealed class FacadeReadValidationTests
     [Fact]
     public async Task Framework_job_name_is_accepted()
     {
-        var result = await ListJobs().HandleAsync(new ListJobsQuery(JobNamespace: "billing", JobName: "sys.recovery"), Ct);
+        var result = await ListJobs().HandleAsync(new ListJobsQuery(JobNamespace: "billing", JobName: "sys.retention"), Ct);
 
         Assert.Empty(result.Items);
     }

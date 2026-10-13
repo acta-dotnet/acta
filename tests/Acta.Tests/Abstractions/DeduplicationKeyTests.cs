@@ -69,7 +69,7 @@ public sealed class DeduplicationKeyTests
     {
         Assert.Throws<ArgumentException>(() => DeduplicationKey.AcrossDefinitions("sys.customer-42"));
         Assert.Throws<ArgumentException>(() => DeduplicationKey.AcrossDefinitions("SYS.customer-42"));
-        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForDefinition("Sys.Recovery", "customer-42"));
+        Assert.Throws<ArgumentException>(() => DeduplicationKey.ForDefinition("Sys.Retention", "customer-42"));
     }
 
     [Fact]

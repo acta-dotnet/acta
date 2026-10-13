@@ -200,7 +200,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
 
         Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForNamespace("SYS"), ct));
-        await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "Sys", JobName: "Sys.Recovery"), ct);
+        await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "Sys", JobName: "Sys.Retention"), ct);
     }
 
     private static JobPayload Payload() => JobPayload.Json(new AddNumbers(1, 2));

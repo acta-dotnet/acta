@@ -27,8 +27,8 @@ public sealed class QueryValidationTests
     [Fact]
     public void ValidateJobName_accepts_sys_dot_prefixed_job_names_in_any_case()
     {
-        Assert.Equal("sys.recovery", QueryValidation.ValidateJobName("sys.recovery", "sys", "jobName"));
-        Assert.Equal("sys.recovery", QueryValidation.ValidateJobName("Sys.Recovery", "sys", "jobName"));
+        Assert.Equal("sys.retention", QueryValidation.ValidateJobName("sys.retention", "sys", "jobName"));
+        Assert.Equal("sys.retention", QueryValidation.ValidateJobName("Sys.Retention", "sys", "jobName"));
     }
 
     [Fact]

@@ -23,5 +23,5 @@ Acta is a durable job engine for .NET: jobs, schedules, steps, waits, and alerts
 ## Gotchas
 
 - SQL views have zero runtime callers by design; they are the published operator contract, not dead code.
-- Persisted vocabulary is frozen at 1.0: "execution" is an attempt (execution_number, start_execution), "run" is a scheduled instant (next_run_at_utc).
+- Persisted vocabulary is frozen at 1.0: "execution" is an attempt (execution_number), "run" is a scheduled instant (next_run_at_utc).
 - Tests address jobs by JobRef, which exists before the row does. Numeric ids are the debug path.

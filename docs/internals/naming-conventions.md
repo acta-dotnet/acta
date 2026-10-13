@@ -65,7 +65,7 @@ after 1.0.0 is a breaking change, not a cleanup.
 - **An `Operations/` group is plural, an `Engine/` box is singular.** A group is the aggregate
   (`Jobs`, `Workers`, `Alerts`); a box is named for its capability (`Worker` holds one worker's runtime,
   `Alerting` is the process, `Catalog` is what a deployment declares). A system job's class is
-  `<Sys>Job` (`RecoveryJob`, `OutboxJob`), named for the job, not for what it relays or sweeps.
+  `<Sys>Job` (`OutboxJob`, `RetentionJob`), named for the job, not for what it relays or sweeps.
 - **Verb first, plural for a set.** An operation, its routine, and a SQL Server table type read as the
   action they carry, with a plural noun when they act on a set: `ClaimJob` and `ClaimJobs` (`claim_job`,
   `claim_jobs`), `CompleteExecutions`. A table type is named for the routine that takes it plus `_batch`

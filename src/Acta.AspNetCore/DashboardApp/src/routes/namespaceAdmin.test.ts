@@ -18,7 +18,7 @@ test('isSysNamespace mirrors the backend reservation: the bare name and the sys.
   assert.equal(isSysNamespace(RESERVED_SYSTEM_NAMESPACE), true);
   assert.equal(isSysNamespace('sys'), true);
   // The registration rule reserves the prefix too, so the guardrail follows it.
-  assert.equal(isSysNamespace('sys.recovery'), true);
+  assert.equal(isSysNamespace('sys.retention'), true);
   // Only the delimited prefix counts - a name that merely starts with the letters is a user row.
   assert.equal(isSysNamespace('system-billing'), false);
   assert.equal(isSysNamespace('billing'), false);
