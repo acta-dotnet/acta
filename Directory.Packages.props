@@ -52,6 +52,9 @@
     <!-- Pinned above the transitive 10.0.11 brings in: Microsoft.OpenApi 2.0.0 carries
          GHSA-v5pm-xwqc-g5wc and the repo audits transitives as errors. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.12.0" />
+    <!-- Pinned above the 9.0.18 Microsoft.Data.SqlClient brings in: it carries GHSA-846f-f764-76mx and
+         GHSA-2fmv-rv2c-59x7, and the repo audits transitives as errors. -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
   </ItemGroup>
   <!-- Testing: xunit v3 -->
   <ItemGroup>
