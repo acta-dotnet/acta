@@ -5,8 +5,8 @@ namespace Acta;
 /// Suspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,
 /// unresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen
 /// within the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in
-/// scope and the <c>sys.</c>-prefixed system jobs among them, and the executor capacity across live workers that
-/// <c>ExecutingCount</c> saturates against.
+/// scope and the <c>sys.</c>-prefixed system jobs among them, and the executor capacity across live workers, which
+/// <c>ExecutingCount</c> can exceed: a finished job stays Executing until its batched completion write commits.
 /// </summary>
 public sealed record GetOverviewResponse(
     long ReadyCount,

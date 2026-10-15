@@ -9863,7 +9863,7 @@
             "format": "int64"
           }
         },
-        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers that\n`ExecutingCount` saturates against."
+        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers, which\n`ExecutingCount` can exceed: a finished job stays Executing until its batched completion write commits."
       },
       "GetTagsItem": {
         "required": [

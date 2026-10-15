@@ -170,10 +170,9 @@
       <MetricCard
         label="Executing" icon="lightning-bolt"
         value={overview.executingCount}
-        note={overview.executorCapacity > 0 ? ' / ' + displayFormatter.number(overview.executorCapacity) : ''}
-        tone={overview.executorCapacity > 0 && overview.executingCount >= overview.executorCapacity ? 'warn' : ''}
+        note={overview.executorCapacity > 0 ? ' · ' + displayFormatter.number(overview.executorCapacity) + ' slots' : ''}
         hint={overview.executorCapacity > 0
-          ? displayFormatter.number(overview.executorCapacity) + ' executor slots across live workers - at the ceiling, only more workers go faster'
+          ? 'Claimed jobs, including finished ones whose completion is queued for its write, so the count can pass the ' + displayFormatter.number(overview.executorCapacity) + ' executor slots across live workers'
           : 'No live workers, so nothing can be claimed'}
         href={routes.jobs({ namespace: $scope, status: 'Executing' })} />
       <MetricCard
