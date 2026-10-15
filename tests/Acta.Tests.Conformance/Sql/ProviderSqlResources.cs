@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 
 namespace Acta.Tests.Conformance.Sql;
 
@@ -31,7 +32,7 @@ internal static class ProviderSqlResources
         )
         {
             var path = resource[runtimePrefix.Length..^suffix.Length].Replace('.', '/') + suffix;
-            if (includeViews || !SqlResourceCatalog.IsView(Stem(path)))
+            if (includeViews || !IsView(Stem(path)))
             {
                 yield return (path, ReadResource(runtime, resource));
             }
@@ -69,6 +70,12 @@ internal static class ProviderSqlResources
 
     /// <summary>The file stem of a logical path, the name a caller addresses it by: <c>PauseJob</c>.</summary>
     public static string Stem(string logicalPath) => Path.GetFileName(logicalPath).Split('.')[0];
+
+    /// <summary>The installed name of every operator view one dialect ships: <c>JobsView</c> installs as <c>jobs_view</c>.</summary>
+    public static IEnumerable<string> ViewNames(string dialectToken) =>
+        Stems(dialectToken).Where(IsView).Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal);
+
+    private static bool IsView(string stem) => stem.EndsWith("View", StringComparison.Ordinal);
 
     public static string ProviderAssemblyName(string dialectToken) =>
         dialectToken switch

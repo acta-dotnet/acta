@@ -52,30 +52,10 @@ public sealed partial class MsSqlProvisionScriptSpec
                 }
             }
 
-            // A body-only replacement must be repaired by bootstrap even with no pending MNNN.
-            var changedBody = ProviderSqlResources
-                .Read("mssql", "CompleteStep")
-                .ReplaceLineEndings("\n")
-                .Replace("{{schema}}", schema)
-                .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- versionless_body_probe");
-            foreach (var batch in SplitOnGo(changedBody))
-            {
-                await using var alter = conn.CreateCommand();
-                alter.CommandText = batch;
-                await alter.ExecuteNonQueryAsync(ct);
-            }
-            await using (var definition = conn.CreateCommand())
-            {
-                definition.CommandText = $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step'))";
-                Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
-                await Acta.SqlServer.SqlServerSchemaMigrator.ApplyAsync(conn, schema, ct);
-                Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
-            }
-
             // One history row per migration section in the file plus the version-0 baseline-stamp
             // row, no more (the double run must not stamp anything twice), counted from the
-            // script's own BEGIN banners, plus the version-0 baseline row and the object package row it records.
-            var migrations = BeginBanner().Matches(published).Count + 2;
+            // script's own BEGIN banners.
+            var migrations = BeginBanner().Matches(published).Count + 1;
             Assert.True(migrations > 1, "the published script contains no migration banners");
 
             await using var probe = conn.CreateCommand();
@@ -123,8 +103,8 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
     }
 
-    [Fact(DisplayName = "An older script over a newer release's package changes nothing, even in a client that runs on past errors")]
-    public async Task An_older_script_over_a_newer_package_changes_nothing_when_errors_are_ignored()
+    [Fact(DisplayName = "An older script over a newer release's migration changes nothing, even in a client that runs on past errors")]
+    public async Task An_older_script_over_a_newer_migration_changes_nothing_when_errors_are_ignored()
     {
         var connString = IntegrationConfig.SqlServerConnectionString;
         if (connString is null)
@@ -140,12 +120,12 @@ public sealed partial class MsSqlProvisionScriptSpec
         {
             await RunScriptAsync(connString, script, ct);
 
-            // A newer release recorded its package, and one of its routines reads differently.
+            // A newer release recorded a migration this script lacks, and one of its routines reads differently.
             await using var conn = new SqlConnection(connString);
             await conn.OpenAsync(ct);
             await using (var newer = conn.CreateCommand())
             {
-                newer.CommandText = $"UPDATE {schema}.migrations SET name = 'objects-1.99-newer' WHERE version = -1";
+                newer.CommandText = $"INSERT INTO {schema}.migrations (version, name, installed_schema) VALUES (999, 'newer', '{schema}')";
                 await newer.ExecuteNonQueryAsync(ct);
             }
             var marked = ProviderSqlResources
@@ -176,14 +156,14 @@ public sealed partial class MsSqlProvisionScriptSpec
                 }
             }
 
-            Assert.True(refused, "the script did not refuse the newer package");
+            Assert.True(refused, "the script did not refuse the newer migration");
             await using var probe = conn.CreateCommand();
             probe.CommandText =
-                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT name FROM {schema}.migrations WHERE version = -1)";
+                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT name FROM {schema}.migrations WHERE version = 999)";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));
             Assert.Contains("newer_release_body", reader.GetString(0));
-            Assert.Equal("objects-1.99-newer", reader.GetString(1));
+            Assert.Equal("newer", reader.GetString(1));
         }
         finally
         {

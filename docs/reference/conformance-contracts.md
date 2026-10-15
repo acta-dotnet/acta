@@ -1896,7 +1896,6 @@
   - A database from another baseline generation is refused with reprovisioning guidance
   - A migration this build ships that the database never applied is refused by version
   - A history carrying migrations this build has never heard of still passes
-  - A newer object package in the same major starts, and a foreign major or a missing row does not
 
 ### Schema bootstrap installs curated operator views
 - **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant name and tags_view decodes exact target scope.

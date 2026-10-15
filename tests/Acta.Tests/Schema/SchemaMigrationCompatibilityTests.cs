@@ -41,31 +41,25 @@ public sealed class SchemaMigrationCompatibilityTests
         Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("UPDATE main.migrations SET name = 'objects-1.999-future' WHERE version = -1;")]
-    [InlineData("INSERT INTO main.migrations (version, name, installed_schema) VALUES (999, 'future', 'main');")]
-    public async Task Older_bootstrap_and_script_leave_a_newer_release_in_place(string newerRelease)
+    [Fact]
+    public async Task An_older_script_leaves_a_newer_release_in_place()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync(ct);
         await SqliteSchemaMigrator.ApplyAsync(connection, "main", ct);
 
-        // Stands in for a later release: a higher package revision or a migration this build lacks,
-        // plus a view it appended a column to.
+        // Stands in for a later release: a migration this build lacks, which replaced a view.
         await Execute(
             connection,
-            newerRelease
-                + """
-
-                DROP VIEW main.jobs_view;
-                CREATE VIEW main.jobs_view AS SELECT 1 AS future_marker;
-                """,
+            """
+            INSERT INTO main.migrations (version, name, installed_schema) VALUES (999, 'future', 'main');
+            DROP VIEW main.jobs_view;
+            CREATE VIEW main.jobs_view AS SELECT 1 AS future_marker;
+            """,
             ct
         );
         var history = await History(connection, ct);
-
-        await SqliteSchemaMigrator.ApplyAsync(connection, "main", ct);
 
         var script = ProvisionScriptEmitter.Emit(IntegrationConfig.FindRepoRoot(), "sqlite");
         var refused = await Assert.ThrowsAsync<SqliteException>(() => Execute(connection, script, ct));

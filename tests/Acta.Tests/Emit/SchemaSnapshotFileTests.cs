@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared.Model;
+using Acta.Emit.Shared.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -20,7 +21,7 @@ public sealed class SchemaSnapshotFileTests
         Assert.True(File.Exists(SnapshotPath), $"Missing committed snapshot at {SnapshotPath}. Run `Acta.Emit schema add`.");
 
         var model = SchemaModel.Discover();
-        var live = SchemaSnapshot.Capture(model);
+        var live = SchemaSnapshot.Capture(model, MigrationObjects.All(IntegrationConfig.FindRepoRoot()));
         var committed = SnapshotPair.Load(SnapshotPath).Current;
 
         Assert.Equal(Canon(live), Canon(committed));

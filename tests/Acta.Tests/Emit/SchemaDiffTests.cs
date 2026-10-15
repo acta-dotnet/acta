@@ -8,7 +8,16 @@ public sealed class SchemaDiffTests
     private static EntitySnapshot Entity(string table, params string[] columns) =>
         new(table, $"pk_{table}(id)", columns.Select(c => new ColumnSnapshot(c, $"sig:{c}")).ToList(), [], [], []);
 
-    private static SchemaSnapshot Snap(IEnumerable<EntitySnapshot> entities) => new(entities.ToList());
+    private static SchemaSnapshot Snap(IEnumerable<EntitySnapshot> entities) =>
+        new(entities.ToList(), new Dictionary<string, IReadOnlyDictionary<string, string>>());
+
+    private static SchemaSnapshot Objects(params (string Dialect, string Name, string Hash)[] objects) =>
+        new(
+            [Entity("job", "id")],
+            objects
+                .GroupBy(o => o.Dialect)
+                .ToDictionary(g => g.Key, g => (IReadOnlyDictionary<string, string>)g.ToDictionary(o => o.Name, o => o.Hash))
+        );
 
     [Fact]
     public void Added_table_is_reported_and_its_members_are_not_double_counted()
@@ -62,5 +71,33 @@ public sealed class SchemaDiffTests
     {
         var snap = Snap([Entity("job", "id")]);
         Assert.True(SchemaDiff.Compute(snap, snap).IsEmpty);
+    }
+
+    [Fact]
+    public void Changed_and_new_object_bodies_are_reported_per_dialect_and_unchanged_ones_are_not()
+    {
+        var from = Objects(("pg", "claim_jobs", "a"), ("pg", "jobs_view", "v"), ("mssql", "claim_jobs", "a"));
+        var to = Objects(("pg", "claim_jobs", "b"), ("pg", "jobs_view", "v"), ("pg", "tags_view", "t"), ("mssql", "claim_jobs", "a"));
+
+        var diff = SchemaDiff.Compute(from, to);
+
+        Assert.Equal(["claim_jobs", "tags_view"], diff.Objects["pg"].Changed);
+        Assert.Empty(diff.Objects["pg"].Removed);
+        Assert.Empty(diff.Objects["mssql"].Changed);
+        Assert.False(diff.IsEmpty);
+    }
+
+    [Fact]
+    public void Removed_object_is_reported_with_a_warning_for_its_dialect_only()
+    {
+        var from = Objects(("pg", "claim_jobs", "a"), ("pg", "jobs_view", "v"));
+        var to = Objects(("pg", "jobs_view", "v"));
+
+        var diff = SchemaDiff.Compute(from, to);
+
+        Assert.Equal(["claim_jobs"], diff.Objects["pg"].Removed);
+        Assert.Empty(diff.Objects["pg"].Changed);
+        Assert.Contains(diff.AllWarnings, w => w.Contains("claim_jobs (pg)") && w.Contains("removed"));
+        Assert.Empty(diff.Warnings);
     }
 }

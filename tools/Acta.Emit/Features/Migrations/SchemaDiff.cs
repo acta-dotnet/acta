@@ -2,10 +2,14 @@ namespace Acta.Emit.Features.Migrations;
 
 internal readonly record struct TableMember(string Table, string Name);
 
+/// <summary>One dialect's routines and views whose body is new or changed, and those gone from the source SQL.</summary>
+internal sealed record ObjectChanges(IReadOnlyList<string> Changed, IReadOnlyList<string> Removed);
+
 /// <summary>
-/// Additive structural delta between two <see cref="SchemaSnapshot"/>s. Added objects are drafted as
-/// DDL; everything non-additive (removals, signature changes, PK changes, code-family membership
-/// changes) is surfaced as a <see cref="Warnings"/> line for the engineer to hand-edit.
+/// Additive structural delta between two <see cref="SchemaSnapshot"/>s. Added tables and members are drafted
+/// as DDL, and a new or changed routine or view as its whole body; everything non-additive (removals,
+/// signature changes, PK changes, code-family membership changes) is surfaced as a warning for the engineer
+/// to hand-edit.
 /// </summary>
 internal sealed record SchemaDiff(
     IReadOnlyList<string> AddedTables,
@@ -13,7 +17,8 @@ internal sealed record SchemaDiff(
     IReadOnlyList<TableMember> AddedIndexes,
     IReadOnlyList<TableMember> AddedChecks,
     IReadOnlyList<TableMember> AddedForeignKeys,
-    IReadOnlyList<string> Warnings
+    IReadOnlyList<string> Warnings,
+    IReadOnlyDictionary<string, ObjectChanges> Objects
 )
 {
     internal bool IsEmpty =>
@@ -22,7 +27,16 @@ internal sealed record SchemaDiff(
         && AddedIndexes.Count == 0
         && AddedChecks.Count == 0
         && AddedForeignKeys.Count == 0
-        && Warnings.Count == 0;
+        && Warnings.Count == 0
+        && Objects.Values.All(o => o.Changed.Count == 0 && o.Removed.Count == 0);
+
+    /// <summary>The table warnings, then one per removed routine or view of any dialect, for the console.</summary>
+    internal IEnumerable<string> AllWarnings =>
+        Warnings.Concat(
+            Objects.SelectMany(d =>
+                d.Value.Removed.Select(name => $"{name} ({d.Key}): removed from the source SQL; not drafted, write its DROP by hand.")
+            )
+        );
 
     internal static SchemaDiff Compute(SchemaSnapshot from, SchemaSnapshot to)
     {
@@ -71,7 +85,22 @@ internal sealed record SchemaDiff(
             warnings.Add($"{table}: table removed; not drafted, hand-edit required.");
         }
 
-        return new SchemaDiff(addedTables, addedColumns, addedIndexes, addedChecks, addedForeignKeys, warnings);
+        var objects = new SortedDictionary<string, ObjectChanges>(StringComparer.Ordinal);
+        foreach (var dialect in from.Objects.Keys.Union(to.Objects.Keys))
+        {
+            var before = from.Objects.GetValueOrDefault(dialect) ?? new Dictionary<string, string>();
+            var after = to.Objects.GetValueOrDefault(dialect) ?? new Dictionary<string, string>();
+            objects[dialect] = new ObjectChanges(
+                after
+                    .Where(o => !before.TryGetValue(o.Key, out var previous) || previous != o.Value)
+                    .Select(o => o.Key)
+                    .Order(StringComparer.Ordinal)
+                    .ToList(),
+                before.Keys.Where(n => !after.ContainsKey(n)).Order(StringComparer.Ordinal).ToList()
+            );
+        }
+
+        return new SchemaDiff(addedTables, addedColumns, addedIndexes, addedChecks, addedForeignKeys, warnings, objects);
     }
 
     private static void DiffMembers<T>(

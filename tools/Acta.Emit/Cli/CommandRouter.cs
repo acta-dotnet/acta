@@ -18,7 +18,6 @@ internal static class CommandRouter
             ["schema", "add", "--name", var n] => SchemaAddCommand.Run(n),
             ["schema", "amend"] => SchemaAmendCommand.Run(name: null),
             ["schema", "amend", "--name", var n] => SchemaAmendCommand.Run(n),
-            ["objects", "record"] => ObjectsRecordCommand.Run(),
             _ => Usage.Unknown(args),
         };
 }

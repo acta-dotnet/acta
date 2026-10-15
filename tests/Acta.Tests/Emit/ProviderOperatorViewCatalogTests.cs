@@ -1,8 +1,10 @@
 using System.Text.RegularExpressions;
+using Acta.Emit.Shared;
+using Acta.Emit.Shared.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
-namespace Acta.Tests.Schema;
+namespace Acta.Tests.Emit;
 
 public sealed partial class ProviderOperatorViewCatalogTests
 {
@@ -48,34 +50,44 @@ public sealed partial class ProviderOperatorViewCatalogTests
         "worker-status",
     ];
 
+    private static IReadOnlyList<SqlObject> Views(string dialect) =>
+        MigrationObjects.For(IntegrationConfig.FindRepoRoot(), ProviderCatalog.BySuffix(dialect).Dialect).Views;
+
     [Fact(DisplayName = "Every provider owns the curated plural _view set")]
     public void Every_provider_owns_the_curated_plural_view_set()
     {
         foreach (var dialect in Dialects)
         {
-            var views = new SqlResourceCatalog(dialect, "acta")
-                .Views()
-                .Select(static v => v.Name)
-                .OrderBy(static n => n, StringComparer.Ordinal);
-            Assert.Equal(ExpectedViews, views);
+            Assert.Equal(ExpectedViews, Views(dialect).Select(static v => v.Name).OrderBy(static n => n, StringComparer.Ordinal));
         }
     }
 
-    [Fact(DisplayName = "Provider operator view bodies render without unresolved tokens")]
-    public void Provider_view_bodies_render_without_unresolved_tokens()
+    [Fact(DisplayName = "Provider operator view statements carry no token but the schema placeholder")]
+    public void Provider_view_statements_carry_no_token_but_the_schema_placeholder()
     {
         foreach (var dialect in Dialects)
         {
-            var views = new SqlResourceCatalog(dialect, "acta").Views().ToList();
+            var views = Views(dialect);
 
             Assert.Equal(ExpectedViews.Length, views.Count);
-            Assert.All(views, static v => Assert.DoesNotContain("{{", v.Body, StringComparison.Ordinal));
-            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Body.Contains("input_text", StringComparison.Ordinal));
-            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Body.Contains("tenant_name", StringComparison.Ordinal));
-            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Body.Contains("last_result_text", StringComparison.Ordinal));
-            Assert.Contains(views, static v => v.Name == "checkpoints_view" && v.Body.Contains("value_text", StringComparison.Ordinal));
-            Assert.Contains(views, static v => v.Name == "events_view" && v.Body.Contains("detail_text", StringComparison.Ordinal));
-            Assert.Contains(views, static v => v.Name == "steps_view" && v.Body.Contains("result_text", StringComparison.Ordinal));
+            Assert.All(
+                views,
+                static v =>
+                    Assert.DoesNotContain(
+                        "{{",
+                        v.Statement.Replace("{{schema}}", "acta", StringComparison.Ordinal),
+                        StringComparison.Ordinal
+                    )
+            );
+            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Statement.Contains("input_text", StringComparison.Ordinal));
+            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Statement.Contains("tenant_name", StringComparison.Ordinal));
+            Assert.Contains(views, static v => v.Name == "jobs_view" && v.Statement.Contains("last_result_text", StringComparison.Ordinal));
+            Assert.Contains(
+                views,
+                static v => v.Name == "checkpoints_view" && v.Statement.Contains("value_text", StringComparison.Ordinal)
+            );
+            Assert.Contains(views, static v => v.Name == "events_view" && v.Statement.Contains("detail_text", StringComparison.Ordinal));
+            Assert.Contains(views, static v => v.Name == "steps_view" && v.Statement.Contains("result_text", StringComparison.Ordinal));
         }
     }
 

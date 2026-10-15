@@ -20,7 +20,8 @@ internal static class SchemaAddCommand
 
         repoRoot ??= RepoRoot.Find();
         var live = SchemaModel.Discover();
-        var to = SchemaSnapshot.Capture(live);
+        var objects = MigrationObjects.All(repoRoot);
+        var to = SchemaSnapshot.Capture(live, objects);
 
         var snapshotPath = SnapshotFile.Path(repoRoot);
         var current = File.Exists(snapshotPath) ? SnapshotPair.Load(snapshotPath).Current : null;
@@ -49,14 +50,14 @@ internal static class SchemaAddCommand
             if (diff is not null && MigrationFiles.ProviderHasFilesBelow(repoRoot, provider.Suffix, n))
             {
                 fileName = deltaName;
-                sql = MigrationDeltaEmitter.EmitDelta(diff, live, provider.Dialect, n, fileName);
+                sql = MigrationDeltaEmitter.EmitDelta(diff, live, objects[provider.Token], provider.Dialect, n, fileName);
             }
             else
             {
                 // Genesis honors an explicit --name (default "init"); a late-joining provider's
                 // mid-stream baseline is always "init".
                 fileName = isGenesis ? deltaName : "init";
-                sql = SqlSchemaEmitter.EmitFullSchema(live, provider.Dialect, n, fileName);
+                sql = SqlSchemaEmitter.EmitFullSchema(live, provider.Dialect, objects[provider.Token], n, fileName);
             }
             pending.Add((MigrationFiles.PathFor(repoRoot, provider.Suffix, n, fileName), sql));
         }
@@ -78,7 +79,7 @@ internal static class SchemaAddCommand
 
         if (diff is not null)
         {
-            foreach (var warning in diff.Warnings)
+            foreach (var warning in diff.AllWarnings)
             {
                 Console.Error.WriteLine($"  WARNING: {warning}");
             }

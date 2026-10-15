@@ -9,7 +9,7 @@ namespace Acta.Emit.Features.Verify;
 
 /// <summary>
 /// Drift gate. Verifies the generated reference docs are current and that the committed snapshot still
-/// equals the live model (i.e. no entity/routine change is missing a `schema add`), and that each
+/// equals the live model (i.e. no entity, routine, or view change is missing a `schema add`), and that each
 /// provider's baseline migration still hashes to the stamp it records. Migration SQL is otherwise
 /// hand-edited history and is not compared against the model; the round-trip conformance test is what
 /// proves the applied history reconstructs it.
@@ -91,41 +91,6 @@ internal static class CheckCommand
             Console.WriteLine($"  ok:      {stampsPath}");
         }
 
-        // Hashed once: the ledger verdict, the ok lines and the generated constants all read the same set.
-        var objectHashes = ObjectPackageEmitter.HashAll(repoRoot);
-        var packageProblems = ObjectPackageLedger.Verify(repoRoot, objectHashes);
-        foreach (var problem in packageProblems)
-        {
-            Console.Error.WriteLine($"  DRIFT:   {problem}");
-            drifted++;
-        }
-
-        if (packageProblems.Count == 0)
-        {
-            foreach (var provider in ProviderCatalog.All)
-            {
-                Console.WriteLine(
-                    $"  ok:      object package {provider.Token} {ObjectPackageStamp.ContractMajor}.{ObjectPackageStamp.PackageRevision} {objectHashes[provider.Token]}"
-                );
-            }
-        }
-
-        var hashesPath = ObjectPackageEmitter.PathFor(repoRoot);
-        if (!File.Exists(hashesPath))
-        {
-            Console.Error.WriteLine($"  MISSING: {hashesPath}");
-            drifted++;
-        }
-        else if (!NewlineEqual(File.ReadAllText(hashesPath), ObjectPackageEmitter.Emit(objectHashes)))
-        {
-            Console.Error.WriteLine($"  DRIFT:   {hashesPath} (run `Acta.Emit objects record`)");
-            drifted++;
-        }
-        else
-        {
-            Console.WriteLine($"  ok:      {hashesPath}");
-        }
-
         var snapshotPath = SnapshotFile.Path(repoRoot);
         if (!File.Exists(snapshotPath))
         {
@@ -134,16 +99,28 @@ internal static class CheckCommand
         }
         else
         {
-            var live = SchemaSnapshot.Capture(model);
+            var live = SchemaSnapshot.Capture(model, MigrationObjects.All(repoRoot));
             var committed = SnapshotPair.Load(snapshotPath).Current;
             if (Canon(live) != Canon(committed))
             {
-                Console.Error.WriteLine("  DRIFT:   snapshot != live model: run `schema add` (or `schema amend`).");
+                Console.Error.WriteLine("  DRIFT:   snapshot != live model: run `schema add --name <n>` (or `schema amend`).");
+                // Name the routine or view behind the drift, which the entity warnings never mention.
+                foreach (var (dialect, changes) in SchemaDiff.Compute(committed, live).Objects)
+                {
+                    foreach (var name in changes.Changed)
+                    {
+                        Console.Error.WriteLine($"           {dialect} {name} is new or changed since the last migration.");
+                    }
+                    foreach (var name in changes.Removed)
+                    {
+                        Console.Error.WriteLine($"           {dialect} {name} is gone from the source SQL; the migration needs its drop.");
+                    }
+                }
                 drifted++;
             }
             else
             {
-                Console.WriteLine("  ok:      snapshot == model");
+                Console.WriteLine("  ok:      snapshot == model, routines, and views");
             }
         }
 

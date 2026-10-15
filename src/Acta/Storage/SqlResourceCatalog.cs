@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Text.Json;
 
 namespace Acta;
 
@@ -54,23 +53,6 @@ internal sealed class SqlResourceCatalog
         _kinds.GetOrAdd(command.Operation, stem => DefinesRoutine(Load(stem)) ? StoreExecutionKind.Routine : StoreExecutionKind.Inline);
 
     /// <summary>
-    /// The dialect's routine bodies, each paired with its snake_case routine name, for installation
-    /// after migrations in name order. Empty for an inline-only dialect.
-    /// </summary>
-    public IEnumerable<(string Name, string Body)> Routines() =>
-        Installed(_resources.Keys.Where(stem => !IsView(stem) && Resolve(new StoreCommand(stem)) == StoreExecutionKind.Routine));
-
-    /// <summary>
-    /// The dialect's operator-view SELECT bodies, each paired with the snake_case view name, in name
-    /// order. Schema installation owns the provider-specific CREATE/DROP wrapper; the file owns the
-    /// SELECT body.
-    /// </summary>
-    public IEnumerable<(string Name, string Body)> Views() => Installed(_resources.Keys.Where(IsView));
-
-    /// <summary>A file whose stem ends in <c>View</c> is an operator view body, installed as <c>x_view</c>.</summary>
-    internal static bool IsView(string stem) => stem.EndsWith("View", StringComparison.Ordinal);
-
-    /// <summary>
     /// True when the first statement, after comments, creates a routine: <c>CREATE OR REPLACE FUNCTION</c>
     /// on PostgreSQL, <c>CREATE OR ALTER PROCEDURE</c> on SQL Server. Any other file is inline SQL.
     /// </summary>
@@ -103,12 +85,6 @@ internal sealed class SqlResourceCatalog
 
         return false;
     }
-
-    private IEnumerable<(string Name, string Body)> Installed(IEnumerable<string> stems) =>
-        stems
-            .Select(stem => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(stem), Stem: stem))
-            .OrderBy(o => o.Name, StringComparer.Ordinal)
-            .Select(o => (o.Name, Load(o.Stem)));
 
     private string Render(string stem)
     {

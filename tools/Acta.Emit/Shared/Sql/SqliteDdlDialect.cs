@@ -71,7 +71,7 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
         d switch
         {
             DbDefault.None => "",
-            DbDefault.UtcNow => " DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER))",
+            DbDefault.UtcNow => $" DEFAULT ({NowExpression})",
             DbDefault.Zero => " DEFAULT 0",
             DbDefault.EmptyString => " DEFAULT ''",
             _ => throw new InvalidOperationException(
@@ -83,7 +83,7 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
         tableName == "namespaces"
             ? "-- Seed: reserved system namespace (id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
                 + $"INSERT OR IGNORE INTO {SchemaPlaceholder}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)\n"
-                + $"VALUES (1, 'sys', {(byte)NamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER), CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER));"
+                + $"VALUES (1, 'sys', {(byte)NamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', {NowExpression}, {NowExpression});"
             : null;
 
     // Never reached: every identity-backed key is a sole integer PK folded inline as the
@@ -132,4 +132,10 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
                     + "ON CONFLICT (version) DO NOTHING;"
                 )
         );
+
+    // The epoch-milliseconds instant every SQLite column and token encodes.
+    public override string NowExpression => "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)";
+
+    public override string WrapView(string qualifiedName, string select) =>
+        $"DROP VIEW IF EXISTS {qualifiedName};\nCREATE VIEW {qualifiedName} AS\n{select};";
 }

@@ -1,8 +1,11 @@
 using System.Text.Json;
+using Acta.Emit.Shared;
+using Acta.Emit.Shared.Sql;
 using Acta.Postgres;
 using Acta.Sqlite;
 using Acta.SqlServer;
 using Acta.Tests.Conformance.Sql;
+using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Storage;
@@ -43,9 +46,11 @@ public sealed class SqlCommandCatalogTests
             .ToList();
 
         Assert.Equal(InstalledRoutines, routines.Order(StringComparer.Ordinal));
+        // What the migrations install is what the runtime calls as a routine.
+        var repoRoot = IntegrationConfig.FindRepoRoot();
         Assert.Equal(
             routines.Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal),
-            catalog.Routines().Select(r => r.Name)
+            MigrationObjects.For(repoRoot, ProviderCatalog.BySuffix(dialect).Dialect).Routines.Select(r => r.Name)
         );
         foreach (var stem in routines)
         {
@@ -53,8 +58,7 @@ public sealed class SqlCommandCatalogTests
             Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(new StoreCommand(stem)));
         }
         Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("ClaimOutbox")));
-        Assert.NotEmpty(catalog.Views());
-        Assert.Empty(sqlite.Routines());
+        Assert.Empty(MigrationObjects.For(repoRoot, ProviderCatalog.BySuffix("sqlite").Dialect).Routines);
     }
 
     [Fact]

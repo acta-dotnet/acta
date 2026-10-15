@@ -7,12 +7,15 @@ namespace Acta.Emit.Features.Migrations;
 /// <summary>
 /// Committed, tool-owned projection of the live schema model as of the last cut migration.
 /// The diff baseline for the <c>schema add/amend</c> commands; never a competing schema authority.
-/// Captures entities only: routine and view bodies are runtime-installed SQL
-/// objects, not migration content.
+/// <c>Objects</c> maps each dialect token to its routines and views, name to <see cref="SqlObject.Hash"/>,
+/// which is how <c>schema add</c> tells a changed body from an unchanged one.
 /// </summary>
-internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities)
+internal sealed record SchemaSnapshot(
+    IReadOnlyList<EntitySnapshot> Entities,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Objects
+)
 {
-    internal static SchemaSnapshot Capture(SchemaModel model)
+    internal static SchemaSnapshot Capture(SchemaModel model, IReadOnlyDictionary<string, DialectObjects> objects)
     {
         var entities = model
             .Entities.Select(e => new EntitySnapshot(
@@ -28,7 +31,16 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities)
             .OrderBy(e => e.Table, StringComparer.Ordinal)
             .ToList();
 
-        return new SchemaSnapshot(entities);
+        var hashes = new SortedDictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var (token, dialectObjects) in objects)
+        {
+            hashes[token] = new SortedDictionary<string, string>(
+                dialectObjects.All.ToDictionary(o => o.Name, o => o.Hash, StringComparer.Ordinal),
+                StringComparer.Ordinal
+            );
+        }
+
+        return new SchemaSnapshot(entities, hashes);
     }
 
     internal static void Save(SchemaSnapshot snapshot, string path) =>

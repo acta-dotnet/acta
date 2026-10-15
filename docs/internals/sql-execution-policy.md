@@ -10,7 +10,7 @@ writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and
 operation, registration, alerts, locks and slots, the outbox inbox, and control verbs included, is embedded SQL
 on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
-because an installed routine is a compatibility obligation and every edit to one is a package revision.
+because an installed routine is a compatibility obligation and every edit to one is a migration.
 
 ## Resources and execution
 
@@ -267,14 +267,11 @@ the lock.
 
 ## Provisioning, compatibility, and SQL access
 
-Tables, columns, indexes, constraints, and durable types belong in numbered `MNNN` migrations.
-Routine and view definitions carry no migration number: `SqlObjectInstaller` reapplies current bodies
-after checking pending migrations, under the same migration lock, including when no migration is
-pending, and records the object package it installed. A body edit does **not inherently require a
-numbered migration**, but it is a new package revision (`Acta.Emit objects record`; see
-[migrations](./migrations.md)). A bootstrap that finds a newer migration or a newer package revision
-in the database leaves the installed bodies alone, and the published script refuses such a database. Embedded query changes
-require neither migration nor installed-object replacement.
+Tables, columns, indexes, constraints, durable types, routine bodies, and view bodies all belong in
+numbered `MNNN` migrations. A body edit is a migration: `schema add` drafts the changed body into the
+next one (see [migrations](./migrations.md)), and nothing at bootstrap rewrites a body outside a
+migration. A bootstrap that finds a newer migration in the database applies nothing, and the
+published script refuses such a database. Embedded query changes require no migration.
 
 A routine whose signature changes carries its own cleanup, because `CREATE OR REPLACE` neither
 replaces across arities nor changes a return type. A retired arity is dropped after the create; a
@@ -288,8 +285,8 @@ deliberately; routine-to-inline demotion is outside the 1.x policy.
 
 During a rolling deployment all workers share the installed routine body. N+1 provisioning changes
 the implementation that N workers invoke, and a rollback never reinstalls N's bodies over N+1's: N
-workers keep running on N+1's routines, which the minimum package revision each build declares
-permits.
+workers keep running on N+1's routines, because a bootstrap applies only the migrations the database
+lacks and the published script refuses a database a newer release upgraded.
 Changes must therefore preserve the supported parameter, result, and semantic contracts in both
 deployment directions. Compatible table DDL alone is insufficient. Body replacement avoiding MNNN
 does not remove this executable compatibility obligation.

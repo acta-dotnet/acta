@@ -39,7 +39,7 @@ certified commit.
   restarted success resolving, and a recurring slot resolving on its next fire and then staying
   silent.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs:
-  `ObjectPackagePreflightTests`, `MigrationHistoryPreflightTests`, and `MigrationHistoryPreflightSpec`
+  `MigrationHistoryPreflightTests` and `MigrationHistoryPreflightSpec`
   for the verdicts, including a release-candidate baseline, and the three `*ProvisionScriptSpec`
   classes for a schema that runs with migrations disabled and keeps its data, grants, and dependent
   views across a re-run.
@@ -67,7 +67,6 @@ intended.** A regenerated baseline is indistinguishable from a deliberate one on
 | Persisted codes | hash in `PersistedCodeContractTests` | re-pin the hash by hand |
 | Conformance docs | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
 | Baseline stamps | `src/Acta/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (never after 1.0.0: a moved stamp means `M001` was edited, and that blocks the release) |
-| Object package | `src/Acta/Schema/ObjectPackageHashes.g.cs` and `object-packages.json`, one content hash per provider's installed views and routines | `dotnet run --project tools/Acta.Emit -- objects record` after any view or routine edit; `check` refuses a recorded identity whose content moved. An identity is frozen the moment it is recorded, deliberately: before the first release that costs a revision bump per edit rather than tracking what shipped |
 
 Before 1.0 a moved surface is allowed and belongs in the release notes. From 1.0 the .NET and HTTP
 surfaces are additive-only, so a diff that removes or renames a member is a 2.0 change and blocks the

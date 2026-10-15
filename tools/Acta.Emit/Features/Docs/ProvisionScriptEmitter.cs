@@ -1,15 +1,15 @@
 using System.Globalization;
 using System.Text;
-using System.Text.Json;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
+using Acta.Emit.Shared.Sql;
 
 namespace Acta.Emit.Features.Docs;
 
 /// <summary>
 /// Emits <c>docs/reference/schema-{dialect}.sql</c>: one provider's complete schema script,
-/// composed from the same on-disk SQL the provider embeds (migration history table, every migration
-/// in order, operator views, routines) and fully rendered for the default schema, so a DBA can
+/// composed from the same on-disk SQL the provider embeds (migration history table, then every
+/// migration in order) and fully rendered for the default schema, so a DBA can
 /// review and run it verbatim. Exists because locked-down deployments forbid DDL from the
 /// application principal: the pipeline runs this file under an elevated one, the application keeps
 /// <c>ApplyMigrationsOnStartup = false</c>, and because each migration records its own history row
@@ -45,9 +45,8 @@ internal static class ProvisionScriptEmitter
             ?? throw new InvalidOperationException($"Provider '{token}' has no baseline migration recording a stamp row.");
         script.AppendLine(CultureInfo.InvariantCulture, $"-- schema name '{schema}' throughout. Baseline stamp: {stamp}.");
         script.AppendLine("--");
-        script.AppendLine("-- The same SQL the bootstrap migration runner applies: the migration history table, every");
-        script.AppendLine("-- migration in order (each records its own history row), then the operator objects the");
-        script.AppendLine("-- provider installs.");
+        script.AppendLine("-- The same SQL the bootstrap migration runner applies: the migration history table, then every");
+        script.AppendLine("-- migration in order (each records its own history row).");
         script.AppendLine("-- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so");
         script.AppendLine("-- two installers, script or bootstrap, never interleave.");
         if (mssql)
@@ -63,9 +62,8 @@ internal static class ProvisionScriptEmitter
         }
         script.AppendLine("--");
         script.AppendLine("-- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already");
-        script.AppendLine("-- provisioned: every statement is individually guarded, so a re-run applies nothing that is");
-        script.AppendLine("-- present and leaves the data in place. Views and routines carry no version and are rewritten");
-        script.AppendLine("-- to the definitions shipped here, except over a newer release's package: then the script stops");
+        script.AppendLine("-- provisioned: every statement is guarded or idempotent, so a re-run changes nothing that is");
+        script.AppendLine("-- present and leaves the data in place. Over a database a newer release upgraded, the script stops");
         if (sqlite)
         {
             script.AppendLine("-- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x");
@@ -85,15 +83,15 @@ internal static class ProvisionScriptEmitter
             {
                 "pg" => "-- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the",
                 "mssql" => "-- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed",
-                _ => "-- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the package",
+                _ => "-- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history",
             }
         );
         script.AppendLine(
             token switch
             {
-                "pg" => "-- package stamp inside an aborted transaction, which then rolls back on commit.",
-                "mssql" => "-- batch would reach the package stamp with an object it failed to replace still in place.",
-                _ => "-- stamp with an object it failed to replace still in place.",
+                "pg" => "-- history rows inside an aborted transaction, which then rolls back on commit.",
+                "mssql" => "-- batch would reach the history rows with an object it failed to replace still in place.",
+                _ => "-- rows with an object it failed to replace still in place.",
             }
         );
         script.AppendLine("-- Run it under a DDL-capable principal; the application principal then needs only DML and");
@@ -120,30 +118,7 @@ internal static class ProvisionScriptEmitter
             }
         }
 
-        string Render(string sql)
-        {
-            if (sql.Contains("{{table", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException("Provision scripts never include outbox source-catalog templates.");
-            }
-            if (!string.Equals(token, "sqlite", StringComparison.Ordinal) && sql.Contains("{{now}}", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException("The {{now}} token is the SQLite instant encoding; other dialects use native now().");
-            }
-            // Full-line comments keep their tokens verbatim: substituting prose like "`{{schema}}` is
-            // substituted at apply time" would turn a true statement about a token into nonsense
-            // about a literal schema name in the DBA-facing file. Decode tokens render on the joined
-            // text (never inside comments) so an expression wrapping a line still expands.
-            var lines = sql.ReplaceLineEndings("\n")
-                .Split('\n')
-                .Select(line =>
-                    line.TrimStart().StartsWith("--", StringComparison.Ordinal)
-                        ? line
-                        : line.Replace("{{schema}}", schema, StringComparison.Ordinal)
-                            .Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)", StringComparison.Ordinal)
-                );
-            return CodeDecodeSql.RenderDecodeTokens(string.Join("\n", lines));
-        }
+        string Render(string sql) => MigrationObjects.Render(sql, ProviderCatalog.BySuffix(token).Dialect, schema);
 
         if (mssql)
         {
@@ -194,7 +169,8 @@ internal static class ProvisionScriptEmitter
         );
         Append("-- ===== the installer lock, held to commit =====\n" + InstallerLock(token, schema));
         Append(
-            "-- ===== migration history table =====\n" + Render(SqlFiles(repoRoot, token).Single(f => f.Stem == "EnsureMigrations").Body)
+            "-- ===== migration history table =====\n"
+                + Render(MigrationObjects.SqlFiles(repoRoot, token).Single(f => f.Stem == "EnsureMigrations").Body)
         );
         Append(
             "-- ===== refuse a database a newer release already upgraded =====\n"
@@ -215,32 +191,6 @@ internal static class ProvisionScriptEmitter
             Append($"-- ===== BEGIN {name} =====\n" + Render(string.Join("\n", body)));
             Append($"-- ===== END {name} =====");
         }
-
-        // Views before routines, each set in name order, mirroring SqlObjectInstaller.
-        Append("-- ===== operator views (versionless; always rewritten to this file's definitions) =====");
-        var views = Views(repoRoot, token).ToArray();
-        foreach (var (name, body) in views)
-        {
-            var statements = SqlObjectInstaller.WrapView(token, $"{schema}.{name}", Render(body).Trim());
-            Append(string.Join("\n", statements.Select(s => s.Body)));
-        }
-        var routines = Routines(repoRoot, token).ToArray();
-        if (routines.Length > 0)
-        {
-            Append("-- ===== routines (versionless; always rewritten to this file's definitions) =====");
-        }
-        foreach (var (_, body) in routines)
-        {
-            Append(Render(body));
-        }
-
-        // A host with migrations disabled is provisioned by this script and never runs the installer, so
-        // a script that stayed silent would leave the package unrecorded for exactly the deployment the
-        // startup check exists for. The stamp names every object above and is written only when all of
-        // them exist, so a client that ran on past a failed batch leaves no stamp rather than a false one.
-        Append("-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====");
-        var installed = views.Concat(routines).Select(o => o.Name).ToList();
-        Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token, installed)));
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
         if (mssql)
@@ -280,28 +230,17 @@ internal static class ProvisionScriptEmitter
 
     /// <summary>
     /// Stops the script before it changes anything when a newer build already upgraded the database: a
-    /// migration past this script's last, or a higher object package revision. The script's half of the
-    /// bootstrap's same rule, because rerunning an older release's script during a rollback must not
-    /// rewrite what newer workers call. On SQL Server the refusal rolls back and sets NOEXEC, so even a
-    /// client that runs on past an error (sqlcmd without -b, SSMS) changes nothing. SQLite has no raise
-    /// outside a trigger, so a failing CHECK names the refusal instead, and stops only a client that halts
-    /// on an error (sqlite3 -bail).
+    /// migration past this script's last. Each migration's routines and views carry no existence guard, so
+    /// rerunning an older release's script during a rollback would otherwise revert the bodies newer workers
+    /// call. On SQL Server the refusal rolls back and sets NOEXEC, so even a client that runs on past an
+    /// error (sqlcmd without -b, SSMS) changes nothing. SQLite has no raise outside a trigger, so a failing
+    /// CHECK names the refusal instead, and stops only a client that halts on an error (sqlite3 -bail).
     /// </summary>
     internal static string NoDowngradeGuard(string token, int lastMigration)
     {
-        var prefix = $"objects-{ObjectPackageStamp.ContractMajor}.";
-        var start = prefix.Length + 1;
-        // NULL rather than an error on any other history row: neither server promises to test the LIKE first.
-        var revisionText = token switch
-        {
-            "pg" => $"substring(name from '^{prefix.Replace(".", "\\.", StringComparison.Ordinal)}([0-9]+)-')::INT",
-            "mssql" => $"TRY_CAST(SUBSTRING(name, {start}, NULLIF(CHARINDEX('-', name, {start}), 0) - {start}) AS INT)",
-            _ => $"CAST(substr(name, {start}) AS INTEGER)",
-        };
         var newer = $"""
             SELECT 1 FROM {"{{schema}}"}.migrations
             WHERE version > {lastMigration}
-                OR (version = {ObjectPackageStamp.HistoryVersion} AND name LIKE '{prefix}%-%' AND {revisionText} > {ObjectPackageStamp.PackageRevision})
             """;
         const string message =
             "A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.";
@@ -343,29 +282,4 @@ internal static class ProvisionScriptEmitter
 
     private static string Indent(string text, int spaces) =>
         string.Join("\n", text.Split('\n').Select(line => new string(' ', spaces) + line));
-
-    /// <summary>
-    /// The operator views one provider installs, in name order, named the way the installer names them.
-    /// Together with <see cref="Routines"/>, shared with the object-package hash, which is only
-    /// meaningful if it covers exactly the installed set in exactly the installer's order.
-    /// </summary>
-    internal static IEnumerable<(string Name, string Body)> Views(string repoRoot, string token) =>
-        Installed(SqlFiles(repoRoot, token).Where(f => SqlResourceCatalog.IsView(f.Stem)));
-
-    /// <summary>The routines one provider installs, in name order: every file whose header creates one.</summary>
-    internal static IEnumerable<(string Name, string Body)> Routines(string repoRoot, string token) =>
-        Installed(SqlFiles(repoRoot, token).Where(f => !SqlResourceCatalog.IsView(f.Stem) && SqlResourceCatalog.DefinesRoutine(f.Body)));
-
-    private static readonly string[] SqlFolders = ["Operations", "Schema"];
-
-    // One dialect's files as Acta embeds them: X.<token>.sql under Operations/ and Schema/.
-    private static IEnumerable<(string Stem, string Body)> SqlFiles(string repoRoot, string token) =>
-        SqlFolders
-            .Select(folder => Path.Combine(repoRoot, "src", "Acta", folder))
-            .Where(Directory.Exists)
-            .SelectMany(root => Directory.EnumerateFiles(root, $"*.{token}.sql", SearchOption.AllDirectories))
-            .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)));
-
-    private static IEnumerable<(string Name, string Body)> Installed(IEnumerable<(string Stem, string Body)> files) =>
-        files.Select(f => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(f.Stem), f.Body)).OrderBy(o => o.Name, StringComparer.Ordinal);
 }

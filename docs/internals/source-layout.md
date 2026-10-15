@@ -96,7 +96,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 - `Primitives/`: name, key, duration, and ref syntax, text limits, and message truncation.
 - `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
 - `Storage/`: database access beside `Schema/`: the session, `ISqlDialect`, SQL identifier syntax, value coercion, deadlock retry, the SQL resource catalog, and paging.
-- `Schema/`: the schema model, the migration runner and installer, the baseline and object package stamps, and the operator views in `Schema/Views/`.
+- `Schema/`: the schema model, the migration runner, the baseline stamp, and the operator view sources in `Schema/Views/`.
 - `Hosting/`: `ActaBuilder`, `AddActa`, the builder interfaces and plug-in seams, provider registration, option validators, and what registration builds and operations read: `CatalogDeclaration`, the catalog registries (`JobContractRegistry`, `JobDescriptorRegistry`, `JobTypeRegistry`), and `OutboxRelayRegistry`. They stay here rather than in `Engine/` because operations name them.
 - `Cli/`: the operator CLI, a presenter over the public facades.
 

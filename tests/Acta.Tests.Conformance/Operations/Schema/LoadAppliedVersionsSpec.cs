@@ -22,13 +22,7 @@ public sealed class LoadAppliedVersionsSpec : IntegrationSpec<ConformanceFixture
     public async Task Reads_every_recorded_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        List<(int Version, string Name)> recorded =
-        [
-            (ObjectPackageStamp.HistoryVersion, $"objects-{ObjectPackageStamp.ContractMajor}.1-00000000000000000000000000000000"),
-            (0, "baseline"),
-            (1, "init"),
-            (2, "add_widgets"),
-        ];
+        List<(int Version, string Name)> recorded = [(0, "baseline"), (1, "init"), (2, "add_widgets")];
         await using var probe = await Fixture.CreateHistoryProbeAsync(recorded);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);

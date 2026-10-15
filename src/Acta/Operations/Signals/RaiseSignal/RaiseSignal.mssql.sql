@@ -166,4 +166,3 @@ BEGIN
         THROW;
     END CATCH;
 END;
-GO

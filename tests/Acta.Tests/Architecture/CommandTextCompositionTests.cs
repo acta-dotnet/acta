@@ -71,13 +71,10 @@ public sealed class CommandTextCompositionTests
         // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueJob"] = (1, "embedded SQL with a marked section removed"),
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindCompleteExecutions"] = (1, "embedded SQL with marked sections removed"),
-        // Migration and object installation. The text is an embedded DDL resource (M-numbered
-        // migration scripts, provider view and routine bodies) split into batches by the provider
-        // hooks; the only substitution is {{schema}}, and the CREATE VIEW wrapper's qualified name is
-        // that same schema plus a name derived from the resource file name.
+        // Migration apply. The text is an embedded DDL resource (an M-numbered migration script) split
+        // into batches by the provider hooks, or the provider's literal prelude; the only substitution
+        // is {{schema}}.
         ["Acta/Schema/SchemaMigrationRunner.cs::ApplyAsync"] = (2, "embedded migration/prelude DDL, {{schema}} only"),
-        ["Acta/Schema/SqlObjectInstaller.cs::Run"] = (1, "embedded view/routine DDL batch"),
-        ["Acta/Schema/SqlObjectInstaller.cs::CurrentDefinition"] = (1, "provider-owned hook SQL, name bound as @p_name"),
         // The three provider staging extensions. The INSERT text is built once by OutboxStaging.Prepare
         // over an OutboxIdentifier.Qualify'd table reference and handed here as a parameter; every
         // column value is added as a provider DbParameter in the lines below the assignment.

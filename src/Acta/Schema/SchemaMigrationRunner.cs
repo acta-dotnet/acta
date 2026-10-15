@@ -6,15 +6,14 @@ namespace Acta;
 /// <summary>
 /// Provider-neutral apply/reset orchestration for provider-owned <c>Mnnn_*.sql</c> migrations.
 /// Provider hooks supply the migrations' assembly, batch splitting, and connection-level behavior;
-/// the bootstrap operations and the object bodies are Acta's, chosen by the dialect token.
+/// the bootstrap operations are Acta's, chosen by the dialect token.
 /// </summary>
 internal static class SchemaMigrationRunner
 {
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the
-    /// migrations table, read applied versions, run every missing script, then install current
-    /// operator views and routines unless a newer build already upgraded the database. Concurrent
-    /// bootstrappers serialize on the lock.
+    /// migrations table, read applied versions, and run every missing script, nothing else.
+    /// Concurrent bootstrappers serialize on the lock.
     /// </summary>
     public static async Task ApplyAsync(DbConnection conn, string schemaName, SchemaMigrationProviderHooks hooks, CancellationToken ct)
     {
@@ -56,16 +55,6 @@ internal static class SchemaMigrationRunner
                     cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
                     await cmd.ExecuteNonQueryAsync(ct);
                 }
-            }
-
-            // A newer build already upgraded this database: its migration or package is past ours, so our
-            // older views and routines stay out rather than overwrite the ones its workers call.
-            var newer =
-                applied.Keys.Any(v => v > migrations.Max(m => m.Version))
-                || ObjectPackageStamp.IsNewerThanThisBuild(applied.GetValueOrDefault(ObjectPackageStamp.HistoryVersion));
-            if (!newer)
-            {
-                await SqlObjectInstaller.Run(conn, tx, schemaName, hooks, sql, ct);
             }
 
             await tx.CommitAsync(ct);
@@ -146,7 +135,7 @@ internal static class SchemaMigrationRunner
 
 /// <summary>
 /// Provider-specific hooks used by the shared migration runner. The provider assembly owns the ordered
-/// migrations; the dialect token selects the bootstrap operations, routines, and views in Acta.
+/// migrations; the dialect token selects the bootstrap operations in Acta.
 /// </summary>
 internal sealed record SchemaMigrationProviderHooks(
     Assembly ProviderAssembly,
@@ -157,6 +146,5 @@ internal sealed record SchemaMigrationProviderHooks(
     // run against.
     string RequiredBaselineStamp,
     string? PreludeSql = null,
-    int CommandTimeoutSeconds = 120,
-    string? ObjectDefinitionSql = null
+    int CommandTimeoutSeconds = 120
 );

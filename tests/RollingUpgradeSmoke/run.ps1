@@ -57,11 +57,11 @@ function Invoke-Phase($provider, $schema, $phase) {
     $log = Join-Path $artifactRoot "$label.log"
     dotnet $binaries[$phase.Generation] $provider $schema $phase.Mode $phase.Profile *> $log
     if ($phase.ExpectedFailure) {
-        if ($LASTEXITCODE -eq 0 -or -not (Select-String -LiteralPath $log -SimpleMatch 'records no Acta object package')) {
+        if ($LASTEXITCODE -eq 0 -or -not (Select-String -LiteralPath $log -SimpleMatch 'This database is missing')) {
             Get-Content -LiteralPath $log -Tail 30
-            throw "$label did not fail at the expected read-only SQL compatibility preflight."
+            throw "$label did not fail at the expected read-only migration-history preflight."
         }
-        Write-Output "PASS $label`: incompatible old SQL rejected before worker startup."
+        Write-Output "PASS $label`: database missing this build's migrations rejected before worker startup."
     } else {
         if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath $log -Tail 30; throw "$label failed." }
         Get-Content -LiteralPath $log

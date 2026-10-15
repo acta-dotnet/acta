@@ -107,6 +107,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 )
         );
 
+    public override string WrapView(string qualifiedName, string select) => $"CREATE OR ALTER VIEW {qualifiedName} AS\n{select}";
+
     // TVP table types consumed by hot-path routines (enqueue / completion / schedule batches). Request-
     // shape table types, not domain entities, so they are a dialect literal here rather than part of
     // the emitted entity schema. Postgres needs none (it binds typed arrays instead).

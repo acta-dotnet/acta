@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Acta.Tests.Conformance.Contracts;
+using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -26,7 +27,12 @@ public sealed class DropSchemaSpec : IntegrationSpec<ConformanceFixture>
         await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
         await Fixture.ApplyMigrationsAsync(probe.ConnectionString, probe.SchemaName, ct);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
-        string[] objects = ["migrations", .. ActaSchema.Entities.Select(e => e.TableName), .. sql.Views().Select(v => v.Name)];
+        string[] objects =
+        [
+            "migrations",
+            .. ActaSchema.Entities.Select(e => e.TableName),
+            .. ProviderSqlResources.ViewNames(Fixture.DialectToken),
+        ];
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
         var drop = new DropSchemaHandler(connection, sql, TimeoutSeconds);
         Assert.Equal(objects, await ReadableAsync(connection, probe.SchemaName, objects, ct));

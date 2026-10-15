@@ -19,18 +19,18 @@ rather than one runtime under two manifests.
 These run with `-Phases Sequential`. The script archives the previous tag with `git archive`,
 builds the same consumer program twice from separate directories, once against the archived tree and
 once against this one, and then runs these phases in order with the same schema throughout. They need a
-previous release that shares the current baseline and records no object package. rc.3 was the only one,
+previous release that shares the current baseline and lacks a migration this build ships. rc.3 was the only one,
 and rc.4 re-cut the baseline, so no pair qualifies any more; they stay for the record, and the overlap
 phase below is the default.
 
-1. The previous binary provisions the schema, so the database holds the previous release's objects and
-   no object-package row.
-2. The current binary starts with migrations disabled and must refuse: the preflight finds no object
-   package and names the provisioning script in its error. The phase passes only when the process
-   exits non-zero with that message. This expects a previous release that records no package, as
-   rc.3 did; a pair where both releases record one runs `-Phases Overlap` instead.
-3. The current binary provisions, which installs the current views and routines and records the
-   package.
+1. The previous binary provisions the schema, so the database holds the previous release's migrations
+   and nothing newer.
+2. The current binary starts with migrations disabled and must refuse: the preflight finds a migration
+   this build ships missing and names the provisioning script in its error. The phase passes only when the process
+   exits non-zero with that message. This expects a previous release that lacks one of this build's migrations, as
+   rc.3 did; a pair that shares every migration runs `-Phases Overlap` instead.
+3. The current binary provisions, which applies the missing migration and with it the current views and
+   routines.
 4. The previous binary and the current binary each run with migrations disabled. A phase enqueues eight jobs and reads back eight results, holds an attempt across
    a real heartbeat interval, persists a step, and triggers a daily recurring slot twice, checking that
    each rollover keeps its latest result.

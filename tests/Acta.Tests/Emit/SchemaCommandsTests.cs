@@ -35,23 +35,9 @@ public sealed class SchemaCommandsTests : IDisposable
             File.Create(target).Dispose();
         }
 
-        // Provision-script emission (part of docs emission, so of add/amend/check too) composes the
-        // published scripts from the SQL files, reading real content - mirror them verbatim. The
-        // migrations are the commands' own to write.
+        // Migration and provision-script emission read the routine and view sources, so the SQL files
+        // are mirrored verbatim. The migrations are the commands' own to write.
         CopySql(_root, path => !path.Contains("/Schema/Migrations/", StringComparison.Ordinal));
-
-        // The object-package ledger is read from the tree, not from the assembly, so `check` in the
-        // throwaway root needs the released identities the real one recorded.
-        var schemaDir = Path.Combine(_root, "src", "Acta", "Schema");
-        Directory.CreateDirectory(schemaDir);
-        foreach (var name in new[] { "object-packages.json", "ObjectPackageHashes.g.cs" })
-        {
-            File.Copy(
-                Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta", "Schema", name),
-                Path.Combine(schemaDir, name),
-                overwrite: true
-            );
-        }
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
@@ -155,6 +141,24 @@ public sealed class SchemaCommandsTests : IDisposable
 
         Assert.True(File.Exists(Mig("pg", "M001_genesis.sql")));
         Assert.False(File.Exists(Mig("pg", "M001_init.sql")));
+    }
+
+    [Fact]
+    public void A_routine_edit_fails_check_until_add_drafts_it_alone_into_the_next_migration()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root);
+        var source = Path.Combine(_root, "src", "Acta", "Operations", "Execution", "StartStep", "StartStep.pg.sql");
+        File.WriteAllText(source, File.ReadAllText(source).Replace("AS $$", "AS $$\n-- edited", StringComparison.Ordinal));
+
+        Assert.Equal(1, CheckCommand.Run(_root));
+        Assert.Equal(0, SchemaAddCommand.Run(name: "edit_start_step", repoRoot: _root));
+
+        var pg = File.ReadAllText(Mig("pg", "M002_edit_start_step.sql"));
+        Assert.Contains("CREATE OR REPLACE FUNCTION {{schema}}.start_step(", pg, StringComparison.Ordinal);
+        Assert.Contains("-- edited", pg, StringComparison.Ordinal);
+        Assert.DoesNotContain("claim_jobs", pg, StringComparison.Ordinal);
+        Assert.DoesNotContain("PROCEDURE", File.ReadAllText(Mig("mssql", "M002_edit_start_step.sql")), StringComparison.Ordinal);
+        Assert.Equal(0, CheckCommand.Run(_root));
     }
 
     [Fact]

@@ -16,8 +16,7 @@ internal static partial class SqlServerSchemaMigrator
         DialectToken: "mssql",
         SplitBatches: SplitOnGo,
         RequiredBaselineStamp: BaselineStamps.Mssql,
-        PreludeSql: "SET QUOTED_IDENTIFIER ON; SET ANSI_NULLS ON;",
-        ObjectDefinitionSql: "SELECT OBJECT_DEFINITION(OBJECT_ID(@p_name));"
+        PreludeSql: "SET QUOTED_IDENTIFIER ON; SET ANSI_NULLS ON;"
     );
 
     public static async Task ApplyAsync(SqlConnection connection, string schemaName, CancellationToken ct)

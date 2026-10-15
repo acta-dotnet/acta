@@ -114,4 +114,6 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
                     + "ON CONFLICT (version) DO NOTHING;"
                 )
         );
+
+    public override string WrapView(string qualifiedName, string select) => $"CREATE OR REPLACE VIEW {qualifiedName} AS\n{select};";
 }

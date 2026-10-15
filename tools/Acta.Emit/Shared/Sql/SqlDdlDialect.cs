@@ -41,6 +41,12 @@ internal abstract class SqlDdlDialect
     public abstract string? Terminator { get; }
 
     /// <summary>
+    /// What the <c>{{now}}</c> token renders to, or null where the token is refused: only SQLite encodes
+    /// the instant itself; the servers use their native now().
+    /// </summary>
+    public virtual string? NowExpression => null;
+
+    /// <summary>
     /// Opening idempotency guard around one table's CREATE TABLE + indexes (SQL Server
     /// <c>IF OBJECT_ID(...) IS NULL BEGIN</c>); null when the dialect guards per statement instead.
     /// </summary>
@@ -116,6 +122,14 @@ internal abstract class SqlDdlDialect
     /// <paramref name="stamp"/> and so also writes the version-0 generation row; a delta passes null.
     /// </summary>
     public abstract string MigrationStamp(int version, string name, string? stamp);
+
+    /// <summary>
+    /// The statements that install one operator view over its SELECT body. SQL Server and PostgreSQL
+    /// replace in place, which keeps grants and any DBA view selecting from it; PostgreSQL's replace also
+    /// requires every existing column to keep its name, order, and type, so a view change may only append
+    /// columns. SQLite has no in-place replace, so it drops and creates.
+    /// </summary>
+    public abstract string WrapView(string qualifiedName, string select);
 
     /// <summary>
     /// Provider table-type (TVP) definitions appended verbatim after the entity schema. These are

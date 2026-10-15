@@ -26,7 +26,8 @@ internal static class SchemaAmendCommand
         }
 
         var live = SchemaModel.Discover();
-        var to = SchemaSnapshot.Capture(live);
+        var objects = MigrationObjects.All(repoRoot);
+        var to = SchemaSnapshot.Capture(live, objects);
 
         var snapshotPath = SnapshotFile.Path(repoRoot);
         var pair = File.Exists(snapshotPath) ? SnapshotPair.Load(snapshotPath) : null;
@@ -47,8 +48,8 @@ internal static class SchemaAmendCommand
             var pName = name ?? MigrationFiles.TipName(repoRoot, provider.Suffix, n) ?? "init";
             var sql =
                 baseline is null || !MigrationFiles.ProviderHasFilesBelow(repoRoot, provider.Suffix, n)
-                    ? SqlSchemaEmitter.EmitFullSchema(live, provider.Dialect, n, pName)
-                    : MigrationDeltaEmitter.EmitDelta(diff!, live, provider.Dialect, n, pName);
+                    ? SqlSchemaEmitter.EmitFullSchema(live, provider.Dialect, objects[provider.Token], n, pName)
+                    : MigrationDeltaEmitter.EmitDelta(diff!, live, objects[provider.Token], provider.Dialect, n, pName);
             pending.Add((tipFiles, MigrationFiles.PathFor(repoRoot, provider.Suffix, n, pName), sql));
         }
 
@@ -71,7 +72,7 @@ internal static class SchemaAmendCommand
 
         if (diff is not null)
         {
-            foreach (var warning in diff.Warnings)
+            foreach (var warning in diff.AllWarnings)
             {
                 Console.Error.WriteLine($"  WARNING: {warning}");
             }

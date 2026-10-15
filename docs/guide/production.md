@@ -86,7 +86,7 @@ mutations are fenced by lock hints and compare-and-swap, not snapshots — but w
 dashboard's and operators' read queries take shared locks and trade blocking with the claim path,
 which is not the configuration Acta certifies.
 
-Migrations and routine installs run under an exclusive schema lock in one transaction, so applying
+Migrations run under an exclusive schema lock in one transaction, so applying
 a future `Mnnn` on a live system briefly blocks statements that collide with the objects it touches
 and resumes them when it commits; in-flight jobs are not failed by a migration, they wait it out.
 
@@ -97,35 +97,19 @@ different baseline generation, fails at `StartAsync` with instructions instead o
 its first query. History rows this build has never heard of are fine — an older worker against a
 newer database is a supported rolling-upgrade shape.
 
-Operator views and routines carry no migration version of their own, so history alone cannot say
-whether the bodies installed here are the ones this build calls. A fourth verdict answers that. The
-install records an object package as a sentinel row beside the baseline stamp, and startup reads it:
-a contract major that must match exactly, because a higher one is the incompatibility the number
-exists to signal rather than a newer thing to accept, and a package revision that must be at or
-above the minimum this build declares. That minimum is deliberately not the revision this build
-ships. A release carrying only an optimization still accepts the revision before it, so a worker
-keeps running against a package a newer deploy installed and a rollback still starts. Raising the
-minimum narrows the supported deploy window and is a decision, not a side effect of shipping.
+Routine and view bodies travel inside migrations, after the tables of the migration that changed
+them, so the history rows say exactly which bodies a database holds: there is no separate install
+step and nothing at startup rewrites a body on its own. Running the current full provisioning script
+as part of every upgrade is what keeps bodies and binary together; it applies only the migrations the
+database lacks, so re-running it is always safe. Run it with a client that stops at the first error
+(`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`): a client that runs on past a failed
+statement would record a migration whose bodies did not all land. Stopping at the error is what turns
+the script's transaction into the guarantee.
 
-The content hash recorded beside those numbers never enters the startup decision. Comparing it for
-equality would refuse an older worker against newer compatible objects, which is the rolling-deploy
-shape above. It exists for the build instead: released package identities are immutable, so changed
-object content must take a new revision before it ships, and `Acta.Emit check` refuses a reused
-identity carrying different content.
-
-Know what this still does not prove. The row records the package a script or bootstrap installed,
-not the bodies now in the database, so an operator who hand-edits an object keeps a row that no
-longer describes it. The check also reads the database once at startup, so a worker already running
-when someone reinstalls an incompatible package finds out at its next affected call. Running the
-current full provisioning script as part of every upgrade remains the rule that keeps bodies and
-binary together; it is idempotent, so re-running it is always safe, and it is what writes the row.
-Run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`,
-`sqlite3 -bail`): the script records the package only when every named object exists, which catches
-a fresh install that lost an object, but a client that runs on past a failed replacement leaves the
-old body in place under a name the count still finds. Stopping at the error is what turns the
-script's transaction into the guarantee.
-A database whose package is older than the build requires is refused at startup, naming that
-script; running it is not a reprovision and destroys nothing.
+Know what this still does not prove. A history row records that a migration ran, not the bodies now
+in the database, so an operator who hand-edits an object keeps a row that no longer describes it.
+The preflight also reads the database once at startup, so a worker already running when someone
+applies an incompatible change finds out at its next affected call.
 
 See [`migrations.md`](../internals/migrations.md) for the migration model and `tools/Acta.Emit`
 commands.
