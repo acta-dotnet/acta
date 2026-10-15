@@ -1,19 +1,16 @@
 using System.Data;
+using System.Reflection;
 using Npgsql;
 
 namespace Acta.Postgres;
 
 /// <summary>
-/// Applies <c>Mnnn_*.sql</c> migrations on PostgreSQL. PG scripts execute as a single
-/// <c>NpgsqlCommand</c> (no <c>GO</c> splitter).
+/// Applies this package's migrations on PostgreSQL, each file as a single <c>NpgsqlCommand</c>.
 /// </summary>
 internal static class PostgresSchemaMigrator
 {
-    private static readonly SchemaMigrationProviderHooks Hooks = new(
-        ProviderAssembly: typeof(PostgresSchemaMigrator).Assembly,
-        DialectToken: "pg",
-        SplitBatches: static script => [script]
-    );
+    private const string DialectToken = "pg";
+    private static readonly Assembly ProviderAssembly = typeof(PostgresSchemaMigrator).Assembly;
 
     public static async Task ApplyAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
     {
@@ -24,7 +21,7 @@ internal static class PostgresSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.ApplyAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
@@ -49,7 +46,7 @@ internal static class PostgresSchemaMigrator
         {
             await maintenance.OpenAsync(ct);
             await using var exists = maintenance.CreateCommand();
-            exists.CommandTimeout = Hooks.CommandTimeoutSeconds;
+            exists.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
             exists.CommandText = "SELECT 1 FROM pg_database WHERE datname = @db";
             exists.Parameters.Add(new NpgsqlParameter("@db", NpgsqlTypes.NpgsqlDbType.Text) { Value = databaseName });
             if (await exists.ExecuteScalarAsync(ct) is null)
@@ -57,7 +54,7 @@ internal static class PostgresSchemaMigrator
                 try
                 {
                     await using var create = maintenance.CreateCommand();
-                    create.CommandTimeout = Hooks.CommandTimeoutSeconds;
+                    create.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
                     // CREATE DATABASE doesn't accept parameters; safe because databaseName is validated
                     // by ValidateDatabaseName (no quote characters) before interpolation.
                     create.CommandText = $"CREATE DATABASE \"{databaseName}\"";
@@ -89,7 +86,7 @@ internal static class PostgresSchemaMigrator
 
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync(ct);
-        await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
+        await SchemaMigrations.PreflightAsync(conn, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     public static async Task ResetSchemaAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
@@ -101,7 +98,7 @@ internal static class PostgresSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.ResetSchemaAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
@@ -117,6 +114,6 @@ internal static class PostgresSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.DropSchemaAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.DropSchemaAsync(connection, schemaName, DialectToken, ct);
     }
 }

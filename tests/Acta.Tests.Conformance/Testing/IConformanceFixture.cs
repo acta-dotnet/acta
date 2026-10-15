@@ -28,10 +28,10 @@ public interface IConformanceFixture
 
     /// <summary>
     /// Allocate a throwaway location carrying only a migration-history ledger seeded with
-    /// <paramref name="history"/> as (version, bare name) rows, or - when <paramref name="history"/>
+    /// <paramref name="history"/> as migration-name rows, or - when <paramref name="history"/>
     /// is <c>null</c> - no ledger at all, standing in for a database that was never provisioned.
     /// </summary>
-    ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history);
+    ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history);
 
     /// <summary>
     /// Run this provider's <c>IProviderBootstrap</c> against <paramref name="connectionString"/> and
@@ -50,7 +50,7 @@ public interface IConformanceFixture
     Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct);
 
     /// <summary>
-    /// Return a handle to the shared <c>acta_test</c> schema, bootstrapping it with M001 applied on first
+    /// Return a handle to the shared <c>acta_test</c> schema, bootstrapping it with the baseline applied on first
     /// touch and caching that bootstrap process-wide; throws via <c>Assert.Skip</c> when the provider env
     /// var is unset. Every spec in the assembly gets a handle to the same schema, not one of its own.
     /// </summary>

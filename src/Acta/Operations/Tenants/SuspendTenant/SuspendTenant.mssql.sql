@@ -20,7 +20,7 @@ BEGIN TRY
         WHERE id = @id;
         SET @version = @version + 1;
 
-        -- namespace_id 1 is the seeded sys namespace (M001).
+        -- namespace_id 1 is the sys namespace the baseline seeds.
         INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor, tenant_id, reason_message)
         VALUES (10 /* EventCode.TenantSuspended */, @now, 1, @p_actor_code, @p_actor, @id, @p_reason_message);
     END;

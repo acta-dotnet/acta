@@ -68,8 +68,8 @@ static int FailDashboardBoot(Exception ex, string provider)
 static async Task RunDashboardAsync(string[] args, string provider)
 {
     // Default: the shared dashboard schema (RunIdentity.DefaultDashboardSchema) plus a fresh per-run
-    // namespace, so each run adds a namespace to one accumulating catalog the dashboard can grow (M001
-    // re-applies idempotently; prior data is preserved). --schema overrides the schema (e.g. a unique
+    // namespace, so each run adds a namespace to one accumulating catalog the dashboard can grow (applying
+    // the migrations again is a no-op; prior data is preserved). --schema overrides the schema (e.g. a unique
     // name for a throwaway, isolated run); --namespace pins the namespace.
     var id = RunIdentity.NewDashboard(
         DateTime.UtcNow,

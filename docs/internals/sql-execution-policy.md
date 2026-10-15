@@ -267,7 +267,7 @@ the lock.
 ## Provisioning, compatibility, and SQL access
 
 Tables, columns, indexes, constraints, durable types, routine bodies, and view bodies all belong in
-numbered `MNNN` migrations. A body edit is a migration: `schema add` drafts the changed body into the
+migrations. A body edit is a migration: `schema add` drafts the changed body into the
 next one (see [migrations](./migrations.md)), and nothing at bootstrap rewrites a body outside a
 migration. A bootstrap that finds a newer migration in the database applies nothing, and the
 published script refuses such a database. Embedded query changes require no migration.
@@ -287,7 +287,7 @@ the implementation that N workers invoke, and a rollback never reinstalls N's bo
 workers keep running on N+1's routines, because a bootstrap applies only the migrations the database
 lacks and the published script refuses a database a newer release upgraded.
 Changes must therefore preserve the supported parameter, result, and semantic contracts in both
-deployment directions. Compatible table DDL alone is insufficient. Body replacement avoiding MNNN
+deployment directions. Compatible table DDL alone is insufficient. Body replacement outside a migration
 does not remove this executable compatibility obligation.
 
 Dashboard/API are the normal administration surface; human database access can be restricted without

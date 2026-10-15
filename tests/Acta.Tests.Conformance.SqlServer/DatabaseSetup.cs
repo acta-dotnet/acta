@@ -6,12 +6,12 @@ using Xunit;
 namespace Acta.Tests.Conformance.SqlServer;
 
 /// <summary>
-/// Explicit dev-environment reset entry point. Drops and re-applies M001 against one of the two
+/// Explicit dev-environment reset entry point. Drops and re-applies the migrations against one of the two
 /// well-known schemas (<c>acta</c> for demos and manual dev, <c>acta_test</c> for the
 /// append-only test schema). Skipped from normal runs via <see cref="FactAttribute.Explicit"/>.
 /// </summary>
 /// <remarks>
-/// The M001 apply is delegated to <see cref="SqlServerSchemaMigrator.ResetSchemaAsync"/>, the single
+/// The apply is delegated to <see cref="SqlServerSchemaMigrator.ResetSchemaAsync"/>, the single
 /// source of truth for migration mechanics.
 /// </remarks>
 public sealed class DatabaseSetup

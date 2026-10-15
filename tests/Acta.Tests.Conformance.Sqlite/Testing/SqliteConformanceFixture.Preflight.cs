@@ -29,7 +29,7 @@ public sealed partial class SqliteConformanceFixture
         await SqliteSchemaMigrator.ApplyAsync(connection, schemaName, ct);
     }
 
-    public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history)
+    public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history)
     {
         var path = Path.Combine(Path.GetTempPath(), $"acta-preflight-{Guid.NewGuid():N}.db");
         // Pooling off so the file is closed the moment each connection is, and the probe can delete
@@ -48,11 +48,10 @@ public sealed partial class SqliteConformanceFixture
                 await ledger.ExecuteNonQueryAsync();
             }
 
-            foreach (var (version, name) in history)
+            foreach (var name in history)
             {
                 await using var insert = conn.CreateCommand();
-                insert.CommandText = "INSERT INTO main.migrations (version, name, installed_schema) VALUES (@version, @name, 'main');";
-                insert.Parameters.AddWithValue("@version", version);
+                insert.CommandText = "INSERT INTO main.migrations (name) VALUES (@name);";
                 insert.Parameters.AddWithValue("@name", name);
                 await insert.ExecuteNonQueryAsync();
             }

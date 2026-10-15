@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Sqlite.Testing;
 /// <summary>
 /// SQLite-backed handle to the conformance database. Unlike the server providers, SQLite has no
 /// schema container and no external service: the database is a single temp file created once per
-/// process, with M001 applied via <see cref="SqliteSchemaMigrator"/>. The schema name is always
+/// process, with the migrations applied via <see cref="SqliteSchemaMigrator"/>. The schema name is always
 /// <c>main</c> (the attached database). Embedded, so it never skips for a missing connection string.
 /// </summary>
 public sealed class SqliteIntegrationSchema : IIntegrationSchema

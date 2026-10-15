@@ -5,15 +5,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Schema;
 
 /// <summary>
-/// Conformance: applying M001 to a fresh schema installs exactly the modelled entity tables.
+/// Conformance: applying the baseline to a fresh schema installs exactly the modelled entity tables.
 /// </summary>
 [ConformanceSpec(
-    "schema.m001-install",
-    "M001 installs exactly the modelled entity tables",
+    "schema.baseline-install",
+    "The baseline installs exactly the modelled entity tables",
     Area = "Schema",
-    Contract = "Applying M001 to a fresh schema installs exactly the modelled entity tables."
+    Contract = "Applying the baseline to a fresh schema installs exactly the modelled entity tables."
 )]
-public sealed class M001InstallSpec : IntegrationSpec<ConformanceFixture>
+public sealed class BaselineInstallSpec : IntegrationSpec<ConformanceFixture>
 {
     // The migration runner's own bookkeeping ledger (created by the runner's EnsureMigrations step)
     // is not an entity in the model, so it is the one base table permitted beyond the entity set.

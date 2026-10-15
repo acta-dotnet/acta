@@ -14,7 +14,7 @@ public sealed class SchemaSnapshotFileTests
     private static string Canon(SchemaSnapshot s) =>
         JsonSerializer.Serialize(s, SchemaSnapshotJsonContext.Default.SchemaSnapshot).ReplaceLineEndings("\n");
 
-    // The committed snapshot's Current must equal the live model: the unit-test form of `check`.
+    // The committed snapshot must equal the live model: the unit-test form of `check`.
     [Fact]
     public void Committed_snapshot_matches_live_model()
     {
@@ -22,7 +22,7 @@ public sealed class SchemaSnapshotFileTests
 
         var model = SchemaModel.Discover();
         var live = SchemaSnapshot.Capture(model, MigrationObjects.All(IntegrationConfig.FindRepoRoot()));
-        var committed = SnapshotPair.Load(SnapshotPath).Current;
+        var committed = SchemaSnapshot.Load(SnapshotPath);
 
         Assert.Equal(Canon(live), Canon(committed));
     }

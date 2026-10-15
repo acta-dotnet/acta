@@ -1,22 +1,16 @@
 using System.Data;
-using System.Text.RegularExpressions;
+using System.Reflection;
 using Microsoft.Data.SqlClient;
 
 namespace Acta.SqlServer;
 
 /// <summary>
-/// Applies <c>Mnnn_*.sql</c> migrations on SQL Server. The prelude turns
-/// <c>QUOTED_IDENTIFIER ON; ANSI_NULLS ON;</c> on (M001 has filtered indexes that require it;
-/// the option is session-scoped, so the runner sets it on every entry).
+/// Applies this package's migrations on SQL Server, each file split into its <c>GO</c> batches.
 /// </summary>
-internal static partial class SqlServerSchemaMigrator
+internal static class SqlServerSchemaMigrator
 {
-    private static readonly SchemaMigrationProviderHooks Hooks = new(
-        ProviderAssembly: typeof(SqlServerSchemaMigrator).Assembly,
-        DialectToken: "mssql",
-        SplitBatches: SplitOnGo,
-        PreludeSql: "SET QUOTED_IDENTIFIER ON; SET ANSI_NULLS ON;"
-    );
+    private const string DialectToken = "mssql";
+    private static readonly Assembly ProviderAssembly = typeof(SqlServerSchemaMigrator).Assembly;
 
     public static async Task ApplyAsync(SqlConnection connection, string schemaName, CancellationToken ct)
     {
@@ -27,7 +21,7 @@ internal static partial class SqlServerSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.ApplyAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
@@ -58,7 +52,7 @@ internal static partial class SqlServerSchemaMigrator
                 // databaseName is interpolated into both a string-literal (N'...') and an identifier
                 // ([...]) context; ValidateDatabaseName rejects ' and ], so neither can break out.
                 cmd.CommandText = $"IF DB_ID(N'{databaseName}') IS NULL CREATE DATABASE [{databaseName}];";
-                cmd.CommandTimeout = Hooks.CommandTimeoutSeconds;
+                cmd.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
                 try
                 {
                     await cmd.ExecuteNonQueryAsync(ct);
@@ -82,7 +76,7 @@ internal static partial class SqlServerSchemaMigrator
                 try
                 {
                     await using var rcsi = master.CreateCommand();
-                    rcsi.CommandTimeout = Hooks.CommandTimeoutSeconds;
+                    rcsi.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
                     rcsi.CommandText = $"""
                         IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = N'{databaseName}') = 0
                             ALTER DATABASE [{databaseName}] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
@@ -122,7 +116,7 @@ internal static partial class SqlServerSchemaMigrator
                 await conn.OpenAsync(ct);
                 await using (var probe = conn.CreateCommand())
                 {
-                    probe.CommandTimeout = Hooks.CommandTimeoutSeconds;
+                    probe.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
                     probe.CommandText = "SELECT 1;";
                     await probe.ExecuteScalarAsync(ct);
                 }
@@ -155,7 +149,7 @@ internal static partial class SqlServerSchemaMigrator
 
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(ct);
-        await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
+        await SchemaMigrations.PreflightAsync(conn, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     public static async Task ResetSchemaAsync(SqlConnection connection, string schemaName, CancellationToken ct)
@@ -167,7 +161,7 @@ internal static partial class SqlServerSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.ResetSchemaAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
@@ -183,7 +177,7 @@ internal static partial class SqlServerSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.DropSchemaAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.DropSchemaAsync(connection, schemaName, DialectToken, ct);
     }
 
     /// <summary>
@@ -196,12 +190,4 @@ internal static partial class SqlServerSchemaMigrator
     /// </summary>
     internal static bool IsTransientBootstrapNumber(int number) =>
         number is 1205 or 1807 or 5061 or 4060 or 18456 or -2 or 0 or 64 or 233 or 10053 or 10054 or 10060;
-
-    /// <summary>
-    /// Splits on a line containing only `GO`. Don't put a bare `GO` inside string literals.
-    /// </summary>
-    internal static IEnumerable<string> SplitOnGo(string script) => GoSeparatorRegex().Split(script);
-
-    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
-    private static partial Regex GoSeparatorRegex();
 }

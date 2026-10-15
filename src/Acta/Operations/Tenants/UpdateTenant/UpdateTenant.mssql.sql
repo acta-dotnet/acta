@@ -21,7 +21,7 @@ BEGIN TRY
         SET @version = @version + 1;
         SET @applied = 1;
 
-        -- namespace_id 1 is the seeded sys namespace (M001).
+        -- namespace_id 1 is the sys namespace the baseline seeds.
         INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor, tenant_id, reason_message)
         VALUES (12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor, @id, @p_reason_message);
     END;

@@ -1846,19 +1846,26 @@
   - Over an existing history it keeps every recorded row
   - Rolled back with the migration transaction, the table it created is gone
 
-### The history-table probe answers whether the table is there
-- **Contract:** HasMigrationsTable answers false for a schema without a migration-history table and true for one with it, failing on neither.
+### The migration history reads back name by name
+- **Contract:** LoadAppliedMigrations returns every recorded migration name, with or without the migration transaction, and fails on a schema without the history table.
 - **Guarantees:**
-  - False without a history table, true with an empty one
-
-### The migration history reads back version by version
-- **Contract:** LoadAppliedVersions returns every recorded version with the name it was recorded under, with or without the migration transaction.
-- **Guarantees:**
-  - Every recorded version reads back with the name it was recorded under
+  - Every recorded migration reads back by name
   - Inside the migration transaction it reads the history table that transaction just created
+  - Without a history table the read fails with the provider's error
+
+### The baseline installs exactly the modelled entity tables
+- **Contract:** Applying the baseline to a fresh schema installs exactly the modelled entity tables.
+- **Guarantees:**
+  - Schema base tables equal the ActaSchema entity set with nothing missing or extra
+  - Each installed table's columns equal the modelled columns
+  - Each modelled index is installed with matching uniqueness and key columns
+  - Each modelled foreign key is installed with matching target and on-delete action
+  - Each modelled check constraint is installed
+  - No table carries an index, foreign key or check the model does not declare
+  - On SQL Server exactly the case-exact columns carry a binary collation, and no column elsewhere
 
 ### Hardened schema enforces its checks, seed, and denormalized invariants
-- **Contract:** The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.
+- **Contract:** The hardened baseline schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.
 - **Guarantees:**
   - The seeded sys namespace (id 1, name sys) exists on a fresh install
   - ck_definitions_max_attempts rejects an UPDATE to zero while a positive value updates cleanly
@@ -1877,23 +1884,12 @@
   - runtimes and tags agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart
   - A recurring slot's schedule row agrees with its job on namespace_id and definition_id
 
-### M001 installs exactly the modelled entity tables
-- **Contract:** Applying M001 to a fresh schema installs exactly the modelled entity tables.
-- **Guarantees:**
-  - Schema base tables equal the ActaSchema entity set with nothing missing or extra
-  - Each installed table's columns equal the modelled columns
-  - Each modelled index is installed with matching uniqueness and key columns
-  - Each modelled foreign key is installed with matching target and on-delete action
-  - Each modelled check constraint is installed
-  - No table carries an index, foreign key or check the model does not declare
-  - On SQL Server exactly the case-exact columns carry a binary collation, and no column elsewhere
-
 ### Bootstrap verifies migration history even when it applies nothing
 - **Contract:** Provider bootstrap requires every migration this build ships and tolerates newer ones.
 - **Guarantees:**
   - A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false
   - An unprovisioned schema is refused as unprovisioned, naming the provisioning script
-  - A migration this build ships that the database never applied is refused by version
+  - A migration this build ships that the database never applied is refused by name
   - A history carrying migrations this build has never heard of still passes
 
 ## Signals
@@ -2203,7 +2199,6 @@
 | `GetTenantName` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
-| `HasMigrationsTable` | yes | yes | yes |
 | `ListAlerts` | yes | yes | yes |
 | `ListDefinitions` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
@@ -2214,7 +2209,7 @@
 | `ListSchedules` | yes | yes | yes |
 | `ListTenants` | yes | yes | yes |
 | `ListWorkers` | yes | yes | yes |
-| `LoadAppliedVersions` | yes | yes | yes |
+| `LoadAppliedMigrations` | yes | yes | yes |
 | `MarkDeadWorkers` | yes | yes | yes |
 | `ParkOutboxSignal` | yes | yes | yes |
 | `PauseJob` | yes | yes | yes |

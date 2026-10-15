@@ -33,7 +33,7 @@ public sealed class MigrationDeltaEmitterTests
         // 'priority_code' is a known existing Code column on 'runtimes'; pretend it is newly added.
         var diff = Diff(addedColumns: [new TableMember("runtimes", "priority_code")]);
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), version: 2, name: "add_priority");
+        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_add_priority");
 
         Assert.Contains("ALTER TABLE {{schema}}.runtimes ADD priority_code", sql);
         Assert.DoesNotContain("ck_runtimes_priority_code", sql);
@@ -45,7 +45,7 @@ public sealed class MigrationDeltaEmitterTests
         var live = SchemaModel.Discover();
         var diff = Diff(addedIndexes: [new TableMember("jobs", "ix_jobs_parent")]);
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), version: 2, name: "add_ix");
+        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_add_ix");
 
         Assert.Contains("ix_jobs_parent ON {{schema}}.jobs (parent_id) WHERE parent_id IS NOT NULL;", sql);
     }
@@ -56,7 +56,7 @@ public sealed class MigrationDeltaEmitterTests
         var live = SchemaModel.Discover();
         var diff = Diff(warnings: ["job.legacy: column removed; not drafted, hand-edit required."]);
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), version: 2, name: "noop");
+        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_noop");
 
         Assert.Contains("-- WARNING: job.legacy: column removed", sql);
     }
@@ -67,11 +67,11 @@ public sealed class MigrationDeltaEmitterTests
         var live = SchemaModel.Discover();
         var diff = Diff(addedColumns: [new TableMember("runtimes", "priority_code")]);
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), version: 2, name: "add_priority");
+        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_add_priority");
 
         Assert.DoesNotContain("DRAFT", sql);
         Assert.Contains("INSERT INTO {{schema}}.migrations", sql);
-        Assert.Contains("VALUES (2, 'add_priority'", sql);
+        Assert.Contains("VALUES ('M20260102000000_add_priority')", sql);
     }
 
     private static DialectObjects Objects(SqlDdlDialect dialect) =>
@@ -94,7 +94,13 @@ public sealed class MigrationDeltaEmitterTests
             objects: new Dictionary<string, ObjectChanges> { ["mssql"] = new(["start_step"], []), ["pg"] = new(["claim_jobs"], []) }
         );
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, version: 2, name: "fix_step");
+        var sql = MigrationDeltaEmitter.EmitDelta(
+            diff,
+            SchemaModel.Discover(),
+            Objects(dialect),
+            dialect,
+            stem: "M20260102000000_fix_step"
+        );
 
         Assert.Contains("CREATE OR ALTER PROCEDURE {{schema}}.start_step AS SELECT 2;\nGO", sql.ReplaceLineEndings("\n"));
         Assert.DoesNotContain("claim_jobs", sql);
@@ -107,7 +113,13 @@ public sealed class MigrationDeltaEmitterTests
         var dialect = new SqliteDdlDialect();
         var diff = Diff(objects: new Dictionary<string, ObjectChanges> { ["sqlite"] = new(["tags_view"], []) });
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, version: 2, name: "fix_tags");
+        var sql = MigrationDeltaEmitter.EmitDelta(
+            diff,
+            SchemaModel.Discover(),
+            Objects(dialect),
+            dialect,
+            stem: "M20260102000000_fix_tags"
+        );
 
         Assert.Contains(
             "DROP VIEW IF EXISTS {{schema}}.tags_view;\nCREATE VIEW {{schema}}.tags_view AS\nSELECT t.id FROM {{schema}}.tags AS t;",
@@ -122,7 +134,7 @@ public sealed class MigrationDeltaEmitterTests
     {
         var dialect = new PostgresDdlDialect();
 
-        var sql = MigrationDeltaEmitter.EmitDelta(Diff(), SchemaModel.Discover(), Objects(dialect), dialect, version: 2, name: "noop");
+        var sql = MigrationDeltaEmitter.EmitDelta(Diff(), SchemaModel.Discover(), Objects(dialect), dialect, stem: "M20260102000000_noop");
 
         Assert.DoesNotContain("CREATE", sql);
         Assert.DoesNotContain("DROP", sql);
@@ -134,7 +146,13 @@ public sealed class MigrationDeltaEmitterTests
         var dialect = new PostgresDdlDialect();
         var diff = Diff(objects: new Dictionary<string, ObjectChanges> { ["pg"] = new([], ["old_view"]) });
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, version: 2, name: "drop_old");
+        var sql = MigrationDeltaEmitter.EmitDelta(
+            diff,
+            SchemaModel.Discover(),
+            Objects(dialect),
+            dialect,
+            stem: "M20260102000000_drop_old"
+        );
 
         Assert.Contains("-- TODO DROP old_view", sql);
         Assert.DoesNotContain("DROP VIEW", sql);
@@ -147,10 +165,30 @@ public sealed class MigrationDeltaEmitterTests
         var dialect = new SqlServerDdlDialect();
         var diff = Diff(addedTables: ["tags"], objects: new Dictionary<string, ObjectChanges> { ["mssql"] = new(["start_step"], []) });
 
-        var sql = MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, version: 2, name: "tags");
+        var sql = MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, stem: "M20260102000000_tags");
 
         Assert.DoesNotContain("GO\n\nGO", sql.ReplaceLineEndings("\n"));
         Assert.DoesNotContain("GO\nGO", sql.ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void Every_sql_server_migration_opens_with_the_session_options_its_filtered_indexes_need()
+    {
+        var dialect = new SqlServerDdlDialect();
+        var diff = Diff(addedTables: ["tags"]);
+
+        foreach (
+            var sql in new[]
+            {
+                SqlSchemaEmitter.EmitFullSchema(SchemaModel.Discover(), dialect, Objects(dialect), stem: "M20260101000000_init"),
+                MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, stem: "M20260102000000_tags"),
+            }
+        )
+        {
+            var text = sql.ReplaceLineEndings("\n");
+            var options = text.IndexOf("SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;\nGO\n", StringComparison.Ordinal);
+            Assert.True(options >= 0 && options < text.IndexOf("CREATE", StringComparison.Ordinal));
+        }
     }
 
     [Fact]
@@ -158,7 +196,7 @@ public sealed class MigrationDeltaEmitterTests
     {
         var dialect = new PostgresDdlDialect();
 
-        var sql = SqlSchemaEmitter.EmitFullSchema(SchemaModel.Discover(), dialect, Objects(dialect), version: 1, name: "init");
+        var sql = SqlSchemaEmitter.EmitFullSchema(SchemaModel.Discover(), dialect, Objects(dialect), stem: "M20260101000000_init");
 
         int[] positions =
         [

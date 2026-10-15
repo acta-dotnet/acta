@@ -6,7 +6,7 @@ namespace Acta.Emit.Features.Migrations;
 
 /// <summary>
 /// Committed, tool-owned projection of the live schema model as of the last cut migration.
-/// The diff baseline for the <c>schema add/amend</c> commands; never a competing schema authority.
+/// The diff baseline for the <c>schema add</c> command; never a competing schema authority.
 /// <c>Objects</c> maps each dialect token to its routines and views, name to <see cref="SqlObject.Hash"/>,
 /// which is how <c>schema add</c> tells a changed body from an unchanged one.
 /// </summary>
@@ -43,8 +43,11 @@ internal sealed record SchemaSnapshot(
         return new SchemaSnapshot(entities, hashes);
     }
 
-    internal static void Save(SchemaSnapshot snapshot, string path) =>
+    internal static void Save(SchemaSnapshot snapshot, string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, JsonSerializer.Serialize(snapshot, SchemaSnapshotJsonContext.Default.SchemaSnapshot));
+    }
 
     internal static SchemaSnapshot Load(string path) =>
         JsonSerializer.Deserialize(File.ReadAllText(path), SchemaSnapshotJsonContext.Default.SchemaSnapshot)
@@ -65,21 +68,6 @@ internal sealed record SchemaSnapshot(
     // Signed by the target table, as the DDL references it, so renaming a table model is not a schema change.
     private static string ForeignKeySignature(DbForeignKeySpec f) =>
         $"{f.Column}->{ActaSchema.For(f.Target).TableName}.{f.TargetColumn}|{f.OnDelete}";
-}
-
-/// <summary>The committed snapshot file: <c>Current</c> is the state as of the tip migration;
-/// <c>Previous</c> is the state as of the migration before it (so <c>amend</c> can diff the tip).</summary>
-internal sealed record SnapshotPair(SchemaSnapshot Current, SchemaSnapshot? Previous)
-{
-    internal static void Save(SnapshotPair pair, string path)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(pair, SchemaSnapshotJsonContext.Default.SnapshotPair));
-    }
-
-    internal static SnapshotPair Load(string path) =>
-        JsonSerializer.Deserialize(File.ReadAllText(path), SchemaSnapshotJsonContext.Default.SnapshotPair)
-        ?? throw new InvalidOperationException($"Empty or invalid snapshot pair at {path}.");
 }
 
 internal sealed record EntitySnapshot(

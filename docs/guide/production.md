@@ -87,7 +87,7 @@ dashboard's and operators' read queries take shared locks and trade blocking wit
 which is not the configuration Acta certifies.
 
 Migrations run under an exclusive schema lock in one transaction, so applying
-a future `Mnnn` on a live system briefly blocks statements that collide with the objects it touches
+a later migration on a live system briefly blocks statements that collide with the objects it touches
 and resumes them when it commits; in-flight jobs are not failed by a migration, they wait it out.
 
 Whether or not a host applies migrations itself, every start runs a read-only migration-history

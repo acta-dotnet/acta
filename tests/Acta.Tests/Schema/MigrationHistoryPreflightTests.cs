@@ -10,17 +10,15 @@ namespace Acta.Tests.Schema;
 /// </summary>
 public sealed class MigrationHistoryPreflightTests
 {
-    private static readonly SchemaMigration[] Shipped = [new(1, "M001_init", ""), new(2, "M002_add_flags", "")];
+    private static readonly SchemaMigration[] Shipped = [new("M20260101000000_init", ""), new("M20260102000000_add_flags", "")];
 
-    private static Dictionary<int, string> History(params (int Version, string Name)[] rows) =>
-        rows.ToDictionary(r => r.Version, r => r.Name);
-
-    private static void Verify(Dictionary<int, string> applied) => MigrationHistoryPreflight.Verify(Shipped, applied, "sqlite");
+    private static void Verify(params string[] applied) =>
+        SchemaMigrations.Verify(Shipped, applied.ToHashSet(StringComparer.Ordinal), "sqlite");
 
     [Fact]
     public void Complete_history_passes()
     {
-        Verify(History((1, "init"), (2, "add_flags")));
+        Verify("M20260101000000_init", "M20260102000000_add_flags");
     }
 
     [Fact]
@@ -28,47 +26,27 @@ public sealed class MigrationHistoryPreflightTests
     {
         // An older worker against a newer database is a supported deployment shape, not drift: the
         // preflight requires what this build ships and ignores everything past it.
-        Verify(History((1, "init"), (2, "add_flags"), (3, "added_later")));
+        Verify("M20260101000000_init", "M20260102000000_add_flags", "M20260103000000_added_later");
     }
 
     [Fact]
     public void Missing_shipped_migration_is_named_with_the_provisioning_script()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() => Verify(History((1, "init"))));
+        var exception = Assert.Throws<InvalidOperationException>(() => Verify("M20260101000000_init"));
 
-        Assert.Contains("M002_add_flags", exception.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain("M001_init", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("M20260102000000_add_flags", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("M20260101000000_init", exception.Message, StringComparison.Ordinal);
         Assert.Contains("docs/reference/schema-sqlite.sql", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Migration_renamed_on_disk_is_refused()
-    {
-        var exception = Assert.Throws<InvalidOperationException>(() => Verify(History((1, "init"), (2, "add_columns"))));
-
-        Assert.Contains("'add_columns'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void A_provider_that_joined_late_needs_only_the_migrations_it_ships()
-    {
-        // A provider added after M002 embeds M003 onward; the leading versions it never shipped are a
-        // legal gap in its history, not a missing migration.
-        SchemaMigration[] lateJoiner = [new(3, "M003_init", "")];
-        MigrationHistoryPreflight.Verify(lateJoiner, History((3, "init")), "sqlite");
     }
 
     [Fact]
     public void The_unprovisioned_message_names_the_schema_and_the_script()
     {
-        var message = MigrationHistoryPreflight.NotProvisioned("acta", "pg").Message;
+        var message = SchemaMigrations.NotProvisioned("acta", "pg").Message;
 
         Assert.Contains("not provisioned", message, StringComparison.Ordinal);
         Assert.Contains("'acta'", message, StringComparison.Ordinal);
         Assert.Contains("docs/reference/schema-pg.sql", message, StringComparison.Ordinal);
-        // Naming the permission case matters because the catalog the probe reads is permission-filtered,
-        // so an unreadable table and an absent one produce the same verdict.
         Assert.Contains("cannot read it", message, StringComparison.Ordinal);
     }
 }
@@ -97,14 +75,15 @@ public sealed class SqlitePreflightFileSourceTests
     }
 
     [Fact]
-    public async Task A_memory_source_still_opens_and_reports_the_missing_ledger()
+    public async Task A_memory_source_still_opens_and_reports_the_missing_ledger_with_the_provider_message()
     {
         // There is no file to miss, so the pre-check must not claim one: the verdict has to come from
-        // actually looking at the opened database.
+        // actually reading the opened database, and the provider's own error says what stopped the read.
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             SqliteSchemaMigrator.PreflightAsync("Data Source=:memory:", "main", TestContext.Current.CancellationToken)
         );
 
         Assert.Contains("not provisioned", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("no such table", exception.Message, StringComparison.Ordinal);
     }
 }

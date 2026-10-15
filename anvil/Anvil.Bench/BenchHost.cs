@@ -85,7 +85,7 @@ public static class ProviderConn
     }
 
     /// <summary>
-    /// Drops and re-applies M001 in <paramref name="schema"/> so the cell starts on an empty, freshly
+    /// Drops and re-applies the migrations in <paramref name="schema"/> so the cell starts on an empty, freshly
     /// migrated schema. Throws <see cref="BenchDbUnavailableException"/> if the database is unreachable.
     /// </summary>
     public static async Task ResetSchemaAsync(string provider, string schema, CancellationToken ct)

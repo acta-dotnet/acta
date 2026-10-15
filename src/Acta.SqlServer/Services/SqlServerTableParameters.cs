@@ -4,8 +4,8 @@ using Microsoft.Data.SqlClient.Server;
 namespace Acta.SqlServer;
 
 /// <summary>
-/// The table-valued parameters SqlServerDialect binds: each TVP's column shape, matching its CREATE TYPE in M001,
-/// and the builder that streams one record per row.
+/// The table-valued parameters SqlServerDialect binds: each TVP's column shape, matching its CREATE TYPE in the
+/// baseline migration, and the builder that streams one record per row.
 /// </summary>
 internal static class SqlServerTableParameters
 {
@@ -305,7 +305,7 @@ internal static class SqlServerTableParameters
     }
 
     /// <summary>
-    /// The TVP CREATE TYPE bodies live in M001 (emitted from tools/Acta.Emit's SqlServerDdlDialect),
+    /// The TVP CREATE TYPE bodies live in the baseline migration (emitted from tools/Acta.Emit's SqlServerDdlDialect),
     /// while the SqlDataRecord shapes bind positionally against them here; TvpParityTests compares the
     /// two through this map so a column added on one side fails a unit test, not a live DB apply.
     /// Declared last: a static initializer reading the arrays above must run after them.

@@ -247,8 +247,8 @@ from `host.Services` or query the schema directly: `host.Schema` names it, and
 ## Host lifecycle and cost
 
 - `IAsyncLifetime` on a test class runs per fact. xUnit creates a fresh test-class instance for
-  every test, so the first-test shape above pays one host (and one full M001 migration: tables +
-  routines) per fact: maximal isolation, slowest. To pay it once per class, move the host into an
+  every test, so the first-test shape above pays one host (and the full baseline migration: tables,
+  routines, and views) per fact: maximal isolation, slowest. To pay it once per class, move the host into an
   `IClassFixture<>` and inherit a small test base;
   [`concepts/800-testing/801-testing-jobs`](../../concepts/800-testing/801-testing-jobs/) shows that shape (`ActaHostFixture` +
   `ActaTestBase`). Shared fakes then need per-test-scoped state since the class's facts share one

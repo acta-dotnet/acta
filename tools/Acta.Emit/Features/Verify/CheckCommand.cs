@@ -25,7 +25,7 @@ internal static class CheckCommand
         [
             (Path.Combine(repoRoot, "docs", "reference", "data-model.md"), DataModelEmitter.EmitDataModelReference(model)),
             (Path.Combine(repoRoot, "docs", "reference", "code-families.md"), CodeFamilyEmitter.EmitCodes(model)),
-            .. ProvisionScriptEmitter.Providers.Select(p =>
+            .. ProviderCatalog.All.Select(p =>
                 (ProvisionScriptEmitter.PathFor(repoRoot, p.Token), ProvisionScriptEmitter.Emit(repoRoot, p.Token))
             ),
         ];
@@ -56,10 +56,10 @@ internal static class CheckCommand
         else
         {
             var live = SchemaSnapshot.Capture(model, MigrationObjects.All(repoRoot));
-            var committed = SnapshotPair.Load(snapshotPath).Current;
+            var committed = SchemaSnapshot.Load(snapshotPath);
             if (Canon(live) != Canon(committed))
             {
-                Console.Error.WriteLine("  DRIFT:   snapshot != live model: run `schema add --name <n>` (or `schema amend`).");
+                Console.Error.WriteLine("  DRIFT:   snapshot != live model: run `schema add --name <n>`.");
                 // Name the routine or view behind the drift, which the entity warnings never mention.
                 foreach (var (dialect, changes) in SchemaDiff.Compute(committed, live).Objects)
                 {

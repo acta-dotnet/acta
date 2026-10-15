@@ -5,7 +5,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// per-provider fixture and not disposed, so data persists between runs for inspection.
 /// </summary>
 /// <remarks>
-/// The first call into the fixture per process applies M001 to <c>acta_test</c> if missing, then
+/// The first call into the fixture per process applies the migrations to <c>acta_test</c> if missing, then
 /// upserts a single <c>namespaces</c> row; later instantiations reuse the same connection. Catalog
 /// id columns are DB-assigned and read back by the test ORM (<c>IDbSession.InsertAsync</c>);
 /// tests never pre-allocate one. <see cref="System.IAsyncDisposable.DisposeAsync"/> is a no-op, so

@@ -7,7 +7,7 @@ internal static class DocsCommand
 {
     internal static int Run() => Emit(RepoRoot.Find());
 
-    /// <summary>Regenerates reference docs under <paramref name="repoRoot"/>. Reused by `schema add/amend`
+    /// <summary>Regenerates reference docs under <paramref name="repoRoot"/>. Reused by `schema add`
     /// so a model change keeps docs current (and `check` green) against the same root.</summary>
     internal static int Emit(string repoRoot)
     {
@@ -23,10 +23,10 @@ internal static class DocsCommand
         File.WriteAllText(codesPath, CodeFamilyEmitter.EmitCodes(model));
         Console.WriteLine($"  wrote {codesPath}");
 
-        foreach (var (token, _, _) in ProvisionScriptEmitter.Providers)
+        foreach (var provider in ProviderCatalog.All)
         {
-            var schemaPath = ProvisionScriptEmitter.PathFor(repoRoot, token);
-            File.WriteAllText(schemaPath, ProvisionScriptEmitter.Emit(repoRoot, token));
+            var schemaPath = ProvisionScriptEmitter.PathFor(repoRoot, provider.Token);
+            File.WriteAllText(schemaPath, ProvisionScriptEmitter.Emit(repoRoot, provider.Token));
             Console.WriteLine($"  wrote {schemaPath}");
         }
 

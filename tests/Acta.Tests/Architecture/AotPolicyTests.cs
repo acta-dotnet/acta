@@ -84,7 +84,7 @@ public sealed partial class AotPolicyTests
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
             Allow(
-                "src/Acta/Schema/SchemaMigrationRunner.cs",
+                "src/Acta/Schema/SchemaMigrations.cs",
                 "src/Acta.Sqlite/Services/SqliteDialect.cs",
                 "src/Acta.Sqlite/Services/SqliteOutboxDialect.cs"
             )
@@ -93,12 +93,12 @@ public sealed partial class AotPolicyTests
         new(
             "C# transaction commit",
             new Regex(@"\bCommitAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta/Schema/SchemaMigrationRunner.cs", "src/Acta/Storage/DbSession.cs")
+            Allow("src/Acta/Schema/SchemaMigrations.cs", "src/Acta/Storage/DbSession.cs")
         ),
         new(
             "C# transaction rollback",
             new Regex(@"\bRollbackAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta/Schema/SchemaMigrationRunner.cs")
+            Allow("src/Acta/Schema/SchemaMigrations.cs")
         ),
         new(
             "direct DbParameterSpec scalar factory",

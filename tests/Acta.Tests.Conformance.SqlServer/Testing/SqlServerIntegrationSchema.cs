@@ -12,9 +12,9 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 /// <c>namespaces</c> row on first touch.
 /// </summary>
 /// <remarks>
-/// The first <see cref="CreateAsync"/> call ensures the <c>acta_test</c> schema exists with M001
-/// applied, then idempotently inserts the framework namespace row; later calls reuse the successful
-/// connection string. <see cref="DisposeAsync"/> is a no-op so rows persist for inspection.
+/// The first <see cref="CreateAsync"/> call ensures the <c>acta_test</c> schema exists with the
+/// migrations applied, then idempotently inserts the framework namespace row; later calls reuse the
+/// successful connection string. <see cref="DisposeAsync"/> is a no-op so rows persist for inspection.
 /// </remarks>
 public sealed class SqlServerIntegrationSchema : IIntegrationSchema
 {
@@ -75,7 +75,7 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
 
         // Ensure the database exists with READ_COMMITTED_SNAPSHOT ON (Postgres-MVCC parity, so the
         // parallel catalog bootstrap on the shared schema doesn't deadlock under pessimistic key locks)
-        // and M001 applied. EnsureDatabaseAndApplyAsync runs the QUOTED_IDENTIFIER prelude internally.
+        // and the migrations applied.
         await SqlServerSchemaMigrator.EnsureDatabaseAndApplyAsync(
             connectionString,
             IntegrationConfig.TestSchemaName,

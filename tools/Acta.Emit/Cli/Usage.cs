@@ -13,16 +13,16 @@ internal static class Usage
               dotnet run --project tools/Acta.Emit -- check
               dotnet run --project tools/Acta.Emit -- schema reset --force
               dotnet run --project tools/Acta.Emit -- schema add --name add_tenant
-              dotnet run --project tools/Acta.Emit -- schema amend
 
             Subcommands:
               docs                         Emit docs/reference/data-model.md + docs/reference/code-families.md
               check                        Verify docs are current AND the snapshot equals the live model
               schema reset [--force]       Delete all migrations + the snapshot (deletes only; --force required)
-              schema add [--name <n>]      Emit the next migration M{N} for every provider; advance the snapshot
-                                           (name optional → genesis "init", else "change"; snake_case)
-              schema amend [--name <n>]    Rewrite the tip migration M{N} in place (keeps each provider's name;
-                                           --name to rename)
+              schema add [--name <n>]      Emit M{yyyyMMddHHmmss}_{n}.sql (UTC now) for every provider; save the snapshot
+                                           (--name is snake_case, required once a baseline exists and refused before it;
+                                           the baseline is "init")
+
+            To redo a migration that has not shipped: git checkout the snapshot, delete the migration's files, schema add again.
             """
         );
         return 0;

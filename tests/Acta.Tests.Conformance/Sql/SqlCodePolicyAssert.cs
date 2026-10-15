@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Sql;
 /// <summary>
 /// Requires symbolic comments on numeric literals used as persisted code values or reviewed
 /// transient C#↔SQL discriminators, then verifies every numeric constant comment against its
-/// <c>Type.Member</c> value. Versioned migrations participate in value verification but not presence
+/// <c>Type.Member</c> value. Migrations participate in value verification but not presence
 /// scanning because their code checks are generated directly from the schema model.
 /// </summary>
 public static partial class SqlCodePolicyAssert
@@ -100,7 +100,7 @@ public static partial class SqlCodePolicyAssert
     public static void AssertAllCodeConstantsAreValid(string dialectToken)
     {
         var failures = new List<string>();
-        foreach (var resource in ProviderSqlResources.Enumerate(dialectToken, includeVersionedMigrations: true))
+        foreach (var resource in ProviderSqlResources.Enumerate(dialectToken, includeMigrations: true))
         {
             failures.AddRange(ScanConstantAnnotations(resource.LogicalPath, resource.Sql));
             if (!resource.LogicalPath.StartsWith("Schema/Migrations/", StringComparison.Ordinal))

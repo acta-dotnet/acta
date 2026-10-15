@@ -20,15 +20,10 @@ internal static class ProvisionScriptEmitter
     /// <summary>The published file for one dialect: flat beside the other reference artifacts.</summary>
     internal static string PathFor(string repoRoot, string token) => Path.Combine(repoRoot, "docs", "reference", $"schema-{token}.sql");
 
-    internal static readonly (string Token, string Project, string Schema)[] Providers =
-    [
-        .. ProviderCatalog.All.Select(p => (p.Token, p.Project, p.Schema)),
-    ];
-
     internal static string Emit(string repoRoot, string token)
     {
-        var (_, project, schema) = Providers.Single(p => string.Equals(p.Token, token, StringComparison.Ordinal));
-        var providerDir = Path.Combine(repoRoot, "src", project);
+        var schema = ProviderCatalog.ByToken(token).Schema;
+        var stems = MigrationFiles.Stems(repoRoot, token);
         var mssql = string.Equals(token, "mssql", StringComparison.Ordinal);
         var sqlite = string.Equals(token, "sqlite", StringComparison.Ordinal);
 
@@ -111,7 +106,7 @@ internal static class ProvisionScriptEmitter
             }
         }
 
-        string Render(string sql) => MigrationObjects.Render(sql, ProviderCatalog.BySuffix(token).Dialect, schema);
+        string Render(string sql) => MigrationObjects.Render(sql, ProviderCatalog.ByToken(token).Dialect, schema);
 
         if (mssql)
         {
@@ -135,8 +130,6 @@ internal static class ProvisionScriptEmitter
                     ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
                 """
             );
-            // Mirrors the runner's prelude: M001 has filtered indexes that require these session options.
-            Append("SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;");
         }
         if (sqlite)
         {
@@ -165,24 +158,19 @@ internal static class ProvisionScriptEmitter
             "-- ===== migration history table =====\n"
                 + Render(MigrationObjects.SqlFiles(repoRoot, token).Single(f => f.Stem == "EnsureMigrations").Body)
         );
-        Append(
-            "-- ===== refuse a database a newer release already upgraded =====\n"
-                + Render(NoDowngradeGuard(token, MigrationFiles.CurrentMaxVersion(repoRoot)))
-        );
+        Append("-- ===== refuse a database a newer release already upgraded =====\n" + Render(NoDowngradeGuard(token, stems)));
 
-        var migrationsDir = Path.Combine(providerDir, "Schema", "Migrations");
-        foreach (var migration in Directory.GetFiles(migrationsDir, "M*.sql").OrderBy(f => f, StringComparer.Ordinal))
+        foreach (var stem in stems)
         {
-            var name = Path.GetFileNameWithoutExtension(migration);
             // Drop the migration file's own leading comment banner: it addresses migration editors
             // ("hand-edit only as a delta", "`{{schema}}` is substituted at apply time") and reads
             // false or confusing inside the fully rendered script; the BEGIN banner names the file.
-            var body = File.ReadAllText(migration)
+            var body = File.ReadAllText(MigrationFiles.PathFor(repoRoot, token, stem))
                 .ReplaceLineEndings("\n")
                 .Split('\n')
                 .SkipWhile(line => line.StartsWith("--", StringComparison.Ordinal) || line.Length == 0);
-            Append($"-- ===== BEGIN {name} =====\n" + Render(string.Join("\n", body)));
-            Append($"-- ===== END {name} =====");
+            Append($"-- ===== BEGIN {stem} =====\n" + Render(string.Join("\n", body)));
+            Append($"-- ===== END {stem} =====");
         }
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
@@ -222,18 +210,18 @@ internal static class ProvisionScriptEmitter
     }
 
     /// <summary>
-    /// Stops the script before it changes anything when a newer build already upgraded the database: a
-    /// migration past this script's last. Each migration's routines and views carry no existence guard, so
-    /// rerunning an older release's script during a rollback would otherwise revert the bodies newer workers
-    /// call. On SQL Server the refusal rolls back and sets NOEXEC, so even a client that runs on past an
-    /// error (sqlcmd without -b, SSMS) changes nothing. SQLite has no raise outside a trigger, so a failing
-    /// CHECK names the refusal instead, and stops only a client that halts on an error (sqlite3 -bail).
+    /// Stops the script before it changes anything when a newer build already upgraded the database: a history row
+    /// naming a migration this script does not ship. Each migration's routines and views carry no existence guard, so
+    /// rerunning an older release's script during a rollback would otherwise revert the bodies newer workers call. On
+    /// SQL Server the refusal rolls back and sets NOEXEC, so even a client that runs on past an error (sqlcmd without
+    /// -b, SSMS) changes nothing. SQLite has no raise outside a trigger, so a failing CHECK names the refusal instead,
+    /// and stops only a client that halts on an error (sqlite3 -bail).
     /// </summary>
-    internal static string NoDowngradeGuard(string token, int lastMigration)
+    internal static string NoDowngradeGuard(string token, IReadOnlyList<string> stems)
     {
         var newer = $"""
             SELECT 1 FROM {"{{schema}}"}.migrations
-            WHERE version > {lastMigration}
+            WHERE name NOT IN ({string.Join(", ", stems.Select(stem => $"'{stem}'"))})
             """;
         const string message =
             "A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.";

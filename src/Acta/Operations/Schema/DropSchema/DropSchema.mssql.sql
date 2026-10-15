@@ -3,7 +3,7 @@
 -- types in their signatures, so routines drop before TVPs; FKs and views go first so tables drop freely.
 DECLARE @sql NVARCHAR(MAX) = N'';
 
--- Routines (installed by the MNNN migration) pin TVP types via their @-parameters; drop these
+-- Routines (installed by the migrations) pin TVP types via their @-parameters; drop these
 -- first so the type drops below succeed.
 SELECT @sql += N'DROP PROCEDURE {{schema}}.' + QUOTENAME(name) + N';' + CHAR(10)
 FROM sys.procedures

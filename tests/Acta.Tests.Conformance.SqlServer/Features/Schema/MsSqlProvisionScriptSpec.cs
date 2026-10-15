@@ -16,6 +16,8 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 /// </summary>
 public sealed partial class MsSqlProvisionScriptSpec
 {
+    private const string Newer = "M99991231235959_newer";
+
     [Fact(DisplayName = "The published mssql provision script provisions a fresh schema verbatim")]
     public async Task Published_script_provisions_a_fresh_schema()
     {
@@ -44,7 +46,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             // applies no migration twice, and the migration-row count below is what proves it.
             for (var pass = 0; pass < 2; pass++)
             {
-                foreach (var batch in SplitOnGo(script))
+                foreach (var batch in SchemaMigrations.SplitOnGo(script))
                 {
                     await using var cmd = conn.CreateCommand();
                     cmd.CommandText = batch;
@@ -54,7 +56,7 @@ public sealed partial class MsSqlProvisionScriptSpec
 
             // One history row per migration section in the file, no more (the double run must not
             // stamp anything twice), counted from the script's own BEGIN banners.
-            var migrations = BeginBanner().Matches(published).Count;
+            var migrations = ProvisionScriptBanners.MigrationCount(published);
             Assert.True(migrations > 0, "the published script contains no migration banners");
 
             await using var probe = conn.CreateCommand();
@@ -124,7 +126,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             await conn.OpenAsync(ct);
             await using (var newer = conn.CreateCommand())
             {
-                newer.CommandText = $"INSERT INTO {schema}.migrations (version, name, installed_schema) VALUES (999, 'newer', '{schema}')";
+                newer.CommandText = $"INSERT INTO {schema}.migrations (name) VALUES ('{Newer}')";
                 await newer.ExecuteNonQueryAsync(ct);
             }
             var marked = ProviderSqlResources
@@ -132,7 +134,7 @@ public sealed partial class MsSqlProvisionScriptSpec
                 .ReplaceLineEndings("\n")
                 .Replace("{{schema}}", schema)
                 .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
-            foreach (var batch in SplitOnGo(marked))
+            foreach (var batch in SchemaMigrations.SplitOnGo(marked))
             {
                 await using var alter = conn.CreateCommand();
                 alter.CommandText = batch;
@@ -141,7 +143,7 @@ public sealed partial class MsSqlProvisionScriptSpec
 
             // Like sqlcmd without -b: every batch runs, whatever the one before it raised.
             var refused = false;
-            foreach (var batch in SplitOnGo(script))
+            foreach (var batch in SchemaMigrations.SplitOnGo(script))
             {
                 try
                 {
@@ -158,11 +160,11 @@ public sealed partial class MsSqlProvisionScriptSpec
             Assert.True(refused, "the script did not refuse the newer migration");
             await using var probe = conn.CreateCommand();
             probe.CommandText =
-                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT name FROM {schema}.migrations WHERE version = 999)";
+                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));
             Assert.Contains("newer_release_body", reader.GetString(0));
-            Assert.Equal("newer", reader.GetString(1));
+            Assert.Equal(1, reader.GetInt32(1));
         }
         finally
         {
@@ -174,7 +176,7 @@ public sealed partial class MsSqlProvisionScriptSpec
     {
         await using var conn = new SqlConnection(connString);
         await conn.OpenAsync(ct);
-        foreach (var batch in SplitOnGo(script))
+        foreach (var batch in SchemaMigrations.SplitOnGo(script))
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = batch;
@@ -194,17 +196,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         await RunScriptAsync(connString, teardown, CancellationToken.None);
     }
 
-    private static IEnumerable<string> SplitOnGo(string script) => GoLine().Split(script).Select(b => b.Trim()).Where(b => b.Length > 0);
-
-    // A GO batch separator on its own line, the way sqlcmd and SSMS recognize it.
-    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline)]
-    private static partial Regex GoLine();
-
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.
     [GeneratedRegex(@"\bacta\b")]
     private static partial Regex SchemaWord();
-
-    // The per-migration section banner the emitter writes above every migration.
-    [GeneratedRegex(@"^-- ===== BEGIN M[0-9]{3}_", RegexOptions.Multiline)]
-    private static partial Regex BeginBanner();
 }

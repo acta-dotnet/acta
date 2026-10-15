@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Sql;
 /// short comments - <c>--</c> lines (standalone or trailing) and <c>/* … */</c> blocks, including the
 /// inline numeric drift markers - but a comment block may span at most <see cref="MaxCommentLines"/>
 /// lines. Longer stacked prose is banned: bloated narrative belongs in the operation's C# XML doc, and
-/// a few short multi-line notes near tricky SQL are fine. Versioned DDL migrations are out of scope.
+/// a few short multi-line notes near tricky SQL are fine. DDL migrations are out of scope.
 /// </summary>
 public static class SqlCommentPolicyAssert
 {

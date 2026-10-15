@@ -104,10 +104,8 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
         }
     }
 
-    public override string MigrationStamp(int version, string name) =>
-        $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
-        + $"VALUES ({version}, '{name}', '{SchemaPlaceholder}')\n"
-        + "ON CONFLICT (version) DO NOTHING;";
+    public override string MigrationStamp(string stem) =>
+        $"INSERT INTO {SchemaPlaceholder}.migrations (name)\nVALUES ('{stem}')\nON CONFLICT (name) DO NOTHING;";
 
     public override string WrapView(string qualifiedName, string select) => $"CREATE OR REPLACE VIEW {qualifiedName} AS\n{select};";
 }

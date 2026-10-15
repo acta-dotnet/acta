@@ -122,10 +122,8 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
         }
     }
 
-    public override string MigrationStamp(int version, string name) =>
-        $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
-        + $"VALUES ({version}, '{name}', '{SchemaPlaceholder}')\n"
-        + "ON CONFLICT (version) DO NOTHING;";
+    public override string MigrationStamp(string stem) =>
+        $"INSERT INTO {SchemaPlaceholder}.migrations (name)\nVALUES ('{stem}')\nON CONFLICT (name) DO NOTHING;";
 
     // The epoch-milliseconds instant every SQLite column and token encodes.
     public override string NowExpression => "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)";

@@ -31,7 +31,7 @@ public sealed partial class PgConformanceFixture
         await PostgresSchemaMigrator.ApplyAsync(connection, schemaName, ct);
     }
 
-    public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history)
+    public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history)
     {
         var connectionString = IntegrationConfig.PostgresConnectionString!;
         var schema = $"acta_preflight_{Guid.NewGuid():N}"[..30];
@@ -56,14 +56,11 @@ public sealed partial class PgConformanceFixture
                 await ledger.ExecuteNonQueryAsync();
             }
 
-            foreach (var (version, name) in history)
+            foreach (var name in history)
             {
                 await using var insert = conn.CreateCommand();
-                insert.CommandText =
-                    $"INSERT INTO {schema}.migrations (version, name, installed_schema) VALUES (@version, @name, @schema);";
-                insert.Parameters.AddWithValue("@version", version);
+                insert.CommandText = $"INSERT INTO {schema}.migrations (name) VALUES (@name);";
                 insert.Parameters.AddWithValue("@name", name);
-                insert.Parameters.AddWithValue("@schema", schema);
                 await insert.ExecuteNonQueryAsync();
             }
         }

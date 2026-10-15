@@ -24,7 +24,7 @@ INSERT INTO {{schema}}.events (
     duration_ms,
     reason_code,
     reason_message)
--- namespace_id 1 is the seeded sys namespace (M001).
+-- namespace_id 1 is the sys namespace the baseline seeds.
 SELECT
     11 /* EventCode.TenantResumed */,
     {{now}},

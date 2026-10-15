@@ -1,17 +1,20 @@
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Features.Verify;
+using Acta.Emit.Shared;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Emit;
 
-// These drive the reset/add/amend/check commands against a throwaway repo root so they never touch the
+// These drive the reset/add/check commands against a throwaway repo root so they never touch the
 // real provider Schema/Migrations trees. SchemaModel.Discover() always reads the live entity assembly. Migrations
-// are provider-owned: each lands as a bare M{nnn}_{name}.sql under src/Acta.{Provider}/Schema/Migrations.
+// are provider-owned: each lands as a bare M{yyyyMMddHHmmss}_{name}.sql under src/Acta.{Provider}/Schema/Migrations.
 public sealed class SchemaCommandsTests : IDisposable
 {
+    private static readonly DateTime First = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime Second = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+
     private readonly string _root;
-    private static readonly string[] sourceArray = new[] { "sqlite", "pg", "mssql" };
 
     public SchemaCommandsTests()
     {
@@ -64,44 +67,50 @@ public sealed class SchemaCommandsTests : IDisposable
         }
     }
 
-    private static string Project(string suffix) =>
-        suffix switch
-        {
-            "sqlite" => "Acta.Sqlite",
-            "pg" => "Acta.Postgres",
-            "mssql" => "Acta.SqlServer",
-            _ => throw new ArgumentOutOfRangeException(nameof(suffix)),
-        };
-
-    private string Mig(string suffix, string bareName) => Path.Combine(_root, "src", Project(suffix), "Schema", "Migrations", bareName);
-
-    private bool AnyMigration(string searchPattern) =>
-        sourceArray.Any(s =>
-        {
-            var dir = Path.Combine(_root, "src", Project(s), "Schema", "Migrations");
-            return Directory.Exists(dir) && Directory.EnumerateFiles(dir, searchPattern).Any();
-        });
-
     [Fact]
-    public void Add_genesis_writes_a_baseline_per_provider_and_a_pair_snapshot()
+    public void Add_without_a_name_writes_an_init_baseline_per_provider_and_the_snapshot()
     {
-        Assert.Equal(0, SchemaAddCommand.Run(name: null, repoRoot: _root));
+        Assert.Equal(0, SchemaAddCommand.Run(name: null, repoRoot: _root, now: First));
 
-        Assert.True(File.Exists(Mig("pg", "M001_init.sql")));
-        Assert.True(File.Exists(Mig("mssql", "M001_init.sql")));
-        Assert.True(File.Exists(Mig("sqlite", "M001_init.sql")));
-
-        var pair = SnapshotPair.Load(SnapshotFile.Path(_root));
-        Assert.Null(pair.Previous);
-        Assert.NotEmpty(pair.Current.Entities);
+        Assert.True(File.Exists(MigrationFiles.PathFor(_root, "pg", "M20260101000000_init")));
+        Assert.True(File.Exists(MigrationFiles.PathFor(_root, "mssql", "M20260101000000_init")));
+        Assert.True(File.Exists(MigrationFiles.PathFor(_root, "sqlite", "M20260101000000_init")));
+        Assert.NotEmpty(SchemaSnapshot.Load(SnapshotFile.Path(_root)).Entities);
     }
 
     [Fact]
-    public void Add_with_no_change_after_genesis_is_a_noop()
+    public void Add_with_a_name_before_the_baseline_is_refused()
     {
-        SchemaAddCommand.Run(name: null, repoRoot: _root);
-        Assert.Equal(0, SchemaAddCommand.Run(name: "second", repoRoot: _root));
-        Assert.False(AnyMigration("M002_*.sql"));
+        Assert.Equal(2, SchemaAddCommand.Run(name: "first", repoRoot: _root, now: First));
+        Assert.Empty(MigrationFiles.Stems(_root, "pg"));
+    }
+
+    [Fact]
+    public void A_late_joining_provider_gets_a_full_baseline_under_the_runs_stem()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
+        File.Delete(MigrationFiles.PathFor(_root, "sqlite", "M20260101000000_init"));
+
+        Assert.Equal(0, SchemaAddCommand.Run(name: "join_sqlite", repoRoot: _root, now: Second));
+
+        Assert.Equal(["M20260102000000_join_sqlite"], MigrationFiles.Stems(_root, "sqlite"));
+        Assert.Contains("full schema baseline", File.ReadAllText(MigrationFiles.PathFor(_root, "sqlite", "M20260102000000_join_sqlite")));
+        Assert.Equal(["M20260101000000_init", "M20260102000000_join_sqlite"], MigrationFiles.Stems(_root, "pg"));
+    }
+
+    [Fact]
+    public void Add_with_no_change_after_the_baseline_is_a_noop()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
+        Assert.Equal(0, SchemaAddCommand.Run(name: "second", repoRoot: _root, now: Second));
+        Assert.All(ProviderCatalog.All, p => Assert.Equal(["M20260101000000_init"], MigrationFiles.Stems(_root, p.Token)));
+    }
+
+    [Fact]
+    public void Add_without_a_name_after_the_baseline_is_refused()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
+        Assert.Equal(2, SchemaAddCommand.Run(name: null, repoRoot: _root, now: Second));
     }
 
     [Fact]
@@ -113,64 +122,52 @@ public sealed class SchemaCommandsTests : IDisposable
     [Fact]
     public void Reset_without_force_keeps_files()
     {
-        SchemaAddCommand.Run(name: null, repoRoot: _root);
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
         Assert.Equal(2, SchemaResetCommand.Run(force: false, repoRoot: _root));
-        Assert.True(File.Exists(Mig("pg", "M001_init.sql")));
+        Assert.True(File.Exists(MigrationFiles.PathFor(_root, "pg", "M20260101000000_init")));
     }
 
     [Fact]
     public void Reset_force_deletes_migrations_and_snapshot()
     {
-        SchemaAddCommand.Run(name: null, repoRoot: _root);
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
         Assert.Equal(0, SchemaResetCommand.Run(force: true, repoRoot: _root));
-        Assert.False(File.Exists(Mig("pg", "M001_init.sql")));
+        Assert.False(File.Exists(MigrationFiles.PathFor(_root, "pg", "M20260101000000_init")));
         Assert.False(File.Exists(SnapshotFile.Path(_root)));
-    }
-
-    [Fact]
-    public void Amend_with_no_migrations_errors()
-    {
-        Assert.Equal(2, SchemaAmendCommand.Run(name: null, repoRoot: _root));
-    }
-
-    [Fact]
-    public void Amend_with_a_name_renames_the_tip()
-    {
-        SchemaAddCommand.Run(name: null, repoRoot: _root); // M001_init
-        Assert.Equal(0, SchemaAmendCommand.Run(name: "genesis", repoRoot: _root));
-
-        Assert.True(File.Exists(Mig("pg", "M001_genesis.sql")));
-        Assert.False(File.Exists(Mig("pg", "M001_init.sql")));
     }
 
     [Fact]
     public void A_routine_edit_fails_check_until_add_drafts_it_alone_into_the_next_migration()
     {
-        SchemaAddCommand.Run(name: null, repoRoot: _root);
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
         var source = Path.Combine(_root, "src", "Acta", "Operations", "Execution", "StartStep", "StartStep.routine.pg.sql");
         File.WriteAllText(source, File.ReadAllText(source).Replace("AS $$", "AS $$\n-- edited", StringComparison.Ordinal));
 
         Assert.Equal(1, CheckCommand.Run(_root));
-        Assert.Equal(0, SchemaAddCommand.Run(name: "edit_start_step", repoRoot: _root));
+        Assert.Equal(0, SchemaAddCommand.Run(name: "edit_start_step", repoRoot: _root, now: Second));
 
-        var pg = File.ReadAllText(Mig("pg", "M002_edit_start_step.sql"));
+        var pg = File.ReadAllText(MigrationFiles.PathFor(_root, "pg", "M20260102000000_edit_start_step"));
         Assert.Contains("CREATE OR REPLACE FUNCTION {{schema}}.start_step(", pg, StringComparison.Ordinal);
         Assert.Contains("-- edited", pg, StringComparison.Ordinal);
+        Assert.Contains("VALUES ('M20260102000000_edit_start_step')", pg, StringComparison.Ordinal);
         Assert.DoesNotContain("claim_jobs", pg, StringComparison.Ordinal);
-        Assert.DoesNotContain("PROCEDURE", File.ReadAllText(Mig("mssql", "M002_edit_start_step.sql")), StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "PROCEDURE",
+            File.ReadAllText(MigrationFiles.PathFor(_root, "mssql", "M20260102000000_edit_start_step")),
+            StringComparison.Ordinal
+        );
         Assert.Equal(0, CheckCommand.Run(_root));
     }
 
     [Fact]
-    public void Check_passes_after_add_then_flags_a_mutated_snapshot()
+    public void Check_passes_after_add_then_flags_a_snapshot_edited_by_hand()
     {
-        SchemaAddCommand.Run(name: null, repoRoot: _root);
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
         Assert.Equal(0, CheckCommand.Run(_root));
 
         var path = SnapshotFile.Path(_root);
-        var pair = SnapshotPair.Load(path);
-        var trimmed = pair.Current with { Entities = pair.Current.Entities.Take(1).ToList() };
-        SnapshotPair.Save(new SnapshotPair(trimmed, pair.Previous), path);
+        var snapshot = SchemaSnapshot.Load(path);
+        SchemaSnapshot.Save(snapshot with { Entities = snapshot.Entities.Take(1).ToList() }, path);
 
         Assert.Equal(1, CheckCommand.Run(_root));
     }

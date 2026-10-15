@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Tests need access to internal validators, canonicalizers, and helpers such as SchemaMigrationDiscovery. -->
+    <!-- Tests need access to internal validators, canonicalizers, and helpers such as SchemaMigrations. -->
     <InternalsVisibleTo Include="Acta.Tests" />
     <!-- The test host stages a bounded group wait's expiry, which means finding the framework-owned
          deadline slot by the one reserved name JobContext writes it under. A copy of that name in the

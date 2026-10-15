@@ -41,11 +41,9 @@ BEGIN IMMEDIATE;
 
 -- ===== migration history table =====
 CREATE TABLE IF NOT EXISTS main.migrations (
-    version INTEGER NOT NULL,
     name TEXT NOT NULL,
     applied_at_utc TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'now')),
-    installed_schema TEXT NOT NULL,
-    CONSTRAINT pk_migrations PRIMARY KEY (version)
+    CONSTRAINT pk_migrations PRIMARY KEY (name)
 ) STRICT;
 
 -- ===== refuse a database a newer release already upgraded =====
@@ -55,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE version > 1
+    WHERE name NOT IN ('M20261015185851_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M001_init =====
+-- ===== BEGIN M20261015185851_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -784,11 +782,11 @@ FROM main.workers AS w
 JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
-INSERT INTO main.migrations (version, name, installed_schema)
-VALUES (1, 'init', 'main')
-ON CONFLICT (version) DO NOTHING;
+INSERT INTO main.migrations (name)
+VALUES ('M20261015185851_init')
+ON CONFLICT (name) DO NOTHING;
 
--- ===== END M001_init =====
+-- ===== END M20261015185851_init =====
 
 COMMIT;
 

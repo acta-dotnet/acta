@@ -1,21 +1,18 @@
 using System.Data;
+using System.Reflection;
 using Microsoft.Data.Sqlite;
 
 namespace Acta.Sqlite;
 
 /// <summary>
-/// Applies <c>Mnnn_*.sql</c> migrations on SQLite. SQLite has no stored routines and no schema
-/// container, so the generated <c>M001_init.sqlite.sql</c> is tables, indexes, and views only and
-/// runs as a single multi-statement command (no <c>GO</c> splitter, no prelude). The schema name is
-/// always <c>main</c> (the connection's attached database).
+/// Applies this package's migrations on SQLite, each file as a single multi-statement command. SQLite has no stored
+/// routines and no schema container, so a migration is tables, indexes, and views only, and the schema name is always
+/// <c>main</c> (the connection's attached database).
 /// </summary>
 internal static class SqliteSchemaMigrator
 {
-    private static readonly SchemaMigrationProviderHooks Hooks = new(
-        ProviderAssembly: typeof(SqliteSchemaMigrator).Assembly,
-        DialectToken: "sqlite",
-        SplitBatches: static script => [script]
-    );
+    private const string DialectToken = "sqlite";
+    private static readonly Assembly ProviderAssembly = typeof(SqliteSchemaMigrator).Assembly;
 
     public static async Task ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
@@ -26,7 +23,7 @@ internal static class SqliteSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.ApplyAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
@@ -73,12 +70,12 @@ internal static class SqliteSchemaMigrator
         var builder = new SqliteConnectionStringBuilder(connectionString);
         if (IsPlainFileSource(builder) && !File.Exists(builder.DataSource))
         {
-            throw MigrationHistoryPreflight.NotProvisioned(schemaName, Hooks.DialectToken);
+            throw SchemaMigrations.NotProvisioned(schemaName, DialectToken);
         }
 
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync(ct);
-        await MigrationHistoryPreflight.RunAsync(conn, schemaName, Hooks, ct);
+        await SchemaMigrations.PreflightAsync(conn, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     private static bool IsPlainFileSource(SqliteConnectionStringBuilder builder) =>
@@ -97,7 +94,7 @@ internal static class SqliteSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.ResetSchemaAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
@@ -114,6 +111,6 @@ internal static class SqliteSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await SchemaMigrationRunner.DropSchemaAsync(connection, schemaName, Hooks, ct);
+        await SchemaMigrations.DropSchemaAsync(connection, schemaName, DialectToken, ct);
     }
 }

@@ -5,21 +5,24 @@ namespace Acta.Tests.Schema;
 
 /// <summary>
 /// Multi-migration chain behavior of the shared migration runner, exercised end-to-end against
-/// in-memory SQLite. The real providers ship only M001, so the chain paths (apply-in-order, resume
-/// from a partial history, the name-drift guard) are untestable through them; this test assembly
-/// embeds a fabricated M001+M002 pair under provider-shaped logical resource names (see
+/// in-memory SQLite. The real providers ship only a baseline, so the chain paths (apply in order,
+/// resume from a partial history) are untestable through them; this test assembly embeds a
+/// fabricated two-migration chain under provider-shaped logical resource names (see
 /// Fixtures/MigrationChain) so discovery resolves it as a provider.
 /// </summary>
 public sealed class SchemaMigrationChainTests
 {
-    private static readonly SchemaMigrationProviderHooks Hooks = new(
-        ProviderAssembly: typeof(SchemaMigrationChainTests).Assembly,
-        DialectToken: "sqlite",
-        SplitBatches: static script => [script]
-    );
+    private const string Init = "M20260101000000_init";
+    private const string AddWidgets = "M20260102000000_add_widgets";
 
     private static Task Apply(SqliteConnection conn) =>
-        SchemaMigrationRunner.ApplyAsync(conn, "main", Hooks, TestContext.Current.CancellationToken);
+        SchemaMigrations.ApplyAsync(
+            conn,
+            "main",
+            "sqlite",
+            typeof(SchemaMigrationChainTests).Assembly,
+            TestContext.Current.CancellationToken
+        );
 
     private static async Task<SqliteConnection> OpenFreshAsync()
     {
@@ -28,15 +31,15 @@ public sealed class SchemaMigrationChainTests
         return conn;
     }
 
-    private static async Task<Dictionary<int, string>> HistoryAsync(SqliteConnection conn)
+    private static async Task<List<string>> HistoryAsync(SqliteConnection conn)
     {
-        var rows = new Dictionary<int, string>();
+        var rows = new List<string>();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT version, name FROM main.migrations ORDER BY version;";
+        cmd.CommandText = "SELECT name FROM main.migrations ORDER BY name;";
         await using var reader = await cmd.ExecuteReaderAsync(TestContext.Current.CancellationToken);
         while (await reader.ReadAsync(TestContext.Current.CancellationToken))
         {
-            rows.Add(reader.GetInt32(0), reader.GetString(1));
+            rows.Add(reader.GetString(0));
         }
 
         return rows;
@@ -58,15 +61,12 @@ public sealed class SchemaMigrationChainTests
     }
 
     [Fact]
-    public async Task Fresh_chain_applies_both_migrations_and_records_plain_names()
+    public async Task Fresh_chain_applies_both_migrations_and_records_their_stems()
     {
         await using var conn = await OpenFreshAsync();
         await Apply(conn);
 
-        var history = await HistoryAsync(conn);
-        Assert.Equal(2, history.Count);
-        Assert.Equal("init", history[1]);
-        Assert.Equal("add_widgets", history[2]);
+        Assert.Equal([Init, AddWidgets], await HistoryAsync(conn));
         Assert.True(await TableExistsAsync(conn, "gadgets"));
         Assert.True(await TableExistsAsync(conn, "widgets"));
     }
@@ -86,25 +86,13 @@ public sealed class SchemaMigrationChainTests
     {
         await using var conn = await OpenFreshAsync();
         await Apply(conn);
-        // Rewind to the M001-only shape a database upgraded from an older build would present.
-        await ExecAsync(conn, "DROP TABLE main.widgets; DELETE FROM main.migrations WHERE version = 2;");
+        // Rewind to the baseline-only shape a database upgraded from an older build would present.
+        await ExecAsync(conn, $"DROP TABLE main.widgets; DELETE FROM main.migrations WHERE name = '{AddWidgets}';");
 
         await Apply(conn);
 
         Assert.True(await TableExistsAsync(conn, "widgets"));
-        Assert.Equal("add_widgets", (await HistoryAsync(conn))[2]);
-    }
-
-    [Fact]
-    public async Task Renamed_applied_migration_is_rejected()
-    {
-        await using var conn = await OpenFreshAsync();
-        await Apply(conn);
-        await ExecAsync(conn, "UPDATE main.migrations SET name = 'add_flags' WHERE version = 2;");
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Apply(conn));
-        Assert.Contains("'add_flags'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("'add_widgets'", exception.Message, StringComparison.Ordinal);
+        Assert.Equal([Init, AddWidgets], await HistoryAsync(conn));
     }
 
     [Fact]
@@ -113,8 +101,8 @@ public sealed class SchemaMigrationChainTests
         await using var conn = await OpenFreshAsync();
         await Apply(conn);
         // A database already carrying a migration this build does not ship (older worker, newer
-        // database) boots normally: unknown versions are simply not this build's to verify.
-        await ExecAsync(conn, "INSERT INTO main.migrations (version, name, installed_schema) VALUES (3, 'add_sprockets', 'main');");
+        // database) boots normally: unknown rows are simply not this build's to verify.
+        await ExecAsync(conn, "INSERT INTO main.migrations (name) VALUES ('M20260103000000_add_sprockets');");
 
         await Apply(conn);
 

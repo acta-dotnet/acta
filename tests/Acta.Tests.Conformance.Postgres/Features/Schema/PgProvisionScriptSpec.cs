@@ -48,7 +48,7 @@ public sealed partial class PgProvisionScriptSpec
 
             // One history row per migration section in the file, no more (the double run must not
             // stamp anything twice), counted from the script's own BEGIN banners.
-            var migrations = BeginBanner().Matches(published).Count;
+            var migrations = ProvisionScriptBanners.MigrationCount(published);
             Assert.True(migrations > 0, "the published script contains no migration banners");
 
             await using var probe = conn.CreateCommand();
@@ -113,8 +113,4 @@ public sealed partial class PgProvisionScriptSpec
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.
     [GeneratedRegex(@"\bacta\b")]
     private static partial Regex SchemaWord();
-
-    // The per-migration section banner the emitter writes above every migration.
-    [GeneratedRegex(@"^-- ===== BEGIN M[0-9]{3}_", RegexOptions.Multiline)]
-    private static partial Regex BeginBanner();
 }

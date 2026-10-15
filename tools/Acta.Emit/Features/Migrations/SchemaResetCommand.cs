@@ -12,7 +12,7 @@ internal static class SchemaResetCommand
     {
         repoRoot ??= RepoRoot.Find();
         var files = MigrationFiles.AllMigrationSql(repoRoot).ToList();
-        files.AddRange(ProvisionScriptEmitter.Providers.Select(p => ProvisionScriptEmitter.PathFor(repoRoot, p.Token)).Where(File.Exists));
+        files.AddRange(ProviderCatalog.All.Select(p => ProvisionScriptEmitter.PathFor(repoRoot, p.Token)).Where(File.Exists));
         var snapshotPath = SnapshotFile.Path(repoRoot);
 
         if (!force)

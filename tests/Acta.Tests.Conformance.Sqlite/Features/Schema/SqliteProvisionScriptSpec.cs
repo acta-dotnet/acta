@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 using Xunit;
@@ -11,7 +10,7 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Schema;
 /// files are execution-proven. SQLite targets <c>main</c>, so a fresh in-memory database stands in
 /// for the fresh schema.
 /// </summary>
-public sealed partial class SqliteProvisionScriptSpec
+public sealed class SqliteProvisionScriptSpec
 {
     [Fact(DisplayName = "The published sqlite provision script provisions a fresh database verbatim")]
     public async Task Published_script_provisions_a_fresh_database()
@@ -32,7 +31,7 @@ public sealed partial class SqliteProvisionScriptSpec
 
         // One history row per migration section in the file, no more (the double run must not stamp
         // anything twice), counted from the script's own BEGIN banners.
-        var migrations = BeginBanner().Matches(script).Count;
+        var migrations = ProvisionScriptBanners.MigrationCount(script);
         Assert.True(migrations > 0, "the published script contains no migration banners");
 
         await using var probe = conn.CreateCommand();
@@ -88,8 +87,4 @@ public sealed partial class SqliteProvisionScriptSpec
         provision.CommandText = script;
         await provision.ExecuteNonQueryAsync(ct);
     }
-
-    // The per-migration section banner the emitter writes above every migration.
-    [GeneratedRegex(@"^-- ===== BEGIN M[0-9]{3}_", RegexOptions.Multiline)]
-    private static partial Regex BeginBanner();
 }

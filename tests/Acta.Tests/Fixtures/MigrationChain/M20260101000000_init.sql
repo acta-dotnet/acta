@@ -4,6 +4,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.gadgets (
     name TEXT NOT NULL
 ) STRICT;
 
-INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (1, 'init', '{{schema}}')
-ON CONFLICT (version) DO NOTHING;
+INSERT INTO {{schema}}.migrations (name)
+VALUES ('M20260101000000_init')
+ON CONFLICT (name) DO NOTHING;

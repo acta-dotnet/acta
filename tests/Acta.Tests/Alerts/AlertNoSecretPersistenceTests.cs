@@ -47,9 +47,9 @@ public sealed class AlertNoSecretPersistenceTests
         var root = IntegrationConfig.FindRepoRoot();
         var docs = File.ReadAllText(Path.Combine(root, "docs", "reference", "data-model.md"));
         var snapshot = File.ReadAllText(Path.Combine(root, "src", "Acta", "Schema", "schema-snapshot.json"));
-        var sqlite = File.ReadAllText(Path.Combine(root, "src", "Acta.Sqlite", "Schema", "Migrations", "M001_init.sql"));
-        var postgres = File.ReadAllText(Path.Combine(root, "src", "Acta.Postgres", "Schema", "Migrations", "M001_init.sql"));
-        var sqlServer = File.ReadAllText(Path.Combine(root, "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
+        var sqlite = Emit.BaselineCodeChecksTests.ProvisionScript("sqlite");
+        var postgres = Emit.BaselineCodeChecksTests.ProvisionScript("pg");
+        var sqlServer = Emit.BaselineCodeChecksTests.ProvisionScript("mssql");
 
         Assert.DoesNotContain("job_alert_channel", docs);
         Assert.DoesNotContain("view_job_alert_channel", docs);

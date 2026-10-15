@@ -12,7 +12,7 @@ public static class IntegrationConfig
 {
     /// <summary>
     /// Shared schema name used by every conformance test in this assembly. Underscore (not
-    /// hyphen) so unquoted <c>{{schema}}.table</c> references in M001 parse correctly on both
+    /// hyphen) so unquoted <c>{{schema}}.table</c> references in the migrations parse correctly on both
     /// providers.
     /// </summary>
     public const string TestSchemaName = "acta_test";
@@ -29,7 +29,7 @@ public static class IntegrationConfig
 
     /// <summary>
     /// Locate the repo root by walking upward from the test binary until <c>Acta.slnx</c> is
-    /// found. Used to resolve the per-provider <c>M001_init.sql</c> migration script.
+    /// found. Used to resolve the per-provider migration scripts.
     /// </summary>
     public static string FindRepoRoot()
     {

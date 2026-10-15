@@ -21,8 +21,8 @@ Runtime, one file `src/Acta/Schema/SchemaMigrations.cs`, replacing four:
 | Line | Brings |
 | --- | --- |
 | Discover `*.sql` under `Schema/Migrations/` in the provider assembly, ordinal by stem | The ordered history. The fixed-width timestamp prefix makes string order the apply order, so no version parsing. |
-| `ApplyAsync(conn, schema, dialect, assembly)`: prelude on SQL Server, transaction, lock, ensure table, load applied names, run each file whose stem has no row, commit | The whole bootstrap. Files self-record, so the runner inserts nothing. |
-| Split a file on `GO` when the dialect is `mssql`, else run it whole | SQL Server batches. Keyed by dialect, so no per-provider hook. |
+| `ApplyAsync(conn, schema, dialect, assembly)`: transaction, lock, ensure table, load applied names, run each file whose stem has no row, commit | The whole bootstrap. Files self-record, so the runner inserts nothing. |
+| Split every file on `GO` lines | SQL Server batches; the other dialects have no such line. The SQL Server session options are the first batch of each of its migrations, so the runner has no dialect branch. |
 | `{{schema}}` substitution | Relocatable schema. The one token a migration keeps. |
 | `PreflightAsync`: load applied names, throw naming every shipped stem with no row | The production host's only check. A rename after apply is a missing stem, so no name verdict. |
 | A failed read of `migrations` in the preflight is "not provisioned", carrying the provider's message | Replaces the `HasMigrationsTable` operation. The operator's next step is the same whatever stopped the read: provision, or fix the schema name or principal. |
@@ -46,7 +46,7 @@ Emit, four commands:
 
 The snapshot keeps entities and gains, per dialect, each routine's and view's name and body hash as the diff key. That hash is emit-time bookkeeping the same way the entity snapshot is; nothing in the database or the runtime sees it.
 
-The provision script: header, lock, history table, no-downgrade guard (`name > '<last shipped stem>'`), each migration between its banners, commit. The guard stays because a migration's `CREATE OR ALTER` has no existence guard, so an older script re-run on a newer database would otherwise revert bodies.
+The provision script: header, lock, history table, no-downgrade guard (a history row whose name this script does not ship), each migration between its banners, commit. The guard stays because a migration's `CREATE OR ALTER` has no existence guard, so an older script re-run on a newer database would otherwise revert bodies.
 
 ## Deleted
 
@@ -74,8 +74,8 @@ Tests:
 ## Naming
 
 - `src/Acta.{Provider}/Schema/Migrations/M{yyyyMMddHHmmss}_{name}.sql`; UTC at `schema add` time, one value for every provider in the run. No running counter anywhere: the datetime is the version, and `MigrationFiles` never computes a "next" number.
-- Name is snake_case; the baseline is `init`, as today; a late-joining provider gets `M{datetime}_init.sql` as a full baseline with a leading hole, as today.
-- Discovery regex `^M[0-9]{14}_[a-z][a-z0-9_]*$`; a duplicate stem in one provider throws.
+- Name is snake_case; the baseline is `init`, as today; a late-joining provider gets a full baseline under the run's stem, with a leading hole, as today.
+- The naming rule has one home, the ownership test: the runtime takes every `.sql` under `Schema/Migrations`, and the emit tool every `M*.sql`.
 
 ## Routines and views as migration content
 

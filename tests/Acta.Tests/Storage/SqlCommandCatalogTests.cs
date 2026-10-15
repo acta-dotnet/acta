@@ -47,7 +47,7 @@ public sealed class SqlCommandCatalogTests
         var repoRoot = IntegrationConfig.FindRepoRoot();
         Assert.Equal(
             routines.Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal),
-            MigrationObjects.For(repoRoot, ProviderCatalog.BySuffix(dialect).Dialect).Routines.Select(r => r.Name)
+            MigrationObjects.For(repoRoot, ProviderCatalog.ByToken(dialect).Dialect).Routines.Select(r => r.Name)
         );
         foreach (var stem in routines)
         {
@@ -55,7 +55,7 @@ public sealed class SqlCommandCatalogTests
             Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(new StoreCommand(stem)));
         }
         Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("ClaimOutbox")));
-        Assert.Empty(MigrationObjects.For(repoRoot, ProviderCatalog.BySuffix("sqlite").Dialect).Routines);
+        Assert.Empty(MigrationObjects.For(repoRoot, ProviderCatalog.ByToken("sqlite").Dialect).Routines);
     }
 
     [Fact]

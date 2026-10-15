@@ -20,7 +20,7 @@ public sealed class SchemaMigrationCompatibilityTests
         await Execute(
             connection,
             """
-            INSERT INTO main.migrations (version, name, installed_schema) VALUES (999, 'future', 'main');
+            INSERT INTO main.migrations (name) VALUES ('M99991231235959_future');
             CREATE TABLE main.future_marker (marker INTEGER NOT NULL) STRICT;
             INSERT INTO main.future_marker (marker) VALUES (1);
             """,
@@ -39,23 +39,6 @@ public sealed class SchemaMigrationCompatibilityTests
         Assert.Equal(1L, await probe.ExecuteScalarAsync(ct));
     }
 
-    [Fact]
-    public void Applied_migration_renamed_on_disk_is_rejected_instead_of_skipped()
-    {
-        var shipped = new[] { new SchemaMigration(1, "M001_init", ""), new SchemaMigration(2, "M002_add_flags", "") };
-
-        SchemaMigrationRunner.VerifyAppliedNames(shipped, new Dictionary<int, string> { [1] = "init", [2] = "add_flags" });
-        // A version the database has not applied yet is free to differ.
-        SchemaMigrationRunner.VerifyAppliedNames(shipped, new Dictionary<int, string> { [1] = "init" });
-
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            SchemaMigrationRunner.VerifyAppliedNames(shipped, new Dictionary<int, string> { [1] = "init", [2] = "add_columns" })
-        );
-        Assert.Contains("'add_columns'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("'add_flags'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
-    }
-
     private static async Task Execute(SqliteConnection connection, string sql, CancellationToken ct)
     {
         await using var command = connection.CreateCommand();
@@ -69,8 +52,7 @@ public sealed class SchemaMigrationCompatibilityTests
     private static async Task<string> History(SqliteConnection connection, CancellationToken ct)
     {
         await using var command = connection.CreateCommand();
-        command.CommandText =
-            "SELECT group_concat(version || '=' || name, ';') FROM (SELECT version, name FROM main.migrations ORDER BY version)";
+        command.CommandText = "SELECT group_concat(name, ';') FROM (SELECT name FROM main.migrations ORDER BY name)";
         return (string)(await command.ExecuteScalarAsync(ct))!;
     }
 }

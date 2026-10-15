@@ -8,26 +8,21 @@ Known boundaries to review before using Acta in production-like environments.
 
 Acta is at 1.0.0-rc.4, which carries the 1.0 baseline; rc.5, a reorganisation of the source, comes
 before 1.0.0. From 1.0.0 the public API, schema, and persisted codes
-are frozen, and the migration history with them: schema changes ship only as additive `Mnnn`
-migrations, and the baseline (`M001`) is never re-cut, so a database provisioned by a 1.x build
+are frozen, and the migration history with them: schema changes ship only as additive
+migrations, and the baseline is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone. A database an earlier release candidate provisioned needs one
 reprovision on the way in, because a re-cut baseline carries no translation migration and
 nothing in the database says which cut it came from; old renumbered code values are intentionally incompatible, and there
 is no translation migration.
 
-The stamp is a content hash: `baseline-` followed by 32 hex characters of the SHA-256 of that
-provider's emitted `M001`, so each provider carries its own. A database provisioned by an earlier
-build refuses to start rather than running on a schema nobody chose. That refusal is the point:
-every `M001` statement is
-existence-guarded, so without it a pre-1.0 database would take a later baseline as a no-op and keep
-`events.actor` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
-would keep the old `ix_runtimes_worker_inflight` key and none of the three row-shape constraints.
+Every baseline statement is existence-guarded, so a pre-1.0 database pointed at a later build would
+take the re-cut baseline as a no-op and keep, for example, `events.actor` as `varchar(128)` on SQL
+Server, folding an operator's non-ASCII name to `?`. Nothing at startup detects that: a history row
+is a migration name and when it was applied, never a fingerprint of the schema, so an operator who
+adapts the applied script keeps the recorded row and carries the difference themselves.
 
 Reprovisioning is a manual step, and it is destructive: there is no upgrade path from a database
-provisioned before 1.0, and the refusal tells an operator to take one rather than silently diverging. The
-residual gap is that the stamp records the script that was applied, not the schema that resulted:
-the live database is never hashed, so an operator who adapts the applied script keeps the recorded
-row and carries the difference themselves.
+provisioned before 1.0.
 
 ## Execution model
 

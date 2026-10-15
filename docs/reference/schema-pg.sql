@@ -31,11 +31,9 @@ SELECT pg_advisory_xact_lock(hashtext('acta-migrations'));
 -- ===== migration history table =====
 CREATE SCHEMA IF NOT EXISTS acta;
 CREATE TABLE IF NOT EXISTS acta.migrations (
-    version INTEGER NOT NULL,
     name VARCHAR(256) NOT NULL,
     applied_at_utc TIMESTAMPTZ DEFAULT now() NOT NULL,
-    installed_schema VARCHAR(64) NOT NULL,
-    CONSTRAINT pk_migrations PRIMARY KEY (version)
+    CONSTRAINT pk_migrations PRIMARY KEY (name)
 );
 
 -- ===== refuse a database a newer release already upgraded =====
@@ -43,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE version > 1
+        WHERE name NOT IN ('M20261015185851_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M001_init =====
+-- ===== BEGIN M20261015185851_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -4080,11 +4078,11 @@ FROM acta.workers AS w
 JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
-INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (1, 'init', 'acta')
-ON CONFLICT (version) DO NOTHING;
+INSERT INTO acta.migrations (name)
+VALUES ('M20261015185851_init')
+ON CONFLICT (name) DO NOTHING;
 
--- ===== END M001_init =====
+-- ===== END M20261015185851_init =====
 
 COMMIT;
 

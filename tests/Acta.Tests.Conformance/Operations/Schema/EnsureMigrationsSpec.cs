@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -32,19 +33,14 @@ public sealed class EnsureMigrationsSpec : IntegrationSpec<ConformanceFixture>
             await tx.CommitAsync(ct);
         }
 
-        Assert.True((await new HasMigrationsTableHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists);
-        var history = await new LoadAppliedVersionsHandler(connection, sql, TimeoutSeconds).HandleAsync(
-            new LoadAppliedVersionsQuery(null),
-            ct
-        );
-        Assert.Empty(history.Versions);
+        Assert.Empty(await LoadAsync(connection, sql, ct));
     }
 
     [Fact(DisplayName = "Over an existing history it keeps every recorded row")]
     public async Task Keeps_an_existing_history()
     {
         var ct = TestContext.Current.CancellationToken;
-        (int Version, string Name)[] recorded = [(0, "baseline"), (1, "init")];
+        string[] recorded = ["M20260101000000_init", "M20260102000000_add_widgets"];
         await using var probe = await Fixture.CreateHistoryProbeAsync(recorded);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
@@ -55,11 +51,7 @@ public sealed class EnsureMigrationsSpec : IntegrationSpec<ConformanceFixture>
             await tx.CommitAsync(ct);
         }
 
-        var history = await new LoadAppliedVersionsHandler(connection, sql, TimeoutSeconds).HandleAsync(
-            new LoadAppliedVersionsQuery(null),
-            ct
-        );
-        Assert.Equal(recorded, history.Versions.OrderBy(row => row.Key).Select(row => (row.Key, row.Value)));
+        Assert.Equal(recorded, (await LoadAsync(connection, sql, ct)).Order(StringComparer.Ordinal));
     }
 
     [Fact(DisplayName = "Rolled back with the migration transaction, the table it created is gone")]
@@ -76,6 +68,11 @@ public sealed class EnsureMigrationsSpec : IntegrationSpec<ConformanceFixture>
             await tx.RollbackAsync(ct);
         }
 
-        Assert.False((await new HasMigrationsTableHandler(connection, sql, TimeoutSeconds).HandleAsync(ct)).Exists);
+        await Assert.ThrowsAnyAsync<DbException>(() => LoadAsync(connection, sql, ct));
     }
+
+    private static async Task<IReadOnlySet<string>> LoadAsync(DbConnection connection, SqlResourceCatalog sql, CancellationToken ct) =>
+        (
+            await new LoadAppliedMigrationsHandler(connection, sql, TimeoutSeconds).HandleAsync(new LoadAppliedMigrationsQuery(null), ct)
+        ).Names;
 }

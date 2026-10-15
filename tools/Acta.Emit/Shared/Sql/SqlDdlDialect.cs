@@ -16,6 +16,12 @@ internal abstract class SqlDdlDialect
     public abstract IReadOnlyList<string> HeaderExtraLines { get; }
 
     /// <summary>
+    /// The batch every migration opens with, or null. SQL Server's sets the session options a filtered index needs when it
+    /// is created, so the runner and a DBA's client apply the migration under the same options.
+    /// </summary>
+    public virtual string? SessionOptions => null;
+
+    /// <summary>
     /// Whether a sole single-column integer primary key is rendered inline on the column
     /// (<c>INTEGER PRIMARY KEY AUTOINCREMENT</c>, the SQLite rowid alias that auto-assigns ids
     /// without reuse) instead of via a separate table-level constraint with an identity/sequence
@@ -109,11 +115,11 @@ internal abstract class SqlDdlDialect
     public abstract void EmitProviderColumnChecks(StringBuilder sb, EntityModel e);
 
     /// <summary>
-    /// Idempotent INSERT recording this migration in <c>migrations</c> under its plain snake name (the
-    /// table itself is created by the runner's EnsureMigrations step); <c>applied_at_utc</c> fills
-    /// from the table's DB-clock default.
+    /// Idempotent INSERT recording this migration in <c>migrations</c> under its file stem (the table
+    /// itself is created by the runner's EnsureMigrations step); <c>applied_at_utc</c> fills from the
+    /// table's DB-clock default.
     /// </summary>
-    public abstract string MigrationStamp(int version, string name);
+    public abstract string MigrationStamp(string stem);
 
     /// <summary>
     /// The statements that install one operator view over its SELECT body. SQL Server and PostgreSQL

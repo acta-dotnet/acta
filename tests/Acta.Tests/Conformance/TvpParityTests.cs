@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance;
 
 /// <summary>
-/// Guards the SQL Server TVP contract: the <c>CREATE TYPE</c> bodies in M001 (emitted from
+/// Guards the SQL Server TVP contract: the <c>CREATE TYPE</c> bodies in the migrations (emitted from
 /// tools/Acta.Emit's <c>SqlServerDdlDialect</c>) and the runtime <see cref="SqlMetaData"/> record
 /// shapes in <see cref="SqlServerDialect"/> bind positionally, so a column added on one side only
 /// would otherwise surface as an "Invalid column name" against a live database. This test compares
@@ -15,6 +15,10 @@ namespace Acta.Tests.Conformance;
 /// </summary>
 public sealed partial class TvpParityTests
 {
+    /// <summary>
+    /// Every <c>CREATE TYPE</c> in the script, in apply order. A type a later migration re-creates matches again, so the
+    /// readers below assign by name and the last declaration wins.
+    /// </summary>
     private static readonly Regex TvpBlock = MyRegex();
 
     private static readonly Regex ColumnLine = new(@"^(\w+)\s+([A-Z0-9]+(?:\((?:\d+|MAX)\))?)", RegexOptions.Compiled);
@@ -37,12 +41,12 @@ public sealed partial class TvpParityTests
     };
 
     [Fact]
-    public void M001_tvp_types_declare_the_pinned_primary_keys()
+    public void Baseline_tvp_types_declare_the_pinned_primary_keys()
     {
-        var m001 = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
+        var script = Emit.BaselineCodeChecksTests.ProvisionScript("mssql");
         var actual = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (Match block in TvpBlock.Matches(m001))
+        foreach (Match block in TvpBlock.Matches(script))
         {
             var key = block
                 .Groups[2]
@@ -62,7 +66,7 @@ public sealed partial class TvpParityTests
     }
 
     [Fact]
-    public void M001_tvp_types_match_the_runtime_record_shapes()
+    public void Baseline_tvp_types_match_the_runtime_record_shapes()
     {
         var declared = DeclaredColumns();
 
@@ -76,13 +80,13 @@ public sealed partial class TvpParityTests
             var actual = shape.Select(m => $"{m.Name} {Render(m)}").ToList();
             if (!expected.SequenceEqual(actual, StringComparer.Ordinal))
             {
-                failures.Add($"{typeName}:\n  M001:    {string.Join(", ", expected)}\n  runtime: {string.Join(", ", actual)}");
+                failures.Add($"{typeName}:\n  baseline: {string.Join(", ", expected)}\n  runtime:  {string.Join(", ", actual)}");
             }
         }
 
         Assert.True(
             failures.Count == 0,
-            "TVP drift between M001 (tools/Acta.Emit SqlServerDdlDialect) and SqlServerDialect record shapes:\n"
+            "TVP drift between the baseline (tools/Acta.Emit SqlServerDdlDialect) and SqlServerDialect record shapes:\n"
                 + string.Join("\n", failures)
         );
     }
@@ -92,7 +96,7 @@ public sealed partial class TvpParityTests
     /// carries one: a routine joining the two under the database default fails on a collation conflict.
     /// </summary>
     [Fact]
-    public void M001_tvp_key_columns_carry_the_binary_collation_of_their_case_exact_column()
+    public void Baseline_tvp_key_columns_carry_the_binary_collation_of_their_case_exact_column()
     {
         var caseExact = ActaSchema
             .Entities.SelectMany(e => e.Columns)
@@ -109,10 +113,10 @@ public sealed partial class TvpParityTests
 
     private static Dictionary<string, List<(string Name, string Type, bool Collated)>> DeclaredColumns()
     {
-        var m001 = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
+        var script = Emit.BaselineCodeChecksTests.ProvisionScript("mssql");
         var declared = new Dictionary<string, List<(string Name, string Type, bool Collated)>>(StringComparer.Ordinal);
 
-        foreach (Match block in TvpBlock.Matches(m001))
+        foreach (Match block in TvpBlock.Matches(script))
         {
             var columns = new List<(string, string, bool)>();
             foreach (var raw in block.Groups[2].Value.Split('\n'))
@@ -157,20 +161,6 @@ public sealed partial class TvpParityTests
             _ => column.SqlDbType.ToString().ToUpperInvariant(),
         };
 
-    private static string ResolveRepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "Acta.slnx")))
-            {
-                return dir.FullName;
-            }
-            dir = dir.Parent;
-        }
-        throw new InvalidOperationException("TvpParityTests could not locate Acta.slnx from " + AppContext.BaseDirectory);
-    }
-
-    [GeneratedRegex(@"CREATE TYPE \{\{schema\}\}\.(\w+) AS TABLE \((.*?)\);'", RegexOptions.Compiled | RegexOptions.Singleline)]
+    [GeneratedRegex(@"CREATE TYPE \w+\.(\w+) AS TABLE \((.*?)\);'", RegexOptions.Compiled | RegexOptions.Singleline)]
     private static partial Regex MyRegex();
 }

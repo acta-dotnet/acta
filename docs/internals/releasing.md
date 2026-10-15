@@ -17,9 +17,9 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 - Dashboard `npm ci`, `npm test`, `npm run build`.
 - `dotnet run --project tools/Acta.Emit -- check`
 - `dotnet csharpier check .`
-- Schema/code-freeze guard: the release diff contains no M001 edits and no destructive
+- Schema/code-freeze guard: the release diff contains no edit to a shipped migration and no destructive
   migration statements, renumbered code pairs, retired-id reuse, or closed-family `255` assignments;
-  schema changes ship only as additive `Mnnn` migrations.
+  schema changes ship only as additive migrations.
 
 ## Failure-boundary acceptance
 

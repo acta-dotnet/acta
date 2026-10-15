@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Schema;
     "schema.hardening-facts",
     "Hardened schema enforces its checks, seed, and denormalized invariants",
     Area = "Schema",
-    Contract = "The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs."
+    Contract = "The hardened baseline schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs."
 )]
 public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {

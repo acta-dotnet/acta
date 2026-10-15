@@ -37,16 +37,16 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
         Assert.Contains($"docs/reference/schema-{Fixture.DialectToken}.sql", exception.Message, StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "A migration this build ships that the database never applied is refused by version")]
+    [Fact(DisplayName = "A migration this build ships that the database never applied is refused by name")]
     public async Task Missing_shipped_migration_is_refused()
     {
         var shipped = ShippedHistory();
-        var highest = shipped.MaxBy(row => row.Version);
-        await using var probe = await Fixture.CreateHistoryProbeAsync(shipped.Where(row => row.Version != highest.Version).ToList());
+        var last = shipped[^1];
+        await using var probe = await Fixture.CreateHistoryProbeAsync(shipped.SkipLast(1).ToList());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => RunAsync(probe));
 
-        Assert.Contains($"M{highest.Version:D3}_{highest.Name}", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(last, exception.Message, StringComparison.Ordinal);
         Assert.Contains($"docs/reference/schema-{Fixture.DialectToken}.sql", exception.Message, StringComparison.Ordinal);
     }
 
@@ -55,8 +55,7 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
     {
         // An older worker against a database a newer deploy already migrated. Supported on purpose,
         // so the preflight requires what this build ships and ignores everything past it.
-        var shipped = ShippedHistory();
-        var ahead = shipped.Append((shipped.Max(row => row.Version) + 1, "applied_by_a_newer_build")).ToList();
+        var ahead = ShippedHistory().Append("M99991231235959_applied_by_a_newer_build").ToList();
         await using var probe = await Fixture.CreateHistoryProbeAsync(ahead);
 
         await RunAsync(probe);
@@ -67,12 +66,12 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
 
     /// <summary>
     /// The history a correctly provisioned database of this build would hold: one row per embedded
-    /// migration, keyed by version and carrying the bare snake name the runner records.
+    /// migration, in apply order, recorded under its file stem.
     /// </summary>
-    private IReadOnlyList<(int Version, string Name)> ShippedHistory() =>
+    private IReadOnlyList<string> ShippedHistory() =>
         [
-            .. SchemaMigrationDiscovery
+            .. SchemaMigrations
                 .Discover(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(Fixture.DialectToken)))
-                .Select(migration => (migration.Version, Name: migration.Name[5..])),
+                .Select(migration => migration.Name),
         ];
 }

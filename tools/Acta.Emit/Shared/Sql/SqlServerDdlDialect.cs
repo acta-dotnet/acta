@@ -9,6 +9,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
     public override IReadOnlyList<string> HeaderExtraLines => [];
 
+    public override string? SessionOptions => "SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;\nGO";
+
     public override string CreateSchemaStatement =>
         $"IF SCHEMA_ID('{SchemaPlaceholder}') IS NULL EXEC('CREATE SCHEMA {SchemaPlaceholder}');";
 
@@ -96,10 +98,9 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
         // type level; no extra CHECKs needed.
     }
 
-    public override string MigrationStamp(int version, string name) =>
-        $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.migrations WHERE version = {version})\n"
-        + $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
-        + $"VALUES ({version}, '{name}', '{SchemaPlaceholder}');";
+    public override string MigrationStamp(string stem) =>
+        $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.migrations WHERE name = '{stem}')\n"
+        + $"INSERT INTO {SchemaPlaceholder}.migrations (name)\nVALUES ('{stem}');";
 
     public override string WrapView(string qualifiedName, string select) => $"CREATE OR ALTER VIEW {qualifiedName} AS\n{select}";
 

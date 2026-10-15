@@ -1,4 +1,5 @@
 using Acta.Emit.Features.Docs;
+using Acta.Emit.Features.Migrations;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 using Xunit;
@@ -7,22 +8,24 @@ namespace Acta.Tests.Emit;
 
 /// <summary>
 /// The provision-script emitter with more than one migration on disk, which no real provider has
-/// yet: a temp copy of the SQLite provider gains a fabricated M002, and the emitted script must
+/// yet: a temp copy of the SQLite provider gains a fabricated delta, and the emitted script must
 /// carry both banner pairs in order and still be double-run safe with one history row per
 /// migration.
 /// </summary>
 public sealed class ProvisionScriptChainTests : IDisposable
 {
-    private const string FabricatedM002 = """
-        -- M002_add_widgets (sqlite) delta: fabricated for the emitter chain test.
-        CREATE TABLE IF NOT EXISTS {{schema}}.widgets (
+    private const string Delta = "M99990101000000_add_widgets";
+
+    private const string FabricatedDelta = $"""
+        -- {Delta} (sqlite) delta: fabricated for the emitter chain test.
+        CREATE TABLE IF NOT EXISTS {"{{schema}}"}.widgets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             gadget_name TEXT NOT NULL
         ) STRICT;
 
-        INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-        VALUES (2, 'add_widgets', '{{schema}}')
-        ON CONFLICT (version) DO NOTHING;
+        INSERT INTO {"{{schema}}"}.migrations (name)
+        VALUES ('{Delta}')
+        ON CONFLICT (name) DO NOTHING;
         """;
 
     private readonly string _tempRoot = Path.Combine(Path.GetTempPath(), $"acta-chain-{Guid.NewGuid():N}");
@@ -40,25 +43,26 @@ public sealed class ProvisionScriptChainTests : IDisposable
     public async Task Two_migration_script_carries_ordered_banners_and_double_runs()
     {
         var ct = TestContext.Current.CancellationToken;
-        var providerTarget = Path.Combine(_tempRoot, "src", "Acta.Sqlite");
         SchemaCommandsTests.CopySql(
             _tempRoot,
             path => path.StartsWith("src/Acta/", StringComparison.Ordinal) || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
         );
-        await File.WriteAllTextAsync(Path.Combine(providerTarget, "Schema", "Migrations", "M002_add_widgets.sql"), FabricatedM002, ct);
+        var baseline = MigrationFiles.Stems(_tempRoot, "sqlite").Single();
+        await File.WriteAllTextAsync(MigrationFiles.PathFor(_tempRoot, "sqlite", Delta), FabricatedDelta, ct);
 
         var script = ProvisionScriptEmitter.Emit(_tempRoot, "sqlite");
 
         var banners = new[]
         {
-            "-- ===== BEGIN M001_init =====",
-            "-- ===== END M001_init =====",
-            "-- ===== BEGIN M002_add_widgets =====",
-            "-- ===== END M002_add_widgets =====",
+            $"-- ===== BEGIN {baseline} =====",
+            $"-- ===== END {baseline} =====",
+            $"-- ===== BEGIN {Delta} =====",
+            $"-- ===== END {Delta} =====",
         };
         var positions = banners.Select(b => script.IndexOf(b, StringComparison.Ordinal)).ToArray();
         Assert.All(positions, p => Assert.True(p >= 0, "missing banner"));
         Assert.True(positions.SequenceEqual(positions.OrderBy(p => p)), "banners out of order");
+        Assert.Contains($"WHERE name NOT IN ('{baseline}', '{Delta}')", script, StringComparison.Ordinal);
 
         await using var conn = new SqliteConnection("Data Source=:memory:");
         await conn.OpenAsync(ct);

@@ -4,8 +4,9 @@ using Xunit;
 namespace Acta.Tests.Emit;
 
 /// <summary>
-/// Migrations are provider-owned: each provider package holds its own <c>Schema/Migrations/M{nnn}_*.sql</c> with
-/// bare, suffix-free names (the package is the dialect), and core no longer carries any. End-to-end proof
+/// Migrations are provider-owned: each provider package holds its own
+/// <c>Schema/Migrations/M{yyyyMMddHHmmss}_{name}.sql</c> with bare, suffix-free names (the package is the
+/// dialect), and core carries none. End-to-end proof
 /// that a provider applies its embedded migration is the provider conformance suite; this guards the
 /// source-tree ownership and the no-foreign-dialect-suffix invariant.
 /// </summary>
@@ -37,12 +38,12 @@ public sealed class ProviderMigrationOwnershipTests
             var dir = Path.Combine(root, "src", provider, "Schema", "Migrations");
             Assert.True(Directory.Exists(dir), $"Missing {provider}/Schema/Migrations.");
 
-            var migrations = Directory.GetFiles(dir, "M*.sql");
+            var migrations = Directory.GetFiles(dir, "*.sql");
             Assert.NotEmpty(migrations);
             foreach (var file in migrations)
             {
-                // Bare M{nnn}_{name}.sql: no dialect suffix (the package is the dialect).
-                Assert.Matches(@"^M[0-9]{3}_[a-z0-9_]+\.sql$", Path.GetFileName(file));
+                // Bare M{yyyyMMddHHmmss}_{name}.sql: no dialect suffix (the package is the dialect).
+                Assert.Matches(@"^M[0-9]{14}_[a-z][a-z0-9_]*\.sql$", Path.GetFileName(file));
             }
         }
     }

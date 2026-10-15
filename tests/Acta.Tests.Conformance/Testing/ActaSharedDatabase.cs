@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Testing;
 public static class ActaSharedDatabase
 {
     /// <summary>
-    /// Ensure the shared <c>acta_test</c> schema exists with M001 applied and the framework
+    /// Ensure the shared <c>acta_test</c> schema exists with the baseline applied and the framework
     /// namespace row present. Idempotent and process-wide cached.
     /// </summary>
     public static async ValueTask<IIntegrationSchema> EnsureReadyAsync(IConformanceFixture fixture) => await fixture.CreateSchemaAsync();

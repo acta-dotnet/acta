@@ -1,5 +1,5 @@
 -- One statement: the tenant's row is locked, then resumed and audited only when it is not active yet. The audit row
--- belongs to the seeded sys namespace (id 1, M001) and names the tenant.
+-- belongs to the sys namespace the baseline seeds (id 1) and names the tenant.
 WITH target AS (
     SELECT t.id, t.status_code, t.version
     FROM {{schema}}.tenants t

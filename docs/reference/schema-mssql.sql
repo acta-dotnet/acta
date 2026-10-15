@@ -38,9 +38,6 @@
 IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
     ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
 GO
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_NULLS ON;
-GO
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 GO
@@ -58,17 +55,15 @@ GO
 IF SCHEMA_ID(N'acta') IS NULL EXEC (N'CREATE SCHEMA acta');
 IF OBJECT_ID(N'acta.migrations', N'U') IS NULL
     CREATE TABLE acta.migrations (
-        version INT NOT NULL,
         name VARCHAR(256) NOT NULL,
         applied_at_utc DATETIME2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-        installed_schema VARCHAR(64) NOT NULL,
-        CONSTRAINT pk_migrations PRIMARY KEY (version)
+        CONSTRAINT pk_migrations PRIMARY KEY (name)
     );
 GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE version > 1
+    WHERE name NOT IN ('M20261015185851_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -76,7 +71,11 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M001_init =====
+-- ===== BEGIN M20261015185851_init =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
 IF SCHEMA_ID('acta') IS NULL EXEC('CREATE SCHEMA acta');
 GO
 
@@ -4614,11 +4613,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE version = 1)
-INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (1, 'init', 'acta');
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261015185851_init')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261015185851_init');
 GO
--- ===== END M001_init =====
+-- ===== END M20261015185851_init =====
 GO
 COMMIT TRANSACTION;
 GO
