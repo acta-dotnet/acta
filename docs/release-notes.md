@@ -148,7 +148,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
   stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
-  Fourteen routines remain (enqueue, claim, complete, steps, job signals and sleep timers, locks and
+  Fourteen routines remain (enqueue, claim, complete, steps, checkpoints, job signals and sleep timers,
   meters, the heartbeat, recovery, and retention; see the next bullet for the later passes). A database
   keeps the routines it already has, so older workers still find them during a rolling deploy; drop the
   retired ones once no older worker runs. The object package moves to revision 47; the minimum
@@ -162,7 +162,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   tables built on every call, two to three times slower in the retention specs. The third pass took the
   outbox operator inbox: `record_outbox_event` and `consume_outbox_signal` are one statement on every
   dialect, and `park_outbox_signal` is a two-statement batch, all three reached only when an operator
-  issues a command. The object package moves to revision 87.
+  issues a command. A fourth pass took the lock writes: `release_lock`, `acquire_lock`, and `acquire_slot`
+  run only when a handler asks for a lock or a definition declares a concurrency key, never on the claim
+  path. Measured per call on an idle box, PostgreSQL pays about ten microseconds to parse a statement it no
+  longer has cached as a function body, and SQL Server saves about sixty on the one that was a single
+  statement, because the procedure ceremony goes with it. The object package moves to revision 90.
 - **Return types take one suffix per role.** What the handler waits return takes the `Outcome` noun of
   `JoinOutcome` and `MapOutcome`: `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with
   `SignalWaitResult<T>`) are now `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
