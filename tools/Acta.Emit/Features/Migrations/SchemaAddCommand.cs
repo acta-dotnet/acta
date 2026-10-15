@@ -66,7 +66,7 @@ internal static class SchemaAddCommand
 
         foreach (var (path, sql) in pending)
         {
-            // Each provider owns its own Schema/Migrations folder, so create the target directory per file.
+            // Each provider owns its own Migrations folder, so create the target directory per file.
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, sql);
             Console.WriteLine($"  wrote {path}");

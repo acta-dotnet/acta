@@ -631,7 +631,7 @@ dotnet_diagnostic.CA1508.severity = none
 # catch also clears the pending-jitter slot that channel needs to schedule again. Both dispose shapes
 # unsubscribe during container teardown, where escaping would abort the disposal of every singleton
 # after this one. Waiters keep their poll floors throughout.
-[src/Acta.Redis/Features/Workers/RedisWakeup.cs]
+[src/Acta.Redis/Services/RedisWakeup.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: two catches around the repeat's own diagnostics, the unsettled gauge and the log line. The

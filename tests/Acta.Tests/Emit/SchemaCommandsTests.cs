@@ -7,8 +7,8 @@ using Xunit;
 namespace Acta.Tests.Emit;
 
 // These drive the reset/add/check commands against a throwaway repo root so they never touch the
-// real provider Schema/Migrations trees. SchemaModel.Discover() always reads the live entity assembly. Migrations
-// are provider-owned: each lands as a bare M{yyyyMMddHHmmss}_{name}.sql under src/Acta.{Provider}/Schema/Migrations.
+// real provider Migrations trees. SchemaModel.Discover() always reads the live entity assembly. Migrations
+// are provider-owned: each lands as a bare M{yyyyMMddHHmmss}_{name}.sql under src/Acta.{Provider}/Migrations.
 public sealed class SchemaCommandsTests : IDisposable
 {
     private static readonly DateTime First = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -40,7 +40,7 @@ public sealed class SchemaCommandsTests : IDisposable
 
         // Migration and provision-script emission read the routine and view sources, so the SQL files
         // are mirrored verbatim. The migrations are the commands' own to write.
-        CopySql(_root, path => !path.Contains("/Schema/Migrations/", StringComparison.Ordinal));
+        CopySql(_root, path => !path.Contains("/Migrations/", StringComparison.Ordinal));
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

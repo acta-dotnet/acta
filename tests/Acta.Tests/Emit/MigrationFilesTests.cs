@@ -10,10 +10,10 @@ public sealed class MigrationFilesTests : IDisposable
     public MigrationFilesTests()
     {
         _root = Path.Combine(Path.GetTempPath(), $"acta-mf-{Guid.NewGuid():N}");
-        // Migrations are provider-owned: one Schema/Migrations folder per provider package, bare M{yyyyMMddHHmmss}_{name}.sql.
+        // Migrations are provider-owned: one Migrations folder per provider package, bare M{yyyyMMddHHmmss}_{name}.sql.
         foreach (var project in new[] { "Acta.Sqlite", "Acta.Postgres", "Acta.SqlServer" })
         {
-            Directory.CreateDirectory(Path.Combine(_root, "src", project, "Schema", "Migrations"));
+            Directory.CreateDirectory(Path.Combine(_root, "src", project, "Migrations"));
         }
     }
 

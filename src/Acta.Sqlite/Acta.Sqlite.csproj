@@ -20,7 +20,7 @@
     <InternalsVisibleTo Include="Anvil.Bench" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
     <!-- The one mixed-provider case (a SQLite outbox source relayed into a Postgres ledger) builds the
-         internal SQLite source store through SqliteOutboxSource.CreateStore. -->
+         internal SQLite source connection through SqliteOutboxSource.CreateConnection. -->
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
   </ItemGroup>
 
@@ -29,7 +29,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The ordered migrations; every other SQL file lives beside its operation in Acta. -->
-    <EmbeddedResource Include="Schema/Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
+    <EmbeddedResource Include="Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

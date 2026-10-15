@@ -51,11 +51,11 @@
          only a baseline, so the multi-migration path is untestable there). -->
     <EmbeddedResource
       Include="Fixtures\MigrationChain\M20260101000000_init.sql"
-      LogicalName="Acta.Tests.Schema.Migrations.M20260101000000_init.sql"
+      LogicalName="Acta.Tests.Migrations.M20260101000000_init.sql"
     />
     <EmbeddedResource
       Include="Fixtures\MigrationChain\M20260102000000_add_widgets.sql"
-      LogicalName="Acta.Tests.Schema.Migrations.M20260102000000_add_widgets.sql"
+      LogicalName="Acta.Tests.Migrations.M20260102000000_add_widgets.sql"
     />
   </ItemGroup>
   <ItemGroup>

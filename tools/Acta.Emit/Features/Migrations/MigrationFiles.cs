@@ -6,13 +6,13 @@ namespace Acta.Emit.Features.Migrations;
 
 /// <summary>
 /// Filesystem conventions for the committed <c>M{yyyyMMddHHmmss}_{name}.sql</c> migrations. Each provider owns its
-/// migrations under its own package (<c>src/Acta.{Provider}/Schema/Migrations</c>) with bare, suffix-free names (the
+/// migrations under its own package (<c>src/Acta.{Provider}/Migrations</c>) with bare, suffix-free names (the
 /// package is the dialect). The UTC instant in the stem is the order, so nothing here counts.
 /// </summary>
 internal static partial class MigrationFiles
 {
     private static string Dir(string repoRoot, string token) =>
-        Path.Combine(repoRoot, "src", ProviderCatalog.ByToken(token).Project, "Schema", "Migrations");
+        Path.Combine(repoRoot, "src", ProviderCatalog.ByToken(token).Project, "Migrations");
 
     /// <summary>A provider's migration stems in apply order, which is ordinal order.</summary>
     internal static IReadOnlyList<string> Stems(string repoRoot, string token)

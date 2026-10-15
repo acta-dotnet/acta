@@ -8,7 +8,7 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>,
-/// <c>Schema/Views/</c>, and a provider's <c>Schema/Migrations/</c>, every view in all three dialects, and no stem twice
+/// <c>Schema/Views/</c>, and a provider's <c>Migrations/</c>, every view in all three dialects, and no stem twice
 /// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>
 /// outside <c>Engine/Wakeup/</c>, while only Operations files and registration name a handler. A group's root holds its
 /// operations class and the interfaces that class implements; a type several operations share sits in the <c>Shared/</c>
@@ -129,7 +129,11 @@ public sealed class OperationLayoutTests
         ShippedCode
             .SourceFiles("*.sql")
             .Select(file => file.Relative.Split('/'))
-            .Where(parts => parts.Length > 3 && parts[2] is not "Operations" && parts[2..^1] is not ["Schema", "Views" or "Migrations"])
+            .Where(parts =>
+                parts.Length > 3
+                && parts[2] is not "Operations"
+                && parts[1..^1] is not (["Acta", "Schema", "Views"] or ["Acta.Postgres" or "Acta.SqlServer" or "Acta.Sqlite", "Migrations"])
+            )
             .Select(parts => $"sql-placement: {string.Join('/', parts[..^1])}");
 
     // Operations are the blocks the engine composes, so the dependency runs one way. The scan is by name, crefs included:

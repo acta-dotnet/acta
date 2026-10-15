@@ -4,7 +4,7 @@ namespace Acta.Tests.Migrations;
 
 /// <summary>
 /// Unit coverage for <see cref="SchemaMigrations.Discover"/>. Discovery reads an assembly's embedded
-/// <c>Schema/Migrations/*.sql</c> resources and throws when none are present. End-to-end
+/// <c>Migrations/*.sql</c> resources and throws when none are present. End-to-end
 /// discovery against the real baselines (owned by the provider packages) is exercised by the provider integration tests.
 /// </summary>
 public sealed class MigrationDiscoveryTests

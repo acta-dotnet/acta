@@ -219,7 +219,7 @@ repo's analyzer tier would defeat the reason it exists.
 ## SQL style
 
 Hand-written SQL (every `*.sql` under `src/Acta/Operations/`; the
-generated `Schema/Migrations` and `docs/reference` files are emitter-owned) is maintained in one block
+generated provider `Migrations` and `docs/reference` files are emitter-owned) is maintained in one block
 style across all three dialects. No formatter owns it; `SqlStyleTests` enforces the machine-checkable floor (uppercase
 line-leading keywords, no tabs, no trailing whitespace) and the rest is convention. By example:
 
@@ -323,7 +323,7 @@ The shortest paths to the design-review-worthy parts:
 
 * **Source-generated dispatch, AOT-clean by construction.** `Acta.Generators` emits a per-assembly manifest (`{Area}JobsManifest`), per-handler invokers, and type-to-descriptor routing; no reflection runs on the dispatch hot path. The one caveat is the default JSON payload path, which uses reflection unless you supply a source-generated `JsonSerializerContext` (`j.UseJsonPayloads(...)`). Typed enqueue is not an escape hatch: it serializes through the same configured serializer.
 * **One handler per operation across three engines.** Each operation's handler in `Acta` builds its command and maps its rows once; PostgreSQL, SQL Server, and SQLite each own only a dialect and the operation's executable SQL, held to the same behavior by the conformance suite.
-* **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql` (a routine body is `<Operation>.routine.{pg,mssql}.sql`), beside its public types and handler, the schema bootstrap's in `Operations/Schema/`, with the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Schema/Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
+* **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql` (a routine body is `<Operation>.routine.{pg,mssql}.sql`), beside its public types and handler, the schema bootstrap's in `Operations/Schema/`, with the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
 * **A deliberately small, symmetric data model.** Sixteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/internals/design.md`](./docs/internals/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
 

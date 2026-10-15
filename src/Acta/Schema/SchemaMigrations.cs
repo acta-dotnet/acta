@@ -146,12 +146,12 @@ internal static partial class SchemaMigrations
         );
 
     /// <summary>
-    /// The assembly's <c>Schema/Migrations</c> resources, in stem order: the fixed-width datetime prefix makes ordinal
+    /// The assembly's <c>Migrations</c> resources, in stem order: the fixed-width datetime prefix makes ordinal
     /// order the apply order.
     /// </summary>
     public static IReadOnlyList<SchemaMigration> Discover(Assembly assembly)
     {
-        var prefix = assembly.GetName().Name + ".Schema.Migrations.";
+        var prefix = assembly.GetName().Name + ".Migrations.";
         var found = new List<SchemaMigration>();
 
         foreach (var resource in assembly.GetManifestResourceNames())
@@ -168,8 +168,8 @@ internal static partial class SchemaMigrations
 
         return found.Count == 0
             ? throw new InvalidOperationException(
-                $"No migration scripts found under Schema/Migrations in {assembly.GetName().Name}. "
-                    + "The provider package must embed its complete Schema/Migrations/*.sql sequence."
+                $"No migration scripts found under Migrations in {assembly.GetName().Name}. "
+                    + "The provider package must embed its complete Migrations/*.sql sequence."
             )
             : [.. found.OrderBy(m => m.Name, StringComparer.Ordinal)];
     }

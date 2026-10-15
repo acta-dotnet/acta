@@ -26,7 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The ordered migrations; every other SQL file lives beside its operation in Acta. -->
-    <EmbeddedResource Include="Schema/Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
+    <EmbeddedResource Include="Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

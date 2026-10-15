@@ -13,14 +13,14 @@ only the bodies that changed.
 
 ## Naming
 
-A migration is `src/Acta.{Provider}/Schema/Migrations/M{yyyyMMddHHmmss}_{name}.sql`: a capital `M`
+A migration is `src/Acta.{Provider}/Migrations/M{yyyyMMddHHmmss}_{name}.sql`: a capital `M`
 glued to the UTC instant of the `schema add` that wrote it, then a snake_case name. The first one is
 `init`. One `schema add` writes one instant for every provider, so `M20261015185851_init` means the
 same cut on PostgreSQL, SQL Server, and SQLite.
 
 The datetime is the version. There is no running counter anywhere, and the fixed width makes ordinal
 name order the apply order. The naming rule has one home, `ProviderMigrationOwnershipTests`; the
-runtime takes every `.sql` under `Schema/Migrations` and the emit tool every `M*.sql`.
+runtime takes every `.sql` under the provider's `Migrations/` and the emit tool every `M*.sql`.
 
 A provider with no history gets a full baseline under the run's stem, which is how a late-joining
 provider starts. Its history then has a leading hole, which the runner never notices: it applies
@@ -180,7 +180,7 @@ append columns.
    ```
    dotnet run --project tools/Acta.Emit -- schema add --name <snake_case_name>
    ```
-   Writes `src/Acta.{Provider}/Schema/Migrations/M{now}_<name>.sql` per provider and prints any
+   Writes `src/Acta.{Provider}/Migrations/M{now}_<name>.sql` per provider and prints any
    `WARNING`s.
 3. **Hand-edit the generated SQL**: address every `WARNING`/`TODO` (synthetic checks, backfills,
    destructive changes). Keep the three dialects equivalent. Use `{{schema}}` wherever a schema

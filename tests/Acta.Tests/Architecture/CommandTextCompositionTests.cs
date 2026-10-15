@@ -65,8 +65,8 @@ public sealed class CommandTextCompositionTests
         // into both a bracket identifier and an N'...' literal on SQL Server. ValidateDatabaseName
         // rejects the quote, bracket and apostrophe characters that would break out of any of those
         // contexts, and runs before the connection is opened.
-        ["Acta.Postgres/Schema/PostgresSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (1, "database name, ValidateDatabaseName"),
-        ["Acta.SqlServer/Schema/SqlServerSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (2, "database name, ValidateDatabaseName"),
+        ["Acta.Postgres/Services/PostgresSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (1, "database name, ValidateDatabaseName"),
+        ["Acta.SqlServer/Services/SqlServerSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (2, "database name, ValidateDatabaseName"),
         // The unparented enqueue. The loaded script loses its marked child-only statement and gains
         // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueJob"] = (1, "embedded SQL with a marked section removed"),
@@ -202,8 +202,8 @@ public sealed class CommandTextCompositionTests
             ("src/Acta.Postgres/Services/PostgresDialect.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(routineName"),
             ("src/Acta.SqlServer/Services/SqlServerDialect.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(routineName"),
             // The database name the bootstrap DDL interpolates into quoted and bracketed contexts.
-            ("src/Acta.Postgres/Schema/PostgresSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
-            ("src/Acta.SqlServer/Schema/SqlServerSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
+            ("src/Acta.Postgres/Services/PostgresSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
+            ("src/Acta.SqlServer/Services/SqlServerSchemaMigrator.cs", "SqlIdentifierSyntax.ValidateDatabaseName(databaseName"),
         ];
 
         var failures = new List<string>();

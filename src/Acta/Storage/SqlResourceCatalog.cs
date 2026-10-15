@@ -6,7 +6,7 @@ namespace Acta;
 /// <summary>
 /// Catalog of one dialect's inline SQL, embedded in <c>Acta</c> as <c>X.{dialect}.sql</c> beside its operation and addressed
 /// by file stem, unique per dialect, so a caller names <c>GetOverview</c> and never its folder. Ordered DDL migrations are not
-/// catalog resources and stay in the provider under <c>Schema/Migrations/</c>; routine and operator-view sources are not either,
+/// catalog resources and stay in the provider under <c>Migrations/</c>; routine and operator-view sources are not either,
 /// because their bodies reach a database only inside a migration. Lookups never fall back across dialects; loading a stem with
 /// no file throws. Rendered text substitutes <c>{{schema}}</c>, <c>{{now}}</c> (the SQLite epoch-milliseconds instant; only
 /// SQLite bodies carry it), and <c>{{decode:...}}</c> tokens, cached per resource for the process lifetime.

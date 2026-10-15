@@ -103,7 +103,7 @@ public static partial class SqlCodePolicyAssert
         foreach (var resource in ProviderSqlResources.Enumerate(dialectToken, includeMigrations: true))
         {
             failures.AddRange(ScanConstantAnnotations(resource.LogicalPath, resource.Sql));
-            if (!resource.LogicalPath.StartsWith("Schema/Migrations/", StringComparison.Ordinal))
+            if (!resource.LogicalPath.StartsWith("Migrations/", StringComparison.Ordinal))
             {
                 failures.AddRange(ScanRequiredAnnotations(resource.LogicalPath, resource.Sql));
             }

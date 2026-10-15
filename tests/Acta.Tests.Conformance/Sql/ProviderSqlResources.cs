@@ -5,7 +5,7 @@ namespace Acta.Tests.Conformance.Sql;
 /// <summary>
 /// Reads one dialect's operation SQL from the source tree, the <c>X.{dialect}.sql</c> and <c>X.routine.{dialect}.sql</c>
 /// files under <c>src/Acta/Operations/</c>, and on request the provider's ordered migrations. Logical paths are relative
-/// to the project that owns the file: <c>Operations/Jobs/PauseJob/PauseJob.pg.sql</c>, <c>Schema/Migrations/M20261015120000_init.sql</c>.
+/// to the project that owns the file: <c>Operations/Jobs/PauseJob/PauseJob.pg.sql</c>, <c>Migrations/M20261015120000_init.sql</c>.
 /// </summary>
 internal static class ProviderSqlResources
 {
@@ -21,9 +21,7 @@ internal static class ProviderSqlResources
         var files = Files(Path.Combine(src, "Acta"), "Operations", $"*.{dialectToken}.sql");
         if (includeMigrations)
         {
-            files = files.Concat(
-                Files(Path.Combine(src, ProviderAssemblyName(dialectToken)), Path.Combine("Schema", "Migrations"), "M*.sql")
-            );
+            files = files.Concat(Files(Path.Combine(src, ProviderAssemblyName(dialectToken)), "Migrations", "M*.sql"));
         }
         return files.Select(file => (file.Logical, File.ReadAllText(file.Path)));
     }
