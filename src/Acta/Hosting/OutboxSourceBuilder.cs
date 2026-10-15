@@ -16,11 +16,11 @@ internal sealed class OutboxSourceBuilder(string sourceName) : IOutboxSourceBuil
     public int QuarantineThreshold { get; set; } = 5;
 
     /// <summary>The single source-provider store factory, set by a provider extension via <see cref="SetStoreFactory"/>.</summary>
-    internal IOutboxSourceFactory? StoreFactory { get; private set; }
+    internal OutboxSourceFactory? StoreFactory { get; private set; }
 
     /// <summary>Records the single source-provider store factory (called by a provider extension's
     /// <c>UseXxx</c>). Selecting a second provider is a configuration error.</summary>
-    internal void SetStoreFactory(IOutboxSourceFactory factory)
+    internal void SetStoreFactory(OutboxSourceFactory factory)
     {
         ArgumentNullException.ThrowIfNull(factory);
         if (StoreFactory is not null)

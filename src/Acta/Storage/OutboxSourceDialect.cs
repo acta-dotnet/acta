@@ -3,36 +3,39 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary>
-/// Base <see cref="ISqlDialect"/> for the external-outbox source session. Unlike the ledger dialects, every provider
-/// drives its outbox claim and finalize commands through inline SQL, since Acta installs no routine in a producer
-/// database; the claim's RETURNING or OUTPUT rows come from the last statement, and the two-statement claim runs
-/// under one write transaction. The ledger-only binder surface (enqueue, definition, completion) is never reached
-/// from the outbox store and throws. Providers supply connection creation, parameter binding, and transient classification.
+/// The external-outbox source session's <see cref="ISqlDialect"/>, over the source provider's ledger dialect. Unlike the
+/// ledger, every provider drives its outbox claim and finalize commands through inline SQL, since Acta installs no routine
+/// in a producer database; the claim's RETURNING or OUTPUT rows come from the last statement, and the two-statement claim
+/// runs under one write transaction. The ledger-only binder surface (enqueue, definition, completion) is never reached
+/// from the outbox store and throws. The ledger dialect supplies connection creation, parameter binding, and error
+/// classification.
 /// </summary>
-internal abstract class OutboxSourceDialect : ISqlDialect
+internal class OutboxSourceDialect(ISqlDialect inner) : ISqlDialect
 {
-    public abstract DbProvider Provider { get; }
+    public DbProvider Provider => inner.Provider;
 
-    public abstract string DialectToken { get; }
+    public string DialectToken => inner.DialectToken;
 
     public bool ResultSetIsLast => true;
 
     /// <summary>
     /// Recover-expired then claim run as two statements; one transaction gives the claim statement the
-    /// recovered rows and keeps the lease stamp atomic. Servers own it inside the command; SQLite
-    /// overrides this hook to begin an immediate transaction.
+    /// recovered rows and keeps the lease stamp atomic. Servers own it inside the command; the SQLite
+    /// ledger dialect begins an immediate transaction.
     /// </summary>
-    public virtual DbTransaction? BeginOwnedWriteTransaction(DbConnection connection) => null;
+    public DbTransaction? BeginOwnedWriteTransaction(DbConnection connection) => inner.BeginOwnedWriteTransaction(connection);
 
-    public virtual bool IsTransientConflict(Exception exception) => false;
+    public bool IsTransientConflict(Exception exception) => inner.IsTransientConflict(exception);
 
-    public virtual bool IsCancellation(Exception exception) => false;
+    public bool IsCancellation(Exception exception) => inner.IsCancellation(exception);
 
-    public abstract DbConnection CreateConnection(string connectionString);
+    public DbConnection CreateConnection(string connectionString) => inner.CreateConnection(connectionString);
 
-    public abstract bool OwnsConnection(DbConnection connection);
+    public bool OwnsConnection(DbConnection connection) => inner.OwnsConnection(connection);
 
-    public abstract DbParameter CreateParameter(DbParameterSpec spec);
+    public void PrepareCallerConnection(DbConnection connection) => inner.PrepareCallerConnection(connection);
+
+    public virtual DbParameter CreateParameter(DbParameterSpec spec) => inner.CreateParameter(spec);
 
     /// <summary>
     /// The outbox source never invokes a routine or a ledger bulk binder; the store composes inline SQL

@@ -1,5 +1,6 @@
 using System.Data;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace Acta.Postgres;
@@ -7,10 +8,29 @@ namespace Acta.Postgres;
 /// <summary>
 /// Applies this package's migrations on PostgreSQL, each file as a single <c>NpgsqlCommand</c>.
 /// </summary>
-internal static class PostgresSchemaMigrator
+internal sealed class PostgresSchemaMigrator(SqlProviderOptions options, ILogger<PostgresSchemaMigrator>? log = null)
+    : SchemaBootstrap(options, log)
 {
+    /// <summary>
+    /// The Npgsql major this package is built and certified against. Bound to the <c>Npgsql</c>
+    /// version pinned in <c>Directory.Packages.props</c>: <c>DriverMajorParityTests</c> fails the
+    /// build if the two ever say different things, so bump them together and only after the suite has
+    /// run against the new major.
+    /// </summary>
+    internal const int CertifiedDriverMajor = 10;
+
     private const string DialectToken = "pg";
     private static readonly Assembly ProviderAssembly = typeof(PostgresSchemaMigrator).Assembly;
+
+    protected override Assembly DriverAssembly => typeof(NpgsqlConnection).Assembly;
+
+    protected override int CertifiedMajor => CertifiedDriverMajor;
+
+    protected override Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        EnsureDatabaseAndApplyAsync(connectionString, schemaName, ct);
+
+    protected override Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        PreflightAsync(connectionString, schemaName, ct);
 
     public static async Task ApplyAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
     {

@@ -14,7 +14,7 @@ public sealed partial class SqlServerConformanceFixture
     public string DialectToken => "mssql";
 
     public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        new SqlServerProviderBootstrap(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+        new SqlServerSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {

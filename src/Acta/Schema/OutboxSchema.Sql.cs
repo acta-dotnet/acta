@@ -4,7 +4,7 @@ namespace Acta;
 /// Hand-authored parameter metadata for the external-outbox relay commands. Kept separate from the
 /// ledger's <see cref="ActaSchema"/> because the source table is not part of the Acta entity model;
 /// the relay binds these through <c>DbParams.For</c> so name, kind, and width flow from one place. The
-/// executable claim/finalize SQL is provider-owned and lands with each provider package.
+/// executable claim/finalize SQL lives beside its operation under <c>Operations/Outbox</c>, one file per dialect.
 /// </summary>
 internal static class OutboxSchema
 {

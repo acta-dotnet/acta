@@ -47,7 +47,9 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await SeedSqliteRowAsync(Guid.NewGuid(), dedup);
 
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.
-        var store = OutboxOperations.OpenSource(Acta.Sqlite.SqliteOutboxSource.CreateConnection(_sqliteConn, "main", "acta_outbox"));
+        var store = OutboxOperations.OpenSource(
+            new OutboxSourceFactory(_sqliteConn, new Acta.Sqlite.SqliteOutboxDialect(), "main").Create("main", "acta_outbox")
+        );
         var target = Services.GetRequiredService<JobsOperations>();
         var relay = new OutboxRelay(store, target);
         var maxInline = Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;

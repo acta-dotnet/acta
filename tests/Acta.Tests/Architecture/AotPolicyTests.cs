@@ -83,11 +83,7 @@ public sealed partial class AotPolicyTests
         new(
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
-            Allow(
-                "src/Acta/Schema/SchemaMigrations.cs",
-                "src/Acta.Sqlite/Services/SqliteDialect.cs",
-                "src/Acta.Sqlite/Services/SqliteOutboxDialect.cs"
-            )
+            Allow("src/Acta/Schema/SchemaMigrations.cs", "src/Acta.Sqlite/Services/SqliteDialect.cs")
         ),
         // DbSession commits its SQLite transaction; server operations commit inside the command.
         new(

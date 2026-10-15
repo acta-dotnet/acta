@@ -64,21 +64,8 @@ internal sealed record OutboxRelayRegistration(
     string? Schema,
     string? Table,
     int QuarantineThreshold,
-    IOutboxSourceFactory SourceFactory
+    OutboxSourceFactory SourceFactory
 );
-
-/// <summary>
-/// Provider seam that builds the relay source's connection from the captured source-connection options and
-/// the source builder's schema/table overrides (each provider substitutes its own default when null).
-/// The provider's outbox relay extension registers one implementation into the source builder's service
-/// collection; the registry opens the single source <c>sys.outbox</c> drains over the connection it builds,
-/// so core stays free of any provider reference. Building the connection does not open one: the first
-/// source contact happens inside the relay tick.
-/// </summary>
-internal interface IOutboxSourceFactory
-{
-    OutboxSourceConnection Create(string? schema, string? table);
-}
 
 /// <summary>A producer's source database as its provider package reaches it: its own session and outbox dialect, never the ledger's.</summary>
 internal sealed record OutboxSourceConnection(IDbSession Session, ISqlDialect Dialect);

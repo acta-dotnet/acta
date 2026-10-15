@@ -14,7 +14,7 @@ public sealed partial class PgConformanceFixture
     public string DialectToken => "pg";
 
     public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        new PostgresProviderBootstrap(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+        new PostgresSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {

@@ -24,7 +24,7 @@ public sealed class OutboxRelayBuilderTests
 
         Assert.NotNull(relay);
         Assert.Equal("orders", relay!.SourceName);
-        Assert.Equal("PostgresOutboxSourceFactory", relay.SourceFactory.GetType().Name);
+        Assert.Equal("pg", Assert.IsType<OutboxSourceFactory>(relay.SourceFactory).Create(null, null).Dialect.DialectToken);
         Assert.Equal(5, relay.QuarantineThreshold);
     }
 
@@ -72,7 +72,7 @@ public sealed class OutboxRelayBuilderTests
         // The ledger provider is not selected here; the source builder records SQL Server independently.
         var relay = Register(w => w.AddOutboxRelay("orders", s => s.UseSqlServer("Server=db")));
 
-        Assert.Equal("SqlServerOutboxSourceFactory", relay!.SourceFactory.GetType().Name);
+        Assert.Equal("mssql", Assert.IsType<OutboxSourceFactory>(relay!.SourceFactory).Create(null, null).Dialect.DialectToken);
     }
 
     [Fact]

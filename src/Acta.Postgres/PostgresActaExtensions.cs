@@ -5,7 +5,7 @@ public static class PostgresActaExtensions
 {
     /// <summary>Selects PostgreSQL as Acta's durable provider, configured by its connection string and schema options.</summary>
     public static IActaBuilder UsePostgres(this IActaBuilder builder, Action<SqlProviderOptions> configure) =>
-        ActaProviderRegistration.Use<PostgresDialect, PostgresProviderBootstrap>(builder, DbProvider.Postgres, configure);
+        ActaProviderRegistration.Use<PostgresDialect, PostgresSchemaMigrator>(builder, DbProvider.Postgres, configure);
 
     /// <summary>
     /// Selects the producer's PostgreSQL database at <paramref name="connectionString"/> as the external-outbox relay
@@ -16,7 +16,9 @@ public static class PostgresActaExtensions
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        ((OutboxSourceBuilder)source).SetStoreFactory(new PostgresOutboxSourceFactory(connectionString));
+        ((OutboxSourceBuilder)source).SetStoreFactory(
+            new OutboxSourceFactory(connectionString, new OutboxSourceDialect(new PostgresDialect()), "public")
+        );
         return source;
     }
 }

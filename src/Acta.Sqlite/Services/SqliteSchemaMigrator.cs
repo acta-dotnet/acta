@@ -1,6 +1,7 @@
 using System.Data;
 using System.Reflection;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 
 namespace Acta.Sqlite;
 
@@ -9,10 +10,29 @@ namespace Acta.Sqlite;
 /// routines and no schema container, so a migration is tables, indexes, and views only, and the schema name is always
 /// <c>main</c> (the connection's attached database).
 /// </summary>
-internal static class SqliteSchemaMigrator
+internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<SqliteSchemaMigrator>? log = null)
+    : SchemaBootstrap(options, log)
 {
+    /// <summary>
+    /// The Microsoft.Data.Sqlite major this package is built and certified against. Bound to the
+    /// <c>Microsoft.Data.Sqlite</c> version pinned in <c>Directory.Packages.props</c>:
+    /// <c>DriverMajorParityTests</c> fails the build if the two ever say different things, so bump
+    /// them together and only after the suite has run against the new major.
+    /// </summary>
+    internal const int CertifiedDriverMajor = 10;
+
     private const string DialectToken = "sqlite";
     private static readonly Assembly ProviderAssembly = typeof(SqliteSchemaMigrator).Assembly;
+
+    protected override Assembly DriverAssembly => typeof(SqliteConnection).Assembly;
+
+    protected override int CertifiedMajor => CertifiedDriverMajor;
+
+    protected override Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        EnsureDatabaseAndApplyAsync(connectionString, schemaName, ct);
+
+    protected override Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        PreflightAsync(connectionString, schemaName, ct);
 
     public static async Task ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {

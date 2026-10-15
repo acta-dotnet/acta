@@ -11,7 +11,7 @@ public static class SqliteActaExtensions
     public static IActaBuilder UseSqlite(this IActaBuilder builder, Action<SqlProviderOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        return ActaProviderRegistration.Use<SqliteDialect, SqliteProviderBootstrap>(
+        return ActaProviderRegistration.Use<SqliteDialect, SqliteSchemaMigrator>(
             builder,
             DbProvider.Sqlite,
             o =>
@@ -37,7 +37,7 @@ public static class SqliteActaExtensions
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        ((OutboxSourceBuilder)source).SetStoreFactory(new SqliteOutboxSourceFactory(connectionString));
+        ((OutboxSourceBuilder)source).SetStoreFactory(new OutboxSourceFactory(connectionString, new SqliteOutboxDialect(), "main"));
         return source;
     }
 }

@@ -14,7 +14,7 @@ public sealed partial class SqliteConformanceFixture
     public string DialectToken => "sqlite";
 
     public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        new SqliteProviderBootstrap(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+        new SqliteSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {

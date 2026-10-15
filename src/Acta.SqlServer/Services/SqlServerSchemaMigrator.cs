@@ -1,16 +1,36 @@
 using System.Data;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace Acta.SqlServer;
 
 /// <summary>
 /// Applies this package's migrations on SQL Server, each file split into its <c>GO</c> batches.
 /// </summary>
-internal static class SqlServerSchemaMigrator
+internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogger<SqlServerSchemaMigrator>? log = null)
+    : SchemaBootstrap(options, log)
 {
+    /// <summary>
+    /// The Microsoft.Data.SqlClient major this package is built and certified against. Bound to the
+    /// <c>Microsoft.Data.SqlClient</c> version pinned in <c>Directory.Packages.props</c>:
+    /// <c>DriverMajorParityTests</c> fails the build if the two ever say different things, so bump
+    /// them together and only after the suite has run against the new major.
+    /// </summary>
+    internal const int CertifiedDriverMajor = 7;
+
     private const string DialectToken = "mssql";
     private static readonly Assembly ProviderAssembly = typeof(SqlServerSchemaMigrator).Assembly;
+
+    protected override Assembly DriverAssembly => typeof(SqlConnection).Assembly;
+
+    protected override int CertifiedMajor => CertifiedDriverMajor;
+
+    protected override Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        EnsureDatabaseAndApplyAsync(connectionString, schemaName, ct);
+
+    protected override Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        PreflightAsync(connectionString, schemaName, ct);
 
     public static async Task ApplyAsync(SqlConnection connection, string schemaName, CancellationToken ct)
     {

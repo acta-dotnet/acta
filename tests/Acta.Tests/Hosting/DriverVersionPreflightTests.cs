@@ -84,18 +84,18 @@ public sealed class DriverVersionPreflightTests
 public sealed partial class DriverMajorParityTests
 {
     [Theory]
-    [InlineData("Acta.Sqlite", "Acta.Sqlite.SqliteProviderBootstrap", "Microsoft.Data.Sqlite")]
-    [InlineData("Acta.Postgres", "Acta.Postgres.PostgresProviderBootstrap", "Npgsql")]
-    [InlineData("Acta.SqlServer", "Acta.SqlServer.SqlServerProviderBootstrap", "Microsoft.Data.SqlClient")]
-    public void Certified_major_matches_the_centrally_pinned_package(string assemblyName, string bootstrapType, string package)
+    [InlineData("Acta.Sqlite", "Acta.Sqlite.SqliteSchemaMigrator", "Microsoft.Data.Sqlite")]
+    [InlineData("Acta.Postgres", "Acta.Postgres.PostgresSchemaMigrator", "Npgsql")]
+    [InlineData("Acta.SqlServer", "Acta.SqlServer.SqlServerSchemaMigrator", "Microsoft.Data.SqlClient")]
+    public void Certified_major_matches_the_centrally_pinned_package(string assemblyName, string migratorType, string package)
     {
         var certified =
             Assembly
                 .Load(assemblyName)
-                .GetType(bootstrapType, throwOnError: true)!
+                .GetType(migratorType, throwOnError: true)!
                 .GetField("CertifiedDriverMajor", BindingFlags.NonPublic | BindingFlags.Static)
                 ?.GetRawConstantValue() as int?;
-        Assert.True(certified is not null, $"{bootstrapType}.CertifiedDriverMajor was not found; the parity guard is silently passing.");
+        Assert.True(certified is not null, $"{migratorType}.CertifiedDriverMajor was not found; the parity guard is silently passing.");
 
         var props = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "Directory.Packages.props"));
         var pinned = PackageVersionRegex()
@@ -107,17 +107,17 @@ public sealed partial class DriverMajorParityTests
     }
 
     [Theory]
-    [InlineData("Acta.Sqlite", "Acta.Sqlite.SqliteProviderBootstrap", "Microsoft.Data.Sqlite")]
-    [InlineData("Acta.Postgres", "Acta.Postgres.PostgresProviderBootstrap", "Npgsql")]
-    [InlineData("Acta.SqlServer", "Acta.SqlServer.SqlServerProviderBootstrap", "Microsoft.Data.SqlClient")]
-    public void Certified_major_matches_the_driver_the_tests_actually_load(string assemblyName, string bootstrapType, string package)
+    [InlineData("Acta.Sqlite", "Acta.Sqlite.SqliteSchemaMigrator", "Microsoft.Data.Sqlite")]
+    [InlineData("Acta.Postgres", "Acta.Postgres.PostgresSchemaMigrator", "Npgsql")]
+    [InlineData("Acta.SqlServer", "Acta.SqlServer.SqlServerSchemaMigrator", "Microsoft.Data.SqlClient")]
+    public void Certified_major_matches_the_driver_the_tests_actually_load(string assemblyName, string migratorType, string package)
     {
         // The suite runs against the restored driver, so the constant is only meaningful if what runs
         // here is what it claims to certify.
         var certified = (int)
             Assembly
                 .Load(assemblyName)
-                .GetType(bootstrapType, throwOnError: true)!
+                .GetType(migratorType, throwOnError: true)!
                 .GetField("CertifiedDriverMajor", BindingFlags.NonPublic | BindingFlags.Static)!
                 .GetRawConstantValue()!;
 
