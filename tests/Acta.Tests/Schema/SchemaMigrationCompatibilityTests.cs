@@ -16,13 +16,13 @@ public sealed class SchemaMigrationCompatibilityTests
         await connection.OpenAsync(ct);
         await SqliteSchemaMigrator.ApplyAsync(connection, "main", ct);
 
-        // Stands in for a later release: a migration this build lacks, which replaced a view.
+        // Stands in for a later release: a migration this build lacks, which added a table.
         await Execute(
             connection,
             """
             INSERT INTO main.migrations (version, name, installed_schema) VALUES (999, 'future', 'main');
-            DROP VIEW main.jobs_view;
-            CREATE VIEW main.jobs_view AS SELECT 1 AS future_marker;
+            CREATE TABLE main.future_marker (marker INTEGER NOT NULL) STRICT;
+            INSERT INTO main.future_marker (marker) VALUES (1);
             """,
             ct
         );
@@ -35,7 +35,7 @@ public sealed class SchemaMigrationCompatibilityTests
 
         Assert.Equal(history, await History(connection, ct));
         await using var probe = connection.CreateCommand();
-        probe.CommandText = "SELECT future_marker FROM main.jobs_view";
+        probe.CommandText = "SELECT marker FROM main.future_marker";
         Assert.Equal(1L, await probe.ExecuteScalarAsync(ct));
     }
 

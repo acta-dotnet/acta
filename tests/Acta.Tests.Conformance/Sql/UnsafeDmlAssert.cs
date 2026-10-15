@@ -4,14 +4,12 @@ using Xunit;
 namespace Acta.Tests.Conformance.Sql;
 
 /// <summary>
-/// Guards two accidental-blast-radius shapes in embedded <c>UPDATE</c>/<c>DELETE</c> statements: a
+/// Guards two accidental-blast-radius shapes in operation SQL's <c>UPDATE</c>/<c>DELETE</c> statements: a
 /// statement with neither a <c>WHERE</c> nor a correlating <c>JOIN</c> (so it touches every row of a
 /// real table), and a comma-style <c>FROM</c>/<c>USING</c> join (implicit cross join) instead of an
-/// explicit <c>JOIN ... ON</c>. Views are included (same reasoning as <see cref="DialectLeakageAssert"/>:
-/// a view is exactly where an unreviewed fragment survives). A statement whose target is an mssql
-/// table variable (<c>DELETE @del</c>) is exempt: it clears local scratch state, never persisted data. A
-/// <c>FOR UPDATE</c> row-locking clause and an <c>ON CONFLICT (...) DO UPDATE SET</c> upsert are not
-/// standalone DML statements and are skipped.
+/// explicit <c>JOIN ... ON</c>. A statement whose target is an mssql table variable (<c>DELETE @del</c>)
+/// is exempt: it clears local scratch state, never persisted data. A <c>FOR UPDATE</c> row-locking clause
+/// and an <c>ON CONFLICT (...) DO UPDATE SET</c> upsert are not standalone DML statements and are skipped.
 /// </summary>
 public static partial class UnsafeDmlAssert
 {
@@ -36,7 +34,7 @@ public static partial class UnsafeDmlAssert
     public static void AssertGuardedDml(string dialectToken)
     {
         var failures = new List<string>();
-        foreach (var (logicalPath, rawSql) in ProviderSqlResources.EnumerateIncludingViews(dialectToken))
+        foreach (var (logicalPath, rawSql) in ProviderSqlResources.Enumerate(dialectToken))
         {
             failures.AddRange(ScanContent(logicalPath, rawSql));
         }
@@ -50,7 +48,7 @@ public static partial class UnsafeDmlAssert
     /// <summary>
     /// Per-content scan, factored out of <see cref="AssertGuardedDml"/> and exposed internally
     /// (InternalsVisibleTo → Acta.Tests) so unit tests can feed synthetic SQL directly and prove the
-    /// scanner actually fails, without going through embedded resources.
+    /// scanner actually fails, without reading the source tree.
     /// </summary>
     internal static IEnumerable<string> ScanContent(string logicalPath, string rawSql)
     {

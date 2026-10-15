@@ -20,6 +20,9 @@ public sealed class OperationLayoutTests
 {
     private static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
+    /// <summary>SQLite runs every command inline, so only the server dialects spell a file <c>X.routine.{dialect}.sql</c>.</summary>
+    private static readonly string[] RoutineDialects = ["pg", "mssql"];
+
     private static readonly string Views = Path.Combine("Schema", "Views") + Path.DirectorySeparatorChar;
 
     /// <summary>Operations may name the types under this folder, because a committed write wakes the engine's workers through its publisher.</summary>
@@ -82,34 +85,44 @@ public sealed class OperationLayoutTests
         {
             yield return $"handler: {Relative(root, folder)}";
         }
-        var dialects = Dialects.Count(d => files.Contains($"{name}.{d}.sql"));
+        var dialects = Dialects.Count(d => files.Any(file => SqlFile(file!) == (name, d)));
         if (dialects is not 0 && dialects != Dialects.Length)
         {
             yield return $"dialects: {Relative(root, folder)}";
         }
     }
 
-    // A view has no operation folder, so its dialects are held per stem. The catalog loads by stem, so a stem has one
-    // file per dialect across the whole project.
+    // A view has no operation folder, so its dialects are held per stem. A stem has one file per dialect across the whole
+    // project, whether inline or routine, so the catalog and the migrations never disagree about which file it is.
     private static IEnumerable<string> SqlStems(string project)
     {
         var files = Directory
             .EnumerateFiles(project, "*.sql", SearchOption.AllDirectories)
-            .Select(path => (Relative: Path.GetRelativePath(project, path), Parts: Path.GetFileName(path).Split('.')))
-            .Where(file => file.Parts.Length == 3 && Dialects.Contains(file.Parts[1]))
+            .Select(path => (Relative: Path.GetRelativePath(project, path), Sql: SqlFile(Path.GetFileName(path))))
+            .Where(file => file.Sql is not null)
+            .Select(file => (file.Relative, file.Sql!.Value.Stem, file.Sql.Value.Dialect))
             .ToList();
-        foreach (var twice in files.GroupBy(file => $"{file.Parts[0]}.{file.Parts[1]}").Where(group => group.Count() > 1))
+        foreach (var twice in files.GroupBy(file => $"{file.Stem}.{file.Dialect}").Where(group => group.Count() > 1))
         {
             yield return $"duplicate: {twice.Key}";
         }
-        foreach (var view in files.Where(file => file.Relative.StartsWith(Views, StringComparison.Ordinal)).GroupBy(file => file.Parts[0]))
+        foreach (var view in files.Where(file => file.Relative.StartsWith(Views, StringComparison.Ordinal)).GroupBy(file => file.Stem))
         {
-            if (view.Select(file => file.Parts[1]).Distinct().Count() != Dialects.Length)
+            if (view.Select(file => file.Dialect).Distinct().Count() != Dialects.Length)
             {
                 yield return $"dialects: Schema/Views/{view.Key}";
             }
         }
     }
+
+    // X.<dialect>.sql, or X.routine.<dialect>.sql on a server dialect: the same stem either way.
+    private static (string Stem, string Dialect)? SqlFile(string fileName) =>
+        fileName.Split('.') switch
+        {
+            [var stem, var dialect, "sql"] when Dialects.Contains(dialect) => (stem, dialect),
+            [var stem, "routine", var dialect, "sql"] when RoutineDialects.Contains(dialect) => (stem, dialect),
+            _ => null,
+        };
 
     // SQL lives beside its operation, with the views, or with a provider's migrations; anything else is keyed by its folder.
     private static IEnumerable<string> SqlPlacement() =>

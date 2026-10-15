@@ -36,7 +36,7 @@ public sealed partial class SqliteProvisionScriptSpec
         Assert.True(migrations > 0, "the published script contains no migration banners");
 
         await using var probe = conn.CreateCommand();
-        probe.CommandText = "SELECT (SELECT COUNT(*) FROM main.migrations), (SELECT COUNT(*) FROM main.jobs_view)";
+        probe.CommandText = "SELECT (SELECT COUNT(*) FROM main.migrations), (SELECT COUNT(*) FROM main.jobs)";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
         Assert.Equal(migrations, reader.GetInt64(0));

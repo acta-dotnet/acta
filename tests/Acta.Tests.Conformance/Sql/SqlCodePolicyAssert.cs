@@ -100,7 +100,7 @@ public static partial class SqlCodePolicyAssert
     public static void AssertAllCodeConstantsAreValid(string dialectToken)
     {
         var failures = new List<string>();
-        foreach (var resource in ProviderSqlResources.Enumerate(dialectToken, includeVersionedMigrations: true, includeViews: true))
+        foreach (var resource in ProviderSqlResources.Enumerate(dialectToken, includeVersionedMigrations: true))
         {
             failures.AddRange(ScanConstantAnnotations(resource.LogicalPath, resource.Sql));
             if (!resource.LogicalPath.StartsWith("Schema/Migrations/", StringComparison.Ordinal))

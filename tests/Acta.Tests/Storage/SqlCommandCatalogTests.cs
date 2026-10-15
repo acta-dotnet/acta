@@ -1,9 +1,6 @@
 using System.Text.Json;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Sql;
-using Acta.Postgres;
-using Acta.Sqlite;
-using Acta.SqlServer;
 using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -41,7 +38,7 @@ public sealed class SqlCommandCatalogTests
         var sqlite = new SqlResourceCatalog("sqlite", "acta");
         var routines = ProviderSqlResources
             .Enumerate(dialect)
-            .Where(r => SqlResourceCatalog.DefinesRoutine(r.Sql))
+            .Where(r => r.LogicalPath.Contains(".routine.", StringComparison.Ordinal))
             .Select(r => ProviderSqlResources.Stem(r.LogicalPath))
             .ToList();
 
@@ -65,7 +62,7 @@ public sealed class SqlCommandCatalogTests
     public void A_missing_command_fails_without_a_fallback()
     {
         var catalog = new SqlResourceCatalog("sqlite", "acta");
-        var error = Assert.Throws<InvalidOperationException>(() => catalog.Resolve(new StoreCommand("Missing")));
+        var error = Assert.Throws<InvalidOperationException>(() => catalog.Load("Missing"));
         Assert.Contains("has no file for 'Missing'", error.Message);
     }
 
@@ -77,12 +74,4 @@ public sealed class SqlCommandCatalogTests
         );
         Assert.Contains("two files with the stem 'Twice'", error.Message);
     }
-
-    [Theory]
-    [InlineData("-- leading note\nCREATE OR REPLACE FUNCTION {{schema}}.f() RETURNS void AS $$ $$ LANGUAGE sql;", true)]
-    [InlineData("/* a block\n   comment */\r\ncreate or alter procedure {{schema}}.p AS SELECT 1;", true)]
-    [InlineData("SELECT 1; -- CREATE OR REPLACE FUNCTION in a trailing comment", false)]
-    [InlineData("-- CREATE OR REPLACE FUNCTION only in a comment\nSELECT 1;", false)]
-    public void A_routine_is_a_file_whose_first_statement_creates_one(string sql, bool routine) =>
-        Assert.Equal(routine, SqlResourceCatalog.DefinesRoutine(sql));
 }

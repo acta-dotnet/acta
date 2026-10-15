@@ -147,7 +147,7 @@ public sealed class SchemaCommandsTests : IDisposable
     public void A_routine_edit_fails_check_until_add_drafts_it_alone_into_the_next_migration()
     {
         SchemaAddCommand.Run(name: null, repoRoot: _root);
-        var source = Path.Combine(_root, "src", "Acta", "Operations", "Execution", "StartStep", "StartStep.pg.sql");
+        var source = Path.Combine(_root, "src", "Acta", "Operations", "Execution", "StartStep", "StartStep.routine.pg.sql");
         File.WriteAllText(source, File.ReadAllText(source).Replace("AS $$", "AS $$\n-- edited", StringComparison.Ordinal));
 
         Assert.Equal(1, CheckCommand.Run(_root));

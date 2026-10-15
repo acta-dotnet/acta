@@ -63,28 +63,6 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
         return names;
     }
 
-    public ValueTask<IReadOnlyList<string>> ListViewsAsync(string schemaName) => ReadCatalogAsync(() => ListViewsCoreAsync(schemaName));
-
-    private async ValueTask<IReadOnlyList<string>> ListViewsCoreAsync(string schemaName)
-    {
-        var conn = IntegrationConfig.SqlServerConnectionString!;
-        var builder = new SqlConnectionStringBuilder(conn) { TrustServerCertificate = true };
-
-        await using var c = new SqlConnection(builder.ConnectionString);
-        await c.OpenAsync();
-        await using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT table_name FROM information_schema.views WHERE table_schema = @s ORDER BY table_name;";
-        cmd.Parameters.Add(new SqlParameter("@s", schemaName));
-        var names = new List<string>();
-        await using var r = await cmd.ExecuteReaderAsync();
-        while (await r.ReadAsync())
-        {
-            names.Add(r.GetString(0));
-        }
-
-        return names;
-    }
-
     public ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(string schemaName, string tableName) =>
         ReadCatalogAsync(() => ListColumnsCoreAsync(schemaName, tableName));
 

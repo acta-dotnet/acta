@@ -39,7 +39,7 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         }
         await using (var inspect = connection.CreateCommand())
         {
-            inspect.CommandText = $"SELECT job_ref FROM {Schema.SchemaName}.jobs_view WHERE job_id = @id";
+            inspect.CommandText = $"SELECT job_ref FROM {Schema.SchemaName}.jobs WHERE id = @id";
             inspect.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@id", System.Data.SqlDbType.BigInt) { Value = jobId });
             Assert.Equal(jobRef, (Guid)(await inspect.ExecuteScalarAsync(ct))!);
         }

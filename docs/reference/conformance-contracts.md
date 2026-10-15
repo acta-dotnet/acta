@@ -1834,10 +1834,10 @@
 - **Guarantees:**
   - A second runner takes the lock only after the first runner's transaction commits
 
-### Dropping the schema removes every table and view Acta installed
-- **Contract:** DropSchema removes every modelled table, every operator view, and the migration-history table, and dropping a schema that is already gone succeeds.
+### Dropping the schema removes every table Acta installed
+- **Contract:** DropSchema removes every modelled table and the migration-history table, and dropping a schema that is already gone succeeds.
 - **Guarantees:**
-  - An installed schema loses every table, view, and its history, and a second drop succeeds
+  - An installed schema loses every table and its history, and a second drop succeeds
 
 ### The migration-history table is created once and keeps its rows
 - **Contract:** EnsureMigrations creates the migration-history table inside the migration transaction when it is missing, and leaves an existing table and its rows alone.
@@ -1895,17 +1895,6 @@
   - An unprovisioned schema is refused as unprovisioned, naming the provisioning script
   - A migration this build ships that the database never applied is refused by version
   - A history carrying migrations this build has never heard of still passes
-
-### Schema bootstrap installs curated operator views
-- **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant name and tags_view decodes exact target scope.
-- **Guarantees:**
-  - Schema install creates exactly the curated operator views
-  - Every curated operator view can be queried
-  - Every literal Engineering Lab SELECT compiles against this provider
-  - jobs_view supports friendly failed-status filtering with raw status_code beside it
-  - jobs_view resolves the tenant name beside the raw tenant id
-  - tags_view decodes job scope beside exact target and tag values
-  - events_view and checkpoints_view expose displayable payload text
 
 ## Signals
 
@@ -2174,10 +2163,8 @@
 | `AcquireLock` | yes | yes | yes |
 | `AcquireSchemaLock` | yes | yes | yes |
 | `AcquireSlot` | yes | yes | yes |
-| `AlertsView` | yes | yes | yes |
 | `ArmOrConsumeSleepTimer` | yes | yes | yes |
 | `CancelJob` | yes | yes | yes |
-| `CheckpointsView` | yes | yes | yes |
 | `ClaimJob` | yes | yes | yes |
 | `ClaimJobs` | yes | yes | yes |
 | `ClaimOutbox` | yes | yes | yes |
@@ -2186,14 +2173,12 @@
 | `ConsumeOutboxSignal` | yes | yes | yes |
 | `CountOutboxBacklog` | yes | yes | yes |
 | `CountOutboxQuarantined` | yes | yes | yes |
-| `DefinitionsView` | yes | yes | yes |
 | `DeleteClaimedOutbox` | yes | yes | yes |
 | `DiscardQuarantinedOutbox` | yes | yes | yes |
 | `DropSchema` | yes | yes | yes |
 | `EnqueueJob` | yes | yes | yes |
 | `EnqueueJobs` | yes | yes | yes |
 | `EnsureMigrations` | yes | yes | yes |
-| `EventsView` | yes | yes | yes |
 | `ExtendWorkerLeases` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertableEvents` | yes | yes | yes |
@@ -2219,7 +2204,6 @@
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
 | `HasMigrationsTable` | yes | yes | yes |
-| `JobsView` | yes | yes | yes |
 | `ListAlerts` | yes | yes | yes |
 | `ListDefinitions` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
@@ -2266,16 +2250,13 @@
 | `ResumeSchedule` | yes | yes | yes |
 | `ResumeTenant` | yes | yes | yes |
 | `RetireDefinition` | yes | yes | yes |
-| `SchedulesView` | yes | yes | yes |
 | `SetDefinitionOverrides` | yes | yes | yes |
 | `SetScheduleOverrides` | yes | yes | yes |
 | `StartStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |
-| `StepsView` | yes | yes | yes |
 | `StopWorker` | yes | yes | yes |
 | `SuspendNamespace` | yes | yes | yes |
 | `SuspendTenant` | yes | yes | yes |
-| `TagsView` | yes | yes | yes |
 | `TriggerScheduleNow` | yes | yes | yes |
 | `UpdateAlertDelivery` | yes | yes | yes |
 | `UpdateJobInput` | yes | yes | yes |
@@ -2283,5 +2264,4 @@
 | `UpdateTenant` | yes | yes | yes |
 | `UpsertTags` | yes | yes | yes |
 | `WaitSignal` | yes | yes | yes |
-| `WorkersView` | yes | yes | yes |
 

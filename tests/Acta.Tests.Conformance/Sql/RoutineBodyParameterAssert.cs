@@ -31,12 +31,10 @@ public static partial class RoutineBodyParameterAssert
         var failures = new List<string>();
         foreach (var (logicalPath, rawSql) in ProviderSqlResources.Enumerate(dialectToken))
         {
-            if (!SqlResourceCatalog.DefinesRoutine(rawSql))
+            if (logicalPath.Contains(".routine.", StringComparison.Ordinal))
             {
-                continue;
+                failures.AddRange(ScanContent(dialectToken, logicalPath, rawSql));
             }
-
-            failures.AddRange(ScanContent(dialectToken, logicalPath, rawSql));
         }
 
         if (failures.Count > 0)
@@ -48,7 +46,7 @@ public static partial class RoutineBodyParameterAssert
     /// <summary>
     /// Per-content scan, factored out of <see cref="AssertDeclaredParamsUsed"/> and exposed internally
     /// (InternalsVisibleTo → Acta.Tests) so unit tests can feed synthetic SQL directly and prove the
-    /// scanner actually fails, without going through embedded resources.
+    /// scanner actually fails, without reading the source tree.
     /// </summary>
     internal static IEnumerable<string> ScanContent(string dialectToken, string logicalPath, string rawSql)
     {

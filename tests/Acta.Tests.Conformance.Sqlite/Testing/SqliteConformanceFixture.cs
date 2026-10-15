@@ -133,22 +133,6 @@ public sealed partial class SqliteConformanceFixture : IConformanceFixture
         return names;
     }
 
-    public async ValueTask<IReadOnlyList<string>> ListViewsAsync(string schemaName)
-    {
-        await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
-        await c.OpenAsync();
-        await using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type = 'view' ORDER BY name;";
-        var names = new List<string>();
-        await using var r = await cmd.ExecuteReaderAsync();
-        while (await r.ReadAsync())
-        {
-            names.Add(r.GetString(0));
-        }
-
-        return names;
-    }
-
     public async ValueTask<int> CountTablesAsync(string schemaName)
     {
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);

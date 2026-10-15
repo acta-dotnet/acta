@@ -1,11 +1,11 @@
-using System.Reflection;
-using System.Text.Json;
+using Acta.Tests.Conformance.Testing;
 
 namespace Acta.Tests.Conformance.Sql;
 
 /// <summary>
-/// Enumerates one dialect's executable SQL as the catalog sees it, the <c>X.{dialect}.sql</c> files
-/// <c>Acta</c> embeds, and on request the provider's ordered migrations.
+/// Reads one dialect's operation SQL from the source tree, the <c>X.{dialect}.sql</c> and <c>X.routine.{dialect}.sql</c>
+/// files under <c>src/Acta/Operations/</c>, and on request the provider's ordered migrations. Logical paths are relative
+/// to the project that owns the file: <c>Operations/Jobs/PauseJob/PauseJob.pg.sql</c>, <c>Schema/Migrations/M001_init.sql</c>.
 /// </summary>
 internal static class ProviderSqlResources
 {
@@ -15,67 +15,29 @@ internal static class ProviderSqlResources
         : providerResourcePrefix.Contains("Sqlite", StringComparison.Ordinal) ? "sqlite"
         : throw new InvalidOperationException($"Cannot derive a dialect token from resource prefix '{providerResourcePrefix}'.");
 
-    public static IEnumerable<(string LogicalPath, string Sql)> Enumerate(
-        string dialectToken,
-        bool includeVersionedMigrations = false,
-        bool includeViews = false
-    )
+    public static IEnumerable<(string LogicalPath, string Sql)> Enumerate(string dialectToken, bool includeVersionedMigrations = false)
     {
-        var runtime = typeof(SqlResourceCatalog).Assembly;
-        var runtimePrefix = runtime.GetName().Name + ".";
-        var suffix = "." + dialectToken + ".sql";
-        foreach (
-            var resource in runtime
-                .GetManifestResourceNames()
-                .Where(n => n.EndsWith(suffix, StringComparison.Ordinal))
-                .Order(StringComparer.Ordinal)
-        )
+        var src = Path.Combine(IntegrationConfig.FindRepoRoot(), "src");
+        var files = Files(Path.Combine(src, "Acta"), "Operations", $"*.{dialectToken}.sql");
+        if (includeVersionedMigrations)
         {
-            var path = resource[runtimePrefix.Length..^suffix.Length].Replace('.', '/') + suffix;
-            if (includeViews || !IsView(Stem(path)))
-            {
-                yield return (path, ReadResource(runtime, resource));
-            }
+            files = files.Concat(
+                Files(Path.Combine(src, ProviderAssemblyName(dialectToken)), Path.Combine("Schema", "Migrations"), "M*.sql")
+            );
         }
-
-        if (!includeVersionedMigrations)
-        {
-            yield break;
-        }
-
-        var provider = Assembly.Load(ProviderAssemblyName(dialectToken));
-        var migrations = provider.GetName().Name + ".Schema.Migrations.";
-        foreach (
-            var resource in provider
-                .GetManifestResourceNames()
-                .Where(n => n.StartsWith(migrations + "M", StringComparison.Ordinal))
-                .Order(StringComparer.Ordinal)
-        )
-        {
-            yield return ("Schema/Migrations/" + resource[migrations.Length..], ReadResource(provider, resource));
-        }
+        return files.Select(file => (file.Logical, File.ReadAllText(file.Path)));
     }
-
-    public static IEnumerable<(string LogicalPath, string Sql)> EnumerateIncludingViews(string dialectToken) =>
-        Enumerate(dialectToken, includeViews: true);
 
     public static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
-    /// <summary>Every stem of one dialect, views included.</summary>
-    public static IEnumerable<string> Stems(string dialectToken) => EnumerateIncludingViews(dialectToken).Select(r => Stem(r.LogicalPath));
+    /// <summary>Every stem of one dialect.</summary>
+    public static IEnumerable<string> Stems(string dialectToken) => Enumerate(dialectToken).Select(r => Stem(r.LogicalPath));
 
     /// <summary>The SQL of one dialect's file with this stem.</summary>
-    public static string Read(string dialectToken, string stem) =>
-        EnumerateIncludingViews(dialectToken).Single(r => Stem(r.LogicalPath) == stem).Sql;
+    public static string Read(string dialectToken, string stem) => Enumerate(dialectToken).Single(r => Stem(r.LogicalPath) == stem).Sql;
 
     /// <summary>The file stem of a logical path, the name a caller addresses it by: <c>PauseJob</c>.</summary>
     public static string Stem(string logicalPath) => Path.GetFileName(logicalPath).Split('.')[0];
-
-    /// <summary>The installed name of every operator view one dialect ships: <c>JobsView</c> installs as <c>jobs_view</c>.</summary>
-    public static IEnumerable<string> ViewNames(string dialectToken) =>
-        Stems(dialectToken).Where(IsView).Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal);
-
-    private static bool IsView(string stem) => stem.EndsWith("View", StringComparison.Ordinal);
 
     public static string ProviderAssemblyName(string dialectToken) =>
         dialectToken switch
@@ -86,12 +48,10 @@ internal static class ProviderSqlResources
             _ => throw new InvalidOperationException($"No provider package known for dialect token '{dialectToken}'."),
         };
 
-    private static string ReadResource(Assembly assembly, string resource)
-    {
-        using var stream =
-            assembly.GetManifestResourceStream(resource)
-            ?? throw new InvalidOperationException($"Resource '{resource}' disappeared during enumeration.");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
+    // In ordinal path order, so a failure list reads the same on every machine.
+    private static IEnumerable<(string Path, string Logical)> Files(string project, string folder, string pattern) =>
+        Directory
+            .EnumerateFiles(Path.Combine(project, folder), pattern, SearchOption.AllDirectories)
+            .Select(path => (Path: path, Logical: Path.GetRelativePath(project, path).Replace('\\', '/')))
+            .OrderBy(file => file.Logical, StringComparer.Ordinal);
 }

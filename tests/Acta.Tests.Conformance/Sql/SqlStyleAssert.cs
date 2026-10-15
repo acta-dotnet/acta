@@ -8,15 +8,14 @@ namespace Acta.Tests.Conformance.Sql;
 /// hand: no tabs, no trailing whitespace, and uppercase statement keywords. Layout beyond that
 /// (the block style: clause rail at statement indent, one item per line in wide insert bodies) is
 /// documented in CONTRIBUTING.md and maintained by eye; these rules are the machine-checkable
-/// floor. Runs per dialect against <see cref="ProviderSqlResources.EnumerateIncludingViews"/> like
-/// <see cref="DialectLeakageAssert"/>.
+/// floor. Runs per dialect against <see cref="ProviderSqlResources.Enumerate"/>.
 /// </summary>
 public static partial class SqlStyleAssert
 {
     public static void AssertStyle(string dialectToken)
     {
         var failures = new List<string>();
-        foreach (var (logicalPath, rawSql) in ProviderSqlResources.EnumerateIncludingViews(dialectToken))
+        foreach (var (logicalPath, rawSql) in ProviderSqlResources.Enumerate(dialectToken))
         {
             failures.AddRange(ScanContent(logicalPath, rawSql));
         }

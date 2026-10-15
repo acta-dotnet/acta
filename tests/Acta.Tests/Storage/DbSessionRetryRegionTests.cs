@@ -54,17 +54,6 @@ public class DbSessionRetryRegionTests
         Assert.Null(dialect.LastCommand!.Transaction);
     }
 
-    [Fact]
-    public async Task Missing_command_fails_before_opening_a_connection()
-    {
-        var log = new List<string>();
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            NewSession(new FakeDialect(log))
-                .ExecuteAsync(new StoreCommand("Command"), static _ => { }, TestContext.Current.CancellationToken)
-        );
-        Assert.Empty(log);
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

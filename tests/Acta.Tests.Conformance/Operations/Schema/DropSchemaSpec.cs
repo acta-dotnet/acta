@@ -1,6 +1,5 @@
 using System.Data.Common;
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -8,31 +7,26 @@ namespace Acta.Tests.Conformance.Operations.Schema;
 
 /// <summary>
 /// Conformance for <c>DropSchema</c>: the drop half of a schema reset, which must leave nothing of Acta's for the apply
-/// half to trip over. SQLite drops by name, so this is also what catches a table or view its drop list lacks.
+/// half to trip over. SQLite drops by name, so this is also what catches a table its drop list lacks.
 /// </summary>
 [ConformanceSpec(
     "drop-schema.removes-objects",
-    "Dropping the schema removes every table and view Acta installed",
+    "Dropping the schema removes every table Acta installed",
     Area = "Schema",
-    Contract = "DropSchema removes every modelled table, every operator view, and the migration-history table, and dropping a schema that is already gone succeeds."
+    Contract = "DropSchema removes every modelled table and the migration-history table, and dropping a schema that is already gone succeeds."
 )]
 public sealed class DropSchemaSpec : IntegrationSpec<ConformanceFixture>
 {
     private const int TimeoutSeconds = 30;
 
-    [Fact(DisplayName = "An installed schema loses every table, view, and its history, and a second drop succeeds")]
+    [Fact(DisplayName = "An installed schema loses every table and its history, and a second drop succeeds")]
     public async Task Drops_every_installed_object()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
         await Fixture.ApplyMigrationsAsync(probe.ConnectionString, probe.SchemaName, ct);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
-        string[] objects =
-        [
-            "migrations",
-            .. ActaSchema.Entities.Select(e => e.TableName),
-            .. ProviderSqlResources.ViewNames(Fixture.DialectToken),
-        ];
+        string[] objects = ["migrations", .. ActaSchema.Entities.Select(e => e.TableName)];
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
         var drop = new DropSchemaHandler(connection, sql, TimeoutSeconds);
         Assert.Equal(objects, await ReadableAsync(connection, probe.SchemaName, objects, ct));

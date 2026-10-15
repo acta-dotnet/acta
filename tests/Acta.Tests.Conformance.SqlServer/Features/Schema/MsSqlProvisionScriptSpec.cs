@@ -60,7 +60,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             await using var probe = conn.CreateCommand();
             probe.CommandText =
                 $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
-                + $"(SELECT COUNT(*) FROM {schema}.jobs_view), "
+                + $"(SELECT COUNT(*) FROM {schema}.jobs), "
                 + $"(SELECT COUNT(*) FROM sys.procedures WHERE schema_id = SCHEMA_ID('{schema}'))";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));

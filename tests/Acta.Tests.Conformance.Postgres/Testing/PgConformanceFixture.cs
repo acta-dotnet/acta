@@ -32,23 +32,6 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         return names;
     }
 
-    public async ValueTask<IReadOnlyList<string>> ListViewsAsync(string schemaName)
-    {
-        await using var c = new NpgsqlConnection(IntegrationConfig.PostgresConnectionString!);
-        await c.OpenAsync();
-        await using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT table_name FROM information_schema.views WHERE table_schema = @s ORDER BY table_name;";
-        cmd.Parameters.AddWithValue("@s", schemaName);
-        var names = new List<string>();
-        await using var r = await cmd.ExecuteReaderAsync();
-        while (await r.ReadAsync())
-        {
-            names.Add(r.GetString(0));
-        }
-
-        return names;
-    }
-
     public async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(
         string schemaName,
         string tableName

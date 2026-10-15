@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Sql;
 
 /// <summary>
-/// Guards the bound-parameter naming convention across every embedded provider SQL resource: each
+/// Guards the bound-parameter naming convention across every operation SQL file of a dialect: each
 /// <c>@...</c> token must either start with the <c>@p_</c> bound-parameter prefix or be a TSQL
 /// <c>DECLARE</c>'d local. TSQL <c>@@</c> system functions (<c>@@ROWCOUNT</c>, <c>@@IDENTITY</c>) are
 /// not parameters and are excluded by the tokenizer. Provider-store and conformance gates exercise
@@ -28,8 +28,8 @@ public static partial class SqlParameterCoverage
     private static readonly Regex DeclareName = new(@"@[A-Za-z_][A-Za-z0-9_]*", RegexOptions.Compiled);
 
     /// <summary>
-    /// Assert every <c>@...</c> token in the provider's embedded SQL resources either starts with
-    /// the <c>@p_</c> bound-parameter prefix or is a TSQL DECLARE'd local. Forcing function
+    /// Assert every <c>@...</c> token in the dialect's operation SQL either starts with the
+    /// <c>@p_</c> bound-parameter prefix or is a TSQL DECLARE'd local. Forcing function
     /// against drift in the bound-parameter naming convention.
     /// </summary>
     public static void AssertParameterPrefix(Assembly providerAssembly, string resourcePrefix)

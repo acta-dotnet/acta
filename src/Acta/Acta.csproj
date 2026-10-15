@@ -61,9 +61,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Every dialect's SQL beside its operation, and the schema commands and operator views; the catalog
-         selects one dialect by the X.<token>.sql suffix. -->
-    <EmbeddedResource Include="Operations/**/*.sql;Schema/**/*.sql" Exclude="$(DefaultItemExcludes)">
+    <!-- Every dialect's inline SQL beside its operation; the catalog selects one dialect by the X.<token>.sql
+         suffix. Routine and operator-view bodies reach a database only inside a migration, so none is embedded. -->
+    <EmbeddedResource Include="Operations/**/*.sql" Exclude="$(DefaultItemExcludes);Operations/**/*.routine.*.sql">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

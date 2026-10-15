@@ -36,9 +36,6 @@ public sealed partial class OperationsIndexTests
     [GeneratedRegex(@"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+\{\{schema\}\}\.(?<table>\w+)", RegexOptions.IgnoreCase)]
     private static partial Regex WrittenTables();
 
-    [GeneratedRegex(@"^\s*CREATE\s+OR\s+(?:REPLACE\s+FUNCTION|ALTER\s+PROCEDURE)\b", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
-    private static partial Regex RoutineHeader();
-
     [Fact]
     public void Committed_index_matches_the_source()
     {
@@ -102,17 +99,17 @@ public sealed partial class OperationsIndexTests
             )
             {
                 var operation = Path.GetFileName(folder);
-                var sql = Dialects.ToDictionary(d => d, d => Path.Combine(folder, $"{operation}.{d}.sql"));
+                var sql = Dialects.ToDictionary(d => d, d => SqlFile(folder, operation, d));
                 string[] cells =
                 [
                     $"`{operation}`",
                     Cell(facadeMethods.Where(m => m.Operation == operation).Select(m => $"`I{m.Facade}.{m.Method}`")),
                     Cell(routes.Where(r => r.Operation == operation).Select(r => $"`{r.Verb} {r.Pattern}`")),
                     Cell(verbs.Where(v => v.Operation == operation).Select(v => $"`{v.Verb}`")),
-                    .. Dialects.Select(d => SqlKind(sql[d])),
+                    .. Dialects.Select(d => sql[d].Kind),
                     Cell(
                         Dialects
-                            .SelectMany(d => Written(sql[d]))
+                            .SelectMany(d => Written(sql[d].Path))
                             .Distinct(StringComparer.Ordinal)
                             .Order(StringComparer.Ordinal)
                             .Select(t => $"`{t}`"),
@@ -132,13 +129,18 @@ public sealed partial class OperationsIndexTests
     private static string Cell(IEnumerable<string> values, string separator = "<br>") =>
         string.Join(separator, values.Distinct(StringComparer.Ordinal)) is { Length: > 0 } joined ? joined : "·";
 
-    private static string SqlKind(string path) =>
-        !File.Exists(path) ? "·"
-        : RoutineHeader().IsMatch(File.ReadAllText(path)) ? "routine"
-        : "inline";
+    // X.routine.<dialect>.sql is a routine a migration installs; X.<dialect>.sql runs inline.
+    private static (string Kind, string? Path) SqlFile(string folder, string operation, string dialect)
+    {
+        var routine = Path.Combine(folder, $"{operation}.routine.{dialect}.sql");
+        var inline = Path.Combine(folder, $"{operation}.{dialect}.sql");
+        return File.Exists(routine) ? ("routine", routine)
+            : File.Exists(inline) ? ("inline", inline)
+            : ("·", null);
+    }
 
-    private static IEnumerable<string> Written(string path) =>
-        File.Exists(path) ? WrittenTables().Matches(File.ReadAllText(path)).Select(m => m.Groups["table"].Value.ToLowerInvariant()) : [];
+    private static IEnumerable<string> Written(string? path) =>
+        path is null ? [] : WrittenTables().Matches(File.ReadAllText(path)).Select(m => m.Groups["table"].Value.ToLowerInvariant());
 
     private static IEnumerable<string> Specs(string root, string group, string operation)
     {

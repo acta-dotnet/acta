@@ -54,7 +54,7 @@ public sealed partial class PgProvisionScriptSpec
             await using var probe = conn.CreateCommand();
             probe.CommandText =
                 $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
-                + $"(SELECT COUNT(*) FROM {schema}.jobs_view), "
+                + $"(SELECT COUNT(*) FROM {schema}.jobs), "
                 + $"(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = '{schema}')";
             await using var reader = await probe.ExecuteReaderAsync(ct);
             Assert.True(await reader.ReadAsync(ct));
@@ -70,8 +70,8 @@ public sealed partial class PgProvisionScriptSpec
         }
     }
 
-    [Fact(DisplayName = "Re-applying the pg provision script keeps data, grants, and dependent views")]
-    public async Task Reapplied_script_keeps_data_grants_and_dependents()
+    [Fact(DisplayName = "A pg schema provisioned by the script runs with migrations disabled and keeps its data across a re-run")]
+    public async Task Script_provisioned_schema_runs_and_keeps_its_data_across_a_rerun()
     {
         var connString = IntegrationConfig.PostgresConnectionString;
         if (connString is null)
@@ -80,7 +80,6 @@ public sealed partial class PgProvisionScriptSpec
         }
         var ct = TestContext.Current.CancellationToken;
         var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
-        var role = $"acta_reader_{Guid.NewGuid():N}"[..30];
         var script = SchemaWord()
             .Replace(File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "schema-pg.sql")), schema);
         var fixture = new PgConformanceFixture();
@@ -92,41 +91,15 @@ public sealed partial class PgProvisionScriptSpec
         {
             await ExecuteAsync(conn, script, ct);
             var job = await ScriptProvisionedRuntime.RunJobAsync(fixture.ApplyProvider, schema, 2, 3, ct);
-
-            // What a DBA adds around the published views: a grant to a reporting role and a view of
-            // their own that selects from one of ours.
-            await ExecuteAsync(
-                conn,
-                $"CREATE ROLE {role} NOLOGIN; GRANT SELECT ON {schema}.jobs_view TO {role}; "
-                    + $"CREATE VIEW {schema}.dba_job_names AS SELECT job_ref, job_name, status FROM {schema}.jobs_view;",
-                ct
-            );
-
-            // The script re-applied by hand rewrites the views in place.
             await ExecuteAsync(conn, script, ct);
-            await AssertDbaObjectsSurviveAsync(job);
-
             await ScriptProvisionedRuntime.AssertSucceededAsync(fixture.ApplyProvider, schema, job, 5, ct);
         }
         finally
         {
-            // Its own connection, because a failed script leaves the test connection inside an aborted
-            // transaction. The schema takes the dependent view and the grant with it, which frees the role.
+            // Its own connection, because a failed script leaves the test connection inside an aborted transaction.
             await using var cleanup = new NpgsqlConnection(connString);
             await cleanup.OpenAsync(CancellationToken.None);
-            await ExecuteAsync(cleanup, $"DROP SCHEMA IF EXISTS {schema} CASCADE; DROP ROLE IF EXISTS {role};", CancellationToken.None);
-        }
-
-        async Task AssertDbaObjectsSurviveAsync(JobRef job)
-        {
-            await using var probe = conn.CreateCommand();
-            probe.CommandText =
-                $"SELECT has_table_privilege('{role}', '{schema}.jobs_view', 'SELECT'), "
-                + $"(SELECT status FROM {schema}.dba_job_names WHERE job_ref = '{job.Value}')";
-            await using var reader = await probe.ExecuteReaderAsync(ct);
-            Assert.True(await reader.ReadAsync(ct));
-            Assert.True(reader.GetBoolean(0), "the SELECT grant on jobs_view did not survive the re-apply");
-            Assert.Equal("succeeded", reader.GetString(1));
+            await ExecuteAsync(cleanup, $"DROP SCHEMA IF EXISTS {schema} CASCADE;", CancellationToken.None);
         }
     }
 

@@ -75,7 +75,7 @@ public sealed partial class DialectParityTests
         Ratchet.Check("dialect-parity", differences, "Return the same column names, in the same order, from every dialect.");
     }
 
-    // X.<dialect>.sql beside each operation; the operator views are not operations.
+    // X.<dialect>.sql or X.routine.<dialect>.sql beside each operation; the operator views are not operations.
     private static IEnumerable<(string File, string Stem, string Dialect)> SqlFiles()
     {
         foreach (var (path, relative) in ShippedCode.SourceFiles("*.sql"))
@@ -262,6 +262,6 @@ public sealed partial class DialectParityTests
     [GeneratedRegex(@"""[^""]*""|\[[^\]]*\]|[@#]?[A-Za-z_][A-Za-z0-9_$]*|\d+(?:\.\d+)?|\S")]
     private static partial Regex TokenPattern();
 
-    [GeneratedRegex(@"^(.+)\.(pg|mssql|sqlite)\.sql$")]
+    [GeneratedRegex(@"^([^.]+)(?:\.routine)?\.(pg|mssql|sqlite)\.sql$")]
     private static partial Regex OperationFile();
 }

@@ -61,11 +61,6 @@ public interface IConformanceFixture
     /// </summary>
     ValueTask<IReadOnlyList<string>> ListTablesAsync(string schemaName);
 
-    /// <summary>
-    /// The user-view names present in <paramref name="schemaName"/>, via a provider catalog query.
-    /// </summary>
-    ValueTask<IReadOnlyList<string>> ListViewsAsync(string schemaName);
-
     /// <summary>The columns of <paramref name="tableName"/> in <paramref name="schemaName"/> as
     /// (name, nullable) pairs, via a provider catalog query.</summary>
     ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(string schemaName, string tableName);

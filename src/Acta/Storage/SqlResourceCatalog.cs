@@ -4,12 +4,12 @@ using System.Reflection;
 namespace Acta;
 
 /// <summary>
-/// Catalog of one dialect's executable SQL, embedded in <c>Acta</c> as <c>X.{dialect}.sql</c> beside its
-/// operation and addressed by file stem, unique per dialect, so a caller names <c>GetOverview</c> and never its folder.
-/// Ordered DDL migrations are not catalog resources and stay in the provider under <c>Schema/Migrations/</c>. Lookups
-/// never fall back across dialects; a missing resource is a defect and throws. Rendered text substitutes
-/// <c>{{schema}}</c>, <c>{{now}}</c> (the SQLite epoch-milliseconds instant; only SQLite bodies carry it), and
-/// <c>{{decode:...}}</c> tokens, cached per resource for the process lifetime.
+/// Catalog of one dialect's inline SQL, embedded in <c>Acta</c> as <c>X.{dialect}.sql</c> beside its operation and addressed
+/// by file stem, unique per dialect, so a caller names <c>GetOverview</c> and never its folder. Ordered DDL migrations are not
+/// catalog resources and stay in the provider under <c>Schema/Migrations/</c>; routine and operator-view sources are not either,
+/// because their bodies reach a database only inside a migration. Lookups never fall back across dialects; loading a stem with
+/// no file throws. Rendered text substitutes <c>{{schema}}</c>, <c>{{now}}</c> (the SQLite epoch-milliseconds instant; only
+/// SQLite bodies carry it), and <c>{{decode:...}}</c> tokens, cached per resource for the process lifetime.
 /// </summary>
 internal sealed class SqlResourceCatalog
 {
@@ -19,7 +19,6 @@ internal sealed class SqlResourceCatalog
     private readonly string? _table;
     private readonly Dictionary<string, string> _resources = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _rendered = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, StoreExecutionKind> _kinds = new(StringComparer.Ordinal);
 
     public SqlResourceCatalog(string dialect, string? schema, string? table = null)
         : this(typeof(SqlResourceCatalog).Assembly, dialect, schema, table) { }
@@ -48,43 +47,9 @@ internal sealed class SqlResourceCatalog
     /// <summary>Rendered SQL for a stem such as <c>GetOverview</c>.</summary>
     public string Load(string stem) => _rendered.GetOrAdd(stem, Render);
 
-    /// <summary>A command runs as the routine its file defines, or as the file's text when it defines none.</summary>
+    /// <summary>A command with a file for this dialect runs as that text; one without runs as the routine a migration installed.</summary>
     public StoreExecutionKind Resolve(StoreCommand command) =>
-        _kinds.GetOrAdd(command.Operation, stem => DefinesRoutine(Load(stem)) ? StoreExecutionKind.Routine : StoreExecutionKind.Inline);
-
-    /// <summary>
-    /// True when the first statement, after comments, creates a routine: <c>CREATE OR REPLACE FUNCTION</c>
-    /// on PostgreSQL, <c>CREATE OR ALTER PROCEDURE</c> on SQL Server. Any other file is inline SQL.
-    /// </summary>
-    internal static bool DefinesRoutine(string sql)
-    {
-        var at = 0;
-        while (at < sql.Length)
-        {
-            if (char.IsWhiteSpace(sql[at]))
-            {
-                at++;
-            }
-            else if (string.CompareOrdinal(sql, at, "--", 0, 2) == 0)
-            {
-                var end = sql.IndexOf('\n', at);
-                at = end < 0 ? sql.Length : end + 1;
-            }
-            else if (string.CompareOrdinal(sql, at, "/*", 0, 2) == 0)
-            {
-                var end = sql.IndexOf("*/", at + 2, StringComparison.Ordinal);
-                at = end < 0 ? sql.Length : end + 2;
-            }
-            else
-            {
-                var rest = sql.AsSpan(at);
-                return rest.StartsWith("CREATE OR REPLACE FUNCTION", StringComparison.OrdinalIgnoreCase)
-                    || rest.StartsWith("CREATE OR ALTER PROCEDURE", StringComparison.OrdinalIgnoreCase);
-            }
-        }
-
-        return false;
-    }
+        _resources.ContainsKey(command.Operation) ? StoreExecutionKind.Inline : StoreExecutionKind.Routine;
 
     private string Render(string stem)
     {

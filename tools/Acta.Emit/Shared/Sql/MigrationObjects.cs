@@ -18,24 +18,25 @@ internal sealed record DialectObjects(IReadOnlyList<SqlObject> Routines, IReadOn
 }
 
 /// <summary>
-/// Reads the routine and operator-view sources kept beside their operations and renders each as a migration
-/// carries it: decode and <c>{{now}}</c> tokens expanded, <c>{{schema}}</c> kept for the runner to substitute.
+/// Reads the routine and operator-view sources and renders each as a migration carries it: decode and <c>{{now}}</c>
+/// tokens expanded, <c>{{schema}}</c> kept for the runner to substitute.
 /// </summary>
 internal static class MigrationObjects
 {
-    private static readonly string[] SqlFolders = ["Operations", "Schema"];
-
     internal static IReadOnlyDictionary<string, DialectObjects> All(string repoRoot) =>
         ProviderCatalog.All.ToDictionary(p => p.Token, p => For(repoRoot, p.Dialect), StringComparer.Ordinal);
 
-    /// <summary>A routine is a file whose first statement creates one; SQLite has none, because it runs every command inline.</summary>
+    /// <summary>
+    /// A routine is an <c>X.routine.{token}.sql</c> file beside its operation, and SQLite has none, because it runs every
+    /// command inline. A view is an <c>XView.{token}.sql</c> file under <c>Schema/Views/</c>.
+    /// </summary>
     internal static DialectObjects For(string repoRoot, SqlDdlDialect dialect)
     {
-        var files = SqlFiles(repoRoot, dialect.ProviderToolName).ToList();
-        var routines = Named(files.Where(f => !IsView(f.Stem) && SqlResourceCatalog.DefinesRoutine(f.Body)))
+        var token = dialect.ProviderToolName;
+        var routines = Named(Files(repoRoot, "Operations", $"*.routine.{token}.sql"))
             .Select(f => new SqlObject(f.Name, Render(f.Body, dialect).Trim()))
             .ToList();
-        var views = Named(files.Where(f => IsView(f.Stem)))
+        var views = Named(Files(repoRoot, Path.Combine("Schema", "Views"), $"*View.{token}.sql"))
             .Select(f => new SqlObject(
                 f.Name,
                 dialect.WrapView($"{SqlDdlDialect.SchemaPlaceholder}.{f.Name}", Render(f.Body, dialect).Trim())
@@ -70,16 +71,19 @@ internal static class MigrationObjects
         return CodeDecodeSql.RenderDecodeTokens(string.Join("\n", lines));
     }
 
-    /// <summary>One dialect's files as Acta embeds them: <c>X.{token}.sql</c> under <c>Operations/</c> and <c>Schema/</c>.</summary>
+    /// <summary>One dialect's operation files, inline and routine alike: <c>X.{token}.sql</c> and <c>X.routine.{token}.sql</c>.</summary>
     internal static IEnumerable<(string Stem, string Body)> SqlFiles(string repoRoot, string token) =>
-        SqlFolders
-            .Select(folder => Path.Combine(repoRoot, "src", "Acta", folder))
-            .Where(Directory.Exists)
-            .SelectMany(root => Directory.EnumerateFiles(root, $"*.{token}.sql", SearchOption.AllDirectories))
-            .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)));
+        Files(repoRoot, "Operations", $"*.{token}.sql");
 
-    // A file whose stem ends in View is an operator view body, installed as x_view.
-    private static bool IsView(string stem) => stem.EndsWith("View", StringComparison.Ordinal);
+    private static IEnumerable<(string Stem, string Body)> Files(string repoRoot, string folder, string pattern)
+    {
+        var root = Path.Combine(repoRoot, "src", "Acta", folder);
+        return Directory.Exists(root)
+            ? Directory
+                .EnumerateFiles(root, pattern, SearchOption.AllDirectories)
+                .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)))
+            : [];
+    }
 
     private static IEnumerable<(string Name, string Body)> Named(IEnumerable<(string Stem, string Body)> files) =>
         files.Select(f => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(f.Stem), f.Body)).OrderBy(o => o.Name, StringComparer.Ordinal);
