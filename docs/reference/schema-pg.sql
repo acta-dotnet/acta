@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 85)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 86)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -2056,27 +2056,6 @@ BEGIN
             ELSE 2 /* CompleteStepOutcomeCode.RetryScheduled */ END::SMALLINT,
             CASE WHEN v_rows = 0 THEN NULL ELSE v_next END;
     END IF;
-END;
-$$;
-
--- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick.
-CREATE OR REPLACE FUNCTION acta.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
-RETURNS TABLE (out_consumed BIGINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_count BIGINT;
-BEGIN
-    DELETE FROM acta.checkpoints c
-    WHERE
-        c.job_id = p_job_id
-        AND c.kind_code = 20 /* CheckpointKindCode.Signal */
-        AND c.name = p_name
-        AND c.version = p_expected_version;
-
-    GET DIAGNOSTICS v_count = ROW_COUNT;
-    RETURN QUERY SELECT v_count;
 END;
 $$;
 
@@ -4237,7 +4216,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.85-8b8597854a220eb4bee6a6a86ba11543', 'acta');
+VALUES (-1, 'objects-1.86-27129e5cac3bec2910edc382d703ecd1', 'acta');
 
 COMMIT;
 

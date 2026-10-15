@@ -1,20 +1,9 @@
--- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick.
-CREATE OR REPLACE FUNCTION {{schema}}.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
-RETURNS TABLE (out_consumed BIGINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_count BIGINT;
-BEGIN
-    DELETE FROM {{schema}}.checkpoints c
-    WHERE
-        c.job_id = p_job_id
-        AND c.kind_code = 20 /* CheckpointKindCode.Signal */
-        AND c.name = p_name
-        AND c.version = p_expected_version;
-
-    GET DIAGNOSTICS v_count = ROW_COUNT;
-    RETURN QUERY SELECT v_count;
-END;
-$$;
+-- Version-CAS consume of an applied operator command: no row back means a newer command superseded
+-- this one mid-apply, and it survives for the next tick.
+DELETE FROM {{schema}}.checkpoints
+WHERE
+    job_id = @p_job_id
+    AND kind_code = 20 /* CheckpointKindCode.Signal */
+    AND name = @p_name
+    AND version = @p_expected_version
+RETURNING 1::BIGINT AS consumed;

@@ -20,7 +20,6 @@ public sealed class SqlCommandCatalogTests
         "ClaimJobs",
         "CompleteExecutions",
         "CompleteStep",
-        "ConsumeOutboxSignal",
         "EnqueueJob",
         "EnqueueJobs",
         "ExtendWorkerLeases",

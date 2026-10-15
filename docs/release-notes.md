@@ -148,7 +148,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
   stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
-  Nineteen routines remain (enqueue, claim, complete, steps, signals, locks and meters, the heartbeat,
+  Eighteen routines remain (enqueue, claim, complete, steps, signals, locks and meters, the heartbeat,
   recovery, retention, and the outbox inbox; see the next bullet for the second pass). A database keeps the routines it already has, so older workers still find them during a rolling deploy;
   drop the retired ones once no older worker runs. The object package moves to revision 47; the minimum
   stays 9.

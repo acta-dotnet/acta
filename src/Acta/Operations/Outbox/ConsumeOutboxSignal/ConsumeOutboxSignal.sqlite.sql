@@ -1,10 +1,9 @@
--- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick.
+-- Version-CAS consume of an applied operator command: no row back means a newer command superseded
+-- this one mid-apply, and it survives for the next tick.
 DELETE FROM {{schema}}.checkpoints
 WHERE
     job_id = @p_job_id
     AND kind_code = 20 /* CheckpointKindCode.Signal */
     AND name = @p_name
-    AND version = @p_expected_version;
-
-SELECT CHANGES() AS consumed;
+    AND version = @p_expected_version
+RETURNING 1 AS consumed;

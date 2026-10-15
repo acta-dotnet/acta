@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 85)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 86)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -2440,41 +2440,6 @@ BEGIN
         SELECT
             @outcome AS outcome_code,
             @next AS next_retry_at_utc;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
--- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick.
-CREATE OR ALTER PROCEDURE acta.consume_outbox_signal
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_expected_version INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DELETE FROM acta.checkpoints
-        WHERE
-            job_id = @p_job_id
-            AND kind_code = 20 /* CheckpointKindCode.Signal */
-            AND name = @p_name
-            AND version = @p_expected_version;
-
-        SELECT CAST(@@ROWCOUNT AS BIGINT) AS consumed;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -4878,9 +4843,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.85-0d40b0350cd9b887c9ff6bca6fe897e8', 'acta'
+SELECT -1, 'objects-1.86-66999c0136f8afbd5e2029912a50c44d', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 28;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 27;
 GO
 COMMIT TRANSACTION;
 GO
