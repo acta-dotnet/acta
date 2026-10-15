@@ -14,7 +14,7 @@
   <!-- Build-time only: derives the package version from git tags (see Directory.Build.props). -->
   <ItemGroup>
     <PackageVersion Include="MinVer" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.402" />
     <!-- Referenced by src/Directory.Build.props for two rules only - the log-field vocabulary gate.
          Pinned rather than floated: the whole rule set arrives with the package, and a version bump
          adds rules that would land as build errors in an unrelated change. -->
@@ -23,42 +23,43 @@
   <!-- Hosting + DI/Options surface. Acta depends on DI/Options abstractions to define
        UseActa(IServiceCollection); consumers bring the full Hosting. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
   </ItemGroup>
   <!-- DB clients used by the provider migration runners + parameter binders. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.0" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
   <!-- Redis client for the Acta.Redis wake transport. -->
   <ItemGroup>
-    <PackageVersion Include="StackExchange.Redis" Version="3.3.1" />
+    <PackageVersion Include="StackExchange.Redis" Version="3.4.5" />
   </ItemGroup>
   <!-- In-process host for Acta.AspNetCore endpoint tests. OpenApi is a test-only reference on
        purpose: the committed contract is generated and drift-checked by a test, so the shipped
        Acta.AspNetCore package carries no OpenAPI dependency for hosts that do not want one. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
-    <!-- Pinned above the transitive 10.0.11 brings in: Microsoft.OpenApi 2.0.0 carries
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <!-- Pinned above the transitive 10.0.11 brought in: Microsoft.OpenApi 2.0.0 carries
          GHSA-v5pm-xwqc-g5wc and the repo audits transitives as errors. -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.12.0" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.12.2" />
     <!-- Pinned above the 9.0.18 Microsoft.Data.SqlClient brings in: it carries GHSA-846f-f764-76mx and
          GHSA-2fmv-rv2c-59x7, and the repo audits transitives as errors. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
   </ItemGroup>
-  <!-- Testing: xunit v3 -->
+  <!-- Testing: xunit v3. Held at 3.2.2: xunit 4 runs only on Microsoft.Testing.Platform, and moving the
+       suites, the runsettings, the coverage leg, and CI onto it is a change of its own. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!-- Attributes-only facade for shared spec libraries that aren't themselves test runners.
          Avoids the Microsoft.Testing.Platform.MSBuild transitive that emits
@@ -69,6 +70,6 @@
     <!-- Coverage instrumentation for the two suites the coverage leg measures (unit + SQLite
          conformance). Referenced only by those two projects, PrivateAssets=all: it is a VSTest
          data collector, never a dependency of anything that ships. -->
-    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
   </ItemGroup>
 </Project>
