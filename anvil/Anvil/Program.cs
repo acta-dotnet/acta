@@ -229,15 +229,12 @@ static async Task RunWorkerAsync(string[] args)
         // worker migration would fight the dashboard's seed for the single write lock and crash on start.
         j.UseLocalDatabase(builder.Configuration, schema, provider, applyMigrations: false);
         j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
-        // A lab worker runs the product's executor default; only a certification run passes --executors. The
-        // deployment version lines the process up with its worker row. Lease/heartbeat/dead-worker windows
-        // stay at the framework production defaults.
+        // A lab worker runs the product's executor default, stated here because UseLocalDatabase caps the concept
+        // programs at four; only a certification run passes --executors. The deployment version lines the process up
+        // with its worker row. Lease/heartbeat/dead-worker windows stay at the framework production defaults.
         j.ConfigureOptions(o =>
         {
-            if (executors is { } slots)
-            {
-                o.MaxConcurrentExecutors = slots;
-            }
+            o.MaxConcurrentExecutors = executors ?? new JobsOptions().MaxConcurrentExecutors;
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
             o.DeploymentVersion = workerName;
         });
