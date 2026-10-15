@@ -102,7 +102,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcquireLock` | · | · | · | routine | routine | inline | `locks` | `AcquireLockSpec` |
 | `AcquireSlot` | · | · | · | routine | routine | inline | `locks` | `AcquireSlotSpec` |
-| `ReleaseLock` | · | · | · | routine | routine | inline | `locks` | `ReleaseLockSpec` |
+| `ReleaseLock` | · | · | · | inline | inline | inline | `locks` | `ReleaseLockSpec` |
 | `ReserveRate` | · | · | · | routine | routine | inline | `locks` | `ReserveRateSpec` |
 
 ## Maintenance

@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 87)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 88)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4361,33 +4361,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.release_lock
-    @p_lock_key VARCHAR(256),
-    @p_hold_token UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DELETE FROM acta.locks
-        OUTPUT DELETED.hold_token
-        WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
@@ -4780,9 +4753,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.87-68f4f14080cc064e9d024055c3503d1b', 'acta'
+SELECT -1, 'objects-1.88-5b97bca240c19ffc99999a26e4dc3a19', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 26;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'reserve_rate', 'start_step', 'wait_signal')) = 25;
 GO
 COMMIT TRANSACTION;
 GO

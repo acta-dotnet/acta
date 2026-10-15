@@ -5,7 +5,7 @@ everything else through embedded SQL and installed views; SQLite runs every muta
 inside a transaction the session owns.
 
 This is the execution policy referenced by [the design decisions](design.md). The server providers
-each install seventeen routines: enqueue, claim, complete (one batch call for every completion shape), the step
+each install sixteen routines: enqueue, claim, complete (one batch call for every completion shape), the step
 and slot writes, leases, locks and meters, job signals and sleep timers, recovery, and retention. Every other
 operation, registration, alerts, the outbox inbox, and control verbs included, is embedded SQL on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,

@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 87)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 88)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3795,18 +3795,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.release_lock(
-    p_lock_key VARCHAR,
-    p_hold_token UUID
-)
-RETURNS TABLE (hold_token UUID)
-LANGUAGE sql
-AS $$
-    DELETE FROM acta.locks
-    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
-    RETURNING hold_token;
-$$;
-
 -- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
@@ -4173,7 +4161,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.87-e07a2f4460c9add8cc5f65bfcbb39070', 'acta');
+VALUES (-1, 'objects-1.88-fc0a1e2b84e566aa09690736a650791b', 'acta');
 
 COMMIT;
 
