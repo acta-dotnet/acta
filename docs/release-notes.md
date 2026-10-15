@@ -7,6 +7,24 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **Migrations are named by datetime, and the history table is two columns.** A migration is
+  `M{yyyyMMddHHmmss}_{name}.sql`, the first one `M20261015185851_init`, and there is no running
+  counter. The `migrations` table is `name` and `applied_at_utc`; `version` and `installed_schema`
+  are gone, and so are the two sentinel rows, the baseline stamp at version 0 and the object package
+  at version -1. Startup checks one thing: every migration this build ships has a row. Rows it does
+  not ship are tolerated. **Drop and reprovision every database**, including one an earlier rc.5
+  build provisioned: the table shape moved and nothing translates it.
+- **Routines and views travel inside migrations.** The bootstrap applies migrations and nothing else.
+  The installer that rewrote every routine and view body at startup is gone, with the object package,
+  its contract major and revision, `ObjectPackageHashes.g.cs`, `object-packages.json`, and
+  `Acta.Emit objects record`. A routine or view edit is a migration: `schema add --name <n>` drafts
+  the changed bodies after the table delta. Routine sources are `X.routine.{pg,mssql}.sql` and, like
+  the view sources, no longer ship in `Acta.dll`; a command with no embedded SQL file for the dialect
+  executes as the routine of that name. The published provisioning scripts lose their views, routines,
+  and package sections, and refuse a database holding a migration they do not ship.
+- **`schema amend` is gone.** To redo an unshipped migration, `git checkout` the snapshot, delete the
+  migration's files, and run `schema add` again. `--name` is required after the baseline and refused
+  before it.
 - **`DriverVersionPolicy` is gone.** A provider that loads a database driver whose major version differs
   from the one Acta was certified on now logs one warning naming both and keeps running; it no longer
   refuses to start. Remove any `DriverVersionPolicy` setting from the provider options.
@@ -33,15 +51,13 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `deduplication_key` and `concurrency_key` the collation `Latin1_General_100_BIN2_UTF8`, as the shipped
   DDL now does: on SQL Server every compared key column (`jobs.deduplication_key`, `jobs.concurrency_key`,
   `locks.lock_key`, `alerts.deduplication_key`, and the matching table-type columns) is binary-collated,
-  which is what makes a key case-exact there. The baselines are re-cut and the object package moves
-  to revision 60.
+  which is what makes a key case-exact there. The baselines are re-cut.
 - **SQL Server table types and three routines are named verb first.** A direct-SQL enqueue on SQL Server
   declares `acta.enqueue_tags_batch` and, for a batch, `acta.enqueue_jobs_batch`, instead of
   `job_enqueue_tag_batch` and `job_enqueue_batch`. The other types follow the routine that takes them
   (`register_definitions_batch`, `register_schedules_batch`, `register_slots_batch`,
   `advance_schedules_batch`), and `claim_batch`, `claim_one`, and `checkpoint_slot` are now `claim_jobs`,
-  `claim_job`, and `access_checkpoint`. The SQL Server baseline is re-cut, and the object package moves
-  to revision 58.
+  `claim_job`, and `access_checkpoint`. The SQL Server baseline is re-cut.
 - **Execution profiles and `ClaimBatchSize` are gone.** `JobsOptions.ExecutionProfile`, the
   `ExecutionProfile` enum (Buffered, Direct, and Bulk), and `JobsOptions.ClaimBatchSize` are removed;
   delete those settings. A worker claims a row for every free executor, up to `MaxConcurrentExecutors`,
@@ -50,8 +66,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   engine" below), so a crash re-runs only the handlers whose completions had not been written yet.
 - **`Dispatched` is gone.** A claim moves a job straight to `Executing`, so `JobStatusCode.Dispatched`
   (code 40) no longer exists, `jobs_view` and the HTTP API never report `dispatched`, and a query that
-  filtered on `dispatched` or `executing` filters on `executing` alone. The baselines are re-cut and the
-  object package moves to revision 76.
+  filtered on `dispatched` or `executing` filters on `executing` alone. The baselines are re-cut.
 - **`sys.recovery` is gone.** Crash recovery runs on the workers' heartbeat instead of a recurring job (see
   "Execution engine" below), so the `sys.recovery` definition, its slot, and its schedule no longer exist. A
   script or dashboard that triggered, paused, or filtered on that job has nothing to address: recovery runs
@@ -73,8 +88,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **One control vocabulary.** `AdminControlAction` is gone: the tenant and namespace verbs
   answer with `ControlAction`, which gains `AlreadyInState = 6`, and `VersionConflict` is 5 for every
   verb (the admin enum had 4). The JSON strings do not change. The routines behind those verbs now
-  return the new values, so the object package moves to revision 9 and a host refuses a database whose
-  installed objects are older; apply `docs/reference/schema-<provider>.sql` before starting it.
+  return the new values; apply `docs/reference/schema-<provider>.sql` before starting it.
 - **HTTP control responses are the public results.** A control endpoint answers with the same record
   its `I*` verb returns, so the `message` text is gone from job, schedule, outbox, and definition
   responses (the dashboard words outcomes itself), a job control no longer echoes `jobRef`, and a
@@ -120,7 +134,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Durable settings are gone.** `IActaOperations.Settings`, `ISettings`, `SettingDetail`,
   `SettingScopeCode`, and the `setting.updated` event (160) are removed, with the `settings` table and
   the `set_setting` routine. Nothing in Acta read a setting; keep such values in your own table or in
-  configuration. The object package moves to revision 12.
+  configuration.
 - **Code columns no longer carry value-list CHECKs.** The `ck_<table>_<column>` constraints that
   listed each code column's ids are gone from the baseline and from the outbox DDL
   (`ck_<table>_priority_code`, `ck_<table>_status_code`), so a new code value needs no migration.
@@ -130,8 +144,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   family's default (`JobPriorityCode.Bulk`, `DefinitionAuditLevelCode.Off`) or, where none fits, a new
   `Unspecified = 0`; an `Unspecified` deadline-behavior override means no override.
   `CodeKindAttribute.Extensible` is gone, since every family now behaves the way it did. The OpenAPI
-  enums list `unspecified`. The object package hash now covers the operator views' expanded code
-  labels, so the package moves to revision 13; the minimum stays 9.
+  enums list `unspecified`.
 - **Code families are named by the table they describe.** `JobCheckpointKindCode`,
   `JobCheckpointStatusCode`, `JobDefinitionStatusCode`, `JobStepStatusCode`, and `JobEventReasonCode`
   drop the `Job` prefix, and `JobAuditLevelCode` and `JobTenantRequirementCode` become
@@ -151,8 +164,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   Fourteen routines remain (enqueue, claim, complete, steps, checkpoints, job signals and sleep timers,
   meters, the heartbeat, recovery, and retention; see the next bullet for the later passes). A database
   keeps the routines it already has, so older workers still find them during a rolling deploy; drop the
-  retired ones once no older worker runs. The object package moves to revision 47; the minimum
-  stays 9.
+  retired ones once no older worker runs.
 - **Two later passes moved ten more cold routines inline.** `claim_job` (only RunOnce, `jobs debug`, and the
   test host claim by id), `mark_dead_workers`, `raise_alert`, `resolve_alerts`, `update_alert_delivery`,
   `register_definitions`, and `register_schedules` run as inline SQL on PostgreSQL and SQL Server, as they
@@ -166,7 +178,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   run only when a handler asks for a lock or a definition declares a concurrency key, never on the claim
   path. Measured per call on an idle box, PostgreSQL pays about ten microseconds to parse a statement it no
   longer has cached as a function body, and SQL Server saves about sixty on the one that was a single
-  statement, because the procedure ceremony goes with it. The object package moves to revision 90.
+  statement, because the procedure ceremony goes with it.
 - **Return types take one suffix per role.** What the handler waits return takes the `Outcome` noun of
   `JoinOutcome` and `MapOutcome`: `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with
   `SignalWaitResult<T>`) are now `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
@@ -184,8 +196,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `enqueue_one` and `enqueue_batch` are now `enqueue_job` and `enqueue_jobs`, so a direct SQL enqueue calls
   `enqueue_job`, and a database provisioned from the previous `docs/reference/schema-<provider>.sql` runs the
   new one before this build starts. The old routines stay installed for older workers during a rolling deploy;
-  drop them once none runs. The object package moves to revision 49; the minimum stays 9. It moves to revision 50 for a
-  comment-only edit of `repair_recovery_slot`, `wait_signal`, and `arm_or_consume_sleep_timer`.
+  drop them once none runs.
 - **Each list returns its own response.** `PagedResult<T>` is gone. Every list method returns its own
   `ListXResponse`, named for the operation, which implements the new `IPagedResponse<T>` with the same five
   members, and its element is `ListXItem`: `ILedger.ListJobsAsync` returns `ListJobsResponse` and
@@ -272,7 +283,7 @@ settles, and what an operator sees when it fails.
   instant. Against the build before the fold, in interleaved rounds on one machine: PostgreSQL drain and
   throughput within 1.5% either way and latency 3% better; SQL Server drain and latency within 2% and
   throughput inside its run-to-run spread, -3% to +3% back to back; SQLite drained 8% to 13% faster
-  before the sync change below. The object package moves to revision 74.
+  before the sync change below.
 - **Definition policy reloads on the heartbeat.** The call also answers the namespace's newest
   definition change, and the worker re-reads its effective policy only when that moved: an override
   reaches every worker within one heartbeat, and the one-second policy-reload loop is gone.
@@ -281,8 +292,7 @@ settles, and what an operator sees when it fails.
   to keep a claimed-but-not-running status visible for milliseconds. Every claim now moves its rows
   straight to Executing and writes the started event in the same statement, as Direct did, and
   `start_execution`, the profiles, `ClaimBatchSize`, and the claim's `version` column are gone. Recovery
-  charges every stranded attempt, since every claimed attempt has started. The object package moves to
-  revisions 75 and 76.
+  charges every stranded attempt, since every claimed attempt has started.
 - **An attempt cancels on its own lease deadline.** Each claim carries a deadline armed from the claim's
   request start and re-armed by the heartbeat on every confirmed renewal, half the base runway before
   the lease lapses, so a database outage stops the handler with nothing watching; the watchdog loop is
@@ -325,8 +335,7 @@ settles, and what an operator sees when it fails.
   and deletes its own namespace's expired jobs as before; a job now goes within one walk of its
   deadline rather than at the next tick. The SQL Server drain at sixteen workers ran about 8%
   faster; PostgreSQL is unchanged. `purge_expired_data` takes the cursor (`p_before_job_id`,
-  default 0) and answers where the walk stopped. The baselines are re-cut and the object package
-  moves to revision 61.
+  default 0) and answers where the walk stopped. The baselines are re-cut.
 - **SQLite syncs every commit.** The Direct profile ran SQLite with `synchronous = NORMAL`, so a power
   loss or an OS crash could drop the last commits, a finished job's result among them. Every connection
   now runs with `synchronous = FULL`. Completions commit in batches, so a busy worker pays one sync per
@@ -359,12 +368,12 @@ settles, and what an operator sees when it fails.
 - **The SQL Server claim no longer deadlocks with an operator verb.** The claim held update locks on
   claim-index keys and then waited for each row, while a verb that changes a due Ready row locks the
   row first and the key after. The claim's update now skips a row another transaction holds, and does
-  not claim it. The object package moves to revision 69.
+  not claim it.
 - **Recovery reads only the in-flight rows on PostgreSQL and SQLite.** Its reads of stuck jobs left out
   `leased_by_worker_id IS NOT NULL`, part of `ix_runtimes_worker_inflight`'s filter, so neither planner
   could use the partial index and every recovery pass scanned all of `runtimes`, retained rows included.
   The reads now restate the filter, and plan tests on both providers pin the index. SQL Server already
-  named the index. The object package moves to revision 62.
+  named the index.
 - **Raising or resolving an alert no longer deadlocks against a purge of its job on PostgreSQL.** The
   two routines took the job row `FOR KEY SHARE`, and PostgreSQL's key-share path can join a `FOR UPDATE`
   taken while it rechecks the row instead of waiting for it. They now take `FOR SHARE`. A deadlock was

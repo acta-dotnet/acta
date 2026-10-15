@@ -2,7 +2,7 @@
 
 Runs a real previous release and the current tree against one database, the way a rolling deploy
 does, and records the outcome. It is the evidence behind the deploy shapes the production guide
-supports and behind the object-package check at startup, taken from two generations of binaries
+supports and behind the migration-history check at startup, taken from two generations of binaries
 rather than one runtime under two manifests.
 
 ```powershell
@@ -65,7 +65,7 @@ To exercise the phase before then, run it with `-PreviousRef HEAD`.
 ## What it does not claim
 
 It covers one pair of generations and three profiles, not every historical combination. The startup
-check compares the recorded package identity, not routine bodies, so it does not detect a routine
+check reads migration names, not routine bodies, so it does not detect a routine
 edited by hand after provisioning; the production guide's deployment rules still carry that. A
 previous worker that passes here runs correctly on the upgraded objects; it does not gain the current
 release's behaviour.

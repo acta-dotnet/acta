@@ -66,7 +66,7 @@ For pipelines and DBAs that run reviewed SQL rather than application code, the r
 complete provisioning scripts at
 [`schema-pg.sql`](../reference/schema-pg.sql), [`schema-mssql.sql`](../reference/schema-mssql.sql),
 [`schema-sqlite.sql`](../reference/schema-sqlite.sql): one file per provider carrying the migration
-history, every migration, and all operator views and routines, ready to review and run under a
+history and every migration, routines and views inside them, ready to review and run under a
 DDL-capable principal (replace the default schema name throughout to relocate). With the database
 provisioned that way, the application principal needs only DML and EXECUTE on the Acta schema and
 never issues DDL. The scripts record the migration history themselves, so a bootstrap accepts the
@@ -137,8 +137,8 @@ What holds while both builds run:
   pause the job rather than the schedule to hold it across a rollback.
 - Migrations are forward-only and additive, so an older worker runs against a newer schema. Apply
   the migration before the new build starts.
-- Nothing older overwrites a database a newer build upgraded. An older build's bootstrap leaves the
-  newer views and routines in place, and an older release's provisioning script stops before
+- Nothing older overwrites a database a newer build upgraded. An older build's bootstrap applies only
+  the migrations the database lacks, and an older release's provisioning script stops before
   changing anything, so a rollback never rewrites what the newer build calls. On SQLite the script
   stops only in a client that halts on an error, such as `sqlite3 -bail`.
 
