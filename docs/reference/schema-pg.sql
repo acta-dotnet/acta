@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 84)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 85)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3859,51 +3859,6 @@ BEGIN
 END;
 $$;
 
--- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
--- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
-CREATE OR REPLACE FUNCTION acta.record_outbox_event(
-    p_job_id BIGINT,
-    p_event_code SMALLINT,
-    p_actor_code SMALLINT,
-    p_actor VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS VOID
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        reason_message)
-    SELECT
-        p_event_code,
-        now(),
-        j.namespace_id,
-        p_actor_code,
-        p_actor,
-        j.id,
-        j.job_ref,
-        r.execution_number,
-        COALESCE(j.lineage_root_id, j.id),
-        j.definition_id,
-        j.tenant_id,
-        p_reason_message
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_job_id;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.release_lock(
     p_lock_key VARCHAR,
     p_hold_token UUID
@@ -4282,7 +4237,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.84-da96d8b93d08b2e788cd960de0b74d9c', 'acta');
+VALUES (-1, 'objects-1.85-8b8597854a220eb4bee6a6a86ba11543', 'acta');
 
 COMMIT;
 

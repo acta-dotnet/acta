@@ -1,58 +1,32 @@
 -- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
 -- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
-CREATE OR ALTER PROCEDURE {{schema}}.record_outbox_event
-    @p_job_id BIGINT,
-    @p_event_code SMALLINT,
-    @p_actor_code TINYINT,
-    @p_actor NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        INSERT INTO {{schema}}.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            reason_message)
-        SELECT
-            @p_event_code,
-            SYSUTCDATETIME(),
-            j.namespace_id,
-            @p_actor_code,
-            @p_actor,
-            j.id,
-            j.job_ref,
-            r.execution_number,
-            COALESCE(j.lineage_root_id, j.id),
-            j.definition_id,
-            j.tenant_id,
-            @p_reason_message
-        FROM {{schema}}.jobs j
-        JOIN {{schema}}.runtimes r ON r.job_id = j.id
-        WHERE j.id = @p_job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
+INSERT INTO {{schema}}.events (
+    event_code,
+    created_at_utc,
+    namespace_id,
+    actor_code,
+    actor,
+    job_id,
+    job_ref,
+    execution_number,
+    lineage_root_id,
+    definition_id,
+    tenant_id,
+    reason_message
+)
+SELECT
+    @p_event_code,
+    SYSUTCDATETIME(),
+    j.namespace_id,
+    @p_actor_code,
+    @p_actor,
+    j.id,
+    j.job_ref,
+    r.execution_number,
+    COALESCE(j.lineage_root_id, j.id),
+    j.definition_id,
+    j.tenant_id,
+    @p_reason_message
+FROM {{schema}}.jobs j
+JOIN {{schema}}.runtimes r ON r.job_id = j.id
+WHERE j.id = @p_job_id;

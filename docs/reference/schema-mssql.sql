@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 84)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 85)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4459,64 +4459,6 @@ BEGIN
     END CATCH;
 END;
 GO
--- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
--- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
-CREATE OR ALTER PROCEDURE acta.record_outbox_event
-    @p_job_id BIGINT,
-    @p_event_code SMALLINT,
-    @p_actor_code TINYINT,
-    @p_actor NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            reason_message)
-        SELECT
-            @p_event_code,
-            SYSUTCDATETIME(),
-            j.namespace_id,
-            @p_actor_code,
-            @p_actor,
-            j.id,
-            j.job_ref,
-            r.execution_number,
-            COALESCE(j.lineage_root_id, j.id),
-            j.definition_id,
-            j.tenant_id,
-            @p_reason_message
-        FROM acta.jobs j
-        JOIN acta.runtimes r ON r.job_id = j.id
-        WHERE j.id = @p_job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.release_lock
     @p_lock_key VARCHAR(256),
     @p_hold_token UNIQUEIDENTIFIER
@@ -4936,9 +4878,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.84-fd6ccfcbed8755a0fe47b493e68cb9fa', 'acta'
+SELECT -1, 'objects-1.85-0d40b0350cd9b887c9ff6bca6fe897e8', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 29;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 28;
 GO
 COMMIT TRANSACTION;
 GO

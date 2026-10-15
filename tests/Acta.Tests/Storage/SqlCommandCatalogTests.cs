@@ -28,7 +28,6 @@ public sealed class SqlCommandCatalogTests
         "PurgeExpiredData",
         "RaiseSignal",
         "ReclaimStuckJobs",
-        "RecordOutboxEvent",
         "ReleaseLock",
         "ReserveRate",
         "StartStep",
