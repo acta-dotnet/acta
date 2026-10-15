@@ -3,7 +3,7 @@ namespace Acta.SqlServer;
 /// <summary>
 /// Emits the canonical SQL Server <c>acta_outbox</c> CREATE script for producer-owned migration systems: a plain,
 /// non-idempotent script (the producer's migration tool owns run-once semantics) with the CREATE TABLE in
-/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the eight named safety
+/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the six named
 /// checks. Acta never executes it; the producer pipes it into DbUp, Flyway, EF <c>migrationBuilder.Sql(...)</c>, or a
 /// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
 /// and staging extension; with no schema the table reference is left unqualified for the login default to resolve.

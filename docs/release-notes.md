@@ -7,6 +7,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **The SQLite outbox DDL uses `INTEGER PRIMARY KEY AUTOINCREMENT` and `STRICT`.** `SqliteOutboxDdl.CreateScript`
+  now emits the same SQLite shape as the ledger baseline. A table created by the earlier script keeps
+  working; recreate it only if you want ids that are never reused.
 - **One options type for every SQL provider.** `UsePostgres`, `UseSqlServer`, and `UseSqlite` take
   `Action<SqlProviderOptions>`; `PostgresProviderOptions`, `SqlServerProviderOptions`, and
   `SqliteProviderOptions` are gone. A lambda that sets `ConnectionString`, `Schema`, or

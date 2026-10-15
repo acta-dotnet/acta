@@ -4,7 +4,7 @@ namespace Acta.Sqlite;
 /// Emits the canonical SQLite <c>acta_outbox</c> CREATE script for producer-owned migration systems. A
 /// plain, non-idempotent migration script (the producer's migration tool owns run-once semantics): the
 /// canonical CREATE TABLE with SQLite storage affinities and ISO-text UTC clock defaults, the keys,
-/// the three named claim indexes, and the eight named safety checks. Acta never executes it; the producer
+/// the three named claim indexes, and the six named checks. Acta never executes it; the producer
 /// pipes it into its own migration system. SQLite has no schema namespace, so the script takes a table
 /// name only, validated by the same lowercase identifier rule as the relay source and staging extension.
 /// </summary>
@@ -18,12 +18,11 @@ public static class SqliteOutboxDdl
         // objects; the default table yields exactly the canonical names. SQLite INTEGER has no unsigned-byte
         // type, so input_format_id's 0-255 range is enforced by an explicit check (mssql tinyint does this by
         // type) to keep the claim projection's Convert.ToByte from ever overflowing.
-        // id is the rowid under its own name (an INTEGER primary key is the rowid) and the staging order:
-        // each insert gets an id above every live row, and every index ends in it, so ix_{table}_due serves
-        // the claim order and ix_{table}_lane the lane check as they stand.
+        // id is the rowid under its own name and, with AUTOINCREMENT, the staging order: every index ends in it,
+        // so ix_{table}_due serves the claim order and ix_{table}_lane the lane check as they stand.
         return $"""
             CREATE TABLE {table} (
-                id INTEGER NOT NULL,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 outbox_id TEXT NOT NULL,
                 job_namespace TEXT NOT NULL,
                 job_name TEXT NOT NULL,
@@ -45,7 +44,6 @@ public static class SqliteOutboxDdl
                 next_attempt_at_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
                 claim_token TEXT NULL,
                 claim_until_utc TEXT NULL,
-                CONSTRAINT pk_{table} PRIMARY KEY (id),
                 CONSTRAINT uq_{table}_outbox_id UNIQUE (outbox_id),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
@@ -57,7 +55,7 @@ public static class SqliteOutboxDdl
                 CONSTRAINT ck_{table}_claim_pair CHECK (
                     (status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)
                     OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
-            );
+            ) STRICT;
             CREATE INDEX ix_{table}_due ON {table}
                 (status_code, next_attempt_at_utc);
             CREATE INDEX ix_{table}_claims ON {table} (status_code, claim_until_utc);

@@ -419,8 +419,7 @@ Three canonical claim indexes carry fixed short names so provider truncation nev
 `id` to the rowid every index ends with), `ix_acta_outbox_claims` is `(status_code, claim_until_utc)` for
 expired claims, and `ix_acta_outbox_lane` is `(job_namespace, lane, id)` for the lane check.
 Check constraints enforce the payload format/data pair, non-negative delay and failure count, the mutual
-exclusion of `next_run_at_utc` and `delay_seconds`, the allowed priority and status codes, valid
-JSON when `meta` is non-null (a non-object root is quarantined by the relay), and the status/claim-field invariant (Claimed requires both
+exclusion of `next_run_at_utc` and `delay_seconds`, valid JSON when `meta` is non-null (a non-object root is quarantined by the relay), and the status/claim-field invariant (Claimed requires both
 claim fields; Pending and Quarantined require both null).
 
 `meta.tags` is an ordered JSON array of `{"name": ..., "value": ...}` objects (`value` is a string or JSON
