@@ -38,10 +38,12 @@ public sealed class SqlServerLockContentionTests
                 ct
             );
 
+            // The batch the worker sends, barrier injected: run as ad-hoc text with bound parameters, as it runs in
+            // production, so what contends here is the shipped statement order and nothing a test wrapper added.
             var body = ProviderSqlResources.Read("mssql", "AcquireLock");
             const string insert = "INSERT INTO {{schema}}.locks";
             Assert.Contains(insert, body, StringComparison.Ordinal);
-            // Pause the actual routine after its miss decision. All contenders must reach this point
+            // Pause the shipped batch after its miss decision. All contenders must reach this point
             // before any INSERT runs. A held gap lock prevents that for distinct keys in the same gap;
             // same-key contenders force the duplicate-key path after the gate opens.
             body = body.Replace(
@@ -57,9 +59,6 @@ public sealed class SqlServerLockContentionTests
                     StringComparison.Ordinal
                 )
                 .Replace("{{schema}}", schema, StringComparison.Ordinal);
-            body = string.Join('\n', body.Split('\n').Where(line => !line.Trim().Equals("GO", StringComparison.OrdinalIgnoreCase)));
-            await ExecuteAsync(admin, body, ct);
-
             await ExecuteAsync(
                 admin,
                 $"EXEC sys.sp_getapplock @Resource = N'{gate}', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 30000;",
@@ -85,8 +84,7 @@ public sealed class SqlServerLockContentionTests
                     };
                     await connection.OpenAsync(ct);
                     await using var command = connection.CreateCommand();
-                    command.CommandText = schema + ".acquire_lock";
-                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = body;
                     command.Parameters.Add(
                         new SqlParameter("@p_lock_key", SqlDbType.VarChar, 256) { Value = sameKey ? "m.same" : $"m.{index}" }
                     );
@@ -136,11 +134,7 @@ public sealed class SqlServerLockContentionTests
         }
         finally
         {
-            await ExecuteAsync(
-                admin,
-                $"DROP PROCEDURE IF EXISTS {schema}.acquire_lock; DROP TABLE IF EXISTS {schema}.locks; DROP SCHEMA {schema};",
-                CancellationToken.None
-            );
+            await ExecuteAsync(admin, $"DROP TABLE IF EXISTS {schema}.locks; DROP SCHEMA {schema};", CancellationToken.None);
         }
     }
 

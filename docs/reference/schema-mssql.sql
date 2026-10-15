@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 88)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 89)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1189,64 +1189,6 @@ BEGIN
         IF @entry_trancount = 0 AND XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
         THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.acquire_lock
-    @p_lock_key VARCHAR(256),
-    @p_job_id BIGINT,
-    @p_lease_ttl_seconds INT,
-    @p_hold_token UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @out TABLE (hold_token UNIQUEIDENTIFIER);
-
-        -- Point update, then insert on a miss. The primary key arbitrates new-key races;
-        -- serializable gap locking would serialize unrelated lock keys in the same index gap.
-        UPDATE acta.locks
-        SET
-            job_id = @p_job_id,
-            expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
-            hold_token = @p_hold_token
-        OUTPUT INSERTED.hold_token INTO @out
-        WHERE
-            lock_key = @p_lock_key
-            AND expires_at_utc <= @now;
-
-        IF @@ROWCOUNT = 0 AND NOT EXISTS (
-            SELECT 1 FROM acta.locks
-            WHERE lock_key = @p_lock_key
-        )
-            BEGIN
-                INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                OUTPUT INSERTED.hold_token INTO @out
-                VALUES (@p_lock_key, @p_job_id, DATEADD(SECOND, @p_lease_ttl_seconds, @now), @p_hold_token);
-            END;
-
-        SELECT hold_token FROM @out;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-
-        -- A duplicate-key loser acquired nothing. XACT_ABORT requires rollback before returning
-        -- that ordinary miss; an outer transaction's owner must handle its own aborted transaction.
-        IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-            SELECT CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token WHERE 1 = 0;
-        ELSE
-            THROW;
     END CATCH;
 END;
 GO
@@ -4753,9 +4695,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.88-5b97bca240c19ffc99999a26e4dc3a19', 'acta'
+SELECT -1, 'objects-1.89-bcd8a237b38e14e1eb0e9d23cd2cdacb', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'reserve_rate', 'start_step', 'wait_signal')) = 25;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'reserve_rate', 'start_step', 'wait_signal')) = 24;
 GO
 COMMIT TRANSACTION;
 GO

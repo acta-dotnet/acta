@@ -14,7 +14,6 @@ public sealed class SqlCommandCatalogTests
     private static readonly string[] InstalledRoutines =
     [
         "AccessCheckpoint",
-        "AcquireLock",
         "AcquireSlot",
         "ArmOrConsumeSleepTimer",
         "ClaimJobs",
