@@ -15,7 +15,6 @@ internal static partial class SqlServerSchemaMigrator
         ProviderAssembly: typeof(SqlServerSchemaMigrator).Assembly,
         DialectToken: "mssql",
         SplitBatches: SplitOnGo,
-        RequiredBaselineStamp: BaselineStamps.Mssql,
         PreludeSql: "SET QUOTED_IDENTIFIER ON; SET ANSI_NULLS ON;"
     );
 

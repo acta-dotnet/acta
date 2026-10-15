@@ -123,7 +123,7 @@ internal static class MigrationDeltaEmitter
 
         // Self-stamp so the runner records this version as applied (else it re-runs every boot).
         sb.AppendLine();
-        sb.AppendLine(dialect.MigrationStamp(version, name, stamp: null));
+        sb.AppendLine(dialect.MigrationStamp(version, name));
         SqlSchemaEmitter.AppendTerminator(sb, dialect);
 
         return sb.ToString();

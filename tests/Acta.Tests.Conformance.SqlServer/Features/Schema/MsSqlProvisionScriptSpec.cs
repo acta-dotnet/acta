@@ -52,11 +52,10 @@ public sealed partial class MsSqlProvisionScriptSpec
                 }
             }
 
-            // One history row per migration section in the file plus the version-0 baseline-stamp
-            // row, no more (the double run must not stamp anything twice), counted from the
-            // script's own BEGIN banners.
-            var migrations = BeginBanner().Matches(published).Count + 1;
-            Assert.True(migrations > 1, "the published script contains no migration banners");
+            // One history row per migration section in the file, no more (the double run must not
+            // stamp anything twice), counted from the script's own BEGIN banners.
+            var migrations = BeginBanner().Matches(published).Count;
+            Assert.True(migrations > 0, "the published script contains no migration banners");
 
             await using var probe = conn.CreateCommand();
             probe.CommandText =

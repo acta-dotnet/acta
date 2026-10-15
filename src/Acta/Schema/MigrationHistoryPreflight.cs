@@ -5,15 +5,15 @@ namespace Acta;
 
 /// <summary>
 /// The read-only check every provider bootstrap runs, whether or not it applies migrations: the
-/// database's migration history must carry this build's baseline stamp and already contain every
-/// migration this build ships. No lock, no transaction, no writes.
+/// database's migration history must already contain every migration this build ships, each under
+/// the name this build ships it. No lock, no transaction, no writes.
 /// </summary>
 internal static class MigrationHistoryPreflight
 {
     // A host with ApplyMigrationsOnStartup = false - what production is told to run - reached the
-    // stamp and name checks only through the apply path it never takes, so the failure those checks
-    // exist for (a worker pointed at a database from another baseline generation) surfaced at the
-    // first real query instead of at startup. This makes the same comparisons unconditionally.
+    // name check only through the apply path it never takes, so a database holding a migration re-cut
+    // after it was applied surfaced at the first real query instead of at startup. This makes the
+    // same comparison unconditionally.
     //
     // History rows this build knows nothing about are accepted on purpose: an older worker against a
     // newer database is a supported, tested deployment shape, so only missing versions are a failure.
@@ -37,27 +37,15 @@ internal static class MigrationHistoryPreflight
         }
 
         var applied = await schema.LoadAppliedVersionsAsync(transaction: null, ct);
-        Verify(
-            SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly),
-            applied.Versions,
-            hooks.DialectToken,
-            hooks.RequiredBaselineStamp
-        );
+        Verify(SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly), applied.Versions, hooks.DialectToken);
     }
 
     /// <summary>
-    /// The three verdicts, in the order an operator can act on them: wrong baseline generation, a
-    /// migration re-cut after this database applied it, then a migration this build ships that the
-    /// database has never applied.
+    /// The two verdicts, in the order an operator can act on them: a migration re-cut after this
+    /// database applied it, then a migration this build ships that the database has never applied.
     /// </summary>
-    internal static void Verify(
-        IReadOnlyList<SchemaMigration> migrations,
-        IReadOnlyDictionary<int, string> applied,
-        string dialectToken,
-        string requiredStamp
-    )
+    internal static void Verify(IReadOnlyList<SchemaMigration> migrations, IReadOnlyDictionary<int, string> applied, string dialectToken)
     {
-        SchemaMigrationRunner.VerifyBaselineStamp(applied, requiredStamp);
         SchemaMigrationRunner.VerifyAppliedNames(migrations, applied);
 
         var missing = migrations.Where(m => !applied.ContainsKey(m.Version)).ToList();

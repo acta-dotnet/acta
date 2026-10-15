@@ -36,7 +36,6 @@ internal static class SchemaMigrationRunner
             await schema.EnsureMigrationsAsync(tx, ct);
             var applied = (await schema.LoadAppliedVersionsAsync(tx, ct)).Versions;
 
-            VerifyBaselineStamp(applied, hooks.RequiredBaselineStamp);
             VerifyAppliedNames(migrations, applied);
 
             foreach (var migration in migrations.Where(m => !applied.ContainsKey(m.Version)))
@@ -67,32 +66,10 @@ internal static class SchemaMigrationRunner
     }
 
     /// <summary>
-    /// The version-0 sentinel row carries the baseline stamp; a non-empty history without it, or with a different
-    /// stamp, was built by another baseline generation (the pre-sentinel bookkeeping shape included) and cannot be
-    /// translated onto this build's schema: every baseline statement is existence-guarded, so such a database would
-    /// take this build's baseline as a no-op and keep running the shape it has. Refusing turns that silence into a
-    /// verdict. Shared with <see cref="MigrationHistoryPreflight"/> so the apply path and the always-runs read-only
-    /// preflight cannot drift into two verdicts on the same history.
-    /// </summary>
-    internal static void VerifyBaselineStamp(IReadOnlyDictionary<int, string> applied, string requiredStamp)
-    {
-        if (applied.Count == 0 || string.Equals(applied.GetValueOrDefault(0), requiredStamp, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var recorded = applied.GetValueOrDefault(0) ?? applied.GetValueOrDefault(1) ?? "unknown";
-        throw new InvalidOperationException(
-            $"This database was built from Acta baseline '{recorded}', but this build ships baseline "
-                + $"'{requiredStamp}'. One baseline carries no translation path onto another, so drop and "
-                + "reprovision the database to move to this build."
-        );
-    }
-
-    /// <summary>
-    /// Every migration persists its bare snake name (the baseline stamp lives in the version-0
-    /// sentinel row, checked separately); a mismatch means the on-disk migration was re-cut after
-    /// this database already applied it - skipping silently would hide real drift.
+    /// Every migration persists its bare snake name; a mismatch means the on-disk migration was re-cut
+    /// after this database already applied it - skipping silently would hide real drift. Shared with
+    /// <see cref="MigrationHistoryPreflight"/> so the apply path and the read-only preflight give one
+    /// verdict on the same history.
     /// </summary>
     internal static void VerifyAppliedNames(IReadOnlyList<SchemaMigration> migrations, IReadOnlyDictionary<int, string> applied)
     {
@@ -141,10 +118,6 @@ internal sealed record SchemaMigrationProviderHooks(
     Assembly ProviderAssembly,
     string DialectToken,
     Func<string, IEnumerable<string>> SplitBatches,
-    // The generation of the baseline migration this provider embeds, from BaselineStamps: the value
-    // the emitter wrote into that migration's version-0 row, and so the only history this package can
-    // run against.
-    string RequiredBaselineStamp,
     string? PreludeSql = null,
     int CommandTimeoutSeconds = 120
 );

@@ -6,22 +6,16 @@ namespace Acta.Tests.Schema;
 /// <summary>
 /// Multi-migration chain behavior of the shared migration runner, exercised end-to-end against
 /// in-memory SQLite. The real providers ship only M001, so the chain paths (apply-in-order, resume
-/// from a partial history, the name-drift guard, the version-0 stamp requirement) are untestable
-/// through them; this test assembly embeds a fabricated M001+M002 pair under provider-shaped
-/// logical resource names (see Fixtures/MigrationChain) so discovery resolves it as a provider.
+/// from a partial history, the name-drift guard) are untestable through them; this test assembly
+/// embeds a fabricated M001+M002 pair under provider-shaped logical resource names (see
+/// Fixtures/MigrationChain) so discovery resolves it as a provider.
 /// </summary>
 public sealed class SchemaMigrationChainTests
 {
-    // The fabricated provider's own baseline generation. A shipped provider's stamp is a content hash
-    // the emitter writes into its baseline migration; this one is hand-written on both sides, so the
-    // literal here and the literal in Fixtures/MigrationChain/M001_init.sql are the whole contract.
-    private const string FixtureStamp = "baseline-fixture";
-
     private static readonly SchemaMigrationProviderHooks Hooks = new(
         ProviderAssembly: typeof(SchemaMigrationChainTests).Assembly,
         DialectToken: "sqlite",
-        SplitBatches: static script => [script],
-        RequiredBaselineStamp: FixtureStamp
+        SplitBatches: static script => [script]
     );
 
     private static Task Apply(SqliteConnection conn) =>
@@ -64,27 +58,13 @@ public sealed class SchemaMigrationChainTests
     }
 
     [Fact]
-    public void Fixture_records_the_stamp_its_hooks_require()
-    {
-        using var stream = typeof(SchemaMigrationChainTests).Assembly.GetManifestResourceStream(
-            "Acta.Tests.Schema.Migrations.M001_init.sql"
-        )!;
-        using var reader = new StreamReader(stream);
-        var fixture = reader.ReadToEnd();
-
-        // Every scenario below would fail on a stamp mismatch without saying why; this one names it.
-        Assert.Contains($"VALUES (0, '{FixtureStamp}', '{{{{schema}}}}')", fixture, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task Fresh_chain_applies_both_migrations_and_records_plain_names()
     {
         await using var conn = await OpenFreshAsync();
         await Apply(conn);
 
         var history = await HistoryAsync(conn);
-        Assert.Equal(3, history.Count); // baseline and two migrations
-        Assert.Equal(FixtureStamp, history[0]);
+        Assert.Equal(2, history.Count);
         Assert.Equal("init", history[1]);
         Assert.Equal("add_widgets", history[2]);
         Assert.True(await TableExistsAsync(conn, "gadgets"));
@@ -98,7 +78,7 @@ public sealed class SchemaMigrationChainTests
         await Apply(conn);
         await Apply(conn);
 
-        Assert.Equal(3, (await HistoryAsync(conn)).Count);
+        Assert.Equal(2, (await HistoryAsync(conn)).Count);
     }
 
     [Fact]
@@ -128,18 +108,6 @@ public sealed class SchemaMigrationChainTests
     }
 
     [Fact]
-    public async Task History_without_the_stamp_row_demands_reprovisioning()
-    {
-        await using var conn = await OpenFreshAsync();
-        await Apply(conn);
-        await ExecAsync(conn, "DELETE FROM main.migrations WHERE version = 0;");
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Apply(conn));
-        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("'init'", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task History_ahead_of_the_shipped_chain_is_accepted()
     {
         await using var conn = await OpenFreshAsync();
@@ -150,6 +118,6 @@ public sealed class SchemaMigrationChainTests
 
         await Apply(conn);
 
-        Assert.Equal(4, (await HistoryAsync(conn)).Count);
+        Assert.Equal(3, (await HistoryAsync(conn)).Count);
     }
 }

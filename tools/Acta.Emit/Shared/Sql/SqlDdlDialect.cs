@@ -11,13 +11,6 @@ internal abstract class SqlDdlDialect
 {
     public const string SchemaPlaceholder = "{{schema}}";
 
-    // Every migration records its plain snake name; the baseline generation identity lives in a
-    // dedicated version-0 sentinel row that every full baseline writes alongside its own (a provider
-    // joining mid-stream baselines above version 1), so the bootstrap's stamp check holds for every
-    // provider database. A delta passes null and writes only its own row.
-    protected static (int Version, string Name)[] StampRows(int version, string name, string? stamp) =>
-        stamp is null ? [(version, name)] : [(0, stamp), (version, name)];
-
     public abstract string ProviderToolName { get; }
 
     public abstract IReadOnlyList<string> HeaderExtraLines { get; }
@@ -116,12 +109,11 @@ internal abstract class SqlDdlDialect
     public abstract void EmitProviderColumnChecks(StringBuilder sb, EntityModel e);
 
     /// <summary>
-    /// Idempotent INSERT recording this migration in <c>migrations</c> (the table itself is
-    /// created by the runner's EnsureMigrations step); <c>applied_at_utc</c> fills from the
-    /// table's DB-clock default. A full baseline passes <see cref="BaselineStamp.Token"/> as
-    /// <paramref name="stamp"/> and so also writes the version-0 generation row; a delta passes null.
+    /// Idempotent INSERT recording this migration in <c>migrations</c> under its plain snake name (the
+    /// table itself is created by the runner's EnsureMigrations step); <c>applied_at_utc</c> fills
+    /// from the table's DB-clock default.
     /// </summary>
-    public abstract string MigrationStamp(int version, string name, string? stamp);
+    public abstract string MigrationStamp(int version, string name);
 
     /// <summary>
     /// The statements that install one operator view over its SELECT body. SQL Server and PostgreSQL

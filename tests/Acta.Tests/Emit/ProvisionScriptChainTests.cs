@@ -9,7 +9,7 @@ namespace Acta.Tests.Emit;
 /// The provision-script emitter with more than one migration on disk, which no real provider has
 /// yet: a temp copy of the SQLite provider gains a fabricated M002, and the emitted script must
 /// carry both banner pairs in order and still be double-run safe with one history row per
-/// migration plus the version-0 stamp row.
+/// migration.
 /// </summary>
 public sealed class ProvisionScriptChainTests : IDisposable
 {
@@ -78,7 +78,7 @@ public sealed class ProvisionScriptChainTests : IDisposable
             + "(SELECT COUNT(*) FROM main.jobs_view)";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
-        Assert.Equal(3, reader.GetInt64(0)); // baseline and two migrations
+        Assert.Equal(2, reader.GetInt64(0));
         Assert.Equal(0, reader.GetInt64(1));
         Assert.Equal(0, reader.GetInt64(2));
     }

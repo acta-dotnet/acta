@@ -11,10 +11,8 @@ before 1.0.0. From 1.0.0 the public API, schema, and persisted codes
 are frozen, and the migration history with them: schema changes ship only as additive `Mnnn`
 migrations, and the baseline (`M001`) is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone. A database an earlier release candidate provisioned needs one
-reprovision on the way in. Bootstrap compares the
-baseline stamp recorded in the database against the one this build ships and refuses to start on a
-mismatch, so a database built from a different baseline generation fails loudly instead of taking
-a schema it was not built for; old renumbered code values are intentionally incompatible, and there
+reprovision on the way in, because a re-cut baseline carries no translation migration and
+nothing in the database says which cut it came from; old renumbered code values are intentionally incompatible, and there
 is no translation migration.
 
 The stamp is a content hash: `baseline-` followed by 32 hex characters of the SHA-256 of that

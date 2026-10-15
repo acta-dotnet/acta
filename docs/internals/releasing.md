@@ -66,7 +66,6 @@ intended.** A regenerated baseline is indistinguishable from a deliberate one on
 | HTTP surface | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | Persisted codes | hash in `PersistedCodeContractTests` | re-pin the hash by hand |
 | Conformance docs | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
-| Baseline stamps | `src/Acta/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (never after 1.0.0: a moved stamp means `M001` was edited, and that blocks the release) |
 
 Before 1.0 a moved surface is allowed and belongs in the release notes. From 1.0 the .NET and HTTP
 surfaces are additive-only, so a diff that removes or renames a member is a 2.0 change and blocks the
@@ -242,7 +241,6 @@ Each line names the evidence that asserts it; none is checked by hand.
 
 - No generated docs drift.
 - No generated migration snapshot drift.
-- No baseline stamp drift: `Acta.Emit check` rehashes every provider's `M001` against its generated constant.
 - No accidental dashboard build artifacts.
 - No local benchmark output committed unless intentionally included.
 - Public examples still match current package names and startup APIs.

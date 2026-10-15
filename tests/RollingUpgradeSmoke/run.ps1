@@ -10,7 +10,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-# A release candidate cannot share a database with 1.0: its baseline is refused at startup. The overlap
+# A release candidate cannot share a database with 1.0: its baseline was re-cut without a translation migration. The overlap
 # phase is for 1.0 and later pairs.
 if ($Phases -contains 'Overlap' -and $PreviousRef -match '-rc\.') {
     throw "The overlap phase needs a previous release that can share this database; $PreviousRef is a release candidate."

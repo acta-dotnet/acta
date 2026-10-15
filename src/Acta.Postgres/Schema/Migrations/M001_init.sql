@@ -4034,8 +4034,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-eed337fb3d5dbaf9245db84ff2faf20e', '{{schema}}')
-ON CONFLICT (version) DO NOTHING;
-INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;

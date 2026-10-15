@@ -96,16 +96,10 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
         // type level; no extra CHECKs needed.
     }
 
-    public override string MigrationStamp(int version, string name, string? stamp) =>
-        string.Join(
-            "\n",
-            StampRows(version, name, stamp)
-                .Select(r =>
-                    $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.migrations WHERE version = {r.Version})\n"
-                    + $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
-                    + $"VALUES ({r.Version}, '{r.Name}', '{SchemaPlaceholder}');"
-                )
-        );
+    public override string MigrationStamp(int version, string name) =>
+        $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.migrations WHERE version = {version})\n"
+        + $"INSERT INTO {SchemaPlaceholder}.migrations (version, name, installed_schema)\n"
+        + $"VALUES ({version}, '{name}', '{SchemaPlaceholder}');";
 
     public override string WrapView(string qualifiedName, string select) => $"CREATE OR ALTER VIEW {qualifiedName} AS\n{select}";
 

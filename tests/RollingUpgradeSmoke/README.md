@@ -58,7 +58,7 @@ while it is under way. It uses its own `acta_overlap_*` schema, with the same st
    was never lost to a reclaim.
 
 The overlap phase needs a previous release that can share the current database. A release candidate
-cannot: its baseline is refused at startup and the database is reprovisioned. The script refuses
+cannot: its baseline was re-cut without a translation migration, so the database is reprovisioned. The script refuses
 `-Phases Overlap` with a release-candidate `-PreviousRef`, so its first real pair is 1.0 against 1.1.
 To exercise the phase before then, run it with `-PreviousRef HEAD`.
 

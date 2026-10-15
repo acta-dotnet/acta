@@ -733,8 +733,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-3e6b9f54e6ee952027a25dfb27db086c', '{{schema}}')
-ON CONFLICT (version) DO NOTHING;
-INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;

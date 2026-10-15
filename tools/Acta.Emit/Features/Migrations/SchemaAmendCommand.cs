@@ -59,15 +59,11 @@ internal static class SchemaAmendCommand
             {
                 File.Delete(file);
             }
-            // A full baseline carries the stamp token; substituting here, one file at a time, is what
-            // makes each provider's stamp the hash of its own body and of nothing else. A delta has no
-            // token and passes through untouched.
-            File.WriteAllText(path, BaselineStamp.Substitute(sql));
+            File.WriteAllText(path, sql);
             Console.WriteLine($"  wrote {path}");
         }
 
         SnapshotPair.Save(new SnapshotPair(to, pair?.Previous), snapshotPath);
-        BaselineStampsEmitter.Write(repoRoot);
         DocsCommand.Emit(repoRoot);
 
         if (diff is not null)

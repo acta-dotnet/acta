@@ -91,10 +91,9 @@ a future `Mnnn` on a live system briefly blocks statements that collide with the
 and resumes them when it commits; in-flight jobs are not failed by a migration, they wait it out.
 
 Whether or not a host applies migrations itself, every start runs a read-only migration-history
-preflight: the database must carry the baseline stamp this build requires and a history row for
-every migration this build ships. A database that was never provisioned, or was provisioned from a
-different baseline generation, fails at `StartAsync` with instructions instead of failing later at
-its first query. History rows this build has never heard of are fine — an older worker against a
+preflight: the database must carry a history row for every migration this build ships, under the
+name this build ships it. A database that was never provisioned fails at `StartAsync` with
+instructions instead of failing later at its first query. History rows this build has never heard of are fine — an older worker against a
 newer database is a supported rolling-upgrade shape.
 
 Routine and view bodies travel inside migrations, after the tables of the migration that changed

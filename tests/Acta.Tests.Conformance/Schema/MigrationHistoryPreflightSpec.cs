@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Schema;
     "schema.migration-history-preflight",
     "Bootstrap verifies migration history even when it applies nothing",
     Area = "Schema",
-    Contract = "Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones."
+    Contract = "Provider bootstrap requires every migration this build ships and tolerates newer ones."
 )]
 public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceFixture>
 {
@@ -35,18 +35,6 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
 
         Assert.Contains("not provisioned", exception.Message, StringComparison.Ordinal);
         Assert.Contains($"docs/reference/schema-{Fixture.DialectToken}.sql", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact(DisplayName = "A database from another baseline generation is refused with reprovisioning guidance")]
-    public async Task Foreign_baseline_is_refused()
-    {
-        var foreign = ShippedHistory().Select(row => row.Version == 0 ? (0, "baseline-0.9") : row).ToList();
-        await using var probe = await Fixture.CreateHistoryProbeAsync(foreign);
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => RunAsync(probe));
-
-        Assert.Contains("'baseline-0.9'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "A migration this build ships that the database never applied is refused by version")]
@@ -78,13 +66,11 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
         Fixture.RunBootstrapPreflightAsync(probe.ConnectionString, probe.SchemaName, TestContext.Current.CancellationToken);
 
     /// <summary>
-    /// The history a correctly provisioned database of this build would hold: the version-0 baseline
-    /// stamp plus one row per embedded migration, keyed by version and carrying the bare snake name
-    /// the runner records.
+    /// The history a correctly provisioned database of this build would hold: one row per embedded
+    /// migration, keyed by version and carrying the bare snake name the runner records.
     /// </summary>
     private IReadOnlyList<(int Version, string Name)> ShippedHistory() =>
         [
-            (0, BaselineStamps.ForDialect(Fixture.DialectToken)),
             .. SchemaMigrationDiscovery
                 .Discover(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(Fixture.DialectToken)))
                 .Select(migration => (migration.Version, Name: migration.Name[5..])),

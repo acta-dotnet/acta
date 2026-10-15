@@ -1889,11 +1889,10 @@
   - On SQL Server exactly the case-exact columns carry a binary collation, and no column elsewhere
 
 ### Bootstrap verifies migration history even when it applies nothing
-- **Contract:** Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones.
+- **Contract:** Provider bootstrap requires every migration this build ships and tolerates newer ones.
 - **Guarantees:**
   - A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false
   - An unprovisioned schema is refused as unprovisioned, naming the provisioning script
-  - A database from another baseline generation is refused with reprovisioning guidance
   - A migration this build ships that the database never applied is refused by version
   - A history carrying migrations this build has never heard of still passes
 

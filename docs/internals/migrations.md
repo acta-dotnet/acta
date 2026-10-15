@@ -139,8 +139,7 @@ writes a drop.
 ## Adding a migration: step by step
 
 1. **Change a table model** in `src/Acta/Domain/Entities/`.
-2. **Generate the migration** (also regenerates the reference docs, the `schema-*.sql` scripts, and
-   `BaselineStamps.g.cs` as a side effect):
+2. **Generate the migration** (also regenerates the reference docs and the `schema-*.sql` scripts):
    ```
    dotnet run --project tools/Acta.Emit -- schema add --name <snake_case_name>
    ```
@@ -173,42 +172,24 @@ baseline. The one destructive command, hence `--force`-gated.
 
 The migration history is frozen from 1.0.0, so `schema reset` is a rebuild-and-compare tool for
 verifying that the emitters still reproduce the committed baseline, never a re-cut: a rebuilt `M001`
-that differs from the committed one is a finding, not a release. Each baseline identifies itself:
-the stamp is `baseline-` followed by the first 32 hex characters of the SHA-256 of that provider's
-emitted `M001`. The hash is taken over the body with a fixed token in the stamp's own position, in
-UTF-8 without a byte-order mark and with LF line endings; nothing else is normalized, so every other
-byte of the file is part of the identity. Each provider carries its own stamp, so PostgreSQL's does
-not move when SQL Server's table types change or when a fourth provider joins. Earlier candidates
-named a date (`baseline-20260910`) or a version (`baseline-1.0.1`); both read the same way, one
-generation each, and both could name two different cuts by oversight, which a content hash cannot.
+that differs from the committed one is a finding, not a release.
+
 A re-cut baseline carries no translation migration, which is why every pre-freeze re-cut requires
-dropping and recreating any database built from the previous one.
+dropping and recreating any database built from the previous one. Nothing in the database records
+which cut it came from: a history row is a migration name and when it was applied, and an operator
+who adapts the script for their environment (partitioning, filegroups, tablespaces) still records
+exactly those rows.
 
-**The stamp has one source and two readers.** `schema add` and `schema amend` compute it and write
-it into `M001` and into `src/Acta/Schema/BaselineStamps.g.cs` in the same pass.
-`SchemaMigrationRunner` requires the generated constant at bootstrap, and `Acta.Emit check` rehashes
-each committed `M001` and fails on any hand edit. The stamp is a literal in the applied script: an
-operator who adapts the script for their environment (partitioning, filegroups, tablespaces) keeps
-the row as written, and bootstrap never recomputes a hash from the live database.
-
-The stamp is recorded as a version-0 sentinel row in `migrations`, written by `M001` alongside its
-own history row; every migration's `name` is its plain snake name (`init`, not the stamp). Bootstrap
-compares the stamp recorded in the database against the one the build ships and throws on a
-mismatch, so a stale database fails loudly with a reprovision instruction instead of silently taking
-a schema it was not built for. Bootstrap also rejects an applied version whose recorded name differs
-from the shipped one, so a migration amended after a database already applied it fails loudly
-instead of being silently skipped.
-
-These checks run on **every** start, not only when migrations are applied. A host with
+Bootstrap rejects an applied version whose recorded name differs from the shipped one, so a
+migration amended after a database already applied it fails loudly instead of being silently
+skipped. That check runs on **every** start, not only when migrations are applied. A host with
 `ApplyMigrationsOnStartup = false` runs a read-only **migration-history preflight**
-(`MigrationHistoryPreflight`, called through each provider's migrator) that enforces the same stamp
-and name rules and additionally requires a history row for every migration the build ships — while
+(`MigrationHistoryPreflight`, called through each provider's migrator) that enforces the same name
+rule and additionally requires a history row for every migration the build ships, while
 tolerating rows it has never heard of, so an older worker still starts against a newer database. A
 missing `migrations` table is reported as "not provisioned" with a pointer at the published schema
-script rather than surfacing as a failed query later. The preflight verifies history and the object
-package's major and minimum revision, not the schema or the bodies themselves: bodies are rewritten
-only by an applying bootstrap or the script, which is why an upgrade must run the current full
-provisioning script rather than trust a green preflight.
+script rather than surfacing as a failed query later. The preflight verifies history, not the bodies
+themselves: a hand-edited routine keeps a history row that no longer describes it.
 
 The 2026-07-15 byte-sized persisted-code change used this workflow. Enum member names, textual codes,
 descriptions, and JSON strings did not change; only family-local numeric ids and physical

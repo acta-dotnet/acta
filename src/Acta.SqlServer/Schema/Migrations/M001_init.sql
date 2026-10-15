@@ -4539,9 +4539,6 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
-INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-1788743baef1cb495627969c88cbe9d5', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');
