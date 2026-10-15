@@ -5,7 +5,7 @@ and the history table are re-cut freely; no translation path is owed to any data
 
 ## Goal
 
-- A migration is a file `yyyyMMddHHmmss_name.sql`; the first is `baseline`; every later one is named by hand.
+- A migration is a file `M{yyyyMMddHHmmss}_{name}.sql`; the first is `init`; every later one is named by hand. The `M` stays; only the counter becomes the datetime.
 - A migration carries tables, then routines, then views. It ends by inserting its own history row.
 - History is `migrations (name, applied_at_utc)`, like EF Core's: which migration, and when. No hash, no stamp, no sentinel rows.
 - `schema add` puts a changed routine or view into the next migration by itself.
@@ -39,7 +39,7 @@ Emit, four commands:
 | --- | --- |
 | `docs` | The reference docs and the three provision scripts. |
 | `check` | Docs current, snapshot equals the live model and the live routine and view bodies. |
-| `schema add --name <n>` | The next migration: table delta, changed routines, changed views, history row. `--name` optional only for the baseline. |
+| `schema add --name <n>` | The next migration: table delta, changed routines, changed views, history row. `--name` optional only for the baseline, which is `init`. |
 | `schema reset --force` | Rebuild-and-compare of the baseline. |
 
 `schema amend` goes: it is `git checkout` of the snapshot and the tip file, then `schema add` again. Git already keeps the previous snapshot, so the `SnapshotPair` and every tip-finding helper go with it.
@@ -73,9 +73,9 @@ Tests:
 
 ## Naming
 
-- `src/Acta.{Provider}/Schema/Migrations/{yyyyMMddHHmmss}_{name}.sql`; UTC at `schema add` time, one value for every provider in the run.
-- Name is snake_case; the baseline is `baseline`; a late-joining provider gets `{stamp}_baseline.sql` as a full baseline with a leading hole, as today.
-- Discovery regex `^[0-9]{14}_[a-z][a-z0-9_]*$`; a duplicate stem in one provider throws.
+- `src/Acta.{Provider}/Schema/Migrations/M{yyyyMMddHHmmss}_{name}.sql`; UTC at `schema add` time, one value for every provider in the run. No running counter anywhere: the datetime is the version, and `MigrationFiles` never computes a "next" number.
+- Name is snake_case; the baseline is `init`, as today; a late-joining provider gets `M{datetime}_init.sql` as a full baseline with a leading hole, as today.
+- Discovery regex `^M[0-9]{14}_[a-z][a-z0-9_]*$`; a duplicate stem in one provider throws.
 
 ## Routines and views as migration content
 
@@ -106,7 +106,7 @@ One commit each, green on `dotnet csharpier check .`, `Acta.Emit check`, and `do
 
 1. **Objects into migrations.** Snapshot gains the object hashes; the emitter composes tables, routines, views; view wrappers move to the emitter dialect; `check` reports changed objects. Delete the installer, the object package, `objects record`, their files, ledger, and tests, and the script's package sections. Baseline re-cut to carry the routines and views.
 2. **Drop the baseline stamp.** Delete the version-0 row, the token, `BaselineStamp`, `BaselineStamps.g.cs`, its emitter, the `check` rehash, the parity test, and the stamp hook.
-3. **Timestamp names, two-column history, one runtime file.** The DDL above. `SchemaMigrations.cs` replaces the four runtime files; `HasMigrationsTable` goes; hooks go; `amend` and `SnapshotPair` go; `MigrationFiles` shrinks. Baseline re-cut as `{stamp}_baseline.sql`; chain fixtures and `M001InstallSpec` renamed. Evidence pages under `docs/certification` and `docs/benchmarks` keep their `M001` wording as history.
+3. **Datetime names, two-column history, one runtime file.** The DDL above. `SchemaMigrations.cs` replaces the four runtime files; `HasMigrationsTable` goes; hooks go; `amend` and `SnapshotPair` go; `MigrationFiles` shrinks to listing stems and building a path, with no version counter. Baseline re-cut as `M{datetime}_init.sql`; chain fixtures and `M001InstallSpec` renamed. Evidence pages under `docs/certification` and `docs/benchmarks` keep their `M001` wording as history.
 4. **Docs.** `docs/internals/migrations.md` rewritten whole; the routine sections of `sql-execution-policy.md`; `production.md`; `known-limitations.md`; the artifact table in `releasing.md`; `CONTRIBUTING.md`, `source-layout.md`, the README emission line; `tests/RollingUpgradeSmoke`; a release-notes section leading with the file names and the two-column history.
 
 ## Verification
