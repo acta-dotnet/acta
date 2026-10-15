@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 86)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 87)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -3012,49 +3012,6 @@ BEGIN
 END;
 $$;
 
--- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise.
-CREATE OR REPLACE FUNCTION acta.park_outbox_signal(
-    p_job_id BIGINT,
-    p_name VARCHAR,
-    p_value_format_id SMALLINT,
-    p_value BYTEA,
-    p_stale_before_utc TIMESTAMPTZ
-)
-RETURNS TABLE (out_action SMALLINT, out_pending_since_utc TIMESTAMPTZ)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    INSERT INTO acta.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
-    VALUES (
-        p_job_id,
-        20 /* CheckpointKindCode.Signal */,
-        p_name,
-        20 /* CheckpointStatusCode.Set */,
-        p_value_format_id,
-        p_value,
-        now(),
-        0
-    )
-    ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-        value_format_id = EXCLUDED.value_format_id,
-        value = EXCLUDED.value,
-        status_code = 20 /* CheckpointStatusCode.Set */,
-        modified_at_utc = now(),
-        version = checkpoints.version + 1
-    WHERE checkpoints.modified_at_utc <= p_stale_before_utc;
-
-    /* The minted command id inside p_value makes the payload unique, so value equality is the
-       "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
-    RETURN QUERY
-    SELECT
-        (CASE WHEN c.value = p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END)::SMALLINT,
-        c.modified_at_utc
-    FROM acta.checkpoints c
-    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* CheckpointKindCode.Signal */ AND c.name = p_name;
-END;
-$$;
-
 -- One section, one bounded atomic batch. Section numbers match RetentionSection.
 CREATE OR REPLACE FUNCTION acta.purge_expired_data(
     p_namespace_id INT,
@@ -4216,7 +4173,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.86-27129e5cac3bec2910edc382d703ecd1', 'acta');
+VALUES (-1, 'objects-1.87-e07a2f4460c9add8cc5f65bfcbb39070', 'acta');
 
 COMMIT;
 

@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 86)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 87)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -3478,69 +3478,6 @@ BEGIN
     END CATCH;
 END;
 GO
--- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise.
-CREATE OR ALTER PROCEDURE acta.park_outbox_signal
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_stale_before_utc DATETIME2(7)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @modified DATETIME2(7);
-
-        SELECT @modified = modified_at_utc
-        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
-        WHERE job_id = @p_job_id AND kind_code = 20 /* CheckpointKindCode.Signal */ AND name = @p_name;
-
-        IF @modified IS NULL
-            INSERT INTO acta.checkpoints (
-                job_id, kind_code, name, status_code, value_format_id, value,
-                created_at_utc, modified_at_utc, version
-            )
-            VALUES (
-                @p_job_id, 20 /* CheckpointKindCode.Signal */, @p_name, 20 /* CheckpointStatusCode.Set */,
-                @p_value_format_id, @p_value, @now, @now, 0
-            );
-        ELSE IF @modified <= @p_stale_before_utc
-            UPDATE acta.checkpoints
-            SET
-                status_code = 20 /* CheckpointStatusCode.Set */,
-                value_format_id = @p_value_format_id,
-                value = @p_value,
-                modified_at_utc = @now,
-                version = version + 1
-            WHERE job_id = @p_job_id AND kind_code = 20 /* CheckpointKindCode.Signal */ AND name = @p_name;
-
-        /* The minted command id inside @p_value makes the payload unique, so value equality is the
-           "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
-        SELECT
-            CAST(CASE WHEN c.value = @p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END AS SMALLINT)
-                AS action,
-            c.modified_at_utc AS pending_since_utc
-        FROM acta.checkpoints c
-        WHERE c.job_id = @p_job_id AND c.kind_code = 20 /* CheckpointKindCode.Signal */ AND c.name = @p_name;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- One section, one bounded atomic batch. Section numbers match RetentionSection.
 CREATE OR ALTER PROCEDURE acta.purge_expired_data
     @p_namespace_id INT,
@@ -4843,9 +4780,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.86-66999c0136f8afbd5e2029912a50c44d', 'acta'
+SELECT -1, 'objects-1.87-68f4f14080cc064e9d024055c3503d1b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'park_outbox_signal', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 27;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'release_lock', 'reserve_rate', 'start_step', 'wait_signal')) = 26;
 GO
 COMMIT TRANSACTION;
 GO
