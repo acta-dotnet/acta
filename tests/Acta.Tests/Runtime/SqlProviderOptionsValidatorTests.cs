@@ -1,28 +1,35 @@
-using Acta.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
 
-/// <summary>
-/// Proves invalid provider settings are rejected before a
-/// host can boot. Exercised against a local subclass so the test stays provider-package-free; each
-/// concrete provider (SqlServer, Postgres, Sqlite) registers the same generic validator.
-/// </summary>
+/// <summary>Proves invalid provider settings are rejected before a host can boot.</summary>
 public sealed class SqlProviderOptionsValidatorTests
 {
-    private sealed class TestProviderOptions : SqlProviderOptions;
+    private static readonly SqlProviderOptionsValidator Validator = new();
 
-    private static readonly SqlProviderOptionsValidator<TestProviderOptions> Validator = new();
-
-    private static ValidateOptionsResult Validate(Action<TestProviderOptions> mutate)
+    private static ValidateOptionsResult Validate(Action<SqlProviderOptions> mutate)
     {
         var options = ValidOptions();
         mutate(options);
         return Validator.Validate(name: null, options);
     }
 
-    private static TestProviderOptions ValidOptions() => new() { ConnectionString = "test" };
+    private static SqlProviderOptions ValidOptions() => new() { ConnectionString = "test" };
+
+    private static ServiceProvider SqliteHost(Action<SqlProviderOptions> configure)
+    {
+        var services = new ServiceCollection();
+        services.UseActa(acta =>
+            acta.UseSqlite(o =>
+            {
+                o.ConnectionString = "Data Source=:memory:";
+                configure(o);
+            })
+        );
+        return services.BuildServiceProvider();
+    }
 
     [Fact]
     public void Valid_options_pass()
@@ -38,7 +45,7 @@ public sealed class SqlProviderOptionsValidatorTests
     {
         var result = Validate(o => o.ConnectionString = connectionString);
         Assert.True(result.Failed);
-        Assert.Contains("ConnectionString", result.FailureMessage);
+        Assert.Contains("SqlProviderOptions.ConnectionString", result.FailureMessage);
     }
 
     [Theory]
@@ -109,13 +116,19 @@ public sealed class SqlProviderOptionsValidatorTests
     }
 
     [Fact]
-    public void Sqlite_schema_must_be_main()
+    public void UseSqlite_rejects_a_schema_other_than_main()
     {
-        var validator = new SqliteProviderOptionsValidator();
+        using var provider = SqliteHost(static o => o.Schema = "x");
 
-        Assert.True(validator.Validate(null, new SqliteProviderOptions { ConnectionString = "test" }).Succeeded);
-        var result = validator.Validate(null, new SqliteProviderOptions { ConnectionString = "test", Schema = "acta" });
-        Assert.True(result.Failed);
-        Assert.Contains("main", result.FailureMessage);
+        var ex = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<IOptions<SqlProviderOptions>>().Value);
+        Assert.Contains("main", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UseSqlite_defaults_the_schema_to_main()
+    {
+        using var provider = SqliteHost(static _ => { });
+
+        Assert.Equal("main", provider.GetRequiredService<SqlProviderOptions>().Schema);
     }
 }

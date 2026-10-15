@@ -13,7 +13,7 @@ internal static class SqlServerOutboxSource
         // options.Schema drives only routine dispatch (never reached on the inline-only outbox path); the
         // catalog schema drives the actual table qualification and stays null when no override is supplied,
         // so the claim/introspection SQL resolves the table through the login's default schema.
-        var options = new SqlServerProviderOptions { ConnectionString = connectionString, Schema = schema ?? "dbo" };
+        var options = new SqlProviderOptions { ConnectionString = connectionString, Schema = schema ?? "dbo" };
         var catalog = new SqlResourceCatalog(dialect.DialectToken, schema, table);
         return new(new DbSession(options, dialect, catalog), dialect);
     }

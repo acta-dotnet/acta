@@ -20,7 +20,7 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void A_single_source_provider_records_the_relay()
     {
-        var relay = Register(w => w.AddOutboxRelay("orders", s => s.UsePostgres(o => o.ConnectionString = "Host=db")));
+        var relay = Register(w => w.AddOutboxRelay("orders", s => s.UsePostgres("Host=db")));
 
         Assert.NotNull(relay);
         Assert.Equal("orders", relay!.SourceName);
@@ -44,8 +44,8 @@ public sealed class OutboxRelayBuilderTests
                     "orders",
                     s =>
                     {
-                        s.UsePostgres(o => o.ConnectionString = "Host=db");
-                        s.UseSqlServer(o => o.ConnectionString = "Server=db");
+                        s.UsePostgres("Host=db");
+                        s.UseSqlServer("Server=db");
                     }
                 )
             )
@@ -59,8 +59,8 @@ public sealed class OutboxRelayBuilderTests
         var ex = Assert.Throws<InvalidOperationException>(() =>
             Register(w =>
             {
-                w.AddOutboxRelay("orders", s => s.UsePostgres(o => o.ConnectionString = "Host=db"));
-                w.AddOutboxRelay("shipments", s => s.UsePostgres(o => o.ConnectionString = "Host=db2"));
+                w.AddOutboxRelay("orders", s => s.UsePostgres("Host=db"));
+                w.AddOutboxRelay("shipments", s => s.UsePostgres("Host=db2"));
             })
         );
         Assert.Contains("at most one", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -70,7 +70,7 @@ public sealed class OutboxRelayBuilderTests
     public void A_source_provider_distinct_from_the_ledger_is_honored()
     {
         // The ledger provider is not selected here; the source builder records SQL Server independently.
-        var relay = Register(w => w.AddOutboxRelay("orders", s => s.UseSqlServer(o => o.ConnectionString = "Server=db")));
+        var relay = Register(w => w.AddOutboxRelay("orders", s => s.UseSqlServer("Server=db")));
 
         Assert.Equal("SqlServerOutboxSourceFactory", relay!.SourceFactory.GetType().Name);
     }
@@ -78,9 +78,7 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void An_invalid_source_name_throws()
     {
-        Assert.ThrowsAny<ArgumentException>(() =>
-            Register(w => w.AddOutboxRelay("Bad Source!", s => s.UseSqlite(o => o.ConnectionString = "Data Source=x")))
-        );
+        Assert.ThrowsAny<ArgumentException>(() => Register(w => w.AddOutboxRelay("Bad Source!", s => s.UseSqlite("Data Source=x"))));
     }
 
     [Fact]
@@ -93,7 +91,7 @@ public sealed class OutboxRelayBuilderTests
                     s =>
                     {
                         s.Schema = "bad schema";
-                        s.UsePostgres(o => o.ConnectionString = "Host=db");
+                        s.UsePostgres("Host=db");
                     }
                 )
             )
@@ -111,7 +109,7 @@ public sealed class OutboxRelayBuilderTests
                     s =>
                     {
                         s.Table = "Orders";
-                        s.UsePostgres(o => o.ConnectionString = "Host=db");
+                        s.UsePostgres("Host=db");
                     }
                 )
             )
@@ -130,7 +128,7 @@ public sealed class OutboxRelayBuilderTests
                     s =>
                     {
                         s.QuarantineThreshold = threshold;
-                        s.UsePostgres(o => o.ConnectionString = "Host=db");
+                        s.UsePostgres("Host=db");
                     }
                 )
             )
@@ -140,7 +138,7 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void A_missing_source_connection_string_throws()
     {
-        Assert.Throws<ArgumentException>(() => Register(w => w.AddOutboxRelay("orders", s => s.UsePostgres(_ => { }))));
+        Assert.Throws<ArgumentException>(() => Register(w => w.AddOutboxRelay("orders", s => s.UsePostgres(""))));
     }
 
     [Fact]

@@ -206,7 +206,7 @@ The terms for internal structure; where each piece lives is [`source-layout.md`]
 
 - **Two source-gen surfaces.** `Acta.Generators` (Roslyn, compile-time dispatch + persistence) and `tools/Acta.Emit` (CLI, committed artifacts), split by output kind. *Reason:* Roslyn can't emit committed files; the CLI can't emit C# the compilation depends on.
 - **Generated artifacts are committed**, drift-gated by `Acta.Emit check` in CI. *Reason:* reviewers see the schema delta alongside the source change.
-- **Satellite DI entry points are named for the type they extend**: `{Provider}ActaBuilderExtensions`, `ActaEndpointRouteBuilderExtensions`, `ActaServiceCollectionExtensions`. *Reason:* the filename names the extension surface, so a `ServiceCollectionExtensions` suffix on an `ActaBuilder` extension would mislead.
+- **Satellite DI entry points are named for the type they extend**: `{Provider}ActaExtensions`, `ActaEndpointRouteBuilderExtensions`, `ActaServiceCollectionExtensions`. *Reason:* the filename names the extension surface, so a `ServiceCollectionExtensions` suffix on an `ActaBuilder` extension would mislead.
 
 ### AOT and SQL parameter metadata
 

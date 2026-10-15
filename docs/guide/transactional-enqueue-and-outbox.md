@@ -235,7 +235,7 @@ services.UseActa(j =>
     {
         worker.AddManifest<OrdersJobs>();
         worker.AddOutboxRelay("orders-outbox", source =>
-            source.UseSqlServer(o => o.ConnectionString = businessDbConnectionString));  // the source
+            source.UseSqlServer(businessDbConnectionString));  // the source
     });
 });
 ```

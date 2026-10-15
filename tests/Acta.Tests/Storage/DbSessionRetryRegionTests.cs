@@ -2,7 +2,6 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using Acta.Sqlite;
 using Xunit;
 
 namespace Acta.Tests.Storage;
@@ -23,7 +22,7 @@ public class DbSessionRetryRegionTests
 
     private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5) =>
         new(
-            new SqliteProviderOptions
+            new SqlProviderOptions
             {
                 ConnectionString = "Data Source=:memory:",
                 Schema = "acta",

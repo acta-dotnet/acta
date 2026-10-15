@@ -81,7 +81,7 @@ public sealed partial class PgConformanceFixture
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
         source.Schema = Schema;
-        source.UsePostgres(o => o.ConnectionString = Conn);
+        source.UsePostgres(Conn);
     }
 
     /// <summary>Count Postgres-ledger jobs in a namespace carrying a deduplication key (mixed-provider proof).</summary>

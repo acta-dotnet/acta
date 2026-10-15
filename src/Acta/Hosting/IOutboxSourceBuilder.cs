@@ -3,8 +3,8 @@ namespace Acta;
 /// <summary>
 /// Provider-neutral configuration surface for one external-outbox source, passed to
 /// <see cref="IWorkerBuilder.AddOutboxRelay(string, System.Action{IOutboxSourceBuilder})"/>. Provider
-/// packages extend this with <c>source.UsePostgres(...)</c>, <c>source.UseSqlServer(...)</c>, or
-/// <c>source.UseSqlite(...)</c>, each of which records the single source factory. Exactly one
+/// packages extend this with <c>source.UsePostgres(connectionString)</c>, <c>source.UseSqlServer(connectionString)</c>,
+/// or <c>source.UseSqlite(connectionString)</c>, each of which records the single source factory. Exactly one
 /// provider selection is required; the seam never reuses or mutates the Acta-ledger provider
 /// registration, and nothing here connects to the source at startup.
 /// </summary>

@@ -14,7 +14,7 @@ internal static class PostgresOutboxSource
         // options.Schema drives only routine dispatch (never reached on the inline-only outbox path); the
         // catalog schema drives the actual table qualification and stays null when no override is supplied,
         // so the claim/introspection SQL resolves the table through the connection's search_path.
-        var options = new PostgresProviderOptions { ConnectionString = connectionString, Schema = schema ?? "public" };
+        var options = new SqlProviderOptions { ConnectionString = connectionString, Schema = schema ?? "public" };
         var catalog = new SqlResourceCatalog(dialect.DialectToken, schema, table);
         return new(new DbSession(options, dialect, catalog), dialect);
     }

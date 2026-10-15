@@ -10,7 +10,7 @@ internal static class SqliteOutboxSource
     public static OutboxSourceConnection CreateConnection(string connectionString, string schema, string table)
     {
         var dialect = new SqliteOutboxDialect();
-        var options = new SqliteProviderOptions { ConnectionString = connectionString, Schema = schema };
+        var options = new SqlProviderOptions { ConnectionString = connectionString, Schema = schema };
         var catalog = new SqlResourceCatalog(dialect.DialectToken, schema, table);
         return new(new DbSession(options, dialect, catalog), dialect);
     }

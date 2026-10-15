@@ -248,12 +248,7 @@ static async Task RunWorkerAsync(string[] args)
                 w.AddOutboxRelay(
                     "anvil-outbox",
                     source =>
-                        source.UseSqlite(o =>
-                            o.ConnectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
-                            {
-                                DataSource = outboxSource,
-                            }.ToString()
-                        )
+                        source.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = outboxSource }.ToString())
                 );
             }
         );

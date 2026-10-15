@@ -83,7 +83,7 @@ public sealed partial class SqlServerConformanceFixture
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
         source.Schema = Schema;
-        source.UseSqlServer(o => o.ConnectionString = Conn);
+        source.UseSqlServer(Conn);
     }
 
     private static async ValueTask ExecOutboxAsync(string sql)

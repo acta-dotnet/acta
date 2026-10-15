@@ -1,10 +1,7 @@
 namespace Acta;
 
-/// <summary>
-/// Connection and schema options shared by every SQL provider package. Each provider exposes a
-/// sealed subclass (e.g. <c>SqlServerProviderOptions</c>) so registration stays provider-typed.
-/// </summary>
-public abstract class SqlProviderOptions
+/// <summary>Connection and schema options shared by every SQL provider package.</summary>
+public sealed class SqlProviderOptions
 {
     /// <summary>Safety ceiling for deadlock retry attempts.</summary>
     public const int MaxDeadlockRetryAttempts = 100;

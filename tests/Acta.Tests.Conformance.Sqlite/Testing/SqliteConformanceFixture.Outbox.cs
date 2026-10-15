@@ -81,7 +81,7 @@ public sealed partial class SqliteConformanceFixture
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
         source.Schema = "main";
-        source.UseSqlite(o => o.ConnectionString = SqliteIntegrationSchema.BootstrappedConnectionString);
+        source.UseSqlite(SqliteIntegrationSchema.BootstrappedConnectionString);
     }
 
     private static async ValueTask ExecOutboxAsync(string sql)

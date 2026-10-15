@@ -7,6 +7,15 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **One options type for every SQL provider.** `UsePostgres`, `UseSqlServer`, and `UseSqlite` take
+  `Action<SqlProviderOptions>`; `PostgresProviderOptions`, `SqlServerProviderOptions`, and
+  `SqliteProviderOptions` are gone. A lambda that sets `ConnectionString`, `Schema`, or
+  `ApplyMigrationsOnStartup` compiles unchanged. On SQLite the schema is always `main`: a lambda that
+  sets anything else fails at startup.
+- **An outbox source is selected by connection string.** `source.UsePostgres(connectionString)`,
+  `source.UseSqlServer(connectionString)`, `source.UseSqlite(connectionString)`; the three
+  `XOutboxSourceOptions` types are gone, and the schema and table overrides stay on the source builder.
+  Each provider's two `Use*` methods now live on one class, `XActaExtensions`.
 - **Migrations are named by datetime, and the history table is two columns.** A migration is
   `M{yyyyMMddHHmmss}_{name}.sql`, the first one `M20261015185851_init`, and there is no running
   counter. The `migrations` table is `name` and `applied_at_utc`; `version` and `installed_schema`

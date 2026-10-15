@@ -34,7 +34,7 @@ public sealed class CapabilitiesEndpointTests
     public async Task Capabilities_reports_the_configured_schema()
     {
         var (app, client) = await TestDashboardHost.StartAsync(configureBuilder: b =>
-            b.Services.AddSingleton<SqlProviderOptions>(new FixedSchemaOptions("ops"))
+            b.Services.AddSingleton(new SqlProviderOptions { Schema = "ops" })
         );
         await using var _ = app;
         var res = await client.GetAsync("/acta/api/v1/capabilities", TestContext.Current.CancellationToken);
@@ -42,11 +42,6 @@ public sealed class CapabilitiesEndpointTests
         var body = await res.Content.ReadFromJsonAsync<CapabilitiesDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(body);
         Assert.Equal("ops", body!.Schema);
-    }
-
-    private sealed class FixedSchemaOptions : SqlProviderOptions
-    {
-        public FixedSchemaOptions(string schema) => Schema = schema;
     }
 
     /// <summary>The read stays mapped with controls off - controlsEnabled:false IS the dashboard's signal.</summary>

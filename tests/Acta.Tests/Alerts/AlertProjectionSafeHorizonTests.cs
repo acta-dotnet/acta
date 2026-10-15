@@ -35,7 +35,7 @@ public sealed class AlertProjectionSafeHorizonTests
         var handler = new GetAlertableEventsHandler(
             session,
             new SqliteDialect(),
-            new SqliteProviderOptions { ConnectionString = "Data Source=:memory:", CommandTimeout = TimeSpan.FromSeconds(45) }
+            new SqlProviderOptions { ConnectionString = "Data Source=:memory:", CommandTimeout = TimeSpan.FromSeconds(45) }
         );
 
         var nowUtc = new DateTime(2026, 9, 11, 12, 0, 0, DateTimeKind.Utc);

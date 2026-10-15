@@ -26,7 +26,7 @@ public sealed class SqlParameterCoverageTests
 {
     [Fact]
     public void Every_at_token_carries_the_p_prefix() =>
-        SqlParameterCoverage.AssertParameterPrefix(typeof(SqlServerProviderOptions).Assembly, "Acta.SqlServer.Sql.");
+        SqlParameterCoverage.AssertParameterPrefix(typeof(SqlServerActaExtensions).Assembly, "Acta.SqlServer.Sql.");
 }
 
 public sealed class SqlDialectLeakageTests

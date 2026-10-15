@@ -11,17 +11,14 @@ internal static class ActaProviderRegistration
 {
     /// <summary>
     /// Registers the selected provider: its info, validated options, dialect, session, SQL catalog, and bootstrap.
-    /// Each provider package's <c>Use{Provider}</c> is this call with its own types; <paramref name="dialect"/>
-    /// builds a dialect that needs more than its constructor's services. The type parameters keep the constructors
-    /// the container activates through them; without the annotations Native AOT trims those constructors and the
-    /// host fails to start.
+    /// Each provider package's <c>Use{Provider}</c> is this call with its own types. The type parameters keep the
+    /// constructors the container activates through them; without the annotations Native AOT trims those constructors
+    /// and the host fails to start.
     /// </summary>
     public static IActaBuilder Use<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDialect,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TBootstrap
-    >(IActaBuilder builder, DbProvider provider, Action<TOptions> configure, Func<IServiceProvider, TDialect>? dialect = null)
-        where TOptions : SqlProviderOptions
+    >(IActaBuilder builder, DbProvider provider, Action<SqlProviderOptions> configure)
         where TDialect : class, ISqlDialect
         where TBootstrap : class, IProviderBootstrap
     {
@@ -31,19 +28,10 @@ internal static class ActaProviderRegistration
         var services = builder.Services;
         Add(services, new SelectedProvider(provider));
         services.Configure(configure);
-        services.AddOptions<TOptions>().ValidateOnStart();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<TOptions>, SqlProviderOptionsValidator<TOptions>>());
-        services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<TOptions>>().Value);
-
-        if (dialect is null)
-        {
-            services.AddSingleton<TDialect>();
-        }
-        else
-        {
-            services.AddSingleton(dialect);
-        }
-
+        services.AddOptions<SqlProviderOptions>().ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<SqlProviderOptions>, SqlProviderOptionsValidator>());
+        services.AddSingleton(static sp => sp.GetRequiredService<IOptions<SqlProviderOptions>>().Value);
+        services.AddSingleton<TDialect>();
         services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<TDialect>());
         services.AddSingleton(static sp => new SqlResourceCatalog(
             sp.GetRequiredService<ISqlDialect>().DialectToken,

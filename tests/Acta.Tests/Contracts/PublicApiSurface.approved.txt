@@ -39,19 +39,13 @@ interface Acta.AspNetCore.IActaControlAuthorizer
     System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlVerdict> AuthorizeAsync(Acta.AspNetCore.ActaControlContext context, System.Threading.CancellationToken ct)
 
 ## Acta.Postgres
-static class Acta.Postgres.PostgresActaBuilderExtensions
-    Acta.IActaBuilder UsePostgres(Acta.IActaBuilder builder, System.Action<Acta.Postgres.PostgresProviderOptions> configure)
+static class Acta.Postgres.PostgresActaExtensions
+    Acta.IActaBuilder UsePostgres(Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
+    Acta.IOutboxSourceBuilder UsePostgres(Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.Postgres.PostgresOutboxDdl
     System.String CreateScript(System.String table = default, System.String schema = default)
-static class Acta.Postgres.PostgresOutboxRelayExtensions
-    Acta.IOutboxSourceBuilder UsePostgres(Acta.IOutboxSourceBuilder source, System.Action<Acta.Postgres.PostgresOutboxSourceOptions> configure)
-sealed class Acta.Postgres.PostgresOutboxSourceOptions
-    .ctor()
-    System.String ConnectionString { get;set; }
 static class Acta.Postgres.PostgresOutboxStagingExtensions
     System.Threading.Tasks.Task AddToActaOutboxAsync(Npgsql.NpgsqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = default, System.String schema = default, System.Threading.CancellationToken cancellationToken = default)
-sealed class Acta.Postgres.PostgresProviderOptions
-    .ctor()
 
 ## Acta.Redis
 static class Acta.Redis.RedisActaBuilderExtensions
@@ -65,34 +59,22 @@ sealed class Acta.Redis.RedisWakeupOptions
     System.TimeSpan RemoteWakeJitter { get;set; }
 
 ## Acta.SqlServer
-static class Acta.SqlServer.SqlServerActaBuilderExtensions
-    Acta.IActaBuilder UseSqlServer(Acta.IActaBuilder builder, System.Action<Acta.SqlServer.SqlServerProviderOptions> configure)
+static class Acta.SqlServer.SqlServerActaExtensions
+    Acta.IActaBuilder UseSqlServer(Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
+    Acta.IOutboxSourceBuilder UseSqlServer(Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.SqlServer.SqlServerOutboxDdl
     System.String CreateScript(System.String table = default, System.String schema = default)
-static class Acta.SqlServer.SqlServerOutboxRelayExtensions
-    Acta.IOutboxSourceBuilder UseSqlServer(Acta.IOutboxSourceBuilder source, System.Action<Acta.SqlServer.SqlServerOutboxSourceOptions> configure)
-sealed class Acta.SqlServer.SqlServerOutboxSourceOptions
-    .ctor()
-    System.String ConnectionString { get;set; }
 static class Acta.SqlServer.SqlServerOutboxStagingExtensions
     System.Threading.Tasks.Task AddToActaOutboxAsync(Microsoft.Data.SqlClient.SqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = default, System.String schema = default, System.Threading.CancellationToken cancellationToken = default)
-sealed class Acta.SqlServer.SqlServerProviderOptions
-    .ctor()
 
 ## Acta.Sqlite
-static class Acta.Sqlite.SqliteActaBuilderExtensions
-    Acta.IActaBuilder UseSqlite(Acta.IActaBuilder builder, System.Action<Acta.Sqlite.SqliteProviderOptions> configure)
+static class Acta.Sqlite.SqliteActaExtensions
+    Acta.IActaBuilder UseSqlite(Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
+    Acta.IOutboxSourceBuilder UseSqlite(Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.Sqlite.SqliteOutboxDdl
     System.String CreateScript(System.String table = default)
-static class Acta.Sqlite.SqliteOutboxRelayExtensions
-    Acta.IOutboxSourceBuilder UseSqlite(Acta.IOutboxSourceBuilder source, System.Action<Acta.Sqlite.SqliteOutboxSourceOptions> configure)
-sealed class Acta.Sqlite.SqliteOutboxSourceOptions
-    .ctor()
-    System.String ConnectionString { get;set; }
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
     System.Threading.Tasks.Task AddToActaOutboxAsync(Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = default, System.String schema = default, System.Threading.CancellationToken cancellationToken = default)
-sealed class Acta.Sqlite.SqliteProviderOptions
-    .ctor()
 
 ## Acta.Testing
 sealed class Acta.Testing.ActaRecoveryReport
@@ -2261,7 +2243,7 @@ sealed class Acta.SignalWaitOutcome<T>
     System.Boolean Received { get; }
     System.Boolean TimedOut { get; }
     T Value { get; }
-abstract class Acta.SqlProviderOptions
+sealed class Acta.SqlProviderOptions
     .ctor()
     System.Boolean ApplyMigrationsOnStartup { get;set; }
     System.Int32 DeadlockRetryAttempts { get;set; }

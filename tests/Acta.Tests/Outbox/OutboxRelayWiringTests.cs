@@ -30,7 +30,7 @@ public sealed class OutboxRelayWiringTests
                         {
                             s.Table = "acta_outbox_a";
                             s.QuarantineThreshold = 3;
-                            s.UseSqlite(o => o.ConnectionString = "Data Source=source-a.db");
+                            s.UseSqlite("Data Source=source-a.db");
                         }
                     );
                 }
@@ -46,7 +46,7 @@ public sealed class OutboxRelayWiringTests
                         {
                             s.Table = "acta_outbox_b";
                             s.QuarantineThreshold = 7;
-                            s.UseSqlite(o => o.ConnectionString = "Data Source=source-b.db");
+                            s.UseSqlite("Data Source=source-b.db");
                         }
                     );
                 }

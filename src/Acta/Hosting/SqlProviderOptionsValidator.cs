@@ -3,19 +3,17 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Validates any <see cref="SqlProviderOptions"/> subclass at host startup (paired with
-/// <c>ValidateOnStart</c>), one instance per concrete provider options type. Mirrors
+/// Validates <see cref="SqlProviderOptions"/> at host startup (paired with <c>ValidateOnStart</c>). Mirrors
 /// <c>JobsOptionsValidator</c>'s aggregate-and-report shape.
 /// </summary>
-internal sealed class SqlProviderOptionsValidator<TOptions> : IValidateOptions<TOptions>
-    where TOptions : SqlProviderOptions
+internal sealed class SqlProviderOptionsValidator : IValidateOptions<SqlProviderOptions>
 {
-    public ValidateOptionsResult Validate(string? name, TOptions options)
+    public ValidateOptionsResult Validate(string? name, SqlProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         var failures = new List<string>();
-        var prefix = typeof(TOptions).Name;
+        const string prefix = nameof(SqlProviderOptions);
 
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
