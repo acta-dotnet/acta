@@ -149,17 +149,20 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and
   stop, alert acknowledge and resolve, definition overrides, job notes, and the three tag writes.
   Seventeen routines remain (enqueue, claim, complete, steps, job signals and sleep timers, locks and
-  meters, the heartbeat, recovery, and retention; see the next bullet for the second pass). A database keeps the routines it already has, so older workers still find them during a rolling deploy;
-  drop the retired ones once no older worker runs. The object package moves to revision 47; the minimum
+  meters, the heartbeat, recovery, and retention; see the next bullet for the later passes). A database
+  keeps the routines it already has, so older workers still find them during a rolling deploy; drop the
+  retired ones once no older worker runs. The object package moves to revision 47; the minimum
   stays 9.
-- **A second pass moved seven cold routines inline.** `claim_job` (only RunOnce, `jobs debug`, and the
+- **Two later passes moved ten more cold routines inline.** `claim_job` (only RunOnce, `jobs debug`, and the
   test host claim by id), `mark_dead_workers`, `raise_alert`, `resolve_alerts`, `update_alert_delivery`,
   `register_definitions`, and `register_schedules` run as inline SQL on PostgreSQL and SQL Server, as they
   already did on SQLite: one statement, or one batch in one implicit transaction whose only result is its last
   SELECT. `purge_expired_data` and `reclaim_stuck_jobs` stay routines: a sweep calls the purge once per
   slice and batch, and both re-check rows under their own locks, which inline SQL could only do with temp
-  tables built on every call, two to three times slower in the retention specs. The object package moves to
-  revision 84.
+  tables built on every call, two to three times slower in the retention specs. The third pass took the
+  outbox operator inbox: `record_outbox_event` and `consume_outbox_signal` are one statement on every
+  dialect, and `park_outbox_signal` is a two-statement batch, all three reached only when an operator
+  issues a command. The object package moves to revision 87.
 - **Return types take one suffix per role.** What the handler waits return takes the `Outcome` noun of
   `JoinOutcome` and `MapOutcome`: `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with
   `SignalWaitResult<T>`) are now `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
