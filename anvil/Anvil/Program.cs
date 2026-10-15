@@ -215,7 +215,7 @@ static async Task RunWorkerAsync(string[] args)
     var provider = Required(args, "--provider"); // fail-fast: never silently default to pg
     var ns = Required(args, "--namespace");
     var outboxSource = Required(args, "--outbox-source");
-    var executors = GetArg(args, "--executors") is { } e && int.TryParse(e, out var ex) ? ex : 4;
+    int? executors = GetArg(args, "--executors") is { } e && int.TryParse(e, out var ex) ? ex : null;
 
     if (GetArg(args, "--parent-pid") is { } p && int.TryParse(p, out var pid))
     {
@@ -229,12 +229,15 @@ static async Task RunWorkerAsync(string[] args)
         // worker migration would fight the dashboard's seed for the single write lock and crash on start.
         j.UseLocalDatabase(builder.Configuration, schema, provider, applyMigrations: false);
         j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
-        // Child-process command-line arguments remain explicit, but the dashboard always supplies the
-        // fixed Anvil worker preset. The deployment version lines the process up with its worker row.
-        // Lease/heartbeat/dead-worker windows stay at the framework production defaults.
+        // A lab worker runs the product's executor default; only a certification run passes --executors. The
+        // deployment version lines the process up with its worker row. Lease/heartbeat/dead-worker windows
+        // stay at the framework production defaults.
         j.ConfigureOptions(o =>
         {
-            o.MaxConcurrentExecutors = executors;
+            if (executors is { } slots)
+            {
+                o.MaxConcurrentExecutors = slots;
+            }
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
             o.DeploymentVersion = workerName;
         });

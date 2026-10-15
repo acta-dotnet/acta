@@ -102,7 +102,7 @@ function renderRunReadout() {
     `<div><span class="rk">Workload</span><b>${config.label}</b></div>` +
     `<div><span class="rk">Jobs</span><b>${number(el("sel-load").value)}</b></div>` +
     `<div><span class="rk">Processes</span><b>${number(el("sel-workers").value)}</b></div>` +
-    `<div><span class="rk">Worker preset</span><b>4 executors · Direct</b></div>`;
+    `<div><span class="rk">Executors</span><b>${currentState ? `${currentState.executorsPerWorker} per worker` : "…"}</b></div>`;
 }
 
 function buildRunSpec() {
@@ -564,7 +564,11 @@ function trackHealthyState(state) {
 }
 
 function render(state) {
+  const firstState = currentState === null;
   currentState = state;
+  if (firstState) {
+    renderRunReadout();
+  }
   renderProvider(state.provider);
   el("namespace-name").textContent = state.namespaceName;
   el("acta-link").href = `acta/#/?ns=${encodeURIComponent(state.namespaceName)}`;

@@ -4,16 +4,6 @@ using System.Globalization;
 
 namespace Anvil;
 
-internal static class AnvilWorkerPreset
-{
-    // Eight rather than four: at the dashboard's 8-worker ceiling this gives 64 concurrent slots,
-    // which is what makes a lab run of real size finish in a sane window. The work is Task.Delay,
-    // not CPU, so the cost is database round trips - and more of them at once is the point, since
-    // claim contention is exactly what the ownership check is looking at. A certification run
-    // overrides it with --certify-executors; the dashboard always uses this default.
-    public const int Executors = 8;
-}
-
 /// <summary>
 /// Owns the real child processes used by the lab. Worker-count changes are reconciled in place: existing
 /// healthy processes remain, excess processes drain gracefully, and only missing processes are spawned.
@@ -28,11 +18,11 @@ public sealed class WorkerProcessLauncher(
 ) : IDisposable
 {
     /// <summary>
-    /// Executor slots each spawned worker runs with. Defaults to the lab preset; a certification run
-    /// raises it so total concurrency is workers x this, sized against the database's connection
-    /// ceiling rather than guessed.
+    /// Executor slots each spawned worker runs with, or null for the product default
+    /// (<see cref="JobsOptions.MaxConcurrentExecutors"/>, which the bench drain cells also run). A certification run
+    /// sets it so total concurrency is workers x this, sized against the database's connection ceiling.
     /// </summary>
-    public int ExecutorsPerWorker { get; set; } = AnvilWorkerPreset.Executors;
+    public int? ExecutorsPerWorker { get; set; }
 
     private const int ExitedWorkerRetention = 3;
 
@@ -159,7 +149,10 @@ public sealed class WorkerProcessLauncher(
         AddArgument(start, "--schema", schema);
         AddArgument(start, "--provider", provider);
         AddArgument(start, "--namespace", namespaceName);
-        AddArgument(start, "--executors", ExecutorsPerWorker.ToString(CultureInfo.InvariantCulture));
+        if (ExecutorsPerWorker is { } executors)
+        {
+            AddArgument(start, "--executors", executors.ToString(CultureInfo.InvariantCulture));
+        }
         AddArgument(start, "--outbox-source", outboxSourcePath);
         AddArgument(start, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         return start;
