@@ -101,7 +101,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcquireLock` | · | · | · | inline | inline | inline | `locks` | `AcquireLockSpec` |
-| `AcquireSlot` | · | · | · | routine | routine | inline | `locks` | `AcquireSlotSpec` |
+| `AcquireSlot` | · | · | · | inline | inline | inline | `locks` | `AcquireSlotSpec` |
 | `ReleaseLock` | · | · | · | inline | inline | inline | `locks` | `ReleaseLockSpec` |
 | `ReserveRate` | · | · | · | routine | routine | inline | `locks` | `ReserveRateSpec` |
 

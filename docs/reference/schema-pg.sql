@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 89)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 90)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -920,46 +920,6 @@ BEGIN
         RAISE EXCEPTION 'access_checkpoint received an unknown action.';
     END IF;
 END;
-$$;
-
--- A slot is free when it has no row or its hold expired; the insert steals an expired row in place.
--- The primary key arbitrates two racers on one slot, and the loser's ON CONFLICT guard fails to no row.
-CREATE OR REPLACE FUNCTION acta.acquire_slot(
-    p_lock_key_prefix VARCHAR,
-    p_slot_count INT,
-    p_job_id BIGINT,
-    p_lease_ttl_seconds INT,
-    p_hold_token UUID
-)
-RETURNS TABLE (slot_key VARCHAR)
-LANGUAGE sql
-AS $$
-    WITH free AS (
-        SELECT s.i
-        FROM generate_series(0, p_slot_count - 1) AS s(i)
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM acta.locks held
-            WHERE
-                held.lock_key = p_lock_key_prefix || '.' || s.i
-                AND held.expires_at_utc > now()
-        )
-        ORDER BY s.i
-        LIMIT 1
-    )
-    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    SELECT
-        p_lock_key_prefix || '.' || free.i,
-        p_job_id,
-        now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
-        p_hold_token
-    FROM free
-    ON CONFLICT (lock_key) DO UPDATE SET
-        job_id = EXCLUDED.job_id,
-        expires_at_utc = EXCLUDED.expires_at_utc,
-        hold_token = EXCLUDED.hold_token
-    WHERE locks.expires_at_utc <= now()
-    RETURNING locks.lock_key;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.arm_or_consume_sleep_timer(
@@ -4142,7 +4102,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.89-6dc735fc9226e4d47d876851438ff2ca', 'acta');
+VALUES (-1, 'objects-1.90-0575537c501024af3fce6340f4f6cd64', 'acta');
 
 COMMIT;
 

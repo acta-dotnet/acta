@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 89)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 90)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1189,88 +1189,6 @@ BEGIN
         IF @entry_trancount = 0 AND XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
         THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.acquire_slot
-    @p_lock_key_prefix VARCHAR(256),
-    @p_slot_count INT,
-    @p_job_id BIGINT,
-    @p_lease_ttl_seconds INT,
-    @p_hold_token UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @out TABLE (lock_key VARCHAR(256));
-        DECLARE @slot_key VARCHAR(256);
-
-        -- Lowest-numbered free slot: no row, or a row whose hold expired. MAXRECURSION 0 because the
-        -- limit reaches 1024, well past the default recursion ceiling of 100.
-        WITH slots (i) AS (
-            SELECT 0
-            UNION ALL
-            SELECT i + 1 FROM slots WHERE i + 1 < @p_slot_count
-        )
-        SELECT TOP (1) @slot_key = @p_lock_key_prefix + '.' + CAST(slots.i AS VARCHAR(10))
-        FROM slots
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM acta.locks held
-            WHERE
-                held.lock_key = @p_lock_key_prefix + '.' + CAST(slots.i AS VARCHAR(10))
-                AND held.expires_at_utc > @now
-        )
-        ORDER BY slots.i
-        OPTION (MAXRECURSION 0);
-
-        -- Point update, then insert on a miss, exactly as acquire_lock does: the primary key
-        -- arbitrates new-key races, and serializable gap locking would serialize unrelated slots.
-        IF @slot_key IS NOT NULL
-            BEGIN
-                UPDATE acta.locks
-                SET
-                    job_id = @p_job_id,
-                    expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
-                    hold_token = @p_hold_token
-                OUTPUT INSERTED.lock_key INTO @out
-                WHERE
-                    lock_key = @slot_key
-                    AND expires_at_utc <= @now;
-
-                IF @@ROWCOUNT = 0 AND NOT EXISTS (
-                    SELECT 1 FROM acta.locks
-                    WHERE lock_key = @slot_key
-                )
-                    BEGIN
-                        INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                        OUTPUT INSERTED.lock_key INTO @out
-                        VALUES (@slot_key, @p_job_id, DATEADD(SECOND, @p_lease_ttl_seconds, @now), @p_hold_token);
-                    END;
-            END;
-
-        SELECT lock_key AS slot_key FROM @out;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-
-        -- A duplicate-key loser raced another admission onto the same slot and acquired nothing; the
-        -- caller settles that as a plain miss. XACT_ABORT requires rollback before returning it.
-        IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-            SELECT CAST(NULL AS VARCHAR(256)) AS slot_key WHERE 1 = 0;
-        ELSE
-            THROW;
     END CATCH;
 END;
 GO
@@ -4695,9 +4613,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.89-bcd8a237b38e14e1eb0e9d23cd2cdacb', 'acta'
+SELECT -1, 'objects-1.90-541804024bbb6a48afbfcb62c8b00d3f', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'acquire_slot', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'reserve_rate', 'start_step', 'wait_signal')) = 24;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'access_checkpoint', 'arm_or_consume_sleep_timer', 'claim_jobs', 'complete_executions', 'complete_step', 'enqueue_job', 'enqueue_jobs', 'extend_worker_leases', 'purge_expired_data', 'raise_signal', 'reclaim_stuck_jobs', 'reserve_rate', 'start_step', 'wait_signal')) = 23;
 GO
 COMMIT TRANSACTION;
 GO
