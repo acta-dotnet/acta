@@ -81,6 +81,10 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     // (e.g. leases, results), so it is a per-table opt-in via [DbTable(PageCompression = true)].
     public override string TableTrailingOptions(EntityModel e) => e.PageCompression ? " WITH (DATA_COMPRESSION = PAGE)" : "";
 
+    // SQL Server's CREATE INDEX has no IF NOT EXISTS; the baseline guards indexes with their table's block.
+    public override string GuardIndexCreate(string tableName, string indexName, string createIndex) =>
+        $"IF INDEXPROPERTY(OBJECT_ID(N'{SchemaPlaceholder}.{tableName}'), N'{indexName}', 'IndexID') IS NULL\n    {createIndex}";
+
     // CREATE TABLE takes no LOCK_ESCALATION option, so it is an ALTER of its own.
     public override string? TableLockEscalation(string tableName, bool disabled) =>
         $"ALTER TABLE {SchemaPlaceholder}.{tableName} SET (LOCK_ESCALATION = {(disabled ? "DISABLE" : "TABLE")});";

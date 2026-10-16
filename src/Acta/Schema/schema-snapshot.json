@@ -920,6 +920,10 @@
           "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20) AND next_run_at_utc IS NOT NULL|seq=False"
         },
         {
+          "Name": "ix_runtimes_failed",
+          "Signature": "I|cols=namespace_id,job_id|inc=|desc=job_id|filter=status_code = 200|seq=False"
+        },
+        {
           "Name": "ix_runtimes_lane",
           "Signature": "I|cols=lane_id,job_id|inc=|desc=|filter=lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50)|seq=False"
         },

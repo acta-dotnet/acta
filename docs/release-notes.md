@@ -402,6 +402,11 @@ settles, and what an operator sees when it fails.
   times per batch and won whenever no other session held a lock on the table at that instant: 39 times
   in a 5-minute 10K jobs/s run, each time stalling completions behind the enqueue's commit.
   Migration `M20261016094552_jobs_no_lock_escalation` sets `LOCK_ESCALATION = DISABLE` on `jobs`.
+- **The overview's Failed count and Failed list read only failed jobs.** Both scanned `runtimes`, or
+  walked the namespace's jobs newest-first, on every dashboard poll. The filtered index
+  `ix_runtimes_failed` (namespace, job id, Failed rows only) now serves them; only a job that fails
+  terminally writes it. Migration `M20261016100113_runtimes_failed_index` adds it, and a SQL Server
+  delta now guards each index it adds, so the published script re-runs over an upgraded schema.
 - **The overview counts executing jobs from the in-flight index.** The count filtered `runtimes` on
   status alone, which no index serves, so every overview request scanned the whole table, retained
   history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the

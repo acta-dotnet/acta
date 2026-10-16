@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **230 columns**, **33 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **230 columns**, **34 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -439,6 +439,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | `ix_runtimes_claim_ready` | `namespace_id`, `priority_code` DESC, `next_run_at_utc`, `job_id`, `status_code` | not unique | `status_code IN (10, 20) AND next_run_at_utc IS NOT NULL` | `claim_hot_path` |
 | `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code = 50` | `heartbeat` |
 | `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50)` | `lane` |
+| `ix_runtimes_failed` | `namespace_id`, `job_id` DESC | not unique | `status_code = 200` | `dashboard` |
 | `ix_runtimes_lane_member` | `lane_id` | not unique | `lane_id IS NOT NULL` | `maintenance` |
 
 **Check constraints**

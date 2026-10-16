@@ -57,6 +57,15 @@ namespace Acta;
     Filter = "lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50)",
     Usage = "lane"
 )]
+// A namespace's failed jobs, newest first: the overview's count and its Failed list read only failed rows, never the
+// namespace's history. A row enters only when a job fails terminally, so the success path never writes it.
+[DbIndex(
+    Name = "ix_runtimes_failed",
+    Columns = ["namespace_id", "job_id"],
+    Descending = ["job_id"],
+    Filter = "status_code = 200",
+    Usage = "dashboard"
+)]
 // Every member of a lane, finished or not: retention asks whether any runtime still references a lane
 // before deleting it, and the fk_runtimes_lanes check on that delete seeks it too. lane_id never
 // changes, so only a laned insert or purge writes it.

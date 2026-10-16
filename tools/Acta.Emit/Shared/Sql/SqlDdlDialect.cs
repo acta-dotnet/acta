@@ -100,6 +100,12 @@ internal abstract class SqlDdlDialect
     public virtual string? TableLockEscalation(string tableName, bool disabled) => null;
 
     /// <summary>
+    /// A delta's <c>CREATE INDEX</c> with its own existence guard, so the published script re-runs over an upgraded
+    /// schema. Unchanged where <see cref="CreateIndexClause"/> already says <c>IF NOT EXISTS</c>.
+    /// </summary>
+    public virtual string GuardIndexCreate(string tableName, string indexName, string createIndex) => createIndex;
+
+    /// <summary>
     /// Trailing <c>WITH (...)</c> clause for the inline primary-key constraint, driven by the PK's
     /// storage flags (e.g. <see cref="DbPrimaryKeyAttribute.OptimizeForSequentialKey"/>). Empty when
     /// none apply.

@@ -53,7 +53,7 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned')
+    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index')
 );
 DROP TABLE release_guard;
 
@@ -815,6 +815,15 @@ VALUES ('M20261016095220_seeks_pinned')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261016095220_seeks_pinned =====
+
+-- ===== BEGIN M20261016100113_runtimes_failed_index =====
+CREATE INDEX IF NOT EXISTS main.ix_runtimes_failed ON runtimes (namespace_id, job_id DESC) WHERE status_code = 200;
+
+INSERT INTO main.migrations (name)
+VALUES ('M20261016100113_runtimes_failed_index')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261016100113_runtimes_failed_index =====
 
 COMMIT;
 

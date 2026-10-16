@@ -66,6 +66,20 @@ public sealed class MigrationDeltaEmitterTests
     }
 
     [Fact]
+    public void An_added_index_on_sql_server_carries_its_own_existence_guard()
+    {
+        var live = SchemaModel.Discover();
+        var diff = Diff(addedIndexes: [new TableMember("jobs", "ix_jobs_parent")]);
+
+        var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new SqlServerDdlDialect(), stem: "M20260102000000_add_ix");
+
+        Assert.Contains(
+            "IF INDEXPROPERTY(OBJECT_ID(N'{{schema}}.jobs'), N'ix_jobs_parent', 'IndexID') IS NULL\n    CREATE INDEX ix_jobs_parent ON {{schema}}.jobs",
+            sql.ReplaceLineEndings("\n")
+        );
+    }
+
+    [Fact]
     public void Warnings_render_as_comment_lines_at_the_top()
     {
         var live = SchemaModel.Discover();

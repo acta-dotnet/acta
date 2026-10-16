@@ -75,7 +75,7 @@ internal static class MigrationDeltaEmitter
         foreach (var (table, index) in diff.AddedIndexes)
         {
             var idx = byTable[table].Indexes.First(i => i.Name == index);
-            sb.AppendLine(SqlSchemaEmitter.RenderIndex(table, idx, dialect));
+            sb.AppendLine(dialect.GuardIndexCreate(table, index, SqlSchemaEmitter.RenderIndex(table, idx, dialect)));
         }
 
         foreach (var (table, check) in diff.AddedChecks)

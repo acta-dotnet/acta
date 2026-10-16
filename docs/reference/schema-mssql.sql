@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned')
+    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -7367,6 +7367,20 @@ INSERT INTO acta.migrations (name)
 VALUES ('M20261016095220_seeks_pinned');
 GO
 -- ===== END M20261016095220_seeks_pinned =====
+GO
+-- ===== BEGIN M20261016100113_runtimes_failed_index =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+IF INDEXPROPERTY(OBJECT_ID(N'acta.runtimes'), N'ix_runtimes_failed', 'IndexID') IS NULL
+    CREATE INDEX ix_runtimes_failed ON acta.runtimes (namespace_id, job_id DESC) WHERE status_code = 200;
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016100113_runtimes_failed_index')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261016100113_runtimes_failed_index');
+GO
+-- ===== END M20261016100113_runtimes_failed_index =====
 GO
 COMMIT TRANSACTION;
 GO
