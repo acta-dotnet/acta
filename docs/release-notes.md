@@ -31,7 +31,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   duration. On SQL Server the started insert took about 10 of a claim's 25 ms, waiting on the last
   page of `events`; without it a 4-worker drain went from 8.7K to 11.4K jobs/s.
   `EventCode.JobExecutionStarted` (40) is gone, and the dashboard's Executions panel shows one row per
-  finished attempt. A reclaimed attempt's finished event now names the worker that
+  finished attempt plus one, from the job's own record, for the attempt in flight. With nothing writing
+  an in-flight execution status, `ExecutionStatusCode.Executing` (50) and the `ExecutionBehavior.Live`
+  it mapped to are gone too. A reclaimed attempt's finished event now names the worker that
   held the lapsed lease, which only the started event recorded before.
 - **`EnqueueBatchAsync` takes at most 1,000 rows.** It was 5,000; a larger batch throws
   `ArgumentException`, so split it caller-side. On SQL Server a batch at the old limit crossed the
