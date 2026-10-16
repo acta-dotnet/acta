@@ -181,7 +181,9 @@ internal static partial class SchemaMigrations
     internal static IReadOnlyList<SchemaMigration> InApplyOrder(IEnumerable<SchemaMigration> migrations)
     {
         var ordered = migrations.OrderBy(m => m.Name, StringComparer.Ordinal).ToList();
-        var duplicate = ordered.GroupBy(m => m.Name["M00000000000000_".Length..], StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1);
+        var duplicate = ordered
+            .GroupBy(m => m.Name["M00000000000000_".Length..], StringComparer.Ordinal)
+            .FirstOrDefault(g => g.Count() > 1);
         return duplicate is null
             ? ordered
             : throw new InvalidOperationException(

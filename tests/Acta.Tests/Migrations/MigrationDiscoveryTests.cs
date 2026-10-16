@@ -22,9 +22,11 @@ public sealed class MigrationDiscoveryTests
     public void Two_migrations_sharing_a_name_are_refused()
     {
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            SchemaMigrations.InApplyOrder(
-                [new("M20260102000000_add_x", ""), new("M20260101000000_init", ""), new("M20260103000000_add_x", "")]
-            )
+            SchemaMigrations.InApplyOrder([
+                new("M20260102000000_add_x", ""),
+                new("M20260101000000_init", ""),
+                new("M20260103000000_add_x", ""),
+            ])
         );
         Assert.Contains("M20260102000000_add_x and M20260103000000_add_x share the name 'add_x'", ex.Message);
     }

@@ -108,7 +108,16 @@ internal sealed record SchemaDiff(
             );
         }
 
-        return new SchemaDiff(addedTables, addedColumns, addedIndexes, addedChecks, addedForeignKeys, changedTableOptions, warnings, objects);
+        return new SchemaDiff(
+            addedTables,
+            addedColumns,
+            addedIndexes,
+            addedChecks,
+            addedForeignKeys,
+            changedTableOptions,
+            warnings,
+            objects
+        );
     }
 
     private static void DiffMembers<T>(

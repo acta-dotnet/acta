@@ -37,7 +37,9 @@ internal static class SchemaAddCommand
         // carries it, re-diffed against whatever snapshot is on disk, so redoing it starts with a git checkout of the
         // snapshot it was cut from.
         var taken = stems
-            .SelectMany(kv => kv.Value.Where(s => MigrationFiles.NameOf(s) == name).Select(s => MigrationFiles.PathFor(repoRoot, kv.Key.Token, s)))
+            .SelectMany(kv =>
+                kv.Value.Where(s => MigrationFiles.NameOf(s) == name).Select(s => MigrationFiles.PathFor(repoRoot, kv.Key.Token, s))
+            )
             .ToList();
         if (taken.Count > 0 && !force)
         {
