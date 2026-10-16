@@ -20,7 +20,7 @@ SELECT
 FROM {{schema}}.definitions jd
 JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
 WHERE
-    (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+    (@p_namespace_name IS NULL OR jd.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
     AND (@p_name_search IS NULL OR jd.name LIKE @p_name_search)
     AND (@p_status_code IS NULL OR jd.status_code = @p_status_code)
     AND (@p_tag_filters IS NULL OR NOT EXISTS (
@@ -45,9 +45,8 @@ LIMIT @p_take;
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.definitions jd
-    JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
     WHERE
-        (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+        (@p_namespace_name IS NULL OR jd.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
         AND (@p_name_search IS NULL OR jd.name LIKE @p_name_search)
         AND (@p_status_code IS NULL OR jd.status_code = @p_status_code)
         AND (@p_tag_filters IS NULL OR NOT EXISTS (

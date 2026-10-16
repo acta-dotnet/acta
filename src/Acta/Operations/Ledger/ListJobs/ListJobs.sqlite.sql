@@ -28,7 +28,7 @@ LEFT JOIN {{schema}}.jobs rjob ON rjob.id = j.lineage_root_id
 LEFT JOIN {{schema}}.tenants t ON t.id = j.tenant_id
 LEFT JOIN {{schema}}.lanes lane ON lane.id = r.lane_id
 WHERE
-    (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+    (@p_namespace_name IS NULL OR j.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
     AND (@p_status_code IS NULL OR r.status_code = @p_status_code)
     AND (@p_job_name IS NULL OR jd.name = @p_job_name)
     AND (@p_parent_id IS NULL OR j.parent_id = @p_parent_id)
@@ -69,10 +69,9 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.jobs j
     JOIN {{schema}}.runtimes r ON r.job_id = j.id
-    JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
     JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
     WHERE
-        (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+        (@p_namespace_name IS NULL OR j.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
         AND (@p_status_code IS NULL OR r.status_code = @p_status_code)
         AND (@p_job_name IS NULL OR jd.name = @p_job_name)
         AND (@p_parent_id IS NULL OR j.parent_id = @p_parent_id)

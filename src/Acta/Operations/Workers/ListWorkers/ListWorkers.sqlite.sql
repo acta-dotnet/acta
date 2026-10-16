@@ -15,7 +15,7 @@ SELECT
 FROM {{schema}}.workers w
 JOIN {{schema}}.namespaces ns ON ns.id = w.namespace_id
 WHERE
-    (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+    (@p_namespace_name IS NULL OR w.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
     AND (@p_status_code IS NULL OR w.status_code = @p_status_code)
     AND (
         @p_cursor_last_seen_at_utc IS NULL
@@ -28,8 +28,7 @@ LIMIT @p_take;
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.workers w
-    JOIN {{schema}}.namespaces ns ON ns.id = w.namespace_id
     WHERE
-        (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+        (@p_namespace_name IS NULL OR w.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
         AND (@p_status_code IS NULL OR w.status_code = @p_status_code)
 ) END;

@@ -21,7 +21,7 @@ SELECT
 FROM {{schema}}.alerts a
 JOIN {{schema}}.namespaces ns ON ns.id = a.namespace_id
 WHERE
-    (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+    (@p_namespace_name IS NULL OR a.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
     AND (@p_job_id IS NULL OR a.job_id = @p_job_id)
     AND (@p_unresolved_only IS NULL OR a.resolved_at_utc IS NULL)
     AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
@@ -36,9 +36,8 @@ LIMIT @p_take;
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.alerts a
-    JOIN {{schema}}.namespaces ns ON ns.id = a.namespace_id
     WHERE
-        (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
+        (@p_namespace_name IS NULL OR a.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
         AND (@p_job_id IS NULL OR a.job_id = @p_job_id)
         AND (@p_unresolved_only IS NULL OR a.resolved_at_utc IS NULL)
         AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
