@@ -12,8 +12,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `TagTarget.ForSchedule`, `ForWorker`, `ForAlert`, and `ForEvent` are gone, with the
   `/schedules/.../tags`, `/workers/.../tags`, and `/alerts/.../tags` routes, the `Tags` filter on
   `ListSchedulesQuery`, `ListWorkersQuery`, `ListAlertsQuery`, and `ListEventsQuery` (the `tag` query
-  parameter on those lists), and the dashboard's tag editors and tag filters for them. The four
-  `TagScopeCode` members stay, marked retired.
+  parameter on those lists), and the dashboard's tag editors and tag filters for them, and the four
+  `TagScopeCode` members are gone.
 - **The overview counts no history.** `GetOverviewQuery.IncludeSlowCounts`,
   `GetOverviewResponse.JobCount` and `SystemJobCount`, and `jobCount` / `systemJobCount` on
   `GET /overview` are gone, and so is the dashboard's Total jobs tile. Both counts read every job the
@@ -42,7 +42,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `XOutboxSourceOptions` types are gone, and the schema and table overrides stay on the source builder.
   Each provider's two `Use*` methods now live on one class, `XActaExtensions`.
 - **Migrations are named by datetime, and the history table is two columns.** A migration is
-  `M{yyyyMMddHHmmss}_{name}.sql`, rc.5's one baseline `M20261016180953_init`, and there is no running
+  `M{yyyyMMddHHmmss}_{name}.sql`, rc.5's one baseline named `init`, and there is no running
   counter. The `migrations` table is `name` and `applied_at_utc`; `version` and `installed_schema`
   are gone, and so are the two sentinel rows, the baseline stamp at version 0 and the object package
   at version -1. Startup checks one thing: every migration this build ships has a row. Rows it does

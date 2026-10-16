@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261016180953_init')
+    WHERE name NOT IN ('M20261016181433_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261016180953_init =====
+-- ===== BEGIN M20261016181433_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -376,7 +376,7 @@ CREATE TABLE IF NOT EXISTS main.tags (
     , CONSTRAINT pk_tags PRIMARY KEY (scope_code, scope_id, name)
     , CONSTRAINT ck_tags_scope_id CHECK (scope_id > 0)
     , CONSTRAINT ck_tags_namespace_id CHECK (namespace_id IS NULL OR namespace_id > 0)
-    , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50, 60, 70, 80, 90) AND namespace_id IS NOT NULL))
+    , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50) AND namespace_id IS NOT NULL))
     , CONSTRAINT ck_tags_value_search CHECK ((value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL))
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_tags_namespace_name_value_search ON tags (namespace_id, name, value_search, scope_code, scope_id);
@@ -749,7 +749,7 @@ JOIN main.definitions AS d ON d.id = j.definition_id;
 DROP VIEW IF EXISTS main.tags_view;
 CREATE VIEW main.tags_view AS
 SELECT
-    CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
+    CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' END AS scope,
     t.scope_code,
     t.scope_id,
     ns.name AS namespace,
@@ -783,10 +783,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261016180953_init')
+VALUES ('M20261016181433_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261016180953_init =====
+-- ===== END M20261016181433_init =====
 
 COMMIT;
 

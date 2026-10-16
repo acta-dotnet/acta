@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261016180953_init')
+        WHERE name NOT IN ('M20261016181433_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261016180953_init =====
+-- ===== BEGIN M20261016181433_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -380,7 +380,7 @@ CREATE TABLE IF NOT EXISTS acta.tags (
     , CONSTRAINT pk_tags PRIMARY KEY (scope_code, scope_id, name)
     , CONSTRAINT ck_tags_scope_id CHECK (scope_id > 0)
     , CONSTRAINT ck_tags_namespace_id CHECK (namespace_id IS NULL OR namespace_id > 0)
-    , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50, 60, 70, 80, 90) AND namespace_id IS NOT NULL))
+    , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50) AND namespace_id IS NOT NULL))
     , CONSTRAINT ck_tags_value_search CHECK ((value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS ix_tags_namespace_name_value_search ON acta.tags (namespace_id, name, value_search, scope_code, scope_id);
@@ -3987,7 +3987,7 @@ JOIN acta.definitions AS d ON d.id = j.definition_id;
 
 CREATE OR REPLACE VIEW acta.tags_view AS
 SELECT
-    CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
+    CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' END AS scope,
     t.scope_code,
     t.scope_id,
     ns.name AS namespace,
@@ -4020,10 +4020,10 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261016180953_init')
+VALUES ('M20261016181433_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261016180953_init =====
+-- ===== END M20261016181433_init =====
 
 COMMIT;
 

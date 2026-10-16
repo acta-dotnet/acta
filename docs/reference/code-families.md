@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **188 values**.
+This release: **29 families**, **184 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -382,10 +382,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Namespace` | 30 | `namespace` | Tag attached to one namespace. | Active |
 | `Definition` | 40 | `definition` | Tag attached to one job definition. | Active |
 | `Job` | 50 | `job` | Tag attached to one job. | Active |
-| `Schedule` | 60 | `schedule` | No longer written; kept so rows an older release wrote still read. | Retired |
-| `Worker` | 70 | `worker` | No longer written; kept so rows an older release wrote still read. | Retired |
-| `Alert` | 80 | `alert` | No longer written; kept so rows an older release wrote still read. | Retired |
-| `Event` | 90 | `event` | No longer written; kept so rows an older release wrote still read. | Retired |
 
 ### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>
 

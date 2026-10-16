@@ -413,7 +413,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <28607 chars, sha256:E281AC17>
+    System.String MarkdownReport = <28215 chars, sha256:73026D1D>
 enum Acta.ControlAction
     Accepted = 4
     AlreadyInState = 6
@@ -2323,15 +2323,11 @@ enum Acta.TagMutationAction
     Applied = 1
     NotFound = 2
 enum Acta.TagScopeCode
-    Alert = 80
     Definition = 40
-    Event = 90
     Job = 50
     Namespace = 30
-    Schedule = 60
     Tenant = 20
     Unspecified = 0
-    Worker = 70
 static class Acta.TagScopeCodeExtensions
     Acta.TagScopeCode FromCode(System.String code)
     Acta.TagScopeCode FromId(System.Byte id)

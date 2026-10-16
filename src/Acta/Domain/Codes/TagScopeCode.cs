@@ -24,16 +24,4 @@ public enum TagScopeCode : byte
 
     [Code("job", "Tag attached to one job.")]
     Job = 50,
-
-    [Code("schedule", "No longer written; kept so rows an older release wrote still read.", Lifecycle = CodeLifecycle.Retired)]
-    Schedule = 60,
-
-    [Code("worker", "No longer written; kept so rows an older release wrote still read.", Lifecycle = CodeLifecycle.Retired)]
-    Worker = 70,
-
-    [Code("alert", "No longer written; kept so rows an older release wrote still read.", Lifecycle = CodeLifecycle.Retired)]
-    Alert = 80,
-
-    [Code("event", "No longer written; kept so rows an older release wrote still read.", Lifecycle = CodeLifecycle.Retired)]
-    Event = 90,
 }

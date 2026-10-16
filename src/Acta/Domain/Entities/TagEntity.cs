@@ -18,7 +18,7 @@ namespace Acta;
     Name = "ck_tags_scope_namespace",
     Sql = "(scope_code = 20 AND namespace_id IS NULL) OR "
         + "(scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR "
-        + "(scope_code IN (40, 50, 60, 70, 80, 90) AND namespace_id IS NOT NULL)"
+        + "(scope_code IN (40, 50) AND namespace_id IS NOT NULL)"
 )]
 [DbCheck(
     Name = "ck_tags_value_search",
