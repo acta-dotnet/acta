@@ -13,7 +13,13 @@
   import { routes } from '../../routes.ts';
   import type { JobEvent, JobDetail } from './types.ts';
   import { mergeJobEvents } from './jobDetailState.ts';
-  import { deriveExecutions, executionGapSummary, executionPresentation, type ExecutionSummary } from './executionsState.ts';
+  import {
+    deriveExecutions,
+    executionGapSummary,
+    executionPresentation,
+    withRunningExecution,
+    type ExecutionSummary
+  } from './executionsState.ts';
 
   let {
     jobRef,
@@ -48,7 +54,7 @@
 
   let historyPages = $derived(history.data?.pages.map((page) => page.items) ?? []);
   let events: JobEvent[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
-  let executions = $derived(deriveExecutions(events));
+  let executions = $derived(withRunningExecution(deriveExecutions(events), job));
   let gap = $derived(executionGapSummary(job.executionNumber, executions));
 
   // Deep link (?execution=N): scroll to the row once present, paging older history until the
@@ -89,8 +95,9 @@
 <section class="detail-panel" aria-label="Executions">
   <h2>Executions</h2>
   <p class="detail-help">
-    One row per finished handler invocation, derived from the event ledger; open a row to walk its events in
-    the timeline. Showing {displayFormatter.number(gap.shown)} of {displayFormatter.number(gap.total)} executions.
+    One row per handler invocation: a finished one from its event in the ledger, the one in flight from the
+    job's own record. Open a row to walk its events in the timeline. Showing {displayFormatter.number(gap.shown)}
+    of {displayFormatter.number(gap.total)} executions.
   </p>
 
   {#if executions.length === 0}
@@ -113,7 +120,7 @@
         {#each executions as execution, index (execution.executionNumber)}
           {@const look = executionPresentation(execution.outcome)}
           {@const previous = executions[index + 1]}
-          {@const retryGapSeconds = execution.startedAtUtc && previous
+          {@const retryGapSeconds = execution.startedAtUtc && previous?.finishedAtUtc
             ? Math.round((Date.parse(execution.startedAtUtc) - Date.parse(previous.finishedAtUtc)) / 1000)
             : null}
           {@const repeatReason = !!execution.reasonMessage && execution.reasonMessage === previous?.reasonMessage}

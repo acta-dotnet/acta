@@ -15,27 +15,30 @@
   import { routes } from '../routes.ts';
   import JobRef from '../components/JobRef.svelte';
 
-  // Kebab codes the backend's events filter accepts (EventCode / ActorCode / EventReasonCode).
+  // Kebab codes the backend's events filter accepts (EventCode / ActorCode / EventReasonCode), less each
+  // family's never-written 'unspecified'.
   // Hardcoded rather than fetched: the code families are compile-time enums with no list endpoint.
   const EVENT_CODES = [
     'tenant.suspended', 'tenant.resumed', 'tenant.updated',
     'namespace.suspended', 'namespace.resumed', 'namespace.updated',
-    'definition.overrides-updated',
+    'definition.overrides-updated', 'definition.retired',
     'job.execution-finished', 'job.recurring-rolled-over',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
-    'job.signal-raised', 'job.state-reset',
+    'job.signal-raised', 'job.state-reset', 'job.note-recorded',
     'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered',
     'worker.started', 'worker.stopped', 'worker.died',
-    'alert.acknowledged', 'alert.resolved'
+    'alert.acknowledged', 'alert.resolved',
+    'outbox.requeued', 'outbox.discarded'
   ];
   const ACTOR_CODES = ['sys', 'operator', 'job', 'worker'];
   const REASON_CODES = [
     'job.unclassified', 'job.unhandled-exception', 'job.lease-expired', 'job.execution-timeout',
-    'job.non-retryable-exception', 'job.deadline-exceeded', 'job.schedules-exhausted',
+    'job.non-retryable-exception', 'job.deadline-exceeded', 'job.attempt-aborted', 'job.schedules-exhausted',
     'job.control-manual', 'job.parent-cancelled', 'job.definition-retired',
     'job.handler-rescheduled', 'job.handler-suspended', 'job.handler-failed', 'job.handler-cancelled', 'job.handler-paused',
-    'job.signal-released', 'job.step-retry-scheduled', 'job.concurrency-key-held', 'job.rate-limited', 'job.step-interrupted',
+    'job.signal-released', 'job.step-retry-scheduled', 'job.concurrency-key-held', 'job.step-interrupted',
+    'job.result-oversized', 'job.wait-timed-out', 'job.rate-limited', 'job.lane-repaired',
     'worker.clean-shutdown', 'worker.heartbeat-stale'
   ];
 

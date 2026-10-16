@@ -28,9 +28,10 @@ const job = {
   modifiedAtUtc: timestamp
 };
 
+// The failed attempt's one event: its finished event moves the job from executing to failed.
 const event = {
-  jobEventId: 91,
-  eventCode: 'job.failed',
+  jobEventId: 90,
+  eventCode: 'job.execution-finished',
   createdAtUtc: timestamp,
   jobNamespace: 'billing',
   jobRef,
@@ -40,19 +41,9 @@ const event = {
   toStatus: 'failed',
   executionStatus: 'failed',
   durationMs: 125,
-  reasonCode: 'handler-error',
+  reasonCode: 'job.unhandled-exception',
   reasonMessage: 'Invoice provider timed out.'
 };
-
-// Newest-first, as the feed returns them: the attempt's finished event under the transition event.
-const executionEvents = [
-  event,
-  {
-    ...event,
-    jobEventId: 90,
-    eventCode: 'job.execution-finished'
-  }
-];
 
 async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void }): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -120,7 +111,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === `jobs/${jobRef}/lineage`) {
       return json({ ancestors: [], job, steps: [], activeWait: null, children: [], childrenHasMore: false });
     }
-    if (path === `jobs/${jobRef}/events`) return json(paged(executionEvents));
+    if (path === `jobs/${jobRef}/events`) return json(paged([event]));
     // The aggregate the detail page actually reads (JobDetailView, api.ts:392). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
     // rather than on what they were written to check.

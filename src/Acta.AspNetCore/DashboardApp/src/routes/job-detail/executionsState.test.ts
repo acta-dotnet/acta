@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveExecutions, executionGapSummary, executionPresentation } from './executionsState.ts';
+import { deriveExecutions, executionGapSummary, executionPresentation, withRunningExecution } from './executionsState.ts';
 import type { JobEvent } from './types.ts';
 
 let seq = 0;
@@ -95,4 +95,49 @@ test('the gap total trusts the ledger when the event feed runs ahead of the snap
     event({ executionNumber: 11, executionStatus: 'succeeded' }),
   ]);
   assert.deepEqual(executionGapSummary(10, runs), { shown: 1, total: 11, missing: 10 });
+});
+
+test('an executing job\'s attempt in flight is a running row from the job snapshot, with no start', () => {
+  const finished = deriveExecutions([
+    event({ executionNumber: 1, executionStatus: 'failed' }),
+    event({ executionNumber: 2, executionStatus: 'failed' }),
+  ]);
+  const runs = withRunningExecution(finished, { status: 'executing', executionNumber: 3, leasedByWorkerRef: 'wrk_9' });
+  assert.deepEqual(runs.map((run) => run.executionNumber), [3, 2, 1]);
+  const running = runs[0];
+  assert.equal(running.outcome, 'executing');
+  assert.equal(running.workerRef, 'wrk_9');
+  assert.equal(running.startedAtUtc, null);
+  assert.equal(running.finishedAtUtc, null);
+  assert.equal(running.durationMs, null);
+  assert.equal(executionPresentation(running.outcome).label, 'Executing');
+  assert.deepEqual(executionGapSummary(3, runs), { shown: 3, total: 3, missing: 0 });
+});
+
+test('a first attempt in flight is shown, not counted missing', () => {
+  const runs = withRunningExecution([], { status: 'executing', executionNumber: 1, leasedByWorkerRef: 'wrk_9' });
+  assert.deepEqual(runs.map((run) => run.outcome), ['executing']);
+  assert.deepEqual(executionGapSummary(1, runs), { shown: 1, total: 1, missing: 0 });
+});
+
+test('the running attempt still counts earlier executions the ledger no longer shows', () => {
+  const runs = withRunningExecution([], { status: 'executing', executionNumber: 4, leasedByWorkerRef: 'wrk_9' });
+  assert.deepEqual(executionGapSummary(4, runs), { shown: 1, total: 4, missing: 3 });
+});
+
+test('a finished event for the snapshot\'s attempt means the snapshot trails the feed: no running row', () => {
+  const finished = deriveExecutions([event({ executionNumber: 2, executionStatus: 'succeeded' })]);
+  const runs = withRunningExecution(finished, { status: 'executing', executionNumber: 2, leasedByWorkerRef: 'wrk_9' });
+  assert.deepEqual(runs.map((run) => run.outcome), ['succeeded']);
+});
+
+test('a job that is not executing gets no running row', () => {
+  const finished = deriveExecutions([event({ executionNumber: 1, executionStatus: 'failed' })]);
+  const runs = withRunningExecution(finished, { status: 'ready', executionNumber: 1, leasedByWorkerRef: null });
+  assert.equal(runs, finished);
+});
+
+test('a finished event never reads as executing', () => {
+  const runs = deriveExecutions([event({ executionStatus: 'executing' })]);
+  assert.equal(runs[0].outcome, 'unknown');
 });
