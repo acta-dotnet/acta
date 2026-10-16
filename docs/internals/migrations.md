@@ -15,7 +15,7 @@ only the bodies that changed.
 
 A migration is `src/Acta.{Provider}/Migrations/M{yyyyMMddHHmmss}_{name}.sql`: a capital `M`
 glued to the UTC instant of the `schema add` that wrote it, then a snake_case name. The first one is
-`init`. One `schema add` writes one instant for every provider, so `M20261015185851_init` means the
+`init`. One `schema add` writes one instant for every provider, so `M20261016180953_init` means the
 same cut on PostgreSQL, SQL Server, and SQLite.
 
 The datetime is the version. There is no running counter anywhere, and the fixed width makes ordinal

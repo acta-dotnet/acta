@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk', 'M20261016163823_step_lock', 'M20261016164834_slot_locks', 'M20261016175652_tags_on_jobs_and_owners_only')
+    WHERE name NOT IN ('M20261016180953_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261015185851_init =====
+-- ===== BEGIN M20261016180953_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -299,12 +299,12 @@ CREATE TABLE IF NOT EXISTS main.runtimes (
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code = 50 OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code <> 50 OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
-    , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES lanes (id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code = 50;
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_lane ON runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50);
+CREATE INDEX IF NOT EXISTS main.ix_runtimes_failed ON runtimes (namespace_id, job_id DESC) WHERE status_code = 200;
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_lane_member ON runtimes (lane_id) WHERE lane_id IS NOT NULL;
 
 -- schedules
@@ -783,205 +783,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261015185851_init')
+VALUES ('M20261016180953_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261015185851_init =====
-
--- ===== BEGIN M20261016080729_claim_writes_no_started_event =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016080729_claim_writes_no_started_event')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016080729_claim_writes_no_started_event =====
-
--- ===== BEGIN M20261016085434_enqueue_probes_seek =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016085434_enqueue_probes_seek')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016085434_enqueue_probes_seek =====
-
--- ===== BEGIN M20261016094552_jobs_no_lock_escalation =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016094552_jobs_no_lock_escalation')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016094552_jobs_no_lock_escalation =====
-
--- ===== BEGIN M20261016095220_seeks_pinned =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016095220_seeks_pinned')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016095220_seeks_pinned =====
-
--- ===== BEGIN M20261016100113_runtimes_failed_index =====
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_failed ON runtimes (namespace_id, job_id DESC) WHERE status_code = 200;
-
-INSERT INTO main.migrations (name)
-VALUES ('M20261016100113_runtimes_failed_index')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016100113_runtimes_failed_index =====
-
--- ===== BEGIN M20261016133503_enqueue_probes_seek_both_keys =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016133503_enqueue_probes_seek_both_keys')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016133503_enqueue_probes_seek_both_keys =====
-
--- ===== BEGIN M20261016144619_dedup_key_lock =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016144619_dedup_key_lock')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016144619_dedup_key_lock =====
-
--- ===== BEGIN M20261016145839_sleep_timer_no_holdlock =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016145839_sleep_timer_no_holdlock')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016145839_sleep_timer_no_holdlock =====
-
--- ===== BEGIN M20261016153043_claim_watermark =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016153043_claim_watermark')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016153043_claim_watermark =====
-
--- ===== BEGIN M20261016162201_runtimes_no_job_fk =====
-DROP VIEW IF EXISTS main.jobs_view;
-
-CREATE TABLE main.runtimes_rebuild (
-    job_id integer NOT NULL,
-    namespace_id integer NOT NULL,
-    lane_id integer NULL,
-    status_code integer NOT NULL,
-    priority_code integer NOT NULL,
-    next_run_at_utc integer NULL,
-    execution_number integer NOT NULL,
-    failure_count integer NOT NULL,
-    leased_by_worker_id integer NULL,
-    lease_expires_at_utc integer NULL,
-    retention_until_utc integer NULL,
-    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
-    version integer DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_runtimes PRIMARY KEY (job_id)
-    , CONSTRAINT ck_runtimes_blocked_lane CHECK (status_code <> 15 OR lane_id IS NOT NULL)
-    , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
-    , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
-    , CONSTRAINT ck_runtimes_status_lease CHECK (status_code = 50 OR leased_by_worker_id IS NULL)
-    , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code <> 50 OR leased_by_worker_id IS NOT NULL)
-    , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
-    , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES lanes (id)
-) STRICT;
-INSERT INTO main.runtimes_rebuild (job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc, execution_number, failure_count, leased_by_worker_id, lease_expires_at_utc, retention_until_utc, modified_at_utc, version)
-SELECT job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc, execution_number, failure_count, leased_by_worker_id, lease_expires_at_utc, retention_until_utc, modified_at_utc, version FROM main.runtimes;
-DROP TABLE main.runtimes;
-ALTER TABLE main.runtimes_rebuild RENAME TO runtimes;
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code = 50;
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_lane ON runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50);
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_lane_member ON runtimes (lane_id) WHERE lane_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS main.ix_runtimes_failed ON runtimes (namespace_id, job_id DESC) WHERE status_code = 200;
-
-CREATE VIEW main.jobs_view AS
-SELECT
-    j.id AS job_id,
-    j.job_ref,
-    ns.name AS namespace,
-    d.name AS job_name,
-    CASE r.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
-    r.status_code,
-    j.deduplication_key,
-    j.correlation_key,
-    j.concurrency_key,
-    j.parent_id,
-    COALESCE(j.lineage_root_id, j.id) AS lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    j.tenant_id,
-    t.tenant_name,
-    CASE r.priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS priority,
-    r.priority_code,
-    CASE j.input_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE 'custom-' || CAST(j.input_format_id AS TEXT)
-    END AS input_format,
-    CASE WHEN j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(j.input AS TEXT) END
-        AS input_text,
-    lr.execution_number AS last_result_execution_number,
-    CASE lr.result_format_id
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE CASE WHEN lr.result_format_id IS NULL THEN NULL ELSE 'custom-' || CAST(lr.result_format_id AS TEXT) END
-    END AS last_result_format,
-    CASE WHEN lr.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(lr.result AS TEXT) END
-        AS last_result_text,
-    lr.created_at_utc AS last_result_created_at_utc,
-    r.next_run_at_utc,
-    r.execution_number,
-    r.failure_count,
-    r.leased_by_worker_id,
-    w.host AS leased_by_worker_host,
-    r.lease_expires_at_utc,
-    r.retention_until_utc,
-    j.created_at_utc,
-    r.modified_at_utc,
-    r.version,
-    lane.name AS lane
-FROM main.jobs AS j
-JOIN main.runtimes AS r ON r.job_id = j.id
-JOIN main.namespaces AS ns ON ns.id = j.namespace_id
-JOIN main.definitions AS d ON d.id = j.definition_id
-LEFT JOIN main.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
-LEFT JOIN main.tenants AS t ON t.id = j.tenant_id
-LEFT JOIN main.workers AS w ON w.id = r.leased_by_worker_id
-LEFT JOIN main.lanes AS lane ON lane.id = r.lane_id
-LEFT JOIN main.results AS lr
-    ON
-        lr.job_id = j.id
-        AND lr.execution_number = (
-            SELECT MAX(rr.execution_number) FROM main.results AS rr
-            WHERE rr.job_id = j.id
-        );
-
-INSERT INTO main.migrations (name)
-VALUES ('M20261016162201_runtimes_no_job_fk')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016162201_runtimes_no_job_fk =====
-
--- ===== BEGIN M20261016163823_step_lock =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016163823_step_lock')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016163823_step_lock =====
-
--- ===== BEGIN M20261016164834_slot_locks =====
-INSERT INTO main.migrations (name)
-VALUES ('M20261016164834_slot_locks')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016164834_slot_locks =====
-
--- ===== BEGIN M20261016175652_tags_on_jobs_and_owners_only =====
-DELETE FROM main.tags WHERE scope_code IN (60, 70, 80, 90);
-
-
-INSERT INTO main.migrations (name)
-VALUES ('M20261016175652_tags_on_jobs_and_owners_only')
-ON CONFLICT (name) DO NOTHING;
-
--- ===== END M20261016175652_tags_on_jobs_and_owners_only =====
+-- ===== END M20261016180953_init =====
 
 COMMIT;
 

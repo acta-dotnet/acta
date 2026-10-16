@@ -13,8 +13,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `/schedules/.../tags`, `/workers/.../tags`, and `/alerts/.../tags` routes, the `Tags` filter on
   `ListSchedulesQuery`, `ListWorkersQuery`, `ListAlertsQuery`, and `ListEventsQuery` (the `tag` query
   parameter on those lists), and the dashboard's tag editors and tag filters for them. The four
-  `TagScopeCode` members stay, marked retired, and migration
-  `M20261016175652_tags_on_jobs_and_owners_only` deletes the tag rows they held.
+  `TagScopeCode` members stay, marked retired.
 - **The overview counts no history.** `GetOverviewQuery.IncludeSlowCounts`,
   `GetOverviewResponse.JobCount` and `SystemJobCount`, and `jobCount` / `systemJobCount` on
   `GET /overview` are gone, and so is the dashboard's Total jobs tile. Both counts read every job the
@@ -25,8 +24,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   duration. On SQL Server the started insert took about 10 of a claim's 25 ms, waiting on the last
   page of `events`; without it a 4-worker drain went from 8.7K to 11.4K jobs/s. Code 40 stays, marked
   retired, so older rows still read. A reclaimed attempt's finished event now names the worker that
-  held the lapsed lease, which only the started event recorded before. Migration
-  `M20261016080729_claim_writes_no_started_event` carries the new routine bodies.
+  held the lapsed lease, which only the started event recorded before.
 - **`EnqueueBatchAsync` takes at most 1,000 rows.** It was 5,000; a larger batch throws
   `ArgumentException`, so split it caller-side. On SQL Server a batch at the old limit crossed the
   5,000-lock escalation threshold and could take a table lock on `jobs` for its whole transaction,
@@ -44,7 +42,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `XOutboxSourceOptions` types are gone, and the schema and table overrides stay on the source builder.
   Each provider's two `Use*` methods now live on one class, `XActaExtensions`.
 - **Migrations are named by datetime, and the history table is two columns.** A migration is
-  `M{yyyyMMddHHmmss}_{name}.sql`, the first one `M20261015185851_init`, and there is no running
+  `M{yyyyMMddHHmmss}_{name}.sql`, rc.5's one baseline `M20261016180953_init`, and there is no running
   counter. The `migrations` table is `name` and `applied_at_utc`; `version` and `installed_schema`
   are gone, and so are the two sentinel rows, the baseline stamp at version 0 and the object package
   at version -1. Startup checks one thing: every migration this build ships has a row. Rows it does
@@ -448,12 +446,12 @@ settles, and what an operator sees when it fails.
   every index of `jobs` and crosses the 5,000-lock threshold, so SQL Server tried to escalate about four
   times per batch and won whenever no other session held a lock on the table at that instant: 39 times
   in a 5-minute 10K jobs/s run, each time stalling completions behind the enqueue's commit.
-  Migration `M20261016094552_jobs_no_lock_escalation` sets `LOCK_ESCALATION = DISABLE` on `jobs`.
+  The baseline creates `jobs` with `LOCK_ESCALATION = DISABLE`.
 - **The overview's Failed count and Failed list read only failed jobs.** Both scanned `runtimes`, or
   walked the namespace's jobs newest-first, on every dashboard poll. The filtered index
   `ix_runtimes_failed` (namespace, job id, Failed rows only) now serves them; only a job that fails
-  terminally writes it. Migration `M20261016100113_runtimes_failed_index` adds it, and a SQL Server
-  delta now guards each index it adds, so the published script re-runs over an upgraded schema.
+  terminally writes it. A SQL Server delta now guards each index it adds, so the published script
+  re-runs over an upgraded schema.
 - **The overview counts executing jobs from the in-flight index.** The count filtered `runtimes` on
   status alone, which no index serves, so every overview request scanned the whole table, retained
   history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the
