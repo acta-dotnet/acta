@@ -9749,8 +9749,6 @@
           "deadWorkerCount",
           "staleWorkerCount",
           "dueSoonScheduleCount",
-          "jobCount",
-          "systemJobCount",
           "executorCapacity",
           "scheduleLagSeconds"
         ],
@@ -9829,22 +9827,6 @@
             ],
             "format": "int64"
           },
-          "jobCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "systemJobCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
           "executorCapacity": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -9863,7 +9845,7 @@
             "format": "int64"
           }
         },
-        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers, which\n`ExecutingCount` can exceed: a finished job stays Executing until its batched completion write commits."
+        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, and the\nexecutor capacity across live workers, which `ExecutingCount` can exceed: a finished job stays Executing\nuntil its batched completion write commits."
       },
       "GetTagsItem": {
         "required": [

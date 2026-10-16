@@ -65,5 +65,5 @@ internal sealed class FakeLedger : ILedger
     private static GetOverviewResponse Overview(GetOverviewQuery query) =>
         query.JobNamespace is not null && query.JobNamespace.Any(ch => !char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
             ? throw new InvalidQueryException("JobNamespace must be a kebab-case identifier.")
-            : new GetOverviewResponse(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3, 8, 90);
+            : new GetOverviewResponse(3, 120, 1, 2, 4, 1, 1, 2, 5, 8, 90);
 }

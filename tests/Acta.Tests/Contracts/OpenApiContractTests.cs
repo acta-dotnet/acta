@@ -136,10 +136,8 @@ public sealed partial class OpenApiContractTests
         "executingCount",
         "executorCapacity",
         "failedCount",
-        "jobCount",
         "readyCount",
         "staleWorkerCount",
-        "systemJobCount",
         "unresolvedAlertCount",
         "unresolvedCriticalAlertCount",
         // RFC 9457 problem details: the HTTP status code.

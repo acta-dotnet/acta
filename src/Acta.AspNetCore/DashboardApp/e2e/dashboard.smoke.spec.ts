@@ -81,8 +81,6 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     }
     if (path === 'overview') {
       return json({
-        jobCount: 1,
-        systemJobCount: 0,
         readyCount: 0,
         executingCount: 0,
         failedCount: 1,

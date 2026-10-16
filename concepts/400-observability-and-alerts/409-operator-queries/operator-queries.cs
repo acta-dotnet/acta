@@ -74,7 +74,6 @@ Console.WriteLine($"TotalCount across namespace: {withTotal.TotalCount}");
 // Schedules, workers, and alert lists also exist on IJobs; event-timeline depth lives in rung 404.
 Console.WriteLine("=== GetOverviewAsync (system-wide) ===");
 var overview = await operations.Ledger.GetOverviewAsync(new GetOverviewQuery());
-Console.WriteLine($"Jobs={overview.JobCount} (system={overview.SystemJobCount}, user={overview.JobCount - overview.SystemJobCount})");
 Console.WriteLine($"Ready={overview.ReadyCount} Executing={overview.ExecutingCount} Failed={overview.FailedCount}");
 Console.WriteLine($"UnresolvedAlerts={overview.UnresolvedAlertCount} DeadWorkers={overview.DeadWorkerCount}");
 

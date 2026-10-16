@@ -20,11 +20,7 @@ internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleAfterSeconds, query.StaleWorkerAfterSeconds));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.DueSoonSeconds, query.DueSoonWindowSeconds));
-                    cmd.Parameters.Add(
-                        dialect.CreateParameter(ActaSchema.Sql.IncludeSlowCountsFlag, query.IncludeSlowCounts ? true : (bool?)null)
-                    );
                 },
-                // The slow counts are null when skipped, which the snapshot reports as zero.
                 static reader => new GetOverviewResponse(
                     ReadyCount: reader.GetInt64(0),
                     OldestReadyAgeSeconds: reader.IsDBNull(1) ? null : reader.GetInt64(1),
@@ -35,12 +31,10 @@ internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect
                     DeadWorkerCount: reader.GetInt64(6),
                     StaleWorkerCount: reader.GetInt64(7),
                     DueSoonScheduleCount: reader.GetInt64(8),
-                    JobCount: reader.IsDBNull(9) ? 0 : reader.GetInt64(9),
-                    SystemJobCount: reader.IsDBNull(10) ? 0 : reader.GetInt64(10),
-                    ExecutorCapacity: reader.GetInt64(11),
-                    ScheduleLagSeconds: reader.IsDBNull(12) ? null : reader.GetInt64(12)
+                    ExecutorCapacity: reader.GetInt64(9),
+                    ScheduleLagSeconds: reader.IsDBNull(10) ? null : reader.GetInt64(10)
                 ),
                 ct
-            ) ?? new GetOverviewResponse(0, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+            ) ?? new GetOverviewResponse(0, null, 0, 0, 0, 0, 0, 0, 0, 0, null);
     }
 }

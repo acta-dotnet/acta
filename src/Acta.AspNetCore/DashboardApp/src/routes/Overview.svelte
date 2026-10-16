@@ -155,12 +155,6 @@
     {/if}
 
     <div class="metrics">
-      <MetricCard
-        label="Total jobs" icon="cube"
-        value={overview.jobCount}
-        note={overview.systemJobCount > 0 ? '+' + displayFormatter.number(overview.systemJobCount) + ' system' : ''}
-        hint={displayFormatter.number(overview.systemJobCount) + ' framework (sys.-prefixed) jobs of ' + displayFormatter.number(overview.jobCount) + ' total'}
-        href={routes.jobs({ namespace: $scope })} />
       <MetricCard label="Ready" icon="clock" value={overview.readyCount} href={routes.jobs({ namespace: $scope, status: 'Ready' })} />
       <MetricCard
         label="Oldest ready" icon="stopwatch"

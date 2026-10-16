@@ -333,15 +333,6 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<bool?> IncludeTotalFlag = Scalar<bool?>("p_include_total", DbKind.Boolean, nullable: true);
 
         /// <summary>
-        /// Overview slow-count toggle: non-null computes full-scope totals; NULL skips them.
-        /// </summary>
-        public static readonly DbValueSpec<bool?> IncludeSlowCountsFlag = Scalar<bool?>(
-            "p_include_slow_counts",
-            DbKind.Boolean,
-            nullable: true
-        );
-
-        /// <summary>
         /// List-read name search: non-null restricts to rows whose name LIKE the bound pattern (the
         /// caller wraps the term in '%' on both sides, so this is a contains match, matching how the
         /// tenant list searches); NULL matches all. Names are kebab and the filter validators reject

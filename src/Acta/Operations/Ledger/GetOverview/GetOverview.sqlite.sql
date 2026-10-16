@@ -87,27 +87,6 @@ SELECT
             AND s.next_run_at_utc <= {{now}} + (@p_due_soon_seconds) * 1000
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS due_soon_schedule_count,
-    CASE
-        WHEN @p_include_slow_counts IS NOT NULL THEN
-            (
-                SELECT COUNT(*)
-                FROM {{schema}}.jobs j
-                JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
-                WHERE (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
-            )
-    END AS job_count,
-    CASE
-        WHEN @p_include_slow_counts IS NOT NULL THEN
-            (
-                SELECT COUNT(*)
-                FROM {{schema}}.jobs j
-                JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
-                JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
-                WHERE
-                    jd.name LIKE 'sys.%'
-                    AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
-            )
-    END AS system_job_count,
     (
         SELECT COALESCE(SUM(w.max_concurrency), 0)
         FROM {{schema}}.workers w

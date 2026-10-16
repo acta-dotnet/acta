@@ -55,19 +55,12 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.True(ns.StaleWorkerCount >= 0);
         Assert.True(ns.DueSoonScheduleCount >= 0);
         Assert.True(ns.ExecutorCapacity >= 0);
-        Assert.True(ns.JobCount >= 1, $"Expected JobCount >= 1 in namespace {TestNamespace}, got {ns.JobCount}.");
-        Assert.True(ns.SystemJobCount >= 0);
-        Assert.True(ns.JobCount >= ns.SystemJobCount, "JobCount includes system jobs, so it must be >= SystemJobCount.");
 
         var global = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(null, 180, 3600), ct);
 
         Assert.True(
             global.ReadyCount >= ns.ReadyCount,
             $"Global ReadyCount ({global.ReadyCount}) must be >= namespace-scoped count ({ns.ReadyCount})."
-        );
-        Assert.True(
-            global.JobCount >= ns.JobCount,
-            $"Global JobCount ({global.JobCount}) must be >= namespace-scoped count ({ns.JobCount})."
         );
     }
 
@@ -87,8 +80,6 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(0, result.DeadWorkerCount);
         Assert.Equal(0, result.StaleWorkerCount);
         Assert.Equal(0, result.DueSoonScheduleCount);
-        Assert.Equal(0, result.JobCount);
-        Assert.Equal(0, result.SystemJobCount);
         Assert.Equal(0, result.ExecutorCapacity);
         Assert.Null(result.ScheduleLagSeconds);
     }
@@ -98,8 +89,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     /// so no system jobs and no schedules) and pins all overview counters to exact values.
     /// <para>
     /// <list type="bullet">
-    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + CompleteExecutions.</item>
-    ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
+    ///   <item>ReadyCount / ExecutingCount / FailedCount · driven via enqueue + claim + CompleteExecutions.</item>
     ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseAlert.</item>
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
     ///   <item>StaleWorkerCount · threshold flip: W2 aged 2 min; staleAfterSeconds=60 → 1, staleAfterSeconds=14400 → 0.</item>
@@ -153,7 +143,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // ── Baseline snapshot ─────────────────────────────────────────────────────────────────────
         // Runtime.InitializeAsync seeds one Ready slot job for every schedule whose environments list
         // is empty (currently: recurring-ping with "every-5-minutes"). Take a before-snapshot now so
-        // ReadyCount and JobCount assertions use deltas and remain correct if the manifest changes.
+        // ReadyCount assertions use deltas and remain correct if the manifest changes.
         var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
         // Confirm the namespace is otherwise clean (fresh, unique per test-instance).
         Assert.Equal(0, before.ExecutingCount);
@@ -161,10 +151,8 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(0, before.UnresolvedAlertCount);
         Assert.Equal(0, before.DeadWorkerCount);
         Assert.Equal(0, before.StaleWorkerCount);
-        Assert.Equal(0, before.SystemJobCount);
 
         // ── Job counters ───────────────────────────────────────────────────────────────────────────
-        // Enqueue 4 jobs. RegisterSystemJobs = false → no system job definitions → SystemJobCount = 0.
         var j1 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
         var j2 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
         var j3 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
@@ -256,7 +244,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // ── Narrow-threshold assertion (staleAfterSeconds = 1 min) ───────────────────────────────
         var ovNarrow = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 60, 1), ct);
 
-        // ReadyCount and JobCount: delta from before (before includes slot jobs seeded by InitializeAsync).
+        // ReadyCount: delta from before (before includes slot jobs seeded by InitializeAsync).
         Assert.Equal(before.ReadyCount + 2, ovNarrow.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
         Assert.Equal(1, ovNarrow.ExecutingCount); // j3 is Executing
         Assert.Equal(1, ovNarrow.FailedCount); // j4 is Failed
@@ -265,8 +253,6 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(1, ovNarrow.DeadWorkerCount); // W1 swept Dead, scoped to TestNamespace
         Assert.Equal(1, ovNarrow.StaleWorkerCount); // W2 Draining, 2 min > 1 min threshold
         Assert.Equal(0, ovNarrow.DueSoonScheduleCount); // dueSoonSeconds=1: harness parks slot cursors a day out
-        Assert.Equal(before.JobCount + 4, ovNarrow.JobCount); // 4 enqueued on top of slot jobs
-        Assert.Equal(0, ovNarrow.SystemJobCount); // RegisterSystemJobs = false, recurring-ping is not a __ job
         Assert.NotNull(ovNarrow.OldestReadyAgeSeconds);
         Assert.True(ovNarrow.OldestReadyAgeSeconds >= 0);
         // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the 1 min threshold,

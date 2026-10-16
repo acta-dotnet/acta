@@ -93,25 +93,6 @@ SELECT
             AND s.next_run_at_utc <= DATEADD(SECOND, @p_due_soon_seconds, @now)
             AND (@p_namespace_name IS NULL OR s.namespace_id = @ns_id)
     ) AS due_soon_schedule_count,
-    CASE
-        WHEN @p_include_slow_counts IS NOT NULL THEN
-            (
-                SELECT COUNT_BIG(*)
-                FROM {{schema}}.jobs j
-                WHERE (@p_namespace_name IS NULL OR j.namespace_id = @ns_id)
-            )
-    END AS job_count,
-    CASE
-        WHEN @p_include_slow_counts IS NOT NULL THEN
-            (
-                SELECT COUNT_BIG(*)
-                FROM {{schema}}.jobs j
-                JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
-                WHERE
-                    jd.name LIKE 'sys.%'
-                    AND (@p_namespace_name IS NULL OR j.namespace_id = @ns_id)
-            )
-    END AS system_job_count,
     (
         SELECT COALESCE(SUM(CAST(w.max_concurrency AS BIGINT)), 0)
         FROM {{schema}}.workers w

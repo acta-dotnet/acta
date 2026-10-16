@@ -977,22 +977,19 @@ sealed class Acta.GetJobStatusResponse
     .ctor(Acta.JobStatusCode Status)
     Acta.JobStatusCode Status { get;init; }
 sealed class Acta.GetOverviewQuery
-    .ctor(System.String JobNamespace = default, System.Int32 StaleWorkerAfterSeconds = default, System.Int32 DueSoonWindowSeconds = default, System.Boolean IncludeSlowCounts = default)
-    System.Boolean IncludeSlowCounts { get;init; }
+    .ctor(System.String JobNamespace = default, System.Int32 StaleWorkerAfterSeconds = default, System.Int32 DueSoonWindowSeconds = default)
     System.Int32 DueSoonWindowSeconds { get;init; }
     System.Int32 StaleWorkerAfterSeconds { get;init; }
     System.String JobNamespace { get;init; }
 sealed class Acta.GetOverviewResponse
-    .ctor(System.Int64 ReadyCount, System.Nullable<System.Int64> OldestReadyAgeSeconds, System.Int64 ExecutingCount, System.Int64 FailedCount, System.Int64 UnresolvedAlertCount, System.Int64 UnresolvedCriticalAlertCount, System.Int64 DeadWorkerCount, System.Int64 StaleWorkerCount, System.Int64 DueSoonScheduleCount, System.Int64 JobCount, System.Int64 SystemJobCount, System.Int64 ExecutorCapacity, System.Nullable<System.Int64> ScheduleLagSeconds)
+    .ctor(System.Int64 ReadyCount, System.Nullable<System.Int64> OldestReadyAgeSeconds, System.Int64 ExecutingCount, System.Int64 FailedCount, System.Int64 UnresolvedAlertCount, System.Int64 UnresolvedCriticalAlertCount, System.Int64 DeadWorkerCount, System.Int64 StaleWorkerCount, System.Int64 DueSoonScheduleCount, System.Int64 ExecutorCapacity, System.Nullable<System.Int64> ScheduleLagSeconds)
     System.Int64 DeadWorkerCount { get;init; }
     System.Int64 DueSoonScheduleCount { get;init; }
     System.Int64 ExecutingCount { get;init; }
     System.Int64 ExecutorCapacity { get;init; }
     System.Int64 FailedCount { get;init; }
-    System.Int64 JobCount { get;init; }
     System.Int64 ReadyCount { get;init; }
     System.Int64 StaleWorkerCount { get;init; }
-    System.Int64 SystemJobCount { get;init; }
     System.Int64 UnresolvedAlertCount { get;init; }
     System.Int64 UnresolvedCriticalAlertCount { get;init; }
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
