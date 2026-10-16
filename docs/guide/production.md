@@ -202,6 +202,30 @@ Tune together:
 Raise concurrency in steps and watch database CPU, lock waits, connection pool pressure, job
 latency, failure rate, and downstream saturation.
 
+## Database server settings
+
+Acta runs on the server's defaults. Under sustained load these settings help, and Acta's bootstrap
+leaves them to you because each one applies to the whole database or server.
+
+PostgreSQL:
+
+- Raise `max_wal_size` (for example to `8GB`) and `checkpoint_timeout` (to `15min`), and set
+  `wal_compression = lz4`. At the 1 GB default a busy queue checkpoints every few seconds, and every
+  checkpoint makes the next change to each page write a full page image to the WAL. All three reload
+  without a restart.
+- Keep transactions short across the whole database, not only Acta's. A claim starts past the dead
+  index entries earlier claims left, so an open transaction no longer slows it, but vacuum cannot
+  reclaim those rows until the oldest transaction that can still see them ends, and `runtimes` grows
+  meanwhile.
+
+SQL Server:
+
+- Put the transaction log on the fastest storage you have. Every claim, every completion batch, and
+  every enqueue commits, so a busy server waits on log flushes (`WRITELOG`) before anything else.
+- Consider `ALTER DATABASE ... SET AUTO_UPDATE_STATISTICS_ASYNC ON`. Acta's tables grow quickly, and
+  a synchronous statistics refresh makes the query that triggered it wait
+  (`WAIT_ON_SYNC_STATISTICS_REFRESH`); the asynchronous refresh lets it run on the old statistics.
+
 ## Database clock and lease safety
 
 Acta uses database time for durable scheduling, leases, retention, and event timestamps. Worker
