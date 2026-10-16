@@ -466,6 +466,13 @@ settles, and what an operator sees when it fails.
   status alone, which no index serves, so every overview request scanned the whole table, retained
   history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the
   in-flight rows.
+- **The dashboard's lists seek by namespace on PostgreSQL.** Their namespace filter compared the
+  joined namespace's name, so the planner learned the namespace id only through the join and could not
+  read an index that leads with it. The newest events page, polled by the dashboard, scanned every
+  event in the schema, then sorted them, to return 50 rows: 12.8 s per call on a lab schema of 64M jobs.
+  The jobs, events, alerts, schedules, workers, and definitions lists and the overview now compare
+  their own `namespace_id` with the id looked up once, and the events and jobs pages read about 270
+  buffers in under a millisecond. SQLite's reads change the same way.
 - **`sys.alerts` reads only a retry's success.** At the default `Audit` level every success was
   alertable, and the projector resolved alerts once per success, one transaction each, at most 10,240
   events per minute per namespace, so after a fast drain a real failure's alert waited hours behind
