@@ -111,8 +111,9 @@ worker's lease and writes nothing else. No status sits between claimed and runni
 An executor hands each finished attempt to the worker's one finalizer, which writes
 the completions waiting for it in one transaction, whatever their shape (success, failure, retry,
 wait, recurring fire, child, lane member), up to 128 of them or 4 MiB of results, and repeats a write
-until it lands. A lone completion is written at once; a batch forms only when the writes fall behind, and then
-waits up to 50 ms to fill. A graceful stop lets the finalizer land what is waiting; a hard stop leaves
+until it lands. It keeps up to two writes out at once and forms the next batch while they run. A lone
+completion is written at once; a batch forms only when the writes fall behind, and then waits up to
+50 ms to fill. A graceful stop lets the finalizer land what is waiting; a hard stop leaves
 those rows for recovery, which re-runs them under the failure budget.
 
 Crash recovery rides the heartbeat. The heartbeat call that finds the namespace's recovery pass due
