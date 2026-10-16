@@ -12,7 +12,8 @@ public sealed class AnvilStateReader(
     SeedProgress seedProgress,
     IOptions<JobsOptions> options,
     FaultInjectors faults,
-    AnvilOutboxDatabase outboxDb
+    AnvilOutboxDatabase outboxDb,
+    RunCounts runCounts
 )
 {
     private readonly DateTime _processStartUtc = session.ProcessStartUtc;
@@ -35,24 +36,12 @@ public sealed class AnvilStateReader(
 
     private async ValueTask<AnvilState> ReadFromDbAsync(CancellationToken ct)
     {
-        // Staleness and executor capacity key on the lease window, not the tombstone window. Past the
-        // lease a worker's jobs are already reclaimable by recovery, so counting its slots as live
-        // capacity contradicts what the engine has decided. WorkerDeadAfter stays deliberately more
-        // generous - retiring a worker that might still recover is the expensive mistake - so it is
-        // reported to the cockpit but never used to decide who is live.
-        var overviewTask = operations
-            .Ledger.GetOverviewAsync(
-                new GetOverviewQuery(_namespaceName, StaleWorkerAfterSeconds: _leaseTtlSeconds, IncludeSlowCounts: true),
-                ct
-            )
-            .AsTask();
-        var doneTask = CountAsync(JobStatusCode.Succeeded, ct).AsTask();
+        var runCountsTask = runCounts.ReadAsync();
         var workerRowsTask = operations.Workers.ListAsync(new ListWorkersQuery(_namespaceName, PageSize: 50), ct).AsTask();
         var eventsTask = operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: _namespaceName, PageSize: 100), ct).AsTask();
-        await Task.WhenAll(overviewTask, doneTask, workerRowsTask, eventsTask);
+        await Task.WhenAll(runCountsTask, workerRowsTask, eventsTask);
 
-        var overview = await overviewTask;
-        var done = await doneTask;
+        var run = await runCountsTask;
         var workerRows = await workerRowsTask;
         var events = await eventsTask;
         var now = DateTime.UtcNow;
@@ -60,16 +49,15 @@ public sealed class AnvilStateReader(
         var workerNames = workerRows.Items.ToDictionary(row => row.WorkerId, row => row.DeploymentVersion);
 
         var counts = new AnvilCounts(
-            Total: Math.Max(0, overview.JobCount - overview.SystemJobCount),
-            SystemJobs: overview.SystemJobCount,
-            Ready: overview.ReadyCount,
-            Executing: overview.ExecutingCount,
-            Done: done,
-            Failed: overview.FailedCount,
+            Total: run.Total,
+            Ready: run.Ready,
+            Executing: run.Executing,
+            Done: run.Succeeded,
+            Failed: run.Failed,
             ExpectedFailed: session.ExpectedFailures
         );
 
-        telemetry.Record(now, done, overview.ReadyCount, overview.ExecutingCount);
+        telemetry.Record(now, run.Succeeded, run.Ready, run.Executing);
 
         return new AnvilState(
             NamespaceName: _namespaceName,
@@ -126,15 +114,6 @@ public sealed class AnvilStateReader(
             Certification: session.Certification,
             DbError: reason
         );
-    }
-
-    private async ValueTask<long> CountAsync(JobStatusCode status, CancellationToken ct)
-    {
-        var page = await operations.Ledger.ListJobsAsync(
-            new ListJobsQuery(_namespaceName, Status: status, PageSize: 1, IncludeTotal: true),
-            ct
-        );
-        return page.TotalCount ?? 0;
     }
 
     private IReadOnlyList<AnvilWorker> MergeWorkers(
@@ -348,7 +327,7 @@ public sealed record AnvilState(
 /// <summary>Producer-file backlog for the outbox-pressure fault; null when the file is unreadable.</summary>
 public sealed record AnvilOutboxSnapshot(long Pending, long Quarantined);
 
-public sealed record AnvilCounts(long Total, long SystemJobs, long Ready, long Executing, long Done, long Failed, long ExpectedFailed);
+public sealed record AnvilCounts(long Total, long Ready, long Executing, long Done, long Failed, long ExpectedFailed);
 
 public sealed record AnvilBeats(int HeartbeatSeconds, int LeaseTtlSeconds, int DeadAfterSeconds);
 

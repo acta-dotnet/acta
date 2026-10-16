@@ -121,6 +121,13 @@ static async Task RunDashboardAsync(string[] args, string provider)
 #pragma warning disable CA2000 // Disposed by the ApplicationStopping registration below.
     builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace, outboxDb.Path, participant));
 #pragma warning restore CA2000
+    var runCounts = new RunCounts(
+        provider,
+        LocalDatabase.ResolveConnectionString(builder.Configuration, provider, id.Schema),
+        id.Schema,
+        id.Namespace
+    );
+    builder.Services.AddSingleton(runCounts);
     builder.Services.AddSingleton<RateTelemetry>();
     builder.Services.AddSingleton<SeedProgress>();
     builder.Services.AddSingleton<FaultInjectors>();
@@ -162,6 +169,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
     {
         await outboxDb.InitializeAsync();
     }
+    await runCounts.MarkStartAsync(CancellationToken.None);
     app.Services.GetRequiredService<WorkerProcessLauncher>().Spawn();
     var url = AnvilServer.BindUrlFor(port) + "/";
     Console.WriteLine($"Anvil         : {url}");
