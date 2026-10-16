@@ -7,6 +7,14 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **Tags attach only to tenants, namespaces, definitions, and jobs.** A schedule belongs to its one
+  recurring slot job, and workers, alerts, and events are not things a caller labels, so
+  `TagTarget.ForSchedule`, `ForWorker`, `ForAlert`, and `ForEvent` are gone, with the
+  `/schedules/.../tags`, `/workers/.../tags`, and `/alerts/.../tags` routes, the `Tags` filter on
+  `ListSchedulesQuery`, `ListWorkersQuery`, `ListAlertsQuery`, and `ListEventsQuery` (the `tag` query
+  parameter on those lists), and the dashboard's tag editors and tag filters for them. The four
+  `TagScopeCode` members stay, marked retired, and migration
+  `M20261016175652_tags_on_jobs_and_owners_only` deletes the tag rows they held.
 - **The overview counts no history.** `GetOverviewQuery.IncludeSlowCounts`,
   `GetOverviewResponse.JobCount` and `SystemJobCount`, and `jobCount` / `systemJobCount` on
   `GET /overview` are gone, and so is the dashboard's Total jobs tile. Both counts read every job the
