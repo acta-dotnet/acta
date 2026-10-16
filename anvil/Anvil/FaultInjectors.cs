@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Diagnostics;
 using Acta;
 
@@ -8,11 +9,13 @@ public sealed class FaultInjectors(
     WorkerProcessLauncher launcher,
     AnvilSession session,
     IServiceScopeFactory scopes,
-    AnvilOutboxDatabase outboxDb
+    AnvilOutboxDatabase outboxDb,
+    AnvilDatabase database
 ) : IDisposable
 {
-    // Application traffic enqueues one job per call, so pressure keeps this many single calls in flight,
-    // each in its own scope like a request.
+    // An application enqueues one job at a time, untagged as a rule, inside its own transaction, which holds a
+    // little work of its own before it commits. Pressure keeps this many such transactions in flight, each in
+    // its own scope like a request.
     private const int PressureCallers = 64;
 
     // Smaller than direct-enqueue chunks: each chunk is one producer-file write transaction, and the
@@ -255,7 +258,10 @@ public sealed class FaultInjectors(
             {
                 using var scope = scopes.CreateScope();
                 var jobs = scope.ServiceProvider.GetRequiredService<IJobs>();
+                await using var connection = await database.OpenAsync(token);
+                await using var transaction = await connection.BeginTransactionAsync(token);
                 await jobs.EnqueueAsync(
+                    transaction,
                     AnvilSeeder.Request(
                         session.NamespaceName,
                         session.RunId,
@@ -264,15 +270,34 @@ public sealed class FaultInjectors(
                         index,
                         AnvilPayloads.Json(new NoOp($"pressure-{batch}-{index}")),
                         AnvilWorkloadCode.NoOp
-                    ),
+                    ) with
+                    {
+                        Tags = null,
+                    },
                     token
                 );
+                await HoldAppWorkAsync(transaction, token);
+                await transaction.CommitAsync(token);
                 lock (_gate)
                 {
                     _pressureJobsAdded++;
                 }
             }
         );
+    }
+
+    // The caller's own work between its enqueue and its commit, which the enqueue's locks are held across.
+    private async Task HoldAppWorkAsync(DbTransaction transaction, CancellationToken ct)
+    {
+        if (LocalDatabase.IsSqlite(database.Provider))
+        {
+            return;
+        }
+
+        await using var command = transaction.Connection!.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = LocalDatabase.IsSqlServer(database.Provider) ? "WAITFOR DELAY '00:00:00.002'" : "SELECT pg_sleep(0.002)";
+        await command.ExecuteNonQueryAsync(ct);
     }
 
     private async Task RunOutboxPressureAsync(CancellationTokenSource owner, int rowsPerSecond)

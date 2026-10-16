@@ -84,7 +84,7 @@
             </div>
             <div class="fault">
               <div class="fault-head"><strong>Queue pressure</strong><span id="fault-pressure-status"></span></div>
-              <p class="hint">Continuously adds no-op jobs one per call, 64 calls at a time, until stopped.</p>
+              <p class="hint">Continuously enqueues no-op jobs as an app does, one per transaction, 64 transactions at a time, until stopped.</p>
               <label class="field"><span>Rate</span>
                 <select id="sel-pressure-rate">
                   <option value="1000">1k / second</option>

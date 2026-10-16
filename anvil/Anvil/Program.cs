@@ -121,12 +121,9 @@ static async Task RunDashboardAsync(string[] args, string provider)
 #pragma warning disable CA2000 // Disposed by the ApplicationStopping registration below.
     builder.Services.AddSingleton(new WorkerProcessLauncher(id.RunId, id.Schema, provider, id.Namespace, outboxDb.Path, participant));
 #pragma warning restore CA2000
-    var runCounts = new RunCounts(
-        provider,
-        LocalDatabase.ResolveConnectionString(builder.Configuration, provider, id.Schema),
-        id.Schema,
-        id.Namespace
-    );
+    var database = new AnvilDatabase(provider, LocalDatabase.ResolveConnectionString(builder.Configuration, provider, id.Schema));
+    builder.Services.AddSingleton(database);
+    var runCounts = new RunCounts(database, id.Schema, id.Namespace);
     builder.Services.AddSingleton(runCounts);
     builder.Services.AddSingleton<RateTelemetry>();
     builder.Services.AddSingleton<SeedProgress>();

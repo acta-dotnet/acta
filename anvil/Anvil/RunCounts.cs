@@ -1,9 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
 using Acta;
-using Microsoft.Data.SqlClient;
-using Microsoft.Data.Sqlite;
-using Npgsql;
 
 namespace Anvil;
 
@@ -13,11 +10,11 @@ namespace Anvil;
 /// or the table would grow with history on every poll; this one grows only with the run. A result is reused for two
 /// seconds, which the rate's ten-second slope does not notice.
 /// </summary>
-public sealed class RunCounts(string provider, string connectionString, string schema, string namespaceName)
+public sealed class RunCounts(AnvilDatabase database, string schema, string namespaceName)
 {
     private static readonly TimeSpan Reuse = TimeSpan.FromSeconds(2);
 
-    private readonly string _prefix = LocalDatabase.IsSqlite(provider) ? "" : schema + ".";
+    private readonly string _prefix = LocalDatabase.IsSqlite(database.Provider) ? "" : schema + ".";
     private readonly Lock _gate = new();
     private long _lastIdBeforeRun;
     private int? _namespaceId;
@@ -28,7 +25,7 @@ public sealed class RunCounts(string provider, string connectionString, string s
     /// <summary>Fixes the run's lower bound; called once at boot, before any worker or seed can enqueue.</summary>
     public async Task MarkStartAsync(CancellationToken ct)
     {
-        await using var connection = await OpenAsync(ct);
+        await using var connection = await database.OpenAsync(ct);
         await using var command = Command(connection, $"SELECT COALESCE(MAX(id), 0) FROM {_prefix}jobs");
         _lastIdBeforeRun = Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
@@ -52,7 +49,7 @@ public sealed class RunCounts(string provider, string connectionString, string s
     {
         try
         {
-            await using var connection = await OpenAsync(ct);
+            await using var connection = await database.OpenAsync(ct);
             _namespaceId ??= await NamespaceIdAsync(connection, ct);
             if (_namespaceId is not { } namespaceId)
             {
@@ -119,16 +116,6 @@ public sealed class RunCounts(string provider, string connectionString, string s
     {
         await using var command = Command(connection, $"SELECT id FROM {_prefix}namespaces WHERE name = @name", ("@name", namespaceName));
         return await command.ExecuteScalarAsync(ct) is { } id and not DBNull ? Convert.ToInt32(id, CultureInfo.InvariantCulture) : null;
-    }
-
-    private async Task<DbConnection> OpenAsync(CancellationToken ct)
-    {
-        DbConnection connection =
-            LocalDatabase.IsSqlite(provider) ? new SqliteConnection(connectionString)
-            : LocalDatabase.IsSqlServer(provider) ? new SqlConnection(connectionString)
-            : new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(ct);
-        return connection;
     }
 
     private static DbCommand Command(DbConnection connection, string sql, params (string Name, object Value)[] parameters)
