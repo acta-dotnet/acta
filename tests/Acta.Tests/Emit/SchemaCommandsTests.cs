@@ -13,6 +13,7 @@ public sealed class SchemaCommandsTests : IDisposable
 {
     private static readonly DateTime First = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Second = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime Third = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
 
     private readonly string _root;
 
@@ -111,6 +112,45 @@ public sealed class SchemaCommandsTests : IDisposable
     {
         SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
         Assert.Equal(2, SchemaAddCommand.Run(name: null, repoRoot: _root, now: Second));
+    }
+
+    [Fact]
+    public void Add_refuses_a_name_a_migration_already_carries()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
+        File.Delete(MigrationFiles.PathFor(_root, "sqlite", "M20260101000000_init"));
+        SchemaAddCommand.Run(name: "join_sqlite", repoRoot: _root, now: Second);
+
+        Assert.Equal(2, SchemaAddCommand.Run(name: "join_sqlite", repoRoot: _root, now: Third));
+        Assert.Equal(2, SchemaAddCommand.Run(name: "init", repoRoot: _root, now: Third));
+        Assert.Equal(["M20260101000000_init", "M20260102000000_join_sqlite"], MigrationFiles.Stems(_root, "pg"));
+    }
+
+    [Fact]
+    public void Force_replaces_the_migration_that_carries_the_name_under_the_runs_instant()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
+
+        Assert.Equal(0, SchemaAddCommand.Run(name: "init", repoRoot: _root, now: Second, force: true));
+
+        Assert.All(ProviderCatalog.All, p => Assert.Equal(["M20260102000000_init"], MigrationFiles.Stems(_root, p.Token)));
+    }
+
+    [Fact]
+    public void Force_with_nothing_to_rediff_refuses_and_keeps_the_migration()
+    {
+        SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
+        foreach (var provider in ProviderCatalog.All)
+        {
+            File.WriteAllText(MigrationFiles.PathFor(_root, provider.Token, "M20260102000000_extra"), "-- extra");
+        }
+
+        Assert.Equal(2, SchemaAddCommand.Run(name: "extra", repoRoot: _root, now: Third, force: true));
+
+        Assert.All(
+            ProviderCatalog.All,
+            p => Assert.Equal(["M20260101000000_init", "M20260102000000_extra"], MigrationFiles.Stems(_root, p.Token))
+        );
     }
 
     [Fact]

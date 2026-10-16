@@ -18,11 +18,13 @@ internal static class Usage
               docs                         Emit docs/reference/data-model.md + docs/reference/code-families.md
               check                        Verify docs are current AND the snapshot equals the live model
               schema reset [--force]       Delete all migrations + the snapshot (deletes only; --force required)
-              schema add [--name <n>]      Emit M{yyyyMMddHHmmss}_{n}.sql (UTC now) for every provider; save the snapshot
-                                           (--name is snake_case, required once a baseline exists and refused before it;
+              schema add [--name <n> [--force]]
+                                           Emit M{yyyyMMddHHmmss}_{n}.sql (UTC now) for every provider; save the snapshot
+                                           (--name is snake_case, required once a baseline exists and refused before it,
+                                           refused when a migration already carries it unless --force replaces that one;
                                            the baseline is "init")
 
-            To redo a migration that has not shipped: git checkout the snapshot, delete the migration's files, schema add again.
+            To redo a migration that has not shipped: git checkout the snapshot, then schema add --name <its name> --force.
             """
         );
         return 0;

@@ -16,6 +16,7 @@ internal static class CommandRouter
             ["schema", "reset", "--force"] => SchemaResetCommand.Run(force: true),
             ["schema", "add"] => SchemaAddCommand.Run(name: null),
             ["schema", "add", "--name", var n] => SchemaAddCommand.Run(n),
+            ["schema", "add", "--name", var n, "--force"] => SchemaAddCommand.Run(n, force: true),
             _ => Usage.Unknown(args),
         };
 }

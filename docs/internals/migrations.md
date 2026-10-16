@@ -19,7 +19,9 @@ glued to the UTC instant of the `schema add` that wrote it, then a snake_case na
 same cut on PostgreSQL, SQL Server, and SQLite.
 
 The datetime is the version. There is no running counter anywhere, and the fixed width makes ordinal
-name order the apply order. The naming rule has one home, `ProviderMigrationOwnershipTests`; the
+name order the apply order. A name is used once: `schema add` refuses a name an existing migration
+already carries, and a host refuses to start from a provider package that ships two migrations with one
+name. The naming rule has one home, `ProviderMigrationOwnershipTests`; the
 runtime takes every `.sql` under the provider's `Migrations/` and the emit tool every `M*.sql`.
 
 A provider with no history gets a full baseline under the run's stem, which is how a late-joining
@@ -75,11 +77,12 @@ dotnet run --project tools/Acta.Emit -- <command>
 | --- | --- |
 | `docs` | Regenerate `docs/reference/data-model.md`, `docs/reference/code-families.md`, and the `docs/reference/schema-*.sql` scripts. |
 | `check` | Verify the docs are current and the snapshot equals the live model, routine and view bodies included. The drift gate for CI. |
-| `schema add [--name <n>]` | Emit `M{now}_{n}.sql` for every provider: the table delta, then every changed routine, then every changed view; save the snapshot. `--name` is required once a baseline exists and refused before it, when the name is `init`. |
+| `schema add [--name <n>]` | Emit `M{now}_{n}.sql` for every provider: the table delta, then every changed routine, then every changed view; save the snapshot. `--name` is required once a baseline exists and refused before it, when the name is `init`, and refused when a migration already carries it unless `--force` replaces that one. |
 | `schema reset --force` | Delete every migration, the snapshot, and the schema scripts. Deletes only. |
 
-There is no amend. To redo a migration that has not shipped, `git checkout` the snapshot, delete the
-migration's files, and run `schema add` again. Git already holds the previous snapshot.
+There is no amend command. To redo a migration that has not shipped, `git checkout` the snapshot it was
+cut from and run `schema add --name <its name> --force`, which replaces it under the run's instant. Git
+already holds the previous snapshot. A forced run that finds nothing to re-diff refuses rather than delete.
 
 Production hosts keep `ApplyMigrationsOnStartup = false` and apply migration SQL from the release
 process before workers start. See [`production.md`](../guide/production.md#migration-ownership).

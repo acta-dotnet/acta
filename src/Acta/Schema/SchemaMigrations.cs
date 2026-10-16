@@ -171,7 +171,23 @@ internal static partial class SchemaMigrations
                 $"No migration scripts found under Migrations in {assembly.GetName().Name}. "
                     + "The provider package must embed its complete Migrations/*.sql sequence."
             )
-            : [.. found.OrderBy(m => m.Name, StringComparer.Ordinal)];
+            : InApplyOrder(found);
+    }
+
+    /// <summary>
+    /// The migrations in stem order, refusing two that share a name: a name is used once, so a stem's name part alone
+    /// says which change it carries.
+    /// </summary>
+    internal static IReadOnlyList<SchemaMigration> InApplyOrder(IEnumerable<SchemaMigration> migrations)
+    {
+        var ordered = migrations.OrderBy(m => m.Name, StringComparer.Ordinal).ToList();
+        var duplicate = ordered.GroupBy(m => m.Name["M00000000000000_".Length..], StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1);
+        return duplicate is null
+            ? ordered
+            : throw new InvalidOperationException(
+                $"Migrations {string.Join(" and ", duplicate.Select(m => m.Name))} share the name '{duplicate.Key}'. "
+                    + "A migration name is used once; the provider package ships an inconsistent Migrations/*.sql sequence."
+            );
     }
 
     private static SchemaOperations Operations(DbConnection conn, string schemaName, string dialectToken) =>

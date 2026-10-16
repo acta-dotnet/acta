@@ -34,6 +34,9 @@ internal static partial class MigrationFiles
 
     internal static string Stem(DateTime utc, string name) => $"M{utc.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}_{name}";
 
+    /// <summary>The name part of a stem: what follows <c>M{yyyyMMddHHmmss}_</c>.</summary>
+    internal static string NameOf(string stem) => stem["M00000000000000_".Length..];
+
     internal static string PathFor(string repoRoot, string token, string stem) => Path.Combine(Dir(repoRoot, token), stem + ".sql");
 
     internal static bool IsValidName(string name) => NameRegex().IsMatch(name);

@@ -46,9 +46,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   the view sources, no longer ship in `Acta.dll`; a command with no embedded SQL file for the dialect
   executes as the routine of that name. The published provisioning scripts lose their views, routines,
   and package sections, and refuse a database holding a migration they do not ship.
-- **`schema amend` is gone.** To redo an unshipped migration, `git checkout` the snapshot, delete the
-  migration's files, and run `schema add` again. `--name` is required after the baseline and refused
-  before it.
+- **`schema amend` is gone.** To redo an unshipped migration, `git checkout` the snapshot it was cut
+  from and run `schema add --name <its name> --force`. `--name` is required after the baseline and
+  refused before it, and a name is used once: `schema add` refuses one a migration already carries
+  unless `--force` replaces it, and a host refuses to start from a package shipping two migrations of
+  one name.
 - **`DriverVersionPolicy` is gone.** A provider that loads a database driver whose major version differs
   from the one Acta was certified on now logs one warning naming both and keeps running; it no longer
   refuses to start. Remove any `DriverVersionPolicy` setting from the provider options.
