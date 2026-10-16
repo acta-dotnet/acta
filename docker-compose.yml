@@ -27,7 +27,9 @@ services:
     volumes:
       - acta-pg-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d acta-dev"]
+      # Exec form, with pg_isready's own timeout inside Docker's. A shell-form check that times out leaves pg_isready
+      # orphaned to the postmaster (PID 1), which takes its non-zero exit for a crashed backend and restarts the server.
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "acta-dev", "-t", "2"]
       interval: 5s
       timeout: 3s
       retries: 10
