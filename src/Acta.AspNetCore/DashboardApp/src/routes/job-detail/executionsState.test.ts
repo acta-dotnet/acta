@@ -39,6 +39,13 @@ test('a paired execution derives start, end, duration, worker, and outcome', () 
   assert.equal(run.missingEnd, false);
 });
 
+test('a finished execution without a start event starts at its finish less its duration', () => {
+  const runs = deriveExecutions([
+    event({ eventCode: 'job.execution-finished', executionStatus: 'succeeded', createdAtUtc: '2026-08-09T10:00:05.000Z', durationMs: 1250 }),
+  ]);
+  assert.equal(runs[0].startedAtUtc, '2026-08-09T10:00:03.750Z');
+});
+
 test('an orphan reclaim (end-only, null worker) falls back to the start event worker', () => {
   const runs = deriveExecutions([
     event({ eventCode: 'job.execution-started', workerRef: 'wrk_4' }),

@@ -18,7 +18,7 @@ see [`design.md`](../internals/design.md).
 | Term | Meaning |
 | --- | --- |
 | **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `runtimes`. One-shot work, delayed work, recurring slots, coordinating parents, child jobs, and system maintenance all use the same tables. |
-| **Execution** | One recorded run of a handler. At the default audit level every run (success or failure) is recorded as a paired `job.execution-started` / `job.execution-finished` event on `(JobId, ExecutionNumber)`; the `Failures` and `Off` levels record less. |
+| **Execution** | One recorded run of a handler. At the default audit level every run (success or failure) is recorded as one `job.execution-finished` event on `(JobId, ExecutionNumber)`, carrying the worker and the handler's duration; the `Failures` and `Off` levels record less. A run in progress is its `runtimes` row. |
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
 | **Status** | The lifecycle-or-outcome enum column on every entity that has one (`JobRuntime.Status`, `JobWorker.Status`, `JobStep.Status`, `JobCheckpoint.Status`, ...). The job's `runtimes` row stores current status; events explain transitions. |
 | **Firing** | One scheduled occurrence of a recurring `[JobSchedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |

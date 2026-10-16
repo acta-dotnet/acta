@@ -7,6 +7,14 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **A claim writes no `job.execution-started` event.** At the `Audit` level an attempt is recorded once,
+  by `job.execution-finished`, which already carried the worker and the handler's duration; an attempt
+  in flight is its `runtimes` row, and the dashboard places an attempt's start at its finish less its
+  duration. On SQL Server the started insert took about 10 of a claim's 25 ms, waiting on the last
+  page of `events`; without it a 4-worker drain went from 8.7K to 11.4K jobs/s. Code 40 stays, marked
+  retired, so older rows still read. A reclaimed attempt's finished event now names the worker that
+  held the lapsed lease, which only the started event recorded before. Migration
+  `M20261016080729_claim_writes_no_started_event` carries the new routine bodies.
 - **`EnqueueBatchAsync` takes at most 1,000 rows.** It was 5,000; a larger batch throws
   `ArgumentException`, so split it caller-side. On SQL Server a batch at the old limit crossed the
   5,000-lock escalation threshold and could take a table lock on `jobs` for its whole transaction,

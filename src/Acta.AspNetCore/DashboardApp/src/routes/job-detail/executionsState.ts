@@ -63,7 +63,9 @@ export function deriveExecutions(events: JobEvent[]): ExecutionSummary[] {
 
     summaries.push({
       executionNumber,
-      startedAtUtc: start?.createdAtUtc ?? null,
+      // A finished event carries its handler's duration, so a start without its own event is the finish less that.
+      startedAtUtc: start?.createdAtUtc
+        ?? (end?.durationMs != null ? new Date(Date.parse(end.createdAtUtc) - end.durationMs).toISOString() : null),
       finishedAtUtc: end?.createdAtUtc ?? null,
       durationMs: end?.durationMs ?? null,
       // An older release's orphan reclaim wrote its end event with a NULL worker; its start event still knows.

@@ -66,7 +66,7 @@ Examples:
 - The `DeduplicationKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
 - Domain metadata lives as fields on the input record, cross-cutting searchable metadata as `Tag` rows: no `JobMeta` table.
 - System jobs (`sys.alerts`, `sys.retention`, and `sys.outbox` where a relay is registered) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
-- Per-attempt history is paired `JobEvent(job.execution-started)` + `JobEvent(job.execution-finished)` joined on `(JobId, ExecutionNumber)`: no separate execution table.
+- Per-attempt history is one `JobEvent(job.execution-finished)` per `(JobId, ExecutionNumber)`, carrying the worker and the handler's duration: no separate execution table. An attempt in flight is its `runtimes` row.
 - Lanes earned the `lanes` table. A laned enqueue needs a row to lock until it commits, so two producers cannot interleave out of order, and the lane name is stored once. A hash on `runtimes` has no row to lock and can merge two lanes; `locks` rows are expiring leases, a different lifecycle.
 
 A worked example (see [the settled-decisions ledger below](#settled-decisions-ledger) § Substrate): the simple substrate is one merged `checkpoints` table discriminated by `Kind`, spending one table on five slot features; only `steps` earned its own table by carrying a genuinely different shape (attempt counters, retry budget, stored results).
@@ -75,11 +75,11 @@ The principle extends to APIs: adding a method requires showing no existing surf
 
 ## Vocabulary discipline
 
-**`Execution`** is what gets recorded: every run of the handler, success or failure, as a paired
-`job.execution-started` / `finished` event. **`Attempt`** is what counts against the retry budget
+**`Execution`** is what gets recorded: every run of the handler, success or failure, as a
+`job.execution-finished` event. **`Attempt`** is what counts against the retry budget
 (`MaxAttempts`) when it fails. Names that drift this are rejected: `MaxFailedExecutions` (a
 successful execution is also an execution), `MaxRetries` (off-by-one trap, `MaxAttempts = 3` means
-three tries), a `JobAttempt` table (the event pair is the per-attempt record).
+three tries), a `JobAttempt` table (the finished event is the per-attempt record).
 
 **`Status`** is the uniform column name for the operator-facing lifecycle enum; per-execution
 outcome is the event's `ExecutionStatus`; steps and checkpoints carry `status_code` like every other

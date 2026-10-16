@@ -106,8 +106,7 @@ timeline survives well past the job row itself.
 ## How a worker claims and completes
 
 A worker claims one row for every free executor. The claim moves each row straight to `Executing` under the
-worker's lease and, for an audited job, writes `job.execution-started` in the same statement. No status sits
-between claimed and running.
+worker's lease and writes nothing else. No status sits between claimed and running.
 
 An executor hands each finished attempt to the worker's one finalizer, which writes
 the completions waiting for it in one transaction, whatever their shape (success, failure, retry,
