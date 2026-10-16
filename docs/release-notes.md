@@ -391,6 +391,12 @@ settles, and what an operator sees when it fails.
 
 ### Fixes
 
+- **SQL Server enqueue never scans `jobs` for its deduplication probe.** The probe reads under
+  `UPDLOCK, HOLDLOCK`, and with statistics compiled while `jobs` was small it chose a scan of the
+  table, which locks every row it reads and escalates to a table lock held until the enqueue commits:
+  one producer slowed to a few thousand jobs a second, and every completion that writes a result
+  waited behind it on its foreign-key check. Both enqueue routines now seek their deduplication index,
+  its filter restated, and the parent lookup seeks by key.
 - **The overview counts executing jobs from the in-flight index.** The count filtered `runtimes` on
   status alone, which no index serves, so every overview request scanned the whole table, retained
   history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the

@@ -140,26 +140,31 @@ BEGIN
 
         IF @p_deduplication_key IS NOT NULL
             BEGIN
+                -- Each probe seeks its dedup index, the index's filter restated: under HOLDLOCK a scan locks every row
+                -- it reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
                 IF @p_parent_id IS NOT NULL
                     BEGIN
                         SELECT
                             @existing_id = j.id,
                             @existing_ref = j.job_ref
-                        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK)
+                        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
                         WHERE
                             j.parent_id = @p_parent_id
-                            AND j.deduplication_key = @p_deduplication_key;
+                            AND j.deduplication_key = @p_deduplication_key
+                            AND j.parent_id IS NOT NULL
+                            AND j.deduplication_key IS NOT NULL;
                     END
                 ELSE
                     BEGIN
                         SELECT
                             @existing_id = j.id,
                             @existing_ref = j.job_ref
-                        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK)
+                        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
                         WHERE
                             j.namespace_id = @ns_id
                             AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_id IS NULL;
+                            AND j.parent_id IS NULL
+                            AND j.deduplication_key IS NOT NULL;
                     END;
             END;
 
@@ -169,7 +174,7 @@ BEGIN
                     @lineage = COALESCE(pj.lineage_root_id, pj.id),
                     @parent_corr = pj.correlation_key,
                     @parent_tenant = pj.tenant_id
-                FROM {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK)
+                FROM {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
                 INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
                 WHERE
                     pj.id = @p_parent_id

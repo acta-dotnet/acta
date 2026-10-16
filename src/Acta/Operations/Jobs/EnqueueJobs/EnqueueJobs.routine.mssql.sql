@@ -217,16 +217,20 @@ BEGIN
                 WHERE deduplication_key IS NOT NULL
             )
             BEGIN
+                -- Each probe seeks its dedup index, the index's filter restated: under HOLDLOCK a scan locks every row
+                -- it reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
                 INSERT INTO @existing (ordinal, id, job_ref)
                 SELECT
                     b.ordinal,
                     j.id,
                     j.job_ref
                 FROM @p_batch b
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK)
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
                     ON
                         j.parent_id = b.parent_id
                         AND j.deduplication_key = b.deduplication_key
+                        AND j.parent_id IS NOT NULL
+                        AND j.deduplication_key IS NOT NULL
                 WHERE
                     b.deduplication_key IS NOT NULL
                     AND b.parent_id IS NOT NULL;
@@ -238,11 +242,12 @@ BEGIN
                     j.job_ref
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK)
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
                     ON
                         j.namespace_id = r.ns_id
                         AND j.deduplication_key = b.deduplication_key
                         AND j.parent_id IS NULL
+                        AND j.deduplication_key IS NOT NULL
                 WHERE
                     b.deduplication_key IS NOT NULL
                     AND b.parent_id IS NULL;
@@ -262,7 +267,7 @@ BEGIN
             pj.correlation_key,
             pj.tenant_id
         FROM @p_batch b
-        INNER JOIN {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK) ON pj.id = b.parent_id
+        INNER JOIN {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.id = b.parent_id
         INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
         WHERE
             b.parent_id IS NOT NULL
