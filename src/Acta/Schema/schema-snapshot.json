@@ -964,10 +964,6 @@
       ],
       "ForeignKeys": [
         {
-          "Name": "fk_runtimes_jobs",
-          "Signature": "job_id-\u003Ejobs.id|Cascade"
-        },
-        {
           "Name": "fk_runtimes_lanes",
           "Signature": "lane_id-\u003Elanes.id|NoAction"
         }
@@ -1427,7 +1423,7 @@
       "events_view": "0a8603e985103bf1f1f88d857b41b8019b600fa08bcc1350291e3283007ec66d",
       "extend_worker_leases": "7c43dde13646a0c42ba3c8ef21112eb480a70e4dc250555e84e406ee24fea4ae",
       "jobs_view": "b98205d7b1c26edadf4c0c487cd8fd824a0b69e447d52ffb8046bc59cec37c1c",
-      "purge_expired_data": "428dd2950aaabfd5e2c1c71d8cf77076cb0d111355b179a1358293c6bd71e365",
+      "purge_expired_data": "bc241ebf8156179045695c8c2e2a4de122438440f23e1a04d5a94e253644d728",
       "raise_signal": "17eef6a07da5de33de99d8dc7b683fe56f41ea21893e0ca97fac9f7fd57787d9",
       "reclaim_stuck_jobs": "3db81704e81fe8ceb83279790a63d4d0f702d694840b54ad5e87a1e09ed0649b",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",

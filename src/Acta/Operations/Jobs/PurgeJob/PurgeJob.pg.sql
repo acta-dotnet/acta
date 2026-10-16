@@ -78,6 +78,8 @@ DELETE FROM {{schema}}.alerts
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.jobs
 WHERE id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
+DELETE FROM {{schema}}.runtimes
+WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor, definition_id, tenant_id, from_status_code,

@@ -117,6 +117,8 @@ BEGIN TRY
     DELETE FROM {{schema}}.jobs
     WHERE id = @p_id
     OPTION (LOOP JOIN);
+    DELETE FROM {{schema}}.runtimes
+    WHERE job_id = @p_id;
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,

@@ -41,7 +41,7 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark')
+        WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4884,6 +4884,229 @@ VALUES ('M20261016153043_claim_watermark')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261016153043_claim_watermark =====
+
+-- ===== BEGIN M20261016162201_runtimes_no_job_fk =====
+ALTER TABLE acta.runtimes DROP CONSTRAINT IF EXISTS fk_runtimes_jobs;
+
+
+-- One section, one bounded atomic batch. Section numbers match RetentionSection.
+CREATE OR REPLACE FUNCTION acta.purge_expired_data(
+    p_namespace_id INT,
+    p_section INT,
+    p_cutoff_utc TIMESTAMPTZ,
+    p_batch_size INT,
+    p_before_job_id BIGINT DEFAULT 0
+)
+RETURNS TABLE (deleted_count INT, next_job_id BIGINT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_rows INT := 0;
+    v_next BIGINT := 0;
+    v_below BIGINT;
+    v_slice_end BIGINT;
+    v_ids BIGINT[];
+    v_lock_keys TEXT[];
+    v_alerts_slot_id BIGINT;
+BEGIN
+    IF p_batch_size <= 0 OR p_section NOT BETWEEN 1 AND 8 THEN
+        RAISE EXCEPTION 'Invalid retention section or batch size.';
+    END IF;
+
+    CASE p_section
+    WHEN 1 THEN
+        /* No retention index: walk runtimes downward from the cursor, ten batches a slice, and delete this
+           namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
+           A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
+        v_below := CASE WHEN p_before_job_id = 0 THEN 9223372036854775807 ELSE p_before_job_id END;
+        SELECT min(s.job_id) INTO v_slice_end FROM (
+            SELECT r.job_id FROM acta.runtimes r
+            WHERE r.job_id < v_below
+            ORDER BY r.job_id DESC
+            LIMIT p_batch_size * 10) s;
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT j.id FROM acta.jobs j
+            JOIN acta.runtimes r ON r.job_id = j.id
+            WHERE
+                r.job_id < v_below
+                AND r.job_id >= v_slice_end
+                AND r.namespace_id = p_namespace_id
+                AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                AND r.retention_until_utc IS NOT NULL
+                AND r.retention_until_utc <= p_cutoff_utc
+                -- Lineage guard: parent_id carries no FK, so purging a parent whose children still
+                -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
+                -- delete; a fully-expired subtree drains bottom-up across iterations.
+                AND NOT EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = j.id)
+                -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and
+                -- reads its result, so purging it would run the child again. The tree drains once the
+                -- parent is terminal.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.runtimes p
+                    WHERE p.job_id = j.parent_id
+                      AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                -- it drain.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.schedules s
+                    JOIN acta.definitions d ON d.id = j.definition_id
+                    WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */)
+            ORDER BY r.job_id DESC
+            LIMIT p_batch_size
+            FOR UPDATE OF j, r SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        v_next := CASE
+            WHEN v_slice_end IS NULL THEN 0
+            WHEN v_rows = p_batch_size THEN (SELECT min(x) FROM unnest(v_ids) x)
+            ELSE v_slice_end
+        END;
+        IF v_rows > 0 THEN
+            PERFORM 1 FROM acta.schedules s WHERE s.job_id = ANY(v_ids) ORDER BY s.id FOR UPDATE;
+            DELETE FROM acta.tags t
+            WHERE
+                (t.scope_code = 50 /* TagScopeCode.Job */ AND t.scope_id = ANY(v_ids))
+                OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (
+                    SELECT s.id FROM acta.schedules s WHERE s.job_id = ANY(v_ids)));
+            DELETE FROM acta.jobs j WHERE j.id = ANY(v_ids);
+            DELETE FROM acta.runtimes r WHERE r.job_id = ANY(v_ids);
+        END IF;
+
+    WHEN 2 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.events
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= p_cutoff_utc
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 90 /* TagScopeCode.Event */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.events WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 3 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.alerts
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= p_cutoff_utc
+                AND delivery_status_code IN (30 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 80 /* TagScopeCode.Alert */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.alerts WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 4 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.alerts
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= p_cutoff_utc
+                AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 80 /* TagScopeCode.Alert */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.alerts WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 5 THEN
+        SELECT j.id INTO v_alerts_slot_id
+        FROM acta.jobs j
+        WHERE
+            j.namespace_id = p_namespace_id
+            AND j.deduplication_key = 'sys.alerts'
+            AND j.parent_id IS NULL;
+        DELETE FROM acta.checkpoints c
+        WHERE (c.job_id, c.kind_code, c.name) IN (
+            SELECT k.job_id, k.kind_code, k.name FROM acta.checkpoints k
+            WHERE
+                k.job_id = v_alerts_slot_id
+                AND k.kind_code = 10 /* CheckpointKindCode.Variable */
+                AND k.name LIKE 'alerts-skip-%'
+                AND k.modified_at_utc <= p_cutoff_utc
+            LIMIT p_batch_size);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    WHEN 6 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.workers
+            WHERE
+                namespace_id = p_namespace_id
+                AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                AND last_seen_at_utc <= p_cutoff_utc
+            ORDER BY last_seen_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 70 /* TagScopeCode.Worker */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.workers WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 7 THEN
+        -- Stage the batch into a variable first (same shape as the sections above): a SKIP LOCKED
+        -- subquery inlined into the DELETE may be re-evaluated per outer row, locking a different
+        -- row each probe and deleting past the batch size.
+        SELECT array_agg(q.lock_key) INTO v_lock_keys FROM (
+            SELECT lock_key FROM acta.locks
+            WHERE
+                expires_at_utc <= p_cutoff_utc
+            ORDER BY expires_at_utc
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        DELETE FROM acta.locks WHERE lock_key = ANY(v_lock_keys);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    WHEN 8 THEN
+        -- Unreferenced lanes, locked in id order skipping a lane an enqueue or settle holds, then
+        -- re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT l.id FROM acta.lanes l
+            WHERE
+                l.namespace_id = p_namespace_id
+                AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id)
+            ORDER BY l.id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        DELETE FROM acta.lanes l
+        WHERE
+            l.id = ANY(v_ids)
+            AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+    END CASE;
+
+    RETURN QUERY SELECT v_rows, v_next;
+END;
+$$;
+
+
+INSERT INTO acta.migrations (name)
+VALUES ('M20261016162201_runtimes_no_job_fk')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261016162201_runtimes_no_job_fk =====
 
 COMMIT;
 

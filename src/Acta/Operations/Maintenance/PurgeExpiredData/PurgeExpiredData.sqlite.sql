@@ -64,6 +64,7 @@ WHERE
         SELECT s.id FROM {{schema}}.schedules s WHERE s.job_id IN (SELECT id FROM temp._purge_jobs)));
 
 DELETE FROM {{schema}}.jobs WHERE id IN (SELECT id FROM temp._purge_jobs);
+DELETE FROM {{schema}}.runtimes WHERE job_id IN (SELECT id FROM temp._purge_jobs);
 
 CREATE TEMP TABLE _purge_events AS
 SELECT id

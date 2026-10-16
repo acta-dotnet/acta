@@ -78,6 +78,7 @@ BEGIN
                 OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (
                     SELECT s.id FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids)));
             DELETE FROM {{schema}}.jobs j WHERE j.id = ANY(v_ids);
+            DELETE FROM {{schema}}.runtimes r WHERE r.job_id = ANY(v_ids);
         END IF;
 
     WHEN 2 THEN

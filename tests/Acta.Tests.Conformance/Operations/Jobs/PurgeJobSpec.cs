@@ -53,6 +53,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Null(result.Status);
 
         Assert.Null(await Jobs.GetAsync(completed, ct));
+        Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
 

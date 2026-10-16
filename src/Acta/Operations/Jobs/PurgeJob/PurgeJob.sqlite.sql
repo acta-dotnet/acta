@@ -53,6 +53,11 @@ WHERE
     id = @p_id
     AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
+DELETE FROM {{schema}}.runtimes
+WHERE
+    job_id = @p_id
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
+
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,

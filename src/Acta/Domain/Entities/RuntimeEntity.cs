@@ -5,16 +5,11 @@ namespace Acta;
 /// rewrites the identity and input row. Every state transition updates it and bumps <see cref="Version"/>, the CAS
 /// token; the lease (<see cref="LeasedByWorkerId"/>, <see cref="LeaseExpiresAtUtc"/>) lives here too, so a claim is
 /// one update and a heartbeat extends the lease without bumping the version. The creation instant is on the jobs row.
+/// No foreign key ties it to its job: enqueue writes both rows in one transaction and every purge deletes both, and a
+/// key's check on each enqueue read the new job row on the last page every concurrent enqueue was writing.
 /// </summary>
 [DbTable("runtimes")]
 [DbPrimaryKey(Name = "pk_runtimes", Columns = ["job_id"], Manual = true, OptimizeForSequentialKey = true)]
-[DbForeignKey(
-    Name = "fk_runtimes_jobs",
-    Target = typeof(JobEntity),
-    TargetColumn = "id",
-    Column = "job_id",
-    OnDelete = DbForeignKeyAction.Cascade
-)]
 [DbForeignKey(
     Name = "fk_runtimes_lanes",
     Target = typeof(LaneEntity),

@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **230 columns**, **34 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **230 columns**, **34 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -410,7 +410,7 @@ One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so resu
 
 ### `acta.runtimes` <a id="entity-acta-runtimes"></a>
 
-The hot, mutable state of one job, one row per `jobs` row, split out so claim and complete churn never rewrites the identity and input row. Every state transition updates it and bumps `Version`, the CAS token; the lease (`LeasedByWorkerId`, `LeaseExpiresAtUtc`) lives here too, so a claim is one update and a heartbeat extends the lease without bumping the version. The creation instant is on the jobs row.
+The hot, mutable state of one job, one row per `jobs` row, split out so claim and complete churn never rewrites the identity and input row. Every state transition updates it and bumps `Version`, the CAS token; the lease (`LeasedByWorkerId`, `LeaseExpiresAtUtc`) lives here too, so a claim is one update and a heartbeat extends the lease without bumping the version. The creation instant is on the jobs row. No foreign key ties it to its job: enqueue writes both rows in one transaction and every purge deletes both, and a key's check on each enqueue read the new job row on the last page every concurrent enqueue was writing.
 
 **CLR type** `Acta.RuntimeEntity` · **Primary key** `pk_runtimes` (`job_id`)
 
@@ -457,7 +457,6 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 
 | Constraint | Column → Target | On delete |
 |---|---|---|
-| `fk_runtimes_jobs` | `job_id` → `acta.jobs(id)` | CASCADE |
 | `fk_runtimes_lanes` | `lane_id` → `acta.lanes(id)` | NO ACTION |
 
 ---

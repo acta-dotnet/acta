@@ -144,14 +144,14 @@ first compile, or at a recompile after a statistic the plan read goes stale. An 
 can therefore switch to that scan at any time. A pinned seek reads more pages than a scan of a small
 child table, but it locks only the batch's own keys.
 
-- Both `runtimes` inserts in `enqueue_jobs` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_jobs` and
-  `fk_runtimes_lanes` seek each parent by key and lock only rows the batch inserted or already holds.
+- Both `runtimes` inserts in `enqueue_jobs` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_lanes` seeks
+  each lane by key and locks only rows the batch inserted or already holds.
 - The same rule covers set-based deletes and locking reads driven by a table variable.
   `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through
   `@del` or `@lock_del` with `WITH (FORCESEEK)`, so the table is always the inner side, sought by key.
   `OPTION (LOOP JOIN)` alone is not enough there. Compiled at one row, it keeps nested loops but makes
   a small permanent table the outer input and scans all of it under update locks. The `jobs` delete
-  keeps `LOOP JOIN` as well, for its cascades into five child tables.
+  keeps `LOOP JOIN` as well, for its cascades into four child tables.
 - The expired-lock sweep is global, so every namespace's retention pass meets the others there.
   Unhinted, its delete scanned all of `ix_locks_reclaim_expired` under update locks. Two sweeps then
   deadlocked on each other's staged rows, and a sweep stalled or rolled back that way left expired rows

@@ -423,6 +423,12 @@ settles, and what an operator sees when it fails.
   namespace, SQL Server went from about 2,200 to about 5,600 enqueues a second, the rate of enqueues
   with no key at all. A refused key lock, a deadlock included, raises error 51205, which Acta retries
   as it retries a deadlock.
+- **`runtimes` has no foreign key to `jobs`.** Enqueue writes a job's two rows in one transaction and
+  every purge deletes both, so `fk_runtimes_jobs` only checked, on each enqueue, the job row just
+  inserted, which on SQL Server sits on the last page of `pk_jobs` that every concurrent enqueue is
+  writing. Retention and `PurgeJob` now delete the `runtimes` row themselves instead of through the
+  cascade. In the lab's stress run SQL Server took about 20% more single enqueues inside caller
+  transactions, and half the page-latch waits on `jobs`. SQLite rebuilds `runtimes` to drop the key.
 - **SQL Server never escalates locks on `jobs`.** A 1,000-row enqueue takes key and range locks on
   every index of `jobs` and crosses the 5,000-lock threshold, so SQL Server tried to escalate about four
   times per batch and won whenever no other session held a lock on the table at that instant: 39 times

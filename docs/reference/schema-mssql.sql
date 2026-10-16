@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark')
+    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -9288,6 +9288,23 @@ INSERT INTO acta.migrations (name)
 VALUES ('M20261016153043_claim_watermark');
 GO
 -- ===== END M20261016153043_claim_watermark =====
+GO
+-- ===== BEGIN M20261016162201_runtimes_no_job_fk =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+-- Enqueue and the purges keep runtimes and jobs together, so the key's check on every enqueue is dropped.
+IF OBJECT_ID(N'acta.fk_runtimes_jobs', N'F') IS NOT NULL
+    ALTER TABLE acta.runtimes DROP CONSTRAINT fk_runtimes_jobs;
+GO
+
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016162201_runtimes_no_job_fk')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261016162201_runtimes_no_job_fk');
+GO
+-- ===== END M20261016162201_runtimes_no_job_fk =====
 GO
 COMMIT TRANSACTION;
 GO
