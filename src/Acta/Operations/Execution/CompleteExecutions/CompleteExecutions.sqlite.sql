@@ -130,8 +130,8 @@ SELECT
     d.job_id, d.job_ref, d.execution_number, COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
     NULL, NULL, NULL, NULL, NULL, NULL, js.name
 FROM json_each(@p_schedule_advances) a
-INNER JOIN {{schema}}.schedules js ON js.id = json_extract(a.value, '$.schedule_id')
-INNER JOIN temp._ces_done d ON d.job_id = js.job_id
+INNER JOIN temp._ces_done d ON d.job_id = json_extract(a.value, '$.job_id')
+INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.name = json_extract(a.value, '$.name')
 WHERE
     (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
     AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
@@ -149,7 +149,8 @@ SET
     version = js.version + 1
 FROM json_each(@p_schedule_advances) a
 WHERE
-    js.id = json_extract(a.value, '$.schedule_id')
+    js.job_id = json_extract(a.value, '$.job_id')
+    AND js.name = json_extract(a.value, '$.name')
     AND js.job_id IN (SELECT d.job_id FROM temp._ces_done d)
     AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
     AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */

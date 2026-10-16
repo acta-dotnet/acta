@@ -54,7 +54,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(only.Id, plannedNext)],
+            [new ScheduleAdvance(only.Name, plannedNext)],
             JobStatusCode.Ready,
             plannedNext,
             ct
@@ -107,7 +107,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(earlyRow.Id, earlyNext), new ScheduleAdvance(lateRow.Id, lateNext)],
+            [new ScheduleAdvance(earlyRow.Name, earlyNext), new ScheduleAdvance(lateRow.Name, lateNext)],
             JobStatusCode.Ready,
             earlyNext,
             ct
@@ -116,10 +116,10 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         Assert.Equal(lateNext, result.FinalNextRunAtUtc);
 
         var after = await SchedulesAsync(slotId, ct);
-        var earlyAfter = Assert.Single(after, s => s.Id == earlyRow.Id);
+        var earlyAfter = Assert.Single(after, s => s.Name == earlyRow.Name);
         Assert.Equal(ScheduleStatusCode.Orphaned, earlyAfter.Status);
         Assert.Equal(early, earlyAfter.NextRunAtUtc);
-        var lateAfter = Assert.Single(after, s => s.Id == lateRow.Id);
+        var lateAfter = Assert.Single(after, s => s.Name == lateRow.Name);
         Assert.Equal(ScheduleStatusCode.Active, lateAfter.Status);
         Assert.Equal(lateNext, lateAfter.NextRunAtUtc);
 
@@ -151,7 +151,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(existingRow.Id, existingNext, existingRow.Version)],
+            [new ScheduleAdvance(existingRow.Name, existingNext, existingRow.Version)],
             JobStatusCode.Ready,
             existingNext,
             ct
@@ -181,14 +181,14 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var workerId = await LeaseInFlightAsync(slotId, ct);
 
         // An operator moves the cursor while the attempt runs; every edit verb bumps the version.
-        await EditCursorAsync(read.Id, edited, ct);
+        await EditCursorAsync(slotId, read.Name, edited, ct);
 
         // The plan was made against the version read before the edit.
         var plannedNext = cursor.AddMinutes(5);
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(read.Id, plannedNext, read.Version)],
+            [new ScheduleAdvance(read.Name, plannedNext, read.Version)],
             JobStatusCode.Ready,
             plannedNext,
             ct
@@ -207,12 +207,14 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
     }
 
     /// <summary>An operator edit as the verbs leave it: a new cursor, a new version, a new modified stamp.</summary>
-    private Task EditCursorAsync(long scheduleId, DateTime nextRunAtUtc, CancellationToken ct) =>
+    private Task EditCursorAsync(long jobId, string scheduleName, DateTime nextRunAtUtc, CancellationToken ct) =>
         Db.ExecuteRawAsync(
-            "UPDATE {schema}.schedules SET next_run_at_utc = @p_next, modified_at_utc = @p_next, version = version + 1 WHERE id = @p_id",
+            "UPDATE {schema}.schedules SET next_run_at_utc = @p_next, modified_at_utc = @p_next, version = version + 1 "
+                + "WHERE job_id = @p_job_id AND name = @p_name",
             ct,
             ("@p_next", DbValueCoercion.Coerce(nextRunAtUtc, typeof(DateTime), Db.Provider)),
-            ("@p_id", scheduleId)
+            ("@p_job_id", jobId),
+            ("@p_name", scheduleName)
         );
 
     /// <summary>The audit trail of a re-armed slot: one finished and one rolled-over event, both saying Ready.</summary>

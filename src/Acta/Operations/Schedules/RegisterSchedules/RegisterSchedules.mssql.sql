@@ -225,10 +225,10 @@ BEGIN TRY
             AND tgt.name = src.name
     );
 
-    DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+    DECLARE @candidates TABLE (job_id BIGINT NOT NULL, name VARCHAR(128) NOT NULL, PRIMARY KEY (job_id, name));
 
-    INSERT INTO @candidates (id)
-    SELECT js.id
+    INSERT INTO @candidates (job_id, name)
+    SELECT js.job_id, js.name
     FROM {{schema}}.schedules AS js
     INNER JOIN @slots AS sl ON sl.slot_id = js.job_id
     WHERE
@@ -249,7 +249,7 @@ BEGIN TRY
         modified_at_utc = @now,
         version = js.version + 1
     FROM {{schema}}.schedules AS js
-    INNER JOIN @candidates AS c ON c.id = js.id;
+    INNER JOIN @candidates AS c ON c.job_id = js.job_id AND c.name = js.name;
 
     SELECT
         definition_id,

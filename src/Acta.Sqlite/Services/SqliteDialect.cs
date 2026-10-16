@@ -183,7 +183,11 @@ internal sealed class SqliteDialect : ISqlDialect
         sql = rows.Any(c => c.HasLane) ? sql : WithoutSection(sql, "lanes");
         if (rows.Any(c => c.FinalStatus is not null))
         {
-            AddText(command, "@p_schedule_advances", JsonScheduleAdvances([.. rows.SelectMany(c => c.ScheduleAdvances ?? [])]));
+            AddText(
+                command,
+                "@p_schedule_advances",
+                JsonScheduleAdvances([.. rows.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a)))])
+            );
         }
         else
         {
@@ -413,12 +417,14 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_schedules", scheduleRows);
     }
 
-    private static string JsonScheduleAdvances(IReadOnlyList<ScheduleAdvance> advances) =>
+    private static string JsonScheduleAdvances(IReadOnlyList<(long JobId, ScheduleAdvance Advance)> advances) =>
         JsonArray(
             advances,
-            (writer, advance, _) =>
+            (writer, item, _) =>
             {
-                writer.WriteNumber("schedule_id", advance.ScheduleId);
+                var advance = item.Advance;
+                writer.WriteNumber("job_id", item.JobId);
+                writer.WriteString("name", advance.ScheduleName);
                 WriteUtcOrNull(writer, "next_run_at_utc", advance.NextRunAtUtc);
                 if (advance.ExpectedVersion is { } expected)
                 {

@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._ps_target;
 
 CREATE TEMP TABLE _ps_target AS
-SELECT js.id AS schedule_id
+SELECT js.name
 FROM {{schema}}.schedules js
 WHERE
     js.job_id = @p_job_id
@@ -79,7 +79,7 @@ WHERE
 
 SELECT
     CASE
-        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.name IS NULL THEN 2 /* ControlAction.NotFound */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     js.status_code AS status_code,
@@ -88,4 +88,4 @@ SELECT
     js.version AS version
 FROM (SELECT @p_job_id AS qid) q
 LEFT JOIN temp._ps_target t ON 1 = 1
-LEFT JOIN {{schema}}.schedules js ON js.id = t.schedule_id;
+LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.name = t.name;

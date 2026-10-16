@@ -4,7 +4,7 @@
 DROP TABLE IF EXISTS pg_temp._set_schedule_overrides_slot;
 DROP TABLE IF EXISTS pg_temp._set_schedule_overrides_target;
 CREATE TEMP TABLE _set_schedule_overrides_slot (execution_number INT NOT NULL) ON COMMIT DROP;
-CREATE TEMP TABLE _set_schedule_overrides_target (schedule_id BIGINT NOT NULL, version INT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _set_schedule_overrides_target (name VARCHAR(128) NOT NULL, version INT NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _set_schedule_overrides_slot (execution_number)
 SELECT r.execution_number
@@ -12,8 +12,8 @@ FROM {{schema}}.runtimes r
 WHERE r.job_id = @p_job_id
 FOR UPDATE;
 
-INSERT INTO _set_schedule_overrides_target (schedule_id, version)
-SELECT js.id, js.version
+INSERT INTO _set_schedule_overrides_target (name, version)
+SELECT js.name, js.version
 FROM {{schema}}.schedules js
 WHERE
     js.job_id = @p_job_id
@@ -29,7 +29,9 @@ SET
     reason_message = @p_reason_message,
     modified_at_utc = now(),
     version = version + 1
-WHERE id IN (SELECT t.schedule_id FROM _set_schedule_overrides_target t WHERE t.version = @p_expected_version);
+WHERE
+    job_id = @p_job_id
+    AND name IN (SELECT t.name FROM _set_schedule_overrides_target t WHERE t.version = @p_expected_version);
 
 -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
 -- means no schedule offered a run (ScheduleWalker, "held").
@@ -60,7 +62,7 @@ WHERE
 
 SELECT
     CASE
-        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.name IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN t.version <> @p_expected_version THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END::SMALLINT AS action,
@@ -70,4 +72,4 @@ SELECT
     js.version AS version
 FROM (SELECT 1) one
 LEFT JOIN _set_schedule_overrides_target t ON true
-LEFT JOIN {{schema}}.schedules js ON js.id = t.schedule_id;
+LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.name = t.name;

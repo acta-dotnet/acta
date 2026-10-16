@@ -464,10 +464,11 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_job_next_run_at_utc", NpgsqlDbType.TimestampTz, completions.Select(c => c.JobNextRunAtUtc).ToArray());
         AddArray(postgres, "@p_recurring_result_caps", NpgsqlDbType.Integer, completions.Select(c => c.RecurringResultCap).ToArray());
 
-        var advances = completions.SelectMany(c => c.ScheduleAdvances ?? []).ToList();
-        AddArray(postgres, "@p_advance_schedule_ids", NpgsqlDbType.Bigint, advances.Select(a => a.ScheduleId).ToArray());
-        AddArray(postgres, "@p_advance_next_runs", NpgsqlDbType.TimestampTz, advances.Select(a => a.NextRunAtUtc).ToArray());
-        AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, advances.Select(a => a.ExpectedVersion).ToArray());
+        var advances = completions.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a))).ToList();
+        AddArray(postgres, "@p_advance_job_ids", NpgsqlDbType.Bigint, advances.Select(a => a.JobId).ToArray());
+        AddArray(postgres, "@p_advance_schedule_names", NpgsqlDbType.Varchar, advances.Select(a => a.Advance.ScheduleName).ToArray());
+        AddArray(postgres, "@p_advance_next_runs", NpgsqlDbType.TimestampTz, advances.Select(a => a.Advance.NextRunAtUtc).ToArray());
+        AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, advances.Select(a => a.Advance.ExpectedVersion).ToArray());
         AddScalar(postgres, "@p_plain", NpgsqlDbType.Boolean, completions.All(c => c.IsPlain));
     }
 

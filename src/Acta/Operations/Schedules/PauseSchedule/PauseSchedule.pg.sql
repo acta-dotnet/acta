@@ -4,7 +4,7 @@
 DROP TABLE IF EXISTS pg_temp._pause_schedule_slot;
 DROP TABLE IF EXISTS pg_temp._pause_schedule_target;
 CREATE TEMP TABLE _pause_schedule_slot (execution_number INT NOT NULL) ON COMMIT DROP;
-CREATE TEMP TABLE _pause_schedule_target (schedule_id BIGINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _pause_schedule_target (name VARCHAR(128) NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _pause_schedule_slot (execution_number)
 SELECT r.execution_number
@@ -12,8 +12,8 @@ FROM {{schema}}.runtimes r
 WHERE r.job_id = @p_job_id
 FOR UPDATE;
 
-INSERT INTO _pause_schedule_target (schedule_id)
-SELECT js.id
+INSERT INTO _pause_schedule_target (name)
+SELECT js.name
 FROM {{schema}}.schedules js
 WHERE
     js.job_id = @p_job_id
@@ -28,7 +28,9 @@ SET
     reason_message = @p_reason_message,
     modified_at_utc = now(),
     version = version + 1
-WHERE id IN (SELECT t.schedule_id FROM _pause_schedule_target t);
+WHERE
+    job_id = @p_job_id
+    AND name IN (SELECT t.name FROM _pause_schedule_target t);
 
 -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
 -- means no schedule offered a run (ScheduleWalker, "held").
@@ -59,11 +61,11 @@ WHERE
     AND EXISTS (SELECT 1 FROM _pause_schedule_target);
 
 SELECT
-    CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE 1 /* ControlAction.Applied */ END::SMALLINT AS action,
+    CASE WHEN t.name IS NULL THEN 2 /* ControlAction.NotFound */ ELSE 1 /* ControlAction.Applied */ END::SMALLINT AS action,
     js.status_code AS status_code,
     js.paused_until_utc AS paused_until_utc,
     js.next_run_at_utc AS next_run_at_utc,
     js.version AS version
 FROM (SELECT 1) one
 LEFT JOIN _pause_schedule_target t ON true
-LEFT JOIN {{schema}}.schedules js ON js.id = t.schedule_id;
+LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.name = t.name;

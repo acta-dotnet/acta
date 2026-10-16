@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 
 namespace Acta.SqlServer;
@@ -121,7 +122,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddParameter(sql, "@p_plain", SqlDbType.Bit, request.Completions.All(c => c.IsPlain));
 
         // JSON text rather than a second table-valued parameter, which SQL Server would build on every call even empty.
-        var advances = request.Completions.SelectMany(c => c.ScheduleAdvances ?? []).ToList();
+        var advances = request.Completions.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a))).ToList();
         if (advances.Count > 0)
         {
             AddParameter(sql, "@p_schedule_advances", SqlDbType.NVarChar, JsonScheduleAdvances(advances), size: -1);
@@ -242,14 +243,14 @@ internal sealed class SqlServerDialect : ISqlDialect
     }
 
     /// <summary>The batch's schedule advances as JSON text, each instant as an ISO-8601 UTC string, for OPENJSON.</summary>
-    private static string JsonScheduleAdvances(IReadOnlyList<ScheduleAdvance> advances) =>
+    private static string JsonScheduleAdvances(IReadOnlyList<(long JobId, ScheduleAdvance Advance)> advances) =>
         "["
         + string.Join(
             ",",
-            advances.Select(advance =>
+            advances.Select(item =>
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{{\"schedule_id\":{advance.ScheduleId},\"next_run_at_utc\":{(advance.NextRunAtUtc is { } next ? $"\"{DbParams.ToUtc(next):yyyy-MM-ddTHH:mm:ss.fff}\"" : "null")},\"expected_version\":{advance.ExpectedVersion?.ToString(CultureInfo.InvariantCulture) ?? "null"}}}"
+                    $"{{\"job_id\":{item.JobId},\"name\":\"{JsonEncodedText.Encode(item.Advance.ScheduleName)}\",\"next_run_at_utc\":{(item.Advance.NextRunAtUtc is { } next ? $"\"{DbParams.ToUtc(next):yyyy-MM-ddTHH:mm:ss.fff}\"" : "null")},\"expected_version\":{item.Advance.ExpectedVersion?.ToString(CultureInfo.InvariantCulture) ?? "null"}}}"
                 )
             )
         )

@@ -13,9 +13,8 @@ public class ScheduleWalkerPauseTests
     private const string Cron5 = "*/5 * * * *";
     private static readonly DateTime Now = new(2024, 1, 1, 0, 0, 30, DateTimeKind.Utc);
 
-    private static LiveSchedule Active(long id, string name, DateTime? cursor) =>
+    private static LiveSchedule Active(string name, DateTime? cursor) =>
         new(
-            id,
             name,
             Cron5,
             null,
@@ -30,32 +29,17 @@ public class ScheduleWalkerPauseTests
         );
 
     private static LiveSchedule Paused(
-        long id,
         string name,
         DateTime? cursor,
         DateTime? pausedUntil,
         MisfireStrategyCode misfire = MisfireStrategyCode.Skip
-    ) =>
-        new(
-            id,
-            name,
-            Cron5,
-            null,
-            misfire,
-            ScheduleExpressionKindCode.Cron,
-            cursor,
-            ScheduleStatusCode.Paused,
-            pausedUntil,
-            Cron5,
-            "UTC",
-            1
-        );
+    ) => new(name, Cron5, null, misfire, ScheduleExpressionKindCode.Cron, cursor, ScheduleStatusCode.Paused, pausedUntil, Cron5, "UTC", 1);
 
     [Fact]
     public void PlanFire_active_due_schedule_fires_and_advances()
     {
         var due = Now.AddMinutes(-1);
-        var outcome = ScheduleWalker.PlanFire([Active(1, "a", due)], Now);
+        var outcome = ScheduleWalker.PlanFire([Active("a", due)], Now);
 
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
@@ -67,7 +51,7 @@ public class ScheduleWalkerPauseTests
     [Fact]
     public void PlanFire_indefinite_pause_never_fires_and_contributes_nothing()
     {
-        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", Now.AddMinutes(-10), null)], Now);
+        var outcome = ScheduleWalker.PlanFire([Paused("a", Now.AddMinutes(-10), null)], Now);
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.Empty(outcome.Advances);
@@ -78,7 +62,7 @@ public class ScheduleWalkerPauseTests
     public void PlanFire_timed_pause_ahead_is_not_due_but_sets_the_slot_wake_point()
     {
         var until = Now.AddMinutes(10);
-        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", Now.AddMinutes(-10), until)], Now);
+        var outcome = ScheduleWalker.PlanFire([Paused("a", Now.AddMinutes(-10), until)], Now);
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.Equal(until, outcome.SlotMinNextRunAtUtc);
@@ -88,7 +72,7 @@ public class ScheduleWalkerPauseTests
     [Fact]
     public void PlanFire_elapsed_timed_pause_is_due_and_advances()
     {
-        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", Now.AddMinutes(-10), Now.AddMinutes(-1))], Now);
+        var outcome = ScheduleWalker.PlanFire([Paused("a", Now.AddMinutes(-10), Now.AddMinutes(-1))], Now);
 
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
@@ -99,7 +83,7 @@ public class ScheduleWalkerPauseTests
     public void PlanFire_elapsed_timed_pause_with_nothing_due_resumes_without_firing()
     {
         var next = new DateTime(2024, 1, 1, 0, 5, 0, DateTimeKind.Utc);
-        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", next, Now.AddSeconds(-10))], Now);
+        var outcome = ScheduleWalker.PlanFire([Paused("a", next, Now.AddSeconds(-10))], Now);
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.True(outcome.NothingDue);
@@ -111,7 +95,7 @@ public class ScheduleWalkerPauseTests
     [Fact]
     public void PlanFire_elapsed_timed_pause_skips_an_occurrence_inside_its_window()
     {
-        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", Now.AddMinutes(-5.5), Now.AddSeconds(-20))], Now);
+        var outcome = ScheduleWalker.PlanFire([Paused("a", Now.AddMinutes(-5.5), Now.AddSeconds(-20))], Now);
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.True(outcome.NothingDue);
@@ -122,7 +106,7 @@ public class ScheduleWalkerPauseTests
     public void PlanFire_elapsed_timed_pause_catches_up_once_on_an_occurrence_inside_its_window()
     {
         var outcome = ScheduleWalker.PlanFire(
-            [Paused(1, "a", Now.AddMinutes(-5.5), Now.AddSeconds(-20), MisfireStrategyCode.CatchUpOnce)],
+            [Paused("a", Now.AddMinutes(-5.5), Now.AddSeconds(-20), MisfireStrategyCode.CatchUpOnce)],
             Now
         );
 
@@ -135,7 +119,7 @@ public class ScheduleWalkerPauseTests
     public void PlanFire_pause_ending_on_an_occurrence_fires_it()
     {
         var occurrence = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", occurrence, occurrence)], Now);
+        var outcome = ScheduleWalker.PlanFire([Paused("a", occurrence, occurrence)], Now);
 
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
     }
@@ -145,7 +129,7 @@ public class ScheduleWalkerPauseTests
     [Fact]
     public void PlanFire_trigger_now_fire_is_not_a_nothing_due_fire()
     {
-        var outcome = ScheduleWalker.PlanFire([Active(1, "a", Now.AddMinutes(4))], Now);
+        var outcome = ScheduleWalker.PlanFire([Active("a", Now.AddMinutes(4))], Now);
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.False(outcome.NothingDue);
@@ -155,7 +139,7 @@ public class ScheduleWalkerPauseTests
     public void PlanFire_slot_min_is_the_min_over_remaining_active_when_one_is_paused()
     {
         var soon = Now.AddMinutes(2);
-        var outcome = ScheduleWalker.PlanFire([Active(1, "soon", soon), Paused(2, "off", Now.AddMinutes(-10), null)], Now);
+        var outcome = ScheduleWalker.PlanFire([Active("soon", soon), Paused("off", Now.AddMinutes(-10), null)], Now);
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.Equal(soon, outcome.SlotMinNextRunAtUtc);
@@ -166,11 +150,7 @@ public class ScheduleWalkerPauseTests
     {
         var until = Now.AddMinutes(7);
         var min = ScheduleWalker.RecomputeSlotMin(
-            [
-                Active(1, "a", Now.AddMinutes(-10)),
-                Paused(2, "timed", Now.AddMinutes(-10), until),
-                Paused(3, "off", Now.AddMinutes(-10), null),
-            ],
+            [Active("a", Now.AddMinutes(-10)), Paused("timed", Now.AddMinutes(-10), until), Paused("off", Now.AddMinutes(-10), null)],
             Now
         );
 
@@ -184,7 +164,7 @@ public class ScheduleWalkerPauseTests
     [Fact]
     public void RecomputeSlotMin_is_null_when_only_indefinite_pauses_remain()
     {
-        var min = ScheduleWalker.RecomputeSlotMin([Paused(1, "off", Now.AddMinutes(-10), null)], Now);
+        var min = ScheduleWalker.RecomputeSlotMin([Paused("off", Now.AddMinutes(-10), null)], Now);
         Assert.Null(min);
     }
 
@@ -192,7 +172,7 @@ public class ScheduleWalkerPauseTests
     public void RecomputeSlotMin_timed_pause_is_the_wake_point_when_alone()
     {
         var until = Now.AddMinutes(3);
-        var min = ScheduleWalker.RecomputeSlotMin([Paused(1, "timed", Now.AddMinutes(-10), until)], Now);
+        var min = ScheduleWalker.RecomputeSlotMin([Paused("timed", Now.AddMinutes(-10), until)], Now);
         Assert.Equal(until, min);
     }
 

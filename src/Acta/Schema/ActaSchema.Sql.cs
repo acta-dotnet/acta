@@ -311,6 +311,13 @@ internal static partial class ActaSchema
             nullable: true
         );
 
+        public static readonly DbValueSpec<string?> CursorScheduleName = Sized<string?>(
+            "p_cursor_schedule_name",
+            DbKind.AsciiString,
+            128,
+            nullable: true
+        );
+
         /// <summary>
         /// List-read tri-state flags: true applies the restriction, NULL skips it.
         /// </summary>

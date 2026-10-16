@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **229 columns**, **33 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **228 columns**, **32 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -18,7 +18,7 @@ Structural reference for the Acta persistence model: **15 entities**, **229 colu
 | [`acta.namespaces`](#entity-acta-namespaces) | Service-owned execution boundary. | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) |
 | [`acta.results`](#entity-acta-results) | One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so result bytes stay off the hot job row and a recurring job keeps a history instead of overwriting one slot. | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.runtimes`](#entity-acta-runtimes) | The hot, mutable state of one job, one row per `jobs` row, split out so claim and complete churn never rewrites the identity and input row. | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) |
-| [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule attached to a definition's slot Job. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
+| [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
 | [`acta.steps`](#entity-acta-steps) | The durable retry and result state of one step, one row per `(JobId, Name)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an E... | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode), [`EventReasonCode`](./code-families.md#code-family-eventreasoncode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.tags`](#entity-acta-tags) | Exact searchable metadata attached to one target. | [`TagScopeCode`](./code-families.md#code-family-tagscopecode) |
 | [`acta.tenants`](#entity-acta-tenants) | The tenants a job can be about: an optional, validated scope on individual jobs, orthogonal to the namespace, which stays the work-ownership boundary. | [`TenantStatusCode`](./code-families.md#code-family-tenantstatuscode) |
@@ -463,19 +463,18 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 
 ### `acta.schedules` <a id="entity-acta-schedules"></a>
 
-One named recurring schedule attached to a definition's slot Job. The `Origin` records how the row came to exist. Sparse override model (mirrors JobDefinition): the bare field carries the origin-of-truth default and its `*_override` carries the operator edit (NULL = inherit); effective = `COALESCE(_override, default)`. Only `expression` and `time_zone_id` are operator-overridable. The canonical per-schedule cursor is `NextRunAtUtc`; the slot Job's cursor is the MIN over its live schedules.
+One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is. The `Origin` records how the row came to exist. Sparse override model (mirrors JobDefinition): the bare field carries the origin-of-truth default and its `*_override` carries the operator edit (NULL = inherit); effective = `COALESCE(_override, default)`. Only `expression` and `time_zone_id` are operator-overridable. The canonical per-schedule cursor is `NextRunAtUtc`; the slot Job's cursor is the MIN over its live schedules.
 
-**CLR type** `Acta.ScheduleEntity` · **Primary key** `pk_schedules` (`id`)
+**CLR type** `Acta.ScheduleEntity` · **Primary key** `pk_schedules` (`job_id`, `name`)
 
 **Columns**
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `id`<a id="column-acta-schedules--id"></a> | `Int64` | · | no | `Identity` | PK | Schedule row identifier. |
 | `namespace_id`<a id="column-acta-schedules--namespace-id"></a> | `Int32` | · | no | · | · | Per-namespace reload tick filters by this. |
-| `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | no | · | · | Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its schedules; purge cascades to all schedule rows. |
+| `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | no | · | PK | Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its schedules; purge cascades to all schedule rows. The key's first column. |
 | `definition_id`<a id="column-acta-schedules--definition-id"></a> | `Int32` | · | no | · | · | Denormalized from `Job.DefinitionId` at INSERT; never mutated. Safe because `Job.DefinitionId` is `init` (immutable post-INSERT). Retained for the per-namespace reload sweep and the catalog-upsert "find Definition-origin slot for this (ns, def)" lookup without joining `jobs`. |
-| `name`<a id="column-acta-schedules--name"></a> | `AsciiString` | 128 | no | · | · | Operator-readable schedule name. For Definition-origin it matches the `[JobSchedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. |
+| `name`<a id="column-acta-schedules--name"></a> | `AsciiString` | 128 | no | · | PK | Operator-readable schedule name. For Definition-origin it matches the `[JobSchedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. The key's second column. |
 | `origin_code`<a id="column-acta-schedules--origin-code"></a> | `Byte` | · | no | · | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode) (`schedule-origin`) | Origin of the row's existence: `Definition` (declared in a `[JobSchedule]` attribute, refreshed by catalog upsert) or `Operator`. Override columns apply to any origin. |
 | `expression`<a id="column-acta-schedules--expression"></a> | `AsciiString` | 128 | no | · | · | Cron or interval duration, human ("5m") or ISO 8601 ("PT5M") (the origin-of-truth default). |
 | `expression_override`<a id="column-acta-schedules--expression-override"></a> | `AsciiString` | 128 | yes | · | · | Operator-overridden cron or interval expression, human ("5m") or ISO 8601 ("PT5M"). NULL = no override. |
@@ -499,8 +498,7 @@ One named recurring schedule attached to a definition's slot Job. The `Origin` r
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
-| `ix_schedules_namespace_next` | `namespace_id`, `next_run_at_utc`, `id` | not unique | `status_code <> 230` | `scheduler` |
-| `ux_schedules_job_name` | `job_id`, `name` | unique | none | `uniqueness` |
+| `ix_schedules_namespace_next` | `namespace_id`, `next_run_at_utc`, `job_id`, `name` | not unique | `status_code <> 230` | `scheduler` |
 
 **Check constraints**
 

@@ -193,10 +193,11 @@ BEGIN
                         NULL, NULL,
                         NULL, js.name
                     FROM OPENJSON(@p_schedule_advances) WITH (
-                        schedule_id BIGINT '$.schedule_id', next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
+                        job_id BIGINT '$.job_id', name VARCHAR(128) '$.name',
+                        next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
                     ) adv
-                    INNER JOIN {{schema}}.schedules js ON js.id = adv.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN @done d ON d.job_id = adv.job_id
+                    INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.name = adv.name
                     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = d.job_id
                     WHERE
                         (adv.expected_version IS NULL OR js.version = adv.expected_version)
@@ -214,10 +215,11 @@ BEGIN
                         js.modified_at_utc = @now,
                         js.version = js.version + 1
                     FROM OPENJSON(@p_schedule_advances) WITH (
-                        schedule_id BIGINT '$.schedule_id', next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
+                        job_id BIGINT '$.job_id', name VARCHAR(128) '$.name',
+                        next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
                     ) adv
-                    INNER JOIN {{schema}}.schedules js ON js.id = adv.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN @done d ON d.job_id = adv.job_id
+                    INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.name = adv.name
                     WHERE
                         (adv.expected_version IS NULL OR js.version = adv.expected_version)
                         AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */

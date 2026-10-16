@@ -10,7 +10,6 @@ namespace Acta;
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record LiveSchedule(
-    long Id,
     string Name,
     string Expression,
     string? TimeZoneId,

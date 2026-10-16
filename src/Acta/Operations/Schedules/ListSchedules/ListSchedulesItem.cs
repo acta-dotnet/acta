@@ -10,7 +10,6 @@ namespace Acta;
 /// <c>JobRef</c> is the recurring slot job's public ref, null when the slot row was purged.
 /// </summary>
 public sealed record ListSchedulesItem(
-    [property: JsonIgnore] long JobScheduleId,
     [property: JsonIgnore] long JobId,
     [property: JsonIgnore] int DefinitionId,
     string JobNamespace,

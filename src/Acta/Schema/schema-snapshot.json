@@ -971,12 +971,8 @@
     },
     {
       "Table": "schedules",
-      "PrimaryKey": "pk_schedules(id)|manual=False|seq=False",
+      "PrimaryKey": "pk_schedules(job_id,name)|manual=False|seq=False",
       "Columns": [
-        {
-          "Name": "id",
-          "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
         {
           "Name": "namespace_id",
           "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
@@ -1069,11 +1065,7 @@
       "Indexes": [
         {
           "Name": "ix_schedules_namespace_next",
-          "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=status_code \u003C\u003E 230|seq=False"
-        },
-        {
-          "Name": "ux_schedules_job_name",
-          "Signature": "U|cols=job_id,name|inc=|desc=|filter=|seq=False"
+          "Signature": "I|cols=namespace_id,next_run_at_utc,job_id,name|inc=|desc=|filter=status_code \u003C\u003E 230|seq=False"
         }
       ],
       "Checks": [
@@ -1381,7 +1373,7 @@
       "arm_or_consume_sleep_timer": "67443ce632dff3cae79b736804f4a08094bbfe3a91f26eba04b4297ad70a1e54",
       "checkpoints_view": "baf7b1d7a6dc8c74deeb2ca99701c7bdf580dd895374057ca41251a605869017",
       "claim_jobs": "963d6c0f38940f029e7c0c9e375593ff86f3837690927654855d2a18073ebd5b",
-      "complete_executions": "bf43bfbc4de75abcb12fbeb56fefbb37e1c899770693a0133e3c726a74687668",
+      "complete_executions": "c1b7d6a9b79231df15739fed275a0fd34cba2453f3e7abf9b8b79bfd8525a271",
       "complete_step": "7881998f3507cb41f9758a8965c61009703153e4b8e79c9d53e1eefd708504b1",
       "definitions_view": "db0219d5783d0b10f128f9b162db82e693e29ed9c3b4177f2ebbc3e75624fea1",
       "enqueue_job": "75a67003eff29651752188c1a6a940ee36e6481e2700b1283c627b8c9bc13885",
@@ -1393,7 +1385,7 @@
       "raise_signal": "690b7a88babbcfe65714a8f7caa30498cc99a8c0cfaa0b8dd6ac3977e4ebf22a",
       "reclaim_stuck_jobs": "76f089d97c14b49fda8a0e76d6352180c3b05ee2c058152e73de8ee7f2126aa7",
       "reserve_rate": "94566ff56ca49bf8e52471724d2fae5f050edb1f4ab9d21565cf6aabcf364cc1",
-      "schedules_view": "0513ad9fe50323c2920360fa20df034f3f6878fe93154e88db84b2b98eac853c",
+      "schedules_view": "ff967b75cee6b61d81ace8ee080f937b2529769c8db01b49ee30a188ac154d0a",
       "start_step": "470a758c6d013fd583d5795c1bb395d666719b1840fd01627a304e903098f829",
       "steps_view": "563537a420045ab9b5b3ef9142bc8ac77038f3a20ba7a1e0579dd0c974a17259",
       "tags_view": "d70ad801b4508d0d3c824408588bb9dfb632ab1f34a010dabe8d555ded81230a",
@@ -1406,7 +1398,7 @@
       "arm_or_consume_sleep_timer": "9567d7d16b6a6dced232a72d260caf7169044cb6637f0cd655f903ff3fc9ee26",
       "checkpoints_view": "a820c543d370d32dfb3b8d929c1d2b2930ea6ee246e34dad13d1dc99cd05fb72",
       "claim_jobs": "5b60ba95b8fa74b2a44b4af080c2a28f7a7c42a4a3dde1207ae1fdc0a48c5ffc",
-      "complete_executions": "8bc6114365d2537424cfd40753b84f51194ef1d983ac2ebc106d0b14eb31fe06",
+      "complete_executions": "bc659969929ccd3e1e7726a63d99ed9877b04eb1f663849674db074200b41c59",
       "complete_step": "6f64212a1d6b5065722bb9e59f430cc7fd31e7ae3dc75fa9502179f669e8b206",
       "definitions_view": "3b1b6f02719a3dd58d78a87dc5e2c7d66cbd75e2532479a4b369914821ff81ce",
       "enqueue_job": "43412e549c2339d08c31e0dbf2843b54102d9e116343a126dde894e8e1fb4479",
@@ -1418,7 +1410,7 @@
       "raise_signal": "17eef6a07da5de33de99d8dc7b683fe56f41ea21893e0ca97fac9f7fd57787d9",
       "reclaim_stuck_jobs": "3db81704e81fe8ceb83279790a63d4d0f702d694840b54ad5e87a1e09ed0649b",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
-      "schedules_view": "d446d9d85f96ea36dabcde786456508119b84a6002203e868c99931d824cddf8",
+      "schedules_view": "a1eb0aa748da79e153d9ca2ee6c9a70ec2b57ea6c08668ace7e0dd5adb75685e",
       "start_step": "6e7a537a443f61b243d807e6d88b2d7d5415eaa3d334c73de9e9b58aeca3e8c0",
       "steps_view": "394fce08a456250eab75274d10b07894f15e1f1c5f01b7003887942578bad1c1",
       "tags_view": "3aee2ab41fa7f91a6992108990492b2262456823024d9096a794fdb944c74dd8",
@@ -1431,7 +1423,7 @@
       "definitions_view": "fa95336ed31ed6367343a33f9b4701c120ffe055985cceaa6635834af4e651f0",
       "events_view": "76ef7c385e37d5fe1c3578763029ca2833e138a2b14b2dd4ebfbf30fded0839b",
       "jobs_view": "65b6337e685972c42e1f0a6e4db3ccabcd0b81301daa56ce72f4d691ee5fa56a",
-      "schedules_view": "0e8a3cf70db1aeda8765c9e814f4a9506a66f455a931b5a7164a99be43d06306",
+      "schedules_view": "a6b6336d157b622dda1e4d2e20c68e007b52d9f353a8a17280cfccefd9f92572",
       "steps_view": "fe4d7a04f7adb20120ef20c06fb9ed6cad54cbb3f7903e527a28805d0f03fedd",
       "tags_view": "9f54b37437302462785cc1bbdf75a063ca0bccf71c7df1f3f5556a514e3bdea7",
       "workers_view": "e45c1b37d2ae479b0f541c8c1e3ff592c842dc29c90e8e50eea10fcc7653542a"

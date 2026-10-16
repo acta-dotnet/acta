@@ -1,5 +1,4 @@
 SELECT
-    t.id,
     t.name,
     t.expression_effective AS expression,
     t.time_zone_id_effective AS time_zone_id,

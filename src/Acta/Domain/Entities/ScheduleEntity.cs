@@ -1,15 +1,15 @@
 namespace Acta;
 
 /// <summary>
-/// One named recurring schedule attached to a definition's slot Job. The <see cref="Origin"/> records
-/// how the row came to exist. Sparse override model (mirrors JobDefinition): the bare field carries the
-/// origin-of-truth default and its <c>*_override</c> carries the operator edit (NULL = inherit);
+/// One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is.
+/// The <see cref="Origin"/> records how the row came to exist. Sparse override model (mirrors JobDefinition): the bare
+/// field carries the origin-of-truth default and its <c>*_override</c> carries the operator edit (NULL = inherit);
 /// effective = <c>COALESCE(_override, default)</c>. Only <c>expression</c> and <c>time_zone_id</c> are
-/// operator-overridable. The canonical per-schedule cursor is <see cref="NextRunAtUtc"/>; the slot Job's
-/// cursor is the MIN over its live schedules.
+/// operator-overridable. The canonical per-schedule cursor is <see cref="NextRunAtUtc"/>; the slot Job's cursor is the
+/// MIN over its live schedules.
 /// </summary>
 [DbTable("schedules")]
-[DbPrimaryKey(Name = "pk_schedules", Columns = ["id"])]
+[DbPrimaryKey(Name = "pk_schedules", Columns = ["job_id", "name"])]
 [DbForeignKey(
     Name = "fk_schedules_jobs",
     Target = typeof(JobEntity),
@@ -24,23 +24,16 @@ namespace Acta;
     Column = "definition_id",
     OnDelete = DbForeignKeyAction.NoAction
 )]
-[DbUniqueIndex(Name = "ux_schedules_job_name", Columns = ["job_id", "name"], Usage = "uniqueness")]
 [DbIndex(
     Name = "ix_schedules_namespace_next",
-    Columns = ["namespace_id", "next_run_at_utc", "id"],
+    Columns = ["namespace_id", "next_run_at_utc", "job_id", "name"],
     Filter = "status_code <> 230",
     Usage = "scheduler"
 )]
 [DbCheck(Name = "ck_schedules_paused_pair", Sql = "status_code = 30 OR paused_until_utc IS NULL")]
 [DbCheck(Name = "ck_schedules_orphan_origin", Sql = "origin_code = 40 OR status_code <> 230")]
-internal sealed class ScheduleEntity : IEntity<long>
+internal sealed class ScheduleEntity : IEntity
 {
-    /// <summary>
-    /// Schedule row identifier.
-    /// </summary>
-    [DbColumn("id", DbKind.Int64)]
-    public long Id { get; init; }
-
     /// <summary>
     /// Per-namespace reload tick filters by this.
     /// </summary>
@@ -49,7 +42,7 @@ internal sealed class ScheduleEntity : IEntity<long>
 
     /// <summary>
     /// Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its
-    /// schedules; purge cascades to all schedule rows.
+    /// schedules; purge cascades to all schedule rows. The key's first column.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long JobId { get; init; }
@@ -66,7 +59,7 @@ internal sealed class ScheduleEntity : IEntity<long>
     /// <summary>
     /// Operator-readable schedule name. For Definition-origin it matches the <c>[JobSchedule(name)]</c>
     /// attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for system-owned
-    /// schedule names, for parity with the other Name columns.
+    /// schedule names, for parity with the other Name columns. The key's second column.
     /// </summary>
     [DbColumn("name", DbKind.AsciiString, Size = 128)]
     public string Name { get; init; } = default!;

@@ -1847,7 +1847,7 @@ sealed class Acta.ListOutboxSourcesResponse
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed class Acta.ListSchedulesItem
-    .ctor(System.Int64 JobScheduleId, System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef)
+    .ctor(System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.DateTime> LastRunAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
     Acta.ScheduleOriginCode Origin { get;init; }
@@ -1857,7 +1857,6 @@ sealed class Acta.ListSchedulesItem
     System.Int32 DefinitionId { get;init; }
     System.Int32 Version { get;init; }
     System.Int64 JobId { get;init; }
-    System.Int64 JobScheduleId { get;init; }
     System.Nullable<Acta.JobRef> JobRef { get;init; }
     System.Nullable<System.DateTime> LastRunAtUtc { get;init; }
     System.Nullable<System.DateTime> NextRunAtUtc { get;init; }

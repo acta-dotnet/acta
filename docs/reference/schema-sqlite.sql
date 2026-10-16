@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261016183347_init')
+    WHERE name NOT IN ('M20261016185125_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261016183347_init =====
+-- ===== BEGIN M20261016185125_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -309,7 +309,6 @@ CREATE INDEX IF NOT EXISTS main.ix_runtimes_lane_member ON runtimes (lane_id) WH
 
 -- schedules
 CREATE TABLE IF NOT EXISTS main.schedules (
-    id integer PRIMARY KEY AUTOINCREMENT,
     namespace_id integer NOT NULL,
     job_id integer NOT NULL,
     definition_id integer NOT NULL,
@@ -332,13 +331,13 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
     , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS main.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, id) WHERE status_code <> 230;
-CREATE UNIQUE INDEX IF NOT EXISTS main.ux_schedules_job_name ON schedules (job_id, name);
+CREATE INDEX IF NOT EXISTS main.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
 
 -- steps
 CREATE TABLE IF NOT EXISTS main.steps (
@@ -678,7 +677,6 @@ LEFT JOIN main.results AS lr
 DROP VIEW IF EXISTS main.schedules_view;
 CREATE VIEW main.schedules_view AS
 SELECT
-    s.id AS schedule_id,
     ns.name AS namespace,
     s.job_id,
     j.job_ref,
@@ -781,10 +779,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261016183347_init')
+VALUES ('M20261016185125_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261016183347_init =====
+-- ===== END M20261016185125_init =====
 
 COMMIT;
 

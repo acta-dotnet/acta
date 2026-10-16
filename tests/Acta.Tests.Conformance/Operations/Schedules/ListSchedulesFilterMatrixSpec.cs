@@ -87,8 +87,10 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
             SerializeOutput: null
         );
 
+    private static (long JobId, string ScheduleName) Key(ListSchedulesItem s) => (s.JobId, s.ScheduleName);
+
     [Fact(DisplayName = "JobName filter returns only that job's schedules and excludes all other jobs' schedules")]
-    public async Task JobName_filter_returns_exact_schedule_id_set()
+    public async Task JobName_filter_returns_exact_schedule_set()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsId = NsId;
@@ -99,26 +101,26 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
-        // Capture IDs via namespace-only read (independent of jobName filter)
+        // Capture keys via namespace-only read (independent of jobName filter)
         var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
-        var aIds = all.Where(s => s.JobName == "recurring-ping").Select(s => s.JobScheduleId).ToHashSet();
-        var bIds = all.Where(s => s.JobName == jobBName).Select(s => s.JobScheduleId).ToHashSet();
-        Assert.NotEmpty(aIds);
-        Assert.Single(bIds);
+        var aKeys = all.Where(s => s.JobName == "recurring-ping").Select(Key).ToHashSet();
+        var bKeys = all.Where(s => s.JobName == jobBName).Select(Key).ToHashSet();
+        Assert.NotEmpty(aKeys);
+        Assert.Single(bKeys);
 
         // Filter by recurring-ping: exact set + total, job B excluded
         var aPage = await Queries.Schedules.ListAsync(
             new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping", IncludeTotal: true),
             ct
         );
-        Assert.Equal(aIds, [.. aPage.Items.Select(s => s.JobScheduleId)]);
-        Assert.Equal((long)aIds.Count, aPage.TotalCount);
-        Assert.Empty(aPage.Items.Select(s => s.JobScheduleId).Intersect(bIds));
+        Assert.Equal(aKeys, [.. aPage.Items.Select(Key)]);
+        Assert.Equal((long)aKeys.Count, aPage.TotalCount);
+        Assert.Empty(aPage.Items.Select(Key).Intersect(bKeys));
 
         // Filter by job B: exact set, recurring-ping excluded
         var bPage = await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: jobBName), ct);
-        Assert.Equal(bIds, [.. bPage.Items.Select(s => s.JobScheduleId)]);
-        Assert.Empty(bPage.Items.Select(s => s.JobScheduleId).Intersect(aIds));
+        Assert.Equal(bKeys, [.. bPage.Items.Select(Key)]);
+        Assert.Empty(bPage.Items.Select(Key).Intersect(aKeys));
     }
 
     [Fact(DisplayName = "Origin filter returns only definition-sourced schedules with the filter-wide total matching")]
@@ -133,10 +135,10 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
 
-        // Capture all schedule IDs via namespace read (independent of origin filter)
+        // Capture all schedule keys via namespace read (independent of origin filter)
         var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
-        var defIds = all.Select(s => s.JobScheduleId).ToHashSet();
-        Assert.True(defIds.Count >= 2);
+        var defKeys = all.Select(Key).ToHashSet();
+        Assert.True(defKeys.Count >= 2);
         Assert.All(all, s => Assert.Equal(ScheduleOriginCode.Definition, s.Origin));
 
         // Origin=Definition returns exactly all namespace schedules + total
@@ -144,8 +146,8 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
             new ListSchedulesQuery(JobNamespace: TestNamespace, Origin: ScheduleOriginCode.Definition, PageSize: 100, IncludeTotal: true),
             ct
         );
-        Assert.Equal(defIds, [.. page.Items.Select(s => s.JobScheduleId)]);
-        Assert.Equal((long)defIds.Count, page.TotalCount);
+        Assert.Equal(defKeys, [.. page.Items.Select(Key)]);
+        Assert.Equal((long)defKeys.Count, page.TotalCount);
     }
 
     [Fact(DisplayName = "LiveOnly excludes orphaned schedules and liveOnly=false includes them")]
@@ -170,29 +172,29 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         var allItems = (
             await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, LiveOnly: false), ct)
         ).Items;
-        var liveIds = allItems.Where(s => s.Status != ScheduleStatusCode.Orphaned).Select(s => s.JobScheduleId).ToHashSet();
-        var orphanedIds = allItems.Where(s => s.Status == ScheduleStatusCode.Orphaned).Select(s => s.JobScheduleId).ToHashSet();
+        var liveKeys = allItems.Where(s => s.Status != ScheduleStatusCode.Orphaned).Select(Key).ToHashSet();
+        var orphanedKeys = allItems.Where(s => s.Status == ScheduleStatusCode.Orphaned).Select(Key).ToHashSet();
 
         // Verify our seeded schedules landed in the right partitions
-        Assert.Contains(allItems.Single(s => s.JobName == jobAName).JobScheduleId, liveIds);
-        Assert.Contains(allItems.Single(s => s.JobName == jobBName).JobScheduleId, orphanedIds);
+        Assert.Contains(Key(allItems.Single(s => s.JobName == jobAName)), liveKeys);
+        Assert.Contains(Key(allItems.Single(s => s.JobName == jobBName)), orphanedKeys);
 
-        // LiveOnly=true (default): exact liveIds, no orphaned, total = liveIds count
+        // LiveOnly=true (default): exact liveKeys, no orphaned, total = liveKeys count
         var livePage = await Queries.Schedules.ListAsync(
             new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: true, PageSize: 100, IncludeTotal: true),
             ct
         );
-        Assert.Equal(liveIds, [.. livePage.Items.Select(s => s.JobScheduleId)]);
-        Assert.Equal((long)liveIds.Count, livePage.TotalCount);
-        Assert.Empty(livePage.Items.Select(s => s.JobScheduleId).Intersect(orphanedIds));
+        Assert.Equal(liveKeys, [.. livePage.Items.Select(Key)]);
+        Assert.Equal((long)liveKeys.Count, livePage.TotalCount);
+        Assert.Empty(livePage.Items.Select(Key).Intersect(orphanedKeys));
 
         // LiveOnly=false: exact full set (live + orphaned)
         var allPage = await Queries.Schedules.ListAsync(
             new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 100),
             ct
         );
-        Assert.Equal(allItems.Select(s => s.JobScheduleId).ToHashSet(), [.. allPage.Items.Select(s => s.JobScheduleId)]);
-        Assert.Empty(liveIds.Intersect(orphanedIds));
+        Assert.Equal(allItems.Select(Key).ToHashSet(), [.. allPage.Items.Select(Key)]);
+        Assert.Empty(liveKeys.Intersect(orphanedKeys));
     }
 
     [Fact(DisplayName = "JobNamespace filter scopes schedules to exactly one namespace and excludes all other namespaces")]
@@ -221,18 +223,18 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         );
         var ns2Page = await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: ns2, PageSize: 100, IncludeTotal: true), ct);
 
-        var ns1Ids = ns1Page.Items.Select(s => s.JobScheduleId).ToHashSet();
-        var ns2Ids = ns2Page.Items.Select(s => s.JobScheduleId).ToHashSet();
+        var ns1Keys = ns1Page.Items.Select(Key).ToHashSet();
+        var ns2Keys = ns2Page.Items.Select(Key).ToHashSet();
 
         // ns2 has exactly 1 (the one we seeded)
-        Assert.Single(ns2Ids);
+        Assert.Single(ns2Keys);
         Assert.Equal(1L, ns2Page.TotalCount);
 
         // ns1 has at least the manifest schedule plus our synthetic one
-        Assert.True(ns1Ids.Count >= 2);
-        Assert.Equal((long)ns1Ids.Count, ns1Page.TotalCount);
+        Assert.True(ns1Keys.Count >= 2);
+        Assert.Equal((long)ns1Keys.Count, ns1Page.TotalCount);
 
         // Cross-exclusion: neither namespace bleeds into the other
-        Assert.Empty(ns1Ids.Intersect(ns2Ids));
+        Assert.Empty(ns1Keys.Intersect(ns2Keys));
     }
 }

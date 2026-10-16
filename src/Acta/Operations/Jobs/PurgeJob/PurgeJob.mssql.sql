@@ -71,15 +71,16 @@ BEGIN TRY
             GOTO Finish;
         END;
 
-    DECLARE @schedule_ids TABLE (id BIGINT PRIMARY KEY);
     DECLARE @alert_ids TABLE (
         id BIGINT PRIMARY KEY,
         namespace_id INT NOT NULL,
         deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL
     );
 
-    INSERT @schedule_ids SELECT id FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-    WHERE job_id = @p_id;
+    DECLARE @schedules_locked INT = (
+        SELECT COUNT(*) FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
+        WHERE job_id = @p_id
+    );
     -- The job's alerts are read through ix_alerts_job without locks, which the held job row makes safe, then
     -- each identity row is locked through its identity key before the row and the delete locks the rest
     -- (docs/internals/sql-execution-policy.md, "Alert lock order").
@@ -104,9 +105,10 @@ BEGIN TRY
     WHERE e.job_id = @p_id;
     DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @alert_ids i ON i.id = a.id
     WHERE a.job_id = @p_id;
-    -- The schedules go by key first: the jobs delete's cascade runs serializable and, unhinted, walks
-    -- pk_schedules under range locks.
-    DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @schedule_ids i ON i.id = s.id;
+    -- The schedules go first, sought by their job: the jobs delete's cascade runs serializable and range-locks
+    -- pk_schedules.
+    DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK)
+    WHERE s.job_id = @p_id;
     DELETE FROM {{schema}}.jobs
     WHERE id = @p_id
     OPTION (LOOP JOIN);

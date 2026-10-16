@@ -1,5 +1,4 @@
 SELECT
-    s.id AS job_schedule_id,
     s.job_id,
     s.definition_id,
     ns.name AS job_namespace,
@@ -31,9 +30,10 @@ WHERE
     AND (
         @p_cursor_next_run_at_utc IS NULL
         OR s.next_run_at_utc > @p_cursor_next_run_at_utc
-        OR (s.next_run_at_utc = @p_cursor_next_run_at_utc AND s.id > @p_cursor_id)
+        OR (s.next_run_at_utc = @p_cursor_next_run_at_utc AND s.job_id > @p_cursor_id)
+        OR (s.next_run_at_utc = @p_cursor_next_run_at_utc AND s.job_id = @p_cursor_id AND s.name > @p_cursor_schedule_name)
     )
-ORDER BY s.next_run_at_utc ASC, s.id ASC
+ORDER BY s.next_run_at_utc ASC, s.job_id ASC, s.name ASC
 LIMIT @p_take;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (

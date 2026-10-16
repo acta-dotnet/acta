@@ -9,7 +9,7 @@ CREATE TEMP TABLE _trigger_schedule_now_slot (
     next_run_at_utc TIMESTAMPTZ,
     execution_number INT NOT NULL
 ) ON COMMIT DROP;
-CREATE TEMP TABLE _trigger_schedule_now_target (schedule_id BIGINT NOT NULL, status_code SMALLINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _trigger_schedule_now_target (name VARCHAR(128) NOT NULL, status_code SMALLINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _trigger_schedule_now_action (action SMALLINT NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _trigger_schedule_now_slot (status_code, next_run_at_utc, execution_number)
@@ -18,8 +18,8 @@ FROM {{schema}}.runtimes r
 WHERE r.job_id = @p_job_id
 FOR UPDATE;
 
-INSERT INTO _trigger_schedule_now_target (schedule_id, status_code)
-SELECT js.id, js.status_code
+INSERT INTO _trigger_schedule_now_target (name, status_code)
+SELECT js.name, js.status_code
 FROM {{schema}}.schedules js
 WHERE
     js.job_id = @p_job_id
@@ -32,7 +32,7 @@ FOR UPDATE;
 INSERT INTO _trigger_schedule_now_action (action)
 SELECT
     CASE
-        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.name IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN t.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
         WHEN s.status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
         WHEN s.status_code = 30 /* JobStatusCode.Paused */ AND s.next_run_at_utc IS NOT NULL THEN 3 /* ControlAction.Rejected */
@@ -79,4 +79,4 @@ SELECT
     js.version AS version
 FROM _trigger_schedule_now_action a
 LEFT JOIN _trigger_schedule_now_target t ON true
-LEFT JOIN {{schema}}.schedules js ON js.id = t.schedule_id;
+LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.name = t.name;

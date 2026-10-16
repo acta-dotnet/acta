@@ -7,7 +7,7 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
+    DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
     /* Lock the slot's runtimes row before the schedules row: register_schedules writes
@@ -16,14 +16,14 @@ BEGIN TRY
     FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
     WHERE r.job_id = @p_job_id;
 
-    SELECT @schedule_id = js.id
+    SELECT @found = 1
     FROM {{schema}}.schedules js WITH (UPDLOCK, ROWLOCK)
     WHERE
         js.job_id = @p_job_id
         AND js.name = @p_name
         AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
 
-    IF @schedule_id IS NULL
+    IF @found = 0
         BEGIN
 
             SELECT
@@ -52,7 +52,9 @@ BEGIN TRY
         reason_message = @p_reason_message,
         modified_at_utc = @now,
         version = version + 1
-    WHERE id = @schedule_id;
+    WHERE
+        job_id = @p_job_id
+        AND name = @p_name;
 
     SELECT
         @status = status_code,
@@ -60,7 +62,9 @@ BEGIN TRY
         @next = next_run_at_utc,
         @version = version
     FROM {{schema}}.schedules
-    WHERE id = @schedule_id;
+    WHERE
+        job_id = @p_job_id
+        AND name = @p_name;
 
     -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
     -- means no schedule offered a run (ScheduleWalker, "held").

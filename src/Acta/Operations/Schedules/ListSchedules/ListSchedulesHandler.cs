@@ -15,8 +15,8 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
         var liveOnly = query.LiveOnly is null or true ? true : (bool?)null;
         var paging = Paging.Start(
             "ListSchedules",
-            "next_run_at_utc asc, id asc",
-            [CursorKeyKind.Utc, CursorKeyKind.Long],
+            "next_run_at_utc asc, job_id asc, name asc",
+            [CursorKeyKind.Utc, CursorKeyKind.Long, CursorKeyKind.Text],
             query.Cursor,
             query.PageSize,
             [
@@ -37,6 +37,7 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LiveOnlyFlag, liveOnly));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNextRunAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)paging.After?[1]));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorScheduleName, (string?)paging.After?[2]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
@@ -48,7 +49,7 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
         var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
             rows,
             total,
-            static item => [item.NextRunAtUtc!.Value, item.JobScheduleId]
+            static item => [item.NextRunAtUtc!.Value, item.JobId, item.ScheduleName]
         );
         return new ListSchedulesResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }

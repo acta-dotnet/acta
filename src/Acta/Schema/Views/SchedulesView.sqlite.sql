@@ -1,5 +1,4 @@
 SELECT
-    s.id AS schedule_id,
     ns.name AS namespace,
     s.job_id,
     j.job_ref,

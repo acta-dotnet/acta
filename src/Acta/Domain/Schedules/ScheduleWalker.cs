@@ -58,7 +58,7 @@ internal static class ScheduleWalker
                 due.Add(s);
                 advances.Add(
                     new ScheduleAdvance(
-                        s.Id,
+                        s.Name,
                         NextOccurrenceCalculator.FirstAfter(s.Expression, s.TimeZoneId, s.ExpressionKind, c, nowUtc),
                         s.Version
                     )
@@ -66,17 +66,17 @@ internal static class ScheduleWalker
             }
             else if (s.Status == ScheduleStatusCode.Paused && s.PausedUntilUtc <= nowUtc)
             {
-                advances.Add(new ScheduleAdvance(s.Id, cursor, s.Version));
+                advances.Add(new ScheduleAdvance(s.Name, cursor, s.Version));
             }
         }
         due.Sort((a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
 
-        var advancedById = advances.ToDictionary(a => a.ScheduleId, a => a.NextRunAtUtc);
+        var advancedByName = advances.ToDictionary(a => a.ScheduleName, a => a.NextRunAtUtc, StringComparer.Ordinal);
 
         // An advanced schedule contributes its new cursor; everything else contributes per the pause rule.
         var slotMin = SlotMin(
             live.Select(s =>
-                advancedById.TryGetValue(s.Id, out var adv) ? adv
+                advancedByName.TryGetValue(s.Name, out var adv) ? adv
                 : s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc
                 : s.NextRunAtUtc
             )

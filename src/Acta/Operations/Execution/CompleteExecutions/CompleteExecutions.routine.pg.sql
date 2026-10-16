@@ -18,7 +18,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions(
     p_final_statuses SMALLINT[],
     p_job_next_run_at_utc TIMESTAMPTZ[],
     p_recurring_result_caps INT[],
-    p_advance_schedule_ids BIGINT[],
+    p_advance_job_ids BIGINT[],
+    p_advance_schedule_names VARCHAR[],
     p_advance_next_runs TIMESTAMPTZ[],
     p_advance_versions INT[],
     p_plain BOOLEAN
@@ -284,8 +285,8 @@ BEGIN
             NULL, NULL,
             NULL, NULL,
             NULL, js.name
-        FROM unnest(p_advance_schedule_ids, p_advance_versions) AS adv (schedule_id, expected_version)
-        INNER JOIN {{schema}}.schedules js ON js.id = adv.schedule_id
+        FROM unnest(p_advance_job_ids, p_advance_schedule_names, p_advance_versions) AS adv (job_id, name, expected_version)
+        INNER JOIN {{schema}}.schedules js ON js.job_id = adv.job_id AND js.name = adv.name
         INNER JOIN {{schema}}.jobs j ON j.id = js.job_id
         INNER JOIN {{schema}}.runtimes r ON r.job_id = js.job_id
         WHERE
@@ -304,9 +305,12 @@ BEGIN
             paused_until_utc = NULL,
             modified_at_utc = now(),
             version = js.version + 1
-        FROM unnest(p_advance_schedule_ids, p_advance_next_runs, p_advance_versions) AS adv (schedule_id, next_run, expected_version)
+        FROM unnest(
+            p_advance_job_ids, p_advance_schedule_names, p_advance_next_runs, p_advance_versions
+        ) AS adv (job_id, name, next_run, expected_version)
         WHERE
-            js.id = adv.schedule_id
+            js.job_id = adv.job_id
+            AND js.name = adv.name
             AND js.job_id = ANY (v_done)
             AND (adv.expected_version IS NULL OR js.version = adv.expected_version)
             AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */

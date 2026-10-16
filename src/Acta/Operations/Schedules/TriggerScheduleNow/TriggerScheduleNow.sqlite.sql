@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS temp._tsn_target;
 
 CREATE TEMP TABLE _tsn_target AS
 SELECT
-    js.id AS schedule_id,
+    js.name,
     CASE
         WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
         WHEN r.status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
@@ -76,11 +76,11 @@ WHERE
     AND EXISTS (SELECT 1 FROM temp._tsn_target WHERE action = 1 /* ControlAction.Applied */);
 
 SELECT
-    CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE t.action END AS action,
+    CASE WHEN t.name IS NULL THEN 2 /* ControlAction.NotFound */ ELSE t.action END AS action,
     js.status_code AS status_code,
     js.paused_until_utc AS paused_until_utc,
     js.next_run_at_utc AS next_run_at_utc,
     js.version AS version
 FROM (SELECT @p_job_id AS qid) q
 LEFT JOIN temp._tsn_target t ON 1 = 1
-LEFT JOIN {{schema}}.schedules js ON js.id = t.schedule_id;
+LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.name = t.name;

@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261016183347_init')
+    WHERE name NOT IN ('M20261016185125_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261016183347_init =====
+-- ===== BEGIN M20261016185125_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -377,7 +377,6 @@ GO
 IF OBJECT_ID(N'acta.schedules', N'U') IS NULL
 BEGIN
 CREATE TABLE acta.schedules (
-    id bigint IDENTITY(1,1) NOT NULL,
     namespace_id int NOT NULL,
     job_id bigint NOT NULL,
     definition_id int NOT NULL,
@@ -400,14 +399,13 @@ CREATE TABLE acta.schedules (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_schedules PRIMARY KEY (id)
+    , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
     , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (id)
 );
-CREATE INDEX ix_schedules_namespace_next ON acta.schedules (namespace_id, next_run_at_utc, id) WHERE status_code <> 230;
-CREATE UNIQUE INDEX ux_schedules_job_name ON acta.schedules (job_id, name);
+CREATE INDEX ix_schedules_namespace_next ON acta.schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
 END
 GO
 
@@ -1374,10 +1372,11 @@ BEGIN
                         NULL, NULL,
                         NULL, js.name
                     FROM OPENJSON(@p_schedule_advances) WITH (
-                        schedule_id BIGINT '$.schedule_id', next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
+                        job_id BIGINT '$.job_id', name VARCHAR(128) '$.name',
+                        next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
                     ) adv
-                    INNER JOIN acta.schedules js ON js.id = adv.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN @done d ON d.job_id = adv.job_id
+                    INNER JOIN acta.schedules js ON js.job_id = d.job_id AND js.name = adv.name
                     INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.id = d.job_id
                     WHERE
                         (adv.expected_version IS NULL OR js.version = adv.expected_version)
@@ -1395,10 +1394,11 @@ BEGIN
                         js.modified_at_utc = @now,
                         js.version = js.version + 1
                     FROM OPENJSON(@p_schedule_advances) WITH (
-                        schedule_id BIGINT '$.schedule_id', next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
+                        job_id BIGINT '$.job_id', name VARCHAR(128) '$.name',
+                        next_run_at_utc DATETIME2(3) '$.next_run_at_utc', expected_version INT '$.expected_version'
                     ) adv
-                    INNER JOIN acta.schedules js ON js.id = adv.schedule_id
-                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN @done d ON d.job_id = adv.job_id
+                    INNER JOIN acta.schedules js ON js.job_id = d.job_id AND js.name = adv.name
                     WHERE
                         (adv.expected_version IS NULL OR js.version = adv.expected_version)
                         AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
@@ -4560,7 +4560,6 @@ GO
 
 CREATE OR ALTER VIEW acta.schedules_view AS
 SELECT
-    s.id AS schedule_id,
     ns.name AS namespace,
     s.job_id,
     j.job_ref,
@@ -4666,11 +4665,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016183347_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016185125_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261016183347_init');
+VALUES ('M20261016185125_init');
 GO
--- ===== END M20261016183347_init =====
+-- ===== END M20261016185125_init =====
 GO
 COMMIT TRANSACTION;
 GO

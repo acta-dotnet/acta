@@ -7,7 +7,7 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
+    DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @slot_status TINYINT, @slot_next DATETIME2(7);
     DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
@@ -22,7 +22,7 @@ BEGIN TRY
     WHERE r.job_id = @p_job_id;
 
     SELECT
-        @schedule_id = js.id,
+        @found = 1,
         @status = js.status_code,
         @paused = js.paused_until_utc,
         @next = js.next_run_at_utc,
@@ -33,7 +33,7 @@ BEGIN TRY
         AND js.name = @p_name
         AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
 
-    IF @schedule_id IS NULL
+    IF @found = 0
         BEGIN
 
             SELECT
