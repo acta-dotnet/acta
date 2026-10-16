@@ -186,7 +186,7 @@ internal sealed class WorkerRuntime
 
     /// <summary>
     /// The claimer, the executor loops, and the finalizer; ends once the claimer stopped, the executors emptied
-    /// its channel, and the finalizer wrote every completion the executors handed it.
+    /// its channel, and the finalizers wrote every completion the executors handed them.
     /// </summary>
     private async Task RunPipelineAsync(CancellationToken ct, CancellationToken drainCt)
     {
@@ -196,6 +196,8 @@ internal sealed class WorkerRuntime
         }
 
         var executors = Enumerable.Range(0, _executorCount).Select(_ => _executor.RunLoopAsync(ct)).ToArray();
+        // One finalizer: while it writes a batch, everything the executors hand over queues behind it and is the
+        // next batch, so the write falling behind is what forms the batches.
         var finalizer = _finalizer.RunLoopAsync(ct);
         await _claimer.RunAsync(ct, drainCt);
         await Task.WhenAll(executors);

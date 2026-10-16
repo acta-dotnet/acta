@@ -395,11 +395,6 @@ settles, and what an operator sees when it fails.
 
 ### Fixes
 
-- **A worker keeps two completion writes out at once.** The finalizer wrote one batch and waited for
-  it, so under load every `complete_executions` call carried a full 128 rows and one worker topped out
-  at one batch per commit round trip, about 2.5-3.2K jobs/s on SQL Server. It now forms the next batch
-  while up to two writes run; it is still the channel's only reader, so batches stay whole. The
-  `Completed` channel holds a full batch per write and the executors behind them.
 - **SQL Server enqueue never scans `jobs` for its deduplication probe.** The probe reads under
   `UPDLOCK, HOLDLOCK`, and with statistics compiled while `jobs` was small it chose a scan of the
   table, which locks every row it reads and escalates to a table lock held until the enqueue commits:

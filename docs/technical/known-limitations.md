@@ -59,12 +59,12 @@ for the first three tries and at `Error` after, always naming the job id, and
 
 The executor is freed as soon as its completion is built; the entry stays held, renewed by the
 heartbeat, until the finalizer lands the write. That is still deliberate backpressure, one channel
-later. There is one finalizer per worker, with up to two batch writes out at once, and a batch that
-keeps failing is written row by row, so every row that can land does. A row that still fails alone
-repeats apart from the finalizer, which goes on to the completions behind it, so one bad row holds only
-itself. Once as many rows repeat apart as the worker has executors, each write repeats in place: once
-both do, the channel between executors and finalizer fills, executors then block on it while they
-still hold their claim permits, and the claimer stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes
+later. There is one finalizer per worker, and a batch that keeps failing is written row by row, so
+every row that can land does. A row that still fails alone repeats apart from the finalizer, which
+goes on to the completions behind it, so one bad row holds only itself. Once as many rows repeat apart
+as the worker has executors, the finalizer repeats in place: the channel between executors and
+finalizer fills, executors then block on it while they still hold their claim permits, and the claimer
+stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes
 rather than abandoning it to run more handlers whose completions would be abandoned in turn. Repairing
 the underlying database failure lets the pending completions land without restarting the worker, as
 long as each entry still owns its row. Recovery itself is unaffected: the heartbeat takes the recovery

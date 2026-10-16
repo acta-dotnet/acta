@@ -139,7 +139,7 @@
             <rect class="box" x="640" y="190" width="140" height="56" rx="3"/>
             <line class="slot" x1="668" y1="190" x2="668" y2="246"/><line class="slot" x1="696" y1="190" x2="696" y2="246"/>
             <line class="slot" x1="724" y1="190" x2="724" y2="246"/><line class="slot" x1="752" y1="190" x2="752" y2="246"/>
-            <text class="tm" x="640" y="264">cap 2 &#215; 128 + N</text>
+            <text class="tm" x="640" y="264">cap 128 + N</text>
             <line class="ln" x1="600" y1="218" x2="638" y2="218" marker-end="url(#ah)"/>
 
             <rect class="box" x="820" y="170" width="190" height="100" rx="4"/>
@@ -241,7 +241,7 @@
             <tr><td>Execution timeout</td><td class="v">300 s default</td><td>Per attempt, set per definition; a timeout is retried under the failure budget.</td></tr>
             <tr><td>Concurrency-key bounce</td><td class="v">2 s</td><td>How soon a job refused its concurrency slot is due again.</td></tr>
             <tr><th class="grp" scope="rowgroup" colspan="3">Finalizing</th></tr>
-            <tr><td><code>Completed</code> channel</td><td class="v">2 &#215; 128 + N</td><td>Room for a full batch per write and the executors behind them; when it fills, intake stops.</td></tr>
+            <tr><td><code>Completed</code> channel</td><td class="v">128 + N</td><td>Room for a full batch and the executors behind it; when it fills, intake stops.</td></tr>
             <tr><td>Batch size</td><td class="v">128</td><td>Completions in one <code>complete_executions</code> call.</td></tr>
             <tr><td>Batch bytes</td><td class="v">4 MiB</td><td>Result bytes in one call; a larger single result is written alone.</td></tr>
             <tr><td>Batch window</td><td class="v">50 ms</td><td>Extra wait to fill a batch, only when its first read found a backlog.</td></tr>

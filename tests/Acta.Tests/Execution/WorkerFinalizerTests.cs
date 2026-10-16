@@ -314,7 +314,8 @@ public sealed class WorkerFinalizerTests
             async (call, _) =>
             {
                 await Task.Yield();
-                var jobs = JobIds(call);
+                using var batch = JsonDocument.Parse((string)call.Parameters["p_completions"]!);
+                var jobs = batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()).ToList();
                 if (jobs.Count > 1)
                 {
                     Interlocked.Increment(ref batchTries);
@@ -323,7 +324,18 @@ public sealed class WorkerFinalizerTests
                 {
                     throw new ProviderDown();
                 }
-                return (object?)Landed(jobs);
+                return (object?)
+                    jobs.Select(id => new CompleteExecutionsRow(
+                            id,
+                            0,
+                            CompleteExecutionsAction.Completed,
+                            (byte)JobStatusCode.Succeeded,
+                            null,
+                            DateTime.UtcNow,
+                            false,
+                            false
+                        ))
+                        .ToList();
             }
         );
         var options = new JobsOptions();
@@ -377,135 +389,6 @@ public sealed class WorkerFinalizerTests
         await stop.CancelAsync();
         await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
     }
-
-    [Fact(DisplayName = "Two batches are written at once, and a graceful stop lands every completion queued behind them")]
-    public async Task Two_batches_are_written_at_once_and_a_graceful_stop_lands_the_queue()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        TaskCompletionSource[] held =
-        [
-            new(TaskCreationOptions.RunContinuationsAsynchronously),
-            new(TaskCreationOptions.RunContinuationsAsynchronously),
-        ];
-        var calls = 0;
-        // The first two writes hold until released, so the second starts while the first is still out.
-        var session = new ScriptedSession(
-            async (call, _) =>
-            {
-                var jobs = JobIds(call);
-                var n = Interlocked.Increment(ref calls);
-                if (n <= held.Length)
-                {
-                    held[n - 1].SetResult();
-                    await release.Task;
-                }
-                return (object?)Landed(jobs);
-            }
-        );
-        var options = new JobsOptions { MaxConcurrentExecutors = 4 };
-        var (registry, finalizer) = Finalizer(session, options);
-
-        var loop = finalizer.RunLoopAsync(ct);
-        await registry.Completed.Writer.WriteAsync(Succeeded(registry, 1), ct);
-        await held[0].Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
-        await registry.Completed.Writer.WriteAsync(Succeeded(registry, 2), ct);
-        await held[1].Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
-
-        // With both writes out, the channel holds a full batch for each and one completion per executor behind them.
-        var queued = WorkerFinalizer.ConcurrentWrites * WorkerFinalizer.MaxBatch + options.MaxConcurrentExecutors;
-        for (var jobId = 3L; jobId < 3 + queued; jobId++)
-        {
-            Assert.True(registry.Completed.Writer.TryWrite(Succeeded(registry, jobId)));
-        }
-        registry.Completed.Writer.Complete();
-        release.SetResult();
-        await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
-
-        Assert.Equal(
-            [1, 1, WorkerFinalizer.MaxBatch, WorkerFinalizer.MaxBatch, options.MaxConcurrentExecutors],
-            session.Calls.Select(call => JobIds(call).Count)
-        );
-        Assert.Equal(Enumerable.Range(1, 2 + queued).Select(id => (long)id), session.Calls.SelectMany(JobIds).Order());
-        Assert.Equal(0, registry.Count());
-    }
-
-    [Fact(DisplayName = "Completions arriving one at a time while writes are out each land exactly once")]
-    public async Task Completions_arriving_while_writes_are_out_each_land_exactly_once()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        // Each write stays out a moment, so completions keep arriving while one or two are in flight.
-        var session = new ScriptedSession(
-            async (call, token) =>
-            {
-                await Task.Delay(1, token);
-                return (object?)Landed(JobIds(call));
-            }
-        );
-        var (registry, finalizer) = Finalizer(session, new JobsOptions { MaxConcurrentExecutors = 4 });
-
-        const int Completions = 300;
-        var loop = finalizer.RunLoopAsync(ct);
-        for (var jobId = 1L; jobId <= Completions; jobId++)
-        {
-            await registry.Completed.Writer.WriteAsync(Succeeded(registry, jobId), ct);
-            await Task.Yield();
-        }
-        registry.Completed.Writer.Complete();
-        await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
-
-        Assert.Equal(Enumerable.Range(1, Completions).Select(id => (long)id), session.Calls.SelectMany(JobIds).Order());
-        Assert.Equal(0, registry.Count());
-    }
-
-    private static (InFlightJobRegistry Registry, WorkerFinalizer Finalizer) Finalizer(ScriptedSession session, JobsOptions options)
-    {
-        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
-        context.NamespaceIds["orders"] = 1;
-        context.WorkerIdByNamespace["orders"] = 1;
-        var registry = new InFlightJobRegistry(options);
-        var finalizer = new WorkerFinalizer(
-            session.Services().GetRequiredService<ExecutionOperations>(),
-            null!,
-            new WorkerWakeupPublisher(new InProcessWakeup()),
-            options,
-            context,
-            registry,
-            NullLogger.Instance,
-            metrics: null
-        );
-        return (registry, finalizer);
-    }
-
-    // A one-shot success, held in the registry as its executor hands it over.
-    private static InFlightJob Succeeded(InFlightJobRegistry registry, long jobId)
-    {
-        var entry = WorkerHeartbeatLeaseRunwayTests.Entry(jobId, state: InFlightJobState.Finalizing);
-        entry.Descriptor = Descriptor;
-        entry.Completion = new ExecutionCompletion(CompletionKind.Succeeded);
-        registry.TryAdd(entry);
-        return entry;
-    }
-
-    private static List<long> JobIds(BoundCall call)
-    {
-        using var batch = JsonDocument.Parse((string)call.Parameters["p_completions"]!);
-        return [.. batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64())];
-    }
-
-    private static List<CompleteExecutionsRow> Landed(List<long> jobIds) =>
-        [
-            .. jobIds.Select(id => new CompleteExecutionsRow(
-                id,
-                0,
-                CompleteExecutionsAction.Completed,
-                (byte)JobStatusCode.Succeeded,
-                null,
-                DateTime.UtcNow,
-                false,
-                false
-            )),
-        ];
 
     // A one-shot definition: the batch reads only its retention, and the plan its budget and deadline behavior.
     private static readonly JobDescriptor Descriptor = new(
