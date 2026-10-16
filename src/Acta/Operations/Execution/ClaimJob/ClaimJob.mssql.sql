@@ -19,7 +19,6 @@ BEGIN TRY
             id BIGINT NOT NULL PRIMARY KEY,
             job_ref UNIQUEIDENTIFIER NOT NULL,
             namespace_id INT NOT NULL,
-            lineage_root_id BIGINT NULL,
             definition_id INT NOT NULL,
             tenant_id INT NULL,
             execution_number INT NOT NULL,
@@ -30,9 +29,7 @@ BEGIN TRY
             input VARBINARY(MAX) NULL,
             next_run_at_utc DATETIME2(3) NULL,
             created_at_utc DATETIME2(3) NOT NULL,
-            audit_level_code TINYINT NOT NULL,
             failure_count INT NOT NULL,
-            from_status TINYINT NOT NULL,
             lane_id BIGINT NULL,
             parent_id BIGINT NULL
         );
@@ -59,16 +56,16 @@ BEGIN TRY
         modified_at_utc = @now,
         version = r.version + 1
     OUTPUT
-        INSERTED.job_id, j.job_ref, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
+        INSERTED.job_id, j.job_ref, j.namespace_id, j.definition_id, j.tenant_id,
         INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
-        j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-        INSERTED.failure_count, DELETED.status_code, INSERTED.lane_id, j.parent_id
+        j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc,
+        INSERTED.failure_count, INSERTED.lane_id, j.parent_id
     INTO
         @claimed (
-            id, job_ref, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
+            id, job_ref, namespace_id, definition_id, tenant_id, execution_number,
             deduplication_key, correlation_key, concurrency_key,
             input_format_id, input, next_run_at_utc, created_at_utc,
-            audit_level_code, failure_count, from_status, lane_id, parent_id
+            failure_count, lane_id, parent_id
         )
     -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
     -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
@@ -76,35 +73,6 @@ BEGIN TRY
     FROM {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
     INNER JOIN candidates c ON c.id = r.job_id
     INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
-
-    INSERT INTO {{schema}}.events (
-        event_code, created_at_utc, namespace_id, actor_code, actor,
-        job_id, job_ref, execution_number,
-        lineage_root_id, definition_id, tenant_id, worker_id,
-        from_status_code, to_status_code, execution_status_code, duration_ms,
-        reason_code, reason_message
-    )
-    SELECT
-        40 /* EventCode.JobExecutionStarted */,
-        @now,
-        c.namespace_id,
-        70 /* ActorCode.Worker */,
-        NULL,
-        c.id,
-        c.job_ref,
-        c.execution_number,
-        COALESCE(c.lineage_root_id, c.id),
-        c.definition_id,
-        c.tenant_id,
-        @p_leased_by_worker_id,
-        c.from_status,
-        50 /* JobStatusCode.Executing */,
-        50 /* ExecutionStatusCode.Executing */,
-        NULL,
-        NULL,
-        NULL
-    FROM @claimed c
-    WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
     SELECT
         id,

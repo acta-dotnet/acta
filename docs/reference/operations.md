@@ -49,8 +49,8 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AccessCheckpoint` | · | · | · | routine | routine | inline | `checkpoints` | `AccessCheckpointSpec` |
 | `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `runtimes` | `ArmOrConsumeSleepTimerSpec` |
-| `ClaimJob` | · | · | · | inline | inline | inline | `events`, `runtimes` | `ClaimJobSpec` |
-| `ClaimJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
+| `ClaimJob` | · | · | · | inline | inline | inline | `runtimes` | `ClaimJobSpec` |
+| `ClaimJobs` | · | · | · | routine | routine | inline | `runtimes` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
 | `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionsSchedulesChangedSpec`, `CompleteExecutionsSpec` |
 | `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
 | `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |

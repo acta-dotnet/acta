@@ -7,9 +7,9 @@ using Xunit;
 namespace Acta.Tests.Emit;
 
 /// <summary>
-/// The provision-script emitter with more than one migration on disk, which no real provider has
-/// yet: a temp copy of the SQLite provider gains a fabricated delta, and the emitted script must
-/// carry both banner pairs in order and still be double-run safe with one history row per
+/// The provision-script emitter with a table delta chained after every shipped migration: a temp copy
+/// of the SQLite provider gains a fabricated delta, and the emitted script must carry the baseline's
+/// and the delta's banner pairs in order and still be double-run safe with one history row per
 /// migration.
 /// </summary>
 public sealed class ProvisionScriptChainTests : IDisposable
@@ -47,7 +47,8 @@ public sealed class ProvisionScriptChainTests : IDisposable
             _tempRoot,
             path => path.StartsWith("src/Acta/", StringComparison.Ordinal) || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
         );
-        var baseline = MigrationFiles.Stems(_tempRoot, "sqlite").Single();
+        var shipped = MigrationFiles.Stems(_tempRoot, "sqlite");
+        var baseline = shipped[0];
         await File.WriteAllTextAsync(MigrationFiles.PathFor(_tempRoot, "sqlite", Delta), FabricatedDelta, ct);
 
         var script = ProvisionScriptEmitter.Emit(_tempRoot, "sqlite");
@@ -62,7 +63,11 @@ public sealed class ProvisionScriptChainTests : IDisposable
         var positions = banners.Select(b => script.IndexOf(b, StringComparison.Ordinal)).ToArray();
         Assert.All(positions, p => Assert.True(p >= 0, "missing banner"));
         Assert.True(positions.SequenceEqual(positions.OrderBy(p => p)), "banners out of order");
-        Assert.Contains($"WHERE name NOT IN ('{baseline}', '{Delta}')", script, StringComparison.Ordinal);
+        Assert.Contains(
+            $"WHERE name NOT IN ({string.Join(", ", shipped.Append(Delta).Select(s => $"'{s}'"))})",
+            script,
+            StringComparison.Ordinal
+        );
 
         await using var conn = new SqliteConnection("Data Source=:memory:");
         await conn.OpenAsync(ct);
@@ -82,7 +87,7 @@ public sealed class ProvisionScriptChainTests : IDisposable
             + "(SELECT COUNT(*) FROM main.jobs)";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
-        Assert.Equal(2, reader.GetInt64(0));
+        Assert.Equal(shipped.Count + 1, reader.GetInt64(0));
         Assert.Equal(0, reader.GetInt64(1));
         Assert.Equal(0, reader.GetInt64(2));
     }

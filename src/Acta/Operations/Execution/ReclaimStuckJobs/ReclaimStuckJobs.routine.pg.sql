@@ -200,6 +200,7 @@ BEGIN
             j.definition_id,
             j.tenant_id,
             j.audit_level_code,
+            r.leased_by_worker_id AS worker_id,
             r.failure_count + 1 AS new_failure_count,
             jd.max_attempts_effective AS max_attempts,
             jd.retention_seconds_effective AS retention_seconds,
@@ -264,7 +265,7 @@ BEGIN
         WHERE r.job_id = s.id
         RETURNING
             r.job_id AS id, j.namespace_id, r.execution_number, j.lineage_root_id,
-            j.definition_id, j.tenant_id, s.from_status, r.status_code AS new_status, s.audit_level_code,
+            j.definition_id, j.tenant_id, s.worker_id, s.from_status, r.status_code AS new_status, s.audit_level_code,
             j.parent_id AS job_parent_id, j.job_ref
     ),
     event_insert AS (
@@ -299,7 +300,7 @@ BEGIN
             COALESCE(r.lineage_root_id, r.id),
             r.definition_id,
             r.tenant_id,
-            NULL,
+            r.worker_id,
             r.from_status,
             r.new_status,
             230 /* ExecutionStatusCode.Orphaned */,

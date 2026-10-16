@@ -102,7 +102,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal([ScheduleName], triggers[0]);
     }
 
-    [Fact(DisplayName = "Audit level emits started, finished and rolled-over events")]
+    [Fact(DisplayName = "Audit level emits finished and rolled-over events")]
     public async Task Audit_level_audit_emits_finished_and_rolled_over()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -113,7 +113,6 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var codes = events.Select(e => e.EventCode).ToHashSet();
-        Assert.Contains(EventCode.JobExecutionStarted, codes);
         Assert.Contains(EventCode.JobExecutionFinished, codes);
         Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }

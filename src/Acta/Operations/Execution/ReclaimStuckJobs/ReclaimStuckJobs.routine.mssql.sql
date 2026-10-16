@@ -22,6 +22,7 @@ BEGIN
                 lineage_root_id BIGINT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
+                worker_id INT NOT NULL,
                 from_status_code TINYINT NOT NULL,
                 to_status_code TINYINT NOT NULL,
                 audit_level_code TINYINT NOT NULL,
@@ -277,13 +278,13 @@ BEGIN
             version = r.version + 1
         OUTPUT
             INSERTED.job_id, j.job_ref, j.namespace_id, INSERTED.execution_number,
-            j.lineage_root_id, j.definition_id, j.tenant_id,
+            j.lineage_root_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
             DELETED.status_code, INSERTED.status_code, j.audit_level_code,
             j.parent_id
         INTO
             @reclaimed (
                 id, job_ref, namespace_id, execution_number, lineage_root_id,
-                definition_id, tenant_id, from_status_code, to_status_code, audit_level_code, parent_id
+                definition_id, tenant_id, worker_id, from_status_code, to_status_code, audit_level_code, parent_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
         -- see docs/internals/sql-execution-policy.md.
@@ -313,7 +314,7 @@ BEGIN
             COALESCE(lineage_root_id, id),
             definition_id,
             tenant_id,
-            NULL,
+            worker_id,
             from_status_code,
             to_status_code,
             230 /* ExecutionStatusCode.Orphaned */,

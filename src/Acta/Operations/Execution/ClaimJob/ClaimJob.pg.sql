@@ -1,7 +1,7 @@
 WITH candidates AS (
     /* claim_jobs' due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
        Suspended row with a NULL instant is an unbounded wait that never comes due. */
-    SELECT r.job_id AS id, r.status_code AS from_status
+    SELECT r.job_id AS id
     FROM {{schema}}.runtimes r
     WHERE
         r.job_id = @p_id
@@ -24,53 +24,10 @@ updated AS (
     JOIN {{schema}}.jobs j ON j.id = c.id
     WHERE r.job_id = c.id
     RETURNING
-        r.job_id AS id, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
+        r.job_id AS id, j.namespace_id, j.definition_id, j.tenant_id,
         r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
-        j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc, j.audit_level_code,
-        r.failure_count, j.job_ref, c.from_status, r.lane_id, j.parent_id
-),
-started_event AS (
-    INSERT INTO {{schema}}.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    SELECT
-        40 /* EventCode.JobExecutionStarted */,
-        now(),
-        u.namespace_id,
-        70 /* ActorCode.Worker */,
-        NULL,
-        u.id,
-        u.job_ref,
-        u.execution_number,
-        COALESCE(u.lineage_root_id, u.id),
-        u.definition_id,
-        u.tenant_id,
-        @p_leased_by_worker_id,
-        u.from_status,
-        50 /* JobStatusCode.Executing */,
-        50 /* ExecutionStatusCode.Executing */,
-        NULL,
-        NULL,
-        NULL
-    FROM updated u
-    WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
-    RETURNING 1
+        j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc,
+        r.failure_count, j.job_ref, r.lane_id, j.parent_id
 )
 SELECT
     u.id,

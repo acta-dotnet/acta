@@ -53,7 +53,7 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261015185851_init')
+    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event')
 );
 DROP TABLE release_guard;
 
@@ -787,6 +787,13 @@ VALUES ('M20261015185851_init')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261015185851_init =====
+
+-- ===== BEGIN M20261016080729_claim_writes_no_started_event =====
+INSERT INTO main.migrations (name)
+VALUES ('M20261016080729_claim_writes_no_started_event')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261016080729_claim_writes_no_started_event =====
 
 COMMIT;
 

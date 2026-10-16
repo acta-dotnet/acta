@@ -260,8 +260,8 @@ public static class LanedJob
 {
     // Seeded ten to a lane, so the lane runs them one at a time in enqueue order while workers die under
     // them. Durable steps with a body long enough that a kill lands inside one, and each step writes the
-    // same step-body note slow-success does, so check 7 covers a replayed lane head too. The order itself
-    // needs no witness: certify.sql reads it from the execution events the engine writes (checks 15-16).
+    // same step-body note slow-success does, so check 7 covers a replayed lane head too. The same notes
+    // stand as each member's start for the lane order (certify.sql check 15), because the claim writes no event.
     [Job("laned")]
     public static async Task<string> Handle(Laned input, JobContext ctx, CancellationToken ct)
     {

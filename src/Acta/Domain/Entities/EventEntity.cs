@@ -2,8 +2,8 @@ namespace Acta;
 
 /// <summary>
 /// The append-only lifecycle ledger: status transitions, suspend and resume hops, signal arrivals, definition and
-/// worker lifecycle, and each attempt as paired <c>job.execution-started</c> and <c>job.execution-finished</c>
-/// events, with an optional <see cref="Detail"/> beyond <see cref="ReasonCode"/> and <see cref="ReasonMessage"/>.
+/// worker lifecycle, and each attempt's outcome as a <c>job.execution-finished</c> event, with an optional
+/// <see cref="Detail"/> beyond <see cref="ReasonCode"/> and <see cref="ReasonMessage"/>.
 /// Rows age out by <c>JobsOptions.JobEventsRetention</c> against <see cref="CreatedAtUtc"/>; there is no job foreign
 /// key, because events outlive the job, so the operations that write them keep them consistent.
 /// </summary>

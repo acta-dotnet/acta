@@ -28,7 +28,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var completed = await EnqueueAndRunAsync("add-numbers", new AddNumbers(2, 3), ct);
         var before = await ReadJobAsync(completed.JobId, ct);
 
-        // The completed run already left job.execution-started/finished events for this job_id; seed
+        // The completed run already left a job.execution-finished event for this job_id; seed
         // an alert too, so purge's own-row cleanup of both tables is provable, not just the row delete.
         await AlertTestOps.RaiseAsync(
             Services,

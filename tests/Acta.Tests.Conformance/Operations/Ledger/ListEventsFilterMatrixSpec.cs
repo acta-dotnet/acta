@@ -146,20 +146,22 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
+        // A reprioritize before the run gives the job a second event code beside its finished event.
         var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
+        Assert.Equal(ControlAction.Applied, (await Jobs.ReprioritizeAsync(outcomes[0], JobPriorityCode.High, ct: ct)).Action);
         await Runtime.RunOnceAsync(j1, ct);
         var allEvents = await EventIdsAsync(j1, ct);
         Assert.NotEmpty(allEvents);
 
-        // Filter to JobExecutionStarted: only started events
-        var startedPage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: j1, EventCode: EventCode.JobExecutionStarted, PageSize: 100),
+        // Filter to JobReprioritized: only reprioritized events
+        var reprioritizedPage = await queries.Ledger.ListEventsAsync(
+            new ListEventsQuery(JobId: j1, EventCode: EventCode.JobReprioritized, PageSize: 100),
             ct
         );
-        var startedIds = startedPage.Items.Select(e => e.JobEventId).ToHashSet();
-        Assert.NotEmpty(startedIds);
-        Assert.All(startedPage.Items, e => Assert.Equal(EventCode.JobExecutionStarted, e.EventCode));
+        var reprioritizedIds = reprioritizedPage.Items.Select(e => e.JobEventId).ToHashSet();
+        Assert.NotEmpty(reprioritizedIds);
+        Assert.All(reprioritizedPage.Items, e => Assert.Equal(EventCode.JobReprioritized, e.EventCode));
 
         // Filter to JobExecutionFinished: only finished events
         var finishedPage = await queries.Ledger.ListEventsAsync(
@@ -171,8 +173,8 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.All(finishedPage.Items, e => Assert.Equal(EventCode.JobExecutionFinished, e.EventCode));
 
         // The two filtered sets are disjoint and together equal the full job event set
-        Assert.Empty(startedIds.Intersect(finishedIds));
-        Assert.Equal(allEvents, [.. startedIds.Union(finishedIds)]);
+        Assert.Empty(reprioritizedIds.Intersect(finishedIds));
+        Assert.Equal(allEvents, [.. reprioritizedIds.Union(finishedIds)]);
     }
 
     [Fact(DisplayName = "DefinitionId filter partitions events and applies uniformly to the row count")]

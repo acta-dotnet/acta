@@ -71,7 +71,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var events = await GetEventsByJobId.Run(Services, jobId, ct);
         var observedTypes = events.Select(e => e.EventCode).ToArray();
-        Assert.Equal([EventCode.JobExecutionStarted, EventCode.JobExecutionFinished], observedTypes);
+        Assert.Equal([EventCode.JobExecutionFinished], observedTypes);
 
         var finishedEvent = events.Single(e => e.EventCode == EventCode.JobExecutionFinished);
         Assert.Equal(ExecutionStatusCode.Succeeded, finishedEvent.ExecutionStatus);

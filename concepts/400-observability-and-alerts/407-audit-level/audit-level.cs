@@ -20,13 +20,13 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var queries = host.Services.GetRequiredService<IActaOperations>();
 
-// Audit: emits job.execution-started and job.execution-finished for every run.
+// Audit: emits job.execution-finished for every run.
 var auditOutcome = await jobs.EnqueueAsync(new AuditWork("report-a"));
 await Task.Delay(500);
 var auditEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: auditOutcome.JobId));
 Console.WriteLine($"Audit level  -> event count: {auditEvents.Items.Count}");
 
-// Failures: suppresses started/finished for successful runs that follow no failure; failures emit.
+// Failures: suppresses job.execution-finished for successful runs that follow no failure; failures emit.
 var failuresOutcome = await jobs.EnqueueAsync(new FailuresWork("report-b"));
 await Task.Delay(500);
 var failuresEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: failuresOutcome.JobId));
@@ -52,7 +52,7 @@ namespace Acta.Concepts.AuditLevel
 
     public static class AuditWorkJob
     {
-        // Audit (default): both started and finished events are written for every execution.
+        // Audit (default): a finished event is written for every execution.
         [Job("audit-work", AuditLevel = DefinitionAuditLevelCode.Audit)]
         public static void Handle(AuditWork input) => Console.WriteLine($"[{input.Id}] running at Audit level");
     }

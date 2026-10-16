@@ -171,7 +171,6 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(0, await eventsRunner.RunAsync(Parse($"events {enqueued.JobId}"), ct));
         var text = eventsOutput.ToString();
         Assert.Contains($"Events for job {enqueued.JobRef}", text);
-        Assert.Contains("job.execution-started", text);
         Assert.Contains("job.execution-finished", text);
     }
 

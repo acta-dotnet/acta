@@ -1,10 +1,10 @@
 import type { JobEvent } from './types.ts';
 import type { TimelineTone } from '../../components/jobTimelineState.ts';
 
-// One row per execution, derived from the event ledger. Pairing is NOT guaranteed: at audit level
-// Failures a successful execution leaves zero events, an orphan reclaim writes an end event with no
-// worker and no duration, a claim-only crash has no start, and an in-flight execution has no end.
-// Everything here is outer semantics over whatever events survive.
+// One row per execution, derived from the event ledger. Pairing is NOT guaranteed: the claim writes no
+// start event (only rows an older release wrote carry one), at audit level Failures a successful
+// execution leaves zero events, an orphan reclaim writes an end event with no duration, and an
+// in-flight execution has no end. Everything here is outer semantics over whatever events survive.
 
 export type ExecutionOutcome =
   | 'executing'
@@ -66,7 +66,7 @@ export function deriveExecutions(events: JobEvent[]): ExecutionSummary[] {
       startedAtUtc: start?.createdAtUtc ?? null,
       finishedAtUtc: end?.createdAtUtc ?? null,
       durationMs: end?.durationMs ?? null,
-      // Orphan reclaim writes the end event with a NULL worker; the start event still knows.
+      // An older release's orphan reclaim wrote its end event with a NULL worker; its start event still knows.
       workerRef: end?.workerRef ?? start?.workerRef ?? null,
       outcome,
       reasonCode: end?.reasonCode ?? null,

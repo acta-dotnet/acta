@@ -444,7 +444,7 @@
 ### A by-id claim takes exactly the named due job or nothing
 - **Contract:** ClaimJob leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan.
 - **Guarantees:**
-  - The named Ready job goes Executing under the worker's lease, one attempt and one version on, with a started event when audited
+  - The named Ready job goes Executing under the worker's lease, one attempt and one version on, and writes no event
   - A Suspended job whose wait deadline has passed is claimed, and one waiting with no deadline is not
   - A job not yet due, paused, or named under another namespace is not claimed and keeps its version
   - A job already claimed is not claimed again and keeps its first lease
@@ -1712,7 +1712,7 @@
   - One stable slot id fires repeatedly, returning to Ready and tracking execution_number
   - Schedule and slot cursors advance one period and the slot tracks the MIN
   - Handler sees the triggering schedule name in the due set
-  - Audit level emits started, finished and rolled-over events
+  - Audit level emits finished and rolled-over events
   - Result ring buffer trims to the cap keeping the newest entries
   - In-budget failure re-arms Ready and a later success resets the failure count
   - Consecutive failures past MaxAttempts never terminalize a recurring slot
@@ -1930,7 +1930,6 @@
   - A signal before the deadline delivers its typed payload and leaves no timeout artifacts
   - A presence-only signal before the deadline resumes the non-Try overload
   - An expired non-Try wait cancels the job with job.wait-timed-out and no budget charge
-  - Claiming a due Suspended row records Suspended as the started event's from-status
   - An expired Try wait resumes the handler exactly once with a TimedOut result
   - The typed Try overload carries the payload before the deadline and a null value after it
   - A replay asking for a longer wait does not move the stored expiration

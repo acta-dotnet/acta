@@ -193,7 +193,7 @@ SELECT
     COALESCE(j.lineage_root_id, j.id),
     j.definition_id,
     j.tenant_id,
-    NULL,
+    r.leased_by_worker_id,
     r.status_code,
     rj.to_status,
     230 /* ExecutionStatusCode.Orphaned */,

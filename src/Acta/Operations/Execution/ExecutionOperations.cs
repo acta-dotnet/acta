@@ -20,8 +20,9 @@ internal sealed class ExecutionOperations(
 )
 {
     /// <summary>
-    /// Atomic batched claim: transitions <c>Ready</c> to <c>Executing</c> and inlines <c>job.execution-started</c>, stamping the execution lease columns and incrementing
-    /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED.
+    /// Atomic batched claim: transitions <c>Ready</c> to <c>Executing</c>, stamping the execution lease columns and incrementing
+    /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED. It writes no event: the
+    /// <c>runtimes</c> row is the live attempt, and <c>job.execution-finished</c> records it once it ends.
     /// Empty claim carries the horizon sentinel.
     /// </summary>
     public Task<ClaimJobsResponse> ClaimJobsAsync(ClaimOptions options, int leaseTtlSeconds, CancellationToken ct) =>

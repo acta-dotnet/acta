@@ -288,26 +288,28 @@ public static class ProviderConn
 
     /// <summary>
     /// Reads what a rate cell's meter did, on the database clock the event rows are stamped with: the
-    /// instant of every admitted execution start, plus the attempt and re-arm totals behind them. The
-    /// meter is asked after the runtime is already Executing, so a denied attempt writes a start event
-    /// too; an admission is therefore a start with no rate-limited re-arm on the same (job, execution)
-    /// pair, and a claim always takes a fresh execution number so that pair names exactly one attempt.
+    /// instant of every admitted attempt, plus the attempt and re-arm totals behind them. Each attempt of
+    /// the audited rate job writes one finished event, and a denied one also a rate-limited re-arm on the
+    /// same (job, execution) pair; a claim always takes a fresh execution number, so that pair names one
+    /// attempt. An admission's instant is its finished stamp less the handler's duration. Reads are scoped
+    /// to the rate job's definition, because the history seed writes finished events too.
     /// </summary>
     public static async Task<BenchRateAdmissions> ReadRateAdmissionsAsync(string provider, string schema, CancellationToken ct)
     {
         var q = Qualifier(provider, schema);
-        var started = (int)EventCode.JobExecutionStarted;
+        var finished = (int)EventCode.JobExecutionFinished;
         var rescheduled = (int)EventCode.JobRescheduled;
         var rateLimited = (int)EventReasonCode.JobRateLimited;
+        var rateJob = $"definition_id IN (SELECT d.id FROM {q}definitions d WHERE d.name = '{BenchHost.RateJobName}')";
         try
         {
             await using var connection = await OpenAsync(provider, schema, ct);
 
             await using var counts = connection.CreateCommand();
             counts.CommandText =
-                $"SELECT (SELECT COUNT(*) FROM {q}events WHERE event_code = {started}), "
+                $"SELECT (SELECT COUNT(*) FROM {q}events WHERE event_code = {finished} AND {rateJob}), "
                 + $"(SELECT COUNT(*) FROM {q}events WHERE event_code = {rescheduled} AND reason_code = {rateLimited}), "
-                + $"(SELECT COUNT(DISTINCT job_id) FROM {q}events WHERE event_code = {started})";
+                + $"(SELECT COUNT(DISTINCT job_id) FROM {q}events WHERE event_code = {finished} AND {rateJob})";
             counts.CommandTimeout = 0;
             long attempts = 0;
             long rearms = 0;
@@ -324,9 +326,10 @@ public static class ProviderConn
 
             await using var admitted = connection.CreateCommand();
             admitted.CommandText = $"""
-                SELECT e.created_at_utc
+                SELECT e.created_at_utc, e.duration_ms
                   FROM {q}events e
-                 WHERE e.event_code = {started}
+                 WHERE e.event_code = {finished}
+                   AND e.{rateJob}
                    AND NOT EXISTS (
                        SELECT 1
                          FROM {q}events b
@@ -334,7 +337,6 @@ public static class ProviderConn
                           AND b.execution_number = e.execution_number
                           AND b.event_code = {rescheduled}
                           AND b.reason_code = {rateLimited})
-                 ORDER BY e.created_at_utc
                 """;
             admitted.CommandTimeout = 0;
             var instants = new List<DateTime>();
@@ -342,9 +344,12 @@ public static class ProviderConn
             {
                 while (await reader.ReadAsync(ct))
                 {
-                    instants.Add(InstantOf(reader.GetValue(0)));
+                    var durationMs = reader.IsDBNull(1) ? 0 : Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture);
+                    instants.Add(InstantOf(reader.GetValue(0)).AddMilliseconds(-durationMs));
                 }
             }
+
+            instants.Sort();
 
             return new BenchRateAdmissions(instants, attempts, rearms, jobs);
         }

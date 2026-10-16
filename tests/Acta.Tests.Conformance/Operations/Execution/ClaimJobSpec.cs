@@ -22,9 +22,7 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Fact(
-        DisplayName = "The named Ready job goes Executing under the worker's lease, one attempt and one version on, with a started event when audited"
-    )]
+    [Fact(DisplayName = "The named Ready job goes Executing under the worker's lease, one attempt and one version on, and writes no event")]
     public async Task Named_ready_job_goes_executing_under_the_lease()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -48,19 +46,9 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(before.DefinitionId, claimed.DefinitionId);
         Assert.False(claimed.Input.IsEmpty);
 
-        var started = await StartedEventsAsync(enqueued.JobId, ct);
-        if (after.AuditLevel == DefinitionAuditLevelCode.Audit)
-        {
-            var startedEvent = Assert.Single(started);
-            Assert.Equal(claimed.ExecutionNumber, startedEvent.ExecutionNumber);
-            Assert.Equal(workerId, startedEvent.WorkerId);
-            Assert.Equal(JobStatusCode.Ready, startedEvent.FromStatus);
-            Assert.Equal(JobStatusCode.Executing, startedEvent.ToStatus);
-        }
-        else
-        {
-            Assert.Empty(started);
-        }
+        // Even at the audit level that records every outcome, the runtimes row is the live attempt's only record.
+        Assert.Equal(DefinitionAuditLevelCode.Audit, after.AuditLevel);
+        Assert.Equal(0, await EventCountAsync(enqueued.JobId, ct));
     }
 
     [Fact(DisplayName = "A Suspended job whose wait deadline has passed is claimed, and one waiting with no deadline is not")]
@@ -148,6 +136,7 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var claimed = Assert.Single(await ClaimUntilTakenAsync(new ClaimOptions(NamespaceId, workerId, MaxBatch: 3), jobId: null, ct));
 
         Assert.Contains(claimed.JobId, enqueued);
+        Assert.Equal(0, await EventCountAsync(claimed.JobId, ct));
         foreach (var other in enqueued.Where(id => id != claimed.JobId))
         {
             Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(other, ct)).Status);
@@ -193,8 +182,8 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(before.LeasedByWorkerId, after.LeasedByWorkerId);
     }
 
-    private Task<IReadOnlyList<EventEntity>> StartedEventsAsync(long jobId, CancellationToken ct) =>
-        Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionStarted).ToListAsync(ct);
+    private Task<int> EventCountAsync(long jobId, CancellationToken ct) =>
+        Db.From<EventEntity>().Where(e => e.JobId == jobId).CountAsync(ct);
 
     private async Task<int> WorkerIdAsync(CancellationToken ct)
     {

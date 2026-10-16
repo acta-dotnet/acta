@@ -13,7 +13,7 @@
 --                        Succeeded=100 Failed=200 Cancelled=220
 --   ExecutionStatusCode  Executing=50 Succeeded=100 Rescheduled=150 Suspended=151 Paused=152
 --                        Failed=200 Cancelled=220 Orphaned=230
---   EventCode         40=job.execution-started 41=job.execution-finished 122=worker.died
+--   EventCode         41=job.execution-finished 90=job.note-recorded 122=worker.died
 --
 -- TIMING - the seal MUST stamp LeaseTtlSeconds, HeartbeatInterval and WorkerDeadAfter, because every
 -- property here is timing-dependent. A shorter lease manufactures more handler overlap than
@@ -23,8 +23,8 @@
 -- seal. The two windows differ, which is why reclaim leads dead-marking: lease 180s, dead-after 5min.
 --
 -- SCOPE - stated so no reader over-reads a green result. Most checks derive from the ledger alone.
--- Check 7 additionally needs the witness notes Anvil's step bodies write via ctx.NoteAsync, because
--- `steps` keeps no per-attempt history.
+-- Checks 7 and 15 additionally need the witness notes Anvil's step bodies write via ctx.NoteAsync,
+-- because `steps` keeps no per-attempt history and the claim writes no event.
 --
 -- Still absent, and not claimed anywhere below: handler-body overlap, which needs enter/exit notes
 -- plus an external kill record carrying the killer's own timestamp. Nothing here says "lease
@@ -33,54 +33,37 @@
 -- ---------------------------------------------------------------------------------------------
 -- 1. execution-event ownership consistency               [any time]
 -- ---------------------------------------------------------------------------------------------
--- No two workers ever emitted execution events for the same attempt. `runtimes.execution_number` is
--- incremented atomically on each claim and both 40/41 carry it beside `worker_id`, so a double-claim
--- surfaces exactly, with no clock reasoning at all.
+-- No two workers ever finished the same attempt. `runtimes.execution_number` is incremented
+-- atomically on each claim, and 41 carries it beside `worker_id`, which recovery fills with the worker
+-- that held the lapsed lease, so a finish recorded under a second worker surfaces exactly, with no
+-- clock reasoning at all.
 --
--- This is NOT lease exclusivity. It cannot see an attempt that wrote no 40, and it cannot
--- detect two overlapping claims that carried different execution numbers. Report it by this name.
+-- This is NOT lease exclusivity. The claim writes no event, so it cannot see a second claim of an
+-- attempt that never finished, and it cannot detect two overlapping claims that carried different
+-- execution numbers. Report it by this name.
 SELECT 'exec-event-ownership' AS check_name, job_id, execution_number, COUNT(DISTINCT worker_id) AS workers
 FROM   {s}events
-WHERE  event_code IN (40, 41) AND execution_number IS NOT NULL
+WHERE  event_code = 41 AND execution_number IS NOT NULL
 GROUP  BY job_id, execution_number
 HAVING COUNT(DISTINCT worker_id) > 1;
 
 -- ---------------------------------------------------------------------------------------------
--- 2. no attempt starts twice or finishes twice          [QUIESCED ONLY]
+-- 2. no attempt finishes twice                           [any time]
 -- ---------------------------------------------------------------------------------------------
--- No attempt starts twice, and no started attempt is left unclosed.
+-- No attempt records two outcomes.
 --
--- A 41 with no 40 is LEGAL and deliberately not asserted against: a job audited at failures writes
--- no 40 when it is claimed, and recovery still closes its lost attempt as orphaned with a 41.
---
--- Run only after the workload has quiesced. Mid-flight this reports every attempt currently
--- executing as "started but not finished", which is a false failure, not a finding - observed live
--- on the first run of this file.
---
--- Quiesce is not instant, and stopping the chaos does not end it: jobs held by already-killed workers
--- stay Executing until their 180s lease lapses and the next recovery tick sweeps them. Wait for
--- in-flight to reach zero rather than for the producer to stop, or this check fires on the tail.
---
--- A 40 with no 41 is also legal, and this check used to assert otherwise. Observed 2026-08-13 on a
+-- An attempt with no finish is legal and deliberately not asserted against. Observed 2026-08-13 on a
 -- two-participant ensemble: two LIVE workers claimed the same recurring slot 16ms apart and took
 -- different execution numbers. The later one completed; the earlier one's completion was refused on a
--- stale version, and a refused completion writes no event, so its attempt keeps a start with no finish
--- forever. Nothing was lost or repeated - the slot ran once - and the refusal is deliberate engine
--- behaviour with a spec of its own (the refused completion beside its successor). Asserting that every
--- start closes therefore demanded a guarantee the design does not make.
---
--- What survives is the pair of claims that are real: an attempt never starts twice, and never finishes
--- twice. Unclosed attempts are covered where they actually matter by check 4, which asks whether any
--- job was left mid-flight - the operational question - rather than whether every attempt record was
--- tidied up.
-SELECT 'attempt-pairing' AS check_name, job_id, execution_number,
-       SUM(CASE WHEN event_code = 40 THEN 1 ELSE 0 END) AS started,
-       SUM(CASE WHEN event_code = 41 THEN 1 ELSE 0 END) AS finished
+-- stale version, and a refused completion writes no event, so its attempt has no finish forever.
+-- Nothing was lost or repeated - the slot ran once - and the refusal is deliberate engine behaviour
+-- with a spec of its own (the refused completion beside its successor). Unclosed attempts are covered
+-- where they actually matter by check 4, which asks whether any job was left mid-flight.
+SELECT 'attempt-pairing' AS check_name, job_id, execution_number, COUNT(*) AS finished
 FROM   {s}events
-WHERE  event_code IN (40, 41) AND execution_number IS NOT NULL
+WHERE  event_code = 41 AND execution_number IS NOT NULL
 GROUP  BY job_id, execution_number
-HAVING SUM(CASE WHEN event_code = 40 THEN 1 ELSE 0 END) > 1
-    OR SUM(CASE WHEN event_code = 41 THEN 1 ELSE 0 END) > 1;
+HAVING COUNT(*) > 1;
 
 -- ---------------------------------------------------------------------------------------------
 -- 3. namespace isolation                                 [any time]
@@ -91,7 +74,7 @@ HAVING SUM(CASE WHEN event_code = 40 THEN 1 ELSE 0 END) > 1
 SELECT 'namespace-isolation' AS check_name, e.job_id, e.namespace_id AS event_ns, j.namespace_id AS job_ns
 FROM   {s}events e
 JOIN   {s}jobs j ON j.id = e.job_id
-WHERE  e.event_code IN (40, 41)
+WHERE  e.event_code = 41
   AND  e.namespace_id <> j.namespace_id;
 
 -- ---------------------------------------------------------------------------------------------
@@ -321,9 +304,12 @@ WHERE  e.event_code = 90
 -- both halves of it at once: nothing overtakes, and no two members of a lane are ever in flight.
 --
 -- No clock. `events.id` is assigned in insert order, and the settle that finishes a member promotes
--- the next in the same transaction, so every start of the next member is inserted after that finish.
--- Consecutive pairs are enough: each member finishes after it starts, so the order is transitive.
--- An earlier member with no finish at all while a later one started is a violation too.
+-- the next in the same transaction, so everything the next member writes is inserted after that finish.
+-- The claim writes no event, so a member's start is its first step-body note, which its first attempt
+-- writes on entering its first step; a later member claimed early but silent until the earlier one
+-- finished escapes this check. Consecutive pairs are enough: each member finishes after it starts, so
+-- the order is transitive. An earlier member with no finish at all while a later one started is a
+-- violation too.
 SELECT 'lane-order' AS check_name, p.lane_id, p.job_id AS earlier_job, p.next_job_id AS later_job
 FROM   (SELECT r.lane_id, r.job_id,
                LEAD(r.job_id) OVER (PARTITION BY r.lane_id ORDER BY r.job_id) AS next_job_id
@@ -331,7 +317,7 @@ FROM   (SELECT r.lane_id, r.job_id,
         WHERE  r.lane_id IS NOT NULL) p
 JOIN   (SELECT job_id, MIN(id) AS first_start
         FROM   {s}events
-        WHERE  event_code = 40
+        WHERE  event_code = 90
         GROUP  BY job_id) s ON s.job_id = p.next_job_id
 LEFT   JOIN (SELECT job_id, MAX(id) AS last_finish
              FROM   {s}events

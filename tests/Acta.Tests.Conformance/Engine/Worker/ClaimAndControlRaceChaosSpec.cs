@@ -48,7 +48,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
             .ClaimJobAsync(new ClaimOptions(ns, worker2, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
         await Task.WhenAll(first, second);
 
-        // --- 2. Exactly one wins; the row is Executing under the winner, with its one execution-started event.
+        // --- 2. Exactly one wins; the row is Executing under the winner, on its first attempt.
         var winners = (await first).Jobs.Concat((await second).Jobs).ToList();
         var winner = Assert.Single(winners);
         var winningWorker = (await first).Jobs.Count == 1 ? worker1 : worker2;
@@ -57,8 +57,8 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, job!.Status);
         Assert.Equal(winningWorker, job.LeasedByWorkerId);
+        Assert.Equal(1, job.ExecutionNumber);
         Assert.Equal(winner.ExecutionNumber, job.ExecutionNumber);
-        Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
 
     [Fact(DisplayName = "Restart while executing is rejected")]
@@ -106,11 +106,10 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(RunOnceStatus.NothingClaimed, await run);
         Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
-        // --- 3. Timeline: one start, the Cancelled execution-finished, and the job-cancelled event.
+        // --- 3. Timeline: the Cancelled execution-finished and the job-cancelled event.
         // cancel_job emits the finished event (Executing->Cancelled) before JobCancelled when it
         // cancels an executing job, so both are deterministic here.
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(events, e => e.EventCode == EventCode.JobExecutionStarted);
         var finished = Assert.Single(
             events,
             e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Cancelled

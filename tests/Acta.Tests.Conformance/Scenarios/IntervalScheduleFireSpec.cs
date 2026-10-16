@@ -127,7 +127,6 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         // Audit events confirm a complete recurring lifecycle.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var codes = events.Select(e => e.EventCode).ToHashSet();
-        Assert.Contains(EventCode.JobExecutionStarted, codes);
         Assert.Contains(EventCode.JobExecutionFinished, codes);
         Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
