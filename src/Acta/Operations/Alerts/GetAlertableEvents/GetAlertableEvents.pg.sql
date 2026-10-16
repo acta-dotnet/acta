@@ -30,7 +30,9 @@ WHERE
         /* Reclaim's uncharged arm lands Suspended rather than Ready, and charges nothing, so an
            operator hears about a worker dying on the same wait over and over here or nowhere. */
         OR (e.to_status_code = 20 /* JobStatusCode.Suspended */ AND e.reason_code = 21 /* EventReasonCode.JobLeaseExpired */)
-        OR e.execution_status_code = 100 /* ExecutionStatusCode.Succeeded */
+        /* A success resolves only its own job's failures, and a first attempt follows none, so only a retry's
+           success is read; at Audit every other success would cost the projector a resolve that closes nothing. */
+        OR (e.execution_status_code = 100 /* ExecutionStatusCode.Succeeded */ AND e.execution_number > 1)
     )
 ORDER BY e.created_at_utc, e.id
 LIMIT @p_alert_batch_size;

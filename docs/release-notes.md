@@ -381,6 +381,10 @@ settles, and what an operator sees when it fails.
   status alone, which no index serves, so every overview request scanned the whole table, retained
   history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the
   in-flight rows.
+- **`sys.alerts` reads only a retry's success.** At the default `Audit` level every success was
+  alertable, and the projector resolved alerts once per success, one transaction each, at most 10,240
+  events per minute per namespace, so after a fast drain a real failure's alert waited hours behind
+  successes. A first attempt's success follows no failure of its job, so the read now skips it.
 - **The SQL Server claim no longer deadlocks with an operator verb.** The claim held update locks on
   claim-index keys and then waited for each row, while a verb that changes a due Ready row locks the
   row first and the key after. The claim's update now skips a row another transaction holds, and does

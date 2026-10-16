@@ -190,7 +190,7 @@
 ### The alertable-event read walks a (stamp, id) cursor up to an inclusive horizon
 - **Contract:** GetAlertableEvents reads a namespace's alertable finished attempts after the (stamp, id) cursor and at or before the horizon, ordered by stamp then id.
 - **Guarantees:**
-  - Only the namespace's finished attempts that alert are read: failures, charged retries, uncharged reclaims, and successes
+  - Only the namespace's finished attempts that alert are read: failures, charged retries, uncharged reclaims, and a retry's success
   - The horizon is inclusive: an event stamped at it is read and one stamped a millisecond later is not
   - The cursor is the (stamp, id) pair: a same-stamp higher id is read, while the cursor's own row and earlier stamps are not
   - Rows come back ordered by stamp then id, and the batch size caps one read

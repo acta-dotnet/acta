@@ -31,7 +31,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
     }
 
     [Fact(
-        DisplayName = "Only the namespace's finished attempts that alert are read: failures, charged retries, uncharged reclaims, and successes"
+        DisplayName = "Only the namespace's finished attempts that alert are read: failures, charged retries, uncharged reclaims, and a retry's success"
     )]
     public async Task Only_alertable_finished_attempts_are_read()
     {
@@ -45,9 +45,11 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
             await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Orphaned, EventReasonCode.JobLeaseExpired, Ms(2), ct),
             await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Failed, EventReasonCode.JobExecutionTimeout, Ms(3), ct),
             await StageAsync(JobStatusCode.Suspended, ExecutionStatusCode.Orphaned, EventReasonCode.JobLeaseExpired, Ms(4), ct),
-            await StageAsync(JobStatusCode.Succeeded, ExecutionStatusCode.Succeeded, null, Ms(5), ct),
+            await StageAsync(JobStatusCode.Succeeded, ExecutionStatusCode.Succeeded, null, Ms(5), ct, executionNumber: 2),
         ];
 
+        // A first attempt's success follows no failure of its job, so it has nothing to resolve.
+        await StageAsync(JobStatusCode.Succeeded, ExecutionStatusCode.Succeeded, null, Ms(12), ct);
         await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Rescheduled, EventReasonCode.JobHandlerRescheduled, Ms(6), ct);
         await StageAsync(JobStatusCode.Suspended, ExecutionStatusCode.Suspended, EventReasonCode.JobHandlerSuspended, Ms(7), ct);
         await StageAsync(JobStatusCode.Cancelled, ExecutionStatusCode.Cancelled, EventReasonCode.JobControlManual, Ms(8), ct);
@@ -169,7 +171,8 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
         CancellationToken ct,
         EventCode code = EventCode.JobExecutionFinished,
         bool jobless = false,
-        int? namespaceId = null
+        int? namespaceId = null,
+        int executionNumber = 1
     )
     {
         var id = await Db.From<EventEntity>()
@@ -181,7 +184,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
                     ActorCode = ActorCode.Worker,
                     JobId = jobless ? null : JobIdValue,
                     DefinitionId = DefId,
-                    ExecutionNumber = 1,
+                    ExecutionNumber = executionNumber,
                     ToStatus = toStatus,
                     ExecutionStatus = outcome,
                     ReasonCode = reason,
