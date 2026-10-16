@@ -57,6 +57,13 @@ internal sealed partial class WorkerFinalizer(
     public static readonly TimeSpan BatchWindow = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
+    /// How many batches the loop writes at once. One write at a time caps a worker at one batch per commit round trip,
+    /// however far the completions behind it queue. The loop alone reads the channel, so the next batch forms while the
+    /// writes are out; loops that each read it split what arrives into batches of a row or two.
+    /// </summary>
+    internal const int ConcurrentWrites = 2;
+
+    /// <summary>
     /// How many times a batch is tried before each of its rows is written alone, so a row the database keeps refusing
     /// holds only itself: the others land, and it repeats alone until it lands or the worker stops.
     /// </summary>
@@ -66,7 +73,7 @@ internal sealed partial class WorkerFinalizer(
     internal TimeSpan? RepeatFirstDelay { get; init; }
 
     // Rows still failing alone after BatchTries, each repeating apart from the loop so it holds only itself. The bound
-    // is the executor count: past it the loop repeats in place, so a failure that refuses every completion still stops
+    // is the executor count: past it a write repeats in place, so a failure that refuses every completion still stops
     // intake (docs/technical/known-limitations.md, the completion backpressure).
     private readonly ConcurrentDictionary<InFlightJob, Task> _apart = new();
     private readonly int _apartLimit = options.MaxConcurrentExecutors;
@@ -77,12 +84,14 @@ internal sealed partial class WorkerFinalizer(
     private int WorkerId => context.ResolveWorker(context.WorkerRegistration!.NamespaceName).WorkerId;
 
     /// <summary>
-    /// The worker's one finalizer loop: finalizes each completion together with whatever else is already waiting,
-    /// until the channel is completed and empty, so a batch forms only when the writes fall behind. A fault ends its batch.
+    /// The worker's one finalizer loop: takes each completion together with whatever else is already waiting and writes
+    /// them, with up to <see cref="ConcurrentWrites"/> writes out at once, until the channel is completed and empty, so
+    /// a batch forms only when the writes fall behind. A fault ends its batch.
     /// </summary>
     public async Task RunLoopAsync(CancellationToken hostCt)
     {
         var reader = registry.Completed.Reader;
+        List<Task> writes = [];
         try
         {
             await foreach (var first in reader.ReadAllAsync(hostCt))
@@ -92,31 +101,21 @@ internal sealed partial class WorkerFinalizer(
                 using var window = new CancellationTokenSource(BatchWindow);
                 while (entries.Count < MaxBatch && bytes < MaxBatchBytes)
                 {
-                    if (!reader.TryRead(out var next))
+                    if (reader.TryRead(out var next))
                     {
-                        if (entries.Count == 1 || !await WaitForNextAsync(reader, window.Token))
-                        {
-                            break;
-                        }
-                        reader.TryRead(out next);
+                        entries.Add(next);
+                        bytes += next.Completion!.Result.Length;
                     }
-                    entries.Add(next!);
-                    bytes += next!.Completion!.Result.Length;
+                    else if (entries.Count == 1 || !await WaitForNextAsync(reader, window.Token))
+                    {
+                        break;
+                    }
                 }
 
-                try
+                writes.Add(WriteAsync(entries, hostCt));
+                if (writes.Count == ConcurrentWrites)
                 {
-                    // Written first, so a metrics listener that throws cannot strand the batch unwritten.
-                    await FinalizeAsync(entries, apart: true, hostCt);
-                    metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
-                }
-                catch (Exception ex)
-                {
-                    // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
-                    if (!hostCt.IsCancellationRequested)
-                    {
-                        log.LogError(ex, "WorkerRuntime: finalizer faulted on {Count} completions.", entries.Count);
-                    }
+                    writes.Remove(await Task.WhenAny(writes));
                 }
             }
         }
@@ -125,7 +124,9 @@ internal sealed partial class WorkerFinalizer(
             // A hard stop: completions still queued re-run after recovery, as an interrupted write does.
         }
 
-        // A drain ends once the rows repeating apart land and the descendant cancels finish; a hard stop ends them.
+        // A drain ends once the writes still out finish, then the rows they set apart land and the descendant cancels
+        // finish; a hard stop ends them.
+        await Task.WhenAll(writes);
         Task[] cancels;
         lock (_cancels)
         {
@@ -144,6 +145,25 @@ internal sealed partial class WorkerFinalizer(
         catch (OperationCanceledException)
         {
             return false;
+        }
+    }
+
+    /// <summary>Writes one batch the loop took; a fault is logged and ends only this batch.</summary>
+    private async Task WriteAsync(List<InFlightJob> entries, CancellationToken hostCt)
+    {
+        try
+        {
+            // Written first, so a metrics listener that throws cannot strand the batch unwritten.
+            await FinalizeAsync(entries, apart: true, hostCt);
+            metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
+        }
+        catch (Exception ex)
+        {
+            // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
+            if (!hostCt.IsCancellationRequested)
+            {
+                log.LogError(ex, "WorkerRuntime: finalizer faulted on {Count} completions.", entries.Count);
+            }
         }
     }
 

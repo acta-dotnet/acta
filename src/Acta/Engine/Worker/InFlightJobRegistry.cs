@@ -17,8 +17,11 @@ internal sealed class InFlightJobRegistry
         var permits = options.MaxConcurrentExecutors;
         Permits = new SemaphoreSlim(permits, permits);
         Claimed = Channel.CreateBounded<InFlightJob>(permits);
-        // Room for a full batch and the executors behind it, so a batch can grow while the finalizers write.
-        Completed = Channel.CreateBounded<InFlightJob>(WorkerFinalizer.MaxBatch + options.MaxConcurrentExecutors);
+        // Room for a full batch per write and the executors behind them, so each write the finalizer starts can take a
+        // full batch while the executors keep handing off.
+        Completed = Channel.CreateBounded<InFlightJob>(
+            WorkerFinalizer.ConcurrentWrites * WorkerFinalizer.MaxBatch + options.MaxConcurrentExecutors
+        );
     }
 
     /// <summary>
@@ -31,8 +34,8 @@ internal sealed class InFlightJobRegistry
     public Channel<InFlightJob> Claimed { get; }
 
     /// <summary>
-    /// The executors' hand-off to the finalizers, as large as the executor count: when the writes fall behind it fills,
-    /// the executors wait on it with their permits held, and the claimer stops.
+    /// The executors' hand-off to the finalizer: when the writes fall behind it fills, the executors wait on it with
+    /// their permits held, and the claimer stops.
     /// </summary>
     public Channel<InFlightJob> Completed { get; }
 
