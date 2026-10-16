@@ -53,7 +53,7 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk')
+    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk', 'M20261016163823_step_lock')
 );
 DROP TABLE release_guard;
 
@@ -958,6 +958,13 @@ VALUES ('M20261016162201_runtimes_no_job_fk')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261016162201_runtimes_no_job_fk =====
+
+-- ===== BEGIN M20261016163823_step_lock =====
+INSERT INTO main.migrations (name)
+VALUES ('M20261016163823_step_lock')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261016163823_step_lock =====
 
 COMMIT;
 

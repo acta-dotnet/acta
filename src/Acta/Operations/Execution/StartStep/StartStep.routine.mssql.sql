@@ -24,6 +24,16 @@ BEGIN
         DECLARE @state TINYINT;
         DECLARE @existing_next DATETIME2(3);
 
+        -- The step's own lock serializes starts of one step to commit (docs/internals/sql-execution-policy.md,
+        -- "Slot locks"); a range lock on a step not yet stored would hold the gap every running job's next step
+        -- falls in.
+        DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_name);
+        DECLARE @step_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
+        IF @step_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
+
         SELECT
             @state = status_code,
             @attempt = attempt_number,
@@ -33,7 +43,7 @@ BEGIN
             @result = result,
             @rcode = reason_code,
             @rmsg = reason_message
-        FROM {{schema}}.steps WITH (UPDLOCK, HOLDLOCK, INDEX (ux_steps_job_name))
+        FROM {{schema}}.steps WITH (UPDLOCK, INDEX (ux_steps_job_name))
         WHERE job_id = @p_job_id AND name = @p_name;
 
         IF @state IS NULL

@@ -214,6 +214,14 @@ routines and `RegisterSchedules`, which inserts the recurring slots under their 
 - `sp_getapplock` reports a deadlock by return code rather than error 1205, so each of them raises
   51205 on any refusal, and the dialect retries it as it retries 1205.
 
+### Slot locks
+
+A job's step is the same case on SQL Server: running jobs are the newest, so the first start of each
+job's step falls in the last gap of `ux_steps_job_name`, and a probe under `HOLDLOCK` made every
+executor's step start wait for every other's. `start_step`, the one statement that inserts a step,
+takes `sp_getapplock` on `<schema>.step:<job id>:<name>`, exclusive and owned by the transaction, and
+then reads the step under `UPDLOCK`; a refusal raises 51205.
+
 ### Claim watermark
 
 A claim removes each row it takes from `ix_runtimes_claim_ready`, and the removed entries stay at the
