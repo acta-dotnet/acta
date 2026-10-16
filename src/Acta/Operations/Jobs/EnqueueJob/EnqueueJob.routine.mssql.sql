@@ -140,14 +140,28 @@ BEGIN
 
         IF @p_deduplication_key IS NOT NULL
             BEGIN
-                -- Each probe seeks its dedup index, the index's filter restated: under HOLDLOCK a scan locks every row
-                -- it reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
+                -- The key's own lock serializes enqueues of one key to commit (docs/internals/sql-execution-policy.md,
+                -- "Deduplication lock"); the same name in enqueue_jobs.
+                DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
+                    N'{{schema}}.dedup:',
+                    CASE WHEN @p_parent_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_id) END,
+                    N':',
+                    @p_deduplication_key
+                );
+                DECLARE @dedup_lock_result INT;
+                -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
+                IF @dedup_lock_result < 0
+                    THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+
+                -- Each probe seeks its dedup index, the index's filter restated: a scan under UPDLOCK locks every row it
+                -- reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
                 IF @p_parent_id IS NOT NULL
                     BEGIN
                         SELECT
                             @existing_id = j.id,
                             @existing_ref = j.job_ref
-                        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
+                        FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
                         WHERE
                             j.parent_id = @p_parent_id
                             AND j.deduplication_key = @p_deduplication_key
@@ -159,7 +173,7 @@ BEGIN
                         SELECT
                             @existing_id = j.id,
                             @existing_ref = j.job_ref
-                        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
+                        FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
                         WHERE
                             j.namespace_id = @ns_id
                             AND j.deduplication_key = @p_deduplication_key

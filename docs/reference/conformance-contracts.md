@@ -723,6 +723,8 @@
 - **Guarantees:**
   - Typed and explicit-contract transactional overloads persist and vanish with the caller transaction
   - A deduplicated transactional outcome is provisional so rollback leaves no durable row
+  - An enqueue of a key an open transaction holds waits for its commit and returns that job
+  - An enqueue of another key never waits on an open transaction, even when its key sorts next
   - A null transaction throws ArgumentNullException before any work
   - A detached transaction is rejected with the shared committed-rolled-back-or-disposed message and a disposed one also fails
   - A transaction bound to a foreign provider connection is rejected as a provider mismatch

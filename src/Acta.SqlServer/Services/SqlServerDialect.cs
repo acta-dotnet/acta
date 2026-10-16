@@ -16,9 +16,11 @@ internal sealed class SqlServerDialect : ISqlDialect
     public string DialectToken => "mssql";
 
     /// <summary>
-    /// 1205: deadlock victim. 2801: an installed routine changed during concurrent bootstrap.
+    /// 1205: deadlock victim. 51205: the enqueue routines' deduplication key lock was refused, which
+    /// <c>sp_getapplock</c> reports by return code, deadlock victim included, instead of raising 1205.
+    /// 2801: an installed routine changed during concurrent bootstrap.
     /// </summary>
-    public bool IsTransientConflict(Exception exception) => exception is SqlException { Number: 1205 or 2801 };
+    public bool IsTransientConflict(Exception exception) => exception is SqlException { Number: 1205 or 51205 or 2801 };
 
     /// <summary>
     /// A token-cancelled command surfaces as SqlException Number 0 ("A severe error occurred on the

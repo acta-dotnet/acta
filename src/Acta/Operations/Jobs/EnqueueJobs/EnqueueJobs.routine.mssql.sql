@@ -209,15 +209,40 @@ BEGIN
             job_ref UNIQUEIDENTIFIER NOT NULL
         );
 
-        -- Skip when no row has a key: the dedup probes' HOLDLOCK range locks (held to commit) would
-        -- otherwise serialize every concurrent keyless enqueue on the namespace.
         IF
             EXISTS (
                 SELECT 1 FROM @p_batch
                 WHERE deduplication_key IS NOT NULL
             )
             BEGIN
-                -- Each probe seeks its dedup index on both key columns, the index's filter restated: under HOLDLOCK a scan
+                -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
+                -- never deadlock (docs/internals/sql-execution-policy.md, "Deduplication lock").
+                DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+                INSERT INTO @dedup_locks (name)
+                SELECT DISTINCT
+                    CONCAT(
+                        N'{{schema}}.dedup:',
+                        CASE WHEN b.parent_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_id) END,
+                        N':',
+                        b.deduplication_key
+                    )
+                FROM @p_batch b
+                LEFT JOIN @resolved r ON r.ordinal = b.ordinal
+                WHERE
+                    b.deduplication_key IS NOT NULL
+                    AND (b.parent_id IS NOT NULL OR r.ns_id IS NOT NULL);
+
+                DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
+                WHILE @dedup_lock IS NOT NULL
+                    BEGIN
+                        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                        EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
+                        IF @dedup_lock_result < 0
+                            THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+                        SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
+                    END;
+
+                -- Each probe seeks its dedup index on both key columns, the index's filter restated: a scan under UPDLOCK
                 -- locks every row it reads and escalates to a table lock on jobs, which a stale row estimate makes the
                 -- cheaper plan, and a seek on the leading column alone reads every key under it once per batch row.
                 INSERT INTO @existing (ordinal, id, job_ref)
@@ -226,7 +251,7 @@ BEGIN
                     j.id,
                     j.job_ref
                 FROM @p_batch b
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_id, deduplication_key)))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_id, deduplication_key)))
                     ON
                         j.parent_id = b.parent_id
                         AND j.deduplication_key = b.deduplication_key
@@ -243,7 +268,7 @@ BEGIN
                     j.job_ref
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
                     ON
                         j.namespace_id = r.ns_id
                         AND j.deduplication_key = b.deduplication_key

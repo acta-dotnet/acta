@@ -196,6 +196,24 @@ The claim and the completion read `jobs` and `runtimes` without locks, through j
 variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose
 cost grows with every job the table retains.
 
+### Deduplication lock
+
+On SQL Server an enqueue serializes on its deduplication key through an application lock, not a range
+lock. `enqueue_job` and `enqueue_jobs` take `sp_getapplock`, exclusive and owned by the transaction, on
+`<schema>.dedup:n<namespace id>:<key>` for a root job or `<schema>.dedup:p<parent id>:<key>` for a
+child, and only then probe the deduplication index under `UPDLOCK`. An application lock binds only
+the code that asks for it, so every statement that inserts a keyed job takes it: the two enqueue
+routines and `RegisterSchedules`, which inserts the recurring slots under their names.
+
+- A probe under `HOLDLOCK` for a key not yet stored locks the gap the key falls in. A key newer than every
+  stored key shares the last gap with every other new key, so enqueues of different keys in a namespace
+  waited for each other's commit, a caller's whole transaction included. The application lock waits
+  only for the same key, which is what PostgreSQL's `INSERT ... ON CONFLICT` waits for.
+- The lock is taken after the batch's lanes and before any job row. A batch takes its keys in name
+  order, so two batches sharing keys never deadlock on them.
+- `sp_getapplock` reports a deadlock by return code rather than error 1205, so each of them raises
+  51205 on any refusal, and the dialect retries it as it retries 1205.
+
 ### Alert lock order
 
 A statement that writes a job's alerts locks the job row first, then the alert rows. `PurgeJob` holds the

@@ -118,6 +118,46 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
     }
 
+    [Fact(DisplayName = "An enqueue of a key an open transaction holds waits for its commit and returns that job")]
+    public async Task Same_key_waits_for_the_holder_and_returns_its_job()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        var key = Unique("txn-same-key");
+
+        await using var conn = await Db.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        var winner = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
+
+        var waiter = Jobs.EnqueueAsync(Request(key: key), ct).AsTask();
+        await Task.Delay(500, ct);
+        Assert.False(waiter.IsCompleted, "the second enqueue did not wait on the open key");
+        await tx.CommitAsync(ct);
+        var outcome = await waiter;
+
+        Assert.Equal((EnqueueJobAction.Deduplicated, winner.JobId), (outcome.Action, outcome.JobId));
+    }
+
+    [Fact(DisplayName = "An enqueue of another key never waits on an open transaction, even when its key sorts next")]
+    public async Task Another_key_never_waits_on_an_open_transaction()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        // Keys in ascending order, as business keys usually come: the second falls in the gap above the first,
+        // which a range lock on the first key's probe would hold until commit.
+        var prefix = Unique("txn-next-key");
+
+        await using var conn = await Db.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        await Jobs.EnqueueAsync(tx, Request(key: prefix + "-1"), ct);
+
+        var other = Jobs.EnqueueAsync(Request(key: prefix + "-2"), ct).AsTask();
+        var first = await Task.WhenAny(other, Task.Delay(TimeSpan.FromSeconds(5), ct));
+        Assert.True(first == other, "the enqueue of another key waited on the open transaction");
+        Assert.Equal(EnqueueJobAction.Inserted, (await other).Action);
+        await tx.RollbackAsync(ct);
+    }
+
     [Fact(DisplayName = "A null transaction throws ArgumentNullException before any work")]
     public async Task Null_transaction_is_rejected()
     {
@@ -226,6 +266,14 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         // Control: the Acta-owned enqueue of a due job publishes exactly one wakeup, proving the seam works.
         await Jobs.EnqueueAsync(Request(), ct);
         Assert.True(_wakeup.Count > before);
+    }
+
+    private void SkipOnSqlite()
+    {
+        if (Services.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("SQLite has one writer: a second enqueue waits for any open transaction.");
+        }
     }
 
     private EnqueueJobRequest Request(string jobName = "add-numbers", string? key = null)

@@ -396,13 +396,23 @@ settles, and what an operator sees when it fails.
 ### Fixes
 
 - **SQL Server enqueue never scans `jobs` for its deduplication probe.** The probe reads under
-  `UPDLOCK, HOLDLOCK`, and with statistics compiled while `jobs` was small it chose a scan of the
+  `UPDLOCK`, and with statistics compiled while `jobs` was small it chose a scan of the
   table, which locks every row it reads and escalates to a table lock held until the enqueue commits:
   one producer slowed to a few thousand jobs a second, and every completion that writes a result
   waited behind it on its foreign-key check. Both enqueue routines now seek their deduplication index,
   its filter restated, and the parent lookup seeks by key. The batch probe names both key columns: a
   seek on the namespace alone tested every key in the namespace once per batch row, and took 20 s per
   1,000-row batch on a lab schema of 18,000 jobs.
+- **SQL Server enqueues of different deduplication keys no longer wait for each other.** The probe
+  read under `HOLDLOCK`, which for a key not yet stored locks the gap the key falls in. A key newer than
+  every stored key, as ordered business keys usually are, shares the last gap with every other new key,
+  so keyed enqueues in a namespace took turns, each holding its turn until its caller's transaction
+  committed. Both enqueue routines and schedule registration now lock the key itself with
+  `sp_getapplock`, which only an enqueue of the same key waits for, as PostgreSQL's `ON CONFLICT`
+  already behaved. In a lab run of single enqueues inside caller transactions, 64 callers in one
+  namespace, SQL Server went from about 2,200 to about 5,600 enqueues a second, the rate of enqueues
+  with no key at all. A refused key lock, a deadlock included, raises error 51205, which Acta retries
+  as it retries a deadlock.
 - **SQL Server never escalates locks on `jobs`.** A 1,000-row enqueue takes key and range locks on
   every index of `jobs` and crosses the 5,000-lock threshold, so SQL Server tried to escalate about four
   times per batch and won whenever no other session held a lock on the table at that instant: 39 times

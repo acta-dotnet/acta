@@ -17,6 +17,23 @@ BEGIN TRY
             THROW 50004, 'register_schedules could not acquire the recurring slot lock.', 1;
         END
 
+    -- Each slot's key lock, named as enqueue_job names it, so an enqueue of a slot's key and this insert wait for
+    -- each other (docs/internals/sql-execution-policy.md, "Deduplication lock").
+    DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+    INSERT INTO @dedup_locks (name)
+    SELECT DISTINCT CONCAT(N'{{schema}}.dedup:n', @p_namespace_id, N':', d.deduplication_key)
+    FROM @p_definitions AS d
+    WHERE d.deduplication_key IS NOT NULL;
+
+    DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks);
+    WHILE @dedup_lock IS NOT NULL
+        BEGIN
+            EXEC @lock_result = sys.sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
+            IF @lock_result < 0
+                THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+            SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
+        END;
+
     UPDATE j
     SET
         input_format_id = d.input_format_id,
