@@ -400,7 +400,9 @@ settles, and what an operator sees when it fails.
   table, which locks every row it reads and escalates to a table lock held until the enqueue commits:
   one producer slowed to a few thousand jobs a second, and every completion that writes a result
   waited behind it on its foreign-key check. Both enqueue routines now seek their deduplication index,
-  its filter restated, and the parent lookup seeks by key.
+  its filter restated, and the parent lookup seeks by key. The batch probe names both key columns: a
+  seek on the namespace alone tested every key in the namespace once per batch row, and took 20 s per
+  1,000-row batch on a lab schema of 18,000 jobs.
 - **SQL Server never escalates locks on `jobs`.** A 1,000-row enqueue takes key and range locks on
   every index of `jobs` and crosses the 5,000-lock threshold, so SQL Server tried to escalate about four
   times per batch and won whenever no other session held a lock on the table at that instant: 39 times

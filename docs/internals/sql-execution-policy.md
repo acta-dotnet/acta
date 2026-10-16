@@ -184,7 +184,9 @@ permanent table carries `FORCESEEK`, naming the index when the predicate restate
 filter so the hint always compiles:
 
 - The deduplication probes in `enqueue_job` and `enqueue_jobs` seek `ux_jobs_deduplication_key_root`
-  or `ux_jobs_deduplication_key_child`; the parent lookup seeks `pk_jobs`.
+  or `ux_jobs_deduplication_key_child`; the parent lookup seeks `pk_jobs`. In `enqueue_jobs` the probe
+  is a join's inner side and names both seek columns: with the index alone the optimizer may seek the
+  leading column and test the key as a residual, reading every key under it once per batch row.
 - The retention purge's staging read seeks `runtimes` from its cursor and `jobs` by key, and its event
   read seeks `ix_events_namespace_created`.
 - The outbox claim and its lease recovery seek without naming an index, because the producer owns that

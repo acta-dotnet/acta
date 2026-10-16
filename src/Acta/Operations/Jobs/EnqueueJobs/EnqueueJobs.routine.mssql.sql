@@ -217,15 +217,16 @@ BEGIN
                 WHERE deduplication_key IS NOT NULL
             )
             BEGIN
-                -- Each probe seeks its dedup index, the index's filter restated: under HOLDLOCK a scan locks every row
-                -- it reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
+                -- Each probe seeks its dedup index on both key columns, the index's filter restated: under HOLDLOCK a scan
+                -- locks every row it reads and escalates to a table lock on jobs, which a stale row estimate makes the
+                -- cheaper plan, and a seek on the leading column alone reads every key under it once per batch row.
                 INSERT INTO @existing (ordinal, id, job_ref)
                 SELECT
                     b.ordinal,
                     j.id,
                     j.job_ref
                 FROM @p_batch b
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_id, deduplication_key)))
                     ON
                         j.parent_id = b.parent_id
                         AND j.deduplication_key = b.deduplication_key
@@ -242,7 +243,7 @@ BEGIN
                     j.job_ref
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
                     ON
                         j.namespace_id = r.ns_id
                         AND j.deduplication_key = b.deduplication_key
