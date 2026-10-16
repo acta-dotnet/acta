@@ -419,6 +419,11 @@ settles, and what an operator sees when it fails.
   alertable, and the projector resolved alerts once per success, one transaction each, at most 10,240
   events per minute per namespace, so after a fast drain a real failure's alert waited hours behind
   successes. A first attempt's success follows no failure of its job, so the read now skips it.
+- **A SQLite outbox source deletes relayed rows without scanning its backlog.** The delete matched
+  its rows with `EXISTS` over the id list and a `NOCASE` comparison no index serves, so each 1,000-row
+  batch scanned the whole outbox table: 183 ms a batch at a 540K-row backlog, the largest part of a
+  relay tick. It now names the Claimed status, which seeks `ix_{table}_claims`, and matches the ids
+  with `IN`: 50 ms a batch, and the relay delivers about two thirds more rows per second.
 - **The outbox relay drains a backlog in one tick.** A tick stopped after 20 batches of 256 rows, so
   a namespace relayed at most about 1,000 rows a second on its 5-second cadence, and a producer
   staging faster than that grew the source backlog without bound. A tick now claims 1,000-row batches
