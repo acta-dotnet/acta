@@ -42,6 +42,9 @@ SELECT
         FROM {{schema}}.runtimes r
         WHERE
             r.status_code = 50 /* JobStatusCode.Executing */
+            -- ix_runtimes_worker_inflight's filter restated (ck_runtimes_inflight_leased holds it for every Executing
+            -- row), so the count reads the in-flight rows instead of scanning runtimes.
+            AND r.leased_by_worker_id IS NOT NULL
             AND (@p_namespace_name IS NULL OR r.namespace_id = @ns_id)
     ) AS executing_count,
     (

@@ -377,6 +377,10 @@ settles, and what an operator sees when it fails.
 
 ### Fixes
 
+- **The overview counts executing jobs from the in-flight index.** The count filtered `runtimes` on
+  status alone, which no index serves, so every overview request scanned the whole table, retained
+  history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the
+  in-flight rows.
 - **The SQL Server claim no longer deadlocks with an operator verb.** The claim held update locks on
   claim-index keys and then waited for each row, while a verb that changes a due Ready row locks the
   row first and the key after. The claim's update now skips a row another transaction holds, and does
