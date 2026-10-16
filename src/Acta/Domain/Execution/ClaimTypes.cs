@@ -1,14 +1,19 @@
 namespace Acta;
 
 /// <summary>
-/// What one claim on the hot priority-ordered scan asks for; deterministic by-id claiming lives on the separate
-/// <c>claim_job</c> path (testing and debug), so the production claim query carries no explicit-id branch.
-/// <c>ExcludedDefinitionIds</c> holds the <c>definitions.id</c> values this worker has bounced for want of a handler:
-/// null or empty applies no filter and keeps the candidate step on the pure claim-index scan, and both the candidate
-/// scan and the empty-claim horizon skip an excluded row, so a worker whose only due work is excluded sleeps instead
-/// of spinning at the anti-spin floor.
+/// What one claim on the hot priority-ordered scan asks for; by-id claiming is the separate <c>claim_job</c> path.
+/// <c>ExcludedDefinitionIds</c>, the definitions this worker bounced for want of a handler, are skipped by the candidate
+/// scan and the empty-claim horizon alike, so a worker left only excluded work sleeps instead of spinning at the floor.
+/// <c>ClaimFromUtc</c> starts the candidate scan at that due instant, null at each band's head
+/// (docs/internals/sql-execution-policy.md, "Claim watermark").
 /// </summary>
-internal sealed record ClaimOptions(int NamespaceId, int WorkerId, int MaxBatch, int[]? ExcludedDefinitionIds = null);
+internal sealed record ClaimOptions(
+    int NamespaceId,
+    int WorkerId,
+    int MaxBatch,
+    int[]? ExcludedDefinitionIds = null,
+    DateTime? ClaimFromUtc = null
+);
 
 /// <summary>
 /// One claimed row: the full job row needed to dispatch, and for the runner to take the <c>concurrency_key</c> slot

@@ -450,13 +450,14 @@
   - A job already claimed is not claimed again and keeps its first lease
   - Without a job id the claim takes a single job by the scan, whatever batch size it was asked for
 
-### Claim caps at the batch size, reports the horizon, and skips excluded rows
-- **Contract:** A claim returns up to the rows it asks for, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.
+### Claim caps the batch, reports the horizon, honors exclusions and its watermark
+- **Contract:** A claim takes up to the rows it asks for, none due before its watermark, an empty one returns one horizon sentinel, and excluded rows are invisible to both.
 - **Guarantees:**
   - A single claim is capped at the batch size and a non-empty claim carries no horizon
   - A drained sentinel reports no due work and a delayed row bounds the horizon
   - An excluded definition is skipped while the rest of the namespace claims in priority order, and an empty set claims it again
   - An empty claim's horizon skips excluded rows: a supported row bounds it, and an all-excluded namespace reports none
+  - A claim from an instant skips rows due before it, and a claim from the head takes them
   - The loop drains the whole backlog to Succeeded
 
 ### Claim returns only due rows, in claim order, past parked and delayed rows

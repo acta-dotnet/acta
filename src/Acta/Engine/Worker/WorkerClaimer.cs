@@ -6,7 +6,9 @@ namespace Acta;
 /// <summary>
 /// The worker's one claim loop: it takes a permit for every free executor, claims that many rows straight to Executing,
 /// and hands each to the executors through the registry's <c>Claimed</c> channel, which holds every permit so the
-/// hand-off never blocks. An empty claim sleeps until the claim horizon, cut short by a wakeup.
+/// hand-off never blocks. An empty claim sleeps until the claim horizon, cut short by a wakeup. While claims come
+/// back full, each starts at the previous one's watermark instead of each band's head, and at least once a second
+/// from the head again (docs/internals/sql-execution-policy.md, "Claim watermark").
 /// </summary>
 internal sealed class WorkerClaimer(
     ExecutionOperations execution,
@@ -23,6 +25,11 @@ internal sealed class WorkerClaimer(
     // A claim takes a row for every free executor.
     private readonly int _maxClaim = options.MaxConcurrentExecutors;
 
+    // A row stamped due before a concurrent claim but committed after it lands behind that claim's watermark; the
+    // margin keeps such rows in reach, and the head claim each second reaches the rest.
+    private static readonly TimeSpan WatermarkMargin = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan HeadClaimInterval = TimeSpan.FromSeconds(1);
+
     /// <summary>
     /// Claims until <paramref name="drainCt"/> or <paramref name="hostCt"/> ends a wait. The claim itself runs on
     /// <paramref name="hostCt"/>, so a drain never abandons the rows a committed claim took: they are handed off before
@@ -36,6 +43,8 @@ internal sealed class WorkerClaimer(
             var ns = context.WorkerRegistration!.NamespaceName;
             var (namespaceId, workerId) = context.ResolveWorker(ns);
             var handedOff = false;
+            DateTime? claimFrom = null;
+            var headClaimedAt = Stopwatch.GetTimestamp();
             log.LogInformation(
                 "WorkerRuntime: starting claim/dispatch loop with {Count} executors, safety poll {DurationMs}ms ({Detail}).",
                 options.MaxConcurrentExecutors,
@@ -52,16 +61,23 @@ internal sealed class WorkerClaimer(
                     permits = await TakeFreePermitsAsync(1, settle: handedOff, stop.Token);
 
                     var claimedAt = Stopwatch.GetTimestamp();
+                    if (claimFrom is null || Stopwatch.GetElapsedTime(headClaimedAt, claimedAt) >= HeadClaimInterval)
+                    {
+                        claimFrom = null;
+                        headClaimedAt = claimedAt;
+                    }
                     result = await execution.ClaimJobsAsync(
                         new ClaimOptions(
                             namespaceId,
                             workerId,
                             MaxBatch: permits,
-                            ExcludedDefinitionIds: context.UnsupportedDefinitionIdsSnapshot
+                            ExcludedDefinitionIds: context.UnsupportedDefinitionIdsSnapshot,
+                            ClaimFromUtc: claimFrom
                         ),
                         options.LeaseTtlSeconds,
                         hostCt
                     );
+                    claimFrom = NextClaimFrom(result.Jobs, permits);
                     var runway = _leaseRunway - Stopwatch.GetElapsedTime(claimedAt);
                     handedOff = result.Jobs.Count > 0;
                     foreach (var claimed in result.Jobs)
@@ -141,6 +157,28 @@ internal sealed class WorkerClaimer(
             }
         } while (settle && permits > before && permits < _maxClaim);
         return permits;
+    }
+
+    /// <summary>
+    /// Where the next claim starts: a full claim's latest due instant less the margin. A short claim means the queue
+    /// is caught up, so the next claim seeks each band from its head and a late commit waits for nothing.
+    /// </summary>
+    internal static DateTime? NextClaimFrom(IReadOnlyList<ClaimedJob> claimed, int asked)
+    {
+        if (claimed.Count < asked)
+        {
+            return null;
+        }
+
+        DateTime? latest = null;
+        foreach (var job in claimed)
+        {
+            if (job.NextRunAtUtc is { } due && (latest is null || due > latest))
+            {
+                latest = due;
+            }
+        }
+        return latest - WatermarkMargin;
     }
 
     /// <summary>

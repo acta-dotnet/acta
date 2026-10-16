@@ -28,6 +28,9 @@ WHERE
     AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
     AND r.next_run_at_utc IS NOT NULL
     AND r.next_run_at_utc <= {{now}}
+    /* The worker's watermark, as on the server providers (docs/internals/sql-execution-policy.md, "Claim
+       watermark"); SQLite frees a deleted index entry at once, so it only keeps the claim alike here. */
+    AND r.next_run_at_utc >= COALESCE(@p_claim_from_utc, 0)
     /* The definitions this worker already bounced for want of a handler, as JSON array text. NULL on a
        healthy fleet, and the NULL test settles the term before the jobs lookup. */
     AND (

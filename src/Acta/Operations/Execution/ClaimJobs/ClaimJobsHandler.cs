@@ -20,6 +20,7 @@ internal sealed class ClaimJobsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, options.MaxBatch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
                 dialect.BindExcludedDefinitionIds(cmd, options.ExcludedDefinitionIds);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimFromUtc, options.ClaimFromUtc));
             },
             DbProjectionResolver.Resolve<ClaimJobsRow>(),
             ct

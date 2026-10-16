@@ -323,6 +323,16 @@ settles, and what an operator sees when it fails.
   straight to Executing and writes the started event in the same statement, as Direct did, and
   `start_execution`, the profiles, `ClaimBatchSize`, and the claim's `version` column are gone. Recovery
   charges every stranded attempt, since every claimed attempt has started.
+- **A claim starts where the last one ended.** A claim removes the rows it takes from the claim index,
+  and their entries stay at the head of the band until the database cleans them up: ghost records on
+  SQL Server, and dead entries on PostgreSQL that a scan can skip only once no transaction can still
+  see them. Every claim walked them before it reached a live row. Each worker now passes
+  `claim_jobs` the latest due instant of its last full claim, less 100 ms, and the claim seeks from
+  there; a short claim, and at least one claim a second, start from the head again, so a row behind
+  the watermark waits at most that second. In the lab's stress run (4 workers, audit on, producers and
+  the outbox at full rate) SQL Server drained about 15,000 jobs a second instead of 10,800, its claim
+  seek at 0.2 ms of CPU instead of 2.9 ms, and PostgreSQL kept about 17,000 a second through a
+  transaction held open for a minute, where it had dropped to 6,800.
 - **An attempt cancels on its own lease deadline.** Each claim carries a deadline armed from the claim's
   request start and re-armed by the heartbeat on every confirmed renewal, half the base runway before
   the lease lapses, so a database outage stops the handler with nothing watching; the watchdog loop is

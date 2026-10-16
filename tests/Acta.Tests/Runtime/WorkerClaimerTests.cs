@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// How many rows the claimer asks for, and what it does when the claim query itself fails - a database outage, a
+/// How many rows the claimer asks for, where its next claim starts, and what it does when the claim query itself fails - a database outage, a
 /// failover, a connection pool exhausted. A failed claim must not tear the loop down and must not
 /// retry at the anti-spin poll floor either - the floor exists for deadline races, and hammering a down database at
 /// that cadence spams errors many times a second - so it backs off a full safety interval and says how long it is
@@ -95,6 +95,41 @@ public sealed class WorkerClaimerTests
         Assert.Equal(1, store.Calls);
         Assert.Equal(Executors, registry.Permits.CurrentCount);
     }
+
+    [Fact]
+    public void A_full_claim_starts_the_next_one_a_margin_behind_its_latest_due_instant()
+    {
+        var latest = new DateTime(2026, 10, 16, 12, 0, 1, DateTimeKind.Utc);
+        ClaimedJob[] claimed = [Claimed(latest.AddMilliseconds(-500)), Claimed(latest), Claimed(latest.AddMilliseconds(-200))];
+
+        Assert.Equal(latest.AddMilliseconds(-100), WorkerClaimer.NextClaimFrom(claimed, asked: 3));
+    }
+
+    [Fact]
+    public void A_short_or_empty_claim_starts_the_next_one_at_the_head()
+    {
+        Assert.Null(WorkerClaimer.NextClaimFrom([Claimed(DateTime.UtcNow)], asked: 2));
+        Assert.Null(WorkerClaimer.NextClaimFrom([], asked: 1));
+    }
+
+    private static ClaimedJob Claimed(DateTime due) =>
+        new(
+            JobId: 1,
+            JobRef: Guid.CreateVersion7(),
+            NamespaceId: 1,
+            DefinitionId: 1,
+            TenantId: null,
+            ExecutionNumber: 1,
+            DeduplicationKey: null,
+            CorrelationKey: null,
+            ConcurrencyKey: null,
+            InputFormatId: 0,
+            Input: ReadOnlyMemory<byte>.Empty,
+            NextRunAtUtc: due,
+            LeaseExpiresAtUtc: due.AddMinutes(3),
+            CreatedAtUtc: due,
+            FailureCount: 0
+        );
 
     private static IReadOnlyList<RecordingLogger.Entry> ClaimErrors(RecordingLogger log) =>
         [.. log.Entries.Where(e => e.Level == LogLevel.Error && e.Message.Contains("claim iteration failed", StringComparison.Ordinal))];

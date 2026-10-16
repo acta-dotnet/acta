@@ -214,6 +214,27 @@ routines and `RegisterSchedules`, which inserts the recurring slots under their 
 - `sp_getapplock` reports a deadlock by return code rather than error 1205, so each of them raises
   51205 on any refusal, and the dialect retries it as it retries 1205.
 
+### Claim watermark
+
+A claim removes each row it takes from `ix_runtimes_claim_ready`, and the removed entries stay at the
+head of the row's band until the database cleans them up. SQL Server leaves ghost records that its
+cleanup task removes every few seconds; PostgreSQL marks a dead entry killed only once no transaction
+can still see the row. A seek from the head walks every such entry before it reaches a live row, so
+claims in a busy namespace spent their time walking, and on PostgreSQL one long transaction anywhere in
+the database let the walk grow until it ended.
+
+Each worker therefore starts its claim at a watermark, `p_claim_from_utc`, which bounds each band's seek
+from below:
+
+- A claim that comes back full sets the next claim's watermark to its latest due instant less 100 ms.
+- A claim that comes back short means the queue is caught up, so the next claim seeks from the head.
+- At least once a second a claim seeks from the head anyway.
+
+A row due before the watermark waits for the next claim from the head: a row a claim skipped under
+`READPAST` or `SKIP LOCKED`, or one whose enqueue stamped its due instant before a claim and committed
+after it. The margin keeps a commit up to 100 ms late within reach. SQLite frees a removed entry at
+once, so there the watermark only keeps the claim alike.
+
 ### Alert lock order
 
 A statement that writes a job's alerts locks the job row first, then the alert rows. `PurgeJob` holds the

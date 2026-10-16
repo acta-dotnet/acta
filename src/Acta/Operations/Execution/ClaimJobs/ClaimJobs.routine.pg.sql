@@ -3,7 +3,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_jobs(
     p_leased_by_worker_id INT,
     p_claim_limit INT,
     p_lease_ttl_seconds INT,
-    p_excluded_definition_ids INT[] DEFAULT '{}'
+    p_excluded_definition_ids INT[] DEFAULT '{}',
+    p_claim_from_utc TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS TABLE (
     id BIGINT,
@@ -54,6 +55,9 @@ AS $$
             AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND r.next_run_at_utc IS NOT NULL
             AND r.next_run_at_utc <= now()
+            /* The worker's watermark starts each band's scan past the dead entries earlier claims left at its head
+               (docs/internals/sql-execution-policy.md, "Claim watermark"); NULL scans from the head. */
+            AND r.next_run_at_utc >= COALESCE(p_claim_from_utc, '-infinity'::timestamptz)
             /* Rolling-deploy exclusion: definitions this worker already bounced for want of a handler.
                Empty on a healthy fleet, and the cardinality test is evaluated first, so a healthy claim
                never reaches the jobs lookup. */

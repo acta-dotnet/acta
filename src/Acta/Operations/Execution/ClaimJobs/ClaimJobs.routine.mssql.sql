@@ -3,7 +3,8 @@ CREATE OR ALTER PROCEDURE {{schema}}.claim_jobs
     @p_leased_by_worker_id INT,
     @p_claim_limit INT,
     @p_lease_ttl_seconds INT,
-    @p_excluded_definition_ids NVARCHAR(MAX) = NULL
+    @p_excluded_definition_ids NVARCHAR(MAX) = NULL,
+    @p_claim_from_utc DATETIME2(3) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -84,6 +85,9 @@ BEGIN
                     AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                     AND r.next_run_at_utc IS NOT NULL
                     AND r.next_run_at_utc <= @due_now
+                    /* The worker's watermark starts the seek past the ghost records earlier claims left at the band's
+                       head (docs/internals/sql-execution-policy.md, "Claim watermark"); NULL seeks from the head. */
+                    AND r.next_run_at_utc >= ISNULL(@p_claim_from_utc, CAST('0001-01-01' AS DATETIME2(3)))
                     /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
                        the seek above stays as it was. */
                     AND (

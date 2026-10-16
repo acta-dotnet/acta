@@ -20,12 +20,14 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// skips their rows in both halves of the routine, the candidate scan and the empty-claim horizon, so
 /// a worker whose only due work is excluded sleeps on the horizon instead of retrying at the
 /// anti-spin floor.</para>
+/// <para>A claim given an instant, the worker's watermark, starts its scan there: a row due before it waits for a
+/// claim from the head.</para>
 /// </summary>
 [ConformanceSpec(
     "claim-jobs.size-cap",
-    "Claim caps at the batch size, reports the horizon, and skips excluded rows",
+    "Claim caps the batch, reports the horizon, honors exclusions and its watermark",
     Area = "Claim",
-    Contract = "A claim returns up to the rows it asks for, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both."
+    Contract = "A claim takes up to the rows it asks for, none due before its watermark, an empty one returns one horizon sentinel, and excluded rows are invisible to both."
 )]
 public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -224,6 +226,57 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         Assert.Empty(silent.Jobs);
         Assert.Null(Assert.NotNull(silent.Horizon).NextReadyAtUtc);
+    }
+
+    [Fact(DisplayName = "A claim from an instant skips rows due before it, and a claim from the head takes them")]
+    public async Task A_claim_from_an_instant_skips_rows_due_before_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, _, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
+        var execution = Services.GetRequiredService<ExecutionOperations>();
+        var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
+        var earlier = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dbNow.AddMinutes(-2)),
+            ct
+        );
+        var later = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dbNow.AddMinutes(-1)),
+            ct
+        );
+
+        var fromBetween = await ClaimIdsUntilAsync(
+            () => execution.ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64, ClaimFromUtc: dbNow.AddSeconds(-90)), leaseTtl, ct),
+            later.JobId,
+            ct
+        );
+        Assert.Contains(later.JobId, fromBetween);
+        Assert.DoesNotContain(earlier.JobId, fromBetween);
+
+        var fromHead = await ClaimIdsUntilAsync(
+            () => execution.ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
+            earlier.JobId,
+            ct
+        );
+        Assert.Contains(earlier.JobId, fromHead);
+    }
+
+    /// <summary>
+    /// Claims until one read takes <paramref name="wanted"/>, bounded like <see cref="ReadClaimUntilAsync"/> because a
+    /// sibling's lock can hide a row from one read, and returns every job id the reads claimed.
+    /// </summary>
+    private static async Task<HashSet<long>> ClaimIdsUntilAsync(Func<Task<ClaimJobsResponse>> claim, long wanted, CancellationToken ct)
+    {
+        var ids = new HashSet<long>();
+        var elapsed = Stopwatch.StartNew();
+        while (!ids.Contains(wanted) && elapsed.Elapsed <= TimeSpan.FromSeconds(5))
+        {
+            ids.UnionWith((await claim()).Jobs.Select(j => j.JobId));
+            if (!ids.Contains(wanted))
+            {
+                await Task.Delay(25, ct);
+            }
+        }
+        return ids;
     }
 
     private const string ExcludedJob = "add-numbers";

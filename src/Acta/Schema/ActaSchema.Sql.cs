@@ -17,6 +17,12 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int> ClaimLimit = Scalar<int>("p_claim_limit", DbKind.Int32, nullable: false);
 
+        public static readonly DbValueSpec<DateTime?> ClaimFromUtc = Scalar<DateTime?>(
+            "p_claim_from_utc",
+            DbKind.UtcInstant,
+            nullable: true
+        );
+
         public static readonly DbValueSpec<string> NamespaceName = Sized<string>(
             "p_namespace_name",
             DbKind.AsciiString,
