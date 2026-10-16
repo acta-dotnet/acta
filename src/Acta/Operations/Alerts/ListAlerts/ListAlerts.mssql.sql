@@ -27,19 +27,6 @@ WHERE
     AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
     AND (@p_delivery_status_code IS NULL OR a.delivery_status_code = @p_delivery_status_code)
     AND (@p_acknowledged IS NULL OR (CASE WHEN a.acknowledged_at_utc IS NOT NULL THEN 1 ELSE 0 END) = @p_acknowledged)
-    AND (@p_tag_filters IS NULL OR NOT EXISTS (
-        SELECT 1
-        FROM
-            OPENJSON (@p_tag_filters)
-            WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
-        WHERE NOT EXISTS (
-            SELECT 1 FROM {{schema}}.tags tg
-            WHERE
-                tg.scope_code = 80 /* TagScopeCode.Alert */ AND tg.scope_id = a.id
-                AND tg.name = f.name
-                AND (f.value_search IS NULL OR tg.value_search = f.value_search)
-        )
-    ))
     AND (
         @p_cursor_created_at_utc IS NULL
         OR a.created_at_utc < @p_cursor_created_at_utc
@@ -60,18 +47,5 @@ SELECT
             AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
             AND (@p_delivery_status_code IS NULL OR a.delivery_status_code = @p_delivery_status_code)
             AND (@p_acknowledged IS NULL OR (CASE WHEN a.acknowledged_at_utc IS NOT NULL THEN 1 ELSE 0 END) = @p_acknowledged)
-            AND (@p_tag_filters IS NULL OR NOT EXISTS (
-                SELECT 1
-                FROM
-                    OPENJSON (@p_tag_filters)
-                    WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM {{schema}}.tags tg
-                    WHERE
-                        tg.scope_code = 80 /* TagScopeCode.Alert */ AND tg.scope_id = a.id
-                        AND tg.name = f.name
-                        AND (f.value_search IS NULL OR tg.value_search = f.value_search)
-                )
-            ))
     ) END
 OPTION (RECOMPILE);

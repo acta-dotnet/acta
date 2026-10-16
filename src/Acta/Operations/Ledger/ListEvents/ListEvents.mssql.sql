@@ -43,19 +43,6 @@ WHERE
     AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)
     AND (@p_created_from_utc IS NULL OR e.created_at_utc >= @p_created_from_utc)
     AND (@p_created_to_utc IS NULL OR e.created_at_utc < @p_created_to_utc)
-    AND (@p_tag_filters IS NULL OR NOT EXISTS (
-        SELECT 1
-        FROM
-            OPENJSON (@p_tag_filters)
-            WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
-        WHERE NOT EXISTS (
-            SELECT 1 FROM {{schema}}.tags tg
-            WHERE
-                tg.scope_code = 90 /* TagScopeCode.Event */ AND tg.scope_id = e.id
-                AND tg.name = f.name
-                AND (f.value_search IS NULL OR tg.value_search = f.value_search)
-        )
-    ))
     AND (
         @p_cursor_created_at_utc IS NULL
         OR e.created_at_utc < @p_cursor_created_at_utc
@@ -83,18 +70,5 @@ SELECT
             AND (@p_reason_code IS NULL OR e.reason_code = @p_reason_code)
             AND (@p_created_from_utc IS NULL OR e.created_at_utc >= @p_created_from_utc)
             AND (@p_created_to_utc IS NULL OR e.created_at_utc < @p_created_to_utc)
-            AND (@p_tag_filters IS NULL OR NOT EXISTS (
-                SELECT 1
-                FROM
-                    OPENJSON (@p_tag_filters)
-                    WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM {{schema}}.tags tg
-                    WHERE
-                        tg.scope_code = 90 /* TagScopeCode.Event */ AND tg.scope_id = e.id
-                        AND tg.name = f.name
-                        AND (f.value_search IS NULL OR tg.value_search = f.value_search)
-                )
-            ))
     ) END
 OPTION (RECOMPILE);

@@ -13,7 +13,6 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
         QueryValidation.ValidateEnum(query.Origin, nameof(query.Origin));
 
         var liveOnly = query.LiveOnly is null or true ? true : (bool?)null;
-        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListSchedulesQuery));
         var paging = Paging.Start(
             "ListSchedules",
             "next_run_at_utc asc, id asc",
@@ -25,7 +24,6 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
                 ("name", jobName),
                 ("origin", ((byte?)query.Origin)?.ToString(CultureInfo.InvariantCulture)),
                 ("live", liveOnly?.ToString()),
-                ("tags", tags),
             ]
         );
 
@@ -37,7 +35,6 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.OriginCode, query.Origin));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LiveOnlyFlag, liveOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNextRunAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)paging.After?[1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

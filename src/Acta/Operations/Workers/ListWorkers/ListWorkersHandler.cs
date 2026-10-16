@@ -11,14 +11,13 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
 
-        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListWorkersQuery));
         var paging = Paging.Start(
             "ListWorkers",
             "last_seen_at_utc desc, id desc",
             [CursorKeyKind.Utc, CursorKeyKind.Int],
             query.Cursor,
             query.PageSize,
-            [("ns", jobNamespace), ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)), ("tags", tags)]
+            [("ns", jobNamespace), ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture))]
         );
 
         var (rows, total) = await session.QueryPageAsync(
@@ -27,7 +26,6 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.StatusCode, query.Status));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorLastSeenAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorIntId, (int?)paging.After?[1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

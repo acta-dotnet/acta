@@ -21,7 +21,6 @@ BEGIN
         DECLARE @rows INT = 0;
         DECLARE @next_job_id BIGINT = 0;
         DECLARE @del TABLE (id BIGINT NOT NULL);
-        DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
         DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
         DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
@@ -87,15 +86,8 @@ BEGIN
                     ELSE @slice_end
                 END;
 
-                DELETE @schedule_del;
-                INSERT INTO @schedule_del (id)
-                SELECT s.id FROM {{schema}}.schedules s WITH (UPDLOCK, FORCESEEK)
-                WHERE s.job_id IN (SELECT id FROM @del);
-
                 DELETE FROM {{schema}}.tags
-                WHERE
-                    (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del))
-                    OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_del));
+                WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del);
 
                 -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
                 -- the whole child table under update locks
@@ -121,8 +113,6 @@ BEGIN
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
                 ORDER BY created_at_utc, id;
-                DELETE FROM {{schema}}.tags
-                WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @del);
                 DELETE e FROM {{schema}}.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
@@ -164,8 +154,6 @@ BEGIN
                 INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
                 WHERE d.deduplication_key IS NULL;
 
-                DELETE FROM {{schema}}.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
                 DELETE a
                 FROM {{schema}}.alerts a WITH (FORCESEEK)
                 INNER JOIN @alert_locked l ON l.id = a.id
@@ -215,8 +203,6 @@ BEGIN
                 INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
                 WHERE d.deduplication_key IS NULL;
 
-                DELETE FROM {{schema}}.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
                 DELETE a
                 FROM {{schema}}.alerts a WITH (FORCESEEK)
                 INNER JOIN @alert_locked l ON l.id = a.id
@@ -260,8 +246,6 @@ BEGIN
                     AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
                     AND last_seen_at_utc <= @p_cutoff_utc
                 ORDER BY last_seen_at_utc, id;
-                DELETE FROM {{schema}}.tags
-                WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM @del);
                 DELETE w FROM {{schema}}.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 

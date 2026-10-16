@@ -6,7 +6,6 @@
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
   import ChangeHistory from '../components/ChangeHistory.svelte';
-  import TagEditor from '../components/TagEditor.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import JobRef from '../components/JobRef.svelte';
   import Icon from '../components/Icon.svelte';
@@ -134,8 +133,6 @@
             <a href={routes.alerts({ namespace: worker.jobNamespace })}>Namespace alerts</a>
           </nav>
         </section>
-
-        <TagEditor path={`workers/${encodeURIComponent(worker.workerRef)}/tags`} />
       </aside>
     </div>
   {:else}

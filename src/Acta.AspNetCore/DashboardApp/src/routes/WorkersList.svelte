@@ -10,7 +10,6 @@
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import { now } from '../time';
   import { createUrlFilters } from '../urlFilters.ts';
-  import { parseTagTokens } from '../lib/tagTokens.ts';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
   import { displayFormatter } from '../format.ts';
@@ -31,13 +30,12 @@
 
   const statuses = ['', 'Active', 'Draining', 'Stopped', 'Dead'];
   const initial = hashParams();
-  const filters = createUrlFilters({ status: 'status', tags: 'tags' }, { status: '', tags: '' });
+  const filters = createUrlFilters({ status: 'status' }, { status: '' });
 
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
-      $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
-      $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
+      $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
   function clearAllFilters() {
@@ -79,13 +77,6 @@
           {/each}
         </select>
       </label>
-      <label>
-        Tags
-        <input
-          placeholder="env:prod team"
-          value={$filters.tags}
-          onchange={(event) => filters.patch({ tags: event.currentTarget.value.trim() })} />
-      </label>
     </FilterBar>
 
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />
@@ -103,7 +94,7 @@
       endpoint="workers"
       mobileCards={true}
       {columns}
-      filters={() => ({ status: $filters.status, jobNamespace: $scope, tag: parseTagTokens($filters.tags) })}
+      filters={() => ({ status: $filters.status, jobNamespace: $scope })}
       includeTotal={true}
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}

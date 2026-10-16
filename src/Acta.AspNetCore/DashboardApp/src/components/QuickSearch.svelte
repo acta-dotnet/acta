@@ -161,9 +161,7 @@
         ['Jobs', 'jobs', 'cube'],
         ['Tenants', 'tenants', 'person'],
         ['Definitions', 'definitions', 'reader'],
-        ['Namespaces', 'namespaces', 'layers'],
-        ['Schedules', 'schedules', 'calendar'],
-        ['Workers', 'workers', 'desktop']
+        ['Namespaces', 'namespaces', 'layers']
       ];
       for (const [label, path, icon] of tagged) {
         out.push({ id: 'tag:' + path, group: 'Tagged ' + rec.token, icon, label: label + ' tagged ' + rec.token, href: hashHref(path, { ns: ns || undefined, tags: rec.token }) });

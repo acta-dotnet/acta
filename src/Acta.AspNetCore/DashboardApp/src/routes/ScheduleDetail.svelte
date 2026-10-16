@@ -10,7 +10,6 @@
   import ScheduleControls from '../components/ScheduleControls.svelte';
   import RelativeTime from '../components/RelativeTime.svelte';
   import ChangeHistory from '../components/ChangeHistory.svelte';
-  import TagEditor from '../components/TagEditor.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import PageFreshness from '../components/PageFreshness.svelte';
   import { mergeHistory, type HistoryEvent } from '../components/changeHistory.ts';
@@ -188,8 +187,6 @@
             <a href={definitionHref}>Definition</a>
           </nav>
         </section>
-
-        <TagEditor path={`schedules/${encodeURIComponent(schedule.jobNamespace)}/${encodeURIComponent(schedule.jobName)}/${encodeURIComponent(schedule.scheduleName)}/tags`} />
       </aside>
     </div>
   {/if}

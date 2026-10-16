@@ -29,9 +29,6 @@ public sealed class TagEndpointTests
             {
                 $"jobs/{Found}/tags",
                 "definitions/billing/send-invoice/tags",
-                "schedules/billing/send-invoice/nightly/tags",
-                $"workers/{WorkerRef.New()}/tags",
-                $"alerts/{AlertRef.New()}/tags",
                 "namespaces/billing/tags",
                 "tenants/acme/tags",
             }
@@ -220,18 +217,5 @@ public sealed class TagEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(fakes.Ledger.LastJobsQuery?.Tags);
         Assert.Equal([new TagFilter("env", "prod"), new TagFilter("team")], fakes.Ledger.LastJobsQuery!.Tags);
-    }
-
-    [Fact]
-    public async Task Events_list_binds_repeated_tag_filters()
-    {
-        var fakes = new FakeOperations();
-        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
-        await using var _ = app;
-
-        var response = await client.GetAsync("/acta/api/v1/events?tag=env:prod", TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal([new TagFilter("env", "prod")], fakes.Ledger.LastEventsQuery!.Tags);
     }
 }

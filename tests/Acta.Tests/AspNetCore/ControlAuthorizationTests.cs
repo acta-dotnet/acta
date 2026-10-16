@@ -218,25 +218,6 @@ public sealed class ControlAuthorizationTests
         Assert.Equal("requeue", Assert.Single(fakes.Outbox.ControlCalls).Verb);
     }
 
-    // A worker-tag control route keeps its `workers` entity even though the mount prefix contains `jobs`.
-    [Fact]
-    public async Task Worker_tag_control_route_derives_a_workers_verb()
-    {
-        var authorizer = new FakeAuthorizer(_ => ActaControlVerdict.Allowed);
-        var (app, client) = await TestDashboardHost.StartAsync(
-            options => options.EnableControls = true,
-            configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer)
-        );
-        await using var _ = app;
-
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/workers/42/tags");
-        request.Headers.Add(Confirm, "true");
-        request.Content = JsonContent.Create(new { name = "env", value = "prod" });
-        await client.SendAsync(request, TestContext.Current.CancellationToken);
-
-        Assert.StartsWith("workers.", Assert.Single(authorizer.Requests).Verb);
-    }
-
     // Hosts allowlist on these names, so every control route must derive its own, and the set must be
     // the one the operator guide publishes.
     [Fact]

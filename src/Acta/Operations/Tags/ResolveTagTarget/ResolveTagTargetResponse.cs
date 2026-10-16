@@ -3,8 +3,8 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary>
-/// A tag target the SQL can find: its scope plus the row id the tags table joins on, or, for tenants,
-/// namespaces, and schedules, the name it carries.
+/// A tag target the SQL can find: its scope plus the row id the tags table joins on, or, for tenants and
+/// namespaces, the name it carries.
 /// </summary>
 internal sealed record ResolveTagTargetResponse(TagScopeCode ScopeCode, long? LookupId, string? LookupName)
 {

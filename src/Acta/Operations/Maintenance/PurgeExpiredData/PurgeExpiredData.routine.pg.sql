@@ -71,12 +71,10 @@ BEGIN
             ELSE v_slice_end
         END;
         IF v_rows > 0 THEN
-            PERFORM 1 FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids) ORDER BY s.id FOR UPDATE;
-            DELETE FROM {{schema}}.tags t
+            DELETE FROM {{schema}}.tags
             WHERE
-                (t.scope_code = 50 /* TagScopeCode.Job */ AND t.scope_id = ANY(v_ids))
-                OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (
-                    SELECT s.id FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids)));
+                scope_code = 50 /* TagScopeCode.Job */
+                AND scope_id = ANY(v_ids);
             DELETE FROM {{schema}}.jobs j WHERE j.id = ANY(v_ids);
             DELETE FROM {{schema}}.runtimes r WHERE r.job_id = ANY(v_ids);
         END IF;
@@ -92,10 +90,6 @@ BEGIN
             FOR UPDATE SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
         IF v_rows > 0 THEN
-            DELETE FROM {{schema}}.tags
-            WHERE
-                scope_code = 90 /* TagScopeCode.Event */
-                AND scope_id = ANY(v_ids);
             DELETE FROM {{schema}}.events WHERE id = ANY(v_ids);
         END IF;
 
@@ -111,10 +105,6 @@ BEGIN
             FOR UPDATE SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
         IF v_rows > 0 THEN
-            DELETE FROM {{schema}}.tags
-            WHERE
-                scope_code = 80 /* TagScopeCode.Alert */
-                AND scope_id = ANY(v_ids);
             DELETE FROM {{schema}}.alerts WHERE id = ANY(v_ids);
         END IF;
 
@@ -130,10 +120,6 @@ BEGIN
             FOR UPDATE SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
         IF v_rows > 0 THEN
-            DELETE FROM {{schema}}.tags
-            WHERE
-                scope_code = 80 /* TagScopeCode.Alert */
-                AND scope_id = ANY(v_ids);
             DELETE FROM {{schema}}.alerts WHERE id = ANY(v_ids);
         END IF;
 
@@ -167,10 +153,6 @@ BEGIN
             FOR UPDATE SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
         IF v_rows > 0 THEN
-            DELETE FROM {{schema}}.tags
-            WHERE
-                scope_code = 70 /* TagScopeCode.Worker */
-                AND scope_id = ANY(v_ids);
             DELETE FROM {{schema}}.workers WHERE id = ANY(v_ids);
         END IF;
 

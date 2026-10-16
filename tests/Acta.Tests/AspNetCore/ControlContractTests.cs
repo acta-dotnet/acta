@@ -36,7 +36,6 @@ public sealed class ControlContractTests
     private static readonly string Blocked = FakeJobs.RejectedJobRef.ToString();
     private static readonly string KnownAlert = FakeAlerts.KnownAlertRef.ToString();
     private static readonly string UnknownAlert = default(AlertRef).ToString();
-    private static readonly string KnownWorker = FakeWorkers.KnownWorkerRef.ToString();
 
     /// <summary>The shared error model every route under the API group declares.</summary>
     private static readonly Type Problem = typeof(Microsoft.AspNetCore.Mvc.ProblemDetails);
@@ -119,9 +118,6 @@ public sealed class ControlContractTests
         .. TenantRegistration(),
         .. Tags("/jobs/{jobRef}", $"/jobs/{Found}"),
         .. Tags("/definitions/{jobNamespace}/{jobName}", "/definitions/billing/send-invoice"),
-        .. Tags("/schedules/{jobNamespace}/{jobName}/{scheduleName}", "/schedules/billing/send-invoice/nightly"),
-        .. Tags("/workers/{workerRef}", $"/workers/{KnownWorker}"),
-        .. Tags("/alerts/{alertRef}", $"/alerts/{KnownAlert}"),
         .. Tags("/namespaces/{jobNamespace}", "/namespaces/billing"),
         .. Tags("/tenants/{tenantName}", "/tenants/cust-001"),
         .. MalformedRefs(),
@@ -186,8 +182,6 @@ public sealed class ControlContractTests
             Row("alerts", "/alerts/{alertRef}/acknowledge", "POST", "/alerts/not-a-ref/acknowledge", Reason),
             Row("alerts", "/alerts/{alertRef}/resolve", "POST", "/alerts/not-a-ref/resolve", Reason),
             Row("tags", "/jobs/{jobRef}/tags", "POST", "/jobs/not-a-ref/tags", upsert),
-            Row("tags", "/workers/{workerRef}/tags", "POST", "/workers/not-a-ref/tags", upsert),
-            Row("tags", "/alerts/{alertRef}/tags", "POST", "/alerts/not-a-ref/tags", upsert),
         ];
     }
 

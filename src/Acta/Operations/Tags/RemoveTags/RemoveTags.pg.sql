@@ -27,30 +27,6 @@ FROM {{schema}}.jobs j
 WHERE @p_scope_code = 50 /* TagScopeCode.Job */ AND j.id = @p_lookup_id
 FOR UPDATE;
 
-INSERT INTO _remove_tags_target (scope_id, namespace_id)
-SELECT s.id, s.namespace_id
-FROM {{schema}}.schedules s
-WHERE @p_scope_code = 60 /* TagScopeCode.Schedule */ AND s.job_id = @p_lookup_id AND s.name = @p_lookup_name
-FOR UPDATE;
-
-INSERT INTO _remove_tags_target (scope_id, namespace_id)
-SELECT w.id, w.namespace_id
-FROM {{schema}}.workers w
-WHERE @p_scope_code = 70 /* TagScopeCode.Worker */ AND w.id = @p_lookup_id
-FOR UPDATE;
-
-INSERT INTO _remove_tags_target (scope_id, namespace_id)
-SELECT a.id, a.namespace_id
-FROM {{schema}}.alerts a
-WHERE @p_scope_code = 80 /* TagScopeCode.Alert */ AND a.id = @p_lookup_id
-FOR UPDATE;
-
-INSERT INTO _remove_tags_target (scope_id, namespace_id)
-SELECT e.id, e.namespace_id
-FROM {{schema}}.events e
-WHERE @p_scope_code = 90 /* TagScopeCode.Event */ AND e.id = @p_lookup_id
-FOR UPDATE;
-
 DELETE FROM {{schema}}.tags t
 USING _remove_tags_target x CROSS JOIN jsonb_array_elements(@p_items_json::JSONB) item
 WHERE t.scope_code = @p_scope_code AND t.scope_id = x.scope_id AND t.name = item->>'name';

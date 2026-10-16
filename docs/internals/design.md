@@ -187,7 +187,7 @@ The terms for internal structure; where each piece lives is [`source-layout.md`]
 - **Adapter:** a project that connects an external technology: the providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
 - **Manifest:** the generated per-assembly set of job descriptors (`{Area}JobsManifest : IJobManifest`). The word is reserved for that.
 - **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the folder tree.
-- **Tags follow the shared-substrate model:** each target's owner owns its tag rows by scope, the physical `tags` table is one partitioned substrate, and every write goes through the Tags group's SQL under the ownership map. There is no tag-metadata API in front of it. *Reason:* tags span every target type by design; a boundary around a table everyone joins would be theatre.
+- **Tags follow the shared-substrate model:** each target's owner owns its tag rows by scope, the physical `tags` table is one partitioned substrate, and every write goes through the Tags group's SQL under the ownership map. There is no tag-metadata API in front of it. *Reason:* tags span tenants, namespaces, definitions, and jobs; a boundary around a table all four join would be theatre.
 
 ### Provider contract
 

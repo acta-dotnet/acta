@@ -14,7 +14,6 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
         QueryValidation.ValidatePositiveId(query.JobId, nameof(query.JobId));
 
         var unresolvedOnly = query.UnresolvedOnly == true ? true : (bool?)null;
-        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListAlertsQuery));
         var paging = Paging.Start(
             "ListAlerts",
             "created_at_utc desc, id desc",
@@ -28,7 +27,6 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
                 ("sev", ((byte?)query.SeverityAtLeast)?.ToString(CultureInfo.InvariantCulture)),
                 ("delivery", ((byte?)query.DeliveryStatus)?.ToString(CultureInfo.InvariantCulture)),
                 ("ack", query.AcknowledgedOnly?.ToString()),
-                ("tags", tags),
             ]
         );
 
@@ -42,7 +40,6 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.SeverityCode, query.SeverityAtLeast));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, query.DeliveryStatus));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AcknowledgedFilter, query.AcknowledgedOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)paging.After?[1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

@@ -22,21 +22,11 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN {{schema}}.definitions d ON d.id = j.definition_id
 WHERE j.id = @p_id;
 
-DROP TABLE IF EXISTS temp._purge_schedules;
-DROP TABLE IF EXISTS temp._purge_alerts;
-DROP TABLE IF EXISTS temp._purge_events;
-
-CREATE TEMP TABLE _purge_schedules AS SELECT id FROM {{schema}}.schedules WHERE job_id = @p_id;
-CREATE TEMP TABLE _purge_alerts AS SELECT id FROM {{schema}}.alerts WHERE job_id = @p_id;
-CREATE TEMP TABLE _purge_events AS SELECT id FROM {{schema}}.events WHERE job_id = @p_id;
-
 DELETE FROM {{schema}}.tags
 WHERE
-    EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0)
-    AND ((scope_code = 50 /* TagScopeCode.Job */ AND scope_id = @p_id)
-        OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM temp._purge_schedules))
-        OR (scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_alerts))
-        OR (scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM temp._purge_events)));
+    scope_code = 50 /* TagScopeCode.Job */
+    AND scope_id = @p_id
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
 DELETE FROM {{schema}}.events
 WHERE

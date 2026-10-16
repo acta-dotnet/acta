@@ -27,16 +27,6 @@ WHERE
     AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
     AND (@p_delivery_status_code IS NULL OR a.delivery_status_code = @p_delivery_status_code)
     AND (@p_acknowledged IS NULL OR (a.acknowledged_at_utc IS NOT NULL) = @p_acknowledged)
-    AND (@p_tag_filters IS NULL OR NOT EXISTS (
-        SELECT 1 FROM JSON_EACH(@p_tag_filters) f
-        WHERE NOT EXISTS (
-            SELECT 1 FROM {{schema}}.tags tg
-            WHERE
-                tg.scope_code = 80 /* TagScopeCode.Alert */ AND tg.scope_id = a.id
-                AND tg.name = JSON_EXTRACT(f.value, '$.name')
-                AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
-        )
-    ))
     AND (
         @p_cursor_created_at_utc IS NULL
         OR a.created_at_utc < @p_cursor_created_at_utc
@@ -56,14 +46,4 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
         AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
         AND (@p_delivery_status_code IS NULL OR a.delivery_status_code = @p_delivery_status_code)
         AND (@p_acknowledged IS NULL OR (a.acknowledged_at_utc IS NOT NULL) = @p_acknowledged)
-        AND (@p_tag_filters IS NULL OR NOT EXISTS (
-            SELECT 1 FROM JSON_EACH(@p_tag_filters) f
-            WHERE NOT EXISTS (
-                SELECT 1 FROM {{schema}}.tags tg
-                WHERE
-                    tg.scope_code = 80 /* TagScopeCode.Alert */ AND tg.scope_id = a.id
-                    AND tg.name = JSON_EXTRACT(f.value, '$.name')
-                    AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
-            )
-        ))
 ) END;

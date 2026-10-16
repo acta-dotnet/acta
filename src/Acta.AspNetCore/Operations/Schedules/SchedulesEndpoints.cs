@@ -4,8 +4,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Schedules routes: the list, a schedule's preview and tags, and pause, resume, trigger, and the overrides
-/// update. A schedule is addressed by its natural key, the namespace, job name, and schedule name.
+/// The Schedules routes: the list, a schedule's preview, and pause, resume, trigger, and the overrides update. A schedule is addressed by its natural key, the namespace, job name, and schedule name.
 /// </summary>
 internal static class SchedulesEndpoints
 {
@@ -22,8 +21,7 @@ internal static class SchedulesEndpoints
                 LiveOnly: query.Bool("liveOnly") ?? true,
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
-                IncludeTotal: query.Bool("includeTotal") ?? false,
-                Tags: query.Tags()
+                IncludeTotal: query.Bool("includeTotal") ?? false
             ),
             static (call, query) => call.Operations.Schedules.ListAsync(query, call.Ct),
             [
@@ -42,7 +40,6 @@ internal static class SchedulesEndpoints
                 ),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
             ]
         );
         reads
@@ -59,14 +56,6 @@ internal static class SchedulesEndpoints
                     )
             )
             .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")]);
-        reads.MapTags(
-            controls,
-            "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
-            "schedule",
-            options,
-            DashboardJsonContext.Default.UpsertScheduleTagsRequest,
-            static http => TagTarget.ForSchedule(Key(http))
-        );
         if (controls is null)
         {
             return;

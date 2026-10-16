@@ -1620,7 +1620,7 @@
 ### Purge reaps expired jobs events alerts and terminal workers within batches
 - **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
 - **Guarantees:**
-  - Job retention deletes job tags but preserves surviving alert and event tags
+  - Job retention deletes the job's tags with the job
   - A future-retention job stamped with the default window survives the purge
   - Expired events are deleted and recent events are kept
   - Stopped and Dead workers are both reaped while an Active worker is kept
@@ -2032,13 +2032,12 @@
 ### Tags read and mutate all first-class targets and filter typed queries
 - **Contract:** ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.
 - **Guarantees:**
-  - All eight existing targets read empty while missing targets read null and mutate NotFound
+  - All four existing targets read empty while missing targets read null and mutate NotFound
   - The seeded sys namespace supports tag reads and mutations
   - Replace is atomic and clearable; upsert and remove are idempotent and reads are name ordered
-  - Tenant, namespace, definition, job, schedule, worker, alert, and event lists use AND tag semantics
+  - Tenant, namespace, definition, and job lists use AND tag semantics
   - A deduplicated enqueue preserves the existing job's tags
-  - Mutating event tags writes no audit event
-  - Manual purge removes job, schedule, alert, and event tags before deleting their targets
+  - Manual purge removes the job's tags before deleting the job
   - Concurrent tag mutation and target deletion converge without orphan tags
 
 ### Upsert inserts or overwrites one tag and leaves the others alone

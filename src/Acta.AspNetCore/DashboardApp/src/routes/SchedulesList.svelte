@@ -13,7 +13,6 @@
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import { now } from '../time';
   import { createUrlFilters } from '../urlFilters.ts';
-  import { parseTagTokens } from '../lib/tagTokens.ts';
   import { schedulesListSql, COPY_SQL_TITLE } from '../lib/copyAsSql.ts';
   import CopyButton from '../components/CopyButton.svelte';
   import { routes } from '../routes.ts';
@@ -32,14 +31,13 @@
   }
 
   const initial = hashParams();
-  const filters = createUrlFilters({ jobName: 'jobName', live: 'live', tags: 'tags' }, { jobName: '', live: '1', tags: '' });
+  const filters = createUrlFilters({ jobName: 'jobName', live: 'live' }, { jobName: '', live: '1' });
 
   // liveOnly is a view toggle rather than a removable filter, so it stays out of the chip bar.
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
-      $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null,
-      $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
+      $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
   function clearAllFilters() {
@@ -49,8 +47,7 @@
 
   const capabilities = createQuery(() => capabilitiesQuery());
 
-  // The applied filters as ad-hoc SQL against the schedules operator view (mirrors the grid filters
-  // below; tags are omitted, they are not a schedules_view column).
+  // The applied filters as ad-hoc SQL against the schedules operator view (mirrors the grid filters below).
   let copySql = $derived(
     schedulesListSql(
       { namespace: $scope, jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0' },
@@ -101,10 +98,6 @@
           onchange={(event) => filters.patch({ jobName: event.currentTarget.value.trim() })} />
       </label>
       <label>
-        Tags
-        <input placeholder="env:prod team" value={$filters.tags} onchange={(event) => filters.patch({ tags: event.currentTarget.value.trim() })} />
-      </label>
-      <label>
         <input type="checkbox" checked={$filters.live !== '0'} onchange={(event) => filters.patch({ live: event.currentTarget.checked ? '1' : '0' })} />
         Live only
       </label>
@@ -143,7 +136,7 @@
       endpoint="schedules"
       mobileCards={true}
       {columns}
-      filters={() => ({ jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0', jobNamespace: $scope, tag: parseTagTokens($filters.tags) })}
+      filters={() => ({ jobName: $scope ? $filters.jobName.trim() : '', liveOnly: $filters.live !== '0', jobNamespace: $scope })}
       includeTotal={true}
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}

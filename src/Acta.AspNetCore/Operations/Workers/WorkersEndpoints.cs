@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>The Workers routes: the list, one worker, and its tags.</summary>
+/// <summary>The Workers routes: the list and one worker.</summary>
 internal static class WorkersEndpoints
 {
-    public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
+    public static void Map(RouteGroupBuilder reads)
     {
         reads.MapList(
             "/workers",
@@ -16,8 +16,7 @@ internal static class WorkersEndpoints
                 Status: query.Enum<WorkerStatusCode>("status"),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
-                IncludeTotal: query.Bool("includeTotal") ?? false,
-                Tags: query.Tags()
+                IncludeTotal: query.Bool("includeTotal") ?? false
             ),
             static (call, query) => call.Operations.Workers.ListAsync(query, call.Ct),
             [
@@ -30,7 +29,6 @@ internal static class WorkersEndpoints
                 ),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
             ]
         );
         reads.MapDetail(
@@ -39,14 +37,6 @@ internal static class WorkersEndpoints
             "Worker",
             DashboardJsonContext.Default.GetWorkerResponse,
             static (http, call) => call.Operations.Workers.GetAsync(RouteKeys.Worker(http), call.Ct)
-        );
-        reads.MapTags(
-            controls,
-            "/workers/{workerRef}/tags",
-            "worker",
-            options,
-            DashboardJsonContext.Default.UpsertWorkerTagsRequest,
-            static http => TagTarget.ForWorker(RouteKeys.Worker(http))
         );
     }
 }

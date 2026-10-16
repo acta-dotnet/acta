@@ -57,11 +57,7 @@ WHERE
 ORDER BY r.job_id DESC
 LIMIT @p_batch_size;
 
-DELETE FROM {{schema}}.tags
-WHERE
-    (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM temp._purge_jobs))
-    OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (
-        SELECT s.id FROM {{schema}}.schedules s WHERE s.job_id IN (SELECT id FROM temp._purge_jobs)));
+DELETE FROM {{schema}}.tags WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM temp._purge_jobs);
 
 DELETE FROM {{schema}}.jobs WHERE id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.runtimes WHERE job_id IN (SELECT id FROM temp._purge_jobs);
@@ -76,7 +72,6 @@ WHERE
 ORDER BY created_at_utc, id
 LIMIT @p_batch_size;
 
-DELETE FROM {{schema}}.tags WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM temp._purge_events);
 DELETE FROM {{schema}}.events WHERE id IN (SELECT id FROM temp._purge_events);
 
 CREATE TEMP TABLE _purge_alerts AS
@@ -90,7 +85,6 @@ WHERE
 ORDER BY created_at_utc, id
 LIMIT @p_batch_size;
 
-DELETE FROM {{schema}}.tags WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_alerts);
 DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_alerts);
 
 -- The hard cap: past the window an alert goes whether delivery settled or not, so a stuck row is not
@@ -107,8 +101,6 @@ WHERE
 ORDER BY created_at_utc, id
 LIMIT @p_batch_size;
 
-DELETE FROM {{schema}}.tags
-WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_undelivered_alerts);
 DELETE FROM {{schema}}.alerts WHERE id IN (SELECT id FROM temp._purge_undelivered_alerts);
 
 -- sys.alerts records one poison-skip variable per unprojectable event on its own recurring slot
@@ -141,7 +133,6 @@ WHERE
 ORDER BY last_seen_at_utc, id
 LIMIT @p_batch_size;
 
-DELETE FROM {{schema}}.tags WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM temp._purge_workers);
 DELETE FROM {{schema}}.workers WHERE id IN (SELECT id FROM temp._purge_workers);
 
 CREATE TEMP TABLE _purge_locks AS

@@ -534,8 +534,6 @@ route carries two mutations the method says which, as in `tags.add` and `tags.re
 ```text
 alerts.acknowledge
 alerts.resolve
-alerts.tags.add
-alerts.tags.remove
 cancel
 definitions.retire
 definitions.tags.add
@@ -559,8 +557,6 @@ resume
 schedules.overrides
 schedules.pause
 schedules.resume
-schedules.tags.add
-schedules.tags.remove
 schedules.trigger
 signals
 tags.add
@@ -571,8 +567,6 @@ tenants.suspend
 tenants.tags.add
 tenants.tags.remove
 tenants.update
-workers.tags.add
-workers.tags.remove
 ```
 
 ## Retention and purge

@@ -1,8 +1,7 @@
--- One batch, one implicit transaction; only the final SELECT returns rows. Canonical deletion lock order:
--- the job's rows, then its schedules, alerts, and events, then tags. Every write waits on one decision row.
+-- One batch, one implicit transaction; only the final SELECT returns rows. The job's rows are locked first,
+-- and every write waits on one decision row.
 DROP TABLE IF EXISTS pg_temp._purge_job;
 DROP TABLE IF EXISTS pg_temp._purge_job_action;
-DROP TABLE IF EXISTS pg_temp._purge_job_locked;
 CREATE TEMP TABLE _purge_job (
     from_status SMALLINT NOT NULL,
     namespace_id INT NOT NULL,
@@ -13,7 +12,6 @@ CREATE TEMP TABLE _purge_job (
     parent_id BIGINT
 ) ON COMMIT DROP;
 CREATE TEMP TABLE _purge_job_action (action SMALLINT NOT NULL) ON COMMIT DROP;
-CREATE TEMP TABLE _purge_job_locked (id BIGINT NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _purge_job (from_status, namespace_id, definition_id, tenant_id, job_ref, job_name, parent_id)
 SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name, j.parent_id
@@ -44,33 +42,11 @@ SELECT
 FROM (SELECT 1) one
 LEFT JOIN _purge_job s ON true;
 
-INSERT INTO _purge_job_locked (id)
-SELECT s.id FROM {{schema}}.schedules s
-WHERE s.job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */)
-ORDER BY s.id
-FOR UPDATE;
-
-INSERT INTO _purge_job_locked (id)
-SELECT a.id FROM {{schema}}.alerts a
-WHERE a.job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action x WHERE x.action = 1 /* ControlAction.Applied */)
-ORDER BY a.id
-FOR UPDATE;
-
-INSERT INTO _purge_job_locked (id)
-SELECT e.id FROM {{schema}}.events e
-WHERE e.job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */)
-ORDER BY e.id
-FOR UPDATE;
-
-DELETE FROM {{schema}}.tags t
+DELETE FROM {{schema}}.tags
 WHERE
-    EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */)
-    AND (
-        (t.scope_code = 50 /* TagScopeCode.Job */ AND t.scope_id = @p_id)
-        OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (SELECT s.id FROM {{schema}}.schedules s WHERE s.job_id = @p_id))
-        OR (t.scope_code = 80 /* TagScopeCode.Alert */ AND t.scope_id IN (SELECT a.id FROM {{schema}}.alerts a WHERE a.job_id = @p_id))
-        OR (t.scope_code = 90 /* TagScopeCode.Event */ AND t.scope_id IN (SELECT e.id FROM {{schema}}.events e WHERE e.job_id = @p_id))
-    );
+    scope_code = 50 /* TagScopeCode.Job */
+    AND scope_id = @p_id
+    AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 
 DELETE FROM {{schema}}.events
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);

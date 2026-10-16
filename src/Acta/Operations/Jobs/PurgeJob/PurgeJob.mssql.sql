@@ -77,7 +77,6 @@ BEGIN TRY
         namespace_id INT NOT NULL,
         deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL
     );
-    DECLARE @event_ids TABLE (id BIGINT PRIMARY KEY);
 
     INSERT @schedule_ids SELECT id FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
     WHERE job_id = @p_id;
@@ -97,15 +96,9 @@ BEGIN TRY
                 AND a.id = i.id
         WHERE i.deduplication_key IS NOT NULL
     );
-    INSERT @event_ids SELECT id FROM {{schema}}.events WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-    WHERE job_id = @p_id;
 
     DELETE FROM {{schema}}.tags
-    WHERE
-        (scope_code = 50 /* TagScopeCode.Job */ AND scope_id = @p_id)
-        OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_ids))
-        OR (scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_ids))
-        OR (scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @event_ids));
+    WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id = @p_id;
 
     DELETE e FROM {{schema}}.events e WITH (FORCESEEK)
     WHERE e.job_id = @p_id;

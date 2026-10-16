@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace Acta;
 
 /// <summary>
@@ -33,22 +31,4 @@ public sealed class TagTarget
         );
 
     public static TagTarget ForJob(JobLookup job) => new(TagScopeCode.Job, job);
-
-    public static TagTarget ForSchedule(ScheduleLookup schedule)
-    {
-        ArgumentNullException.ThrowIfNull(schedule);
-        return new TagTarget(TagScopeCode.Schedule, schedule);
-    }
-
-    public static TagTarget ForWorker(WorkerRef workerRef) => new(TagScopeCode.Worker, workerRef);
-
-    public static TagTarget ForAlert(AlertRef alertRef) => new(TagScopeCode.Alert, alertRef);
-
-    public static TagTarget ForEvent(long eventId) => new(TagScopeCode.Event, Positive(eventId, nameof(eventId)));
-
-    private static T Positive<T>(T value, string paramName)
-        where T : INumber<T>
-    {
-        return value <= T.Zero ? throw new ArgumentOutOfRangeException(paramName, value, "Target id must be positive.") : value;
-    }
 }

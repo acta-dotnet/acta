@@ -28,16 +28,6 @@ WHERE
     AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     AND (@p_job_name IS NULL OR jd.name = @p_job_name)
     AND (@p_origin_code IS NULL OR s.origin_code = @p_origin_code)
-    AND (@p_tag_filters IS NULL OR NOT EXISTS (
-        SELECT 1 FROM JSON_EACH(@p_tag_filters) f
-        WHERE NOT EXISTS (
-            SELECT 1 FROM {{schema}}.tags tg
-            WHERE
-                tg.scope_code = 60 /* TagScopeCode.Schedule */ AND tg.scope_id = s.id
-                AND tg.name = JSON_EXTRACT(f.value, '$.name')
-                AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
-        )
-    ))
     AND (
         @p_cursor_next_run_at_utc IS NULL
         OR s.next_run_at_utc > @p_cursor_next_run_at_utc
@@ -57,14 +47,4 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
         AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
         AND (@p_job_name IS NULL OR jd.name = @p_job_name)
         AND (@p_origin_code IS NULL OR s.origin_code = @p_origin_code)
-        AND (@p_tag_filters IS NULL OR NOT EXISTS (
-            SELECT 1 FROM JSON_EACH(@p_tag_filters) f
-            WHERE NOT EXISTS (
-                SELECT 1 FROM {{schema}}.tags tg
-                WHERE
-                    tg.scope_code = 60 /* TagScopeCode.Schedule */ AND tg.scope_id = s.id
-                    AND tg.name = JSON_EXTRACT(f.value, '$.name')
-                    AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
-            )
-        ))
 ) END;

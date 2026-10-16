@@ -85,8 +85,7 @@ internal static class LedgerEndpoints
                             CreatedFromUtc: query.DateTime("createdFromUtc"),
                             CreatedToUtc: query.DateTime("createdToUtc"),
                             PageSize: query.Int("pageSize"),
-                            Cursor: query.Text("cursor"),
-                            Tags: query.Tags()
+                            Cursor: query.Text("cursor")
                         ),
                         Job: query.Job("jobRef", options),
                         Lineage: query.Job("lineageRootJobRef", options),
@@ -133,7 +132,6 @@ internal static class LedgerEndpoints
                         QueryParameterKind.Bool,
                         "Also compute the row count; this endpoint accepts it only together with jobRef."
                     ),
-                    .. QueryParameterDocExtensions.TagFilter,
                 ]
             )
             .ProducesProblem(StatusCodes.Status404NotFound);

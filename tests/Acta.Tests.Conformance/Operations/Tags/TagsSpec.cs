@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Operations.Tags;
 )]
 public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    [Fact(DisplayName = "All eight existing targets read empty while missing targets read null and mutate NotFound")]
+    [Fact(DisplayName = "All four existing targets read empty while missing targets read null and mutate NotFound")]
     public async Task Missing_and_empty_are_distinct_for_every_target()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -104,7 +104,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         }
     }
 
-    [Fact(DisplayName = "Tenant, namespace, definition, job, schedule, worker, alert, and event lists use AND tag semantics")]
+    [Fact(DisplayName = "Tenant, namespace, definition, and job lists use AND tag semantics")]
     public async Task Typed_lists_filter_all_targets_with_and_semantics()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -151,34 +151,6 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             (await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
             x => x.JobId == targets.JobId
         );
-
-        var schedules = await Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, Tags: filters), ct);
-        Assert.Contains(schedules.Items, x => x.JobScheduleId == targets.ScheduleId);
-        Assert.DoesNotContain(
-            (await Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
-            x => x.JobScheduleId == targets.ScheduleId
-        );
-
-        var workers = await Operations.Workers.ListAsync(new ListWorkersQuery(JobNamespace: TestNamespace, Tags: filters), ct);
-        Assert.Contains(workers.Items, x => x.WorkerId == targets.WorkerId);
-        Assert.DoesNotContain(
-            (await Operations.Workers.ListAsync(new ListWorkersQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
-            x => x.WorkerId == targets.WorkerId
-        );
-
-        var alerts = await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
-        Assert.Contains(alerts.Items, x => x.AlertId == targets.AlertId);
-        Assert.DoesNotContain(
-            (await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
-            x => x.AlertId == targets.AlertId
-        );
-
-        var events = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace, Tags: filters), ct);
-        Assert.Contains(events.Items, x => x.JobEventId == targets.EventId);
-        Assert.DoesNotContain(
-            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobNamespace: TestNamespace, Tags: mismatch), ct)).Items,
-            x => x.JobEventId == targets.EventId
-        );
     }
 
     [Fact(DisplayName = "A deduplicated enqueue preserves the existing job's tags")]
@@ -214,81 +186,24 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         Assert.Equal([new GetTagsItem("version", "first")], tags.Items);
     }
 
-    [Fact(DisplayName = "Mutating event tags writes no audit event")]
-    public async Task Event_tag_mutation_is_an_external_annotation_without_audit()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var targets = await CreateTargetsAsync(ct);
-        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var before = await Db.From<EventEntity>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct);
-
-        Assert.Equal(
-            TagMutationAction.Applied,
-            (await Operations.Tags.UpsertAsync(TagTarget.ForEvent(targets.EventId), new TagInput("triage", "reviewed"), ct: ct)).Action
-        );
-
-        Assert.Equal(before, await Db.From<EventEntity>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct));
-    }
-
-    [Fact(DisplayName = "Manual purge removes job, schedule, alert, and event tags before deleting their targets")]
-    public async Task Manual_purge_cleans_every_affected_tag_scope()
+    [Fact(DisplayName = "Manual purge removes the job's tags before deleting the job")]
+    public async Task Manual_purge_cleans_the_job_tags()
     {
         var ct = TestContext.Current.CancellationToken;
         var lookup = JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping");
         var jobId = Assert.IsType<long>((await Jobs.GetJobIdAsync(lookup, ct))?.JobId);
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var schedule = Assert.Single(
-            await Db.From<ScheduleEntity>().Where(x => x.JobId == jobId && x.Name == "every-5-minutes").ToListAsync(ct)
-        );
 
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
-        await AlertTestOps.RaiseAsync(
-            Services,
-            TestNamespace,
-            jobId,
-            AlertOriginCode.Manual,
-            AlertSeverityCode.Info,
-            AlertKindCode.Manual,
-            "purge tags spec",
-            "purge tags spec",
-            "default",
-            AlertDeliveryStatusCode.Pending,
-            null,
-            ct
+        Assert.Equal(
+            TagMutationAction.Applied,
+            (await Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("purge-me"), ct: ct)).Action
         );
-        var alert = Assert.Single(await Db.From<AlertEntity>().Where(x => x.JobId == jobId).ToListAsync(ct));
-        var eventRows = await Db.From<EventEntity>().Where(x => x.JobId == jobId).ToListAsync(ct);
-        Assert.NotEmpty(eventRows);
-        var eventId = eventRows.Max(x => x.Id);
-
-        TagTarget[] targets =
-        [
-            TagTarget.ForJob(lookup),
-            TagTarget.ForSchedule(new ScheduleLookup(lookup, schedule.Name)),
-            TagTarget.ForAlert(new AlertRef(alert.AlertRef)),
-            TagTarget.ForEvent(eventId),
-        ];
-        foreach (var target in targets)
-        {
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput("purge-me"), ct: ct)).Action);
-        }
 
         Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
 
         Assert.Null(await Db.From<JobEntity>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<ScheduleEntity>().Where(x => x.Id == schedule.Id).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<AlertEntity>().Where(x => x.Id == alert.Id).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<EventEntity>().Where(x => x.Id == eventId).SingleOrDefaultAsync(ct));
-        Assert.Empty(
-            await Db.From<TagEntity>()
-                .Where(x =>
-                    (x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId)
-                    || (x.ScopeCode == TagScopeCode.Schedule && x.ScopeId == schedule.Id)
-                    || (x.ScopeCode == TagScopeCode.Alert && x.ScopeId == alert.Id)
-                    || (x.ScopeCode == TagScopeCode.Event && x.ScopeId == eventId)
-                )
-                .ToListAsync(ct)
-        );
+        Assert.Empty(await Db.From<TagEntity>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
 
         var purgeAudit = await Db.From<EventEntity>()
             .Where(x => x.NamespaceId == namespaceId && x.EventCode == EventCode.JobPurged)
@@ -323,50 +238,18 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var definition = Assert.Single(
             await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "add-numbers").ToListAsync(ct)
         );
-        var worker = Assert.Single(await Db.From<WorkerEntity>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct));
 
         var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
-
-        var schedule = Assert.Single(
-            await Db.From<ScheduleEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "every-5-minutes").ToListAsync(ct)
-        );
-
-        await AlertTestOps.RaiseAsync(
-            Services,
-            TestNamespace,
-            job.JobId,
-            AlertOriginCode.Manual,
-            AlertSeverityCode.Info,
-            AlertKindCode.Manual,
-            "tags spec",
-            "tags spec",
-            "default",
-            AlertDeliveryStatusCode.Pending,
-            null,
-            ct
-        );
-        var alert = Assert.Single(await Db.From<AlertEntity>().Where(x => x.JobId == job.JobId).ToListAsync(ct));
-        var events = await Db.From<EventEntity>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct);
-        Assert.NotEmpty(events);
-        var eventId = events.Max(x => x.Id);
 
         return new TestTargets(
             tenantName,
             definition.Id,
             job.JobId,
-            schedule.Id,
-            worker.Id,
-            alert.Id,
-            eventId,
             [
                 TagTarget.ForTenant(tenantName),
                 TagTarget.ForNamespace(TestNamespace),
                 TagTarget.ForDefinition(TestNamespace, definition.Name),
                 TagTarget.ForJob(job),
-                TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ById(schedule.JobId), schedule.Name)),
-                TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)),
-                TagTarget.ForAlert(new AlertRef(alert.AlertRef)),
-                TagTarget.ForEvent(eventId),
             ]
         );
     }
@@ -377,20 +260,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             TagTarget.ForNamespace($"missing-{TestId}"),
             TagTarget.ForDefinition(TestNamespace, "missing-definition"),
             TagTarget.ForJob(JobLookup.ById(long.MaxValue)),
-            TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ById(long.MaxValue), "missing")),
-            TagTarget.ForWorker(WorkerRef.New()),
-            TagTarget.ForAlert(AlertRef.New()),
-            TagTarget.ForEvent(long.MaxValue),
         ];
 
-    private sealed record TestTargets(
-        string TenantName,
-        int DefinitionId,
-        long JobId,
-        long ScheduleId,
-        int WorkerId,
-        long AlertId,
-        long EventId,
-        IReadOnlyList<TagTarget> All
-    );
+    private sealed record TestTargets(string TenantName, int DefinitionId, long JobId, IReadOnlyList<TagTarget> All);
 }

@@ -369,10 +369,9 @@ export interface ScheduleControlResponse {
   version: number | null;
 }
 
-// Schedule pause/resume/trigger/overrides live at schedules/{ns}/{job}/{schedule}/{action} - the
-// same natural-key triple the tag routes use - and return ScheduleControlResponse;
-// ScheduleControls.svelte drives all four through useControlMutation (controlRequest, above)
-// rather than a per-verb fetch function.
+// Schedule pause/resume/trigger/overrides live at schedules/{ns}/{job}/{schedule}/{action} and return
+// ScheduleControlResponse; ScheduleControls.svelte drives all four through useControlMutation
+// (controlRequest, above) rather than a per-verb fetch function.
 
 // Read-only forecast of a schedule's upcoming fire instants (effective expression/timezone plus the
 // next N run instants); not a control endpoint, so no confirmation header and always available.

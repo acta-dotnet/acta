@@ -17,7 +17,6 @@
   import SeverityBadge from '../components/SeverityBadge.svelte';
   import StateView from '../components/StateView.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
-  import TagEditor from '../components/TagEditor.svelte';
 
   let { alertRef }: { alertRef: string } = $props();
 
@@ -173,8 +172,6 @@
           <h2 id="alert-copy-heading">Share</h2>
           <CopyButton value={`${alert.alertRef}\n${alert.title}\n${alert.message}`} label="Copy alert summary" />
         </section>
-
-        <TagEditor path={`alerts/${encodeURIComponent(alert.alertRef)}/tags`} />
       </aside>
     </div>
   {:else}

@@ -24,7 +24,6 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
             ? null
             : NameSyntax.Canonicalize(query.TenantName, nameof(query.TenantName), NameSyntax.ExtendedMaxLength);
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
-        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListEventsQuery));
 
         // The cursor's operation name predates the ListEvents stem; it stays so issued cursors still decode.
         var paging = Paging.Start(
@@ -46,7 +45,6 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
                 ("reason", ((byte?)query.ReasonCode)?.ToString(CultureInfo.InvariantCulture)),
                 ("from", query.CreatedFromUtc?.ToString("O", CultureInfo.InvariantCulture)),
                 ("to", query.CreatedToUtc?.ToString("O", CultureInfo.InvariantCulture)),
-                ("tags", tags),
             ]
         );
 
@@ -67,7 +65,6 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, query.ReasonCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventCreatedFromUtc, query.CreatedFromUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventCreatedToUtc, query.CreatedToUtc));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)paging.After?[1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

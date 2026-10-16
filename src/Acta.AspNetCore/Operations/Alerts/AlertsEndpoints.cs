@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Alerts routes: the list, one alert, its tags, and the acknowledge and resolve verbs. An alert is addressed by
+/// The Alerts routes: the list, one alert, and the acknowledge and resolve verbs. An alert is addressed by
 /// its public ref; the verbs are idempotent, so they answer 200 or 404 and never 409.
 /// </summary>
 internal static class AlertsEndpoints
@@ -26,8 +26,7 @@ internal static class AlertsEndpoints
                             AcknowledgedOnly: query.Bool("acknowledgedOnly"),
                             PageSize: query.Int("pageSize"),
                             Cursor: query.Text("cursor"),
-                            IncludeTotal: query.Bool("includeTotal") ?? false,
-                            Tags: query.Tags()
+                            IncludeTotal: query.Bool("includeTotal") ?? false
                         ),
                         Job: query.Job("jobRef", options)
                     ),
@@ -55,7 +54,6 @@ internal static class AlertsEndpoints
                     ),
                     .. QueryParameterDocExtensions.PagingCore,
                     .. QueryParameterDocExtensions.IncludeTotal,
-                    .. QueryParameterDocExtensions.TagFilter,
                 ]
             )
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -65,14 +63,6 @@ internal static class AlertsEndpoints
             "Alert",
             DashboardJsonContext.Default.GetAlertResponse,
             static (http, call) => call.Operations.Alerts.GetAsync(RouteKeys.Alert(http), call.Ct)
-        );
-        reads.MapTags(
-            controls,
-            "/alerts/{alertRef}/tags",
-            "alert",
-            options,
-            DashboardJsonContext.Default.UpsertAlertTagsRequest,
-            static http => TagTarget.ForAlert(RouteKeys.Alert(http))
         );
         if (controls is null)
         {

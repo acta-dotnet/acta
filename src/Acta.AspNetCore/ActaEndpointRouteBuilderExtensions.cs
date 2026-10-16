@@ -134,7 +134,7 @@ public static class ActaEndpointRouteBuilderExtensions
         }
 
         JobsEndpoints.Map(api, controls, options);
-        WorkersEndpoints.Map(api, controls, options);
+        WorkersEndpoints.Map(api);
         NamespacesEndpoints.Map(api, controls, options);
         TenantsEndpoints.Map(api, controls, options);
         AlertsEndpoints.Map(api, controls, options);

@@ -382,10 +382,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Namespace` | 30 | `namespace` | Tag attached to one namespace. | Active |
 | `Definition` | 40 | `definition` | Tag attached to one job definition. | Active |
 | `Job` | 50 | `job` | Tag attached to one job. | Active |
-| `Schedule` | 60 | `schedule` | Tag attached to one schedule. | Active |
-| `Worker` | 70 | `worker` | Tag attached to one worker. | Active |
-| `Alert` | 80 | `alert` | Tag attached to one alert. | Active |
-| `Event` | 90 | `event` | Tag attached to one event. | Active |
+| `Schedule` | 60 | `schedule` | No longer written; kept so rows an older release wrote still read. | Retired |
+| `Worker` | 70 | `worker` | No longer written; kept so rows an older release wrote still read. | Retired |
+| `Alert` | 80 | `alert` | No longer written; kept so rows an older release wrote still read. | Retired |
+| `Event` | 90 | `event` | No longer written; kept so rows an older release wrote still read. | Retired |
 
 ### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>
 

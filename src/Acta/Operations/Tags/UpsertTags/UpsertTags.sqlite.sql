@@ -16,23 +16,7 @@ WHERE @p_scope_code = 40 /* TagScopeCode.Definition */ AND d.id = @p_lookup_id
 UNION ALL
 SELECT j.id, j.namespace_id
 FROM {{schema}}.jobs j
-WHERE @p_scope_code = 50 /* TagScopeCode.Job */ AND j.id = @p_lookup_id
-UNION ALL
-SELECT s.id, s.namespace_id
-FROM {{schema}}.schedules s
-WHERE @p_scope_code = 60 /* TagScopeCode.Schedule */ AND s.job_id = @p_lookup_id AND s.name = @p_lookup_name
-UNION ALL
-SELECT w.id, w.namespace_id
-FROM {{schema}}.workers w
-WHERE @p_scope_code = 70 /* TagScopeCode.Worker */ AND w.id = @p_lookup_id
-UNION ALL
-SELECT a.id, a.namespace_id
-FROM {{schema}}.alerts a
-WHERE @p_scope_code = 80 /* TagScopeCode.Alert */ AND a.id = @p_lookup_id
-UNION ALL
-SELECT e.id, e.namespace_id
-FROM {{schema}}.events e
-WHERE @p_scope_code = 90 /* TagScopeCode.Event */ AND e.id = @p_lookup_id;
+WHERE @p_scope_code = 50 /* TagScopeCode.Job */ AND j.id = @p_lookup_id;
 
 SELECT acta_error('A target may carry at most 32 tags.')
 WHERE

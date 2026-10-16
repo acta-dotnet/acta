@@ -65,7 +65,7 @@ public sealed class RouteBodyTests
             }
         }
 
-        Assert.True(bodies.Count > 30, $"Only {bodies.Count} routes declare a body; the endpoint scan is broken.");
+        Assert.True(bodies.Count > 27, $"Only {bodies.Count} routes declare a body; the endpoint scan is broken.");
         Ratchet.Check(
             "route-bodies",
             violations,

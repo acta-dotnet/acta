@@ -29,8 +29,8 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     private const int NoAlertPurgeDays = 100_000;
     private const int NoWorkerPurgeSeconds = 100_000_000;
 
-    [Fact(DisplayName = "Job retention deletes job tags but preserves surviving alert and event tags")]
-    public async Task Terminal_job_retention_cleans_only_job_owned_tags()
+    [Fact(DisplayName = "Job retention deletes the job's tags with the job")]
+    public async Task Terminal_job_retention_cleans_the_job_tags()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -41,25 +41,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.NotEmpty(await Db.From<ResultEntity>().Where(r => r.JobId == jobId).ToListAsync(ct));
 
-        var eventRow = (await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct)).MaxBy(e => e.Id)!;
-        await AlertTestOps.RaiseAsync(
-            Services,
-            TestNamespace,
-            jobId,
-            AlertOriginCode.Manual,
-            AlertSeverityCode.Info,
-            AlertKindCode.Manual,
-            "retention tag",
-            "retention tag",
-            "default",
-            AlertDeliveryStatusCode.Pending,
-            null,
-            ct
-        );
-        var alertRow = Assert.Single(await Db.From<AlertEntity>().Where(a => a.JobId == jobId).ToListAsync(ct));
         await Operations.Tags.UpsertAsync(TagTarget.ForJob(JobLookup.ById(jobId)), new TagInput("retention", "job"), ct: ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForEvent(eventRow.Id), new TagInput("retention", "event"), ct: ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), new TagInput("retention", "alert"), ct: ct);
 
         // Drain rather than assert a single call deletes it: one sweep can pass an eligible row over
         // (contended under READPAST, or stamped a rounded fraction of a millisecond into the future).
@@ -82,14 +64,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
         Assert.Empty(await Db.From<ResultEntity>().Where(r => r.JobId == jobId).ToListAsync(ct));
         Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
-        Assert.Equal(
-            [new GetTagsItem("retention", "event")],
-            Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(TagTarget.ForEvent(eventRow.Id), ct)).Items
-        );
-        Assert.Equal(
-            [new GetTagsItem("retention", "alert")],
-            Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), ct)).Items
-        );
+        Assert.Empty(await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == jobId).ToListAsync(ct));
     }
 
     [Fact(DisplayName = "A future-retention job stamped with the default window survives the purge")]
@@ -135,14 +110,11 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         await EnqueueAndRunAsync("add-numbers", new AddNumbers(1, 1), ct);
         var before = await Db.From<EventEntity>().Where(e => e.NamespaceId == ns).ToListAsync(ct);
         Assert.NotEmpty(before);
-        var taggedEvent = before.MaxBy(e => e.Id)!;
-        await Operations.Tags.UpsertAsync(TagTarget.ForEvent(taggedEvent.Id), new TagInput("retention"), ct: ct);
 
         // A wide retention window leaves recent events untouched.
         var keep = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
         Assert.Equal(0, keep.Events);
         Assert.NotEmpty(await Db.From<EventEntity>().Where(e => e.NamespaceId == ns).ToListAsync(ct));
-        Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForEvent(taggedEvent.Id), ct));
 
         // A negative window puts the cutoff in the future, so every event is past it. Drained, because a
         // single sweep passes over a row another transaction holds under READPAST.
@@ -159,9 +131,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         );
         Assert.Equal(before.Count, purged.Events);
         Assert.Empty(await Db.From<EventEntity>().Where(e => e.NamespaceId == ns).ToListAsync(ct));
-        Assert.Empty(
-            await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Event && t.ScopeId == taggedEvent.Id).ToListAsync(ct)
-        );
     }
 
     [Fact(DisplayName = "Stopped and Dead workers are both reaped while an Active worker is kept")]
@@ -176,13 +145,11 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
-        await Operations.Tags.UpsertAsync(TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)), new TagInput("retention"), ct: ct);
 
         // Active workers are never purged, even with the cutoff in the future.
         var active = await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, -1, 1000, 50, ct);
         Assert.Equal(0, active.Workers);
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
-        Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForWorker(new WorkerRef(worker.WorkerRef)), ct));
 
         // A second worker that shuts down cleanly: Stopped is the other terminal status, and it reaches
         // it without ever being Dead - mark_dead_workers only retires a worker that went silent.
@@ -229,7 +196,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(2, purged.Workers);
         Assert.Null(await Db.From<WorkerEntity>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct));
         Assert.Null(await Db.From<WorkerEntity>().Where(w => w.Id == stoppedId).SingleOrDefaultAsync(ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Worker && t.ScopeId == worker.Id).ToListAsync(ct));
     }
 
     [Fact(DisplayName = "Alerts past the window are purged settled or not, counted apart, and none inside the window is")]
@@ -243,11 +209,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Delivered, ct);
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.Pending, ct);
         await RaiseAlertAsync(Db, TestNamespace, AlertDeliveryStatusCode.RetryAfter, ct);
-        var seeded = await Db.From<AlertEntity>().Where(a => a.NamespaceId == ns).ToListAsync(ct);
-        var settled = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Delivered);
-        var pending = seeded.Single(a => a.DeliveryStatusCode == AlertDeliveryStatusCode.Pending);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(settled.AlertRef)), new TagInput("retention", "delete"), ct: ct);
-        await Operations.Tags.UpsertAsync(TagTarget.ForAlert(new AlertRef(pending.AlertRef)), new TagInput("retention", "delete"), ct: ct);
 
         // Inside the window nothing goes, and neither count moves - which is also the negative behind
         // the maintenance pass's one warning: no undelivered row purged, nothing to warn about.
@@ -263,8 +224,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(1, purged.Alerts);
         Assert.Equal(2, purged.UndeliveredAlertsPurged);
         Assert.Empty(await Db.From<AlertEntity>().Where(a => a.NamespaceId == ns).ToListAsync(ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Alert && t.ScopeId == settled.Id).ToListAsync(ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Alert && t.ScopeId == pending.Id).ToListAsync(ct));
     }
 
     [Fact(DisplayName = "A resolve-suppressed alert past the window is counted once, by the settled sweep")]
