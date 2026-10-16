@@ -7,6 +7,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **`EnqueueBatchAsync` takes at most 1,000 rows.** It was 5,000; a larger batch throws
+  `ArgumentException`, so split it caller-side. On SQL Server a batch at the old limit crossed the
+  5,000-lock escalation threshold and could take a table lock on `jobs` for its whole transaction,
+  stalling every completion that writes a result, and every other producer, behind it.
 - **The SQLite outbox DDL uses `INTEGER PRIMARY KEY AUTOINCREMENT` and `STRICT`.** `SqliteOutboxDdl.CreateScript`
   now emits the same SQLite shape as the ledger baseline. A table created by the earlier script keeps
   working; recreate it only if you want ids that are never reused.

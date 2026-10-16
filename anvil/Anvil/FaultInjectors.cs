@@ -11,7 +11,7 @@ public sealed class FaultInjectors(
     AnvilOutboxDatabase outboxDb
 ) : IDisposable
 {
-    private const int PressureChunkSize = 5_000;
+    private const int PressureChunkSize = 1_000;
 
     // Smaller than direct-enqueue chunks: each chunk is one producer-file write transaction, and the
     // relay needs regular gaps to claim between them on the shared SQLite write lock.

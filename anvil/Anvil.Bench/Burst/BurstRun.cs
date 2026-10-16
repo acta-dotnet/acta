@@ -39,7 +39,7 @@ internal sealed record BurstInvocation(
 internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
 {
     // Big enough that the enqueue path is amortized, small enough that a chunk is not a long transaction.
-    private const int SeedChunkSize = 5_000;
+    private const int SeedChunkSize = 1_000;
 
     // The dashboard's own page size ceiling, which is what the pagination probe should be timing.
     private const int PageSize = 100;

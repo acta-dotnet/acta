@@ -17,7 +17,9 @@ internal sealed class EnqueueJobsHandler(
     IOptions<JobsOptions> options
 )
 {
-    private const int MaxRows = 5000;
+    // Under SQL Server's 5,000-lock escalation threshold per index: a batch at the threshold can escalate to a table
+    // lock on jobs for its whole transaction, stalling every locking reader of jobs behind it.
+    private const int MaxRows = 1000;
     private const long MaxPayloadBytes = 64L * 1024 * 1024;
 
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;

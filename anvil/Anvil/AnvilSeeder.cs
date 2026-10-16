@@ -9,7 +9,7 @@ namespace Anvil;
 /// </summary>
 public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
 {
-    private const int ChunkSize = 5_000;
+    private const int ChunkSize = 1_000;
     private const int FanOutChildCount = 5;
 
     // The metered and laned slices' ceilings, and the lane depth; see CrashRecoveryPlan.

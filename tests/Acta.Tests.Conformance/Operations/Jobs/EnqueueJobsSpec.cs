@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Set-based batch enqueue spec - exercises 1..5000-row enqueues through the same
+/// Set-based batch enqueue spec - exercises 1..1000-row enqueues through the same
 /// <see cref="EnqueueJobs.Run"/> call that the public
 /// <c>IJobs.EnqueueAsync</c> wraps. Asserts:
 ///   * batch=1 with tags lands one <c>job</c> row and the expected <c>tags</c> rows

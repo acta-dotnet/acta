@@ -104,12 +104,17 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         // More stranded lanes than the pass visits, so its whole window is stranded and only the cap binds.
         const int Lanes = 1100;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var enqueued = (
-            await Jobs.EnqueueBatchAsync(
-                [.. Enumerable.Range(0, Lanes).SelectMany(i => new[] { Step($"cap-{i}", "head"), Step($"cap-{i}", "follower") })],
-                ct
-            )
-        ).Jobs;
+        var enqueued = new List<EnqueueJobResponse>();
+        // Each chunk holds whole lanes, head before follower.
+        foreach (
+            var chunk in Enumerable
+                .Range(0, Lanes)
+                .SelectMany(i => new[] { Step($"cap-{i}", "head"), Step($"cap-{i}", "follower") })
+                .Chunk(1000)
+        )
+        {
+            enqueued.AddRange((await Jobs.EnqueueBatchAsync(chunk, ct)).Jobs);
+        }
         // Every head hand-set to Succeeded, so every lane is stranded behind a Blocked follower.
         await RuntimeStateStaging.UpdateAsync(
             Db,
