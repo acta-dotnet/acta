@@ -389,6 +389,10 @@ settles, and what an operator sees when it fails.
   alertable, and the projector resolved alerts once per success, one transaction each, at most 10,240
   events per minute per namespace, so after a fast drain a real failure's alert waited hours behind
   successes. A first attempt's success follows no failure of its job, so the read now skips it.
+- **The outbox relay drains a backlog in one tick.** A tick stopped after 20 batches of 256 rows, so
+  a namespace relayed at most about 1,000 rows a second on its 5-second cadence, and a producer
+  staging faster than that grew the source backlog without bound. A tick now claims 1,000-row batches
+  until the source comes back short or 30 seconds have passed.
 - **The SQL Server claim no longer deadlocks with an operator verb.** The claim held update locks on
   claim-index keys and then waited for each row, while a verb that changes a due Ready row locks the
   row first and the key after. The claim's update now skips a row another transaction holds, and does

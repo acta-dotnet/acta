@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,9 +14,18 @@ namespace Acta;
 /// </summary>
 internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations jobs, ILogger<OutboxRelay>? log = null)
 {
-    /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
-    private const int MaxBatches = 20;
-    private const int BatchSize = 256;
+    /// <summary>
+    /// Per tick: source claims of BatchSize rows, the batch enqueue's limit, until a claim comes back short or the soft
+    /// <see cref="TimeBudget"/> is spent; the next tick continues any backlog. The budget is checked between batches, so
+    /// the batch in flight always finishes.
+    /// </summary>
+    private const int BatchSize = 1000;
+
+    /// <summary>
+    /// The soft bound on one tick's drain, well inside the 300s execution timeout <c>sys.outbox</c> inherits. Internal
+    /// and init-only so a spec can end a tick after one batch without staging a timed backlog; production never sets it.
+    /// </summary>
+    internal TimeSpan TimeBudget { get; init; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// The bound source, exposed so operator surfaces resolve reads (quarantine listing) against the same
@@ -101,11 +111,11 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// <summary>
     /// One shared per-tick work budget, measured in target-enqueue attempts. Source claims (each at least one
     /// attempt) and the per-group retries of a rejected batch both draw it down, so isolating a rejected batch is work
-    /// inside the tick bound rather than a way past it. The cap equals the 5,120-row envelope (MaxBatches * BatchSize):
-    /// the happy path of 20 non-rejecting batches spends 20 attempts, while an all-rejecting workload releases its
-    /// unprocessed remainder once the envelope is spent instead of retrying past the 180s source lease.
+    /// inside the tick bound rather than a way past it. A non-rejecting batch spends one attempt, so only the time budget
+    /// bounds the happy path, while an all-rejecting workload spends a batch's worth per batch and releases its
+    /// unprocessed remainder once the attempts run out instead of retrying past the 180s source lease.
     /// </summary>
-    private const int MaxTargetEnqueues = MaxBatches * BatchSize;
+    private const int MaxTargetEnqueues = 5120;
 
     /// <summary>
     /// Deliberately shorter than Backoff.Default. A job's retry horizon is sized for a human to
@@ -173,8 +183,9 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         var budget = new TickBudget(MaxTargetEnqueues);
         var counters = new TickCounters();
         var claimedTotal = 0;
+        var elapsed = Stopwatch.StartNew();
 
-        for (var batch = 0; batch < MaxBatches && budget.Remaining > 0; batch++)
+        while (budget.Remaining > 0)
         {
             var claimed = (await source.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct)).Rows;
             if (claimed.Count == 0)
@@ -197,6 +208,11 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             // A short batch means the backlog is drained, except that a claim takes one row per lane: the row
             // behind a delivered lane head became claimable only now.
             if (budgetExhausted || (claimed.Count < BatchSize && !claimed.Any(static r => r.Lane is not null)))
+            {
+                break;
+            }
+
+            if (elapsed.Elapsed >= TimeBudget)
             {
                 break;
             }

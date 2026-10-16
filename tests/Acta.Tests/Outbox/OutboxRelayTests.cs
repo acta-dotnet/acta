@@ -8,7 +8,7 @@ namespace Acta.Tests.Outbox;
 /// <summary>
 /// Provider-neutral relay policy proven against the real <see cref="OutboxOperations.Source"/> over in-memory rows and a spy
 /// target: coalescing, target deduplication, per-group rejection isolation, backoff, quarantine at
-/// threshold, immediate malformed quarantine, the bounded tick summary, the 20x256 tick bound, and
+/// threshold, immediate malformed quarantine, the bounded tick summary, the time-budgeted tick, and
 /// best-effort cancellation release.
 /// </summary>
 public sealed class OutboxRelayTests
@@ -169,18 +169,31 @@ public sealed class OutboxRelayTests
     }
 
     [Fact]
-    public async Task A_tick_processes_at_most_twenty_batches_of_two_hundred_fifty_six_rows()
+    public async Task A_tick_drains_in_thousand_row_batches_until_a_claim_comes_back_short()
     {
-        var store = new FakeStore([.. Enumerable.Range(0, 20 * 256 + 300).Select(i => Row($"k{i}"))]);
+        var store = new FakeStore([.. Enumerable.Range(0, 2500).Select(i => Row($"k{i}"))]);
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
-        Assert.Equal(20, store.ClaimCalls);
-        Assert.Equal(20 * 256, store.Deleted.Count);
-        // The summary reports the full envelope relayed and the 300 unclaimed rows as remaining backlog.
-        Assert.Equal(new OutboxTickSummary(20 * 256, 20 * 256, 0, 0, 300, 0), summary);
+        Assert.Equal(3, store.ClaimCalls);
+        Assert.Equal(2500, store.Deleted.Count);
+        Assert.Equal(new OutboxTickSummary(2500, 2500, 0, 0, 0, 0), summary);
+    }
+
+    [Fact]
+    public async Task A_spent_time_budget_ends_the_tick_after_the_batch_in_flight()
+    {
+        var store = new FakeStore([.. Enumerable.Range(0, 2500).Select(i => Row($"k{i}"))]);
+        var target = new FakeSubmission();
+        var svc = new OutboxRelay(store.Source(), target.Jobs()) { TimeBudget = TimeSpan.Zero };
+
+        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, store.ClaimCalls);
+        // The summary reports the one batch relayed and the rest as the backlog the next tick continues.
+        Assert.Equal(new OutboxTickSummary(1000, 1000, 0, 0, 1500, 0), summary);
     }
 
     [Fact]
@@ -207,11 +220,11 @@ public sealed class OutboxRelayTests
     [Fact]
     public async Task Budget_exhaustion_releases_the_unprocessed_remainder_and_ends_the_tick()
     {
-        // Every batch fully rejects, so each 256-group claim fans out into one whole-batch attempt plus one
-        // retry per group (up to 257 target calls). The shared per-tick target-enqueue budget caps the total
+        // Every batch fully rejects, so each 1,000-group claim fans out into one whole-batch attempt plus one
+        // retry per group (1,001 target calls). The shared per-tick target-enqueue budget caps the total
         // fan-out at MaxTargetEnqueues: when it runs out mid-batch the unresolved remainder is RELEASED
         // (not rescheduled), which only happens under budget exhaustion, and the tick then ends.
-        var rows = Enumerable.Range(0, 20 * 256).Select(i => Row($"k{i}", job: "bad")).ToArray();
+        var rows = Enumerable.Range(0, 6000).Select(i => Row($"k{i}", job: "bad")).ToArray();
         var store = new FakeStore(rows);
         var target = new FakeSubmission { RejectWhen = _ => true };
         var svc = new OutboxRelay(store.Source(), target.Jobs());

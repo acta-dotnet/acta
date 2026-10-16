@@ -304,8 +304,9 @@ The job declares `AuditLevel = Failures` and the `SysCritical` alert profile, ma
 maintenance jobs: idle and successful ticks produce no audit events, while failures and quarantine alerts
 stay visible.
 
-One tick processes at most 20 source batches of 256 rows (5,120 rows); the next tick continues any
-backlog. All replicas of the namespace compete for the same durable recurring slot. When a target batch is
+One tick claims source batches of 1,000 rows until a batch comes back short or the tick has spent 30
+seconds, checked between batches; the next tick continues any backlog. All replicas of the namespace
+compete for the same durable recurring slot. When a target batch is
 deterministically rejected, the relay retries each claimed group individually within the same tick budget,
 so offending rows are isolated, good rows proceed, and the budget is honored.
 
