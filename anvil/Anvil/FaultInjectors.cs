@@ -11,7 +11,9 @@ public sealed class FaultInjectors(
     AnvilOutboxDatabase outboxDb
 ) : IDisposable
 {
-    private const int PressureChunkSize = 1_000;
+    // Application traffic enqueues one job per call, so pressure keeps this many single calls in flight,
+    // each in its own scope like a request.
+    private const int PressureCallers = 64;
 
     // Smaller than direct-enqueue chunks: each chunk is one producer-file write transaction, and the
     // relay needs regular gaps to claim between them on the shared SQLite write lock.
@@ -244,19 +246,16 @@ public sealed class FaultInjectors(
 
     private async Task SeedPressureSecondAsync(int jobsPerSecond, CancellationToken ct)
     {
-        using var scope = scopes.CreateScope();
-        var jobs = scope.ServiceProvider.GetRequiredService<IJobs>();
         var batch = session.NextBatch();
-        var processed = 0;
-
-        while (processed < jobsPerSecond)
-        {
-            var count = Math.Min(PressureChunkSize, jobsPerSecond - processed);
-            var requests = new List<EnqueueJobRequest>(count);
-            for (var i = 0; i < count; i++)
+        await Parallel.ForAsync(
+            0,
+            jobsPerSecond,
+            new ParallelOptions { MaxDegreeOfParallelism = PressureCallers, CancellationToken = ct },
+            async (index, token) =>
             {
-                var index = processed + i;
-                requests.Add(
+                using var scope = scopes.CreateScope();
+                var jobs = scope.ServiceProvider.GetRequiredService<IJobs>();
+                await jobs.EnqueueAsync(
                     AnvilSeeder.Request(
                         session.NamespaceName,
                         session.RunId,
@@ -265,17 +264,15 @@ public sealed class FaultInjectors(
                         index,
                         AnvilPayloads.Json(new NoOp($"pressure-{batch}-{index}")),
                         AnvilWorkloadCode.NoOp
-                    )
+                    ),
+                    token
                 );
+                lock (_gate)
+                {
+                    _pressureJobsAdded++;
+                }
             }
-
-            var outcomes = (await jobs.EnqueueBatchAsync(requests, ct)).Jobs;
-            lock (_gate)
-            {
-                _pressureJobsAdded += outcomes.Count;
-            }
-            processed += count;
-        }
+        );
     }
 
     private async Task RunOutboxPressureAsync(CancellationTokenSource owner, int rowsPerSecond)
