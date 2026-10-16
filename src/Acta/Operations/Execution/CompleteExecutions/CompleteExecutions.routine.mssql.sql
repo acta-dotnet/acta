@@ -38,6 +38,7 @@ BEGIN
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
            reads no lane or parent and skips them all. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
            each in key order (docs/internals/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
+        -- Every join from the batch into jobs or runtimes seeks (same policy, "Locking reads seek").
         IF @p_plain = 1
             INSERT INTO @rows (job_id, execution_number)
             SELECT c.job_id, c.execution_number
@@ -46,8 +47,8 @@ BEGIN
             INSERT INTO @rows (job_id, execution_number, lane_id, parent_id)
             SELECT c.job_id, c.execution_number, r.lane_id, j.parent_id
             FROM @p_batch c
-            INNER JOIN {{schema}}.runtimes r ON r.job_id = c.job_id
-            INNER JOIN {{schema}}.jobs j ON j.id = c.job_id;
+            INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = c.job_id
+            INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = c.job_id;
 
         IF @p_plain = 0
             BEGIN
@@ -196,7 +197,7 @@ BEGIN
                     ) adv
                     INNER JOIN {{schema}}.schedules js ON js.id = adv.schedule_id
                     INNER JOIN @done d ON d.job_id = js.job_id
-                    INNER JOIN {{schema}}.jobs j ON j.id = d.job_id
+                    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = d.job_id
                     WHERE
                         (adv.expected_version IS NULL OR js.version = adv.expected_version)
                         AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
@@ -297,7 +298,7 @@ BEGIN
             c.reason_code, c.reason_message
         FROM @done d
         INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        INNER JOIN {{schema}}.jobs j ON j.id = d.job_id
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = d.job_id
         WHERE
             j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
             OR (
@@ -338,7 +339,7 @@ BEGIN
                     c.reason_code, c.reason_message
                 FROM @done d
                 INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                INNER JOIN {{schema}}.jobs j ON j.id = d.job_id
+                INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = d.job_id
                 CROSS APPLY (
                     VALUES
                     (
@@ -610,7 +611,7 @@ BEGIN
             CAST(COALESCE(d.lane_promoted, 0) AS TINYINT) AS lane_promoted
         FROM @p_batch c
         LEFT JOIN @done d ON d.job_id = c.job_id AND d.execution_number = c.execution_number
-        LEFT JOIN {{schema}}.runtimes r ON r.job_id = c.job_id;
+        LEFT JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = c.job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

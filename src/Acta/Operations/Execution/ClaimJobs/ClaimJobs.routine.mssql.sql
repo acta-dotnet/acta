@@ -139,7 +139,7 @@ BEGIN
         -- order (docs/internals/sql-execution-policy.md); a skipped candidate is simply not claimed.
         FROM {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN @candidates c ON c.id = r.job_id
-        INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = r.job_id;
 
         IF EXISTS (SELECT 1 FROM @claimed)
             BEGIN

@@ -36,13 +36,13 @@ public sealed class OutboxSchemaQualificationTests
     [Fact]
     public void SqlServer_leaves_the_table_unqualified_with_no_schema_override()
     {
-        Assert.Contains("UPDATE acta_outbox", Claim(Mssql(null)), StringComparison.Ordinal);
+        Assert.Contains("FROM acta_outbox AS o", Claim(Mssql(null)), StringComparison.Ordinal);
         Assert.DoesNotContain(".acta_outbox", Claim(Mssql(null)), StringComparison.Ordinal);
     }
 
     [Fact]
     public void SqlServer_qualifies_the_table_with_a_schema_override()
     {
-        Assert.Contains("UPDATE app.acta_outbox", Claim(Mssql("app")), StringComparison.Ordinal);
+        Assert.Contains("FROM app.acta_outbox AS o", Claim(Mssql("app")), StringComparison.Ordinal);
     }
 }

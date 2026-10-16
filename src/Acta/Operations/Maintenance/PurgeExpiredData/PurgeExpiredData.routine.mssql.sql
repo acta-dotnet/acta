@@ -44,10 +44,11 @@ BEGIN
                     ) s
                 );
 
+                -- A locking read seeks (docs/internals/sql-execution-policy.md, "Locking reads seek").
                 INSERT INTO @del (id)
                 SELECT TOP (@p_batch_size) j.id
-                FROM {{schema}}.runtimes r WITH (UPDLOCK, READPAST)
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, READPAST) ON j.id = r.job_id
+                FROM {{schema}}.runtimes r WITH (UPDLOCK, READPAST, FORCESEEK)
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, READPAST, FORCESEEK) ON j.id = r.job_id
                 WHERE
                     r.job_id < @below
                     AND r.job_id >= @slice_end
@@ -115,7 +116,7 @@ BEGIN
 
                 INSERT INTO @del (id)
                 SELECT TOP (@p_batch_size) id
-                FROM {{schema}}.events WITH (UPDLOCK, READPAST)
+                FROM {{schema}}.events WITH (UPDLOCK, READPAST, FORCESEEK (ix_events_namespace_created (namespace_id)))
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc

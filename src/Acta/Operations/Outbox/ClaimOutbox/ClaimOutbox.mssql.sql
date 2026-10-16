@@ -9,16 +9,19 @@ BEGIN TRY
     /* Recover expired Claimed leases to Pending, then claim the next due batch and stamp one token + lease
        from the database clock. Both statements run in one source transaction so the claim sees the recovered
        rows. UPDLOCK/READPAST/ROWLOCK lets replicas claim disjoint batches without blocking on each other. */
-    UPDATE {{table_ref}}
+    -- Both locking reads seek (docs/internals/sql-execution-policy.md, "Locking reads seek"), with no index named:
+    -- the producer owns this table's DDL and may rename its indexes.
+    UPDATE o
     SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
-    WHERE status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= SYSUTCDATETIME();
+    FROM {{table_ref}} AS o WITH (FORCESEEK)
+    WHERE o.status_code = 20 /* OutboxStatusCode.Claimed */ AND o.claim_until_utc <= SYSUTCDATETIME();
 
     /* A laned row waits while an older row of its lane is Pending or Claimed (OutboxSource.ClaimDueAsync).
        The check carries no READPAST: an older row another relay holds must still count, so it waits out
        that claim or reads its last committed version instead of skipping it. */
     WITH due AS (
         SELECT TOP (@p_batch_size) c.id
-        FROM {{table_ref}} AS c WITH (UPDLOCK, READPAST, ROWLOCK)
+        FROM {{table_ref}} AS c WITH (UPDLOCK, READPAST, ROWLOCK, FORCESEEK)
         WHERE
             c.status_code = 10 /* OutboxStatusCode.Pending */
             AND c.next_attempt_at_utc <= SYSUTCDATETIME()

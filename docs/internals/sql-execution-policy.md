@@ -175,6 +175,25 @@ child table, but it locks only the batch's own keys.
 - PostgreSQL checks each foreign key with a per-row key lookup in a trigger and needs no hint. SQLite
   runs one writer at a time.
 
+### Locking reads seek
+
+On SQL Server a read under `UPDLOCK`, `HOLDLOCK`, or `XLOCK` takes a lock on every row it reads, so a scan
+under those hints locks the table a row at a time and escalates. Statistics compiled while a table was
+small price a scan below a seek per row, and a retained table only grows, so every locking read of a
+permanent table carries `FORCESEEK`, naming the index when the predicate restates a filtered index's
+filter so the hint always compiles:
+
+- The deduplication probes in `enqueue_job` and `enqueue_jobs` seek `ux_jobs_deduplication_key_root`
+  or `ux_jobs_deduplication_key_child`; the parent lookup seeks `pk_jobs`.
+- The retention purge's staging read seeks `runtimes` from its cursor and `jobs` by key, and its event
+  read seeks `ix_events_namespace_created`.
+- The outbox claim and its lease recovery seek without naming an index, because the producer owns that
+  table's DDL.
+
+The claim and the completion read `jobs` and `runtimes` without locks, through joins from a table
+variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose
+cost grows with every job the table retains.
+
 ### Alert lock order
 
 A statement that writes a job's alerts locks the job row first, then the alert rows. `PurgeJob` holds the
