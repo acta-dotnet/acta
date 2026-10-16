@@ -18,6 +18,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   the key every step statement already read by, and its surrogate id and separate unique index are
   gone. On SQL Server every concurrent step start inserted at the identity's one last page; now the
   steps of the jobs in flight spread over those jobs' pages, and each step write maintains one B-tree.
+- **A schedule is its job's, by name: `schedules_view` has no `schedule_id`.** `schedules` is keyed by
+  `(job_id, name)`, its surrogate id and separate unique index are gone, and `ListSchedules` pages by
+  next run, job, and name, so a cursor an earlier build issued is rejected as invalid.
 - **The overview counts no history.** `GetOverviewQuery.IncludeSlowCounts`,
   `GetOverviewResponse.JobCount` and `SystemJobCount`, and `jobCount` / `systemJobCount` on
   `GET /overview` are gone, and so is the dashboard's Total jobs tile. Both counts read every job the
