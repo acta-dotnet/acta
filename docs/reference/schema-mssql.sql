@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock')
+    WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -8917,6 +8917,132 @@ INSERT INTO acta.migrations (name)
 VALUES ('M20261016144619_dedup_key_lock');
 GO
 -- ===== END M20261016144619_dedup_key_lock =====
+GO
+-- ===== BEGIN M20261016145839_sleep_timer_no_holdlock =====
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+
+CREATE OR ALTER PROCEDURE acta.arm_or_consume_sleep_timer
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_delay_seconds INT = NULL,
+    @p_resume_at_utc DATETIME2(3) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @due DATETIME2(3) = COALESCE(@p_resume_at_utc, DATEADD(SECOND, @p_delay_seconds, @now));
+        DECLARE @outcome SMALLINT;
+        DECLARE @result_due DATETIME2(3) = NULL;
+        DECLARE @existing_state TINYINT;
+        DECLARE @existing_due DATETIME2(3);
+        DECLARE @lock_id BIGINT;
+
+        SELECT @lock_id = job_id
+        FROM acta.runtimes WITH (UPDLOCK)
+        WHERE job_id = @p_job_id;
+
+        SELECT
+            @existing_state = status_code,
+            @existing_due = due_at_utc
+        FROM acta.checkpoints
+        WHERE
+            job_id = @p_job_id
+            AND kind_code = 30 /* CheckpointKindCode.Timer */
+            AND name = @p_name;
+
+        IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
+            BEGIN
+
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
+                SET @result_due = @existing_due;
+            END
+        ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
+            BEGIN
+
+                UPDATE acta.checkpoints
+                SET
+                    status_code = 100 /* CheckpointStatusCode.Consumed */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND kind_code = 30 /* CheckpointKindCode.Timer */ AND name = @p_name;
+
+                /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
+                   on an instant the reclaim owns, and ck_runtimes_ready_due requires Ready to keep one. */
+                UPDATE acta.runtimes
+                SET
+                    next_run_at_utc = NULL,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
+
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+            END
+        ELSE IF @existing_state IS NOT NULL
+            BEGIN
+
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+            END
+        ELSE IF @due <= @now
+            BEGIN
+
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+            END
+        ELSE IF
+            EXISTS (
+                SELECT 1 FROM acta.checkpoints
+                WHERE
+                    job_id = @p_job_id AND kind_code = 30 /* CheckpointKindCode.Timer */ AND status_code = 10
+            /* CheckpointStatusCode.Pending */
+            )
+            BEGIN
+                SET @outcome = 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */;
+            END
+        ELSE
+            BEGIN
+                INSERT INTO acta.checkpoints (
+                    job_id, kind_code, name, status_code, due_at_utc,
+                    created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @p_job_id, 30 /* CheckpointKindCode.Timer */, @p_name, 10 /* CheckpointStatusCode.Pending */, @due,
+                    @now, @now, 0
+                );
+
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
+                SET @result_due = @due;
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @result_due AS due_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016145839_sleep_timer_no_holdlock')
+INSERT INTO acta.migrations (name)
+VALUES ('M20261016145839_sleep_timer_no_holdlock');
+GO
+-- ===== END M20261016145839_sleep_timer_no_holdlock =====
 GO
 COMMIT TRANSACTION;
 GO

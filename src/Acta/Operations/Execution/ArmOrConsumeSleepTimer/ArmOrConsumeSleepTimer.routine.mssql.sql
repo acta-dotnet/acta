@@ -22,7 +22,7 @@ BEGIN
         DECLARE @lock_id BIGINT;
 
         SELECT @lock_id = job_id
-        FROM {{schema}}.runtimes WITH (UPDLOCK, HOLDLOCK)
+        FROM {{schema}}.runtimes WITH (UPDLOCK)
         WHERE job_id = @p_job_id;
 
         SELECT

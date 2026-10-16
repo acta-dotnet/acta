@@ -15,35 +15,35 @@ BEGIN TRY
 
     IF @p_scope_code = 20 /* TagScopeCode.Tenant */
         SELECT @scope_id = CONVERT(BIGINT, t.id), @namespace_id = NULL
-        FROM {{schema}}.tenants t WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.tenants t WITH (UPDLOCK, ROWLOCK)
         WHERE t.tenant_name = @p_lookup_name;
     ELSE IF @p_scope_code = 30 /* TagScopeCode.Namespace */
         SELECT @scope_id = CONVERT(BIGINT, n.id), @namespace_id = n.id
-        FROM {{schema}}.namespaces n WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.namespaces n WITH (UPDLOCK, ROWLOCK)
         WHERE n.name = @p_lookup_name;
     ELSE IF @p_scope_code = 40 /* TagScopeCode.Definition */
         SELECT @scope_id = CONVERT(BIGINT, d.id), @namespace_id = d.namespace_id
-        FROM {{schema}}.definitions d WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.definitions d WITH (UPDLOCK, ROWLOCK)
         WHERE d.id = @p_lookup_id;
     ELSE IF @p_scope_code = 50 /* TagScopeCode.Job */
         SELECT @scope_id = CONVERT(BIGINT, j.id), @namespace_id = j.namespace_id
-        FROM {{schema}}.jobs j WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK)
         WHERE j.id = @p_lookup_id;
     ELSE IF @p_scope_code = 60 /* TagScopeCode.Schedule */
         SELECT @scope_id = CONVERT(BIGINT, s.id), @namespace_id = s.namespace_id
-        FROM {{schema}}.schedules s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.schedules s WITH (UPDLOCK, ROWLOCK)
         WHERE s.job_id = @p_lookup_id AND s.name = @p_lookup_name;
     ELSE IF @p_scope_code = 70 /* TagScopeCode.Worker */
         SELECT @scope_id = CONVERT(BIGINT, w.id), @namespace_id = w.namespace_id
-        FROM {{schema}}.workers w WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.workers w WITH (UPDLOCK, ROWLOCK)
         WHERE w.id = @p_lookup_id;
     ELSE IF @p_scope_code = 80 /* TagScopeCode.Alert */
         SELECT @scope_id = CONVERT(BIGINT, a.id), @namespace_id = a.namespace_id
-        FROM {{schema}}.alerts a WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.alerts a WITH (UPDLOCK, ROWLOCK)
         WHERE a.id = @p_lookup_id;
     ELSE IF @p_scope_code = 90 /* TagScopeCode.Event */
         SELECT @scope_id = CONVERT(BIGINT, e.id), @namespace_id = e.namespace_id
-        FROM {{schema}}.events e WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+        FROM {{schema}}.events e WITH (UPDLOCK, ROWLOCK)
         WHERE e.id = @p_lookup_id;
 
     IF @scope_id IS NOT NULL
