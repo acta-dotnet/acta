@@ -11,8 +11,16 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @modified DATETIME2(7);
 
+    -- The slot's own lock, as wait_signal names it (docs/internals/sql-execution-policy.md, "Slot locks").
+    DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':20:', @p_name);
+    DECLARE @slot_lock_result INT;
+    -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+    EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+    IF @slot_lock_result < 0
+        THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+
     SELECT @modified = modified_at_utc
-    FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
+    FROM {{schema}}.checkpoints WITH (UPDLOCK)
     WHERE job_id = @p_job_id AND kind_code = 20 /* CheckpointKindCode.Signal */ AND name = @p_name;
 
     IF @modified IS NULL

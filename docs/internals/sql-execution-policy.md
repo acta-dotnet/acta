@@ -216,11 +216,18 @@ routines and `RegisterSchedules`, which inserts the recurring slots under their 
 
 ### Slot locks
 
-A job's step is the same case on SQL Server: running jobs are the newest, so the first start of each
-job's step falls in the last gap of `ux_steps_job_name`, and a probe under `HOLDLOCK` made every
-executor's step start wait for every other's. `start_step`, the one statement that inserts a step,
-takes `sp_getapplock` on `<schema>.step:<job id>:<name>`, exclusive and owned by the transaction, and
-then reads the step under `UPDLOCK`; a refusal raises 51205.
+A job's steps and checkpoints are the same case on SQL Server: running jobs are the newest, so each
+job's first step or checkpoint falls in the last gap of `ux_steps_job_name` or `pk_checkpoints`, and a
+probe under `HOLDLOCK` made every executor's write wait for every other's. Each statement that may
+insert one takes `sp_getapplock`, exclusive and owned by the transaction, on the slot's own name and then
+reads it under `UPDLOCK`; a refusal raises 51205:
+
+- `start_step` locks `<schema>.step:<job id>:<name>`.
+- `access_checkpoint` (Set and GetOrSet), `wait_signal`, `raise_signal`, and `ParkOutboxSignal` lock
+  `<schema>.slot:<job id>:<kind>:<name>`.
+- `complete_executions` locks the same name for each child-latch slot it may insert, in name order.
+
+The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `runtimes` row first.
 
 ### Claim watermark
 

@@ -41,7 +41,7 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk', 'M20261016163823_step_lock')
+        WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation', 'M20261016095220_seeks_pinned', 'M20261016100113_runtimes_failed_index', 'M20261016133503_enqueue_probes_seek_both_keys', 'M20261016144619_dedup_key_lock', 'M20261016145839_sleep_timer_no_holdlock', 'M20261016153043_claim_watermark', 'M20261016162201_runtimes_no_job_fk', 'M20261016163823_step_lock', 'M20261016164834_slot_locks')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -5114,6 +5114,13 @@ VALUES ('M20261016163823_step_lock')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261016163823_step_lock =====
+
+-- ===== BEGIN M20261016164834_slot_locks =====
+INSERT INTO acta.migrations (name)
+VALUES ('M20261016164834_slot_locks')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261016164834_slot_locks =====
 
 COMMIT;
 

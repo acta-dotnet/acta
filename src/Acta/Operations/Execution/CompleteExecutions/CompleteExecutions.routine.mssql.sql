@@ -410,10 +410,25 @@ BEGIN
                         d.parent_id IS NOT NULL
                         AND d.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
+                    -- Each latch slot's own lock, as wait_signal names it, in name order so two batches never deadlock on
+                    -- them (docs/internals/sql-execution-policy.md, "Slot locks").
+                    DECLARE @latch_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+                    INSERT INTO @latch_locks (name)
+                    SELECT DISTINCT CONCAT(N'{{schema}}.slot:', p.parent_id, N':50:', p.latch_name) FROM #parents p;
+                    DECLARE @latch_lock NVARCHAR(255) = (SELECT MIN(name) FROM @latch_locks), @latch_lock_result INT;
+                    WHILE @latch_lock IS NOT NULL
+                        BEGIN
+                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                            EXEC @latch_lock_result = sp_getapplock @latch_lock, 'Exclusive', 'Transaction', -1;
+                            IF @latch_lock_result < 0
+                                THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+                            SET @latch_lock = (SELECT MIN(name) FROM @latch_locks WHERE name > @latch_lock);
+                        END;
+
                     UPDATE p
                     SET latch_state = s.status_code
                     FROM #parents p
-                    LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, HOLDLOCK, FORCESEEK)
+                    LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
                         ON s.job_id = p.parent_id AND s.kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.name = p.latch_name
                     OPTION (FORCE ORDER, LOOP JOIN);
 

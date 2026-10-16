@@ -3,9 +3,9 @@
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* The read below needs no re-read after a lost insert the way pg's does: (UPDLOCK, HOLDLOCK) takes a
-   key-range lock over the absent slot, so a concurrent first arrival waits here and then reads the
-   winner's row, arriving at the same resolution instead of racing the insert. */
+/* The read below needs no re-read after a lost insert the way pg's does: the slot's own lock, taken
+   first (docs/internals/sql-execution-policy.md, "Slot locks"), makes a concurrent first arrival wait
+   here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
 /* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
    act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
 CREATE OR ALTER PROCEDURE {{schema}}.wait_signal
@@ -29,12 +29,19 @@ BEGIN
         DECLARE @due DATETIME2(3) = NULL;
         DECLARE @outcome SMALLINT;
 
+        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_kind_code, N':', @p_name);
+        DECLARE @slot_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+        IF @slot_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+
         SELECT
             @state = status_code,
             @fmt = value_format_id,
             @val = value,
             @due = due_at_utc
-        FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
+        FROM {{schema}}.checkpoints WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
         IF @state = 20 /* CheckpointStatusCode.Set */

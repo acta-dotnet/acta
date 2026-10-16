@@ -423,6 +423,13 @@ settles, and what an operator sees when it fails.
   namespace, SQL Server went from about 2,200 to about 5,600 enqueues a second, the rate of enqueues
   with no key at all. A refused key lock, a deadlock included, raises error 51205, which Acta retries
   as it retries a deadlock.
+- **SQL Server steps and checkpoints no longer wait for each other across jobs.** Starting a step and
+  writing a variable, a signal, or a child latch read the slot under `HOLDLOCK` before inserting it.
+  Running jobs are the newest, so every job's first step or checkpoint falls in the same last gap, and
+  the range lock queued every executor behind every other: in a lab run where each job ran three
+  instant steps and set a variable, 4 workers drained 444 jobs a second with about 240 sessions
+  waiting on that gap. Each of those statements now locks its own slot with `sp_getapplock`, as
+  enqueue locks a deduplication key.
 - **`runtimes` has no foreign key to `jobs`.** Enqueue writes a job's two rows in one transaction and
   every purge deletes both, so `fk_runtimes_jobs` only checked, on each enqueue, the job row just
   inserted, which on SQL Server sits on the last page of `pk_jobs` that every concurrent enqueue is

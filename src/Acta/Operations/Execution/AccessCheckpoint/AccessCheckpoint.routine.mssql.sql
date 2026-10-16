@@ -20,6 +20,18 @@ BEGIN
             AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
             THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
 
+        -- The slot's own lock serializes the writers of one slot to commit (docs/internals/sql-execution-policy.md,
+        -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
+        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+            BEGIN
+                DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_kind_code, N':', @p_name);
+                DECLARE @slot_lock_result INT;
+                -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+                IF @slot_lock_result < 0
+                    THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+            END
+
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @row TABLE (
             found INT NOT NULL,
@@ -37,7 +49,7 @@ BEGIN
                     value = @p_value,
                     modified_at_utc = @now,
                     version = version + 1
-                FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK, HOLDLOCK)
+                FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK)
                 WHERE
                     jv.job_id = @p_job_id
                     AND jv.kind_code = @p_kind_code
@@ -87,7 +99,7 @@ BEGIN
                     jv.value_format_id,
                     jv.value,
                     jv.version
-                FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK, HOLDLOCK)
+                FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK)
                 WHERE
                     jv.job_id = @p_job_id
                     AND jv.kind_code = @p_kind_code
