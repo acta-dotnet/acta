@@ -41,7 +41,7 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek')
+        WHERE name NOT IN ('M20261015185851_init', 'M20261016080729_claim_writes_no_started_event', 'M20261016085434_enqueue_probes_seek', 'M20261016094552_jobs_no_lock_escalation')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4648,6 +4648,13 @@ VALUES ('M20261016085434_enqueue_probes_seek')
 ON CONFLICT (name) DO NOTHING;
 
 -- ===== END M20261016085434_enqueue_probes_seek =====
+
+-- ===== BEGIN M20261016094552_jobs_no_lock_escalation =====
+INSERT INTO acta.migrations (name)
+VALUES ('M20261016094552_jobs_no_lock_escalation')
+ON CONFLICT (name) DO NOTHING;
+
+-- ===== END M20261016094552_jobs_no_lock_escalation =====
 
 COMMIT;
 

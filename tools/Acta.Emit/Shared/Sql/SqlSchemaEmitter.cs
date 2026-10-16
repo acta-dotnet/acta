@@ -159,6 +159,10 @@ internal static class SqlSchemaEmitter
         }
 
         sb.AppendLine(CultureInfo.InvariantCulture, $"){dialect.TableTrailingOptions(e)};");
+        if (e.DisableLockEscalation && dialect.TableLockEscalation(e.TableName, disabled: true) is { } escalation)
+        {
+            sb.AppendLine(escalation);
+        }
 
         foreach (var idx in e.Indexes)
         {

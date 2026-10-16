@@ -20,6 +20,12 @@ internal sealed class DbTableAttribute(string name) : Attribute
     /// no-op on providers without table-level compression.
     /// </summary>
     public bool PageCompression { get; init; }
+
+    /// <summary>
+    /// Opts this table out of SQL Server lock escalation, for a table one statement writes a thousand rows of while
+    /// other sessions read it under locks; no-op on providers that do not escalate.
+    /// </summary>
+    public bool DisableLockEscalation { get; init; }
 }
 
 /// <summary>

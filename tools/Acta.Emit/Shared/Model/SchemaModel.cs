@@ -33,6 +33,7 @@ internal sealed class EntityModel(DbEntitySpec spec, XmlDocSource docs)
     public Type ClrType => _spec.ClrType;
     public string TableName => _spec.TableName;
     public bool PageCompression => _spec.PageCompression;
+    public bool DisableLockEscalation => _spec.DisableLockEscalation;
     public IReadOnlyList<ColumnModel> Columns { get; } = spec.Columns.Select(c => new ColumnModel(c, spec.ClrType, docs)).ToList();
     public IReadOnlyList<DbIndexSpec> Indexes => _spec.Indexes;
     public IReadOnlyList<DbCheckSpec> Checks => _spec.Checks;

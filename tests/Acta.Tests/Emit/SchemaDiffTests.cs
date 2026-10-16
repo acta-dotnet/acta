@@ -67,6 +67,19 @@ public sealed class SchemaDiffTests
     }
 
     [Fact]
+    public void Changed_table_options_are_reported_and_an_older_snapshot_without_them_reads_as_none()
+    {
+        var from = Snap([Entity("job", "id")]);
+        var to = Snap([Entity("job", "id") with { Options = "lock_escalation=disable" }]);
+
+        var diff = SchemaDiff.Compute(from, to);
+
+        Assert.Equal(["job"], diff.ChangedTableOptions);
+        Assert.False(diff.IsEmpty);
+        Assert.Empty(SchemaDiff.Compute(to, to).ChangedTableOptions);
+    }
+
+    [Fact]
     public void Identical_snapshots_diff_empty()
     {
         var snap = Snap([Entity("job", "id")]);

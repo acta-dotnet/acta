@@ -94,6 +94,12 @@ internal abstract class SqlDdlDialect
     public abstract string TableTrailingOptions(EntityModel e);
 
     /// <summary>
+    /// The statement setting a table's lock escalation to match <see cref="DbTableAttribute.DisableLockEscalation"/>, run
+    /// after its <c>CREATE TABLE</c> or when the flag changes; null on providers that do not escalate.
+    /// </summary>
+    public virtual string? TableLockEscalation(string tableName, bool disabled) => null;
+
+    /// <summary>
     /// Trailing <c>WITH (...)</c> clause for the inline primary-key constraint, driven by the PK's
     /// storage flags (e.g. <see cref="DbPrimaryKeyAttribute.OptimizeForSequentialKey"/>). Empty when
     /// none apply.

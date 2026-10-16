@@ -81,6 +81,10 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
     // (e.g. leases, results), so it is a per-table opt-in via [DbTable(PageCompression = true)].
     public override string TableTrailingOptions(EntityModel e) => e.PageCompression ? " WITH (DATA_COMPRESSION = PAGE)" : "";
 
+    // CREATE TABLE takes no LOCK_ESCALATION option, so it is an ALTER of its own.
+    public override string? TableLockEscalation(string tableName, bool disabled) =>
+        $"ALTER TABLE {SchemaPlaceholder}.{tableName} SET (LOCK_ESCALATION = {(disabled ? "DISABLE" : "TABLE")});";
+
     // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic clustered key,
     // so it is opted in per-PK via [DbPrimaryKey(OptimizeForSequentialKey = true)]: only on the
     // high-insert sequence-keyed tables (jobs, events), not blanket on every index.

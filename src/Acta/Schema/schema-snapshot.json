@@ -701,7 +701,8 @@
           "Sql": "(input_format_id = 0 AND input IS NULL) OR (input_format_id \u003C\u003E 0 AND input IS NOT NULL)"
         }
       ],
-      "ForeignKeys": []
+      "ForeignKeys": [],
+      "Options": "lock_escalation=disable"
     },
     {
       "Table": "lanes",

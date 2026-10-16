@@ -164,6 +164,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         string EntityFqn,
         string TableName,
         bool PageCompression,
+        bool DisableLockEscalation,
         string PrimaryKeyName,
         ImmutableArray<string> PrimaryKeyColumns,
         bool PrimaryKeyManual,

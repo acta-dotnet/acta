@@ -97,6 +97,14 @@ internal static class MigrationDeltaEmitter
             );
         }
 
+        foreach (var table in diff.ChangedTableOptions)
+        {
+            if (dialect.TableLockEscalation(table, byTable[table].DisableLockEscalation) is { } escalation)
+            {
+                sb.AppendLine(escalation);
+            }
+        }
+
         var changes = diff.Objects.GetValueOrDefault(token) ?? new ObjectChanges([], []);
         var drafted = objects.All.Where(o => changes.Changed.Contains(o.Name)).ToList();
         if (drafted.Count > 0)

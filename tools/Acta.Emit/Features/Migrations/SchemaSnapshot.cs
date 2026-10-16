@@ -26,7 +26,8 @@ internal sealed record SchemaSnapshot(
                 e.Checks.Select(c => new CheckSnapshot(c.Name, c.Sql)).OrderBy(c => c.Name, StringComparer.Ordinal).ToList(),
                 e.ForeignKeys.Select(f => new ForeignKeySnapshot(f.Name, ForeignKeySignature(f)))
                     .OrderBy(f => f.Name, StringComparer.Ordinal)
-                    .ToList()
+                    .ToList(),
+                e.DisableLockEscalation ? "lock_escalation=disable" : null
             ))
             .OrderBy(e => e.Table, StringComparer.Ordinal)
             .ToList();
@@ -76,7 +77,9 @@ internal sealed record EntitySnapshot(
     IReadOnlyList<ColumnSnapshot> Columns,
     IReadOnlyList<IndexSnapshot> Indexes,
     IReadOnlyList<CheckSnapshot> Checks,
-    IReadOnlyList<ForeignKeySnapshot> ForeignKeys
+    IReadOnlyList<ForeignKeySnapshot> ForeignKeys,
+    // Table-level options a delta can apply in place; null when the table sets none.
+    string? Options = null
 );
 
 internal sealed record ColumnSnapshot(string Name, string Signature);

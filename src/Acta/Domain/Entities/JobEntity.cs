@@ -8,7 +8,7 @@ namespace Acta;
 /// clustered PK. Recurring Jobs are a single reusable row whose runtime <c>next_run_at_utc</c>
 /// rolls forward on terminal completion (no per-firing row inflation).
 /// </summary>
-[DbTable("jobs")]
+[DbTable("jobs", DisableLockEscalation = true)]
 [DbPrimaryKey(Name = "pk_jobs", Columns = ["id"], OptimizeForSequentialKey = true)]
 [DbUniqueIndex(Name = "ux_jobs_ref", Columns = ["job_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(

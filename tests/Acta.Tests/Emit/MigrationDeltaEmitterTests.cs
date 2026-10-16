@@ -14,7 +14,8 @@ public sealed class MigrationDeltaEmitterTests
         IReadOnlyList<TableMember>? addedColumns = null,
         IReadOnlyList<TableMember>? addedIndexes = null,
         IReadOnlyList<string>? warnings = null,
-        IReadOnlyDictionary<string, ObjectChanges>? objects = null
+        IReadOnlyDictionary<string, ObjectChanges>? objects = null,
+        IReadOnlyList<string>? changedTableOptions = null
     ) =>
         new(
             addedTables ?? [],
@@ -22,9 +23,23 @@ public sealed class MigrationDeltaEmitterTests
             addedIndexes ?? [],
             [],
             [],
+            changedTableOptions ?? [],
             warnings ?? [],
             objects ?? new Dictionary<string, ObjectChanges>()
         );
+
+    [Fact]
+    public void A_changed_lock_escalation_option_renders_its_alter_on_sql_server_only()
+    {
+        var live = SchemaModel.Discover();
+        var diff = Diff(changedTableOptions: ["jobs"]);
+
+        var mssql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new SqlServerDdlDialect(), stem: "M20260102000000_jobs");
+        var pg = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_jobs");
+
+        Assert.Contains("ALTER TABLE {{schema}}.jobs SET (LOCK_ESCALATION = DISABLE);", mssql);
+        Assert.DoesNotContain("LOCK_ESCALATION", pg);
+    }
 
     [Fact]
     public void Added_column_renders_alter_table_add_using_the_real_column_definition()

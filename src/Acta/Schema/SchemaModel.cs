@@ -19,6 +19,12 @@ internal sealed class DbEntitySpec
     /// </summary>
     public bool PageCompression { get; init; }
 
+    /// <summary>
+    /// <c>true</c> when <see cref="DbTableAttribute.DisableLockEscalation"/> opts this table out of SQL Server lock
+    /// escalation; no-op on providers that do not escalate.
+    /// </summary>
+    public bool DisableLockEscalation { get; init; }
+
     /// <summary>All columns in declaration order.</summary>
     public required IReadOnlyList<DbColumnSpec> Columns { get; init; }
 

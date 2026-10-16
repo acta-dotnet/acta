@@ -397,6 +397,11 @@ settles, and what an operator sees when it fails.
   one producer slowed to a few thousand jobs a second, and every completion that writes a result
   waited behind it on its foreign-key check. Both enqueue routines now seek their deduplication index,
   its filter restated, and the parent lookup seeks by key.
+- **SQL Server never escalates locks on `jobs`.** A 1,000-row enqueue takes key and range locks on
+  every index of `jobs` and crosses the 5,000-lock threshold, so SQL Server tried to escalate about four
+  times per batch and won whenever no other session held a lock on the table at that instant: 39 times
+  in a 5-minute 10K jobs/s run, each time stalling completions behind the enqueue's commit.
+  Migration `M20261016094552_jobs_no_lock_escalation` sets `LOCK_ESCALATION = DISABLE` on `jobs`.
 - **The overview counts executing jobs from the in-flight index.** The count filtered `runtimes` on
   status alone, which no index serves, so every overview request scanned the whole table, retained
   history included. It now restates `ix_runtimes_worker_inflight`'s filter and reads only the

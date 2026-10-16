@@ -17,6 +17,7 @@ internal sealed record SchemaDiff(
     IReadOnlyList<TableMember> AddedIndexes,
     IReadOnlyList<TableMember> AddedChecks,
     IReadOnlyList<TableMember> AddedForeignKeys,
+    IReadOnlyList<string> ChangedTableOptions,
     IReadOnlyList<string> Warnings,
     IReadOnlyDictionary<string, ObjectChanges> Objects
 )
@@ -27,6 +28,7 @@ internal sealed record SchemaDiff(
         && AddedIndexes.Count == 0
         && AddedChecks.Count == 0
         && AddedForeignKeys.Count == 0
+        && ChangedTableOptions.Count == 0
         && Warnings.Count == 0
         && Objects.Values.All(o => o.Changed.Count == 0 && o.Removed.Count == 0);
 
@@ -48,6 +50,7 @@ internal sealed record SchemaDiff(
         var addedIndexes = new List<TableMember>();
         var addedChecks = new List<TableMember>();
         var addedForeignKeys = new List<TableMember>();
+        var changedTableOptions = new List<string>();
         var warnings = new List<string>();
 
         foreach (var (table, toEntity) in toEntities.OrderBy(kv => kv.Key, StringComparer.Ordinal))
@@ -71,6 +74,11 @@ internal sealed record SchemaDiff(
                 addedForeignKeys,
                 warnings
             );
+
+            if (fromEntity.Options != toEntity.Options)
+            {
+                changedTableOptions.Add(table);
+            }
 
             if (fromEntity.PrimaryKey != toEntity.PrimaryKey)
             {
@@ -100,7 +108,7 @@ internal sealed record SchemaDiff(
             );
         }
 
-        return new SchemaDiff(addedTables, addedColumns, addedIndexes, addedChecks, addedForeignKeys, warnings, objects);
+        return new SchemaDiff(addedTables, addedColumns, addedIndexes, addedChecks, addedForeignKeys, changedTableOptions, warnings, objects);
     }
 
     private static void DiffMembers<T>(
