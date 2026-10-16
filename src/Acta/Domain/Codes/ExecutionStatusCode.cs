@@ -9,9 +9,6 @@ public enum ExecutionStatusCode : byte
     [Code("unspecified", "Execution status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("executing", "Handler in flight.")]
-    Executing = 50,
-
     [Code("succeeded", "Handler returned successfully. Resets the runtime failure count.")]
     Succeeded = 100,
 
@@ -37,10 +34,9 @@ public enum ExecutionStatusCode : byte
     Orphaned = 230,
 }
 
-/// <summary>Explicit runtime behavior of a completed or live execution attempt.</summary>
+/// <summary>Explicit runtime behavior of a completed execution attempt.</summary>
 public enum ExecutionBehavior : byte
 {
-    Live = 1,
     Succeeded = 2,
     Controlled = 3,
     Failed = 4,
@@ -67,7 +63,6 @@ public static partial class ExecutionStatusExtensions
         public ExecutionBehavior GetBehavior() =>
             value switch
             {
-                ExecutionStatusCode.Executing => ExecutionBehavior.Live,
                 ExecutionStatusCode.Succeeded => ExecutionBehavior.Succeeded,
                 ExecutionStatusCode.Rescheduled or ExecutionStatusCode.Suspended or ExecutionStatusCode.Paused =>
                     ExecutionBehavior.Controlled,

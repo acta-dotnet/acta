@@ -103,7 +103,6 @@ public sealed class PersistedCodeContractTests
         EventReasonCode.WorkerCleanShutdown=100|worker.clean-shutdown
         EventReasonCode.WorkerHeartbeatStale=101|worker.heartbeat-stale
         ExecutionStatusCode.Unspecified=0|unspecified
-        ExecutionStatusCode.Executing=50|executing
         ExecutionStatusCode.Succeeded=100|succeeded
         ExecutionStatusCode.Rescheduled=150|rescheduled
         ExecutionStatusCode.Suspended=151|suspended
@@ -190,10 +189,10 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "04219DE7C8796226AC010597517E3AEF9CEC2938F250F089BDEACC958CB77913";
+    private const string ExpectedDescriptionHash = "A399F57CF6593B052CFDE83F00B99557749F06C949C1A1474E2FEFDAAE0587AF";
 
     [Fact]
-    public void Frozen_contract_covers_all_28_families_and_179_values()
+    public void Frozen_contract_covers_all_28_families_and_178_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -203,7 +202,7 @@ public sealed class PersistedCodeContractTests
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
         Assert.Equal(28, families.Length);
-        Assert.Equal(179, expected.Count);
+        Assert.Equal(178, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -214,7 +213,7 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(179, CodeManifests.All.Count);
+        Assert.Equal(178, CodeManifests.All.Count);
         Assert.Equal(35, Enum.GetValues<EventCode>().Length);
         Assert.Equal(27, Enum.GetValues<EventReasonCode>().Length);
 
@@ -225,7 +224,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes, JobPayloadFormat.Text };
-        Assert.Equal(183, actual.Count + payloads.Length);
+        Assert.Equal(182, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2, 3], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
@@ -339,7 +338,6 @@ public sealed class PersistedCodeContractTests
 
         var expected = new Dictionary<ExecutionStatusCode, ExecutionBehavior>
         {
-            [ExecutionStatusCode.Executing] = ExecutionBehavior.Live,
             [ExecutionStatusCode.Succeeded] = ExecutionBehavior.Succeeded,
             [ExecutionStatusCode.Rescheduled] = ExecutionBehavior.Controlled,
             [ExecutionStatusCode.Suspended] = ExecutionBehavior.Controlled,
