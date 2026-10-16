@@ -198,7 +198,7 @@ public class CliOutputTests
         var w = new StringWriter();
         var page = new ListEventsResponse(
             [
-                Event(EventCode.JobExecutionStarted, JobStatusCode.Ready, JobStatusCode.Executing),
+                Event(EventCode.JobResumed, JobStatusCode.Paused, JobStatusCode.Ready),
                 Event(
                     EventCode.JobExecutionFinished,
                     JobStatusCode.Executing,
@@ -217,7 +217,7 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains($"Events for job {SampleJobRef}", text);
-        Assert.Contains("job.execution-started  ready -> executing", text);
+        Assert.Contains("job.resumed  paused -> ready", text);
         Assert.Contains("job.execution-finished  executing -> failed", text);
         Assert.Contains("reason: job.unhandled-exception", text);
         Assert.Contains("message: boom in handler", text);

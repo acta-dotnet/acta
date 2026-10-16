@@ -55,7 +55,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
         await StageAsync(JobStatusCode.Cancelled, ExecutionStatusCode.Cancelled, EventReasonCode.JobControlManual, Ms(8), ct);
         // A terminal failure's triple on rows the read must still pass over: another event code, no job,
         // and another namespace.
-        await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(9), ct, code: EventCode.JobExecutionStarted);
+        await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(9), ct, code: EventCode.JobNoteRecorded);
         await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(10), ct, jobless: true);
         await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(11), ct, namespaceId: otherNamespaceId);
 

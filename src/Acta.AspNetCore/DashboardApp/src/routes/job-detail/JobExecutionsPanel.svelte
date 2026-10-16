@@ -89,7 +89,7 @@
 <section class="detail-panel" aria-label="Executions">
   <h2>Executions</h2>
   <p class="detail-help">
-    One row per handler invocation, derived from the event ledger; open a row to walk its events in
+    One row per finished handler invocation, derived from the event ledger; open a row to walk its events in
     the timeline. Showing {displayFormatter.number(gap.shown)} of {displayFormatter.number(gap.total)} executions.
   </p>
 
@@ -113,9 +113,8 @@
         {#each executions as execution, index (execution.executionNumber)}
           {@const look = executionPresentation(execution.outcome)}
           {@const previous = executions[index + 1]}
-          {@const previousSettled = previous?.finishedAtUtc ?? previous?.startedAtUtc}
-          {@const retryGapSeconds = execution.startedAtUtc && previousSettled
-            ? Math.round((Date.parse(execution.startedAtUtc) - Date.parse(previousSettled)) / 1000)
+          {@const retryGapSeconds = execution.startedAtUtc && previous
+            ? Math.round((Date.parse(execution.startedAtUtc) - Date.parse(previous.finishedAtUtc)) / 1000)
             : null}
           {@const repeatReason = !!execution.reasonMessage && execution.reasonMessage === previous?.reasonMessage}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
@@ -127,7 +126,7 @@
               onViewInTimeline(execution.executionNumber);
             }}>
             <td class="mono">#{execution.executionNumber}</td>
-            <td><span class="badge {look.tone === 'run' ? 'run' : look.tone === 'neutral' ? '' : look.tone}"><Icon name={look.icon} />{look.label}</span></td>
+            <td><span class="badge {look.tone === 'neutral' ? '' : look.tone}"><Icon name={look.icon} />{look.label}</span></td>
             <td>
               <RelativeTime value={execution.startedAtUtc} />
               {#if retryGapSeconds != null && retryGapSeconds > 0}<span class="dim retry-gap">+{displayFormatter.duration(retryGapSeconds)}</span>{/if}

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **184 values**.
+This release: **29 families**, **183 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -200,7 +200,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `NamespaceUpdated` | 22 | `namespace.updated` | An operator changed a namespace owner team / description. ReasonMessage carries the reason. | Active |
 | `JobDefinitionOverridesUpdated` | 30 | `definition.overrides-updated` | An operator changed a job definition's policy overrides; ReasonMessage summarizes the change. | Active |
 | `JobDefinitionRetired` | 31 | `definition.retired` | An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled. | Active |
-| `JobExecutionStarted` | 40 | `job.execution-started` | No longer written; kept so rows an older release wrote still read. | Retired |
 | `JobExecutionFinished` | 41 | `job.execution-finished` | Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / EventReasonCode populated. | Active |
 | `JobRecurringRolledOver` | 50 | `job.recurring-rolled-over` | Recurring Job's NextRunAtUtc advanced to the next firing instant. | Active |
 | `JobSuspended` | 60 | `job.suspended` | Handler called ctx.SleepAsync; the Job re-armed to Ready with the sleep timer's due instant; budget-neutral. | Active |

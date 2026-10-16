@@ -38,8 +38,6 @@ export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
   const code = String(evt.eventCode ?? '').toLowerCase();
   const outcome = String(evt.executionStatus ?? evt.toStatus ?? '').toLowerCase();
   switch (code) {
-    case 'job.execution-started':
-      return { icon: 'lightning-bolt', tone: 'run', title: 'Execution started' };
     case 'job.execution-finished':
       // outcome carries the ExecutionStatusCode name: succeeded/failed/rescheduled/suspended/paused/cancelled/orphaned.
       if (outcome === 'succeeded') return { icon: 'check', tone: 'ok', title: 'Completed' };

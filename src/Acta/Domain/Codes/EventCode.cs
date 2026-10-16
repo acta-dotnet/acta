@@ -59,9 +59,6 @@ public enum EventCode : byte
     [Code("definition.retired", "An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.")]
     JobDefinitionRetired = 31,
 
-    [Code("job.execution-started", "No longer written; kept so rows an older release wrote still read.", Lifecycle = CodeLifecycle.Retired)]
-    JobExecutionStarted = 40,
-
     [Code("job.execution-finished", "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / EventReasonCode populated.")]
     JobExecutionFinished = 41,
 

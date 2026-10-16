@@ -111,7 +111,7 @@ Two boundaries to keep straight when designing tenancy around Acta:
 ## Executions and attempts
 
 An **Execution** is one recorded run of the handler; at the default audit level the event ledger
-records started and finished events for every run. An **Attempt** is one try that counts against retry policy when it fails.
+records one finished event for every run. An **Attempt** is one try that counts against retry policy when it fails.
 A handler can be re-entered after a crash, retry, signal, or sleep; completed durable slots are not
 repeated.
 

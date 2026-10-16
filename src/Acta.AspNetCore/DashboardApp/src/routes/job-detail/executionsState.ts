@@ -1,13 +1,13 @@
 import type { JobEvent } from './types.ts';
 import type { TimelineTone } from '../../components/jobTimelineState.ts';
 
-// One row per execution, derived from the event ledger. Pairing is NOT guaranteed: the claim writes no
-// start event (only rows an older release wrote carry one), at audit level Failures a successful
-// execution leaves zero events, an orphan reclaim writes an end event with no duration, and an
-// in-flight execution has no end. Everything here is outer semantics over whatever events survive.
+// One row per execution whose outcome the ledger holds: its job.execution-finished event, which carries
+// the worker and the handler's duration. The claim writes no event, so an in-flight execution has no row
+// until it finishes; the job snapshot shows it meanwhile. The ledger can hold fewer executions than the
+// claim counter: at audit level Failures a success that answers no failure writes nothing, Off writes
+// nothing, and event retention runs on its own clock.
 
 export type ExecutionOutcome =
-  | 'executing'
   | 'succeeded'
   | 'failed'
   | 'rescheduled'
@@ -20,64 +20,41 @@ export type ExecutionOutcome =
 export interface ExecutionSummary {
   executionNumber: number;
   startedAtUtc: string | null;
-  finishedAtUtc: string | null;
+  finishedAtUtc: string;
   durationMs: number | null;
   workerRef: string | null;
   outcome: ExecutionOutcome;
   reasonCode: string | null;
   reasonMessage: string | null;
-  eventCount: number;
-  missingStart: boolean;
-  missingEnd: boolean;
 }
 
 const OUTCOMES: ReadonlySet<string> = new Set([
-  'executing', 'succeeded', 'failed', 'rescheduled', 'suspended', 'paused', 'cancelled', 'orphaned'
+  'succeeded', 'failed', 'rescheduled', 'suspended', 'paused', 'cancelled', 'orphaned'
 ]);
 
 export function deriveExecutions(events: JobEvent[]): ExecutionSummary[] {
-  const groups = new Map<number, JobEvent[]>();
+  // Defensive against replays: the latest finished event of an execution wins, by durable event id.
+  const finished = new Map<number, JobEvent>();
   for (const event of events) {
-    if (event.executionNumber == null) continue; // lifecycle events (enqueue, controls) have no execution
-    const group = groups.get(event.executionNumber);
-    if (group) group.push(event);
-    else groups.set(event.executionNumber, [event]);
+    if (event.eventCode !== 'job.execution-finished' || event.executionNumber == null) continue;
+    const seen = finished.get(event.executionNumber);
+    if (!seen || event.jobEventId > seen.jobEventId) finished.set(event.executionNumber, event);
   }
 
-  const summaries: ExecutionSummary[] = [];
-  for (const [executionNumber, group] of groups) {
-    // Defensive against replays: earliest start, latest end by durable event id.
-    let start: JobEvent | null = null;
-    let end: JobEvent | null = null;
-    for (const event of group) {
-      if (event.eventCode === 'job.execution-started' && (!start || event.jobEventId < start.jobEventId)) start = event;
-      if (event.eventCode === 'job.execution-finished' && (!end || event.jobEventId > end.jobEventId)) end = event;
-    }
-
-    const rawOutcome = String(end?.executionStatus ?? '').toLowerCase();
-    const outcome: ExecutionOutcome = end
-      ? (OUTCOMES.has(rawOutcome) ? (rawOutcome as ExecutionOutcome) : 'unknown')
-      : start
-        ? 'executing'
-        : 'unknown';
-
-    summaries.push({
+  const summaries = [...finished].map(([executionNumber, end]): ExecutionSummary => {
+    const rawOutcome = String(end.executionStatus ?? '').toLowerCase();
+    return {
       executionNumber,
-      // A finished event carries its handler's duration, so a start without its own event is the finish less that.
-      startedAtUtc: start?.createdAtUtc
-        ?? (end?.durationMs != null ? new Date(Date.parse(end.createdAtUtc) - end.durationMs).toISOString() : null),
-      finishedAtUtc: end?.createdAtUtc ?? null,
-      durationMs: end?.durationMs ?? null,
-      // An older release's orphan reclaim wrote its end event with a NULL worker; its start event still knows.
-      workerRef: end?.workerRef ?? start?.workerRef ?? null,
-      outcome,
-      reasonCode: end?.reasonCode ?? null,
-      reasonMessage: end?.reasonMessage ?? null,
-      eventCount: group.length,
-      missingStart: !start,
-      missingEnd: !end,
-    });
-  }
+      // The start is the finish less the handler's duration; a reclaim or a cancel records no duration, so its start is unknown.
+      startedAtUtc: end.durationMs != null ? new Date(Date.parse(end.createdAtUtc) - end.durationMs).toISOString() : null,
+      finishedAtUtc: end.createdAtUtc,
+      durationMs: end.durationMs,
+      workerRef: end.workerRef,
+      outcome: OUTCOMES.has(rawOutcome) ? (rawOutcome as ExecutionOutcome) : 'unknown',
+      reasonCode: end.reasonCode,
+      reasonMessage: end.reasonMessage,
+    };
+  });
 
   return summaries.sort((a, b) => b.executionNumber - a.executionNumber);
 }
@@ -107,7 +84,6 @@ export function executionPresentation(outcome: ExecutionOutcome): ExecutionPrese
   switch (outcome) {
     case 'succeeded': return { tone: 'ok', icon: 'check', label: 'Succeeded' };
     case 'failed': return { tone: 'bad', icon: 'x', label: 'Failed' };
-    case 'executing': return { tone: 'run', icon: 'lightning-bolt', label: 'Executing' };
     case 'rescheduled': return { tone: 'warn', icon: 'counter-clockwise-clock', label: 'Rescheduled' };
     case 'suspended': return { tone: 'held', icon: 'clock', label: 'Sleeping' };
     case 'paused': return { tone: 'warn', icon: 'pause', label: 'Paused' };

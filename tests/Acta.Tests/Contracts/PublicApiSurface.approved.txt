@@ -413,7 +413,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <28215 chars, sha256:73026D1D>
+    System.String MarkdownReport = <28102 chars, sha256:CF3425C1>
 enum Acta.ControlAction
     Accepted = 4
     AlreadyInState = 6
@@ -628,7 +628,6 @@ enum Acta.EventCode
     JobDefinitionOverridesUpdated = 30
     JobDefinitionRetired = 31
     JobExecutionFinished = 41
-    JobExecutionStarted = 40
     JobInputAmended = 76
     JobNoteRecorded = 90
     JobPaused = 71

@@ -443,7 +443,7 @@ Total:  5,426.50
           <figcaption>The Jobs page after the first report. The three System jobs are Acta's own housekeeping.</figcaption>
         </figure>
         <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
-        <p>Click your report's ref. The detail page shows the job's name, namespace, and status, an Attempts line reading "1 started, 0 consecutive failures", and a timeline with two events: execution started, and a completion a few milliseconds later. The Input and Result tabs show the stored JSON. The Actions panel says "Job controls are disabled on this host", and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
+        <p>Click your report's ref. The detail page shows the job's name, namespace, and status, an Attempts line reading "1 started, 0 consecutive failures", and a timeline with one event: the completion, tagged with the few milliseconds the handler took. The Input and Result tabs show the stored JSON. The Actions panel says "Job controls are disabled on this host", and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
         <aside class="callout" aria-label="Sidebar: the same facts from the terminal">
           <h3>The same facts, from the terminal</h3>
           <p>An application that uses Acta also answers a small set of <code>jobs</code> commands. Run the app a second time with <code>--no-build</code>, so the command does not try to rebuild files the running copy is using: <code>dotnet run --no-build -- jobs events &lt;job-ref&gt;</code> prints the timeline, and <code>jobs explain &lt;job-ref&gt;</code> describes the job's state in plain English. The command reads the database and exits without starting the web server or a worker. You will use it in a moment.</p>
@@ -471,7 +471,7 @@ Total:  5,426.50
         <p>This is the page to learn to read. Ready with a next-run time means "waiting for the next attempt", not "stuck". The reason is the stored exception message, and "4 started, 4 consecutive failures (fails permanently at 10)" says exactly how much patience is left. Further down, the timeline lists every attempt. The terminal tells the same story:</p>
         <figure class="listing">
           <figcaption><span class="note">Terminal 2, with your September job ref</span><button class="copy" type="button" aria-label="Copy the events command">Copy</button></figcaption>
-          <pre><code>dotnet run --no-build -- jobs events job_01m3f3kp47edm8t13hb0xyk6t0 --take 3</code></pre>
+          <pre><code>dotnet run --no-build -- jobs events job_01m3f3kp47edm8t13hb0xyk6t0 --take 2</code></pre>
         </figure>
         <figure class="listing output">
           <figcaption><span class="note">Output from our test run (trimmed)</span></figcaption>
@@ -482,8 +482,7 @@ Total:  5,426.50
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
 2026-09-26T14:59:28.3810000Z  job.execution-finished  executing -&gt; ready  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5
   reason: job.unhandled-exception
-  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
-2026-09-26T14:59:28.3800000Z  job.execution-started  ready -&gt; executing  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5</code></pre>
+  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.</code></pre>
         </figure>
         <p>Now play the part of the upstream system and deliver the export. Create <code>data/sales-2026-09.csv</code> while the job is still retrying:</p>
         <figure class="listing">

@@ -21,7 +21,7 @@
     'tenant.suspended', 'tenant.resumed', 'tenant.updated',
     'namespace.suspended', 'namespace.resumed', 'namespace.updated',
     'definition.overrides-updated',
-    'job.execution-started', 'job.execution-finished', 'job.recurring-rolled-over',
+    'job.execution-finished', 'job.recurring-rolled-over',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
     'job.signal-raised', 'job.state-reset',

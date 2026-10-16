@@ -44,25 +44,13 @@ const event = {
   reasonMessage: 'Invoice provider timed out.'
 };
 
-// Newest-first, as the feed returns them: the paired execution events under the transition event.
+// Newest-first, as the feed returns them: the attempt's finished event under the transition event.
 const executionEvents = [
   event,
   {
     ...event,
     jobEventId: 90,
     eventCode: 'job.execution-finished'
-  },
-  {
-    ...event,
-    jobEventId: 89,
-    eventCode: 'job.execution-started',
-    createdAtUtc: '2026-07-14T07:59:00Z',
-    fromStatus: 'ready',
-    toStatus: 'executing',
-    executionStatus: 'executing',
-    durationMs: null,
-    reasonCode: null,
-    reasonMessage: null
   }
 ];
 
