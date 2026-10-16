@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261016182641_init')
+    WHERE name NOT IN ('M20261016183347_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261016182641_init =====
+-- ===== BEGIN M20261016183347_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -342,7 +342,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS main.ux_schedules_job_name ON schedules (job_i
 
 -- steps
 CREATE TABLE IF NOT EXISTS main.steps (
-    id integer PRIMARY KEY AUTOINCREMENT,
     job_id integer NOT NULL,
     name text NOT NULL,
     status_code integer NOT NULL,
@@ -355,6 +354,7 @@ CREATE TABLE IF NOT EXISTS main.steps (
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_steps PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
     , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
@@ -363,7 +363,6 @@ CREATE TABLE IF NOT EXISTS main.steps (
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS main.ux_steps_job_name ON steps (job_id, name);
 
 -- tags
 CREATE TABLE IF NOT EXISTS main.tags (
@@ -716,7 +715,6 @@ JOIN main.definitions AS d ON d.id = s.definition_id;
 DROP VIEW IF EXISTS main.steps_view;
 CREATE VIEW main.steps_view AS
 SELECT
-    s.id AS step_id,
     s.job_id,
     j.job_ref,
     ns.name AS namespace,
@@ -783,10 +781,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261016182641_init')
+VALUES ('M20261016183347_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261016182641_init =====
+-- ===== END M20261016183347_init =====
 
 COMMIT;
 

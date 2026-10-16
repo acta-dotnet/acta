@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **230 columns**, **34 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **229 columns**, **33 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -520,17 +520,16 @@ One named recurring schedule attached to a definition's slot Job. The `Origin` r
 
 ### `acta.steps` <a id="entity-acta-steps"></a>
 
-The durable retry and result state of one step, one row per `(JobId, Name)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). `Status` is the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt.
+The durable retry and result state of one step, one row per `(JobId, Name)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). `Status` is the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt. Keyed by its job, as every job satellite is: concurrent steps of in-flight jobs spread over those jobs' pages.
 
-**CLR type** `Acta.StepEntity` · **Primary key** `pk_steps` (`id`)
+**CLR type** `Acta.StepEntity` · **Primary key** `pk_steps` (`job_id`, `name`)
 
 **Columns**
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `id`<a id="column-acta-steps--id"></a> | `Int64` | · | no | `Identity` | PK | Surrogate row identifier. |
-| `job_id`<a id="column-acta-steps--job-id"></a> | `Int64` | · | no | · | · | Owning Job. CASCADE FK. Part of the natural identity carried by `ux_steps_job_name`. |
-| `name`<a id="column-acta-steps--name"></a> | `AsciiString` | 128 | no | · | · | Step slot name. Kebab-case ASCII. Part of the natural identity carried by `ux_steps_job_name`. |
+| `job_id`<a id="column-acta-steps--job-id"></a> | `Int64` | · | no | · | PK | Owning Job. CASCADE FK. The key's first column. |
+| `name`<a id="column-acta-steps--name"></a> | `AsciiString` | 128 | no | · | PK | Step slot name. Kebab-case ASCII. The key's second column. |
 | `status_code`<a id="column-acta-steps--status-code"></a> | `Byte` | · | no | · | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode) (`job-step-status`) | `Pending` while retrying; `Succeeded` / `Exhausted` on terminal. CHECK rejects 0. |
 | `attempt_number`<a id="column-acta-steps--attempt-number"></a> | `Int32` | · | no | · | · | Step attempt ordinal across retries (1-based; incremented on each failure within budget). |
 | `next_retry_at_utc`<a id="column-acta-steps--next-retry-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the next retry attempt is scheduled. `ck_steps_terminal_no_retry` keeps it NULL on terminal rows. |
@@ -541,12 +540,6 @@ The durable retry and result state of one step, one row per `(JobId, Name)`, wri
 | `created_at_utc`<a id="column-acta-steps--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | First-invocation instant; the wall-clock anchor for the `complete_step``RetryWindow` predicate (`nextRetryAtUtc > CreatedAtUtc + RetryWindow` exhausts the step). Rendered server-side via `UtcNow` on the initial INSERT and never updated thereafter. |
 | `modified_at_utc`<a id="column-acta-steps--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | Last-write instant. Advances on every `Status` transition or attempt update. |
 | `version`<a id="column-acta-steps--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token; operations manually increment on UPDATE. |
-
-**Indexes**
-
-| Name | Columns | Uniqueness | Filter | Usage |
-|---|---|---|---|---|
-| `ux_steps_job_name` | `job_id`, `name` | unique | none | `uniqueness` |
 
 **Check constraints**
 

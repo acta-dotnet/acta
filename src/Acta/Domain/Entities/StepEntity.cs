@@ -5,9 +5,10 @@ namespace Acta;
 /// and <c>complete_step</c> behind <c>ctx.RunStepAsync</c>: inserted Pending on first run, updated across retries,
 /// and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). <see cref="Status"/> is
 /// the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt.
+/// Keyed by its job, as every job satellite is: concurrent steps of in-flight jobs spread over those jobs' pages.
 /// </summary>
 [DbTable("steps")]
-[DbPrimaryKey(Name = "pk_steps", Columns = ["id"])]
+[DbPrimaryKey(Name = "pk_steps", Columns = ["job_id", "name"])]
 [DbForeignKey(
     Name = "fk_steps_jobs",
     Target = typeof(JobEntity),
@@ -15,7 +16,6 @@ namespace Acta;
     Column = "job_id",
     OnDelete = DbForeignKeyAction.Cascade
 )]
-[DbUniqueIndex(Name = "ux_steps_job_name", Columns = ["job_id", "name"], Usage = "uniqueness")]
 [DbCheck(
     Name = "ck_steps_result_pair",
     Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"
@@ -24,23 +24,16 @@ namespace Acta;
 [DbCheck(Name = "ck_steps_terminal_no_retry", Sql = "status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL")]
 [DbCheck(Name = "ck_steps_result_succeeded", Sql = "result_format_id = 0 OR status_code = 100")]
 [DbCheck(Name = "ck_steps_reason_pair", Sql = "reason_message IS NULL OR reason_code IS NOT NULL")]
-internal sealed class StepEntity : IEntity<long>
+internal sealed class StepEntity : IEntity
 {
     /// <summary>
-    /// Surrogate row identifier.
-    /// </summary>
-    [DbColumn("id", DbKind.Int64)]
-    public long Id { get; init; }
-
-    /// <summary>
-    /// Owning Job. CASCADE FK. Part of the natural identity carried by <c>ux_steps_job_name</c>.
+    /// Owning Job. CASCADE FK. The key's first column.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long JobId { get; init; }
 
     /// <summary>
-    /// Step slot name. Kebab-case ASCII. Part of the natural identity carried by
-    /// <c>ux_steps_job_name</c>.
+    /// Step slot name. Kebab-case ASCII. The key's second column.
     /// </summary>
     [DbColumn("name", DbKind.AsciiString, Size = 128)]
     public string Name { get; init; } = default!;

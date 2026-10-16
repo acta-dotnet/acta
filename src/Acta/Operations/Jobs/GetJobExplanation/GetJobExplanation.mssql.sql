@@ -55,7 +55,7 @@ SELECT
     s.reason_message
 FROM {{schema}}.steps s
 WHERE s.job_id = @p_id
-ORDER BY s.id;
+ORDER BY s.created_at_utc, s.name;
 
 -- 3) Checkpoints: signal / timer / variable / progress / child-latch slots, ordered by kind then name.
 SELECT

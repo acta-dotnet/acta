@@ -1,5 +1,4 @@
 SELECT
-    s.id AS step_id,
     s.job_id,
     j.job_ref,
     ns.name AS namespace,

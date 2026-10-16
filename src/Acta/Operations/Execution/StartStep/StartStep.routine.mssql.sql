@@ -43,7 +43,7 @@ BEGIN
             @result = result,
             @rcode = reason_code,
             @rmsg = reason_message
-        FROM {{schema}}.steps WITH (UPDLOCK, INDEX (ux_steps_job_name))
+        FROM {{schema}}.steps WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND name = @p_name;
 
         IF @state IS NULL

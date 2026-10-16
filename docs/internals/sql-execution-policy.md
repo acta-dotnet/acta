@@ -217,7 +217,7 @@ routines and `RegisterSchedules`, which inserts the recurring slots under their 
 ### Slot locks
 
 A job's steps and checkpoints are the same case on SQL Server: running jobs are the newest, so each
-job's first step or checkpoint falls in the last gap of `ux_steps_job_name` or `pk_checkpoints`, and a
+job's first step or checkpoint falls in the last gap of `pk_steps` or `pk_checkpoints`, and a
 probe under `HOLDLOCK` made every executor's write wait for every other's. Each statement that may
 insert one takes `sp_getapplock`, exclusive and owned by the transaction, on the slot's own name and then
 reads it under `UPDLOCK`; a refusal raises 51205:

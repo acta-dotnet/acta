@@ -40,7 +40,7 @@ WHERE j.id = @p_id;
 SELECT s.name, s.status_code, s.attempt_number, s.next_retry_at_utc, s.reason_message
 FROM {{schema}}.steps s
 WHERE s.job_id = @p_id
-ORDER BY s.id;
+ORDER BY s.created_at_utc, s.name;
 
 -- 3) Checkpoints: signal / timer / variable / progress / child-latch slots, ordered by kind then name.
 SELECT c.kind_code, c.name, c.status_code, c.due_at_utc

@@ -14,6 +14,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `ListSchedulesQuery`, `ListWorkersQuery`, `ListAlertsQuery`, and `ListEventsQuery` (the `tag` query
   parameter on those lists), and the dashboard's tag editors and tag filters for them, and the four
   `TagScopeCode` members are gone.
+- **A step is its job's, by name: `steps_view` has no `step_id`.** `steps` is keyed by `(job_id, name)`,
+  the key every step statement already read by, and its surrogate id and separate unique index are
+  gone. On SQL Server every concurrent step start inserted at the identity's one last page; now the
+  steps of the jobs in flight spread over those jobs' pages, and each step write maintains one B-tree.
 - **The overview counts no history.** `GetOverviewQuery.IncludeSlowCounts`,
   `GetOverviewResponse.JobCount` and `SystemJobCount`, and `jobCount` / `systemJobCount` on
   `GET /overview` are gone, and so is the dashboard's Total jobs tile. Both counts read every job the

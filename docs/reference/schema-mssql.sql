@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261016182641_init')
+    WHERE name NOT IN ('M20261016183347_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261016182641_init =====
+-- ===== BEGIN M20261016183347_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -415,7 +415,6 @@ GO
 IF OBJECT_ID(N'acta.steps', N'U') IS NULL
 BEGIN
 CREATE TABLE acta.steps (
-    id bigint IDENTITY(1,1) NOT NULL,
     job_id bigint NOT NULL,
     name varchar(128) NOT NULL,
     status_code tinyint NOT NULL,
@@ -428,7 +427,7 @@ CREATE TABLE acta.steps (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_steps PRIMARY KEY (id)
+    , CONSTRAINT pk_steps PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
     , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
@@ -436,7 +435,6 @@ CREATE TABLE acta.steps (
     , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
-CREATE UNIQUE INDEX ux_steps_job_name ON acta.steps (job_id, name);
 END
 GO
 
@@ -4074,7 +4072,7 @@ BEGIN
             @result = result,
             @rcode = reason_code,
             @rmsg = reason_message
-        FROM acta.steps WITH (UPDLOCK, INDEX (ux_steps_job_name))
+        FROM acta.steps WITH (UPDLOCK)
         WHERE job_id = @p_job_id AND name = @p_name;
 
         IF @state IS NULL
@@ -4599,7 +4597,6 @@ GO
 
 CREATE OR ALTER VIEW acta.steps_view AS
 SELECT
-    s.id AS step_id,
     s.job_id,
     j.job_ref,
     ns.name AS namespace,
@@ -4669,11 +4666,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016182641_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261016183347_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261016182641_init');
+VALUES ('M20261016183347_init');
 GO
--- ===== END M20261016182641_init =====
+-- ===== END M20261016183347_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -70,7 +70,7 @@ SELECT
     s.status_code
 FROM {{schema}}.steps s
 WHERE s.job_id = @p_id
-ORDER BY s.id;
+ORDER BY s.created_at_utc, s.name;
 
 -- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait.
 SELECT
