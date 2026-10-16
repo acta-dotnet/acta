@@ -7,6 +7,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 
 ### What a consumer must change
 
+- **The overview counts no history.** `GetOverviewQuery.IncludeSlowCounts`,
+  `GetOverviewResponse.JobCount` and `SystemJobCount`, and `jobCount` / `systemJobCount` on
+  `GET /overview` are gone, and so is the dashboard's Total jobs tile. Both counts read every job the
+  namespace ever had, on each 10-second dashboard poll.
 - **A claim writes no `job.execution-started` event.** At the `Audit` level an attempt is recorded once,
   by `job.execution-finished`, which already carried the worker and the handler's duration; an attempt
   in flight is its `runtimes` row, and the dashboard places an attempt's start at its finish less its
