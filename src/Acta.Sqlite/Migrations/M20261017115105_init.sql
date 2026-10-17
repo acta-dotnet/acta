@@ -377,6 +377,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_checkpoints_pending_latches ON checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 DROP VIEW IF EXISTS {{schema}}.alerts_view;
 CREATE VIEW {{schema}}.alerts_view AS
@@ -723,5 +724,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017115058_init')
+VALUES ('M20261017115105_init')
 ON CONFLICT (name) DO NOTHING;

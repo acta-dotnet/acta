@@ -448,6 +448,7 @@ CREATE TABLE {{schema}}.checkpoints (
     , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
+CREATE INDEX ix_checkpoints_pending_latches ON {{schema}}.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 END
 GO
 
@@ -4586,7 +4587,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261017115058_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261017115105_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017115058_init');
+VALUES ('M20261017115105_init');
 GO

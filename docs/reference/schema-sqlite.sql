@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261017115058_init')
+    WHERE name NOT IN ('M20261017115105_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261017115058_init =====
+-- ===== BEGIN M20261017115105_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -434,6 +434,7 @@ CREATE TABLE IF NOT EXISTS main.checkpoints (
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
+CREATE INDEX IF NOT EXISTS main.ix_checkpoints_pending_latches ON checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 DROP VIEW IF EXISTS main.alerts_view;
 CREATE VIEW main.alerts_view AS
@@ -780,10 +781,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261017115058_init')
+VALUES ('M20261017115105_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017115058_init =====
+-- ===== END M20261017115105_init =====
 
 COMMIT;
 

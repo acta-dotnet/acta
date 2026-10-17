@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261017115058_init')
+        WHERE name NOT IN ('M20261017115105_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261017115058_init =====
+-- ===== BEGIN M20261017115105_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -438,6 +438,7 @@ CREATE TABLE IF NOT EXISTS acta.checkpoints (
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 CREATE OR REPLACE FUNCTION acta.access_checkpoint(
     p_action SMALLINT,
@@ -4036,10 +4037,10 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017115058_init')
+VALUES ('M20261017115105_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017115058_init =====
+-- ===== END M20261017115105_init =====
 
 COMMIT;
 

@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261017115058_init')
+    WHERE name NOT IN ('M20261017115105_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261017115058_init =====
+-- ===== BEGIN M20261017115105_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -522,6 +522,7 @@ CREATE TABLE acta.checkpoints (
     , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
+CREATE INDEX ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 END
 GO
 
@@ -4660,11 +4661,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017115058_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017115105_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017115058_init');
+VALUES ('M20261017115105_init');
 GO
--- ===== END M20261017115058_init =====
+-- ===== END M20261017115105_init =====
 GO
 COMMIT TRANSACTION;
 GO

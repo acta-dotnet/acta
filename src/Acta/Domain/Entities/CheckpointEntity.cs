@@ -27,6 +27,14 @@ namespace Acta;
         + " OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30))"
         + " OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)"
 )]
+// The recovery pass's stale-latch read: a latch is Pending only while its parent waits on that child, so the pass
+// reads the parents waiting right now, never every checkpoint the namespace retains. The read restates the filter.
+[DbIndex(
+    Name = "ix_checkpoints_pending_latches",
+    Columns = ["job_id", "name"],
+    Filter = "kind_code = 50 AND status_code = 10",
+    Usage = "maintenance"
+)]
 internal sealed class CheckpointEntity : IEntity
 {
     /// <summary>

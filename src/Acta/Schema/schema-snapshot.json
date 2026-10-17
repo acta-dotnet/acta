@@ -180,7 +180,12 @@
           "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         }
       ],
-      "Indexes": [],
+      "Indexes": [
+        {
+          "Name": "ix_checkpoints_pending_latches",
+          "Signature": "I|cols=job_id,name|inc=|desc=|filter=kind_code = 50 AND status_code = 10|seq=False"
+        }
+      ],
       "Checks": [
         {
           "Name": "ck_checkpoints_kind_shape",

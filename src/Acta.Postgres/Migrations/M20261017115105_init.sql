@@ -387,6 +387,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS ix_checkpoints_pending_latches ON {{schema}}.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 CREATE OR REPLACE FUNCTION {{schema}}.access_checkpoint(
     p_action SMALLINT,
@@ -3985,5 +3986,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017115058_init')
+VALUES ('M20261017115105_init')
 ON CONFLICT (name) DO NOTHING;
