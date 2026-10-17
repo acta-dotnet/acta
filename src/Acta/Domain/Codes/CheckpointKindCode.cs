@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Discriminator for <c>JobCheckpoint</c> rows: which durable substrate feature owns the
+/// Discriminator for <c>checkpoints</c> rows: which durable substrate feature owns the
 /// <c>(job_id, kind_code, name)</c> slot. One physical table carries every simple job-internal
 /// durable slot; the kind keeps the name spaces structurally separate (a user variable can never
 /// collide with a signal or a child latch of the same name).

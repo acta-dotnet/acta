@@ -87,8 +87,8 @@ namespace Acta;
 internal sealed class RuntimeEntity : IEntity<long>
 {
     /// <summary>
-    /// Owning Job; primary key (1:1 with <c>jobs</c>) and CASCADE FK, so a purged job sweeps its
-    /// runtime row in the same transaction. Supplied by enqueue, never DB-assigned.
+    /// Owning Job; primary key, 1:1 with <c>jobs</c> and written in the same enqueue transaction. No foreign key (see
+    /// the entity summary): purge and retention delete this row with the job. Supplied by enqueue, never DB-assigned.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long Id { get; init; }
@@ -167,7 +167,7 @@ internal sealed class RuntimeEntity : IEntity<long>
     public DateTime? LeaseExpiresAtUtc { get; set; }
 
     /// <summary>
-    /// When <c>sys.retention</c> deletes the owning job row (this row cascades with it).
+    /// When <c>sys.retention</c> deletes the owning job and this row.
     /// </summary>
     [DbColumn("retention_until_utc", DbKind.UtcInstant)]
     public DateTime? RetentionUntilUtc { get; set; }

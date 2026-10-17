@@ -31,8 +31,8 @@ internal sealed class InFlightJobRegistry
     public Channel<InFlightJob> Claimed { get; }
 
     /// <summary>
-    /// The executors' hand-off to the finalizers, as large as the executor count: when the writes fall behind it fills,
-    /// the executors wait on it with their permits held, and the claimer stops.
+    /// The executors' hand-off to the finalizer: when the writes fall behind it fills, the executors wait on it with
+    /// their permits held, and the claimer stops.
     /// </summary>
     public Channel<InFlightJob> Completed { get; }
 

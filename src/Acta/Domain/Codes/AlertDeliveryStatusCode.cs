@@ -16,7 +16,7 @@ public enum AlertDeliveryStatusCode : byte
     [Code("pending", "Materialized; awaiting the first send attempt.")]
     Pending = 10,
 
-    [Code("retry-after", "Send deferred until JobAlert.RetryAfterUtc instant.")]
+    [Code("retry-after", "Send deferred until the alert's retry_after_utc instant.")]
     RetryAfter = 20,
 
     [Code("suppressed", "Intentionally not sent because process-local channel policy rejected delivery.")]

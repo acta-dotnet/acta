@@ -11,7 +11,7 @@ namespace Acta;
 internal sealed class TenantEntity : IEntity<int>
 {
     /// <summary>
-    /// DB-assigned identity. Referenced by <c>job.tenant_id</c> and <c>events.tenant_id</c>. Callers
+    /// DB-assigned identity. Referenced by <c>jobs.tenant_id</c> and <c>events.tenant_id</c>. Callers
     /// never pick the value; the runtime upserts the row by <see cref="TenantName"/> and reads the id back.
     /// </summary>
     [DbColumn("id", DbKind.Int32)]

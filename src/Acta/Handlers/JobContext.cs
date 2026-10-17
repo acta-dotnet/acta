@@ -147,10 +147,9 @@ public abstract partial class JobContext
     /// <summary>
     /// Deliberately holds this Job in <c>Paused</c> until an external resume (manual review, missing
     /// approval, operator intervention). Throws <see cref="HandlerPauseException"/> synchronously; code
-    /// after this call in the current attempt is unreachable. The Job is not retried automatically, sets
-    /// no <c>next_run_at_utc</c>, and the failure budget is untouched. Resumes only through
-    /// <c>IJobs.ResumeAsync</c>. This is operator-driven hold, not framework-managed
-    /// <c>Suspended</c> (which <see cref="SleepAsync"/> / <see cref="WaitSignalAsync(string, CancellationToken)"/> produce).
+    /// after this call in the current attempt is unreachable. The Job is not retried automatically, and the
+    /// failure budget is untouched. Resumes only through <c>IJobs.ResumeAsync</c>. This is an operator-driven hold, not
+    /// the framework-managed <c>Suspended</c> a <see cref="WaitSignalAsync(string, CancellationToken)"/> produces.
     /// </summary>
     public Task PauseAsync(string? reasonMessage = null, CancellationToken ct = default)
     {

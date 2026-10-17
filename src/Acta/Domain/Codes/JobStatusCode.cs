@@ -33,7 +33,10 @@ public enum JobStatusCode : byte
     [Code("succeeded", "Terminal success.")]
     Succeeded = 100,
 
-    [Code("failed", "Terminal failure: MaxAttempts exhausted, expiration fired, or ctx.Fail called.")]
+    [Code(
+        "failed",
+        "Terminal failure: MaxAttempts exhausted, a non-retryable exception, an interrupted at-most-once step, or ctx.FailAsync."
+    )]
     Failed = 200,
 
     [Code("cancelled", "Terminal cancellation by IJobs.CancelAsync or ctx.Cancel.")]

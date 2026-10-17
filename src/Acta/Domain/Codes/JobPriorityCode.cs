@@ -25,6 +25,6 @@ public enum JobPriorityCode : byte
     [Code("critical", "Critical priority; close-to-realtime operator workloads.")]
     Critical = 85,
 
-    [Code("realtime", "Highest priority; always pages.")]
+    [Code("realtime", "Highest priority.")]
     Realtime = 100,
 }

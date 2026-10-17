@@ -31,7 +31,7 @@ public enum EventReasonCode : byte
     [Code("job.lease-expired", "Worker lease expired; crash recovery reclaimed the Job.")]
     JobLeaseExpired = 21,
 
-    [Code("job.execution-timeout", "Execution exceeded JobDefinition.ExecutionTimeout for this attempt.")]
+    [Code("job.execution-timeout", "The attempt exceeded the definition's ExecutionTimeout.")]
     JobExecutionTimeout = 22,
 
     [Code(
@@ -52,7 +52,7 @@ public enum EventReasonCode : byte
     )]
     JobAttemptAborted = 25,
 
-    [Code("job.schedules-exhausted", "Recurring slot has no live JobSchedule yielding a next instant; row is system-paused.")]
+    [Code("job.schedules-exhausted", "Recurring slot has no live schedule yielding a next instant; row is system-paused.")]
     JobSchedulesExhausted = 30,
 
     /// <summary>

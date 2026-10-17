@@ -19,7 +19,7 @@ internal sealed class LaneEntity : IEntity<long>
     public long Id { get; init; }
 
     /// <summary>
-    /// Owning namespace; logical FK to <c>JobNamespace.Id</c> (no enforced FK, SP-side validation).
+    /// Owning namespace; logical FK to <c>namespaces.id</c> (no enforced FK, SP-side validation).
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }

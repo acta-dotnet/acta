@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// State machine for stateful <c>JobCheckpoint</c> kinds. Signals and child latches move
+/// State machine for stateful <c>checkpoints</c> kinds. Signals and child latches move
 /// <c>Pending</c> (awaited, no raise yet) to <c>Set</c> (raised, payload stored) or to
 /// <c>Expired</c> (a re-entering bounded wait found the slot overdue); timers move <c>Pending</c> (armed) to
 /// <c>Consumed</c> (the replayed handler passed the due instant). Stateless kinds (variable,

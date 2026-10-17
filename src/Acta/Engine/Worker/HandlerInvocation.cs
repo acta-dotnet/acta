@@ -62,13 +62,8 @@ internal sealed class HandlerInvocation(
         }
         catch (StepOwnershipLostException ownershipLost)
         {
-            // A step completion CAS matched no row. Usually a concurrent execution re-claimed this
-            // job (bumping the step version), so this attempt is a zombie; but the signal can be
-            // spurious: a transient-retry re-run of a CAS batch whose first attempt committed reads
-            // zero changes and looks identical. Submit a RETRYABLE failure rather than a reason-less
-            // terminal: a row another execution owns no-ops at the completion CAS exactly as a
-            // stolen lease does, while a row this worker still owns re-arms under the failure budget
-            // and retries instead of landing Failed with no recorded reason.
+            // A step completion CAS matched no row: a concurrent execution re-claimed this job, so this
+            // attempt is a zombie (StepOwnershipLostException says why the failure is retryable).
             completion = new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReasonCode.JobAttemptAborted,

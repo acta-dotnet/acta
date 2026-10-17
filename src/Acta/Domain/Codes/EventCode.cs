@@ -65,7 +65,10 @@ public enum EventCode : byte
     [Code("job.recurring-rolled-over", "Recurring Job's NextRunAtUtc advanced to the next firing instant.")]
     JobRecurringRolledOver = 50,
 
-    [Code("job.suspended", "Handler called ctx.SleepAsync; the Job re-armed to Ready with the sleep timer's due instant; budget-neutral.")]
+    [Code(
+        "job.suspended",
+        "The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral."
+    )]
     JobSuspended = 60,
 
     [Code(
@@ -106,7 +109,7 @@ public enum EventCode : byte
 
     [Code(
         "job.state-reset",
-        "Handler called ctx.ResetStateAsync; the Job's JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new."
+        "Handler called ctx.ResetStateAsync; the job's checkpoints, steps, and results rows were cleared so the next execution starts as new."
     )]
     JobStateReset = 81,
 

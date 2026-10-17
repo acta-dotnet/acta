@@ -1,6 +1,6 @@
 -- One UPDATE for a due pending slot re-entered on replay, keyed on @p_at_most_once:
 --   at-least-once -> bump the attempt and re-run the body (state stays pending);
---   at-most-once  -> terminalize Interrupted (one transition/version bump) rather than re-invoke (an already-interrupted row, state 40, is not matched).
+--   at-most-once  -> terminalize Interrupted (one transition/version bump) rather than re-invoke (an already-interrupted row, state 230, is not matched).
 UPDATE {{schema}}.steps
 SET
     status_code = CASE WHEN @p_at_most_once THEN 230 /* StepStatusCode.Interrupted */ ELSE status_code END,

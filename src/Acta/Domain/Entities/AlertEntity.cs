@@ -84,7 +84,7 @@ internal sealed class AlertEntity : IEntity<long>
 
     /// <summary>
     /// Job that triggered the alert. No FK; SP-side validation. Operators reach the definition via
-    /// <c>job.definition_id</c>.
+    /// <c>jobs.definition_id</c>.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long? JobId { get; init; }

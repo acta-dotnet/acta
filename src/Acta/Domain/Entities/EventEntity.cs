@@ -36,7 +36,7 @@ internal sealed class EventEntity : IEntity<long>
     public long Id { get; init; }
 
     /// <summary>
-    /// What happened; the numeric id decodes via the <c>event</c> family in docs/98, e.g.
+    /// What happened; the numeric id decodes via the <c>event</c> family in code-families.md, e.g.
     /// <c>41 = "job.execution-finished"</c>. Closed taxonomy.
     /// </summary>
     [DbColumn("event_code")]
@@ -97,7 +97,7 @@ internal sealed class EventEntity : IEntity<long>
     public Guid? JobRef { get; init; }
 
     /// <summary>
-    /// Which attempt this event belongs to; copied from <c>JobRuntime.ExecutionNumber</c> at emission. Set on
+    /// Which attempt this event belongs to; copied from <c>runtimes.execution_number</c> at emission. Set on
     /// <c>job.execution.*</c>, <c>job.step.*</c>, and other per-attempt events; NULL for definition,
     /// worker, and Job-level transitions without an attempt context.
     /// </summary>
@@ -112,7 +112,7 @@ internal sealed class EventEntity : IEntity<long>
     public long? LineageRootId { get; init; }
 
     /// <summary>
-    /// Surrogate key into <c>JobDefinition</c>. Set on every job-scoped event; supports analytics that
+    /// Surrogate key into <c>definitions</c>. Set on every job-scoped event; supports analytics that
     /// group by Job type without joining <c>Job</c> (which is retention-deletable). Null on
     /// worker-lifecycle events.
     /// </summary>
@@ -120,7 +120,7 @@ internal sealed class EventEntity : IEntity<long>
     public int? DefinitionId { get; init; }
 
     /// <summary>
-    /// Tenant of the owning Job; copied from <c>Job.TenantId</c> at emission for job-scoped events. NULL
+    /// Tenant of the owning Job; copied from <c>jobs.tenant_id</c> at emission for job-scoped events. NULL
     /// when the Job has no tenant, and on definition / worker / catalog events. Powers tenant-scoped audit
     /// queries without joining <c>Job</c> (which is retention-deletable).
     /// </summary>
@@ -135,20 +135,20 @@ internal sealed class EventEntity : IEntity<long>
     public int? WorkerId { get; init; }
 
     /// <summary>
-    /// Pre-transition <c>JobRuntime.Status</c>; null for non-Status-transition events.
+    /// Pre-transition <c>runtimes.status_code</c>; null for non-Status-transition events.
     /// </summary>
     [DbColumn("from_status_code")]
     public JobStatusCode? FromStatus { get; init; }
 
     /// <summary>
-    /// Post-transition <c>JobRuntime.Status</c>; null for non-Status-transition events.
+    /// Post-transition <c>runtimes.status_code</c>; null for non-Status-transition events.
     /// </summary>
     [DbColumn("to_status_code")]
     public JobStatusCode? ToStatus { get; init; }
 
     /// <summary>
     /// Per-execution outcome for <c>job.execution-finished</c> events; null otherwise. The failure budget
-    /// on <c>JobRuntime.FailureCount</c> charges only on <c>Failed</c> / <c>Orphaned</c>.
+    /// on <c>runtimes.failure_count</c> charges only on <c>Failed</c> / <c>Orphaned</c>.
     /// </summary>
     [DbColumn("execution_status_code")]
     public ExecutionStatusCode? ExecutionStatus { get; init; }
@@ -157,15 +157,15 @@ internal sealed class EventEntity : IEntity<long>
     /// Wall-clock duration of the attempt in milliseconds; written on <c>job.execution-finished</c>
     /// (computed in code from start to finish, not from event timestamps, so it tolerates clock skew
     /// between operation invocations). NULL on every other event type.
-    /// <c>JobDefinition.ExecutionTimeoutSeconds</c> carries a CHECK that keeps attempt durations within
-    /// this int column's representable range.
+    /// Registration caps the execution timeout and the worker clamps the measurement, so a duration always fits
+    /// this int column.
     /// </summary>
     [DbColumn("duration_ms", DbKind.Int32)]
     public int? DurationMs { get; init; }
 
     /// <summary>
     /// Machine-readable reason captured at the transition; NULL on success outcomes. Operators JOIN
-    /// the <c>job-event-reason</c> family in docs/98 for the kebab string.
+    /// the <c>job-event-reason</c> family in code-families.md for the kebab string.
     /// </summary>
     [DbColumn("reason_code")]
     public EventReasonCode? ReasonCode { get; init; }

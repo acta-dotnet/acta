@@ -27,14 +27,14 @@ internal sealed class DefinitionEntity : IEntity<int>
     // ---------- FRONT: identity + control (stable, read first) ----------
 
     /// <summary>
-    /// Surrogate PK referenced by <c>Job.DefinitionId</c>, <c>JobEvent.DefinitionId</c>, and
-    /// <c>JobSchedule.DefinitionId</c>.
+    /// Surrogate PK referenced by <c>jobs.definition_id</c>, <c>events.definition_id</c>, and
+    /// <c>schedules.definition_id</c>.
     /// </summary>
     [DbColumn("id", DbKind.Int32)]
     public int Id { get; init; }
 
     /// <summary>
-    /// Owning service's namespace; logical FK to <c>JobNamespace.Id</c> (no enforced FK, SP-side
+    /// Owning service's namespace; logical FK to <c>namespaces.id</c> (no enforced FK, SP-side
     /// validation).
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
@@ -103,7 +103,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     public string? OutputTypeName { get; internal set; }
 
     /// <summary>
-    /// Default payload format id for execution results; stamped into <c>JobResult.ResultFormatId</c>
+    /// Default payload format id for execution results; stamped into <c>results.result_format_id</c>
     /// on terminal success.
     /// </summary>
     [DbColumn("output_format_id", DbKind.Byte)]
@@ -228,7 +228,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// Per-attempt wall-clock cap; cancels the handler's <c>CancellationToken</c> when exceeded.
-    /// Does not span retries. Capped so a duration always fits <c>JobEvent.DurationMs</c>.
+    /// Does not span retries. Capped so a duration always fits <c>events.duration_ms</c>.
     /// </summary>
     [DbColumn("execution_timeout_seconds", DbKind.Int32)]
     public int ExecutionTimeoutSeconds { get; internal set; }

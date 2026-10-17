@@ -7162,7 +7162,7 @@
         "description": "What cancelling a job did, and the job's status and version after the attempt."
       },
       "CheckpointKindCode": {
-        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
+        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
       "CheckpointStatusCode": { },
       "ControlAction": {
@@ -8974,7 +8974,7 @@
             "format": "int32"
           }
         },
-        "description": "The single-tenant read model returned by ValueTask&lt;GetTenantResponse?&gt; ITenants.GetAsync(string tenantName, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantName`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
+        "description": "The single-tenant read model returned by ValueTask&lt;GetTenantResponse?&gt; ITenants.GetAsync(string tenantName, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`jobs.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantName`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
       },
       "GetWorkerResponse": {
         "required": [
@@ -10265,7 +10265,7 @@
             "format": "int32"
           }
         },
-        "description": "One tenant row in a ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantName` is the kebab-case name the caller registered, unique, and `DisplayName` the human label\n(dashboards fall back to the name); `TenantId` is the DB-assigned id `job.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "One tenant row in a ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantName` is the kebab-case name the caller registered, unique, and `DisplayName` the human label\n(dashboards fall back to the name); `TenantId` is the DB-assigned id `jobs.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
       },
       "ListTenantsResponse": {
         "required": [
