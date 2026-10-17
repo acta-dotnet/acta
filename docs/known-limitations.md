@@ -174,7 +174,7 @@ events window has lost the failure it would be answered against, and needs an op
 
 A one-shot job's in-budget retries are invisible at that level, so `FirstFailure` and
 `ThresholdReached` never fire for its own throws while a recurring slot's failed fire is heard;
-[the alerting guide](./operator-guide.md#what-projects-an-alert) owns the full account of what
+[the alerting guide](./operator-guide.md#profiles) owns the full account of what
 that level records and what it drops.
 
 The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,

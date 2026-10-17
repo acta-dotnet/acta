@@ -300,10 +300,7 @@ instead of enqueuing.
 
 ## Built-in control CLI
 
-Every Acta host doubles as a control CLI. Pass `jobs` as the first argument and the process runs
-the verb against the database, then exits: no worker loops start, no migrations run, and nothing is
-written to the catalog. The schema must already exist (the worker owns migrations and definitions).
-Call `j.DisableCli()` on the builder to opt out.
+Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker and running no migrations. `j.DisableCli()` opts out.
 
 ```
 <app> jobs help
@@ -320,132 +317,23 @@ Call `j.DisableCli()` on the builder to opt out.
 <app> jobs debug   <job-ref|deduplication-key|id> [--break]
 ```
 
-A `job_...` target resolves as a job ref, any other non-numeric target as an deduplication key, and a
-bare integer as the internal job id (the advanced/debug path). The target may be omitted
-(`<app> jobs debug`): the CLI then reads it from the clipboard, accepting a single-line value up to
-the DeduplicationKey size (128 chars) and reporting a usage error if the id is missing. For `signal`,
-a lone positional is the signal name and the target comes from the clipboard. When the process
-registers more than one namespace, add `--ns <ns>` to select which namespace to search for an
-deduplication-key lookup (not needed for refs or numeric ids). Add `--json` to any verb to receive a
-JSON object instead of plain key-value lines.
+A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
-`cancel`, `pause`, `resume`, `restart`, and `signal` correspond directly to the `IJobs` control
-verbs above; the CLI is a thin shell over the same call path.
+`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, slots, and latest reason in one snapshot and says what happened and what to do next. It cannot know what your code or an external system did.
 
-`explain` is the diagnostic verb: it reads the job's `runtimes` row, execution lease and owning
-worker, step and checkpoint slots, and the latest reason on the timeline in one consistent snapshot,
-then prints a plain-English account of where the work is, why it moved there, and the operator's next
-action, the same durable rows you could `SELECT`, read for you. Start here for any "why is this
-job stuck / waiting / failed" question before dropping to `info` (the raw row) or `events` (the full
-timeline). It is read-only and backs the same `IJobs.ExplainAsync` the dashboard's Explain panel
-renders.
+`debug` resets the job to Ready with restart semantics, claims exactly it, and runs the handler in this process, so a breakpoint in the handler stops it; leases keep renewing while it is stopped. A live worker can take the job first, and an Executing job is refused. `--break` raises the debugger at the handler.
 
-`jobs explain` diagnoses Acta's durable state. It can tell you which durable slots completed, which
-wait is active, what the latest recorded reason was, and what operator actions are available. It
-cannot predict arbitrary user code, external system state, or whether a non-idempotent side effect
-already happened outside Acta.
-
-Suspended signal example:
-
-```
-job_01H8ZKX…  payments/checkout
-Suspended, waiting for signal "fraud-review".
-
-Last activity:
-- Last executed on worker payments-v42 (17).
-
-Durable work:
-- Step "reserve-inventory" succeeded and will not rerun.
-
-Next actions:
-- Raise signal "fraud-review".
-- Cancel the job.
-```
-
-Expired lease example:
-
-```
-job_01H8ZKX…  payments/checkout
-Executing, but its lease expired 2m ago.
-
-Worker:
-- Worker payments-v17 (17), lease expired at 2026-07-04T11:58:00.0000000Z.
-- Last heartbeat at 2026-07-04T11:56:00.0000000Z.
-- Recovery should return it to Ready on the next maintenance tick.
-
-Next actions:
-- Wait for crash recovery to reclaim the job on its next pass.
-- Cancel the job if it should not continue.
-```
-
-Failed job example:
-
-```
-job_01H8ZKX…  payments/checkout
-Failed.
-
-Reason:
-- Report store unavailable.
-
-Durable work:
-- Step "reserve-stock" succeeded and will not rerun.
-- Step "charge-card" exhausted after 3 attempts: provider timeout.
-
-Next actions:
-- Inspect the timeline with 'jobs events'.
-- Restart the job only after the underlying cause is fixed.
-```
-
-Completed durable step example:
-
-```
-job_01H8ZKX…  payments/checkout
-Succeeded.
-
-Durable work:
-- Step "reserve-stock" succeeded and will not rerun.
-
-Next actions:
-- View the result with 'jobs result' if the job stores one.
-- Inspect the event timeline if needed.
-```
-
-`debug` is the exception: it initializes the worker's catalog (definitions, schedules), resets a
-non-Ready job to Ready using restart semantics, claims exactly the targeted id, and runs the handler
-in this process through the normal durable pipeline. Set a breakpoint in the handler and invoke
-`<app> jobs debug <id>` to step through execution locally. Lease heartbeats extend throughout the
-session, including during breakpoint stops. A live worker can still steal the job between the reset
-and the claim; in that case the CLI reports the job was not claimable and exits 1. The exit code
-reflects the handler outcome: a thrown handler exits 1 even when the retry budget re-arms the job.
-An Executing job is refused. A laned job that restarts behind a running member is
-reported Blocked and exits 0 without running. `--break` raises the debugger at the handler seam
-instead of relying on a breakpoint; `jobs signal --value <json>` raises the signal with a payload.
-
-Exit codes:
-
-| Code | Meaning                              |
+| Exit code | Meaning |
 |------|--------------------------------------|
-| 0    | Applied / found / debug run succeeded |
+| 0    | Applied, found, or debug run succeeded |
 | 1    | Rejected or handler failed           |
 | 2    | Job not found                        |
 | 64   | Usage error                          |
 | 130  | Cancelled (Ctrl-C)                    |
 
-See `concepts/000-fundamentals/021-jobs-cli` for a worked example.
-
 ## HTTP API and dashboard
 
-`IJobs` is the read-only operator surface as well as the control surface. Root reads cover jobs,
-events, namespaces, and overview counters; domain reads hang off `operations.Definitions`, `operations.Schedules`,
-`operations.Workers`, `operations.Alerts`, `operations.Tenants`, and `operations.Namespaces`. Every list read is keyset-paginated and answers
-its own `ListXResponse`, an `IPagedResponse<T>`: pass its `NextCursor` back as `Cursor` for the next page. Cursors are opaque and
-bound to the operation, ordering, and filters that issued them; a stale or foreign cursor is
-rejected with `InvalidPageCursorException` rather than returning wrong pages. Page sizes default to
-50 and clamp at 100; `IncludeTotal` opts into a filter-wide count (job-scoped only for events). List
-reads never expose job input or result payloads; text fields return the stored value in full.
-
-The optional `Acta.AspNetCore` package serves that surface over HTTP plus an embedded
-single-page dashboard:
+`Acta.AspNetCore` serves the operator surface over HTTP, with an embedded dashboard:
 
 ```csharp
 app.MapActa("/acta", options =>
@@ -455,76 +343,14 @@ app.MapActa("/acta", options =>
 });
 ```
 
-The dashboard has a top-level Events page for the latest retained audit timeline, optionally scoped
-by namespace; the JSON endpoint is `GET /acta/api/v1/events?jobNamespace=...`. Jobs are addressed
-in the URL by their public ref (`GET /acta/api/v1/jobs/{jobRef}`, `/jobs/{jobRef}/events`,
-`POST /jobs/{jobRef}/{verb}`); the numeric id never appears in a route or in the JSON. A job can
-also be looked up by deduplication key (`GET /jobs/by-key?jobNamespace=&deduplicationKey=`).
-For the rare debug case where you have only an internal id (from a log line), set
-`EnableNumericIdLookup = true` and address the read endpoints as `/jobs/id:{n}` (for example
-`/jobs/id:12345`); off by default, an `id:` target answers 400 like any malformed ref, so numeric
-ids never become a second default identity. The dashboard's jump box accepts the same three forms:
-a `job_...` ref, an deduplication key, or `id:123` / `#123`; the control POSTs stay ref-only.
+- **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and require your own authorization through `ConfigureEndpoints`, which covers the page, its assets, and the API; without it startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
+- **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values, up to `MaxInlinePayloadBytes`. Treat read access as access to every payload in the ledger.
+- **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, alerts, tenants, namespaces, outbox). Each control request must send `X-Acta-Control: true`, a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
+- **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
+- **Lists page by cursor.** Pass `NextCursor` back as `Cursor`; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `IncludeTotal` adds a count (events only with a job filter).
+- `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
 
-The API can also map the job-control verbs as POST endpoints (`/jobs/{jobRef}/pause`, `resume`,
-`restart`, `cancel`, `reschedule`, `reprioritize`, `purge`, and `input` for the amend), thin wrappers over the `IJobs` verbs above: the framework still stamps actor
-and reason code. The non-purge verbs accept an optional `reasonMessage`; purge retains no caller reason because it removes the job's
-event history. The outcome maps to 200
-(applied), 409 (rejected), or 404 (not found) — and that shape is the whole API's rule, not this
-family's: every control family answers 200, 404 and 409 (202 for the accepted-then-applied outbox
-verbs) with its own envelope, and `ProblemDetails` is reserved for malformed input, authorization,
-and server faults. The one deliberate exception is the enqueue guard's 409: `EnqueueJobAction` has no
-rejected value and a refused enqueue mints no job ref for the envelope to name, so that rejection
-stays a problem document with its `reasonCode`. Controls are
-opt-in (`EnableControls = true`)
-because they mutate jobs; enable them alongside your authorization, never on an open surface.
-Unmapped controls answer 404. Control requests must send the `X-Acta-Control: true` header,
-the API's barrier against cross-site request forgery (a page on another origin cannot send it
-without a CORS preflight), not authentication; the dashboard sends it automatically. A host that turns
-it off needs antiforgery of its own. Body members are
-camelCase and exact: a member the endpoint does not take answers 400 with its path, so a misspelled
-scope never widens a verb to its default. The job detail
-screen surfaces all seven actions with state-aware availability and confirmation for destructive
-changes. Explain links directly to the applicable signal/control/timeline action and shows the
-durable evidence behind its recommendation. The dashboard also exposes schedule
-pause/resume/trigger/preview/overrides, alert acknowledge/resolve, and tenant/namespace
-administration when controls are enabled. The CLI above intentionally has a smaller verb set.
-
-Signals are also raisable over HTTP at `POST /jobs/{jobRef}/signals/{name}`, the inbound counterpart
-to `IJobs.RaiseSignalAsync`. Signals are operator control: the endpoint is mapped only when
-`EnableControls = true` and, like the destructive verbs, requires the `X-Acta-Control: true`
-confirmation header (missing or wrong header answers 400). An empty body raises a presence-only
-signal; a non-empty `application/json` body is stored verbatim and a handler reads it via
-`ctx.WaitSignalAsync<T>(name)`. A signal name is validated as a name at the edge, with the `sys.`
-prefix reserved, which is what rejects forged internal names such as the `sys.child.` child-latch
-names. The outcome maps to 200, 409 (terminal job), or 404.
-
-A read-side `GET /capabilities` reports `{ controlsEnabled, version, provider, schema, confirmationHeader }`
-so dashboards can show or hide edit UI without probing a control route; it is always mapped and
-never gated.
-
-The surface is local-only by default (`LocalOnly = true`): requests from non-loopback remote
-addresses are rejected with 403, so the dashboard works with zero setup from the same machine. A
-local request must also name the host as `localhost` or an IP address, which shuts out a web page
-that rebinds its own DNS name to 127.0.0.1; browse to `localhost` or `127.0.0.1`, not the machine
-name. The
-package ships no authentication; exposing the surface remotely means setting `LocalOnly = false` and
-wiring host authorization through `ConfigureEndpoints`, which covers the HTML, the hashed assets,
-the query API, and the control API together. Mapping fails closed: `LocalOnly = false` without
-`ConfigureEndpoints` throws at startup unless the host explicitly opts into anonymous exposure with
-`UnsafeAllowAnonymousRemoteAccess = true`. CORS is not authorization and plays no part in this
-guard; it never prevents direct access to the URL. `MapActaApi` maps the JSON endpoints alone
-and carries the same local-only default. The dashboard works under any base path.
-
-Payload bodies are part of the read surface, not a gated extra. Anyone who can reach the reads can
-see a job's input, its result, and its checkpoint values in full: json and text render inline, and
-any other format renders as a hex preview with base64 copy and a file download. The read surface is
-mapped regardless of `EnableControls` and never passes through `IActaControlAuthorizer`, so the only
-thing that withholds a body is size: past `JobsOptions.MaxInlinePayloadBytes` the read ships the
-format identity and byte length with `truncated: true` and no body. With controls enabled, a json or
-text input is also editable in place unless the job is executing. Treat authorization
-for the read surface as authorization to read every payload the ledger holds. See
-`concepts/000-fundamentals/022-dashboard` for a runnable host.
+The [OpenAPI document](./reference/openapi.json) lists every route.
 
 ### Control authorization
 
@@ -574,64 +400,21 @@ tenants.update
 
 ## Retention and purge
 
-Every terminal landing stamps `retention_until_utc` from the definition's `JobRetention` policy
-(default 90 days); the framework `sys.retention` job purges terminal rows past that deadline in
-batches, along with `events` / `alerts` / terminal-worker rows past their `JobsOptions` windows
-(`JobEventsRetention`, `AlertRetention`, `WorkerRetention`). No index finds expired jobs: each hourly
-tick walks `runtimes` down by job id from where the last tick stopped (its `purge-cursor` job
-variable), up to two million rows, and deletes the namespace's expired jobs it passes, so a job goes
-within one walk of its deadline rather than at it. A row with a NULL
-`retention_until_utc` is never purged; only terminal rows ever carry one. Substrate rows
-(checkpoints, steps, results) delete with their job.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and results, and deletes events, alerts, and stopped or dead workers past `JobEventsRetention`, `AlertRetention`, and `WorkerRetention`. Each tick walks `runtimes` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
 
-A running recurring slot is never terminal, so retention never reaches it. One a cancel or a failure
-stopped stays as it was left while its definition is live, because deleting it would let the next
-start register the declaration as a new job; it drains once the definition is retired. Its result
-rows are bounded instead by the definition's `RecurringResultCap`, which defaults to 1: every
-recurring completion trims that job's results to the newest N in the same statement. Raise the cap
-on the definition to keep a deeper history; there is no window in which an uncapped recurring slot
-grows without bound.
+A recurring slot is never purged while its definition is live. Its results are capped by the definition's `RecurringResultCap` (default 1), trimmed on every completion.
 
-Retention purge and manual purge are different operations with different guards. The `sys.retention`
-sweep is deadline-driven: it deletes terminal rows past `retention_until_utc` in batches and emits no
-per-job event. The manual verb (`IJobs.PurgeAsync`, `POST /jobs/{jobRef}/purge`, or the confirmed
-dashboard action) hard-deletes one terminal job immediately, refuses a job that has child jobs (purging the
-parent would orphan the children's lineage: purge the children first), and always emits a
-`job.purged` audit event carrying the purged job's ref and name, since the row itself is gone.
-Manual purge also explicitly deletes the job's `events` and `alerts` rows (both are FK-less, so
-nothing cascades), scrubbing the job completely. Retention purge is more conservative: it deletes
-only the terminal `jobs` row (S1) on its own deadline; alerts age out separately on
-`AlertRetention` (S3), so an alert row (which keeps its own copy of the job ref) can outlive
-the job it was raised for.
-
-`AlertRetention` is a hard cap, not a settled-only window: past it an alert row is deleted whether
-delivery settled or not, so a row stuck `Pending` or `RetryAfter` — or an incident still open — is
-never immortal. Deleting an open incident frees its deduplication identity, so a still-failing job
-opens a fresh incident on its next failure. The undelivered rows are counted apart from the settled
-ones and a pass that purged any logs a single warning (`reason=alert-retention-cap`), because an
-alert aged out before it ever reached a channel is a signal nobody received: if that line appears,
-look at why delivery was not settling rather than at the purge. The same window prunes the
-`alerts-skip-*` poison variables `sys.alerts` leaves on its own slot; nothing else pruned them, and
-they are forensics the projector never reads back.
-
-At a glance:
+`AlertRetention` is a hard cap: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
 
 | | Retention sweep | Manual purge |
 | --- | --- | --- |
-| Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | Operator calls `IJobs.PurgeAsync` or the enabled HTTP/dashboard control |
-| Eligible job | Terminal and past its retention deadline, unless it is a stopped recurring job whose definition is live | Terminal now |
-| Child-job guard | Keeps a completed child while its parent is live; a terminal tree drains leaves first | Rejects a parent that still has child jobs and a child whose parent is live; finish the tree, then purge the leaves first |
-| Job event | No per-job purge event | Emits `job.purged` after removing the job history |
-| Existing job events | Age out on their own event-retention window | Deleted immediately for that job |
-| Existing alerts | Age out on their own alert-retention window | Deleted immediately for that job |
-| Intended use | Routine bounded storage | Immediate removal of one known terminal job |
+| Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | `IJobs.PurgeAsync`, `POST /jobs/{jobRef}/purge`, or the dashboard |
+| Eligible job | Terminal and past its deadline, unless it is a stopped recurring job whose definition is live | Terminal now |
+| Child jobs | Keeps a completed child while its parent is live; a finished tree drains leaves first | Refuses a parent with children and a child whose parent is live |
+| Job event | None | `job.purged`, carrying the job's ref and name |
+| The job's events and alerts | Age out on their own windows | Deleted at once |
 
-Before a manual purge: confirm the job is terminal, has no child jobs, and has no live parent; copy any incident summary
-or required audit evidence; confirm no caller still needs `GetResultAsync`; record a reason that
-explains the administrative decision; remember that purge removes Acta state only (related business
-data and database backups are outside its reach). Do not use manual purge as backlog control:
-pausing, cancelling, rescheduling, or fixing worker capacity addresses runnable work without
-deleting evidence.
+Manual purge removes Acta's record of one finished job and nothing else, such as your business data or backups. It is not backlog control: pause, cancel, reschedule, or add capacity instead.
 
 ## What maintenance does for you
 
@@ -688,121 +471,32 @@ pickup latency.
 
 ### Migration ownership
 
-Acta schema migrations are durable DDL and should be owned by deployment, not by every application
-boot. In production:
+In production, deployment owns migrations, not application startup:
 
 ```csharp
 j.UsePostgres(pg =>
 {
     pg.ConnectionString = builder.Configuration.GetConnectionString("acta")!;
-    pg.Schema = "acta";
     pg.ApplyMigrationsOnStartup = false;
 });
 ```
 
-Run migration SQL from your release pipeline or database migration process, then start workers.
-`ApplyMigrationsOnStartup = true` is a development/sample convenience.
-
-For pipelines and DBAs that run reviewed SQL rather than application code, the repository publishes
-complete provisioning scripts at
-[`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql),
-[`schema-sqlite.sql`](./reference/schema-sqlite.sql): one file per provider carrying the migration
-history and every migration, routines and views inside them, ready to review and run under a
-DDL-capable principal (replace the default schema name throughout to relocate). With the database
-provisioned that way, the application principal needs only DML and EXECUTE on the Acta schema and
-never issues DDL. The scripts record the migration history themselves, so a bootstrap accepts the
-result and applies nothing; advanced deployments can even add site-specific physical tuning
-(partitioning, tablespaces) as long as the logical shape stays intact. The SQLite script opens with
-`PRAGMA journal_mode = WAL;` for the same reason the SQL Server one sets READ_COMMITTED_SNAPSHOT
-below — the certified configuration should not depend on which path provisioned the database — and
-because journal mode lives in the file header, running it a second time changes nothing.
-
-The SQL Server script sets READ_COMMITTED_SNAPSHOT itself, the way a self-applying bootstrap does.
-It is the file's first batch, on its own outside the transaction because `ALTER DATABASE` cannot run
-inside one, and it is guarded on `sys.databases.is_read_committed_snapshot_on`: a database that
-already has it on skips the statement, so install and re-run behave the same. When it does have to
-run it disconnects the database's other sessions (`WITH ROLLBACK IMMEDIATE`), which is one more
-reason to run the file in a maintenance window. Job correctness does not depend on it — Acta's
-mutations are fenced by lock hints and compare-and-swap, not snapshots — but without it the
-dashboard's and operators' read queries take shared locks and trade blocking with the claim path,
-which is not the configuration Acta certifies.
-
-Migrations run under an exclusive schema lock in one transaction, so applying
-a later migration on a live system briefly blocks statements that collide with the objects it touches
-and resumes them when it commits; in-flight jobs are not failed by a migration, they wait it out.
-
-Whether or not a host applies migrations itself, every start runs a read-only migration-history
-preflight: the database must carry a history row for every migration this build ships, under the
-name this build ships it. A database that was never provisioned fails at `StartAsync` with
-instructions instead of failing later at its first query. History rows this build has never heard of are fine — an older worker against a
-newer database is a supported rolling-upgrade shape.
-
-Routine and view bodies travel inside migrations, after the tables of the migration that changed
-them, so the history rows say exactly which bodies a database holds: there is no separate install
-step and nothing at startup rewrites a body on its own. Running the current full provisioning script
-as part of every upgrade is what keeps bodies and binary together; it applies only the migrations the
-database lacks, so re-running it is always safe. Run it with a client that stops at the first error
-(`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`): a client that runs on past a failed
-statement would record a migration whose bodies did not all land. Stopping at the error is what turns
-the script's transaction into the guarantee.
-
-Know what this still does not prove. A history row records that a migration ran, not the bodies now
-in the database, so an operator who hand-edits an object keeps a row that no longer describes it.
-The preflight also reads the database once at startup, so a worker already running when someone
-applies an incompatible change finds out at its next affected call.
-
-See [schema migrations](../CONTRIBUTING.md#schema-migrations) for the migration model and `tools/Acta.Emit`
-commands.
+- Run the provisioning script for your provider ([`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql)) from the release pipeline under a DDL-capable principal, with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). It applies only the migrations the database lacks, so re-running it is safe. Routines and views ship inside the migrations.
+- The application principal then needs only DML and EXECUTE on the Acta schema.
+- The SQL Server script turns on `READ_COMMITTED_SNAPSHOT`, which disconnects other sessions once: run it in a maintenance window.
+- A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
+- Every start checks that the database has a history row for each migration the build ships, and fails with instructions if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
 
 ### Rolling deploys
 
-Two builds of the application share a namespace while a deploy is in progress: the old build keeps
-working while the new one starts, and the old one stops once the new one is up. A rollback is the
-same picture in reverse. Acta needs nothing from the orchestrator beyond that order.
+Deploy: apply migrations, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one. While both builds run:
 
-What holds while both builds run:
+- Either build may claim a job only the other can run. The worker without the handler hands it back to `Ready` without charging a failure and stops claiming that definition.
+- Registration never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing. An older build cannot overwrite a newer build's definition.
+- Schedules follow the last build that registered: one the new build dropped is orphaned, and comes back, without its pause, when a build that declares it registers again. Pause the job, not the schedule, to hold it across a rollback.
+- Migrations are forward-only and additive, and an older build never rewrites what a newer one migrated.
 
-- Claims are by namespace, so either build can claim a job of a definition only the other carries.
-  The worker without the handler hands the job back to `Ready` one `SafetyPollInterval` later with
-  no failure charged, and stops claiming that definition for the rest of its process life. Every row
-  of the batch it already claimed is handed back the same way; only the first hand-back logs a
-  warning. A worker with the handler picks the job up next.
-- Registration never retires. A definition the new build does not carry stays `Active` with its
-  jobs, so the old fleet finishes them and a rollback finds nothing missing. Policy still moves only
-  forward: an older `ManifestGenerationUtc` cannot overwrite a newer build's definition row.
-- Schedules follow the last build that registered. A schedule the new build no longer declares is
-  orphaned when the new build registers and comes back when a build that declares it registers
-  again, which is what a rollback does. An old worker that starts while the rollout is under way
-  registers too, so a schedule the new build added reads Orphaned until the next new worker starts.
-  Orphaning drops an operator's pause on the schedule, so one that comes back comes back Active;
-  pause the job rather than the schedule to hold it across a rollback.
-- Migrations are forward-only and additive, so an older worker runs against a newer schema. Apply
-  the migration before the new build starts.
-- Nothing older overwrites a database a newer build upgraded. An older build's bootstrap applies only
-  the migrations the database lacks, and an older release's provisioning script stops before
-  changing anything, so a rollback never rewrites what the newer build calls. On SQLite the script
-  stops only in a client that halts on an error, such as `sqlite3 -bail`.
-
-Deploy: apply migrations, start the new workers, stop the old ones once the new ones are healthy.
-Rollback: start the old build, stop the new one. Jobs of a definition only the withdrawn build
-carried stay `Ready`, excluded from every running worker's claims; they run when a build with the
-handler returns, or an operator retires the definition.
-
-Retiring a definition is an operator decision: `IActaOperations.Definitions.RetireAsync`,
-`POST /definitions/{namespace}/{name}/retire`, or the button on the dashboard definition page. It
-marks the definition `Retired`, cancels its parked (`Ready`, `Blocked`, `Suspended`, `Paused`) jobs with reason
-`job.definition-retired`, releases a parent waiting on a cancelled child, leaves executing jobs to
-finish their attempt, and rejects new enqueues. Descendants of a cancelled job are not cancelled. A
-build that carries the handler at an equal or newer manifest generation re-activates the definition
-when it registers; an older build cannot. A retire only holds once no running or restartable worker
-carries the definition: during a rolling deploy, an old-build worker that restarts registers the
-definition at its own generation, which equals the stored one, and makes it Active again. Retire
-after the old fleet is gone.
-
-One cost to know: while a worker's exclusion set is non-empty, each of its claims looks up
-`jobs.definition_id` for every excluded row ahead of the first claimable one. A long run of jobs no
-running worker can execute, such as a rollback after many enqueues of a new definition, makes every
-old worker's claim walk it. Retire the definition, or redeploy the build that carries it.
+Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. Retire only after the old fleet is gone: an old worker that restarts reactivates the definition. Until then, a long run of such jobs slows every old worker's claim.
 
 ### Coexisting with your application's packages
 
@@ -901,75 +595,21 @@ operator-visible SQL state.
 
 ### Dashboard exposure and auth
 
-The dashboard and JSON API are local-only by default. `LocalOnly = true` rejects non-loopback remote
-requests with 403, and a loopback request too unless it names the host as `localhost`, a `.localhost`
-name, or an IP address: browse to `localhost` or `127.0.0.1`, not the machine name.
-
-Acta ships no login system. The host application owns authentication and authorization. To expose
-the dashboard/API remotely, set `LocalOnly = false` and require authorization through
-`ConfigureEndpoints`.
-
-Use the normal ASP.NET Core authentication/authorization middleware for your host, for example
-`app.UseAuthentication(); app.UseAuthorization();` when your authentication scheme requires it.
-
-Controls are opt-in. `EnableControls = true` maps mutating HTTP endpoints such as pause, resume,
-restart, cancel, and signal. Enable controls only behind authorization.
-
-Operator dashboard with controls:
+The rules are in [HTTP API and dashboard](#http-api-and-dashboard). A typical remote setup, with controls for one role:
 
 ```csharp
 builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("ActaOperators", policy =>
-    {
-        policy.RequireAuthenticatedUser();
-        policy.RequireRole("ActaOperator");
-    });
-});
+    options.AddPolicy("ActaOperators", policy => policy.RequireAuthenticatedUser().RequireRole("ActaOperator")));
 
 app.MapActa("/acta", options =>
 {
     options.LocalOnly = false;
     options.EnableControls = true;
-    options.ConfigureEndpoints = group =>
-        group.RequireAuthorization("ActaOperators");
+    options.ConfigureEndpoints = group => group.RequireAuthorization("ActaOperators");
 });
 ```
 
-Read-only remote dashboard:
-
-```csharp
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("ActaReaders", policy =>
-    {
-        policy.RequireAuthenticatedUser();
-        policy.RequireRole("ActaReader");
-    });
-});
-
-app.MapActa("/acta", options =>
-{
-    options.LocalOnly = false;
-    options.EnableControls = false;
-    options.ConfigureEndpoints = group =>
-        group.RequireAuthorization("ActaReaders");
-});
-```
-
-Behind a reverse proxy on the same host, do not rely on `LocalOnly`: it checks the TCP peer address
-and the host name the request carries, not the original client, so the proxy's loopback address
-passes every forwarded request that keeps a local host name. Gate remote access with host
-authorization, and configure `ForwardedHeaders` if the host needs the true client IP.
-
-The `X-Acta-Control: true` header on control POSTs is the cross-site request forgery barrier, not
-authentication: a cross-origin page cannot send it without a preflight. Keep it on, unless the host
-supplies antiforgery of its own and no ambient credentials (integrated Windows auth, `SameSite=None`
-cookies) reach the API.
-
-Anyone authorized for the read surface can read every job input, result, and checkpoint value in
-full; there is no per-payload redaction. Treat read authorization as the data-classification
-boundary, and keep secrets and PII out of payloads (see [Payload size guidance](#payload-size-guidance)).
+Behind a reverse proxy on the same host, `LocalOnly` protects nothing: it checks the TCP peer, which is the proxy. Gate remote access with host authorization, and configure `ForwardedHeaders` if the host needs the client's IP. Keep secrets and personal data out of payloads, since every reader sees them.
 
 ### Alert channel setup
 
@@ -997,32 +637,17 @@ startup.
 
 ### Retention
 
-Terminal jobs receive `retention_until_utc` from the job definition's `JobRetention` policy. The
-system `sys.retention` job purges terminal rows past that deadline and also purges old event,
-alert, and terminal (Stopped or Dead) worker rows according to:
-
-- `JobEventsRetention`
-- `AlertRetention`
-- `WorkerRetention`
-
-Set retention long enough for audit, incident response, delayed restarts, and operational analysis.
-Shorter retention reduces storage growth but removes old job inputs, results, checkpoints, steps,
-and lineage. A completed child outlives its deadline while its parent is not terminal, and a
-stopped recurring job while its definition is live; the rules, and how the sweep differs from a
-manual purge, are in [Operator guide § retention and purge](#retention-and-purge).
+Set retention long enough for audit, incident response, and late restarts; the rules are in [retention and purge](#retention-and-purge).
 
 ### Process behavior on failure
 
-What an operator should expect to see, per surface, when something goes wrong, and whether the
-process degrades in place or exits.
-
-| Surface | Failure shows as | Process behavior | Operator action |
+| Surface | Failure shows as | Process | Action |
 | --- | --- | --- | --- |
-| Worker startup | Any init-time validation failure (invalid `JobsOptions`, clock skew past the fail threshold, an invalid `Backoff` DSL, an unresolvable schedule time zone, payload-contract drift or alert-routing misconfiguration under `Fail` mode) throws out of `IHostedService.StartAsync` with no catch. | Fails to start. Non-zero process exit; no partial startup. | Fix the configuration or manifest and restart. A `*Mode`/`Allow*` option (`PayloadContractDriftMode`, `AlertChannelValidationMode`, `AllowClockSkew`) can deliberately downgrade a check to `LogWarning` + continue instead of failing startup. |
-| Claimer / executor / finalizer / heartbeat loops | A per-tick fault logs at Error under the `Acta.WorkerRuntime` category, e.g. `"claim iteration failed; backing off {DurationMs}ms before retry."`, `"heartbeat tick failed; retrying next tick."`. A per-job fault logs `"executor faulted on job {JobId}."`, and a fault in the finalizer `"finalizer faulted on {Count} completions."`; a completion whose row another actor took logs `"completion skipped"` at Information, and a wake or follow-up that fails after the write landed logs `"follow-ups for job {JobId} failed after its completion landed"`. | Degrades. The failing loop backs off (claim: a full `SafetyPollInterval`; heartbeat: the next `PeriodicTimer` tick, which also carries the definition-policy reload) and keeps running; one bad job never tears down the loop. Shutdown (host cancellation) exits the loop cleanly with no error log (a provider that reports the cancelled command as a non-cancellation error may emit one final tick-failure line). | Investigate the logged exception (commonly a transient DB outage or command timeout); no restart needed; the loop self-heals once the dependency recovers. |
-| Framework jobs (`sys.retention`, `sys.alerts`) | Alert delivery transport faults log at Warning under the `AlertsJob` category (`"ACTA sys.alerts: transport kind ({Detail}) threw delivering alert ({Ref}); will retry."`) and retry on a DB-backed backoff curve, terminal `Failed` past the fifth delivery attempt. `RetentionJob` carries no catch of its own; a pass failure is an ordinary job outcome retried by the executor on the job's next scheduled tick. Crash recovery is not a job: each worker's heartbeat takes the pass when it falls due. | Degrades. Each is a bounded recurring job (about once a minute or once an hour), never a hot loop. | Usually none; a persistent failure shows up as retries/failures and events on the system job's own row. |
-| CLI mode | A rejected verb prints its message to stderr and exits 1; job-not-found exits 2; a usage error exits 64; Ctrl-C during a verb exits 130. `jobs debug`'s lease-heartbeat pump writes one diagnostic line to stderr on a failed tick (`"debug: heartbeat pump tick failed (...); lease may lapse."`) and keeps pumping. | Always exits; the CLI is a one-shot verb, never a long-running host. | Read the exit code and any stderr line, then retry the verb. A missed heartbeat-pump tick during `debug` only risks the job's lease being stolen by another worker, not data loss. |
-| Dashboard / API | An unhandled route exception logs at Error under the literal category `Acta.AspNetCore` (`"Unhandled Acta API exception."`) and returns a fixed, safe ProblemDetails (no driver text or stack): 503 when the cause chain is the known transient family (database/network/timeout, including a provider command timeout surfacing as a non-abort cancellation), 500 for any other server fault. A client disconnect or host shutdown mid-request (`HttpContext.RequestAborted` cancelled) produces no log and no 503: the framework reports the aborted request instead. Known input errors (invalid cursor, malformed query parameters, most `ArgumentException`s) map to 400 via the read-endpoint `Guard`; a server-side `ArgumentException` also logs at Warning before returning 400 so it still leaves a trace. | Degrades. The dashboard process stays up; one bad or aborted request never takes down the host. | A sustained run of 503s with `"database is unreachable"` in the response detail means the database is down; otherwise check the host log for the exception logged at that timestamp. |
+| Worker startup | A validation failure (options, clock skew, schedule time zone, contract drift or alert routing in `Fail` mode) throws from `StartAsync`. | Does not start. | Fix the configuration and restart. |
+| Claimer, executors, finalizer, heartbeat | An Error log under `Acta.WorkerRuntime` (`claim iteration failed`, `heartbeat tick failed`, `executor faulted on job`, `finalizer faulted`). | Backs off and keeps running; one bad job never stops a loop. | Investigate the logged cause, usually the database; no restart needed. |
+| `sys.alerts`, `sys.retention` | A failed pass is an ordinary job failure, retried on the next tick; a transport fault logs a Warning and retries. | Keeps running. | Usually none. |
+| CLI | Exit code 1 rejected, 2 not found, 64 usage, 130 cancelled. | Exits. | Read the code and stderr, then retry. |
+| Dashboard and API | An Error log under `Acta.AspNetCore` and a 503 for a database or network fault, 500 otherwise, 400 for bad input. | Keeps serving. | A run of 503s means the database is down. |
 
 ### Backup and restore expectations
 
@@ -1041,500 +666,47 @@ included, is one durable system.
 
 ## Alerting
 
-How a job failure becomes an alert row, how that row reaches a channel, and what an operator
-configures. The organising principle is that **alerting works the same for every job**: one
-`AlertProfile` means one thing whatever the job is, and an alert's lifecycle does not depend on how
-the job was started. Two places today's behaviour does not honour that principle, and both are named
-in [Where the principle breaks](#where-the-principle-breaks) rather than smoothed over.
-
-### One recurring job does all of it
-
-`sys.alerts` is a framework recurring job registered per worker namespace: `Priority = Critical`,
-`AuditLevel = Failures`, `AlertProfile = SysCritical`, `Cron.EveryMinute`
-(`AlertsJob.Handle`), competitively claimed once per namespace (`AlertsJob`). One pass is
-generate, then deliver, in that order (`AlertsJob.Handle`).
-
-Four consequences an operator sees:
-
-- **Alerts are not written at failure time.** The row appears on the next tick that finds the
-  event past the projection horizon: generate only reads events older than twice the provider
-  `CommandTimeout` (one minute on defaults). An event id can commit out of order, and the horizon
-  is sized so that a writer which abandons its statement at its own command timeout has either
-  committed or given up before the projector walks past that point. The horizon is a heuristic on
-  that behaviour, not a proof of it. A command timeout is the client giving up its wait, not the
-  server aborting the transaction, so a writer host that freezes can still commit after the horizon
-  has passed its event, and that event is then skipped;
-  [known limitations](./known-limitations.md) covers what that costs. Where writers do
-  honour their own timeouts, the worst case on defaults is about two minutes from failure to row:
-  up to a minute maturing past the horizon, plus the tick cadence. The horizon scales with
-  `CommandTimeout` if you raise it.
-- **Generate and deliver share a pass**, so a row raised in a pass is normally sent in the same pass.
-- **Generate drains up to 10,240 events per pass; deliver stays at 256.** Generate reads batches of
-  256 in an inner loop bounded by 40 batches or 30 seconds of elapsed time, whichever comes first
-  (`AlertsJob.GenerateMaxBatches`, `AlertsJob.GenerateTimeBudget`, `AlertsJob.GenerateAsync`), so a
-  burst of a few thousand failures clears in one tick. The time budget is checked *between* batches,
-  so the batch in flight always finishes. Deliver is deliberately not drained the same way and stays
-  at 256 transport attempts per pass (`AlertDelivery.DeliverBatchSize`): pushing ten thousand webhooks
-  through one tick would trade a database problem for an outage on the operator's own channel. A
-  namespace that outruns either bound falls behind. Falling behind is lag, not loss, for two
-  reasons that guard two different failure shapes: the projection horizon keeps generate from
-  walking past an event still waiting on an open transaction, and the durable cursor — written
-  after **every** completed batch — keeps everything a pass already projected when that pass is cut
-  short by a bound, a crash, or the framework's 300 s execution timeout. The lag grows until the
-  burst clears. Neither guard covers the two skips named in
-  [known limitations](./known-limitations.md), a writer that commits past the horizon
-  and a database clock that steps backwards; both cost a missed alert, never a wrong ledger.
-- **Generate walks `events` forward from a durable cursor** kept on the slot's own variable bag
-  (`AlertsJob.CursorVariableName`, `AlertsJob.GenerateAsync`). The cursor is the pair
-  `(created_at_utc, id)` in one variable, never the id alone: the stamp is set inside the writing
-  transaction and the id at insert, so a slow writer commits a low stamp under a high id, and a
-  cursor keyed on id would step over its neighbour for good. One variable, because two writers can
-  overlap when a pass outlives its lease, and a whole older checkpoint only replays where mixed
-  halves would skip. A short batch is the proof that nothing alertable is left behind the horizon,
-  so it advances the cursor instant to the horizon and the next pass never rescans the history this
-  one walked. The walk assumes the database clock does not step backwards; what a step costs and how
-  an operator rewinds the cursor by hand are in
-  [known limitations](./known-limitations.md).
-
-A deterministic poison event — a channel name or deduplication key that fails canonicalization, or a
-job row purged between the event write and its projection — is recorded as a durable variable on the
-projector job and skipped, so one malformed event cannot wedge the cursor
-(`AlertsJob.GenerateAsync`, `AlertsJob.RecordProjectionSkipAsync`, `AlertsJob.EmitAsync`). A transient
-failure retains the cursor and retries the pass. Those variables are forensics, never read back, so
-`sys.retention` prunes them off the projector's slot once they are older than `AlertRetention`.
-
-### What projects an alert
-
-Only `job.execution-finished` events, and only four shapes of them (`GetAlertableEvents.sql`):
-
-| Event shape | `to_status` | Reason code | Treated as |
-| --- | --- | --- | --- |
-| Terminal failure | `Failed` (200) | any | Terminal failure |
-| Re-arm after a failed attempt | `Ready` (10) | `job.unhandled-exception` (20), `job.lease-expired` (21), `job.execution-timeout` (22) | Non-terminal failure |
-| Reclaim's uncharged arm, a lease lost while an expired wait was resolving | `Suspended` (20) | `job.lease-expired` (21) | Non-terminal failure |
-| Successful execution | any | any | Resolution |
-
-All of this rides the event stream, so the job's `AuditLevel` decides whether alerting can see the job
-at all. The default `Audit` writes every `job.execution-finished`. **`AuditLevel = Failures` writes it
-for a failed attempt that carries no reschedule** (`CompleteExecutions.*.sql`): not a success,
-not an attempt the job is being re-armed from, and not a handler that cancelled or paused its own
-job. Two things follow, and the first one surprises people.
-
-A one-shot job's retries are invisible at this level. An in-budget retry re-arm is a reschedule as
-far as completion is concerned, so a job that throws four times and succeeds on the fifth writes
-nothing at all, and one that throws until its budget is gone writes a single terminal `Failed`,
-which raises `FinalFailure`. `AlertProfile.FirstFailure` and `AlertProfile.ThresholdReached` never
-fire for a one-shot's own throws here. Two shapes do reach alerting: a **recurring** slot's failed
-fire carries no reschedule, so its `Ready` rollover under `job.unhandled-exception` is written and
-raises `FirstFailure`, which is the unwatched-nightly-job case working as intended; and
-`reclaim_stuck_jobs` writes its lease-expiry event at `Failures` as well as at `Audit`, so a worker
-that dies holding a job is heard. Everything else stays quiet: a handler that sleeps, waits on a
-signal, or reschedules itself, and a handler that cancels or pauses its own job.
-
-A success at `Failures` is written when it answers a recorded failure: completion reads the job's
-newest `job.execution-finished` row and writes the success only when that row is not itself a
-success. So a job that never failed writes nothing, a healthy recurring slot writes nothing
-occurrence after occurrence, and the one success that follows a recorded failure is on the stream
-for the projector to resolve the incident from. That covers a `FinalFailure` for a job someone later
-restarts to success, a recurring slot's `FirstFailure` once the next fire succeeds, and `sys.alerts`'
-own incident, since it runs at `Failures` itself. The evidence is the failure event, so
-`AlertRetention` may not exceed `JobEventsRetention`; startup refuses the pair otherwise.
-
-Everything else is invisible to alerting. Two exclusions are worth stating outright:
-
-- **A `Cancelled` landing never alerts, under any profile.** An operator cancel, `ctx.CancelAsync`
-  (`HandlerInvocation`), and a whole-job deadline — both the "overdue at admission" and the
-  "next retry would exceed the deadline" paths (`ExecutionAdmission`, `WorkerFinalizer`) — all land the job
-  `Cancelled`, and the alertable set has no `Cancelled` branch.
-- **Not every re-arm alerts.** A budget-neutral re-arm carrying `job.concurrency-key-held` (62),
-  `job.rate-limited` (66), `job.step-retry-scheduled` (61), `job.attempt-aborted` (25), or
-  `job.unclassified` (10, an admission that failed on a provider error) falls
-  outside the three reason codes above, so the attempt ends without producing an alert even though it
-  did not succeed (`EventReasonCode.JobConcurrencyKeyHeld`, `EventReasonCode.JobRateLimited`,
-  `EventReasonCode.JobStepRetryScheduled`, `EventReasonCode.JobAttemptAborted`).
-
-A recurring slot's rollover carries the failed attempt's reason through onto its `Ready` event
-(`WorkerFinalizer.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every
-night is visible to the projector at all.
+`sys.alerts` runs every minute in each worker namespace. It turns failure events into alert rows, then delivers due alerts to channels, so an alert appears up to about two minutes after the failure. Falling behind during a burst is lag, not loss.
 
 ### Profiles
 
-`JobAttribute.AlertProfile` defaults to `OnFailure` (`JobAttribute.AlertProfile`), so a job that
-declares nothing about alerting is opted in.
+`[Job(AlertProfile = ...)]` decides what a job's failures raise. `OnFailure` is the default.
 
-| Profile | Non-terminal failure | Terminal `Failed` | Success |
+| Profile | Retryable failure | Terminal `Failed` | Success |
 | --- | --- | --- | --- |
 | `None` | nothing | nothing | nothing |
 | `OnFailure` (default) | `FirstFailure` at `Warning`; `ThresholdReached` at `Error` on the Nth | `FinalFailure` at `Error` | resolves |
 | `Info` | nothing | `FinalFailure` at `Info` | resolves |
 | `OnTerminal` | nothing | `FinalFailure` at `Error` | resolves |
-| `SysCritical` | `FirstFailure` at `Critical`; `ThresholdReached` at `Critical` | `FinalFailure` at `Critical` | resolves |
+| `SysCritical` | as `OnFailure`, at `Critical` | `FinalFailure` at `Critical` | resolves |
 
-The branches are one method: `None` returns immediately (`AlertsJob.ProjectAsync`); a success resolves
-and writes no alert of its own (`AlertsJob.ProjectAsync`); `to_status = Failed` emits `FinalFailure` for
-every remaining profile (`AlertsJob.ProjectAsync`); anything else is a non-terminal failure and only
-`OnFailure` and `SysCritical` continue past the gate (`AlertsJob.ProjectAsync`).
+- `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
+- A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
+- At `AuditLevel = Failures` a one-shot job's retries are not recorded, so only its terminal `Failed` alerts. A recurring job's failed fire and a worker that died holding a job still do.
+- For recurring work use `OnFailure`: a recurring job's failures never land `Failed`, so `OnTerminal` and `Info` stay silent for them.
 
-`SysCritical` is reserved for framework jobs. It raises severity and nothing else: routing is uniform
-across every profile — the declared `AlertChannelName`, else the configured `default` channel — so
-system-job failures reach the logs with no operator configuration (`AlertsJob.ProjectAsync`).
+### Incidents
 
-`None` suppresses automatic alerts only. `ctx.AlertAsync` still writes rows from a `None` job
-(`AlertProfileCode.None`).
+An automatic alert is an incident: one open row per job, kind (`FirstFailure`, `ThresholdReached`, `FinalFailure`), and reason. A repeat folds into it and raises `occurrence_count`; the job's next success resolves it, and a later failure opens a new incident. `ThresholdReached` fires once, when the incident's count reaches `AlertFailureThreshold` (default 3).
 
-### Identity and deduplication
+A one-shot job raises at most three alerts, and its incidents end with it. A recurring job's incident stays open until a fire succeeds or an operator steps in, and is delivered again every `AlertReminderInterval` (default 24 hours): an alert still open is the sign that nobody fixed it.
 
-An automatic alert's deduplication key is
-
-```
-auto:{DefinitionId}:{JobId}:{kind}:{reasonCode ?? "none"}
-```
-
-(`AlertsJob.EmitAsync`). Retention applies to incidents like everything else: a row older than
-`AlertRetention` is purged even while unresolved, so a condition that has been failing for the
-whole window reopens as a fresh incident counting from one — the ledger's events, not the alert
-row, are the long-horizon record. This key names an **incident**, not a time bucket: `alerts` carries a unique
-index on `(namespace_id, deduplication_key)` filtered to unresolved rows, so at most one OPEN row exists per
-key at any moment (`AlertEntity.cs`). A repeat of the same condition while that row is open folds onto it
-— `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
-(`RaiseAlert.*.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
-once a success stamps it, the row never reopens, and the next failure on the same key opens a fresh
-incident with a fresh ref and fresh delivery state.
-
-Four things follow from the key's shape:
-
-- **Job-scoped.** A fan-out of sibling jobs of one definition each gets its own row, and a success
-  resolves only that job's failures.
-- **Kind-scoped.** `FirstFailure`, `ThresholdReached`, and `FinalFailure` are separate rows, not
-  states of one row.
-- **Reason-scoped.** A job alternating between `job.unhandled-exception` and `job.lease-expired`
-  opens a separate incident for each reason; both can be open at once.
-- **Stable across occurrences of a recurring job.** A recurring schedule is one job row re-armed, not
-  a row per occurrence ([concepts](./guide.md#concepts-and-glossary), glossary and "Schedules, workers, and providers"),
-  so the job id — and therefore the alert identity — does not move from occurrence to occurrence.
-
-Automatic writes are replay-safe. Each carries the projecting event's id, and the upsert increments and
-re-stamps only when that id is strictly newer than the row's `last_projected_event_id`
-(`AlertsJob.EmitAsync`, `RaiseAlert.*.sql`). Because resolution is terminal, a failure event
-replayed after the incident it belongs to has already closed must not reopen it: the insert arm is
-guarded against every row of the identity, resolved ones included, not just the open one, so a raise
-whose event the identity has already absorbed at or past that id opens nothing — the ghost-incident
-guard (`RaiseAlert.*.sql`). The public `alert_ref` is applied on the INSERT arm only, and is
-absent from the `DO UPDATE SET` list (`RaiseAlert.*.sql`), so a row keeps the ref its first
-firing minted for as long as the incident stays open, and the next incident on the same key gets a ref
-of its own.
-
-### Resolution
-
-A successful execution resolves that job's open automatic alerts and writes nothing
-(`AlertsJob.ProjectAsync`, `ResolveAlerts.*.sql`). It is:
-
-- **Job-instance-scoped** — `job_id` and `origin = Automatic`, kinds `FirstFailure` /
-  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveAlerts.*.sql`).
-- **Ordered.** Resolution applies only to alerts whose `last_projected_event_id` precedes the success
-  event (`ResolveAlerts.*.sql`), so a replayed success cannot close an alert that a later failure
-  opened.
-- **Idempotent, and run on every success.** Within one batch a job can go fail → success → fail →
-  success, where the second failure opens a fresh incident on the same key (the first is already
-  resolved); resolving each success is what keeps that second incident from lingering unresolved
-  (`AlertsJob.ProjectAsync`).
-- **Dependent on the success event existing.** `AuditLevel = Failures` writes a success only when
-  it answers a recorded failure (see [What projects an alert](#what-projects-an-alert)), which is
-  exactly the success this path needs; the healthy successes it drops had nothing to resolve.
-
-Manual alerts are a separate path throughout — separate by key, not by wall. `ctx.AlertAsync`
-writes `origin = Manual`, `kind = Manual` (`JobContext.AlertAsync`,
-`RaiseAlertCommand.Manual`), which the automatic resolve never matches. A caller that
-deliberately reuses an automatic `auto:` key merges its raise onto that incident and takes over
-its lifecycle; Acta does not police key choice, it deduplicates on it. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlerts.ResolveAsync`
-(`IAlerts.AcknowledgeAsync`, `IAlerts.ResolveAsync`) are idempotent, emit `alert.acknowledged` (140) /
-`alert.resolved` (141) regardless of the job's audit level (`EventCode.AlertAcknowledged`,
-`EventCode.AlertResolved`), and leave `last_projected_event_id` untouched
-(`ResolveAlert.*.sql`). Neither verb changes the underlying job.
-
-Reminders follow the same split. A manual alert that delivers is notified once and never again: Acta
-has no way to tell whether one handler's statement still holds, so it schedules no reminder and the
-caller owns resolving the row (`AlertDelivery.SettleAsync`). A manual alert whose *send* failed is the
-exception — nobody has been told yet, so it is re-attempted on the reminder cadence until it lands,
-and stops there.
-
-### How much a broken job actually sends
-
-These numbers are measured against the code, not estimated.
-
-`ThresholdReached` fires when the `FirstFailure` raise applies and the row's post-upsert occurrence
-count **equals** `AlertFailureThreshold` (`AlertsJob.ProjectAsync`; default 3,
-`JobsOptions.AlertFailureThreshold`). "Applies" is read off the raise's returned
-`last_projected_event_id`: only the event the row just absorbed may escalate, so a crash-replay —
-whose held raises all return the stored, already-at-threshold count — re-fires the escalation only
-from the true crossing event, where the `ThresholdReached` row's own high-water guard settles it. The
-count is monotonic **within one incident**: it starts at 1 when the incident opens and only climbs
-until a success resolves it, so the threshold is crossed at most once per incident and reads as "N
-failures since this broke" whatever the job's cadence — a slow job just takes longer to reach it, it
-never becomes unreachable. Only the next incident, opened by the next failure after a resolution,
-restarts the count at 1 (`JobsOptions.AlertFailureThreshold`).
-
-#### Volume
-
-Delivery selects an unresolved incident whose delivery is `Pending`/`RetryAfter` due now, or whose
-delivery already settled (`Delivered`/`Failed`) and whose scheduled reminder has come
-(`GetDeliverableAlerts.sql`; see [Delivery](#delivery)). Every newly inserted row is born `Pending`
-(`AlertsJob.EmitAsync`, `RaiseAlert.*.sql`), so a new incident's first notification is
-immediate.
-
-**A job that is permanently broken produces exactly one open incident row per (kind, reason) — one for
-`FirstFailure`, one for `ThresholdReached` once the count crosses it — no matter how fast or how long
-it keeps failing.** `occurrence_count` on that row climbs with every repeat; no new row appears until
-the incident resolves. A 10,000-job outage is 10,000 open rows (one per failing job, per kind and
-reason it hits), not 2–3 accumulated rows per job per rolling window under the retired windowed model.
-
-| | One-shot job | Recurring slot |
-| --- | --- | --- |
-| Failures before it stops | at most `MaxAttempts` (default 15, `JobAttribute.MaxAttempts`) | unbounded; the slot re-arms forever (`WorkerFinalizer.ComputeRecurringOutcome`) |
-| Alert rows on defaults | at most three: `FirstFailure`, `ThresholdReached`, `FinalFailure` | two, for as long as the slot stays broken |
-| Ends by itself | yes, at the terminal `Failed` | only on a success, or operator intervention |
-
-Row count does not grow with time or failure rate; what changes with time is how often an open
-incident is *delivered* again. `AlertReminderInterval` is that lever (default 24h,
-`JobsOptions.AlertReminderInterval`): settling an incident's delivery to `Delivered` or `Failed` —
-`Suppressed` is not reminded — schedules the next pass an interval out, so a permanently broken job
-pages at most once per incident per interval rather than once per failure. A manual alert that
-delivered schedules nothing (see [Resolution](#resolution)). Widening the interval slows the
-reminder cadence; it does not change how many rows exist or whether `ThresholdReached` is reachable.
-
-### Delivery
-
-The deliver phase selects due rows and settles each one (`AlertDelivery.DeliverAsync`). Due means an
-unresolved incident (`resolved_at_utc IS NULL`) and one of two arms, both reading `retry_after_utc`
-as the row's "not before" instant: `Pending`/`RetryAfter` with it null or past — a first attempt or a
-due retry — or `Delivered`/`Failed` with it past — a reminder, at the instant that settlement
-scheduled. `Suppressed` rows are never reminded: that status recorded a routing decision about the
-channel, and re-sending would only re-take it. Ordered by id, 256 per pass
-(`GetDeliverableAlerts.sql`).
-
-The reminder is scheduled rather than inferred from `modified_at_utc`, and that is not a detail: every
-repeat an open incident absorbs re-stamps that column, so an age rule would leave a job failing faster
-than the interval permanently too young to remind — silencing exactly the outage worth re-notifying.
-Nothing but a settlement or a resolution moves the instant, so neither a repeat nor an operator's
-acknowledge can postpone a reminder.
-
-For each row it resolves the channel by name in the firing namespace, resolves a transport by the
-channel's kind, and decides in this fixed order (`AlertChannelVerdict.Decide`):
-
-| Condition | Outcome | Delivery status |
-| --- | --- | --- |
-| No channel of that name configured for the namespace | Failed | `Failed` (200) |
-| Channel `Disabled` | Suppressed | `Suppressed` (30) |
-| Channel `Deprecated` | Suppressed | `Suppressed` (30) |
-| Alert severity below the channel's `MinSeverity` | Suppressed | `Suppressed` (30) |
-| No transport registered for the channel's kind | Failed | `Failed` (200) |
-| Otherwise | Send | per the transport's outcome |
-
-A transport that throws is treated as retryable and logged at Warning, never propagated
-(`AlertDelivery.SendAsync`). Settlement (`AlertDelivery.SettleAsync`) writes a compare-and-swap against the
-`version` the row carried at selection (`UpdateAlertDelivery.*.sql`): a row that moved in the
-meantime — an operator resolved it, or a competing worker already settled the same attempt — matches
-no version, and the write is skipped with a Debug log line rather than retried, because the newer state
-is the one that should stand (`AlertDelivery.WriteSettlementAsync`).
-
-- `Delivered` (100) — terminal, and `retry_count` resets to 0: the send series that just landed is
-  over.
-- `Retryable` — `retry_count + 1`; below `AlertDeliveryMaxRetries` the row becomes `RetryAfter` (20)
-  with `retry_after_utc` set from a `30s..1h` doubling curve with 10% jitter, parsed once and
-  independent of any job's backoff policy (`AlertDelivery.RetryBackoff`, `AlertDelivery.SettleAsync`).
-- At the cap — `Failed` (200), terminal.
-
-`retry_count` is the budget for one **send series**, not a lifetime count on the row
-(`AlertEntity.RetryCount`). `AlertDeliveryMaxRetries` is `internal` and fixed at 5
-(`JobsOptions.AlertDeliveryMaxRetries`): five send attempts and four waits of roughly 30s, 1m, 2m, and
-4m (`BackoffSchedule.ComputeDelaySeconds`), so the one-hour ceiling in the curve is never reached and a
-series that cannot be delivered goes terminal `Failed` in under ten minutes of tick time. Because
-delivery runs on the one-minute tick, each wait rounds up to the next tick boundary. `Delivered`
-resets the budget to 0, so a reminder for a still-open incident starts with the whole curve again
-rather than inheriting whatever the previous series spent — a row that took four attempts to land does
-not walk into its next reminder one throw from the cap.
-
-Delivery is at least once: a crash after send but before settlement can resend a duplicate
-(`AlertsJob`).
-
-The delivery guarantee:
-
-> An alert resolved before delivery selection is not sent. Resolution suppresses further pending and
-> retry attempts. A transport attempt already in progress may still complete.
-
-Both resolve paths settle the delivery they close (`ResolveAlerts.*.sql`,
-`ResolveAlert.*.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
-retry timer clears, so a notification queued for a condition that has cleared is cancelled rather than
-sent. An already-settled row (`Delivered`, `Failed`, `Suppressed`) keeps its status — resolving does
-not edit the record of what the send actually did. Selection itself excludes every resolved row
-(`GetDeliverableAlerts.sql`), and settlement's compare-and-swap is what makes a resolve race-safe
-against a send already in flight: the resolve writes unconditionally and wins, and the in-flight
-attempt's own settlement finds its expected version gone and quietly loses, per the guarantee above.
-
-### Channels and routing
-
-A channel is **process startup configuration**, declared on the worker builder and resolved from an
-in-memory registry at delivery time (`WorkerBuilder.AddAlertChannel`, `AlertChannelRegistry`):
+### Channels and delivery
 
 ```csharp
-j.Run("billing", w =>
-{
-    w.AddManifest<BillingJobs>();
-
-    w.AddAlertChannel(
-        "ops-slack",
-        AlertTransportKinds.SlackWebhook,
-        endpoint: builder.Configuration["Alerts:SlackWebhookUrl"]!,
-        o =>
-        {
-            o.MinSeverity = AlertSeverityCode.Warning;
-        });
-});
+w.AddAlertChannel("ops-slack", AlertTransportKinds.SlackWebhook,
+    endpoint: builder.Configuration["Alerts:SlackWebhookUrl"]!,
+    o => o.MinSeverity = AlertSeverityCode.Warning);
 ```
 
-- **Name and transport kind are operator-stable kebab identifiers; the endpoint is free-form**
-  (a URL, ARN, or address) and only checked non-empty (`WorkerBuilder.AddAlertChannel`). Re-declaring
-  a name replaces the earlier declaration rather than throwing (`WorkerBuilder.AddAlertChannel`).
-- **Every worker namespace gets an implicit `default` channel** on the log transport, `Active`, with
-  `MinSeverity = Info` (`AlertChannelRegistry.RegisterDefault`). Declaring `default` yourself
-  overrides it. This is why failures reach the logs out of the box.
-- **`MinSeverity` and `Status` are the two per-channel policies** (`AlertChannelOptions.MinSeverity`,
-  `AlertChannelOptions.Status`). `Disabled` and `Deprecated` both suppress; the difference is what the
-  log line says (`AlertDelivery.LogSuppressedDecision`).
-- **Built-in transport kinds are `log` and `slack-webhook`** (`AlertTransportKinds.Log`,
-  `AlertTransportKinds.SlackWebhook`). A custom transport defines its own kebab kind and registers an
-  `IAlertTransport`.
-- **Acta SQL stores the channel *name* only.** Endpoints, webhook URLs, credentials, and routing keys
-  are never persisted: the delivery target is assembled at send time from the registry declaration
-  (`AlertDelivery.SendAsync`). Keep real endpoints in configuration or a secret store.
-
-Route a job with `[Job(AlertChannelName = "ops-slack")]` (`JobAttribute.AlertChannelName`); a job that
-declares none routes to `default`. `RunbookUrl` on the same attribute (`JobAttribute.RunbookUrl`) is
-resolved at delivery time from the definition and carried on the notification
-(`GetDeliverableAlerts.sql`, `AlertDelivery.SendAsync`); it is not on the list-query projection.
-
-`AlertChannelValidationMode` checks at worker startup that every alerting definition routes to a
-channel configured in its namespace: `Off` skips, `Warn` (default) logs each unroutable definition,
-`Fail` throws out of worker initialization (`JobsOptions.AlertChannelValidationMode`,
-`AlertRoutingCheck.ValidateRouting`). Disabled and deprecated channels count as configured — that is a
-delivery decision, not a routing one. The check covers **definitions only**: a definition with
-`AlertProfile = None` is skipped (`AlertRoutingCheck.ValidateRouting`), and a `channelName` passed to
-`ctx.AlertAsync` is not validated at startup at all. A manual alert naming a channel the namespace does
-not configure settles `Failed` with no retry on its first delivery pass.
+- Route a job with `[Job(AlertChannelName = "ops-slack")]`. Without one it goes to the namespace's implicit `default` channel, which logs, so failures reach the logs with no setup. `RunbookUrl` on the job travels with the notification.
+- The built-in transports are `log` and `slack-webhook`; a custom one registers an `IAlertTransport`. Endpoints and credentials stay in configuration and are never stored in the database.
+- A channel's `MinSeverity` and its `Disabled` or `Deprecated` status suppress delivery. A channel the namespace does not configure fails delivery, and `AlertChannelValidationMode` checks every definition's routing at startup.
+- A failed send retries for a few minutes, about five attempts, and then settles `Failed`. Delivery is at least once. Resolving an alert before it is sent cancels the send.
 
 ### Operator surface
 
-Alert rows are queryable like everything else. `IActaOperations.Alerts` offers `ListAsync` (filtered
-by namespace, job, resolution, acknowledgement, severity, delivery status, and tags), `GetAsync`,
-`AcknowledgeAsync`, and `ResolveAsync` (`IAlerts`, `ListAlertsQuery`). The dashboard and HTTP API
-expose the two verbs at `POST /alerts/{alertRef}/acknowledge|resolve`, 200 or 404 and never 409 —
-answering `AcknowledgeAlertResponse` and `ResolveAlertResponse` — behind
-`EnableControls` and the `X-Acta-Control` header (the gate lives in `MapActa`, the header
-name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselves in
-`AlertsEndpoints`). In SQL, `acta.alerts_view` renders the coded columns beside `deduplication_key`
-(`AlertsView.*.sql`); see [SQL recipes](#sql-recipes) for ready queries.
-
-Acknowledge means an operator has seen the alert; resolve means the incident is considered settled.
-Neither changes the job. Acknowledging also does not quiet the alert: a reminder already due still
-fires, because seeing an outage is not fixing one. Resolving is what ends the reminders — it clears
-the row's scheduled instant along with everything else it settles
-(`ResolveAlert.*.sql`).
-
-Retention is separate from the job's. `sys.retention` deletes alerts older than `AlertRetention`
-(default 90 days, `JobsOptions.AlertRetention`) **whether or not delivery settled**
-(`PurgeExpiredData.*.sql`). Settled rows — `Suppressed`, `Delivered`, `Failed` — and rows still
-stuck `Pending` or `RetryAfter` are counted separately, and a pass that aged out an undelivered row
-logs one warning naming how many: an alert deleted before it ever reached a channel is a signal
-nobody got. Nothing is immortal under this rule, an open incident included — the deduplication index
-covers unresolved rows only, so deleting the row frees the identity and the next failure opens a
-fresh incident. The projector's `alerts-skip-*` poison variables age out on the same window. Because
-an alert keeps its own copy of the job ref, it can outlive the job it was raised for; a manual
-`PurgeAsync` on the job deletes its alerts immediately. See
-[Retention and purge](#retention-and-purge).
-
-### Where the principle breaks
-
-The intended rule is that one profile means one thing for every job and the alert lifecycle is
-independent of how the job was started. Two divergences remain, and both trace to a single root
-cause: **a recurring slot has no terminal state.** `MaxAttempts` is the one-shot retry budget, and a
-recurring slot re-arms instead of terminalizing however many consecutive runs throw
-(`WorkerFinalizer.ComputeRecurringOutcome`). That is deliberate — a nightly job must not die permanently
-after three bad nights — but the alerting consequences are real.
-
-#### 1. `OnTerminal` and `Info` are silent for a recurring job's ordinary failures
-
-Both wait for the terminal transition, and a rollover is not one, so a recurring job that throws or
-loses its lease alerts nothing under either profile. Recorded in
-[Known limitations § execution model](./known-limitations.md); the recommendation there —
-choose `OnFailure` for recurring work you want to hear about — is the right one.
-
-They do still fire on the terminal `Failed` shapes a recurring slot can reach, all three of which
-route through the handler-status completion path and stop the whole slot
-(`WorkerFinalizer`):
-
-| Shape | Reason code | Where |
-| --- | --- | --- |
-| Handler declares failure with `ctx.FailAsync` | `job.handler-failed` (52) | `HandlerInvocation` |
-| Handler throws `NotImplementedException` / `NotSupportedException` | `job.non-retryable-exception` (23) | `HandlerInvocation` |
-| An `AtMostOnce()` step was re-entered before its outcome was recorded, uncaught | `job.step-interrupted` (63) | `HandlerInvocation` |
-
-A whole-job deadline is **not** one of them: the deadline lands the job `Cancelled`, not `Failed`
-(`ExecutionAdmission`, `WorkerFinalizer`, `EventReasonCode.JobDeadlineExceeded`), and the alertable set has no
-`Cancelled` branch (`GetAlertableEvents.sql`). No profile alerts on a deadline — the `on-terminal`
-`[Code]` description (`AlertProfileCode.OnTerminal`) and
-[Known limitations](./known-limitations.md) both say the same.
-
-#### 2. A one-shot job's alerting ends by itself; a recurring job's does not
-
-A one-shot job fails at most `MaxAttempts` times and then terminalizes, so its `FirstFailure` /
-`ThresholdReached` / `FinalFailure` incidents resolve or age out with the job. A permanently broken
-recurring slot never produces the success that would resolve its incident, so `FirstFailure` (and,
-once crossed, `ThresholdReached`) stay open indefinitely: one row each, `occurrence_count` climbing
-with every re-arm, delivered again on `AlertReminderInterval` rather than replaced by a fresh row.
-Same profile, same configuration, a lifecycle that ends by itself in one case and only on success or
-operator intervention in the other.
-
-Neither of these is a feature. They are the current behaviour, and they are the two places where
-reading the profile name does not tell you what the job will do.
-
-### Choosing a profile
-
-**One-shot work.** Keep `OnFailure`, the default. You get a `FirstFailure` warning
-on the first retryable failure, an `Error` escalation if the same reason recurs to the threshold
-before the job exhausts its retries, and a `FinalFailure` when the budget is exhausted — at most three
-rows, and the sequence ends by itself. Pick `OnTerminal` when the intermediate retries are noise and
-only the final outcome should page; it costs you the early warning, and for a one-shot job it costs
-nothing else. `Info` is `OnTerminal` at a severity most channels will not page on — useful for work
-whose failure is a note rather than an incident, but check the routed channel's `MinSeverity` first,
-because `Info` alerts are exactly what a `Warning` floor suppresses.
-
-**Recurring work.** `OnFailure`, or you will hear nothing. `OnTerminal` and `Info` are silent for the
-rollover case, which is how a recurring job fails nearly all the time. Accept that the incident does
-not close on its own: it opens once, reminds on `AlertReminderInterval` (once a day by default) for as
-long as the slot stays broken, and treat "this alert is still open" — not "a new alert appeared" — as
-the signal that nobody has fixed it. `ThresholdReached` is reachable at every cadence, because the
-count is per incident rather than per window: it fires once the Nth failure since the incident opened
-lands, however slowly that takes. If you want a recurring job to stop rather than keep failing, that
-is a handler decision — `ctx.FailAsync` — not a profile one.
-
-**System work.** `SysCritical` is reserved for Acta's own jobs (`sys.alerts`, `sys.retention`,
-`sys.outbox`) and behaves as `OnFailure` pinned to `Critical` severity. There is no
-reason for an application job to declare it: the same emissions are available from `OnFailure`, and
-taking `Critical` for application work removes the one severity that distinguishes framework failure
-from application failure on a shared channel.
-
-**Handler-owned alerting.** `None` turns off automatic alerting without turning off
-`ctx.AlertAsync`, so a handler that wants to alert on its own terms — its own key, its own severity,
-its own channel — can, while
-the framework stays quiet. It also removes the job from the startup routing check, so a manual alert
-from a `None` job naming an unconfigured channel is not caught until it fails delivery.
-
-### Runnable examples
-
-Runnable examples: `concepts/400-observability-and-alerts/402-alerts` (manual alert),
-`403-alert-channel` (a declared channel with a severity floor), `405-real-alert-routing` (Slack
-webhook and a shared deduplication key), `406-automatic-failure-alerts` (no `AlertAsync` at all), and
-`411-alert-escalation` (`FirstFailure` → `ThresholdReached` → `FinalFailure`).
+`IActaOperations.Alerts` lists, reads, acknowledges, and resolves alerts, as do the dashboard and `POST /alerts/{alertRef}/acknowledge|resolve`. Acknowledging does not stop reminders; resolving does. Neither changes the job. Alerts age out on `AlertRetention`, independently of their job. The concepts `402-alerts`, `403-alert-channel`, `405-real-alert-routing`, `406-automatic-failure-alerts`, and `411-alert-escalation` run each part.
 
 ## What happens if…
 
@@ -1842,7 +1014,7 @@ paths: pass the open transaction to the transactional `IJobs` enqueue overload (
 through `AddToActaOutboxAsync` on your provider transaction (different database). If you deliberately want
 an independent Acta commit inside a scope, wrap the call in `TransactionScope(TransactionScopeOption.Suppress)`.
 The caller-transaction overloads and the staging primitives are unaffected: their transaction is supplied
-explicitly. See [Transactional enqueue and the external outbox](./guide.md#ambient-systemtransactions-scopes-are-rejected).
+explicitly. See [Transactional enqueue and the external outbox](./guide.md#the-external-outbox).
 
 ### The Dashboard Or API Is Not Reachable Remotely
 
@@ -2142,7 +1314,7 @@ delete rows the relay has quarantined (`status_code = 90`); leave Pending and Cl
 Prefer the audited verbs, `IActaOperations.Outbox.RequeueAsync` and `DiscardAsync` or
 `POST /outbox/{jobNamespace}/requeue` and `/discard`, which write `outbox.requeued` and
 `outbox.discarded` events; these statements leave no audit trail.
-Background: [transactional enqueue and the external outbox](./guide.md#retry-and-quarantine).
+Background: [transactional enqueue and the external outbox](./guide.md#relay-behaviour).
 
 Inspect quarantined rows:
 
