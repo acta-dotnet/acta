@@ -473,6 +473,12 @@ settles, and what an operator sees when it fails.
   The jobs, events, alerts, schedules, workers, and definitions lists and the overview now compare
   their own `namespace_id` with the id looked up once, and the events and jobs pages read about 270
   buffers in under a millisecond. SQLite's reads change the same way.
+- **The overview no longer blames idle workers for another namespace's backlog.** With all namespaces
+  selected, a namespace whose workers were gone and whose jobs were overdue read as "ready jobs not
+  draining while N executor slots sit idle", counting the slots of workers in other namespaces that
+  could not claim those jobs, and counting recurring slots not yet due as part of the backlog. The
+  verdict now names the oldest ready job's wait, and blames idle slots only when one namespace is
+  selected; that namespace's own view still says when it has no live workers.
 - **`sys.alerts` reads only a retry's success.** At the default `Audit` level every success was
   alertable, and the projector resolved alerts once per success, one transaction each, at most 10,240
   events per minute per namespace, so after a fast drain a real failure's alert waited hours behind

@@ -80,8 +80,14 @@
     if (o.readyCount > 0 && o.executorCapacity === 0) {
       urgent.push({ text: plural(o.readyCount, 'ready job') + ' with no live workers', href: routes.workers({ namespace: ns }) });
     } else if (stalled) {
+      // The stall is told by its oldest wait: the ready count also holds recurring slots not yet due. Across
+      // all namespaces the idle slots may belong to workers that cannot claim the stalled namespace's jobs,
+      // so only one namespace's view blames its idle slots.
+      const waiting = 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds);
       urgent.push({
-        text: plural(o.readyCount, 'ready job') + ' not draining while ' + plural(o.executorCapacity, 'executor slot') + ' sit idle',
+        text: ns
+          ? waiting + ' while ' + plural(o.executorCapacity, 'executor slot') + ' sit idle'
+          : waiting + ' with nothing executing',
         href: routes.jobs({ namespace: ns, status: 'Ready' })
       });
     }
