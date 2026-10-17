@@ -1192,7 +1192,7 @@ invocation, with sweep iteration in the runtime. Client-side mapping and disposa
 trigger mutation replay. Routines reinstall on every start, and the two whose signature changed drop
 their retired form first, so the routine layer upgrades in place. The schema note at the end of this
 section says which databases must still be reprovisioned. See
-[SQL execution policy](internals/sql-execution-policy.md).
+[SQL execution policy](./internals/sql-execution-policy.md).
 
 Three things that compiled and ran on rc.1 now fail at worker startup, each with the job named:
 
@@ -1266,7 +1266,7 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   it is in flight on a lapsed lease. The guard reads the lease against database time inside the
   statement, so simultaneous checks commit one repair and one event between them, and a heartbeat
   that renewed the lease is never overtaken. Normal claiming then decides which worker runs the sweep; no worker sweeps the
-  namespace on its own. See [known limitations](technical/known-limitations.md) for the delay this
+  namespace on its own. See [known limitations](./technical/known-limitations.md) for the delay this
   bounds.
 - **Finishing an in-flight attempt can no longer resurrect a removed schedule.** A recurring slot
   plans its cursor advances before the handler runs and applies them at completion. If a deployment
@@ -1433,7 +1433,7 @@ defect landed in: `RecoveryJob.Handle` is still executed by no test.
 > `job_schedule_advance_batch` table type gains `expected_version`, the schedule version a recurring
 > fire read, which completion checks before it advances the cursor. The routines re-install on every
 > start and need no action. Re-cutting on a later day moves the stamp to that day, so two cuts
-> collide only when they happen on the same day; [known limitations](technical/known-limitations.md)
+> collide only when they happen on the same day; [known limitations](./technical/known-limitations.md)
 > states that one-day gap.
 >
 > The same applies to the host's outbox table on SQL Server: `last_error` is now `nvarchar(512)`
@@ -1636,7 +1636,7 @@ a locked-down principal that cannot see it is indistinguishable from an unprovis
 is refused the same way.
 If you were relying on lazy failure — pointing a worker at a database you provision later — provision
 first now. The preflight checks history, not routine bodies: keep running the full provisioning
-script on every upgrade, as [`production.md`](guide/production.md#migration-ownership) describes.
+script on every upgrade, as [`production.md`](./guide/production.md#migration-ownership) describes.
 
 The **driver-major preflight** compares the loaded ADO driver's major version against the one Acta
 was certified with and refuses to start on a mismatch. Acta's driver dependencies stay floors with
@@ -1696,7 +1696,7 @@ frozen surfaces produced.
   share compiles silently and starts reading rows where it read names.
 - **Walk the rename table below** for the .NET, HTTP, SQL, and persisted-code spellings.
 - The naming rules these renames settled into are written down in
-  [naming conventions](./internals/naming-conventions.md); post-1.0 names are measured against
+  [naming conventions](../CONTRIBUTING.md#naming-conventions); post-1.0 names are measured against
   that page rather than re-litigated.
 
 ### The outbox gets its operator path
@@ -1809,7 +1809,7 @@ Same destructive-class precedent as 0.7.0:
 `job_` had a public ref since 0.8.0; alerts and workers did not, so half the surface still addressed
 rows by a dense integer that a restored backup can recycle. 0.9.0 finishes the job — the rule is now
 *a database integer is never a wire identity*, written down in
-[naming conventions](./internals/naming-conventions.md) and enforced by three gates rather than by
+[naming conventions](../CONTRIBUTING.md#naming-conventions) and enforced by three gates rather than by
 review.
 
 - **`alr_` and `wrk_` join `job_`.** Both are UUIDv7 values minted in C# and passed into the write, so

@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Physical storage-kind vocabulary used by <see cref="DbColumnAttribute"/>; provider DDL is derived
-/// per-provider from this value (mapping table in docs/internals/design.md, "Persistence and naming"). Describes
+/// per-provider from this value (docs/design.md, "Storage and naming"). Describes
 /// physical storage only; "coded" (enum-backed) columns are inferred from the CLR property being an
 /// enum, not encoded here; such a column stores its enum's underlying width (<see cref="Byte"/> /
 /// <see cref="Int16"/> / <see cref="Int32"/>) plus a generated CHECK over the enum's known values.

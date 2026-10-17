@@ -30,7 +30,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     internal const string CodeKindAttr = "Acta.CodeKindAttribute";
 
     /// <summary>
-    /// ACTA04xx diagnostics: see docs/internals/design.md § AOT and SQL parameter metadata policy.
+    /// ACTA04xx diagnostics: see docs/design.md, "AOT and SQL parameter metadata".
     /// Messages are fully formatted at the check site; every descriptor passes them through.
     /// </summary>
     internal static readonly DiagnosticDescriptor SchemaDeclaration = new(

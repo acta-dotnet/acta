@@ -62,7 +62,7 @@ Operation;System.String
 # stored shape depend on where Acta happens to be hosted. Mirroring beats mapping here, because a
 # translation table would need a fallback arm that silently swallows a member added later.
 # Not to be confused with the metric tag of the same idea, which is lowercase and frozen; see
-# docs/internals/naming-conventions.md for why the two surfaces diverge on purpose.
+# CONTRIBUTING.md (Naming conventions) for why the two surfaces diverge on purpose.
 Outcome;System.String
 
 # Why, low cardinality: key-held, unknown-job. Kebab-case for the same reason as Operation - these are

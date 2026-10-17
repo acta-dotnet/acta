@@ -588,7 +588,7 @@
         <div class="build">
           <h3 id="data-model">Can the data model stay this small?</h3>
           <p>Every persisted code family is a small integer, a <code>tinyint</code> or <code>smallint</code> rather than a status string, with the names generated beside it. The job row is append-mostly: only an operator’s input amendment rewrites it; the hot runtime row carries only what changes, keeps the definition behind a surrogate id, and stores no JSON. Column widths come from one fixed ladder, so a hot row stays narrow, an index stays dense, and an update rewrites bytes, not pages. The model freezes at 1.0: no renames, drops, retypes, or renumbered codes, ever, and anything new arrives as an additive migration a rolling deploy can run.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/internals/design.md"><b>docs/internals/design.md</b></a></span>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/design.md"><b>docs/design.md</b></a></span>
         </div>
       </div>
     </section>

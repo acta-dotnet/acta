@@ -343,7 +343,7 @@ What exists:
 - Only `src` gets the file (`src/Directory.Build.props`); MA0124 and MA0135 are the only rules on, and warnings are errors. The analyzer fixes the file name and its `Name;Type` format.
 - `JobLogScope` adds `ExecutionNumber`, `WorkerId`, and `CorrelationKey` as scope keys, outside the analyzer's reach.
 - About 96 `LogX` calls in 27 files, no `[LoggerMessage]` (CA1848 is suppressed).
-- The `.editorconfig` comment says eleven names; `naming-conventions.md` says the names are not frozen.
+- The `.editorconfig` comment says eleven names; the naming conventions in `CONTRIBUTING.md` say the names are not frozen.
 
 The analyzer stays. A test could check names with a syntax walk in about 60 lines, but checking types
 needs a semantic model of every `src` project, and the analyzer already gives that in the IDE. Two
@@ -366,6 +366,6 @@ The simplest fix: prefix only the six scope fields that land on lines Acta does 
 `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, `ActaCorrelationKey`), keep
 the other names bare, since they appear only on Acta's own lines under Acta's logger categories, and
 keep `JobId` numeric. Turn on MA0125 and MA0126, drop the unused `Double` from `DurationMs`, and say
-in `naming-conventions.md` that after 1.0 a log field may be added but never renamed. The scope could
+in the naming conventions in `CONTRIBUTING.md` that after 1.0 a log field may be added but never renamed. The scope could
 also carry the job's public ref next to its id. Like every persisted name, the rename belongs before
 the 1.0 tag or never.

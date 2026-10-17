@@ -6,7 +6,7 @@ namespace Acta;
 /// <c>namespaces</c> row, the per-namespace <c>definitions</c> rows, and the <c>workers</c> row,
 /// and by <see cref="Acta.WorkerRuntime.RunLoopAsync"/> to decide whether to enter the claim-poll loop.
 /// The one-runtime-per-Run fan-out and the enqueue-only topology are documented in
-/// docs/internals/design.md (Boundaries).
+/// docs/design.md (Boundaries).
 /// </summary>
 internal sealed record WorkerRegistration(
     string NamespaceName,

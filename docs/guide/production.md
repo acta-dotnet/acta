@@ -110,7 +110,7 @@ in the database, so an operator who hand-edits an object keeps a row that no lon
 The preflight also reads the database once at startup, so a worker already running when someone
 applies an incompatible change finds out at its next affected call.
 
-See [`migrations.md`](../internals/migrations.md) for the migration model and `tools/Acta.Emit`
+See [schema migrations](../../CONTRIBUTING.md#schema-migrations) for the migration model and `tools/Acta.Emit`
 commands.
 
 ## Rolling deploys

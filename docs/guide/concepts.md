@@ -11,7 +11,7 @@ contract, operator guide, or generated references. It is descriptive. The source
 `src/Acta` are authoritative for exact signatures and contracts.
 
 For the rationale behind these choices (why one table, why leaderless, why checkpoints over replay),
-see [`design.md`](../internals/design.md).
+see [design](../design.md).
 
 ## Glossary
 

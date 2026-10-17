@@ -54,11 +54,8 @@ arrange/act/assert that proves it. The [operations index](./reference/operations
 to its facade method, HTTP routes, CLI verb, SQL, and specs. The [benchmark](./reference/benchmark.md)
 is the latest benchmark round, written by `anvil/Anvil.Bench`.
 
-## Internals
+## Design and contributing
 
-Contributor-facing; not needed to use Acta: [design principles and settled decisions](./internals/design.md),
-[SQL execution policy](./internals/sql-execution-policy.md),
-[migration tooling](./internals/migrations.md),
-[releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
-[source layout](./internals/source-layout.md),
-and [operator surface](./internals/operator-surface.md).
+Not needed to use Acta: [design principles and settled decisions](./design.md), the
+[SQL execution policy](./internals/sql-execution-policy.md), and
+[CONTRIBUTING.md](../CONTRIBUTING.md) for setup, migrations, naming, source layout, and releasing.

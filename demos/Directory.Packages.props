@@ -1,7 +1,7 @@
 <Project>
   <!-- The demos consume Acta the way an outside app does: published packages, no project references
        into src/. Only the Acta versions live here; importing the root file keeps every incidental
-       dependency centrally managed. Bump these after each publish (docs/internals/releasing.md). -->
+       dependency centrally managed. Bump these after each publish (CONTRIBUTING.md, Releasing). -->
   <Import Project="../Directory.Packages.props" />
   <ItemGroup>
     <PackageVersion Include="Acta" Version="1.0.0-rc.4" />

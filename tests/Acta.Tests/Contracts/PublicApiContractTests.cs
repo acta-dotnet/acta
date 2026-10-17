@@ -6,7 +6,7 @@ namespace Acta.Tests.Contracts;
 
 /// <summary>
 /// The public API baseline. Schema and persisted codes have had mechanical drift gates for a while;
-/// the .NET surface had none, so <c>docs/internals/design.md</c>'s promise to close "the public,
+/// the .NET surface had none, so <c>docs/design.md</c>'s promise to close "the public,
 /// physical, and numeric vocabulary together" at 1.0 was unenforceable. This renders every exported
 /// type and member of the shipped assemblies into one ordered text file and fails when it moves.
 /// </summary>

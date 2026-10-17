@@ -515,7 +515,7 @@ dotnet_diagnostic.CA1062.severity = none
 dotnet_diagnostic.CA1805.severity = none
 
 # CA1716: UpdateOverridesAsync's 'overrides' parameter, which collides with VB's Overrides keyword.
-# The word is load-bearing across the three contract tiers docs/internals/naming-conventions.md
+# The word is load-bearing across the three contract tiers CONTRIBUTING.md (Naming conventions)
 # freezes: the feature is operator policy overrides, the argument's own type is
 # JobDefinitionPolicyOverrides, the schema spells the modifier _override on every column it qualifies,
 # and the method is named for it. Renaming the parameter alone would leave one link in that chain

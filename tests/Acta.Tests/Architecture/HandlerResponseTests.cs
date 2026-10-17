@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Holds operations to "every operation has its own input and its own response" in <c>docs/internals/naming-conventions.md</c>:
+/// Holds operations to "every operation has its own input and its own response" in <c>CONTRIBUTING.md</c> (Naming conventions):
 /// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, a list
 /// returns its own page, a Get its own <c>GetXResponse</c>, and a row, command, query, response, or response element is
 /// declared in its operation's folder under the operation's name, a row named by no other operation; any other type in

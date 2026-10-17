@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Holds every shipped type to the suffix table in <c>docs/internals/naming-conventions.md</c>.
+/// Holds every shipped type to the suffix table in <c>CONTRIBUTING.md</c> (Naming conventions).
 /// </summary>
 public sealed class TypeNamingTests
 {
@@ -53,7 +53,7 @@ public sealed class TypeNamingTests
             Violations(type, projected).Select(reason => $"{ShippedCode.Key(type)} ({reason})")
         );
 
-        ArchitectureAssert.NoViolations(violations, "Rename the type by the suffix table in docs/internals/naming-conventions.md.");
+        ArchitectureAssert.NoViolations(violations, "Rename the type by the suffix table in CONTRIBUTING.md (Naming conventions).");
     }
 
     private static IEnumerable<string> Violations(Type type, HashSet<Type> projected)

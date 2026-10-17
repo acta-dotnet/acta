@@ -5,14 +5,14 @@ Acta is a durable job engine for .NET: jobs, schedules, steps, waits, and alerts
 ## Verify
 
 - Fast gate, no Docker: `dotnet test tests/Acta.Tests`. Full matrix needs Docker; see CONTRIBUTING.md.
-- Generated files are drift-checked; never hand-edit them. A stale contract test names its own regeneration command. Full artifact table: [docs/internals/releasing.md](./docs/internals/releasing.md).
+- Generated files are drift-checked; never hand-edit them. A stale contract test names its own regeneration command. Full artifact table: CONTRIBUTING.md, "Generated files".
 - Before any push, or at minimum before opening a PR, run the pre-PR sequence from CONTRIBUTING.md locally - at least `dotnet csharpier check .`, `dotnet run --project tools/Acta.Emit -- check`, and the fast test gate.
 
 ## Style
 
 - Comments: one-home-per-fact convention in CONTRIBUTING.md, "C# comment style". Enforced by `CommentStyleTests`.
-- SQL: CONTRIBUTING.md, "SQL style". Naming: docs/internals/naming-conventions.md.
-- Layout: docs/internals/source-layout.md. Architecture tests allow no known violations; fix the code, never loosen the test.
+- SQL: CONTRIBUTING.md, "SQL style". Naming: CONTRIBUTING.md, "Naming conventions".
+- Layout: CONTRIBUTING.md, "Source layout". Architecture tests allow no known violations; fix the code, never loosen the test.
 
 ## Working agreements
 

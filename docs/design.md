@@ -1,15 +1,13 @@
 # Design: principles and settled decisions
 
-## Purpose
-
 The non-negotiable identity of Acta and the rationale behind it: the "why" manifesto. Every other
 document defers to this one. Reopening anything here is a category-reshaping change, not a refinement.
 
 The vocabulary itself (Job, Execution, Attempt, Status, namespace, durable slot, provider, the three
-identities, the substrate tables) is defined once in [`concepts.md`](../guide/concepts.md). This
+identities, the substrate tables) is defined once in [`concepts.md`](./guide/concepts.md). This
 document explains why the model is shaped that way; it does not re-teach the mechanics. Where the code
-lives is in [`source-layout.md`](source-layout.md). Whether Acta fits a problem is
-[`choosing-acta.md`](../choosing-acta.md).
+lives is in [source layout](../CONTRIBUTING.md#source-layout). Whether Acta fits a problem is
+[`choosing-acta.md`](./choosing-acta.md).
 
 ## What Acta is
 
@@ -47,7 +45,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 **Everything externally scheduled, claimed, retried, paused, cancelled, and audited as work is a
 Job; Job-internal state lives in the `checkpoints` and `steps` substrate tables, not as Jobs.** The mechanics
 (which slot writes which checkpoint kind, the `(JobId, Kind, Name)` keying, the CASCADE FKs) are in
-[`concepts.md`](../guide/concepts.md).
+[`concepts.md`](./guide/concepts.md).
 
 The reason is the two-tier model: it keeps heavy machinery (claim queue, lease, audit, alerting) at
 the unit-of-work tier and lightweight per-Job substrate at the Job-internal tier, so one
@@ -92,7 +90,7 @@ handler run that processes it (1:1 in steady state; misfire policy decides misse
 ## Settled decisions ledger
 
 Every load-bearing decision, one line each, the call plus its reason. Vocabulary is defined in
-[`concepts.md`](../guide/concepts.md); the rationale behind the model is the principles above.
+[`concepts.md`](./guide/concepts.md); the rationale behind the model is the principles above.
 Reopening an entry means writing a proposal, not editing this file.
 
 ### Identity
@@ -105,7 +103,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Substrate
 
-- **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
+- **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](./internals/sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
 - **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, `operations.md`, `conformance-contracts.md`, the provisioning scripts, and each provider's baseline migration are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
 - **Every operation is one handler over `IDbSession` and `ISqlDialect`, written once, with its SQL beside it per dialect.** Providers own executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
 - **`JobEvent` is the execution ledger AND the audit timeline.** One `job.execution-finished` event per `(JobId, ExecutionNumber)` carries per-attempt history; no per-attempt table. *Reason:* one append-only substrate, one retention sweep.
@@ -141,7 +139,7 @@ Reopening an entry means writing a proposal, not editing this file.
 - **A claim starts its jobs and writes no event.** The claim moves each row `Ready → Executing` under the lease; no status sits between claimed and running, and the `runtimes` row is the attempt in flight. *Reason:* a separate start cost one commit per job, and the window it made visible lasted milliseconds; a started event cost most of a SQL Server claim, waiting on the events table's last-page latch, and told nothing the finished event does not.
 - **One execution path, no profile.** A worker claims a row for every free executor. Every completion commits in a database transaction, in one batch the finalizer writes in one call whatever its shape, and a drain lands every completion the executors produced; there is no relaxed-durability mode. *Reason:* a terminal result never reverts after an unclean shutdown, which is the point of a durable ledger; a group-committed profile bought throughput by giving that up, and a buffered profile bought a visible claimed state at the price of a commit per job.
 - **Pause is sticky.** No `PauseUntilUtc`, no auto-resume sweep. *Reason:* bounded pause is composable by the caller.
-- **Backoff is one expression column** (`backoff`, e.g. `"1m..8h x2 ±10%"`, with override/effective pair). Supersedes the earlier four-typed-columns decision (2026-07-09): the attribute is authored as a single DSL string, so storing parsed knobs was lossy and unfaithful; the shared parser validates at compile time and at override write, and SQL never computes with it.
+- **Backoff is one expression column** (`backoff`, e.g. `"1m..8h x2 ±10%"`, with override/effective pair). *Reason:* the attribute is authored as a single DSL string, so storing parsed knobs was lossy and unfaithful; the shared parser validates at compile time and at override write, and SQL never computes with it.
 - **Crash recovery rides the heartbeat, not a job.** The heartbeat call that finds the namespace's `recovery_due_at_utc` passed moves it one lease on in the same statement, and that worker runs the pass beside its heartbeat. *Reason:* a recovery job could be stranded by the crash it exists to repair, which needed a slot monitor and a repair routine of its own; the heartbeat runs on every worker anyway, so the gate costs no statement, nothing can strand it, and a worker whose executors are all busy still sweeps. The interval is the lease because a lapsed lease is what a pass reclaims.
 - **System jobs are alerted like any job.** `sys.retention` failures project alerts at `Critical` (`AlertProfile = SysCritical`) to the implicit `default` log channel unless overridden. *Reason:* maintenance failures ride the same alert substrate they maintain.
 
@@ -179,7 +177,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Structure
 
-The terms for internal structure; where each piece lives is [`source-layout.md`](source-layout.md).
+The terms for internal structure; where each piece lives is [source layout](../CONTRIBUTING.md#source-layout).
 
 - **Operation:** one thing a caller or the engine can do, in one folder, `Operations/<Group>/<Operation>/`: its public types, its command or query, its handler, its row, and its SQL per dialect. The same `VerbNoun` names the folder, the SQL stem, and the facade method. *Reason:* one place to read an operation whole, in every dialect.
 - **Group:** the operations of one subject (Jobs, Schedules, Alerts, ...), with one hand-written facade of one line per operation and the types the group shares. There is no mediator and no layer between facade and handler. *Reason:* a group is a folder, not a boundary; its handlers call what they need directly.
@@ -200,7 +198,7 @@ The terms for internal structure; where each piece lives is [`source-layout.md`]
 ### Handler contract
 
 - **Two handler attributes and two invocation modes.** `[Job]` and `[JobSchedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` (fire-and-forget durable) or `RunAndWaitAsync` (durable enqueue + await). *Reason:* the declarative surface stays small.
-- **The handler-contract specification lives in [`handler-contract.md`](../guide/handler-contract.md)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
+- **The handler-contract specification lives in [`handler-contract.md`](./guide/handler-contract.md)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
 
 ### Tooling
 

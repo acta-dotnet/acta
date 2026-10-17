@@ -85,7 +85,7 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
     {
         // Postgres has no tinyint; emit a range CHECK 0..255 for every plain Byte column so out-of-range
         // ids fail at the DB layer. A code column carries no CHECK: it stores any id, and a reader decodes
-        // one it does not know as the family's id-0 member (migrations.md, adding a value to a code family).
+        // one it does not know as the family's id-0 member (CONTRIBUTING.md, Schema migrations).
         foreach (var c in e.Columns.Where(c => c.Kind == DbKind.Byte && !c.IsCoded))
         {
             sb.AppendLine(

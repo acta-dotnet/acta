@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Acta.Tests.Architecture;
 
-/// <summary>Locks the dependency and source-layout boundaries established by ARCHITECTURE.md.</summary>
+/// <summary>Locks the dependency and source-layout boundaries in CONTRIBUTING.md, "Source layout".</summary>
 public sealed class ArchitectureBoundaryTests
 {
     private static readonly string[] ProviderProjects = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];

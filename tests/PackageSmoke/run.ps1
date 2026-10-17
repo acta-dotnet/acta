@@ -97,7 +97,7 @@ foreach ($case in @(
 }
 
 # Metadata gate: every packed nupkg must carry the shared NuGet metadata and a MinVer tag-derived
-# version. This is the durable form of the releasing.md "NuGet metadata checked" line.
+# version. The release checklist in CONTRIBUTING.md relies on this check.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
     $zip = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)

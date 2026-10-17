@@ -12,7 +12,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Holds the HTTP surface to "a route's bodies are named for its operation" in <c>docs/internals/naming-conventions.md</c>,
+/// Holds the HTTP surface to "a route's bodies are named for its operation" in <c>CONTRIBUTING.md</c> (Naming conventions),
 /// read from what the mapped endpoints declare: a route's JSON body is its own <c>XRequest</c>, and no body serves two
 /// routes; what it answers is an <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>;
 /// and every request and response record in Acta.AspNetCore sits in the folder named for it.

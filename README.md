@@ -130,7 +130,7 @@ SQLite state is one file. The quickstart writes `acta-local.db` beside your proj
 
 There is no proprietary console and no hidden state to decode. Jobs, leases, attempts, events, schedules, checkpoints, alerts, and workers are rows; common reads start from curated operator views:
 
-![Acta operator dashboard: Overview with health verdict, job counts, worker heartbeats, and next schedules, captured mid-run with 10,000 jobs draining through two workers](site/assets/dash-dark-overview.webp)
+![Acta operator dashboard: Overview with health verdict, job counts, worker heartbeats, and next schedules, captured mid-run with 10,000 jobs draining through two workers](./site/assets/dash-dark-overview.webp)
 
 ```sql
 -- In-flight work and who holds it.

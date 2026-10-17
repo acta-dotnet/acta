@@ -2,7 +2,7 @@ namespace Acta;
 
 // Schema attribute family. All names declared on these attributes are explicit
 // lower_snake_case and schema-relative (the schema component is the install-time provider option).
-// See docs/internals/design.md, "Persistence and naming", for the full ledger.
+// See docs/design.md, "Storage and naming", for the full ledger.
 
 /// <summary>
 /// Required on every <see cref="IEntity"/> implementation.
@@ -217,7 +217,7 @@ internal sealed class DbCheckAttribute : Attribute
 /// <summary>
 /// Class-level enforced foreign key. Acta declares enforced FKs only where the child's lifetime
 /// is bounded by the parent's; audit/audit-adjacent tables carry none (see
-/// <c>docs/internals/design.md</c>, FK policy).
+/// <c>docs/design.md</c>, "Storage and naming").
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
 internal sealed class DbForeignKeyAttribute : Attribute

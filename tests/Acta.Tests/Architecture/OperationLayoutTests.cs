@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
+/// Holds <c>src/</c> to the operation layout in <c>CONTRIBUTING.md</c> (Source layout): <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>,
 /// <c>Schema/Views/</c>, and a provider's <c>Migrations/</c>, every view in all three dialects, and no stem twice
 /// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>
@@ -43,7 +43,7 @@ public sealed class OperationLayoutTests
             violations.AddRange(CheckFolder(root, route));
         }
 
-        ArchitectureAssert.NoViolations(violations, "Move the file to match docs/internals/source-layout.md.");
+        ArchitectureAssert.NoViolations(violations, "Move the file to match the source layout in CONTRIBUTING.md.");
     }
 
     // A group's Shared/ folder holds what several of its operations share; it is not an operation.
