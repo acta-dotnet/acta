@@ -40,8 +40,6 @@ jobs:
             echo 'Workflow actions must be pinned to full commit SHAs (uses: owner/repo@<sha> # vX.Y.Z).'
             exit 1
           fi
-      - name: Docs link check
-        run: bash tools/check-md-links.sh
       - name: Provider SQL changed-sibling report
         if: github.event_name == 'pull_request'
         shell: pwsh

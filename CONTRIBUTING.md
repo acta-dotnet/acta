@@ -182,8 +182,8 @@ The full workflow is in [`docs/internals/migrations.md`](./docs/internals/migrat
 
 ## Before opening a PR
 
-The canonical sequence (CI runs these, plus the markdown link check `bash tools/check-md-links.sh`, the
-Playwright smoke, and the package smoke `tests/PackageSmoke/run.ps1`):
+The canonical sequence (CI runs these, plus the Playwright smoke and the package smoke
+`tests/PackageSmoke/run.ps1`):
 
 ```bash
 dotnet tool restore
@@ -312,7 +312,7 @@ demos/      larger multi-project apps (production shapes); consume the published
 anvil/      Acta Anvil (interactive proof/dashboard harness), Anvil.Bench (benchmark/load rig and the alert burst run)
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
 tools/      Acta.Emit CLI (generated docs, SQL migrations), Acta.Doctor (environment preflight + concept smoke),
-            release-guard.ps1, coverage.ps1, sql-compare.ps1, check-md-links.sh, site-check.mjs
+            release-guard.ps1, coverage.ps1, sql-compare.ps1, site-check.mjs
 ```
 
 ## Reading the source
