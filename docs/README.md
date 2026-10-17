@@ -61,5 +61,4 @@ Contributor-facing; not needed to use Acta: [design principles and settled decis
 [migration tooling](./internals/migrations.md),
 [releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
 [source layout](./internals/source-layout.md),
-[certification seals](./certification/README.md),
 and [operator surface](./internals/operator-surface.md).

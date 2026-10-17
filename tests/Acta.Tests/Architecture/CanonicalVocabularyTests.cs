@@ -125,9 +125,7 @@ public sealed class CanonicalVocabularyTests
         || path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}dist{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
         || path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
-        // Certification seals are sworn transcripts of published runs and quote the vocabulary of
-        // their day; design plans document renames, so the retired name is their subject matter.
-        // Neither is ever edited to track a rename.
-        || path.Contains($"docs{Path.DirectorySeparatorChar}certification{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        // Design plans document renames, so the retired name is their subject matter; they are never
+        // edited to track one.
         || path.Contains($"docs{Path.DirectorySeparatorChar}designs{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase);
 }

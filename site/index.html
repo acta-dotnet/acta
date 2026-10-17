@@ -647,7 +647,7 @@
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/da9bff0d2bcc3f5ce2473acdf1b85a4bfbee1aa1/docs/benchmarks/rc5-engine-drain-20261010.md" style="text-decoration:none">23,349</a></b><span>jobs/s drain · Postgres · Direct · 16 workers, completions group-committed, every job durable</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">179,639</a></b><span>jobs/s batch enqueue · Postgres · 200k-job fleet insert</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">2.0 ms</a></b><span>p50 pickup latency · Direct · SQLite</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/tree/v1.0.0-rc.4/docs/certification" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
       <p class="bench-note">One rig (32 logical cores, NVMe), the release preset (one warmup, one measured run, 5,000 jobs), the release candidate beside the previous one in the same hour, for regression tracking and rough sizing, not capacity claims.</p>
@@ -666,7 +666,7 @@
             </tbody>
           </table>
         </div>
-        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-01 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke, and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
+        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-01 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/v1.0.0-rc.4/docs/certification">Certification records</a></p>
       </div>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>

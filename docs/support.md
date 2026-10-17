@@ -52,9 +52,9 @@ produced by the project, on the project's machine, and published in this reposit
 
 - The test suites: a fast unit gate and a conformance suite run against PostgreSQL, SQL Server, and
   SQLite on every change ([CONTRIBUTING.md](../CONTRIBUTING.md)).
-- The certification seals: chaos runs that kill a worker every five seconds and then judge the
-  ledger with SQL, including one million jobs per server provider
-  ([certification](./certification/README.md)).
+- The certification: chaos runs that kill a worker every five seconds and then judge the ledger with
+  SQL, including one million jobs per server provider; each release's notes record the verdicts
+  ([release notes](./release-notes.md)).
 - The benchmark round: the release preset on one machine, the latest round kept in
   [benchmark.md](./reference/benchmark.md).
 

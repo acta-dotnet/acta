@@ -1165,7 +1165,7 @@ provider from clean worktrees of the certified commit: no Direct, Bulk, drain, e
 cell regresses beyond the machine's own movement between two runs of the same tree, PostgreSQL and
 SQLite read ahead on most of them, and the one SQL Server pair that read as a regression was a
 control run in a different drive state, replaced by a second pair. The
-[certification quartet](./certification/README.md) ran on the same commit: PostgreSQL, SQL Server,
+[certification quartet](https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.3/docs/certification/README.md) ran on the same commit: PostgreSQL, SQL Server,
 SQLite, and the three-participant ensemble all PASS with real chaos, and every seal reports the
 rate contract for the `metered` shape the workload now carries.
 

@@ -69,9 +69,9 @@ per-release gate run locally.
 
 - One run per provider, PostgreSQL first. `anvil` with `--certify-jobs`, or an ensemble with
   `--run`/`--seed`/`--participant`/`--port` across participants.
-- A seal is only meaningful with non-zero reclaims: a run shorter than the lease window plus the
+- A run proves something only with non-zero reclaims: a run shorter than the lease window plus the
   recovery cadence reports zero and is INCONCLUSIVE, not PASS.
-- SQLite is single-node, so its run is reduced and its seal states which properties were out of scope.
+- SQLite is single-node, so its run is reduced and leaves the multi-node properties out of scope.
 - The round runs in two waves, each side by side, because a certification proves properties, not
   speed: the three standard gates and the ensemble (10,000 jobs, 5 steps of 1 s, 7 minutes of chaos,
   on ports of their own), then both million-job runs (24 workers of 64 executors, 5 steps of 250 ms,
@@ -81,21 +81,22 @@ per-release gate run locally.
 - The crash workload carries every property a kill can break: durable steps, an AtMostOnce charge,
   three rate meters side by side (10/s, 50/s, and 100/s, each checked against its own budget), and
   laned jobs ten to a lane (checked for order and for draining). The charges, the meters, and the
-  laned jobs run at High priority inside the chaos window, ahead of the slow backlog, and every seal
+  laned jobs run at High priority inside the chaos window, ahead of the slow backlog, and every run
   reports how many attempts of each the kills orphaned (`chaos-by-shape`); a zero there means that
   shape's checks ran with no kill in flight.
-- File the JSON/MD seal under `docs/certification/`.
+- A run passes when Anvil exits 0 after printing PASS. 1 is FAIL or an aborted run, and 2 is
+  INCONCLUSIVE: no reclaim observed, or a chaos window too short to allow one. Nothing is filed: the
+  release notes' evidence paragraph records each run's shape and verdict.
 
 Two commits carry a release, and their roles do not mix:
 
 - **The certified code commit, A**, is the last commit that touches code, schema, routines, tests,
   tools, anvil, project files, or a generated artifact. The format check, `Acta.Emit check`, the unit
   suite, every provider conformance suite, the benchmarks, and, when the release certifies, the
-  certification quartet all execute against exactly A. Every seal records A as
-  the certified commit. A release may skip certification by decision when the execution model did not
+  certification quartet all execute against exactly A. A release may skip certification by decision when the execution model did not
   change; the release notes say so, and the benchmark round is then the gate.
 - **The tag commit, B**, is the last of the documentation-only commits after A that file whatever
-  evidence the release produced (seals, the benchmark report, the certification index)
+  evidence the release produced (the benchmark report and the release notes' evidence paragraph)
   and the release-notes header flip. `A..B` touches only `docs/`, `site/`, `README.md`, and
   `llms.txt`: prose that no binary compiles or packs, so a documentation correction found after
   certification does not move A.
