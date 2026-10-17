@@ -3,11 +3,27 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Pins which outcome an attempt lands when something other than the handler's return decides it: a service that
-/// throws while the attempt's scope is disposed after the outcome is decided.
+/// Pins which outcome an attempt lands when something other than the handler's return decides it: a control verb
+/// called inside a step body, and a service that throws while the attempt's scope is disposed after the outcome is
+/// decided.
 /// </summary>
 public sealed class WorkerExecutorOutcomeTests
 {
+    [Fact]
+    public async Task A_fail_inside_a_step_body_fails_the_job_not_the_step()
+    {
+        var harness = new WorkerExecutorHarness();
+
+        var outcome = await harness.RunAsync(
+            static (ctx, ct) =>
+                ctx.RunStepAsync(WorkerExecutorHarness.StepName, async token => await ctx.FailAsync("bad input", token), ct: ct)
+        );
+
+        Assert.Equal(RunOnceStatus.Failed, outcome);
+        Assert.Equal((byte)JobStatusCode.Failed, harness.Completion.HandlerStatusCode);
+        Assert.Equal(EventReasonCode.JobHandlerFailed, harness.Completion.EventReasonCode);
+    }
+
     [Fact]
     public async Task A_service_that_throws_on_disposal_leaves_the_decided_outcome_standing()
     {

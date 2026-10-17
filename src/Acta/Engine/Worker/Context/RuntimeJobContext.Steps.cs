@@ -78,11 +78,12 @@ internal sealed partial class RuntimeJobContext
         {
             value = await body(ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        catch (Exception ex) when (ex is not JobControlException && (ex is not OperationCanceledException || !ct.IsCancellationRequested))
         {
             // A business failure: record it and let the routine decide retry-vs-exhaust. A genuine parent
             // or caller cancel is NOT caught here: it propagates so HandlerInvocation/caller cancellation handles it,
-            // never recording a step failure.
+            // never recording a step failure. Nor is a control verb the body called (fail, cancel, reschedule, a
+            // wait, a nested step's retry): it decides the job's outcome, not this step's.
             var delaySeconds = BackoffSchedule.ComputeDelaySeconds(
                 start.AttemptNumber,
                 options.BackoffInitialDelaySeconds ?? _stepRetryDefaults.BackoffInitialDelaySeconds,
