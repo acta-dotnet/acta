@@ -311,8 +311,7 @@ demos/      larger multi-project apps (production shapes); consume the published
             so they are not in Acta.slnx and build independently of src/
 anvil/      Acta Anvil (interactive proof/dashboard harness), Anvil.Bench (benchmark/load rig and the alert burst run)
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
-tools/      Acta.Emit CLI (generated docs, SQL migrations), Acta.Doctor (environment preflight + concept smoke),
-            site-check.mjs
+tools/      Acta.Emit CLI (generated docs, SQL migrations), Acta.Doctor (environment preflight + concept smoke)
 ```
 
 ## Reading the source

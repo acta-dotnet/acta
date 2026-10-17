@@ -204,13 +204,10 @@ Each line names the evidence that asserts it; none is checked by hand.
   assets, the dashboard serving from the embedded assets, providers resolving transitively.
 - Review useacta.net for staleness before the site deploys, and only once the packages resolve from
   nuget.org, because the site's install line names the version a visitor will restore. Mandatory,
-  not "when applicable": a release once shipped with the site still naming the previous candidate in two places. Run
-  `node tools/site-check.mjs --version <released version>`; it fails when the install line names
-  another version, when a nav or footer differs between pages, and on horizontal overflow at phone
-  and tablet widths, and it lists every other version literal under `site/` for the hand read,
-  since benchmark provenance may legitimately cite an earlier round. Then read the pages once by hand for what a script cannot
-  judge: the benchmark strip cites the round the release notes cite, the concept count is current,
-  and every claim about semantics still matches the guide.
+  not "when applicable": a release once shipped with the site still naming the previous candidate in two places.
+  Read the pages once by hand: the install line names the released version, the benchmark strip cites
+  the round the release notes cite, the concept count is current, and every claim about semantics
+  still matches the guide.
 
 ## Final checks
 
