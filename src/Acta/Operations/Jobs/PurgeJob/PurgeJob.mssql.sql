@@ -105,13 +105,16 @@ BEGIN TRY
     WHERE e.job_id = @p_id;
     DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @alert_ids i ON i.id = a.id
     WHERE a.job_id = @p_id;
-    -- The schedules go first, sought by their job: the jobs delete's cascade runs serializable and range-locks
-    -- pk_schedules.
+    DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK)
+    WHERE c.job_id = @p_id;
+    DELETE t FROM {{schema}}.steps t WITH (FORCESEEK)
+    WHERE t.job_id = @p_id;
+    DELETE x FROM {{schema}}.results x WITH (FORCESEEK)
+    WHERE x.job_id = @p_id;
     DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK)
     WHERE s.job_id = @p_id;
     DELETE FROM {{schema}}.jobs
-    WHERE id = @p_id
-    OPTION (LOOP JOIN);
+    WHERE id = @p_id;
     DELETE FROM {{schema}}.runtimes
     WHERE job_id = @p_id;
 

@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **228 columns**, **33 indexes**, **33 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **228 columns**, **33 indexes**, **33 check constraints**, **3 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -39,7 +39,7 @@ One materialized alert. A non-null `DeduplicationKey` makes it an incident: the 
 | `id`<a id="column-acta-alerts--id"></a> | `Int64` | · | no | `Identity` | PK | Alert row identifier. |
 | `alert_ref`<a id="column-acta-alerts--alert-ref"></a> | `Guid` | · | no | · | · | Public stable reference exposed to dashboards, HTTP APIs, and alert transports in place of the numeric id; rendered externally as "alr_" plus 26 lowercase Crockford Base32 characters. Allocated in C# (a UUIDv7 via `New`) and passed into the raising routine, never defaulted by the database. The upsert applies it on the INSERT arm only, so every repeat absorbed by an open incident keeps the ref that incident's first firing minted, and the next incident on the same key gets a ref of its own. |
 | `namespace_id`<a id="column-acta-alerts--namespace-id"></a> | `Int32` | · | no | · | · | Scope of the incident identity; at most one unresolved alert exists per `(namespace_id, deduplication_key)`. |
-| `job_id`<a id="column-acta-alerts--job-id"></a> | `Int64` | · | yes | · | · | Job that triggered the alert. No FK; SP-side validation. Operators reach the definition via `job.definition_id`. |
+| `job_id`<a id="column-acta-alerts--job-id"></a> | `Int64` | · | yes | · | · | Job that triggered the alert. No FK; SP-side validation. Operators reach the definition via `jobs.definition_id`. |
 | `job_ref`<a id="column-acta-alerts--job-ref"></a> | `Guid` | · | yes | · | · | Public ref of the Job that triggered the alert, denormalized at write so the alert stays publicly addressable after Job purge. NULL when `JobId` is null. |
 | `origin_code`<a id="column-acta-alerts--origin-code"></a> | `Byte` | · | no | · | [`AlertOriginCode`](./code-families.md#code-family-alertorigincode) (`alert-origin`) | Origin of the alert (`Automatic` / `Manual`); shapes the deduplication-key default and audit attribution. |
 | `severity_code`<a id="column-acta-alerts--severity-code"></a> | `Byte` | · | no | · | [`AlertSeverityCode`](./code-families.md#code-family-alertseveritycode) (`alert-severity`) | Severity tier (`Info` / `Warning` / `Error` / `Critical`) shaping channel routing rules and oncall pages. |
@@ -90,7 +90,7 @@ One durable slot per `(JobId, Kind, Name)`: variables, signals, sleep timers, th
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `job_id`<a id="column-acta-checkpoints--job-id"></a> | `Int64` | · | no | · | PK | Owning Job. CASCADE FK: when the Job is purged, every checkpoint row for it cascades away in the same transaction. Leading column of the composite PK. |
+| `job_id`<a id="column-acta-checkpoints--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; purge and retention delete a job's checkpoints with it. Leading column of the composite PK. |
 | `kind_code`<a id="column-acta-checkpoints--kind-code"></a> | `Byte` | · | no | · | [`CheckpointKindCode`](./code-families.md#code-family-checkpointkindcode) (`job-checkpoint-kind`) | Which substrate feature owns this slot (variable / signal / timer / progress / child-latch). Part of the composite PK, so identical names under different kinds never collide. |
 | `name`<a id="column-acta-checkpoints--name"></a> | `AsciiString` | 128 | no | · | PK | Slot name. Dotted-kebab ASCII for user variables and signals; `sys.progress` for the progress slot; `sys.child.{childId}` for child latches; `sys.wait-group.{hash}` for a bounded group wait's shared deadline. The `sys.` prefix stays system-reserved for user-writable kinds. Part of the composite PK. |
 | `status_code`<a id="column-acta-checkpoints--status-code"></a> | `Byte` | · | yes | · | [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode) (`job-checkpoint-status`) | `Pending` / `Set` / `Expired` (signals, child latches) or `Pending` / `Consumed` (timers). NULL for the stateless kinds (variable, progress). Bound to `Kind` with `DueAtUtc` by `ck_checkpoints_kind_shape`. |
@@ -114,12 +114,6 @@ One durable slot per `(JobId, Kind, Name)`: variables, signals, sleep timers, th
 | `ck_checkpoints_value_pair` | `(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)` |
 | `ck_checkpoints_kind_shape` | `(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)` |
 
-**Foreign keys**
-
-| Constraint | Column → Target | On delete |
-|---|---|---|
-| `fk_checkpoints_jobs` | `job_id` → `acta.jobs(id)` | CASCADE |
-
 ---
 
 ### `acta.definitions` <a id="entity-acta-definitions"></a>
@@ -132,8 +126,8 @@ The live job policy: one row per definition, the single source of truth for ever
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `id`<a id="column-acta-definitions--id"></a> | `Int32` | · | no | `Identity` | PK | Surrogate PK referenced by `Job.DefinitionId`, `JobEvent.DefinitionId`, and `JobSchedule.DefinitionId`. |
-| `namespace_id`<a id="column-acta-definitions--namespace-id"></a> | `Int32` | · | no | · | · | Owning service's namespace; logical FK to `JobNamespace.Id` (no enforced FK, SP-side validation). |
+| `id`<a id="column-acta-definitions--id"></a> | `Int32` | · | no | `Identity` | PK | Surrogate PK referenced by `jobs.definition_id`, `events.definition_id`, and `schedules.definition_id`. |
+| `namespace_id`<a id="column-acta-definitions--namespace-id"></a> | `Int32` | · | no | · | · | Owning service's namespace; logical FK to `namespaces.id` (no enforced FK, SP-side validation). |
 | `name`<a id="column-acta-definitions--name"></a> | `AsciiString` | 128 | no | · | · | Operator-facing kebab-case identifier; the natural key together with the namespace. |
 | `status_code`<a id="column-acta-definitions--status-code"></a> | `Byte` | · | no | · | [`DefinitionStatusCode`](./code-families.md#code-family-definitionstatuscode) (`job-definition-status`) | Lifecycle of this definition (`Active` / `Retired`); enqueue is rejected at the DB boundary by `enqueue_jobs` when not `Active`. No override. Registration writes `Active` and nothing else: `Retired` is written only by the operator retire verb, never by registration, so a definition absent from a manifest keeps running. |
 | `definition_hash`<a id="column-acta-definitions--definition-hash"></a> | `AsciiString` | 128 | no | · | · | SHA-256 hex over all code-owned columns (policy defaults + contract + formats), computed C#-side at registration. Drives the write short-circuit: the C# gate compares this against the stored value and only sends rows whose hash differs (or that are new / not Active) into the upsert. Operator override columns are NOT part of this hash, so overrides survive re-sync. Identity-adjacent control field: which code-version wrote this row. |
@@ -142,7 +136,7 @@ The live job policy: one row per definition, the single source of truth for ever
 | `input_format_id`<a id="column-acta-definitions--input-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Default payload format id for input payloads enqueued against this definition; stamped into `Job.InputFormatId` at enqueue. |
 | `input_format_name`<a id="column-acta-definitions--input-format-name"></a> | `AsciiString` | 128 | no | · | · | Default input payload format name, from the handler's `[Job(Format = "...")]` or `[Job(InputFormat = "...")]` declaration; resolved against registered serializers at startup. |
 | `output_type_name`<a id="column-acta-definitions--output-type-name"></a> | `AsciiString` | 512 | yes | · | · | CLR full type name of the handler's output contract; null for void handlers. |
-| `output_format_id`<a id="column-acta-definitions--output-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Default payload format id for execution results; stamped into `JobResult.ResultFormatId` on terminal success. |
+| `output_format_id`<a id="column-acta-definitions--output-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Default payload format id for execution results; stamped into `results.result_format_id` on terminal success. |
 | `output_format_name`<a id="column-acta-definitions--output-format-name"></a> | `AsciiString` | 128 | no | · | · | Default payload format name for execution results; mirrors `InputFormatName`. |
 | `tenant_requirement_code`<a id="column-acta-definitions--tenant-requirement-code"></a> | `Byte` | · | no | · | [`DefinitionTenantRequirementCode`](./code-families.md#code-family-definitiontenantrequirementcode) (`job-tenant-requirement`) | Whether jobs of this definition must, may, or must not carry a tenant; enforced by the enqueue routines. Code-fixed like the type contract (no operator override triple): the requirement is contract-adjacent, and an operator flip would break handler assumptions about tenant scope. |
 | `priority_code`<a id="column-acta-definitions--priority-code"></a> | `Byte` | · | no | · | [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) (`job-priority`) | Default priority for Jobs enqueued from this definition; per-instance overrides apply at enqueue and post-enqueue. |
@@ -162,7 +156,7 @@ The live job policy: one row per definition, the single source of truth for ever
 | `backoff`<a id="column-acta-definitions--backoff"></a> | `UnicodeString` | 64 | no | · | · | Retry backoff policy as an Acta backoff expression, e.g. `"1m..8h x2 ~10%"`. Resolved to a concrete expression at registration (framework default `"1m..1d x2 ~10%"` when the attribute sets none); parsed by workers, never by SQL. |
 | `backoff_override`<a id="column-acta-definitions--backoff-override"></a> | `UnicodeString` | 64 | yes | · | · | Operator override of `Backoff`; NULL = inherit. Validated as a parseable expression at write. |
 | `backoff_effective`<a id="column-acta-definitions--backoff-effective"></a> | `UnicodeString` | 64 | no | · | · | Effective backoff expression (DB-computed); read-only. |
-| `execution_timeout_seconds`<a id="column-acta-definitions--execution-timeout-seconds"></a> | `Int32` | · | no | · | · | Per-attempt wall-clock cap; cancels the handler's `CancellationToken` when exceeded. Does not span retries. Capped so a duration always fits `JobEvent.DurationMs`. |
+| `execution_timeout_seconds`<a id="column-acta-definitions--execution-timeout-seconds"></a> | `Int32` | · | no | · | · | Per-attempt wall-clock cap; cancels the handler's `CancellationToken` when exceeded. Does not span retries. Capped so a duration always fits `events.duration_ms`. |
 | `execution_timeout_seconds_override`<a id="column-acta-definitions--execution-timeout-seconds-override"></a> | `Int32` | · | yes | · | · | Operator override of `ExecutionTimeoutSeconds`; NULL = inherit. |
 | `execution_timeout_seconds_effective`<a id="column-acta-definitions--execution-timeout-seconds-effective"></a> | `Int32` | · | no | · | · | Effective execution timeout (DB-computed); read-only. |
 | `deadline_seconds`<a id="column-acta-definitions--deadline-seconds"></a> | `Int32` | · | no | · | · | Whole-job deadline in seconds from creation. 0 means no deadline. |
@@ -228,23 +222,23 @@ The append-only lifecycle ledger: status transitions, suspend and resume hops, s
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `id`<a id="column-acta-events--id"></a> | `Int64` | · | no | `Identity` | PK | Event row identifier. |
-| `event_code`<a id="column-acta-events--event-code"></a> | `Byte` | · | no | · | [`EventCode`](./code-families.md#code-family-eventcode) (`event`) | What happened; the numeric id decodes via the `event` family in docs/98, e.g. `41 = "job.execution-finished"`. Closed taxonomy. |
+| `event_code`<a id="column-acta-events--event-code"></a> | `Byte` | · | no | · | [`EventCode`](./code-families.md#code-family-eventcode) (`event`) | What happened; the numeric id decodes via the `event` family in code-families.md, e.g. `41 = "job.execution-finished"`. Closed taxonomy. |
 | `created_at_utc`<a id="column-acta-events--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the event was written; rendered server-side via `UtcNow` in the same transaction as the state mutation. The operation does not supply this value from C#. It is not a commit instant and does not order commits: PostgreSQL's `now()` is transaction start and SQL Server's `SYSUTCDATETIME()` is statement time, so a long transaction commits after its own stamp. Named `created_at_utc` for parity with every other entity's row-creation timestamp; for events, the row-creation instant IS the event-occurrence instant (events are insert-only). |
 | `namespace_id`<a id="column-acta-events--namespace-id"></a> | `Int32` | · | no | · | · | Namespace this event belongs to; per-namespace timeline queries seek without joining. |
 | `actor_code`<a id="column-acta-events--actor-code"></a> | `Byte` | · | no | · | [`ActorCode`](./code-families.md#code-family-actorcode) (`actor`) | Who caused the transition (`Sys` / `Worker` / `Operator` / `Job`). System-determined at the emission site; callers cannot pass it directly. |
 | `actor`<a id="column-acta-events--actor"></a> | `UnicodeString` | 128 | yes | · | · | Identifier of the actor whose `ActorCode` classifies it. Format depends on `ActorCode`; see the `ActorCode` doc. A string identifier by design (its format varies by `ActorCode`), an accepted exception to the integer-`_id` convention. Unicode, unlike the other key columns: for an operator it carries the authenticated principal's name, and an audit trail that folds two names differing only by a diacritic onto one spelling cannot say who acted. |
 | `job_id`<a id="column-acta-events--job-id"></a> | `Int64` | · | yes | · | · | Owning Job (logical reference; no DB constraint, events outlive Job retention). Set for job-scoped events, null for definition / worker events. It stays the stable timeline key after a Job row is purged: identity ids are never reused, so `job_id` remains a unique address even once the row it referenced is gone. |
 | `job_ref`<a id="column-acta-events--job-ref"></a> | `Guid` | · | yes | · | · | Public ref of the owning Job, denormalized at emission so the PUBLIC identity survives Job purge: `JobId` stays the internal address, this stays the public one operators and clients hold. NULL on definition / worker events, mirroring `JobId`. |
-| `execution_number`<a id="column-acta-events--execution-number"></a> | `Int32` | · | yes | · | · | Which attempt this event belongs to; copied from `JobRuntime.ExecutionNumber` at emission. Set on `job.execution.*`, `job.step.*`, and other per-attempt events; NULL for definition, worker, and Job-level transitions without an attempt context. |
+| `execution_number`<a id="column-acta-events--execution-number"></a> | `Int32` | · | yes | · | · | Which attempt this event belongs to; copied from `runtimes.execution_number` at emission. Set on `job.execution.*`, `job.step.*`, and other per-attempt events; NULL for definition, worker, and Job-level transitions without an attempt context. |
 | `lineage_root_id`<a id="column-acta-events--lineage-root-id"></a> | `Int64` | · | yes | · | · | Root of the lineage tree this event belongs to; powers whole-lineage timeline queries via `ix_events_lineage_timeline`. Null for definition / worker events. |
-| `definition_id`<a id="column-acta-events--definition-id"></a> | `Int32` | · | yes | · | · | Surrogate key into `JobDefinition`. Set on every job-scoped event; supports analytics that group by Job type without joining `Job` (which is retention-deletable). Null on worker-lifecycle events. |
-| `tenant_id`<a id="column-acta-events--tenant-id"></a> | `Int32` | · | yes | · | · | Tenant of the owning Job; copied from `Job.TenantId` at emission for job-scoped events. NULL when the Job has no tenant, and on definition / worker / catalog events. Powers tenant-scoped audit queries without joining `Job` (which is retention-deletable). |
+| `definition_id`<a id="column-acta-events--definition-id"></a> | `Int32` | · | yes | · | · | Surrogate key into `definitions`. Set on every job-scoped event; supports analytics that group by Job type without joining `Job` (which is retention-deletable). Null on worker-lifecycle events. |
+| `tenant_id`<a id="column-acta-events--tenant-id"></a> | `Int32` | · | yes | · | · | Tenant of the owning Job; copied from `jobs.tenant_id` at emission for job-scoped events. NULL when the Job has no tenant, and on definition / worker / catalog events. Powers tenant-scoped audit queries without joining `Job` (which is retention-deletable). |
 | `worker_id`<a id="column-acta-events--worker-id"></a> | `Int32` | · | yes | · | · | Worker that owned the transition; set on claim / execution / heartbeat-derived events. No FK. Null on definition events and on Job-level transitions without a worker context. |
-| `from_status_code`<a id="column-acta-events--from-status-code"></a> | `Byte` | · | yes | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Pre-transition `JobRuntime.Status`; null for non-Status-transition events. |
-| `to_status_code`<a id="column-acta-events--to-status-code"></a> | `Byte` | · | yes | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Post-transition `JobRuntime.Status`; null for non-Status-transition events. |
-| `execution_status_code`<a id="column-acta-events--execution-status-code"></a> | `Byte` | · | yes | · | [`ExecutionStatusCode`](./code-families.md#code-family-executionstatuscode) (`execution-status`) | Per-execution outcome for `job.execution-finished` events; null otherwise. The failure budget on `JobRuntime.FailureCount` charges only on `Failed` / `Orphaned`. |
-| `duration_ms`<a id="column-acta-events--duration-ms"></a> | `Int32` | · | yes | · | · | Wall-clock duration of the attempt in milliseconds; written on `job.execution-finished` (computed in code from start to finish, not from event timestamps, so it tolerates clock skew between operation invocations). NULL on every other event type. `JobDefinition.ExecutionTimeoutSeconds` carries a CHECK that keeps attempt durations within this int column's representable range. |
-| `reason_code`<a id="column-acta-events--reason-code"></a> | `Byte` | · | yes | · | [`EventReasonCode`](./code-families.md#code-family-eventreasoncode) (`job-event-reason`) | Machine-readable reason captured at the transition; NULL on success outcomes. Operators JOIN the `job-event-reason` family in docs/98 for the kebab string. |
+| `from_status_code`<a id="column-acta-events--from-status-code"></a> | `Byte` | · | yes | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Pre-transition `runtimes.status_code`; null for non-Status-transition events. |
+| `to_status_code`<a id="column-acta-events--to-status-code"></a> | `Byte` | · | yes | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Post-transition `runtimes.status_code`; null for non-Status-transition events. |
+| `execution_status_code`<a id="column-acta-events--execution-status-code"></a> | `Byte` | · | yes | · | [`ExecutionStatusCode`](./code-families.md#code-family-executionstatuscode) (`execution-status`) | Per-execution outcome for `job.execution-finished` events; null otherwise. The failure budget on `runtimes.failure_count` charges only on `Failed` / `Orphaned`. |
+| `duration_ms`<a id="column-acta-events--duration-ms"></a> | `Int32` | · | yes | · | · | Wall-clock duration of the attempt in milliseconds; written on `job.execution-finished` (computed in code from start to finish, not from event timestamps, so it tolerates clock skew between operation invocations). NULL on every other event type. Registration caps the execution timeout and the worker clamps the measurement, so a duration always fits this int column. |
+| `reason_code`<a id="column-acta-events--reason-code"></a> | `Byte` | · | yes | · | [`EventReasonCode`](./code-families.md#code-family-eventreasoncode) (`job-event-reason`) | Machine-readable reason captured at the transition; NULL on success outcomes. Operators JOIN the `job-event-reason` family in code-families.md for the kebab string. |
 | `reason_message`<a id="column-acta-events--reason-message"></a> | `UnicodeString` | 512 | yes | · | · | Free-form prose paired with `ReasonCode`; truncated by `MessageTruncator`. |
 | `detail_format_id`<a id="column-acta-events--detail-format-id"></a> | `Byte` | · | no | `0` | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Detail`; `0` means no detail payload. Defaults to 0 so events that carry no detail need not name the column. `ck_events_detail_pair` enforces `(detail_format_id = 0) = (detail IS NULL)`; operator views decode formats 1 (json) / 3 (text) as UTF-8 text, while other formats stay opaque. |
 | `detail`<a id="column-acta-events--detail"></a> | `BinaryPayload` | max | yes | · | · | Optional free-form (text) or structured (json) context beyond `ReasonCode` / `ReasonMessage`; opaque encoded bytes. NULL when `DetailFormatId` is 0. |
@@ -320,7 +314,7 @@ One lane in one namespace: the Jobs that reference it run one at a time, in job-
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `id`<a id="column-acta-lanes--id"></a> | `Int64` | · | no | `Identity` | PK | DB-assigned identity, referenced by `runtimes.lane_id`. |
-| `namespace_id`<a id="column-acta-lanes--namespace-id"></a> | `Int32` | · | no | · | · | Owning namespace; logical FK to `JobNamespace.Id` (no enforced FK, SP-side validation). |
+| `namespace_id`<a id="column-acta-lanes--namespace-id"></a> | `Int32` | · | no | · | · | Owning namespace; logical FK to `namespaces.id` (no enforced FK, SP-side validation). |
 | `name`<a id="column-acta-lanes--name"></a> | `AsciiString` | 128 | no | · | · | Caller-supplied lane, a name: trimmed, lowercased, dotted kebab of 1 to 128 characters. The C# layer canonicalizes it before any write. |
 | `created_at_utc`<a id="column-acta-lanes--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the lane was first used. Set server-side. |
 
@@ -386,7 +380,7 @@ Service-owned execution boundary. One deployable service owns one `NamespaceEnti
 
 ### `acta.results` <a id="entity-acta-results"></a>
 
-One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so result bytes stay off the hot job row and a recurring job keeps a history instead of overwriting one slot. `complete_executions` trims a recurring job's rows to the definition's `RecurringResultCap` (default 1) on every completion, and a deleted job takes its rows with it (`fk_results_jobs ON DELETE CASCADE`). The latest result is one primary-key seek.
+One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so result bytes stay off the hot job row and a recurring job keeps a history instead of overwriting one slot. `complete_executions` trims a recurring job's rows to the definition's `RecurringResultCap` (default 1) on every completion, and purge and retention delete a job's rows with it. The latest result is one primary-key seek.
 
 **CLR type** `Acta.ResultEntity` · **Primary key** `pk_results` (`job_id`, `execution_number`)
 
@@ -394,8 +388,8 @@ One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so resu
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `job_id`<a id="column-acta-results--job-id"></a> | `Int64` | · | no | · | PK | Owning Job. Part of the composite clustered PK with `ExecutionNumber`; the FK cascades from `acta.jobs` so a Job retention-delete sweeps every result row for it. bigint. |
-| `execution_number`<a id="column-acta-results--execution-number"></a> | `Int32` | · | no | · | PK | Which attempt produced this result. Part of the composite clustered PK; together with `JobId` uniquely identifies the result row across the Job's history of attempts. The value matches the `JobEvent.ExecutionNumber` on the corresponding `job.execution-finished` event. int. |
+| `job_id`<a id="column-acta-results--job-id"></a> | `Int64` | · | no | · | PK | Owning Job. Part of the composite clustered PK with `ExecutionNumber`; purge and retention delete a job's results with it. bigint. |
+| `execution_number`<a id="column-acta-results--execution-number"></a> | `Int32` | · | no | · | PK | Which attempt produced this result. Part of the composite clustered PK; together with `JobId` uniquely identifies the result row across the Job's history of attempts. The value matches the `events.execution_number` on the corresponding `job.execution-finished` event. int. |
 | `result_format_id`<a id="column-acta-results--result-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Result`. The source of truth for the result's payload format. tinyint. |
 | `result`<a id="column-acta-results--result"></a> | `BinaryPayload` | max | no | · | · | Encoded result payload; opaque bytes whose format is governed by `ResultFormatId`. |
 | `created_at_utc`<a id="column-acta-results--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the row was inserted; rendered server-side via `UtcNow` in the same transaction as the `job.execution-finished` event. The operation does not supply this value from C#. |
@@ -405,12 +399,6 @@ One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so resu
 | Name | SQL expression |
 |---|---|
 | `ck_results_format_not_none` | `result_format_id <> 0` |
-
-**Foreign keys**
-
-| Constraint | Column → Target | On delete |
-|---|---|---|
-| `fk_results_jobs` | `job_id` → `acta.jobs(id)` | CASCADE |
 
 ---
 
@@ -424,7 +412,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `job_id`<a id="column-acta-runtimes--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; primary key (1:1 with `jobs`) and CASCADE FK, so a purged job sweeps its runtime row in the same transaction. Supplied by enqueue, never DB-assigned. |
+| `job_id`<a id="column-acta-runtimes--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; primary key, 1:1 with `jobs` and written in the same enqueue transaction. No foreign key (see the entity summary): purge and retention delete this row with the job. Supplied by enqueue, never DB-assigned. |
 | `namespace_id`<a id="column-acta-runtimes--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the owning Job's namespace, denormalized so the hot claim and the reclaim filter and seek without joining `jobs` (`ix_runtimes_claim_ready` leads with it). Written once at insert, never updated. |
 | `lane_id`<a id="column-acta-runtimes--lane-id"></a> | `Int64` | · | yes | · | · | The owning Job's lane, NULL for an unlaned Job. Written once at insert, never updated. A laned Job enters Ready only while no older member of its lane is unfinished; otherwise it enters `Blocked` and the settle of the member ahead of it promotes it. |
 | `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Blocked / Executing / Succeeded / Failed / Cancelled). |
@@ -434,7 +422,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | `failure_count`<a id="column-acta-runtimes--failure-count"></a> | `Int32` | · | no | · | · | Failure counter for the current cycle, compared against `MaxAttempts` on a one-off job. A recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across occurrences. |
 | `leased_by_worker_id`<a id="column-acta-runtimes--leased-by-worker-id"></a> | `Int32` | · | yes | · | · | Worker that currently holds the in-flight execution lease, if any. No FK; write-time validation in the claim routine. Paired with `LeaseExpiresAtUtc` by `ck_runtimes_lease_consistency`, and bound to `Status` in both directions by `ck_runtimes_status_lease` and `ck_runtimes_inflight_leased`: set exactly while the status is `Executing`, NULL otherwise. |
 | `lease_expires_at_utc`<a id="column-acta-runtimes--lease-expires-at-utc"></a> | `UtcInstant` | · | yes | · | · | Execution lease expiry instant; the heartbeat pushes it forward without bumping `Version`, and crash recovery reclaims in-flight rows past it. |
-| `retention_until_utc`<a id="column-acta-runtimes--retention-until-utc"></a> | `UtcInstant` | · | yes | · | · | When `sys.retention` deletes the owning job row (this row cascades with it). |
+| `retention_until_utc`<a id="column-acta-runtimes--retention-until-utc"></a> | `UtcInstant` | · | yes | · | · | When `sys.retention` deletes the owning job and this row. |
 | `modified_at_utc`<a id="column-acta-runtimes--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the runtime row was last updated. Set server-side on every mutation. |
 | `version`<a id="column-acta-runtimes--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat and a replayed start. Int32 on purpose, the width of the public `expectedVersion`: a recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on overflow rather than wrap, so a token never comes back negative. |
 
@@ -469,7 +457,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 
 ### `acta.schedules` <a id="entity-acta-schedules"></a>
 
-One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is. The `Origin` records how the row came to exist. Sparse override model (mirrors JobDefinition): the bare field carries the origin-of-truth default and its `*_override` carries the operator edit (NULL = inherit); effective = `COALESCE(_override, default)`. Only `expression` and `time_zone_id` are operator-overridable. The canonical per-schedule cursor is `NextRunAtUtc`; the slot Job's cursor is the MIN over its live schedules.
+One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is. The `Origin` records how the row came to exist. Sparse override model (mirrors `definitions`): the bare field carries the origin-of-truth default and its `*_override` carries the operator edit (NULL = inherit); effective = `COALESCE(_override, default)`. Only `expression` and `time_zone_id` are operator-overridable. The canonical per-schedule cursor is `NextRunAtUtc`; the slot Job's cursor is the MIN over its live schedules.
 
 **CLR type** `Acta.ScheduleEntity` · **Primary key** `pk_schedules` (`job_id`, `name`)
 
@@ -478,8 +466,8 @@ One named recurring schedule of a definition's slot Job, keyed by that job and i
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
 | `namespace_id`<a id="column-acta-schedules--namespace-id"></a> | `Int32` | · | no | · | · | Per-namespace reload tick filters by this. |
-| `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | no | · | PK | Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its schedules; purge cascades to all schedule rows. The key's first column. |
-| `definition_id`<a id="column-acta-schedules--definition-id"></a> | `Int32` | · | no | · | · | Denormalized from `Job.DefinitionId` at INSERT; never mutated. Safe because `Job.DefinitionId` is `init` (immutable post-INSERT). Retained for the per-namespace reload sweep and the catalog-upsert "find Definition-origin slot for this (ns, def)" lookup without joining `jobs`. |
+| `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | no | · | PK | Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its schedules, and purge and retention delete them with it. The key's first column. |
+| `definition_id`<a id="column-acta-schedules--definition-id"></a> | `Int32` | · | no | · | · | Denormalized from `jobs.definition_id` at INSERT and never mutated, since a job's definition never changes. Retained for the per-namespace reload sweep and the catalog-upsert "find Definition-origin slot for this (ns, def)" lookup without joining `jobs`. |
 | `name`<a id="column-acta-schedules--name"></a> | `AsciiString` | 128 | no | · | PK | Operator-readable schedule name. For Definition-origin it matches the `[JobSchedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. The key's second column. |
 | `origin_code`<a id="column-acta-schedules--origin-code"></a> | `Byte` | · | no | · | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode) (`schedule-origin`) | Origin of the row's existence: `Definition` (declared in a `[JobSchedule]` attribute, refreshed by catalog upsert) or `Operator`. Override columns apply to any origin. |
 | `expression`<a id="column-acta-schedules--expression"></a> | `AsciiString` | 128 | no | · | · | Cron or interval duration, human ("5m") or ISO 8601 ("PT5M") (the origin-of-truth default). |
@@ -517,7 +505,6 @@ One named recurring schedule of a definition's slot Job, keyed by that job and i
 
 | Constraint | Column → Target | On delete |
 |---|---|---|
-| `fk_schedules_jobs` | `job_id` → `acta.jobs(id)` | CASCADE |
 | `fk_schedules_definitions` | `definition_id` → `acta.definitions(id)` | NO ACTION |
 
 ---
@@ -532,9 +519,9 @@ The durable retry and result state of one step, one row per `(JobId, Name)`, wri
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `job_id`<a id="column-acta-steps--job-id"></a> | `Int64` | · | no | · | PK | Owning Job. CASCADE FK. The key's first column. |
+| `job_id`<a id="column-acta-steps--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; purge and retention delete a job's steps with it. The key's first column. |
 | `name`<a id="column-acta-steps--name"></a> | `AsciiString` | 128 | no | · | PK | Step slot name. Kebab-case ASCII. The key's second column. |
-| `status_code`<a id="column-acta-steps--status-code"></a> | `Byte` | · | no | · | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode) (`job-step-status`) | `Pending` while retrying; `Succeeded` / `Exhausted` on terminal. CHECK rejects 0. |
+| `status_code`<a id="column-acta-steps--status-code"></a> | `Byte` | · | no | · | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode) (`job-step-status`) | `Pending` while retrying; `Succeeded` / `Exhausted` on terminal. |
 | `attempt_number`<a id="column-acta-steps--attempt-number"></a> | `Int32` | · | no | · | · | Step attempt ordinal across retries (1-based; incremented on each failure within budget). |
 | `next_retry_at_utc`<a id="column-acta-steps--next-retry-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the next retry attempt is scheduled. `ck_steps_terminal_no_retry` keeps it NULL on terminal rows. |
 | `reason_code`<a id="column-acta-steps--reason-code"></a> | `Byte` | · | yes | · | [`EventReasonCode`](./code-families.md#code-family-eventreasoncode) (`job-event-reason`) | Machine-readable reason of the most recent failed attempt. NULL until first failure, and cleared again by a succeeding attempt; preserved on terminal `Exhausted` and `Interrupted` rows so post-mortem reads always have the final failure context. |
@@ -554,12 +541,6 @@ The durable retry and result state of one step, one row per `(JobId, Name)`, wri
 | `ck_steps_terminal_no_retry` | `status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL` |
 | `ck_steps_result_succeeded` | `result_format_id = 0 OR status_code = 100` |
 | `ck_steps_reason_pair` | `reason_message IS NULL OR reason_code IS NOT NULL` |
-
-**Foreign keys**
-
-| Constraint | Column → Target | On delete |
-|---|---|---|
-| `fk_steps_jobs` | `job_id` → `acta.jobs(id)` | CASCADE |
 
 ---
 
@@ -607,7 +588,7 @@ The tenants a job can be about: an optional, validated scope on individual jobs,
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `id`<a id="column-acta-tenants--id"></a> | `Int32` | · | no | `Identity` | PK | DB-assigned identity. Referenced by `job.tenant_id` and `events.tenant_id`. Callers never pick the value; the runtime upserts the row by `TenantName` and reads the id back. |
+| `id`<a id="column-acta-tenants--id"></a> | `Int32` | · | no | `Identity` | PK | DB-assigned identity. Referenced by `jobs.tenant_id` and `events.tenant_id`. Callers never pick the value; the runtime upserts the row by `TenantName` and reads the id back. |
 | `tenant_name`<a id="column-acta-tenants--tenant-name"></a> | `AsciiString` | 128 | no | · | · | Caller-supplied tenant name (a customer code folded to dotted kebab, not a human label). Unique. Trimmed and lowercased, at most 128 chars, never `sys` or under `sys.`. Resolved to `Id` at enqueue; the human label lives in `DisplayName`. |
 | `status_code`<a id="column-acta-tenants--status-code"></a> | `Byte` | · | no | · | [`TenantStatusCode`](./code-families.md#code-family-tenantstatuscode) (`tenant-status`) | Tenant lifecycle status. `Active` resolves at enqueue; `Suspended` rejects the enqueue (reversible). Supplied at INSERT by the `RegisterTenant` handler (no server-side default). |
 | `display_name`<a id="column-acta-tenants--display-name"></a> | `UnicodeString` | 128 | yes | · | · | Human display label for dashboards and pickers; NULL falls back to the key. |

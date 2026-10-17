@@ -30,6 +30,10 @@ Jobs and statuses:
 - Durable settings (`ISettings`, the `settings` table, event 160) are gone.
 - The `Acta.Testing` scenario API (`Scenario.For`, `ScenarioSession`) is gone: drive jobs through `IActaTestHost`.
 - The gauge `acta.executing` is `acta.jobs.inflight`, filtered to `state = executing`.
+- An uncaught `StepExhaustedException` fails the job at once with `job.non-retryable-exception` instead of spending its retry budget, since every retry would replay the exhausted step; on a recurring job it rolls over to the next occurrence.
+- `NotSupportedException` and `NotImplementedException` roll a recurring job over to its next occurrence, alerting like any failure, instead of ending its schedule.
+- `ctx.FailAsync`, `CancelAsync`, `RescheduleAsync`, and the waits called inside a step body decide the job, as they do from the handler body, instead of failing the step.
+- An interval schedule fires at most once a second: a shorter interval is `ACTA0122` at compile time, and the override verb refuses one.
 
 Identifiers:
 
@@ -49,6 +53,7 @@ Responses and read models:
 - Code families drop the `Job` prefix (`CheckpointKindCode`, `StepStatusCode`, `EventReasonCode`, ...), and `JobAuditLevelCode` is `DefinitionAuditLevelCode`. A stored id a newer Acta wrote decodes as the family's id-0 member instead of throwing.
 - `GetOverviewQuery.IncludeSlowCounts` and the overview's `JobCount` and `SystemJobCount` are gone.
 - A tag read answers `{"items": [...]}`; the input template carries its skeleton as JSON text in `templateJson` and answers 404 for an unknown job.
+- A worker's last heartbeat is `LastSeenAtUtc` (`lastSeenAtUtc` in JSON) on `GetWorkerResponse` and `ListWorkersItem`, and `WorkerLastSeenAtUtc` on `GetJobExplanationLease`, the name the `workers` column has.
 
 Schema and direct SQL:
 
@@ -84,7 +89,7 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 - SQL Server enqueues of different deduplication keys no longer wait for each other: each locks its own key with `sp_getapplock`. A refused key lock raises error 51205, retried like a deadlock.
 - SQL Server steps and checkpoints of different jobs no longer queue behind one range lock.
 - SQL Server never escalates locks on `jobs` (`LOCK_ESCALATION = DISABLE`).
-- `runtimes` has no foreign key to `jobs`; retention and `PurgeJob` delete both rows themselves.
+- A job's rows (`runtimes`, `results`, `steps`, `checkpoints`, `schedules`) carry no foreign key to `jobs`; `PurgeJob` and retention delete them with the job.
 - The SQL Server claim no longer deadlocks with an operator verb.
 - Raising or resolving an alert no longer deadlocks against a purge of its job on PostgreSQL.
 - A SQL Server rate meter no longer refuses the last job of a burst.
@@ -93,6 +98,12 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 - The overview no longer blames idle workers in one namespace for another namespace's backlog.
 - `sys.alerts` skips first-attempt successes, so a failure's alert no longer waits behind them.
 - The outbox relay drains a backlog in one tick, and a SQLite outbox source deletes relayed rows without scanning its backlog.
+- A scoped service that throws while the attempt's scope is disposed no longer leaves the job Executing with its executor held.
+- A handler cancel walks the job's descendants even when the first completion write committed and lost its answer.
+- A metrics listener that throws no longer strands claimed rows until their lease lapses.
+- On PostgreSQL two first starts of one step no longer fail the later one with a unique violation.
+- Recovery's stale child-latch read seeks `ix_checkpoints_pending_latches` instead of scanning `checkpoints`.
+- A SQLite completion stamps every row it writes with one instant.
 
 ### Documentation
 

@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261017115105_init')
+        WHERE name NOT IN ('M20261017125154_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261017115105_init =====
+-- ===== BEGIN M20261017125154_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -86,6 +86,25 @@ CREATE INDEX IF NOT EXISTS ix_alerts_namespace_unresolved ON acta.alerts (namesp
 CREATE INDEX IF NOT EXISTS ix_alerts_job ON acta.alerts (job_id, id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_alerts_ref ON acta.alerts (alert_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_alerts_deduplication_key ON acta.alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
+
+-- checkpoints
+CREATE TABLE IF NOT EXISTS acta.checkpoints (
+    job_id bigint NOT NULL,
+    kind_code smallint NOT NULL,
+    name varchar(128) NOT NULL,
+    status_code smallint NULL,
+    due_at_utc timestamptz NULL,
+    value_format_id smallint DEFAULT 0 NOT NULL,
+    value bytea NULL,
+    created_at_utc timestamptz DEFAULT now() NOT NULL,
+    modified_at_utc timestamptz DEFAULT now() NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
+    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
+);
+CREATE INDEX IF NOT EXISTS ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 -- definitions
 CREATE TABLE IF NOT EXISTS acta.definitions (
@@ -276,7 +295,6 @@ CREATE TABLE IF NOT EXISTS acta.results (
     , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number)
     , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
     , CONSTRAINT ck_results_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_results_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
 
 -- runtimes
@@ -336,7 +354,6 @@ CREATE TABLE IF NOT EXISTS acta.schedules (
     , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
-    , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (id)
 );
 CREATE INDEX IF NOT EXISTS ix_schedules_namespace_next ON acta.schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
@@ -362,7 +379,6 @@ CREATE TABLE IF NOT EXISTS acta.steps (
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
     , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
 
 -- tags
@@ -419,26 +435,6 @@ CREATE INDEX IF NOT EXISTS ix_workers_namespace_status_last_seen ON acta.workers
 CREATE INDEX IF NOT EXISTS ix_workers_status_last_seen ON acta.workers (status_code, last_seen_at_utc);
 CREATE INDEX IF NOT EXISTS ix_workers_namespace_last_seen ON acta.workers (namespace_id, last_seen_at_utc DESC, id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_workers_ref ON acta.workers (worker_ref);
-
--- checkpoints
-CREATE TABLE IF NOT EXISTS acta.checkpoints (
-    job_id bigint NOT NULL,
-    kind_code smallint NOT NULL,
-    name varchar(128) NOT NULL,
-    status_code smallint NULL,
-    due_at_utc timestamptz NULL,
-    value_format_id smallint DEFAULT 0 NOT NULL,
-    value bytea NULL,
-    created_at_utc timestamptz DEFAULT now() NOT NULL,
-    modified_at_utc timestamptz DEFAULT now() NOT NULL,
-    version integer DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
-    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 CREATE OR REPLACE FUNCTION acta.access_checkpoint(
     p_action SMALLINT,
@@ -2624,6 +2620,10 @@ BEGIN
             WHERE
                 scope_code = 50 /* TagScopeCode.Job */
                 AND scope_id = ANY(v_ids);
+            DELETE FROM acta.checkpoints c WHERE c.job_id = ANY(v_ids);
+            DELETE FROM acta.steps s WHERE s.job_id = ANY(v_ids);
+            DELETE FROM acta.results x WHERE x.job_id = ANY(v_ids);
+            DELETE FROM acta.schedules s WHERE s.job_id = ANY(v_ids);
             DELETE FROM acta.jobs j WHERE j.id = ANY(v_ids);
             DELETE FROM acta.runtimes r WHERE r.job_id = ANY(v_ids);
         END IF;
@@ -4037,10 +4037,10 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017115105_init')
+VALUES ('M20261017125154_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017115105_init =====
+-- ===== END M20261017125154_init =====
 
 COMMIT;
 

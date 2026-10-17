@@ -59,6 +59,10 @@ LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.tags WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM temp._purge_jobs);
 
+DELETE FROM {{schema}}.checkpoints WHERE job_id IN (SELECT id FROM temp._purge_jobs);
+DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT id FROM temp._purge_jobs);
+DELETE FROM {{schema}}.results WHERE job_id IN (SELECT id FROM temp._purge_jobs);
+DELETE FROM {{schema}}.schedules WHERE job_id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.jobs WHERE id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.runtimes WHERE job_id IN (SELECT id FROM temp._purge_jobs);
 

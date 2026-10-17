@@ -599,7 +599,7 @@
   - GetAsync exposes the runtime version a control verb takes back as its expected version
 
 ### Operator purge hard-deletes a terminal job.
-- **Contract:** PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.
+- **Contract:** PurgeAsync deletes a terminal job's events, alerts, and every row of the job, always emits job.purged, and rejects non-terminal or live-child jobs.
 - **Guarantees:**
   - PurgeAsync hard-deletes a Succeeded job and audits job.purged
   - PurgeAsync rejects a non-terminal job and leaves it intact

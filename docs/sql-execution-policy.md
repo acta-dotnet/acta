@@ -114,8 +114,8 @@ with a flag saying whether it was renewed. A child's completion locks its own `r
 its parent's, the reverse of `job_id` order, so a renewal that waited on either would deadlock with it
 when one worker runs both. The caller cancels an attempt only when its pair is not answered, and
 moves its lease deadline only when the row was renewed; a skipped row is renewed on the next beat,
-well inside the lease window. The lock holds renew first and without skipping: no routine locks both
-`locks` and `runtimes`, so there is no order to keep against. The answer also carries the namespace's
+well inside the lease window. The lock holds renew first and without skipping, then the runtimes rows with
+skipping, so the routine never waits on a `runtimes` row while it holds a `locks` row. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
 Statements that lock both `checkpoints` and `runtimes` take the checkpoint slot first. `raise_signal` does,
@@ -123,7 +123,7 @@ and `complete_executions` takes the slots its rows await before their `runtimes`
 lands then takes its parent's latch before the parent's `runtimes` row, both after its own. A batch
 holding a parent and one of its grandchildren can therefore deadlock with a batch landing the child
 between them; the victim's write repeats. `ResetJobState` takes the `runtimes` row and then deletes the
-job's checkpoints, and `PurgeJob` reaches them through the cascade from the job row; both run on a
+job's checkpoints, and `PurgeJob` deletes them before the job row; both run on a
 job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
 exception, taking the
 `runtimes` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
@@ -150,8 +150,7 @@ child table, but it locks only the batch's own keys.
   `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through
   `@del` or `@lock_del` with `WITH (FORCESEEK)`, so the table is always the inner side, sought by key.
   `OPTION (LOOP JOIN)` alone is not enough there. Compiled at one row, it keeps nested loops but makes
-  a small permanent table the outer input and scans all of it under update locks. The `jobs` delete
-  keeps `LOOP JOIN` as well, for its cascades into four child tables.
+  a small permanent table the outer input and scans all of it under update locks.
 - The expired-lock sweep is global, so every namespace's retention pass meets the others there.
   Unhinted, its delete scanned all of `ix_locks_reclaim_expired` under update locks. Two sweeps then
   deadlocked on each other's staged rows, and a sweep stalled or rolled back that way left expired rows
@@ -179,8 +178,8 @@ child table, but it locks only the batch's own keys.
 
 On SQL Server a read under `UPDLOCK`, `HOLDLOCK`, or `XLOCK` takes a lock on every row it reads, so a scan
 under those hints locks the table a row at a time and escalates. Statistics compiled while a table was
-small price a scan below a seek per row, and a retained table only grows, so every locking read of a
-permanent table carries `FORCESEEK`, naming the index when the predicate restates a filtered index's
+small price a scan below a seek per row, and a retained table only grows, so every locking read that
+could scan a permanent table carries `FORCESEEK` (a primary-key equality already seeks), naming the index when the predicate restates a filtered index's
 filter so the hint always compiles:
 
 - The deduplication probes in `enqueue_job` and `enqueue_jobs` seek `ux_jobs_deduplication_key_root`

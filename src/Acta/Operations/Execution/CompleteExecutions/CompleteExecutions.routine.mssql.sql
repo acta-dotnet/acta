@@ -158,13 +158,11 @@ BEGIN
             INNER JOIN {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
             WHERE (c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL) AND c.final_status IS NULL;
 
-        -- fk_results_jobs seeks each job by key (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
         SELECT d.job_id, d.execution_number, c.result_format_id, c.result, @now
         FROM @done d
         INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */
-        OPTION (LOOP JOIN);
+        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */;
 
         IF @p_plain = 0
             BEGIN

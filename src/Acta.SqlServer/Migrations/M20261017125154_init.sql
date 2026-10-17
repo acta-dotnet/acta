@@ -45,6 +45,28 @@ CREATE UNIQUE INDEX ux_alerts_deduplication_key ON {{schema}}.alerts (namespace_
 END
 GO
 
+-- checkpoints
+IF OBJECT_ID(N'{{schema}}.checkpoints', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.checkpoints (
+    job_id bigint NOT NULL,
+    kind_code tinyint NOT NULL,
+    name varchar(128) NOT NULL,
+    status_code tinyint NULL,
+    due_at_utc datetime2(3) NULL,
+    value_format_id tinyint DEFAULT 0 NOT NULL,
+    value varbinary(max) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
+    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
+);
+CREATE INDEX ix_checkpoints_pending_latches ON {{schema}}.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
+END
+GO
+
 -- definitions
 IF OBJECT_ID(N'{{schema}}.definitions', N'U') IS NULL
 BEGIN
@@ -260,7 +282,6 @@ CREATE TABLE {{schema}}.results (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
     , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
-    , CONSTRAINT fk_results_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 END
 GO
@@ -328,7 +349,6 @@ CREATE TABLE {{schema}}.schedules (
     , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
-    , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}.definitions (id)
 );
 CREATE INDEX ix_schedules_namespace_next ON {{schema}}.schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
@@ -357,7 +377,6 @@ CREATE TABLE {{schema}}.steps (
     , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
     , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
-    , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 END
 GO
@@ -426,29 +445,6 @@ CREATE INDEX ix_workers_namespace_status_last_seen ON {{schema}}.workers (namesp
 CREATE INDEX ix_workers_status_last_seen ON {{schema}}.workers (status_code, last_seen_at_utc);
 CREATE INDEX ix_workers_namespace_last_seen ON {{schema}}.workers (namespace_id, last_seen_at_utc DESC, id DESC);
 CREATE UNIQUE INDEX ux_workers_ref ON {{schema}}.workers (worker_ref);
-END
-GO
-
--- checkpoints
-IF OBJECT_ID(N'{{schema}}.checkpoints', N'U') IS NULL
-BEGIN
-CREATE TABLE {{schema}}.checkpoints (
-    job_id bigint NOT NULL,
-    kind_code tinyint NOT NULL,
-    name varchar(128) NOT NULL,
-    status_code tinyint NULL,
-    due_at_utc datetime2(3) NULL,
-    value_format_id tinyint DEFAULT 0 NOT NULL,
-    value varbinary(max) NULL,
-    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
-    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
-    , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
-);
-CREATE INDEX ix_checkpoints_pending_latches ON {{schema}}.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 END
 GO
 
@@ -1258,13 +1254,11 @@ BEGIN
             INNER JOIN {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
             WHERE (c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL) AND c.final_status IS NULL;
 
-        -- fk_results_jobs seeks each job by key (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
         SELECT d.job_id, d.execution_number, c.result_format_id, c.result, @now
         FROM @done d
         INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */
-        OPTION (LOOP JOIN);
+        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */;
 
         IF @p_plain = 0
             BEGIN
@@ -3031,15 +3025,15 @@ BEGIN
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del);
 
-                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
+                -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
                 -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
                 DELETE r FROM {{schema}}.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
                 DELETE x FROM {{schema}}.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
-                DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
-                OPTION (LOOP JOIN);
+                DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
+                DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -4587,7 +4581,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261017115105_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261017125154_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017115105_init');
+VALUES ('M20261017125154_init');
 GO

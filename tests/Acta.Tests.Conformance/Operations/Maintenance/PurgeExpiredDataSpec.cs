@@ -42,6 +42,20 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotEmpty(await Db.From<ResultEntity>().Where(r => r.JobId == jobId).ToListAsync(ct));
 
         await Operations.Tags.UpsertAsync(TagTarget.ForJob(JobLookup.ById(jobId)), new TagInput("retention", "job"), ct: ct);
+        // A step and a checkpoint beside the result: no key cascades them, so the delete has to name each table.
+        var execution = Services.GetRequiredService<ExecutionOperations>();
+        await execution.StartStepAsync(jobId, "seed-step", atMostOnce: false, ct);
+        await execution.AccessCheckpointAsync(
+            new AccessCheckpointCommand(
+                AccessCheckpointAction.Set,
+                jobId,
+                CheckpointKindCode.Variable,
+                "seed-variable",
+                JobPayloadFormat.Json.Id,
+                "1"u8.ToArray()
+            ),
+            ct
+        );
 
         // Drain rather than assert a single call deletes it: one sweep can pass an eligible row over
         // (contended under READPAST, or stamped a rounded fraction of a millisecond into the future).
@@ -63,6 +77,8 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Null(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
         Assert.Empty(await Db.From<ResultEntity>().Where(r => r.JobId == jobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<StepEntity>().Where(s => s.JobId == jobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct));
         Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
         Assert.Empty(await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == jobId).ToListAsync(ct));
     }

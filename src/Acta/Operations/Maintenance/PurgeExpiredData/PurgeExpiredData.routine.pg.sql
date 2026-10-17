@@ -75,6 +75,10 @@ BEGIN
             WHERE
                 scope_code = 50 /* TagScopeCode.Job */
                 AND scope_id = ANY(v_ids);
+            DELETE FROM {{schema}}.checkpoints c WHERE c.job_id = ANY(v_ids);
+            DELETE FROM {{schema}}.steps s WHERE s.job_id = ANY(v_ids);
+            DELETE FROM {{schema}}.results x WHERE x.job_id = ANY(v_ids);
+            DELETE FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.jobs j WHERE j.id = ANY(v_ids);
             DELETE FROM {{schema}}.runtimes r WHERE r.job_id = ANY(v_ids);
         END IF;

@@ -38,6 +38,26 @@ WHERE
     job_id = @p_id
     AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
+DELETE FROM {{schema}}.checkpoints
+WHERE
+    job_id = @p_id
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
+
+DELETE FROM {{schema}}.steps
+WHERE
+    job_id = @p_id
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
+
+DELETE FROM {{schema}}.results
+WHERE
+    job_id = @p_id
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
+
+DELETE FROM {{schema}}.schedules
+WHERE
+    job_id = @p_id
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
+
 DELETE FROM {{schema}}.jobs
 WHERE
     id = @p_id

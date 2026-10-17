@@ -227,7 +227,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | `reschedule` | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane |
 | `reprioritize` | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
 | `input` (amend) | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job waiting on that name goes Ready |
+| `signal` | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
 
 Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
 Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
@@ -1068,16 +1068,15 @@ less common codes.
 
 ### Foreign-key policy
 
-Acta enforces DB foreign keys in exactly two shapes:
+Acta enforces database foreign keys in one shape: NO ACTION from transactional tables to dimension
+rows (schedules → definitions; workers → namespaces; runtimes → lanes). Definitions and namespaces
+have no delete surface, and retention deletes a lane only once no job references it.
 
-- CASCADE from `jobs` to its transactional substrate children (runtimes, checkpoints, results,
-  steps, schedules): these rows' physical lifetime is owned by the job row. Tags carry no foreign
-  key; purge and retention delete a job's tags with it.
-- RESTRICT (no action) from transactional tables to dimension rows (schedules → definitions;
-  workers → namespaces; runtimes → lanes): definitions and namespaces have no delete surface, and
-  retention deletes a lane only once no job references it. The `jobs` dimension FKs (jobs → namespaces / tenants /
-  definitions) were cut by the 2026-07-11 bench gate after they regressed enqueue-batch, so those
-  references are write-time validated and conformance-tested instead.
+A job's own rows carry no key to it: purge and retention delete `runtimes`, `checkpoints`, `results`,
+`steps`, `schedules`, and the job's `tags` with the job, and conformance checks that nothing is left.
+Nor does `jobs` reference `namespaces`, `tenants`, or `definitions` by key; enqueue resolves those in
+its own transaction. A key on `runtimes` checked, on every enqueue, the new job row on the hottest page
+of `jobs`, and dropping it raised SQL Server's single enqueues by about a sixth.
 
 Never enforced, by design:
 

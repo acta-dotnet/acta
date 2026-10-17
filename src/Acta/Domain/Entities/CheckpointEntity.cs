@@ -8,13 +8,6 @@ namespace Acta;
 /// </summary>
 [DbTable("checkpoints")]
 [DbPrimaryKey(Name = "pk_checkpoints", Columns = ["job_id", "kind_code", "name"])]
-[DbForeignKey(
-    Name = "fk_checkpoints_jobs",
-    Target = typeof(JobEntity),
-    TargetColumn = "id",
-    Column = "job_id",
-    OnDelete = DbForeignKeyAction.Cascade
-)]
 [DbCheck(
     Name = "ck_checkpoints_value_pair",
     Sql = "(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)"
@@ -38,8 +31,7 @@ namespace Acta;
 internal sealed class CheckpointEntity : IEntity
 {
     /// <summary>
-    /// Owning Job. CASCADE FK: when the Job is purged, every checkpoint row for it cascades away in
-    /// the same transaction. Leading column of the composite PK.
+    /// Owning Job; purge and retention delete a job's checkpoints with it. Leading column of the composite PK.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long JobId { get; init; }

@@ -219,18 +219,6 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void JobResult_HasForeignKey_To_Job_Cascade()
-    {
-        var fks = ActaSchema.For<ResultEntity>().ForeignKeys;
-        var fk = Assert.Single(fks, f => f.Name == "fk_results_jobs");
-
-        Assert.Equal("job_id", fk.Column);
-        Assert.Equal(typeof(JobEntity), fk.Target);
-        Assert.Equal("id", fk.TargetColumn);
-        Assert.Equal(DbForeignKeyAction.Cascade, fk.OnDelete);
-    }
-
-    [Fact]
     public void JobEvent_Has_NoForeignKeys()
     {
         // Audit table: retention runs independently of references.

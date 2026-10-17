@@ -35,6 +35,25 @@ CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_job ON alerts (job_id, id) WHERE
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_ref ON alerts (alert_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_deduplication_key ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
 
+-- checkpoints
+CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
+    job_id integer NOT NULL,
+    kind_code integer NOT NULL,
+    name text NOT NULL,
+    status_code integer NULL,
+    due_at_utc integer NULL,
+    value_format_id integer DEFAULT 0 NOT NULL,
+    value blob NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
+    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_checkpoints_pending_latches ON checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
+
 -- definitions
 CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     id integer PRIMARY KEY AUTOINCREMENT,
@@ -217,7 +236,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.results (
     , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number)
     , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
     , CONSTRAINT ck_results_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_results_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
 
 -- runtimes
@@ -277,7 +295,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
-    , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
@@ -303,7 +320,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
     , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) STRICT;
 
 -- tags
@@ -358,26 +374,6 @@ CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_status_last_seen ON w
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_status_last_seen ON workers (status_code, last_seen_at_utc);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_last_seen ON workers (namespace_id, last_seen_at_utc DESC, id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_workers_ref ON workers (worker_ref);
-
--- checkpoints
-CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
-    job_id integer NOT NULL,
-    kind_code integer NOT NULL,
-    name text NOT NULL,
-    status_code integer NULL,
-    due_at_utc integer NULL,
-    value_format_id integer DEFAULT 0 NOT NULL,
-    value blob NULL,
-    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
-    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
-    version integer DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
-    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
-) STRICT;
-CREATE INDEX IF NOT EXISTS {{schema}}.ix_checkpoints_pending_latches ON checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 
 DROP VIEW IF EXISTS {{schema}}.alerts_view;
 CREATE VIEW {{schema}}.alerts_view AS
@@ -724,5 +720,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017115105_init')
+VALUES ('M20261017125154_init')
 ON CONFLICT (name) DO NOTHING;

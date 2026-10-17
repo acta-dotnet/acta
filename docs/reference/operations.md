@@ -78,7 +78,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
 | `GetResult` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetResultSpec` |
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | inline | inline | inline | `events`, `runtimes` | `PauseJobSpec` |
-| `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `events`, `jobs`, `runtimes`, `tags` | `PurgeJobSpec` |
+| `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `checkpoints`, `events`, `jobs`, `results`, `runtimes`, `schedules`, `steps`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `runtimes` | `ReprioritizeJobSpec` |
 | `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `events`, `runtimes` | `RescheduleJobSpec` |
 | `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `results`, `steps` | `ResetJobStateSpec` |
@@ -109,7 +109,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `lanes`, `locks`, `runtimes`, `tags`, `workers` | `PurgeExpiredDataSpec` |
+| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `lanes`, `locks`, `results`, `runtimes`, `schedules`, `steps`, `tags`, `workers` | `PurgeExpiredDataSpec` |
 
 ## Namespaces
 

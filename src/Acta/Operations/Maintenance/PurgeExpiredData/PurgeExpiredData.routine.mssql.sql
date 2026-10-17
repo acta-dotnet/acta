@@ -89,15 +89,15 @@ BEGIN
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del);
 
-                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
+                -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
                 -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
                 DELETE r FROM {{schema}}.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
                 DELETE x FROM {{schema}}.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
-                DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
-                OPTION (LOOP JOIN);
+                DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
+                DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;

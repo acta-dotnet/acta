@@ -196,12 +196,7 @@
           "Sql": "(value_format_id = 0 AND value IS NULL) OR (value_format_id \u003C\u003E 0 AND value IS NOT NULL)"
         }
       ],
-      "ForeignKeys": [
-        {
-          "Name": "fk_checkpoints_jobs",
-          "Signature": "job_id-\u003Ejobs.id|Cascade"
-        }
-      ]
+      "ForeignKeys": []
     },
     {
       "Table": "definitions",
@@ -855,12 +850,7 @@
           "Sql": "result_format_id \u003C\u003E 0"
         }
       ],
-      "ForeignKeys": [
-        {
-          "Name": "fk_results_jobs",
-          "Signature": "job_id-\u003Ejobs.id|Cascade"
-        }
-      ]
+      "ForeignKeys": []
     },
     {
       "Table": "runtimes",
@@ -1087,10 +1077,6 @@
         {
           "Name": "fk_schedules_definitions",
           "Signature": "definition_id-\u003Edefinitions.id|NoAction"
-        },
-        {
-          "Name": "fk_schedules_jobs",
-          "Signature": "job_id-\u003Ejobs.id|Cascade"
         }
       ]
     },
@@ -1170,12 +1156,7 @@
           "Sql": "status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL"
         }
       ],
-      "ForeignKeys": [
-        {
-          "Name": "fk_steps_jobs",
-          "Signature": "job_id-\u003Ejobs.id|Cascade"
-        }
-      ]
+      "ForeignKeys": []
     },
     {
       "Table": "tags",
@@ -1378,7 +1359,7 @@
       "arm_or_consume_sleep_timer": "67443ce632dff3cae79b736804f4a08094bbfe3a91f26eba04b4297ad70a1e54",
       "checkpoints_view": "a90d01cbb5641aa86092a34ba92c9225ac788594c71b91b95dd7211b0b75da2c",
       "claim_jobs": "649637183281a1146e3fc567aca87d793cbe7923140e1f0a82b0b08febf29f1a",
-      "complete_executions": "fa6bf6f84c5812ab63289a0d03f688c8e5c788ac109cd8ab0af35850f454f5d9",
+      "complete_executions": "d481a614a5cc3fc5274973e0f51c0df0556f8d38fe0dc9688051c1b7e2837abb",
       "complete_step": "7881998f3507cb41f9758a8965c61009703153e4b8e79c9d53e1eefd708504b1",
       "definitions_view": "db0219d5783d0b10f128f9b162db82e693e29ed9c3b4177f2ebbc3e75624fea1",
       "enqueue_job": "c9f30c980ec46a1f09d1fe50b9609dc431edacb16208f3c82fe1ff9b812954f2",
@@ -1386,7 +1367,7 @@
       "events_view": "8c5954d1c77b03a2e009843dcf6000107ec2702037c09118d6031e417a3fb49c",
       "extend_worker_leases": "1443c65b8f5b7e5f23d0721777ef398d8f9619b25f270e586ee6216d6bf1c6dc",
       "jobs_view": "c0fac40d01a3d45da00ae66be38c1ac131b8fe2229e8ef8efe3da2dabad03757",
-      "purge_expired_data": "b6933fd1c543e19f486d362e6eebfd30b8344a1b3b7cdd41ce79562ec09970c7",
+      "purge_expired_data": "b4cd77badf8044cffe6270fc199f70ad15af82073a79838d46dc547fb6183761",
       "raise_signal": "d1afeadb12ff05d4108e35ffa74e12fdda70e7056523e6e6b53b570cca91fbb3",
       "reclaim_stuck_jobs": "454bf55e40cada428d6a0da51bad10ba82286352e79e314050efcac211e22d4d",
       "reserve_rate": "94566ff56ca49bf8e52471724d2fae5f050edb1f4ab9d21565cf6aabcf364cc1",
@@ -1411,7 +1392,7 @@
       "events_view": "c027161c74cb4d56bf9071e49ee58669f6f6ab7aaddd3caf4696adb0d4d8495b",
       "extend_worker_leases": "71259a64ad3d3cc37931b66d31ed913bdacf3306e1e97c6fce899ec6d03f763b",
       "jobs_view": "b98205d7b1c26edadf4c0c487cd8fd824a0b69e447d52ffb8046bc59cec37c1c",
-      "purge_expired_data": "3058c98c143d217893cb69d6aebbd14b1c8752ec0a4cc27f776eaba6e5684735",
+      "purge_expired_data": "d6261b3146ae56e6ac4bd7e723572612df080f94bdfd60ba5d0af512460759c7",
       "raise_signal": "17eef6a07da5de33de99d8dc7b683fe56f41ea21893e0ca97fac9f7fd57787d9",
       "reclaim_stuck_jobs": "5b9d88a54c5940a2b1d2cc1daaf276db4b3da10bce524e9d7400840759f5dbc4",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",

@@ -52,6 +52,14 @@ DELETE FROM {{schema}}.events
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.alerts
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
+DELETE FROM {{schema}}.checkpoints
+WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
+DELETE FROM {{schema}}.steps
+WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
+DELETE FROM {{schema}}.results
+WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
+DELETE FROM {{schema}}.schedules
+WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.jobs
 WHERE id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.runtimes

@@ -44,7 +44,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 
 **Everything externally scheduled, claimed, retried, paused, cancelled, and audited as work is a
 Job; Job-internal state lives in the `checkpoints` and `steps` substrate tables, not as Jobs.** The mechanics
-(which slot writes which checkpoint kind, the `(JobId, Kind, Name)` keying, the CASCADE FKs) are in
+(which slot writes which checkpoint kind, the `(JobId, Kind, Name)` keying, how a purge removes them) are in
 [concepts](./guide.md#concepts-and-glossary).
 
 The reason is the two-tier model: it keeps heavy machinery (claim queue, lease, audit, alerting) at
@@ -110,7 +110,7 @@ Reopening an entry means writing a proposal, not editing this file.
 - **`JobEvent` carries an optional `detail`/`detail_format_id` payload pair**, paired by `ck_events_detail_pair`; format `0` means no detail. Richer event-specific data still goes to OTel spans and logs; durable state lives on the entity row. *Reason:* keeps `JobEvent` frugal while still giving free-form (text) or structured (json) context beyond `ReasonCode`/`ReasonMessage` a home.
 - **One merged `checkpoints` table; `steps` stays separate.** Variables, signals, timers, progress, and child latches share one `(job_id, kind_code, name)` table; steps keep their own (attempt counters, retry budget, stored results). *Reason:* one physical shape for every simple slot; only steps carry a genuinely different shape.
 - **Single-tier retention on `JobEvent`.** One knob (`JobEventsRetention`, default 365 days) sweeps every row. *Reason:* the two-tier variant added a knob nobody tuned.
-- **`JobResult` is keyed by `(JobId, ExecutionNumber)`** with CASCADE FK. *Reason:* the natural identity callers already address by.
+- **`JobResult` is keyed by `(JobId, ExecutionNumber)`**. *Reason:* the natural identity callers already address by.
 - **Timer checkpoints are arm/consume only.** `Pending → Consumed`; no `Cancelled` state; `ResetJobState` deletes rows outright. *Reason:* a state the runtime cannot reach is schema debt.
 - **A `Lock` carries no acquisition timestamp.** Lifecycle is `expires_at_utc` plus a per-hold `hold_token` that extend and release compare. *Reason:* no code path ever consulted the acquire instant.
 - **`jobs` + `runtimes` split: immutable identity vs mutable state.** `jobs` is never UPDATEd; the 1:1 `runtimes` row owns every mutable column with `runtimes.version` as the CAS token, and execution ownership lives on it, not in a lease table (that variant cost ~30-40% drain throughput and was reverted). *Reason:* the hot path rewrites a narrow row, and identity is immutable by construction.
@@ -216,7 +216,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 
 - **Duration policy has three representations.** ISO 8601 in attributes/config, `TimeSpan` in C#, `int` seconds in the DB. *Reason:* one canonical form per layer.
 - **One heartbeat rhythm:** `HeartbeatInterval` 45s is the single setting; `LeaseTtlSeconds` (x4, 180s) and `WorkerDeadAfter` (x7, 315s) derive from it, and leases and worker liveness extend on one loop. *Reason:* one tuning constant, one mental model - and since the triple must agree across replicas with nothing able to verify that at runtime, deriving holds the ratio by construction instead of by validation.
-- **`TimeProvider`, not `DateTime.UtcNow`**, for anything driving scheduling, lease, or claim correctness; carve-outs are DB-rendered defaults, the `DeduplicationKey.Per*` convenience overloads, and the clock-free wakeup hint. *Reason:* testability and clock-source clarity.
+- **`TimeProvider`, not `DateTime.UtcNow`**, for anything driving scheduling, lease, or claim correctness; carve-outs are DB-rendered defaults, the `DeduplicationKey.Per*` convenience overloads, the clock-free wakeup hint, the handler's advisory deadline reads (`IsOverdue`, `TimeUntilDeadline`), the in-process wait for a rate turn, and a placeholder next run the completion overwrites in the same statement. *Reason:* testability and clock-source clarity.
 - **Per-execution DI scope.** Scoped services receive fresh instances per attempt. *Reason:* the attempt is the unit of work.
 
 ## Invariants

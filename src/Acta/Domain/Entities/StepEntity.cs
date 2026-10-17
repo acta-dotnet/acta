@@ -9,13 +9,6 @@ namespace Acta;
 /// </summary>
 [DbTable("steps")]
 [DbPrimaryKey(Name = "pk_steps", Columns = ["job_id", "name"])]
-[DbForeignKey(
-    Name = "fk_steps_jobs",
-    Target = typeof(JobEntity),
-    TargetColumn = "id",
-    Column = "job_id",
-    OnDelete = DbForeignKeyAction.Cascade
-)]
 [DbCheck(
     Name = "ck_steps_result_pair",
     Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"
@@ -27,7 +20,7 @@ namespace Acta;
 internal sealed class StepEntity : IEntity
 {
     /// <summary>
-    /// Owning Job. CASCADE FK. The key's first column.
+    /// Owning Job; purge and retention delete a job's steps with it. The key's first column.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long JobId { get; init; }
@@ -39,7 +32,7 @@ internal sealed class StepEntity : IEntity
     public string Name { get; init; } = default!;
 
     /// <summary>
-    /// <c>Pending</c> while retrying; <c>Succeeded</c> / <c>Exhausted</c> on terminal. CHECK rejects 0.
+    /// <c>Pending</c> while retrying; <c>Succeeded</c> / <c>Exhausted</c> on terminal.
     /// </summary>
     [DbColumn("status_code")]
     public StepStatusCode Status { get; set; }

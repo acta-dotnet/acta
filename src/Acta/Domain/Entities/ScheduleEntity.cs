@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is.
-/// The <see cref="Origin"/> records how the row came to exist. Sparse override model (mirrors JobDefinition): the bare
+/// The <see cref="Origin"/> records how the row came to exist. Sparse override model (mirrors <c>definitions</c>): the bare
 /// field carries the origin-of-truth default and its <c>*_override</c> carries the operator edit (NULL = inherit);
 /// effective = <c>COALESCE(_override, default)</c>. Only <c>expression</c> and <c>time_zone_id</c> are
 /// operator-overridable. The canonical per-schedule cursor is <see cref="NextRunAtUtc"/>; the slot Job's cursor is the
@@ -10,13 +10,6 @@ namespace Acta;
 /// </summary>
 [DbTable("schedules")]
 [DbPrimaryKey(Name = "pk_schedules", Columns = ["job_id", "name"])]
-[DbForeignKey(
-    Name = "fk_schedules_jobs",
-    Target = typeof(JobEntity),
-    TargetColumn = "id",
-    Column = "job_id",
-    OnDelete = DbForeignKeyAction.Cascade
-)]
 [DbForeignKey(
     Name = "fk_schedules_definitions",
     Target = typeof(DefinitionEntity),
@@ -42,16 +35,15 @@ internal sealed class ScheduleEntity : IEntity
 
     /// <summary>
     /// Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its
-    /// schedules; purge cascades to all schedule rows. The key's first column.
+    /// schedules, and purge and retention delete them with it. The key's first column.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long JobId { get; init; }
 
     /// <summary>
-    /// Denormalized from <c>Job.DefinitionId</c> at INSERT; never mutated. Safe because
-    /// <c>Job.DefinitionId</c> is <c>init</c> (immutable post-INSERT). Retained for the per-namespace
-    /// reload sweep and the catalog-upsert "find Definition-origin slot for this (ns, def)" lookup without
-    /// joining <c>jobs</c>.
+    /// Denormalized from <c>jobs.definition_id</c> at INSERT and never mutated, since a job's definition never
+    /// changes. Retained for the per-namespace reload sweep and the catalog-upsert "find Definition-origin slot for
+    /// this (ns, def)" lookup without joining <c>jobs</c>.
     /// </summary>
     [DbColumn("definition_id", DbKind.Int32)]
     public int DefinitionId { get; init; }
@@ -72,7 +64,7 @@ internal sealed class ScheduleEntity : IEntity
     public ScheduleOriginCode Origin { get; init; }
 
     // ---------- Schedule expression (paired: code/origin default, then operator _override) ----------
-    // Convention matches JobDefinition: the bare-named field is the origin-of-truth default (Definition:
+    // Convention matches DefinitionEntity: the bare-named field is the origin-of-truth default (Definition:
     // refreshed by catalog upsert; Operator: set at creation); its _override is the operator edit
     // (NULL = inherit). Effective = COALESCE(_override, bare), coalesced at the read site.
 

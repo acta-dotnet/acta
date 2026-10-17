@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261017115105_init')
+    WHERE name NOT IN ('M20261017125154_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261017115105_init =====
+-- ===== BEGIN M20261017125154_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -116,6 +116,28 @@ CREATE INDEX ix_alerts_namespace_unresolved ON acta.alerts (namespace_id, create
 CREATE INDEX ix_alerts_job ON acta.alerts (job_id, id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX ux_alerts_ref ON acta.alerts (alert_ref);
 CREATE UNIQUE INDEX ux_alerts_deduplication_key ON acta.alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
+END
+GO
+
+-- checkpoints
+IF OBJECT_ID(N'acta.checkpoints', N'U') IS NULL
+BEGIN
+CREATE TABLE acta.checkpoints (
+    job_id bigint NOT NULL,
+    kind_code tinyint NOT NULL,
+    name varchar(128) NOT NULL,
+    status_code tinyint NULL,
+    due_at_utc datetime2(3) NULL,
+    value_format_id tinyint DEFAULT 0 NOT NULL,
+    value varbinary(max) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
+    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
+);
+CREATE INDEX ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 END
 GO
 
@@ -334,7 +356,6 @@ CREATE TABLE acta.results (
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
     , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
-    , CONSTRAINT fk_results_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
 END
 GO
@@ -402,7 +423,6 @@ CREATE TABLE acta.schedules (
     , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
-    , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (id)
 );
 CREATE INDEX ix_schedules_namespace_next ON acta.schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
@@ -431,7 +451,6 @@ CREATE TABLE acta.steps (
     , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
     , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
-    , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
 );
 END
 GO
@@ -500,29 +519,6 @@ CREATE INDEX ix_workers_namespace_status_last_seen ON acta.workers (namespace_id
 CREATE INDEX ix_workers_status_last_seen ON acta.workers (status_code, last_seen_at_utc);
 CREATE INDEX ix_workers_namespace_last_seen ON acta.workers (namespace_id, last_seen_at_utc DESC, id DESC);
 CREATE UNIQUE INDEX ux_workers_ref ON acta.workers (worker_ref);
-END
-GO
-
--- checkpoints
-IF OBJECT_ID(N'acta.checkpoints', N'U') IS NULL
-BEGIN
-CREATE TABLE acta.checkpoints (
-    job_id bigint NOT NULL,
-    kind_code tinyint NOT NULL,
-    name varchar(128) NOT NULL,
-    status_code tinyint NULL,
-    due_at_utc datetime2(3) NULL,
-    value_format_id tinyint DEFAULT 0 NOT NULL,
-    value varbinary(max) NULL,
-    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
-    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
-    , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES acta.jobs (id) ON DELETE CASCADE
-);
-CREATE INDEX ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 END
 GO
 
@@ -1332,13 +1328,11 @@ BEGIN
             INNER JOIN acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
             WHERE (c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL) AND c.final_status IS NULL;
 
-        -- fk_results_jobs seeks each job by key (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO acta.results (job_id, execution_number, result_format_id, result, created_at_utc)
         SELECT d.job_id, d.execution_number, c.result_format_id, c.result, @now
         FROM @done d
         INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */
-        OPTION (LOOP JOIN);
+        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */;
 
         IF @p_plain = 0
             BEGIN
@@ -3105,15 +3099,15 @@ BEGIN
                 DELETE FROM acta.tags
                 WHERE scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del);
 
-                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
+                -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
                 -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
                 DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
                 DELETE r FROM acta.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
                 DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
                 DELETE x FROM acta.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
-                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
-                OPTION (LOOP JOIN);
+                DELETE s FROM acta.schedules s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
+                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -4661,11 +4655,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017115105_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017125154_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017115105_init');
+VALUES ('M20261017125154_init');
 GO
--- ===== END M20261017115105_init =====
+-- ===== END M20261017125154_init =====
 GO
 COMMIT TRANSACTION;
 GO

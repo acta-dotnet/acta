@@ -1,5 +1,6 @@
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
@@ -7,8 +8,8 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Operator PurgeAsync: hard-deletes a terminal job. Only Succeeded/Failed/Cancelled rows qualify; the
-/// routine deletes the job's events and alerts explicitly (both FK-less) then the job row itself
-/// (CASCADE sweeps runtimes/schedules/steps/results/checkpoints/tags). Always emits job.purged (not
+/// routine deletes the job's events, alerts, tags, checkpoints, steps, results, schedules, the job row, and its runtimes
+/// row, none of which carries a key to the job. Always emits job.purged (not
 /// audit-gated), and rejects a terminal job that has child jobs (parent_id carries no DB
 /// cascade, so deleting the parent would orphan the child's lineage).
 /// </summary>
@@ -16,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "job.purge",
     "Operator purge hard-deletes a terminal job.",
     Area = "Control",
-    Contract = "PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs."
+    Contract = "PurgeAsync deletes a terminal job's events, alerts, and every row of the job, always emits job.purged, and rejects non-terminal or live-child jobs."
 )]
 public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -46,6 +47,21 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         );
         Assert.NotEmpty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
         Assert.NotEmpty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
+        Assert.NotEmpty(await Db.From<ResultEntity>().Where(r => r.JobId == completed.JobId).ToListAsync(ct));
+        // A step and a checkpoint beside the result: no key cascades them, so the delete has to name each table.
+        var execution = Services.GetRequiredService<ExecutionOperations>();
+        await execution.StartStepAsync(completed.JobId, "seed-step", atMostOnce: false, ct);
+        await execution.AccessCheckpointAsync(
+            new AccessCheckpointCommand(
+                AccessCheckpointAction.Set,
+                completed.JobId,
+                CheckpointKindCode.Variable,
+                "seed-variable",
+                JobPayloadFormat.Json.Id,
+                "1"u8.ToArray()
+            ),
+            ct
+        );
 
         var result = await Jobs.PurgeAsync(completed, "spec-actor", ct);
 
@@ -54,6 +70,9 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         Assert.Null(await Jobs.GetAsync(completed, ct));
         Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == completed.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<ResultEntity>().Where(r => r.JobId == completed.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<StepEntity>().Where(s => s.JobId == completed.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
 
