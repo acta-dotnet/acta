@@ -43,10 +43,6 @@ certified commit.
   for the verdicts, including a release-candidate baseline, and the three `*ProvisionScriptSpec`
   classes for a schema that runs with migrations disabled and keeps its data, grants, and dependent
   views across a re-run.
-- An older worker keeps running beside a newer one on the upgraded objects:
-  `tests/RollingUpgradeSmoke/run.ps1 -Phases Overlap` against the previous 1.x tag on both servers.
-  Its `evidence.json` must record a clean worktree and matching commits. A release candidate cannot
-  share a 1.0 database, so 1.0.0 has no previous tag to pair with.
 - The packed packages deploy: `tests/PackageSmoke/run.ps1` on the final feed, then
   `tests/DeploymentSmoke/run.ps1` on the same feed for the dashboard behind a real proxy with a path
   base and an authorization policy. Its README says what the run does not cover.
