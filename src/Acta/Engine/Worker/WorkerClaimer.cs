@@ -82,11 +82,16 @@ internal sealed class WorkerClaimer(
                     handedOff = result.Jobs.Count > 0;
                     foreach (var claimed in result.Jobs)
                     {
-                        metrics?.RecordClaim(ns, "claimed");
                         var entry = new InFlightJob(claimed, runway, hostCt, holdsPermit: true);
                         registry.TryAdd(entry);
                         permits--;
                         registry.Claimed.Writer.TryWrite(entry);
+                    }
+
+                    // Counted once every row is handed off: a listener that throws must not strand a claimed row.
+                    if (handedOff)
+                    {
+                        metrics?.RecordClaim(ns, "claimed", result.Jobs.Count);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested)

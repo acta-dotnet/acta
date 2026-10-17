@@ -120,8 +120,8 @@ internal sealed class ActaMetrics : IDisposable
         _executions.Add(1, tags);
     }
 
-    public void RecordClaim(string @namespace, string result) =>
-        _claims.Add(1, new TagList { { "namespace", @namespace }, { "result", result } });
+    public void RecordClaim(string @namespace, string result, int count = 1) =>
+        _claims.Add(count, new TagList { { "namespace", @namespace }, { "result", result } });
 
     /// <summary>
     /// namespace is the channel's namespace ("*" for all-worker-namespaces, ABSENT for
