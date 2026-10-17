@@ -24,7 +24,6 @@ internal sealed record ClaimOptions(
 internal sealed record ClaimedJob(
     long JobId,
     Guid JobRef,
-    int NamespaceId,
     int DefinitionId,
     int? TenantId,
     int ExecutionNumber,
@@ -34,7 +33,6 @@ internal sealed record ClaimedJob(
     byte InputFormatId,
     ReadOnlyMemory<byte> Input,
     DateTime? NextRunAtUtc,
-    DateTime LeaseExpiresAtUtc,
     DateTime CreatedAtUtc,
     int FailureCount,
     long? LaneId = null,
@@ -46,7 +44,6 @@ internal sealed record ClaimedJob(
         new(
             JobId: row.JobId!.Value,
             JobRef: Required(row.JobRef, "job_ref"),
-            NamespaceId: Required(row.NamespaceId, "namespace_id"),
             DefinitionId: Required(row.DefinitionId, "definition_id"),
             TenantId: row.TenantId,
             ExecutionNumber: Required(row.ExecutionNumber, "execution_number"),
@@ -58,7 +55,6 @@ internal sealed record ClaimedJob(
             InputFormatId: Required(row.InputFormatId, "input_format_id"),
             Input: row.Input ?? ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: row.NextRunAtUtc,
-            LeaseExpiresAtUtc: Required(row.LeaseExpiresAtUtc, "lease_expires_at_utc"),
             CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
             FailureCount: Required(row.FailureCount, "failure_count"),
             LaneId: row.LaneId,
@@ -87,8 +83,6 @@ internal interface IClaimColumns
 {
     long? JobId { get; }
 
-    int? NamespaceId { get; }
-
     int? DefinitionId { get; }
 
     int? ExecutionNumber { get; }
@@ -104,8 +98,6 @@ internal interface IClaimColumns
     byte[]? Input { get; }
 
     DateTime? NextRunAtUtc { get; }
-
-    DateTime? LeaseExpiresAtUtc { get; }
 
     DateTime? CreatedAtUtc { get; }
 

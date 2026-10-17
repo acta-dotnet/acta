@@ -24,14 +24,13 @@ updated AS (
     JOIN {{schema}}.jobs j ON j.id = c.id
     WHERE r.job_id = c.id
     RETURNING
-        r.job_id AS id, j.namespace_id, j.definition_id, j.tenant_id,
+        r.job_id AS id, j.definition_id, j.tenant_id,
         r.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
         j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc,
         r.failure_count, j.job_ref, r.lane_id, j.parent_id
 )
 SELECT
     u.id,
-    u.namespace_id,
     u.definition_id,
     u.execution_number,
     u.deduplication_key,
@@ -40,7 +39,6 @@ SELECT
     u.input_format_id,
     u.input,
     u.next_run_at_utc,
-    now() + (@p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
     u.created_at_utc,
     u.failure_count,
     u.job_ref,

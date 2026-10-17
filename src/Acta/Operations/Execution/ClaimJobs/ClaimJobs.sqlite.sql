@@ -61,7 +61,6 @@ WHERE
 
 SELECT
     j.id,
-    j.namespace_id,
     j.definition_id,
     r.execution_number,
     j.deduplication_key,
@@ -70,7 +69,6 @@ SELECT
     j.input_format_id,
     j.input,
     r.next_run_at_utc,
-    {{now}} + (@p_lease_ttl_seconds) * 1000 AS lease_expires_at_utc,
     j.created_at_utc,
     r.failure_count,
     j.job_ref,
@@ -85,7 +83,6 @@ WHERE j.id IN (SELECT id FROM temp._claimed)
 UNION ALL
 SELECT
     NULL AS id,
-    NULL AS namespace_id,
     NULL AS definition_id,
     NULL AS execution_number,
     NULL AS deduplication_key,
@@ -94,7 +91,6 @@ SELECT
     NULL AS input_format_id,
     NULL AS input,
     NULL AS next_run_at_utc,
-    NULL AS lease_expires_at_utc,
     NULL AS created_at_utc,
     NULL AS failure_count,
     NULL AS job_ref,

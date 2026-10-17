@@ -162,7 +162,6 @@ internal sealed class WorkerExecutorHarness(
         new(
             JobId: 4242,
             JobRef: Guid.CreateVersion7(),
-            NamespaceId: 1,
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: 3,
@@ -172,7 +171,6 @@ internal sealed class WorkerExecutorHarness(
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
-            LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
             CreatedAtUtc: deadlineAtUtc?.AddSeconds(-1) ?? DateTime.UtcNow,
             FailureCount: failureCount
         );

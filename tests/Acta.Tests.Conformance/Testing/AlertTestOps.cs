@@ -274,7 +274,6 @@ internal static class AlertTestOps
         var slot = new ClaimedJob(
             JobId: cursorOwnerJobId,
             JobRef: Guid.Empty,
-            NamespaceId: namespaceId,
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: 1,
@@ -284,7 +283,6 @@ internal static class AlertTestOps
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
-            LeaseExpiresAtUtc: default,
             CreatedAtUtc: default,
             FailureCount: 0
         );

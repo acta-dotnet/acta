@@ -28,7 +28,6 @@ public sealed class RuntimeJobContextLockReleaseTests
             new ClaimedJob(
                 JobId: 42,
                 JobRef: Guid.CreateVersion7(),
-                NamespaceId: 1,
                 DefinitionId: 1,
                 TenantId: null,
                 ExecutionNumber: 1,
@@ -38,7 +37,6 @@ public sealed class RuntimeJobContextLockReleaseTests
                 InputFormatId: 0,
                 Input: ReadOnlyMemory<byte>.Empty,
                 NextRunAtUtc: null,
-                LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
                 CreatedAtUtc: DateTime.UtcNow,
                 FailureCount: 0
             ),

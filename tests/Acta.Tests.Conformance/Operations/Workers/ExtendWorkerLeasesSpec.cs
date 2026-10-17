@@ -39,7 +39,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var claim = await Services.GetRequiredService<ExecutionOperations>().ClaimJobAsync(ns, workerId, leaseTtl, enqueued, ct);
         var claimedRow = Assert.Single(claim);
-        var leaseAfterClaim = claimedRow.LeaseExpiresAtUtc;
+        var leaseAfterClaim = (await ReadJobAsync(enqueued.JobId, ct))!.LeaseExpiresAtUtc;
 
         // lease_expires_at_utc is DATETIME2(3): claim and extend re-stamp it as now + the same TTL, so the
         // heartbeat only moves it forward if its now lands in a later millisecond. Ensure that gap so the

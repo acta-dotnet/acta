@@ -133,7 +133,6 @@ public class RecurringOutcomeTests
         new(
             JobId: 1,
             JobRef: Guid.Empty,
-            NamespaceId: 1,
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: 1,
@@ -143,7 +142,6 @@ public class RecurringOutcomeTests
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
-            LeaseExpiresAtUtc: default,
             CreatedAtUtc: default,
             FailureCount: failureCount
         );

@@ -18,7 +18,6 @@ BEGIN TRY
         (
             id BIGINT NOT NULL PRIMARY KEY,
             job_ref UNIQUEIDENTIFIER NOT NULL,
-            namespace_id INT NOT NULL,
             definition_id INT NOT NULL,
             tenant_id INT NULL,
             execution_number INT NOT NULL,
@@ -56,13 +55,13 @@ BEGIN TRY
         modified_at_utc = @now,
         version = r.version + 1
     OUTPUT
-        INSERTED.job_id, j.job_ref, j.namespace_id, j.definition_id, j.tenant_id,
+        INSERTED.job_id, j.job_ref, j.definition_id, j.tenant_id,
         INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
         j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc,
         INSERTED.failure_count, INSERTED.lane_id, j.parent_id
     INTO
         @claimed (
-            id, job_ref, namespace_id, definition_id, tenant_id, execution_number,
+            id, job_ref, definition_id, tenant_id, execution_number,
             deduplication_key, correlation_key, concurrency_key,
             input_format_id, input, next_run_at_utc, created_at_utc,
             failure_count, lane_id, parent_id
@@ -76,7 +75,6 @@ BEGIN TRY
 
     SELECT
         id,
-        namespace_id,
         definition_id,
         execution_number,
         deduplication_key,
@@ -85,7 +83,6 @@ BEGIN TRY
         input_format_id,
         input,
         next_run_at_utc,
-        @lease_expires AS lease_expires_at_utc,
         created_at_utc,
         failure_count,
         job_ref,

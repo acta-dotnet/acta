@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261017112718_init')
+        WHERE name NOT IN ('M20261017113413_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261017112718_init =====
+-- ===== BEGIN M20261017113413_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -656,7 +656,6 @@ CREATE OR REPLACE FUNCTION acta.claim_jobs(
 )
 RETURNS TABLE (
     id BIGINT,
-    namespace_id INT,
     definition_id INT,
     execution_number INT,
     deduplication_key VARCHAR,
@@ -665,7 +664,6 @@ RETURNS TABLE (
     input_format_id SMALLINT,
     input BYTEA,
     next_run_at_utc TIMESTAMPTZ,
-    lease_expires_at_utc TIMESTAMPTZ,
     created_at_utc TIMESTAMPTZ,
     failure_count INT,
     job_ref UUID,
@@ -738,7 +736,6 @@ AS $$
         WHERE r.job_id = c.id
         RETURNING
             r.job_id AS id,
-            j.namespace_id,
             j.definition_id,
             j.tenant_id,
             r.execution_number,
@@ -759,7 +756,6 @@ AS $$
     )
     SELECT
         u.id,
-        u.namespace_id,
         u.definition_id,
         u.execution_number,
         u.deduplication_key,
@@ -768,7 +764,6 @@ AS $$
         u.input_format_id,
         u.input,
         u.next_run_at_utc,
-        now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
         u.created_at_utc,
         u.failure_count,
         u.job_ref,
@@ -783,13 +778,11 @@ AS $$
         NULL::bigint,
         NULL::int,
         NULL::int,
-        NULL::int,
         NULL::varchar,
         NULL::varchar,
         NULL::varchar,
         NULL::smallint,
         NULL::bytea,
-        NULL::timestamptz,
         NULL::timestamptz,
         NULL::timestamptz,
         NULL::smallint,
@@ -4019,10 +4012,10 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017112718_init')
+VALUES ('M20261017113413_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017112718_init =====
+-- ===== END M20261017113413_init =====
 
 COMMIT;
 

@@ -8,7 +8,6 @@ CREATE OR REPLACE FUNCTION {{schema}}.claim_jobs(
 )
 RETURNS TABLE (
     id BIGINT,
-    namespace_id INT,
     definition_id INT,
     execution_number INT,
     deduplication_key VARCHAR,
@@ -17,7 +16,6 @@ RETURNS TABLE (
     input_format_id SMALLINT,
     input BYTEA,
     next_run_at_utc TIMESTAMPTZ,
-    lease_expires_at_utc TIMESTAMPTZ,
     created_at_utc TIMESTAMPTZ,
     failure_count INT,
     job_ref UUID,
@@ -90,7 +88,6 @@ AS $$
         WHERE r.job_id = c.id
         RETURNING
             r.job_id AS id,
-            j.namespace_id,
             j.definition_id,
             j.tenant_id,
             r.execution_number,
@@ -111,7 +108,6 @@ AS $$
     )
     SELECT
         u.id,
-        u.namespace_id,
         u.definition_id,
         u.execution_number,
         u.deduplication_key,
@@ -120,7 +116,6 @@ AS $$
         u.input_format_id,
         u.input,
         u.next_run_at_utc,
-        now() + (p_lease_ttl_seconds * INTERVAL '1 second') AS lease_expires_at_utc,
         u.created_at_utc,
         u.failure_count,
         u.job_ref,
@@ -135,13 +130,11 @@ AS $$
         NULL::bigint,
         NULL::int,
         NULL::int,
-        NULL::int,
         NULL::varchar,
         NULL::varchar,
         NULL::varchar,
         NULL::smallint,
         NULL::bytea,
-        NULL::timestamptz,
         NULL::timestamptz,
         NULL::timestamptz,
         NULL::smallint,

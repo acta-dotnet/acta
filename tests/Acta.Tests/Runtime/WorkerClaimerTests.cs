@@ -116,7 +116,6 @@ public sealed class WorkerClaimerTests
         new(
             JobId: 1,
             JobRef: Guid.CreateVersion7(),
-            NamespaceId: 1,
             DefinitionId: 1,
             TenantId: null,
             ExecutionNumber: 1,
@@ -126,7 +125,6 @@ public sealed class WorkerClaimerTests
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: due,
-            LeaseExpiresAtUtc: due.AddMinutes(3),
             CreatedAtUtc: due,
             FailureCount: 0
         );

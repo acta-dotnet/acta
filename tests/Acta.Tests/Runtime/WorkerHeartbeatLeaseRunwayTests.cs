@@ -180,7 +180,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             new ClaimedJob(
                 JobId: jobId,
                 JobRef: Guid.CreateVersion7(),
-                NamespaceId: 1,
                 DefinitionId: 1,
                 TenantId: null,
                 ExecutionNumber: executionNumber,
@@ -190,7 +189,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
                 InputFormatId: 0,
                 Input: ReadOnlyMemory<byte>.Empty,
                 NextRunAtUtc: null,
-                LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
                 CreatedAtUtc: DateTime.UtcNow,
                 FailureCount: 0
             ),

@@ -543,7 +543,6 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         var slot = new ClaimedJob(
             JobId: _slotJobId.Value,
             JobRef: Guid.Empty,
-            NamespaceId: TestNamespaceId,
             DefinitionId: 0,
             TenantId: null,
             ExecutionNumber: 1,
@@ -553,7 +552,6 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
-            LeaseExpiresAtUtc: new DateTime(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             CreatedAtUtc: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             FailureCount: 0
         );

@@ -26,7 +26,6 @@ WHERE
 
 SELECT
     j.id,
-    j.namespace_id,
     j.definition_id,
     r.execution_number,
     j.deduplication_key,
@@ -35,7 +34,6 @@ SELECT
     j.input_format_id,
     j.input,
     r.next_run_at_utc,
-    {{now}} + (@p_lease_ttl_seconds) * 1000 AS lease_expires_at_utc,
     j.created_at_utc,
     r.failure_count,
     j.job_ref,

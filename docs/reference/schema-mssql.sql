@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261017112718_init')
+    WHERE name NOT IN ('M20261017113413_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261017112718_init =====
+-- ===== BEGIN M20261017113413_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -983,7 +983,6 @@ BEGIN
             (
                 id BIGINT NOT NULL PRIMARY KEY,
                 job_ref UNIQUEIDENTIFIER NOT NULL,
-                namespace_id INT NOT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
                 execution_number INT NOT NULL,
@@ -1064,7 +1063,6 @@ BEGIN
         OUTPUT
             INSERTED.job_id,
             j.job_ref,
-            j.namespace_id,
             j.definition_id,
             j.tenant_id,
             INSERTED.execution_number,
@@ -1080,7 +1078,7 @@ BEGIN
             j.parent_id
         INTO
             @claimed (
-                id, job_ref, namespace_id, definition_id, tenant_id, execution_number,
+                id, job_ref, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 failure_count, lane_id, parent_id
@@ -1096,7 +1094,6 @@ BEGIN
             BEGIN
                 SELECT
                     id,
-                    namespace_id,
                     definition_id,
                     execution_number,
                     deduplication_key,
@@ -1105,7 +1102,6 @@ BEGIN
                     input_format_id,
                     input,
                     next_run_at_utc,
-                    @lease_expires AS lease_expires_at_utc,
                     created_at_utc,
                     failure_count,
                     job_ref,
@@ -1121,7 +1117,6 @@ BEGIN
             BEGIN
                 SELECT
                     CAST(NULL AS BIGINT) AS id,
-                    CAST(NULL AS INT) AS namespace_id,
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS INT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
@@ -1130,7 +1125,6 @@ BEGIN
                     CAST(NULL AS TINYINT) AS input_format_id,
                     CAST(NULL AS VARBINARY(MAX)) AS input,
                     CAST(NULL AS DATETIME2(3)) AS next_run_at_utc,
-                    CAST(NULL AS DATETIME2(3)) AS lease_expires_at_utc,
                     CAST(NULL AS DATETIME2(3)) AS created_at_utc,
                     CAST(NULL AS INT) AS failure_count,
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
@@ -4666,11 +4660,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017112718_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017113413_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017112718_init');
+VALUES ('M20261017113413_init');
 GO
--- ===== END M20261017112718_init =====
+-- ===== END M20261017113413_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -252,7 +252,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
         var job = new ClaimedJob(
             JobId: JobIdValue,
             JobRef: JobRefValue,
-            NamespaceId: TestNamespaceId,
             DefinitionId: DefId,
             TenantId: null,
             ExecutionNumber: ExecNo,
@@ -262,7 +261,6 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             NextRunAtUtc: null,
-            LeaseExpiresAtUtc: default,
             CreatedAtUtc: default,
             FailureCount: 0
         );

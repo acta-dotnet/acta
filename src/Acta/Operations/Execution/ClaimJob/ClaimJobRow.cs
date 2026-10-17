@@ -4,7 +4,6 @@ namespace Acta;
 [DbProjection]
 internal sealed record ClaimJobRow(
     long? JobId,
-    int? NamespaceId,
     int? DefinitionId,
     int? ExecutionNumber,
     string? DeduplicationKey,
@@ -13,7 +12,6 @@ internal sealed record ClaimJobRow(
     byte? InputFormatId,
     byte[]? Input,
     DateTime? NextRunAtUtc,
-    DateTime? LeaseExpiresAtUtc,
     DateTime? CreatedAtUtc,
     int? FailureCount,
     Guid? JobRef,

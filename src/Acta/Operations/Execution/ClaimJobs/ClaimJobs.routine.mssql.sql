@@ -36,7 +36,6 @@ BEGIN
             (
                 id BIGINT NOT NULL PRIMARY KEY,
                 job_ref UNIQUEIDENTIFIER NOT NULL,
-                namespace_id INT NOT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
                 execution_number INT NOT NULL,
@@ -117,7 +116,6 @@ BEGIN
         OUTPUT
             INSERTED.job_id,
             j.job_ref,
-            j.namespace_id,
             j.definition_id,
             j.tenant_id,
             INSERTED.execution_number,
@@ -133,7 +131,7 @@ BEGIN
             j.parent_id
         INTO
             @claimed (
-                id, job_ref, namespace_id, definition_id, tenant_id, execution_number,
+                id, job_ref, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 failure_count, lane_id, parent_id
@@ -149,7 +147,6 @@ BEGIN
             BEGIN
                 SELECT
                     id,
-                    namespace_id,
                     definition_id,
                     execution_number,
                     deduplication_key,
@@ -158,7 +155,6 @@ BEGIN
                     input_format_id,
                     input,
                     next_run_at_utc,
-                    @lease_expires AS lease_expires_at_utc,
                     created_at_utc,
                     failure_count,
                     job_ref,
@@ -174,7 +170,6 @@ BEGIN
             BEGIN
                 SELECT
                     CAST(NULL AS BIGINT) AS id,
-                    CAST(NULL AS INT) AS namespace_id,
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS INT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
@@ -183,7 +178,6 @@ BEGIN
                     CAST(NULL AS TINYINT) AS input_format_id,
                     CAST(NULL AS VARBINARY(MAX)) AS input,
                     CAST(NULL AS DATETIME2(3)) AS next_run_at_utc,
-                    CAST(NULL AS DATETIME2(3)) AS lease_expires_at_utc,
                     CAST(NULL AS DATETIME2(3)) AS created_at_utc,
                     CAST(NULL AS INT) AS failure_count,
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
