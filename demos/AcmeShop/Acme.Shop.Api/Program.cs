@@ -47,7 +47,7 @@ app.MapPost(
             orders.Append(new OrderEvent(input.OrderId, "order-placed", placedAtUtc));
         }
 
-        var request = new JobEnqueueRequest(
+        var request = new EnqueueJobRequest(
             "payments",
             "process-payment",
             JobPayload.Json(new OrderV1(input.OrderId, userId, input.Amount, input.Lines)),
@@ -120,4 +120,4 @@ Console.WriteLine("  dotnet run --project demos/AcmeShop/Acme.Shop.Shipping");
 
 await app.RunAsync();
 
-static JobLifecycleStatus ToStatus(JobDetail s) => new(s.JobRef.ToString(), s.Status.ToString(), s.CreatedAtUtc, s.ModifiedAtUtc);
+static JobLifecycleStatus ToStatus(GetJobResponse s) => new(s.JobRef.ToString(), s.Status.ToString(), s.CreatedAtUtc, s.ModifiedAtUtc);

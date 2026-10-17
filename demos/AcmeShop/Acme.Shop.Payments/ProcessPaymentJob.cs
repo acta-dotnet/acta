@@ -48,7 +48,7 @@ public sealed class ProcessPaymentJob(IJobs jobs)
         // Handoff: map lines onto shipping's line type and enqueue into the shipping namespace.
         // ship:{userId}:{orderId} dedupes the re-enqueue (Acta job creation only).
         var lines = order.Lines.Select(l => new ShipOrderV1.Line(l.Sku, l.Quantity)).ToList();
-        var handoff = new JobEnqueueRequest(
+        var handoff = new EnqueueJobRequest(
             "shipping",
             "ship-order",
             JobPayload.Json(new ShipOrderV1(order.OrderId, order.UserId, lines)),

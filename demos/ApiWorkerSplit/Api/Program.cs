@@ -8,7 +8,7 @@ builder.Services.UseActa(j => j.UseLocalDatabase(builder.Configuration));
 
 var app = builder.Build();
 
-// A raw JobEnqueueRequest names the route (namespace + job name) explicitly, how an enqueue-only host
+// A raw EnqueueJobRequest names the route (namespace + job name) explicitly, how an enqueue-only host
 // reaches a job without referencing the worker's manifest.
 app.MapPost(
     "/welcome-emails",
@@ -17,7 +17,7 @@ app.MapPost(
         var deduplicationKey = $"welcome:{input.UserId}";
         var correlationKey = http.TraceIdentifier;
 
-        var request = new JobEnqueueRequest(
+        var request = new EnqueueJobRequest(
             WelcomeEmailRoute.Namespace,
             WelcomeEmailRoute.JobName,
             JobPayload.Json(input),
