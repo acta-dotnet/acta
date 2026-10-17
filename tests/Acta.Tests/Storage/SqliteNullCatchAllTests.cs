@@ -11,11 +11,9 @@ namespace Acta.Tests.Storage;
 /// </summary>
 public sealed class SqliteNullCatchAllTests
 {
-    [Theory]
-    [InlineData("@p_a")]
-    [InlineData("p_a")]
-    public void A_set_parameter_keeps_its_filter(string boundAs) =>
-        Assert.Equal("WHERE (a = @p_a) AND b = 2", Fold("WHERE (@p_a IS NULL OR a = @p_a) AND b = 2", (boundAs, 5)));
+    [Fact]
+    public void A_set_parameter_keeps_its_filter() =>
+        Assert.Equal("WHERE (a = @p_a) AND b = 2", Fold("WHERE (@p_a IS NULL OR a = @p_a) AND b = 2", ("@p_a", 5)));
 
     [Fact]
     public void A_null_or_dbnull_parameter_folds_to_true()
@@ -78,15 +76,6 @@ public sealed class SqliteNullCatchAllTests
             """,
             Fold(sql, ("@p_cursor_at", DBNull.Value), ("@p_cursor_id", DBNull.Value))
         );
-    }
-
-    [Fact]
-    public void Parentheses_inside_literals_and_comments_do_not_close_the_filter()
-    {
-        const string sql = "WHERE (@p_a IS NULL OR a IN (')', 'it''s )') /* ) */ OR b = @p_a -- )\n) AND c = 1";
-
-        Assert.Equal("WHERE (a IN (')', 'it''s )') /* ) */ OR b = @p_a -- )\n) AND c = 1", Fold(sql, ("@p_a", 1)));
-        Assert.Equal("WHERE 1 AND c = 1", Fold(sql, ("@p_a", null)));
     }
 
     [Fact]

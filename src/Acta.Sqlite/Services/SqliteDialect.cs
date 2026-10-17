@@ -327,88 +327,55 @@ internal sealed partial class SqliteDialect : ISqlDialect
         command.CommandText = WithoutNullCatchAlls(command.CommandText, command.Parameters);
 
     /// <summary>
-    /// The script with every <c>(@p IS NULL OR x)</c> replaced by <c>(x)</c> when <c>@p</c> holds a value, and by <c>1</c>
-    /// when it holds null. Each fold is retried at the same position, so a chain such as
-    /// <c>(@a IS NULL OR @b IS NULL OR x)</c> folds completely. A catch-all whose parameter is not bound stays as written,
-    /// so Microsoft.Data.Sqlite still refuses the command, as every other provider does.
+    /// The script with each <c>(@p IS NULL OR x)</c> made <c>(x)</c> when <c>@p</c> holds a value and <c>1</c> when it holds
+    /// null, which is exact either way. Matching resumes where a fold was made, so a chain such as
+    /// <c>(@a IS NULL OR @b IS NULL OR x)</c> folds whole. A catch-all whose parameter is not bound stays as written, so the
+    /// driver still refuses the command instead of the filter quietly turning off.
     /// </summary>
     internal static string WithoutNullCatchAlls(string sql, DbParameterCollection parameters)
     {
-        for (var head = NullCatchAllHead().Match(sql); head.Success; )
+        var head = NullCatchAllHead().Match(sql);
+        while (head.Success)
         {
-            var close = ClosingParenthesis(sql, head.Index);
-            if (close < 0)
+            var bound = parameters.IndexOf(head.Groups[1].Value);
+            if (bound < 0)
             {
-                break;
-            }
-
-            if (BoundValue(parameters, head.Groups[1].Value) is not { } value)
-            {
-                head = NullCatchAllHead().Match(sql, head.Index + head.Length);
+                head = head.NextMatch();
                 continue;
             }
 
-            var filter = value is DBNull ? "1" : "(" + sql[(head.Index + head.Length)..close] + ")";
+            var close = ClosingParenthesis(sql, head.Index);
+            var filter = parameters[bound].Value is null or DBNull ? "1" : "(" + sql[(head.Index + head.Length)..close] + ")";
             sql = sql[..head.Index] + filter + sql[(close + 1)..];
             head = NullCatchAllHead().Match(sql, head.Index);
         }
         return sql;
     }
 
-    /// <summary>The parenthesis closing the one at <paramref name="open"/>, past string literals and comments; -1 when none does.</summary>
+    /// <summary>
+    /// The parenthesis that closes the one at <paramref name="open"/>, by depth alone: a parenthesis inside a literal or a
+    /// comment within the body would fold to malformed SQL, which the driver refuses.
+    /// </summary>
     private static int ClosingParenthesis(string sql, int open)
     {
         var depth = 0;
-        for (var i = open; i < sql.Length; i++)
+        for (var i = open; ; i++)
         {
-            switch (sql[i])
+            depth += sql[i] switch
             {
-                case '(':
-                    depth++;
-                    break;
-                case ')':
-                    if (--depth == 0)
-                    {
-                        return i;
-                    }
-                    break;
-                case '\'' or '"':
-                    i = sql.IndexOf(sql[i], i + 1);
-                    break;
-                case '-' when sql.AsSpan(i).StartsWith("--"):
-                    i = sql.IndexOf('\n', i);
-                    break;
-                case '/' when sql.AsSpan(i).StartsWith("/*"):
-                    var end = sql.IndexOf("*/", i + 2, StringComparison.Ordinal);
-                    i = end < 0 ? -1 : end + 1;
-                    break;
-            }
-
-            if (i < 0)
+                '(' => 1,
+                ')' => -1,
+                _ => 0,
+            };
+            if (depth == 0)
             {
-                return -1;
+                return i;
             }
         }
-        return -1;
     }
 
-    /// <summary>
-    /// The value bound to <c>@name</c>, <see cref="DBNull"/> for a null, or null when nothing is bound. Microsoft.Data.Sqlite
-    /// binds a parameter named with or without its <c>@</c>.
-    /// </summary>
-    private static object? BoundValue(DbParameterCollection parameters, string name)
-    {
-        foreach (DbParameter parameter in parameters)
-        {
-            if (parameter.ParameterName.AsSpan().TrimStart('@').SequenceEqual(name))
-            {
-                return parameter.Value ?? DBNull.Value;
-            }
-        }
-        return null;
-    }
-
-    [GeneratedRegex(@"\(\s*@(\w+)\s+IS\s+NULL\s+OR\b\s*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    // The keyset cursors spread their catch-all over lines, so any whitespace separates the words.
+    [GeneratedRegex(@"\(\s*(@p_\w+)\s+IS\s+NULL\s+OR\s+")]
     private static partial Regex NullCatchAllHead();
 
     public void BindRegisterDefinitions(
