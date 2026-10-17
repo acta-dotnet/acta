@@ -65,9 +65,11 @@ internal sealed class WorkerExecutorHarness(
     /// <summary>Every completion the runner bound, in submission order.</summary>
     public IReadOnlyList<BoundCompletion> Submitted => _store.Submitted;
 
-    /// <summary>How many times the runner issued the start write.</summary>
     /// <summary>Every log line the runner wrote, for the arms whose whole contract is what they say.</summary>
     public IReadOnlyList<LogEntry> Log => _log.Entries;
+
+    /// <summary>The <see cref="System.Diagnostics.Stopwatch"/> timestamp of the scripted mid-wait attempt cancel, once it fired.</summary>
+    public long? AttemptCancelledAt { get; private set; }
 
     /// <summary>Whether the attempt ever reached <c>start_step</c>, i.e. whether the handler ran at all.</summary>
     public bool HandlerRan => _store.StartedSteps.Count > 0;
@@ -95,12 +97,18 @@ internal sealed class WorkerExecutorHarness(
         _entry = new InFlightJob(Job(), leaseRunway: null, _workerCts.Token);
         _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _entry.Cancel : null;
         _locks.OnRateRequest =
-            cancelAttemptDuringRateWait ? _entry.Cancel
+            cancelAttemptDuringRateWait ? CancelAttempt
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
         return await Executor(Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateName, deadlineAtUtc))
             .RunInlineAsync(_entry, _workerCts.Token);
+
+        void CancelAttempt()
+        {
+            AttemptCancelledAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            _entry.Cancel();
+        }
     }
 
     /// <summary>

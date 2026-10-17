@@ -729,7 +729,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 
 - The certified commit, A, is the last commit that touches code, schema, routines, tests, tools, anvil, project files, or a generated artifact. Every suite, the benchmark round, and the certification run against exactly A.
 - The tag commit, B, adds only documentation after A: the benchmark report, the release notes' evidence paragraph, and the release-notes header flip. `A..B` touches only `docs/`, `site/`, `README.md`, and `llms.txt`.
-- A defect found by any of A's runs abandons A: the fix makes a new candidate, and every piece of evidence is re-run against it.
+- A defect found by any of A's runs abandons A: the fix makes a new candidate, and every piece of evidence is re-run against it. A fix that touches only `tests/` keeps the evidence, since the certification and the benchmark round measured the same binaries: the fix becomes A without a re-run, and the release notes say what it changed.
 
 ### Certification
 

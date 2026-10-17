@@ -107,14 +107,15 @@ public sealed class WorkerExecutorRateAdmissionTests
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
-            rateWaitMilliseconds: 200,
+            rateWaitMilliseconds: ExecutionAdmission.RateTurnWaitMilliseconds,
             cancelAttemptDuringRateWait: true
         );
 
-        var started = System.Diagnostics.Stopwatch.StartNew();
         await harness.RunAsync();
 
-        Assert.True(started.ElapsedMilliseconds < 150, "the cancelled wait was slept out in full");
+        // Timed from the cancel, so the harness's own start-up never counts against the bound.
+        var sinceCancel = System.Diagnostics.Stopwatch.GetElapsedTime(Assert.NotNull(harness.AttemptCancelledAt));
+        Assert.True(sinceCancel < TimeSpan.FromMilliseconds(200), "the cancelled wait was slept out in full");
         Assert.False(harness.HandlerRan);
         Assert.Single(harness.RateRequests);
         Assert.NotEqual(CompletionKind.Succeeded, harness.Completion.Outcome);
@@ -146,15 +147,15 @@ public sealed class WorkerExecutorRateAdmissionTests
     [Fact]
     public async Task A_strict_deadline_that_passes_during_the_wait_cancels_before_the_handler()
     {
-        // The deadline was still ahead at admission but passes during the 200ms wait: the re-arm path
+        // The deadline is still ahead at admission but passes during the wait: the re-arm path
         // would have rechecked it on the next attempt, so the in-process path rechecks it after the
         // wait, settles as deadline exceeded without a handler run, and returns the slot it held.
         var harness = new WorkerExecutorHarness(
             concurrencyKey: "customer-1",
             concurrencyLimit: 4,
             rateLimit: "10/s",
-            rateWaitMilliseconds: 200,
-            deadlineAtUtc: DateTime.UtcNow.AddMilliseconds(100)
+            rateWaitMilliseconds: ExecutionAdmission.RateTurnWaitMilliseconds,
+            deadlineAtUtc: DateTime.UtcNow.AddMilliseconds(200)
         );
 
         var outcome = await harness.RunAsync();

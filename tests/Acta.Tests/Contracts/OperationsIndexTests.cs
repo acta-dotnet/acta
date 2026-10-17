@@ -288,7 +288,9 @@ public sealed partial class OperationsIndexTests
     )
     {
         var found = new List<(string, string, string)>();
-        foreach (var file in Directory.EnumerateFiles(operations, "*Endpoint*.cs", SearchOption.AllDirectories))
+        foreach (
+            var file in Directory.EnumerateFiles(operations, "*Endpoint*.cs", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+        )
         {
             var own = Path.GetRelativePath(operations, file).Split(Path.DirectorySeparatorChar) is [_, var folder, _] ? folder : null;
             foreach (var map in Parse(file).OfType<InvocationExpressionSyntax>())
