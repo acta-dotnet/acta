@@ -154,7 +154,7 @@ BEGIN
 
     /* Every completion takes the same steps, each skipped when no row needs it. Locks are taken lanes first, then
        awaited signal slots, own runtimes, schedules, parent latches, and parent runtimes, each in key order
-       (docs/internals/sql-execution-policy.md, "Lane lock order"). lane_id and parent_id never change. */
+       (docs/sql-execution-policy.md, "Lane lock order"). lane_id and parent_id never change. */
     PERFORM 1
     FROM {{schema}}.lanes l
     WHERE l.id IN (SELECT r.lane_id FROM {{schema}}.runtimes r WHERE r.job_id = ANY (p_job_ids))

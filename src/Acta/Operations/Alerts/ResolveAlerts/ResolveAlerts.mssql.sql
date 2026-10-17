@@ -6,7 +6,7 @@ BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
+    -- The job row first, then its alert rows (docs/sql-execution-policy.md, "Alert lock order").
     -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
     -- and re-checked; the held job row keeps a raise from adding one meanwhile.
     DECLARE @job_locked BIGINT;

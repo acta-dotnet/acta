@@ -40,7 +40,7 @@ LEFT JOIN {{schema}}.workers lw ON lw.id = r.leased_by_worker_id
 LEFT JOIN {{schema}}.lanes lane ON lane.id = r.lane_id
 -- A Blocked job waits behind its lane's running member, else behind its lowest-id older unfinished
 -- member. The head is applied as a value and then joined, so every read seeks: a join on the expression
--- itself scans jobs (docs/internals/sql-execution-policy.md for the lane hint).
+-- itself scans jobs (docs/sql-execution-policy.md for the lane hint).
 OUTER APPLY (
     SELECT COALESCE(
         (

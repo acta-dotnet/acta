@@ -14,13 +14,6 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
 {
     public override string ProviderToolName => "sqlite";
 
-    public override IReadOnlyList<string> HeaderExtraLines =>
-        [
-            "-- SQLite: no schema container ({{schema}} is the attached database, normally `main`);",
-            "--         DbKind.UtcInstant -> INTEGER (epoch milliseconds); DbKind.Byte/Short/Int/Long -> integer;",
-            "--         DbKind.BinaryPayload/Bytes -> BLOB; surrogate keys use AUTOINCREMENT rowids.",
-        ];
-
     public override bool InlineIntegerPrimaryKey => true;
 
     public override bool SupportsIndexInclude => false;

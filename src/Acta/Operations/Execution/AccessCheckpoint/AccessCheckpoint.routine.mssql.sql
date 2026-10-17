@@ -20,7 +20,7 @@ BEGIN
             AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
             THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
 
-        -- The slot's own lock serializes the writers of one slot to commit (docs/internals/sql-execution-policy.md,
+        -- The slot's own lock serializes the writers of one slot to commit (docs/sql-execution-policy.md,
         -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
         IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
             BEGIN

@@ -1,4 +1,4 @@
--- Lock order: the batch's lanes in id order, then job rows (docs/internals/sql-execution-policy.md,
+-- Lock order: the batch's lanes in id order, then job rows (docs/sql-execution-policy.md,
 -- "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_jobs
     @p_batch {{schema}}.enqueue_jobs_batch READONLY,
@@ -118,7 +118,7 @@ BEGIN
             END;
 
         -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
-        -- at a time in id order (docs/internals/sql-execution-policy.md, "Lane lock order").
+        -- at a time in id order (docs/sql-execution-policy.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
             name VARCHAR(128) NOT NULL,
@@ -216,7 +216,7 @@ BEGIN
             )
             BEGIN
                 -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
-                -- never deadlock (docs/internals/sql-execution-policy.md, "Deduplication lock").
+                -- never deadlock (docs/sql-execution-policy.md, "Deduplication lock").
                 DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
                 INSERT INTO @dedup_locks (name)
                 SELECT DISTINCT
@@ -412,7 +412,7 @@ BEGIN
 
         -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
         -- Both runtimes inserts force nested loops so the foreign-key checks seek their parent rows
-        -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
+        -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
         IF @laned = 0
             BEGIN
                 INSERT INTO {{schema}}.jobs (

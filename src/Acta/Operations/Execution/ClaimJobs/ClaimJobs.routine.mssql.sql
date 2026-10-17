@@ -86,7 +86,7 @@ BEGIN
                     AND r.next_run_at_utc IS NOT NULL
                     AND r.next_run_at_utc <= @due_now
                     /* The worker's watermark starts the seek past the ghost records earlier claims left at the band's
-                       head (docs/internals/sql-execution-policy.md, "Claim watermark"); NULL seeks from the head. */
+                       head (docs/sql-execution-policy.md, "Claim watermark"); NULL seeks from the head. */
                     AND r.next_run_at_utc >= ISNULL(@p_claim_from_utc, CAST('0001-01-01' AS DATETIME2(3)))
                     /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
                        the seek above stays as it was. */
@@ -140,7 +140,7 @@ BEGIN
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
         -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
-        -- order (docs/internals/sql-execution-policy.md); a skipped candidate is simply not claimed.
+        -- order (docs/sql-execution-policy.md); a skipped candidate is simply not claimed.
         FROM {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN @candidates c ON c.id = r.job_id
         INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = r.job_id;

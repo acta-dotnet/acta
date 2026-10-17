@@ -37,7 +37,7 @@ BEGIN
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
            reads no lane or parent and skips them all. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
-           each in key order (docs/internals/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
+           each in key order (docs/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
         -- Every join from the batch into jobs or runtimes seeks (same policy, "Locking reads seek").
         IF @p_plain = 1
             INSERT INTO @rows (job_id, execution_number)
@@ -158,7 +158,7 @@ BEGIN
             INNER JOIN {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
             WHERE (c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL) AND c.final_status IS NULL;
 
-        -- fk_results_jobs seeks each job by key (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
+        -- fk_results_jobs seeks each job by key (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
         SELECT d.job_id, d.execution_number, c.result_format_id, c.result, @now
         FROM @done d
@@ -413,7 +413,7 @@ BEGIN
                         AND d.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
                     -- Each latch slot's own lock, as wait_signal names it, in name order so two batches never deadlock on
-                    -- them (docs/internals/sql-execution-policy.md, "Slot locks").
+                    -- them (docs/sql-execution-policy.md, "Slot locks").
                     DECLARE @latch_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
                     INSERT INTO @latch_locks (name)
                     SELECT DISTINCT CONCAT(N'{{schema}}.slot:', p.parent_id, N':50:', p.latch_name) FROM #parents p;

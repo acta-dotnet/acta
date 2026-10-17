@@ -6,7 +6,7 @@ CREATE TEMP TABLE IF NOT EXISTS _retire_cancelled (job_id BIGINT NOT NULL, paren
 CREATE TEMP TABLE IF NOT EXISTS _retire_promoted (promoted INT NOT NULL) ON COMMIT DROP;
 
 -- The lanes of the definition's parked laned jobs, locked in id order before any job row
--- (docs/internals/sql-execution-policy.md, "Lane lock order").
+-- (docs/sql-execution-policy.md, "Lane lock order").
 INSERT INTO _retire_lanes (id)
 SELECT l.id
 FROM {{schema}}.lanes l

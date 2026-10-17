@@ -95,7 +95,10 @@ public sealed class SchemaCommandsTests : IDisposable
         Assert.Equal(0, SchemaAddCommand.Run(name: "join_sqlite", repoRoot: _root, now: Second));
 
         Assert.Equal(["M20260102000000_join_sqlite"], MigrationFiles.Stems(_root, "sqlite"));
-        Assert.Contains("full schema baseline", File.ReadAllText(MigrationFiles.PathFor(_root, "sqlite", "M20260102000000_join_sqlite")));
+        Assert.Contains(
+            "CREATE TABLE IF NOT EXISTS {{schema}}.jobs",
+            File.ReadAllText(MigrationFiles.PathFor(_root, "sqlite", "M20260102000000_join_sqlite"))
+        );
         Assert.Equal(["M20260101000000_init", "M20260102000000_join_sqlite"], MigrationFiles.Stems(_root, "pg"));
     }
 

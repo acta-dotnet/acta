@@ -13,7 +13,7 @@ BEGIN TRY
         @job_ref UNIQUEIDENTIFIER, @version INT;
     DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
 
-    /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    /* Lock order: the lane, then the job's rows (docs/sql-execution-policy.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
     SELECT @lane_id = r.lane_id
     FROM {{schema}}.runtimes r
@@ -69,7 +69,7 @@ BEGIN TRY
         END;
 
     /* A laned job resumes Ready unless another member runs or an older member is unfinished
-       (docs/internals/sql-execution-policy.md, "Lane lock order"). */
+       (docs/sql-execution-policy.md, "Lane lock order"). */
     IF
         @lane_id IS NOT NULL
         AND EXISTS (

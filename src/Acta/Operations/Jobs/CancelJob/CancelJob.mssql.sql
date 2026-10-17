@@ -12,7 +12,7 @@ BEGIN TRY
         @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @audit_level TINYINT,
         @parent_id BIGINT, @retention_seconds INT, @job_ref UNIQUEIDENTIFIER, @version INT, @lane_id BIGINT;
 
-    /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    /* Lock order: the lane, then the job's rows (docs/sql-execution-policy.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
     SELECT @lane_id = r.lane_id
     FROM {{schema}}.runtimes r
@@ -123,7 +123,7 @@ BEGIN TRY
                 BREAK;
 
             -- A restarted member can wait Blocked below a running one, so promote only while no member runs
-            -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+            -- (docs/sql-execution-policy.md, "Lane lock order").
             IF EXISTS (
                 SELECT 1
                 FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)

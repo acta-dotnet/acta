@@ -11,7 +11,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @modified DATETIME2(7);
 
-    -- The slot's own lock, as wait_signal names it (docs/internals/sql-execution-policy.md, "Slot locks").
+    -- The slot's own lock, as wait_signal names it (docs/sql-execution-policy.md, "Slot locks").
     DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':20:', @p_name);
     DECLARE @slot_lock_result INT;
     -- Positional: resource, mode, owner, timeout (-1 waits like any lock).

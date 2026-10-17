@@ -72,7 +72,7 @@ BEGIN
     END IF;
 
     -- Lock order: the stuck rows' lanes and the stranded lanes in id order, then the runtime rows
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds is
+    -- (docs/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds is
     -- skipped, and its stuck rows and repair wait for a later pass.
     v_candidates := v_stranded || ARRAY(
         SELECT r.lane_id

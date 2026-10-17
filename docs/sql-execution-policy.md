@@ -4,7 +4,7 @@ PostgreSQL and SQL Server execute the hot ledger mutations through installed ato
 everything else through embedded SQL and installed views; SQLite runs every mutation as embedded SQL
 inside a transaction the session owns.
 
-This is the execution policy referenced by [the design decisions](../design.md). The server providers
+This is the execution policy referenced by [the design decisions](design.md). The server providers
 each install fourteen routines: enqueue, claim, complete (one batch call for every completion shape), the step
 writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention. Every other
 operation, registration, alerts, locks and slots, the outbox inbox, and control verbs included, is embedded SQL
@@ -343,7 +343,7 @@ the lock.
 
 Tables, columns, indexes, constraints, durable types, routine bodies, and view bodies all belong in
 migrations. A body edit is a migration: `schema add` drafts the changed body into the
-next one (see [migrations](../../CONTRIBUTING.md#schema-migrations)), and nothing at bootstrap rewrites a body outside a
+next one (see [migrations](../CONTRIBUTING.md#schema-migrations)), and nothing at bootstrap rewrites a body outside a
 migration. A bootstrap that finds a newer migration in the database applies nothing, and the
 published script refuses such a database. Embedded query changes require no migration.
 
@@ -368,7 +368,7 @@ does not remove this executable compatibility obligation.
 Dashboard/API are the normal administration surface; human database access can be restricted without
 making Acta opaque. Ordinary SELECT inspection and the documented direct SQL enqueue recipes remain
 supported, including SSMS, DBeaver, and psql. SQL enqueue becomes visible to worker polling after commit;
-it does not itself send an application transport wake-up. See [SQL recipes](../operator-guide.md#sql-recipes).
+it does not itself send an application transport wake-up. See [SQL recipes](operator-guide.md#sql-recipes).
 This policy does not declare every internal routine an independently supported operator API or require
 an EXECUTE-only runtime account. Installed views remain the curated query surface; storage tables and
 custom payload encodings retain their existing compatibility and decoding limits.

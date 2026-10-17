@@ -172,7 +172,7 @@ BEGIN
 
     WHEN 8 THEN
         -- Unreferenced lanes, locked in id order skipping a lane an enqueue or settle holds, then
-        -- re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+        -- re-checked under the lock (docs/sql-execution-policy.md, "Lane lock order").
         SELECT array_agg(q.id) INTO v_ids FROM (
             SELECT l.id FROM {{schema}}.lanes l
             WHERE

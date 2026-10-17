@@ -18,7 +18,7 @@ BEGIN TRY
         END
 
     -- Each slot's key lock, named as enqueue_job names it, so an enqueue of a slot's key and this insert wait for
-    -- each other (docs/internals/sql-execution-policy.md, "Deduplication lock").
+    -- each other (docs/sql-execution-policy.md, "Deduplication lock").
     DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
     INSERT INTO @dedup_locks (name)
     SELECT DISTINCT CONCAT(N'{{schema}}.dedup:n', @p_namespace_id, N':', d.deduplication_key)

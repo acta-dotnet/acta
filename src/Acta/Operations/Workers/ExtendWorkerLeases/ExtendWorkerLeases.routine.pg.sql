@@ -52,7 +52,7 @@ BEGIN
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
        version bump: a lease refresh is not a claim-generation change. */
     -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-    -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
+    -- (docs/sql-execution-policy.md, "Explicit exceptions and maintenance").
     RETURN QUERY
     WITH held AS (
         SELECT h.job_id, h.execution_number

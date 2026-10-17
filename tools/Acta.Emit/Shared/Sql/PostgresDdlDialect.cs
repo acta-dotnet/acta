@@ -8,12 +8,6 @@ internal sealed class PostgresDdlDialect : SqlDdlDialect
 {
     public override string ProviderToolName => "pg";
 
-    public override IReadOnlyList<string> HeaderExtraLines =>
-        [
-            "-- PostgreSQL: snake_case identifiers stay unquoted; DbKind.UtcInstant → timestamptz;",
-            "--             DbKind.Byte → smallint + CHECK 0..255; DbKind.BinaryPayload → bytea.",
-        ];
-
     public override string CreateSchemaStatement => $"CREATE SCHEMA IF NOT EXISTS {SchemaPlaceholder};";
 
     public override string? Terminator => null;

@@ -83,7 +83,7 @@ BEGIN TRY
     );
     -- The job's alerts are read through ix_alerts_job without locks, which the held job row makes safe, then
     -- each identity row is locked through its identity key before the row and the delete locks the rest
-    -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+    -- (docs/sql-execution-policy.md, "Alert lock order").
     INSERT @alert_ids (id, namespace_id, deduplication_key)
     SELECT id, namespace_id, deduplication_key FROM {{schema}}.alerts WITH (FORCESEEK (ix_alerts_job (job_id)))
     WHERE job_id = @p_id;

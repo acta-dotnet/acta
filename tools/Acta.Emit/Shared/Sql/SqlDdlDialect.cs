@@ -13,8 +13,6 @@ internal abstract class SqlDdlDialect
 
     public abstract string ProviderToolName { get; }
 
-    public abstract IReadOnlyList<string> HeaderExtraLines { get; }
-
     /// <summary>
     /// The batch every migration opens with, or null. SQL Server's sets the session options a filtered index needs when it
     /// is created, so the runner and a DBA's client apply the migration under the same options.

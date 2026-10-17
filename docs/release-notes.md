@@ -1202,7 +1202,7 @@ invocation, with sweep iteration in the runtime. Client-side mapping and disposa
 trigger mutation replay. Routines reinstall on every start, and the two whose signature changed drop
 their retired form first, so the routine layer upgrades in place. The schema note at the end of this
 section says which databases must still be reprovisioned. See
-[SQL execution policy](./internals/sql-execution-policy.md).
+[SQL execution policy](./sql-execution-policy.md).
 
 Three things that compiled and ran on rc.1 now fail at worker startup, each with the job named:
 

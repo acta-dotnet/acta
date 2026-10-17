@@ -16,7 +16,7 @@ BEGIN TRY
         THROW 50000, 'raise_alert: unknown namespace', 1;
 
     -- The job row is locked before any of its alert rows, as purge_job and resolve_alerts lock it
-    -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
+    -- (docs/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
     -- job rather than deadlocking with it or landing an alert on the deleted job.
     DECLARE @v_job_ref UNIQUEIDENTIFIER;
     SELECT @v_job_ref = job_ref
@@ -50,7 +50,7 @@ BEGIN TRY
 
     -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
     -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
-    -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
+    -- first (docs/sql-execution-policy.md, "Alert lock order").
     UPDATE ja
     SET
         job_id = @p_job_id,

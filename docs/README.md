@@ -32,5 +32,5 @@ is the latest benchmark round, written by `anvil/Anvil.Bench`.
 ## Design and contributing
 
 Not needed to use Acta: [design principles and settled decisions](./design.md), the
-[SQL execution policy](./internals/sql-execution-policy.md), and
+[SQL execution policy](./sql-execution-policy.md), and
 [CONTRIBUTING.md](../CONTRIBUTING.md) for setup, migrations, naming, source layout, and releasing.

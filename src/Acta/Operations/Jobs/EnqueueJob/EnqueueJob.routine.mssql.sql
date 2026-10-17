@@ -100,7 +100,7 @@ BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
 
-        -- The lane row is the lane's mutex, held to commit (docs/internals/sql-execution-policy.md, "Lane
+        -- The lane row is the lane's mutex, held to commit (docs/sql-execution-policy.md, "Lane
         -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
         -- Ready versus Blocked is read after the lane lock, which a SNAPSHOT transaction (level 5) never sees.
         IF @lane IS NOT NULL
@@ -140,7 +140,7 @@ BEGIN
 
         IF @p_deduplication_key IS NOT NULL
             BEGIN
-                -- The key's own lock serializes enqueues of one key to commit (docs/internals/sql-execution-policy.md,
+                -- The key's own lock serializes enqueues of one key to commit (docs/sql-execution-policy.md,
                 -- "Deduplication lock"); the same name in enqueue_jobs.
                 DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
                     N'{{schema}}.dedup:',

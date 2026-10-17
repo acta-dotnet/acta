@@ -26,7 +26,7 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     -- The lanes of the definition's parked laned jobs, locked one row at a time in id order before any
-    -- job row (docs/internals/sql-execution-policy.md, "Lane lock order").
+    -- job row (docs/sql-execution-policy.md, "Lane lock order").
     INSERT INTO @lanes (id)
     SELECT DISTINCT r.lane_id
     FROM {{schema}}.runtimes r

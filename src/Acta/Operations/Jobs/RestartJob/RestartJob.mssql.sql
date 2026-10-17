@@ -13,7 +13,7 @@ BEGIN TRY
         @job_ref UNIQUEIDENTIFIER, @version INT, @parent_id BIGINT;
     DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
 
-    /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    /* Lock order: the lane, then the job's rows (docs/sql-execution-policy.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
     SELECT @lane_id = r.lane_id
     FROM {{schema}}.runtimes r
@@ -70,7 +70,7 @@ BEGIN TRY
         END;
 
     /* A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its
-       lane, the state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane
+       lane, the state the enqueue ancestor guard refuses (docs/sql-execution-policy.md, "Lane
        lock order"). Both walks run under the lane lock, which every enqueue into the lane takes too. */
     IF
         @lane_id IS NOT NULL
@@ -135,7 +135,7 @@ BEGIN TRY
         END;
 
     /* A laned job restarts Ready unless another member runs, or it was not running and an older
-       member is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order"). */
+       member is unfinished (docs/sql-execution-policy.md, "Lane lock order"). */
     IF
         @lane_id IS NOT NULL
         AND EXISTS (

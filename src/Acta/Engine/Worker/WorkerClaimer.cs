@@ -8,7 +8,7 @@ namespace Acta;
 /// and hands each to the executors through the registry's <c>Claimed</c> channel, which holds every permit so the
 /// hand-off never blocks. An empty claim sleeps until the claim horizon, cut short by a wakeup. While claims come
 /// back full, each starts at the previous one's watermark instead of each band's head, and at least once a second
-/// from the head again (docs/internals/sql-execution-policy.md, "Claim watermark").
+/// from the head again (docs/sql-execution-policy.md, "Claim watermark").
 /// </summary>
 internal sealed class WorkerClaimer(
     ExecutionOperations execution,

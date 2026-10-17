@@ -7,8 +7,6 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 {
     public override string ProviderToolName => "mssql";
 
-    public override IReadOnlyList<string> HeaderExtraLines => [];
-
     public override string? SessionOptions => "SET QUOTED_IDENTIFIER ON;\nSET ANSI_NULLS ON;\nGO";
 
     public override string CreateSchemaStatement =>

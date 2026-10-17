@@ -6,7 +6,7 @@ SELECT
     r.status_code AS from_status,
     r.version AS from_version,
     -- A laned job resumes Ready unless another member runs or an older member is unfinished
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). The immediate transaction is the
+    -- (docs/sql-execution-policy.md, "Lane lock order"). The immediate transaction is the
     -- lane's mutex on SQLite.
     CASE
         WHEN

@@ -69,7 +69,7 @@ BEGIN TRY
         )
     -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
     -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
-    -- order (docs/internals/sql-execution-policy.md); a skipped candidate is simply not claimed.
+    -- order (docs/sql-execution-policy.md); a skipped candidate is simply not claimed.
     FROM {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
     INNER JOIN candidates c ON c.id = r.job_id
     INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;

@@ -13,7 +13,7 @@ BEGIN TRY
         @job_ref UNIQUEIDENTIFIER, @version INT;
     DECLARE @lane_id BIGINT;
 
-    /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    /* Lock order: the lane, then the job's rows (docs/sql-execution-policy.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
     SELECT @lane_id = r.lane_id
     FROM {{schema}}.runtimes r
@@ -88,7 +88,7 @@ BEGIN TRY
     SET @version = @version + 1;
 
     /* A paused running member leaves its lane with no runner, so the lane hands on as a settle would:
-       to an older Blocked member, the one a restart left waiting (docs/internals/sql-execution-policy.md,
+       to an older Blocked member, the one a restart left waiting (docs/sql-execution-policy.md,
        "Lane lock order"). */
     DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
     WHILE @lane_id IS NOT NULL AND @from_status IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */) AND @promoted = 0

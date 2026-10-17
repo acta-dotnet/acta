@@ -51,7 +51,7 @@ namespace Acta;
     Usage = "dashboard_grid"
 )]
 // A job's own alerts: purge and resolve lock that set after the job row
-// (docs/internals/sql-execution-policy.md, "Alert lock order"), and the job-filtered alert list reads it.
+// (docs/sql-execution-policy.md, "Alert lock order"), and the job-filtered alert list reads it.
 // Namespace-level alerts carry no job and stay out.
 [DbIndex(Name = "ix_alerts_job", Columns = ["job_id", "id"], Filter = "job_id IS NOT NULL", Usage = "maintenance")]
 [DbCheck(Name = "ck_alerts_job_ref_pair", Sql = "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)")]

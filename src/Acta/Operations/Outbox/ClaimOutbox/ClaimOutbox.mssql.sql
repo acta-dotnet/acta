@@ -9,7 +9,7 @@ BEGIN TRY
     /* Recover expired Claimed leases to Pending, then claim the next due batch and stamp one token + lease
        from the database clock. Both statements run in one source transaction so the claim sees the recovered
        rows. UPDLOCK/READPAST/ROWLOCK lets replicas claim disjoint batches without blocking on each other. */
-    -- Both locking reads seek (docs/internals/sql-execution-policy.md, "Locking reads seek"), with no index named:
+    -- Both locking reads seek (docs/sql-execution-policy.md, "Locking reads seek"), with no index named:
     -- the producer owns this table's DDL and may rename its indexes.
     UPDATE o
     SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
