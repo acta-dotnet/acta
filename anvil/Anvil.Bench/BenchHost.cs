@@ -287,12 +287,9 @@ public static class ProviderConn
     }
 
     /// <summary>
-    /// Reads what a rate cell's meter did, on the database clock the event rows are stamped with: the
-    /// instant of every admitted attempt, plus the attempt and re-arm totals behind them. Each attempt of
-    /// the audited rate job writes one finished event, and a denied one also a rate-limited re-arm on the
-    /// same (job, execution) pair; a claim always takes a fresh execution number, so that pair names one
-    /// attempt. An admission's instant is its finished stamp less the handler's duration. Reads are scoped
-    /// to the rate job's definition, because the history seed writes finished events too.
+    /// Reads what a rate cell's meter did: the attempt and re-arm totals and the jobs behind them. Each attempt of
+    /// the audited rate job writes one finished event, and a denied one also a rate-limited re-arm. Reads are
+    /// scoped to the rate job's definition, because the history seed writes finished events too.
     /// </summary>
     public static async Task<BenchRateAdmissions> ReadRateAdmissionsAsync(string provider, string schema, CancellationToken ct)
     {
@@ -324,34 +321,7 @@ public static class ProviderConn
                 }
             }
 
-            await using var admitted = connection.CreateCommand();
-            admitted.CommandText = $"""
-                SELECT e.created_at_utc, e.duration_ms
-                  FROM {q}events e
-                 WHERE e.event_code = {finished}
-                   AND e.{rateJob}
-                   AND NOT EXISTS (
-                       SELECT 1
-                         FROM {q}events b
-                        WHERE b.job_id = e.job_id
-                          AND b.execution_number = e.execution_number
-                          AND b.event_code = {rescheduled}
-                          AND b.reason_code = {rateLimited})
-                """;
-            admitted.CommandTimeout = 0;
-            var instants = new List<DateTime>();
-            await using (var reader = await admitted.ExecuteReaderAsync(ct))
-            {
-                while (await reader.ReadAsync(ct))
-                {
-                    var durationMs = reader.IsDBNull(1) ? 0 : Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture);
-                    instants.Add(InstantOf(reader.GetValue(0)).AddMilliseconds(-durationMs));
-                }
-            }
-
-            instants.Sort();
-
-            return new BenchRateAdmissions(instants, attempts, rearms, jobs);
+            return new BenchRateAdmissions(attempts, rearms, jobs);
         }
         catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
         {
@@ -366,10 +336,6 @@ public static class ProviderConn
     // SQLite stores instants as epoch milliseconds; Postgres and SQL Server bind the DateTime.
     private static object Instant(string provider, DateTime utc) =>
         LocalDatabase.IsSqlite(provider) ? (long)(utc - DateTime.UnixEpoch).TotalMilliseconds : utc;
-
-    // The read side of the same split: SQLite hands back the epoch milliseconds it stored.
-    private static DateTime InstantOf(object value) =>
-        value is long ms ? DateTime.UnixEpoch.AddMilliseconds(ms) : Convert.ToDateTime(value, CultureInfo.InvariantCulture);
 
     private static string SeedHistorySql(string provider, string schema, int spreadDays)
     {
@@ -646,7 +612,7 @@ internal static class BenchHistory
 /// What a rate cell's meter left in the ledger: the instant of every admitted execution start, the
 /// attempts behind them (admitted plus denied), the rate re-arms, and how many jobs were metered.
 /// </summary>
-public sealed record BenchRateAdmissions(IReadOnlyList<DateTime> AdmittedAtUtc, long Attempts, long Rearms, long MeteredJobs);
+public sealed record BenchRateAdmissions(long Attempts, long Rearms, long MeteredJobs);
 
 /// <summary>Cumulative server locking counters at one instant; deltas around a cell are the cell's cost.</summary>
 public sealed record BenchLockStats(

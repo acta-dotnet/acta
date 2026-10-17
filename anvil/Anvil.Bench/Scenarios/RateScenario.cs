@@ -19,9 +19,9 @@ public sealed class RateScenario : IScenario
     // as an excess above that, never asserted: this is a measurement.
     private static readonly double[] ContractWindows = [1, 5, 10];
 
-    // Workers pick a changed rate up on their definition-policy reload, which runs on the safety poll
-    // interval (one second by default), so the cell waits that out before it enqueues anything.
-    private static readonly TimeSpan PolicyReloadGrace = TimeSpan.FromSeconds(3);
+    // A worker re-reads definition policy on its heartbeat, right after the lease renewal that stamps the
+    // heartbeat, so a heartbeat stamped after the override is followed within moments by a reload that sees it.
+    private static readonly TimeSpan PolicyReloadGrace = TimeSpan.FromSeconds(1);
 
     public string Name => "rate";
 
@@ -62,7 +62,7 @@ public sealed class RateScenario : IScenario
         var rateText = p.Rate ?? BenchHost.DeclaredRate;
         var rate = RateLimitSpec.Parse(rateText);
         await ApplyRateAsync(operations, rateText, ct);
-        await Task.Delay(PolicyReloadGrace, ct);
+        await WaitForPolicyReloadAsync(operations, ct);
         sink.Expect(p.Jobs + p.SideJobs);
 
         var (enqueue, releaseStamp) = await Workload.PreloadBehindHorizonAsync(
@@ -87,7 +87,10 @@ public sealed class RateScenario : IScenario
         var perSecond = 1000.0 / rate.IntervalMilliseconds;
         // How long a booked turn stays valid past its instant: a second, or the interval when longer.
         var validitySeconds = Math.Max(1.0, rate.IntervalMilliseconds / 1000.0);
-        var instants = admissions.AdmittedAtUtc;
+        // The meter admits an attempt just before its handler starts, so each metered handler's entry stamp, on the
+        // one monotonic clock every in-process host shares, is its admission instant. A finished event is stamped when
+        // its completion batch commits, which can trail the handler by the batch's wait, so events count, never time.
+        var instants = sink.MeteredSamples.Select(static s => DateTime.UnixEpoch + Stopwatch.GetElapsedTime(0, s.Entry)).Order().ToList();
         var span = instants.Count > 1 ? (instants[^1] - instants[0]).TotalSeconds : 0;
         var admittedPerSec = Stats.RatePerSec(instants.Count, span);
         var metered = Math.Max(1L, admissions.MeteredJobs);
@@ -160,6 +163,27 @@ public sealed class RateScenario : IScenario
         {
             throw new InvalidOperationException($"Setting the bench rate override to \"{rate ?? "none"}\" returned {outcome.Action}.");
         }
+    }
+
+    /// <summary>
+    /// Waits until every active bench worker has heartbeated since the override was written, then for that tick's
+    /// reload. Each worker's heartbeat is read after the override commits and must move past that reading, so the
+    /// wait compares the database's own stamps and never the bench's clock with the server's.
+    /// </summary>
+    private static async Task WaitForPolicyReloadAsync(IActaOperations operations, CancellationToken ct)
+    {
+        var query = new ListWorkersQuery(BenchHost.Namespace, WorkerStatusCode.Active, PageSize: 100);
+        var before = (await operations.Workers.ListAsync(query, ct)).Items.ToDictionary(w => w.WorkerRef, w => w.LastHeartbeatAtUtc);
+        while (true)
+        {
+            var now = (await operations.Workers.ListAsync(query, ct)).Items;
+            if (before.Count > 0 && before.All(b => now.Any(w => w.WorkerRef == b.Key && w.LastHeartbeatAtUtc > b.Value)))
+            {
+                break;
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(250), ct);
+        }
+        await Task.Delay(PolicyReloadGrace, ct);
     }
 
     /// <summary>
