@@ -358,8 +358,13 @@ internal sealed partial class WorkerFinalizer(
                 await WakeAsync(complete, job, ns, hostCt);
 
                 // Handler cancel: cancel the descendant subtree as follow-up transactions (the completion
-                // above already raised this job's own latch in-routine); maintenance is the crash backstop.
-                if (landed && completion.HandlerStatusCode == JobStatusCode.Cancelled)
+                // above already raised this job's own latch in-routine). A first try that committed and lost its
+                // answer reads back Cancelled, and the walk is idempotent, so it runs then too; a crash before the
+                // walk leaves the descendants to an operator cancel of this job, which walks them again.
+                if (
+                    completion.HandlerStatusCode == JobStatusCode.Cancelled
+                    && (landed || complete.FinalStatusCode == (byte)JobStatusCode.Cancelled)
+                )
                 {
                     if (apart)
                     {
@@ -419,10 +424,10 @@ internal sealed partial class WorkerFinalizer(
         }
         catch (Exception ex)
         {
-            // A hard stop leaves the rest to maintenance, as a failure does.
+            // A hard stop leaves the rest running, as a failure does, until an operator cancels the job again.
             if (!hostCt.IsCancellationRequested)
             {
-                log.LogError(ex, "WorkerRuntime: cancelling job {JobId}'s descendants failed; maintenance is the backstop.", jobId);
+                log.LogError(ex, "WorkerRuntime: cancelling job {JobId}'s descendants failed; cancel the job again to walk them.", jobId);
             }
         }
     }
