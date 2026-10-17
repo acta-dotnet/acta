@@ -6,7 +6,7 @@ SELECT
     c.name AS checkpoint_name,
     {{decode:job-checkpoint-kind:c.kind_code}} AS kind,
     c.kind_code,
-    {{decode:job-checkpoint-status:c.status_code}} AS state,
+    {{decode:job-checkpoint-status:c.status_code}} AS status,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id

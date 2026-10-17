@@ -149,7 +149,7 @@ static async Task ShowTimerStateAsync(ConceptLab lab, long jobId)
     await lab.ShowAsync(
         "Current durable timer checkpoint",
         """
-        SELECT checkpoint_name, kind, state, due_at_utc
+        SELECT checkpoint_name, kind, status, due_at_utc
         FROM checkpoints_view
         WHERE job_id = @jobId
         """,

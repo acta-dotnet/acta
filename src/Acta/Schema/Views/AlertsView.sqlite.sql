@@ -20,6 +20,7 @@ SELECT
     a.deduplication_key,
     a.occurrence_count,
     a.resolved_at_utc,
+    a.acknowledged_at_utc,
     a.retry_count,
     a.retry_after_utc,
     a.created_at_utc,

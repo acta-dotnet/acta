@@ -55,6 +55,7 @@ Schema and direct SQL:
 - Migrations are `M{yyyyMMddHHmmss}_{name}.sql`, and the `migrations` table is `name` and `applied_at_utc`. Routines and views ship inside migrations; the startup installer is gone.
 - `steps` and `schedules` are keyed by `(job_id, name)`: `steps_view` and `schedules_view` have no surrogate id, and a `ListSchedules` cursor from an earlier build is rejected.
 - Code columns carry no value-list CHECKs, so a new code value needs no migration.
+- `steps_view` and `checkpoints_view` name their decoded status `status`, as every other view does (was `state`), and `alerts_view` adds `acknowledged_at_utc`.
 - Only the hot paths stay routines: enqueue, claim, complete, steps, checkpoints, signals and sleep timers, meters, the heartbeat, recovery, and retention. On SQL Server the routines and table types are named verb first (`enqueue_job`, `enqueue_jobs`, `claim_jobs`, `acta.enqueue_tags_batch`, ...).
 - The SQLite outbox DDL uses `INTEGER PRIMARY KEY AUTOINCREMENT` and `STRICT`; a table from the earlier script keeps working.
 

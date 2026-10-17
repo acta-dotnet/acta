@@ -56,7 +56,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The waiting parent owns child-latch checkpoints and no worker",
     """
-    SELECT checkpoint_name, kind, state
+    SELECT checkpoint_name, kind, status
     FROM checkpoints_view
     WHERE job_id = @parentJobId
     ORDER BY checkpoint_name
@@ -91,7 +91,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Every child outcome is now latched on the parent",
     """
-    SELECT checkpoint_name, kind, state
+    SELECT checkpoint_name, kind, status
     FROM checkpoints_view
     WHERE job_id = @parentJobId
     ORDER BY checkpoint_name

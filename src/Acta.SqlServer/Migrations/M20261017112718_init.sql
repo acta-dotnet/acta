@@ -4256,6 +4256,7 @@ SELECT
     a.deduplication_key,
     a.occurrence_count,
     a.resolved_at_utc,
+    a.acknowledged_at_utc,
     a.retry_count,
     a.retry_after_utc,
     a.created_at_utc,
@@ -4276,7 +4277,7 @@ SELECT
     c.name AS checkpoint_name,
     CASE c.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
     c.kind_code,
-    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS state,
+    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS status,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -4527,7 +4528,7 @@ SELECT
     ns.name AS namespace,
     d.name AS job_name,
     s.name AS step_name,
-    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS state,
+    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS status,
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
@@ -4591,7 +4592,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261017091147_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261017112718_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017091147_init');
+VALUES ('M20261017112718_init');
 GO

@@ -109,7 +109,7 @@ static async Task ShowRestartStateAsync(ConceptLab lab, string title, long jobId
     await lab.ShowAsync(
         "Completed step state is retained across operator restart",
         """
-        SELECT step_name, state, attempt_number
+        SELECT step_name, status, attempt_number
         FROM steps_view
         WHERE job_id = @jobId
         """,

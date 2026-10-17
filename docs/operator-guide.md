@@ -130,17 +130,17 @@ SELECT job_id, job_ref, deduplication_key, status
  WHERE parent_id = :job_id;
 
 -- Suspended jobs and the signals they wait on.
-SELECT c.job_id, c.job_ref, c.checkpoint_name, c.state, c.value_format, c.value_text
+SELECT c.job_id, c.job_ref, c.checkpoint_name, c.status, c.value_format, c.value_text
   FROM acta.checkpoints_view c
   JOIN acta.jobs_view j ON j.job_id = c.job_id
  WHERE j.status = 'suspended' AND c.kind = 'signal';
 
 -- Durable step slots for a job: which named steps ran, their outcome, and retry state.
-SELECT step_name, state, attempt_number, next_retry_at_utc, reason, reason_message
+SELECT step_name, status, attempt_number, next_retry_at_utc, reason, reason_message
   FROM acta.steps_view WHERE job_id = :job_id ORDER BY step_name;
 
 -- Durable sleep timers for a job: when each named wait is due.
-SELECT checkpoint_name, state, due_at_utc
+SELECT checkpoint_name, status, due_at_utc
   FROM acta.checkpoints_view
  WHERE job_id = :job_id AND kind = 'timer'
  ORDER BY due_at_utc;
@@ -1192,7 +1192,7 @@ Follow with the event timeline for the specific `job_id`.
 ### Suspended Jobs Waiting On Signals
 
 ```sql
-SELECT c.job_id, c.job_ref, c.namespace, c.job_name, c.checkpoint_name AS signal_name, c.state, c.value_format, c.value_text, c.modified_at_utc
+SELECT c.job_id, c.job_ref, c.namespace, c.job_name, c.checkpoint_name AS signal_name, c.status, c.value_format, c.value_text, c.modified_at_utc
   FROM acta.checkpoints_view c
   JOIN acta.jobs_view j ON j.job_id = c.job_id
  WHERE j.status = 'suspended'
@@ -1207,7 +1207,7 @@ values stay opaque.
 ### Durable Sleeps And Timers
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, checkpoint_name AS timer_name, state, due_at_utc
+SELECT job_id, job_ref, namespace, job_name, checkpoint_name AS timer_name, status, due_at_utc
   FROM acta.checkpoints_view
  WHERE kind = 'timer'
  ORDER BY due_at_utc, job_id;
@@ -1218,7 +1218,7 @@ Timers are job-internal slots. The owning job becomes claimable when the timer i
 ### Step State
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, step_name, state, attempt_number, next_retry_at_utc, reason, reason_message, result_format, result_text
+SELECT job_id, job_ref, namespace, job_name, step_name, status, attempt_number, next_retry_at_utc, reason, reason_message, result_format, result_text
   FROM acta.steps_view
  WHERE job_id = :job_id
  ORDER BY step_name;

@@ -169,7 +169,7 @@ static async Task ShowSignalStateAsync(ConceptLab lab, long jobId)
     await lab.ShowAsync(
         "Current durable approval checkpoint",
         """
-        SELECT checkpoint_name, kind, state, value_format
+        SELECT checkpoint_name, kind, status, value_format
         FROM checkpoints_view
         WHERE job_id = @jobId
         """,

@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261017091147_init')
+        WHERE name NOT IN ('M20261017112718_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261017091147_init =====
+-- ===== BEGIN M20261017112718_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -3705,6 +3705,7 @@ SELECT
     a.deduplication_key,
     a.occurrence_count,
     a.resolved_at_utc,
+    a.acknowledged_at_utc,
     a.retry_count,
     a.retry_after_utc,
     a.created_at_utc,
@@ -3724,7 +3725,7 @@ SELECT
     c.name AS checkpoint_name,
     CASE c.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
     c.kind_code,
-    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS state,
+    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS status,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -3959,7 +3960,7 @@ SELECT
     ns.name AS namespace,
     d.name AS job_name,
     s.name AS step_name,
-    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS state,
+    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS status,
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
@@ -4018,10 +4019,10 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017091147_init')
+VALUES ('M20261017112718_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017091147_init =====
+-- ===== END M20261017112718_init =====
 
 COMMIT;
 

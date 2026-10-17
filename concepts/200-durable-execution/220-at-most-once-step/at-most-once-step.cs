@@ -92,7 +92,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The durable start exists, but no completion was recorded",
     """
-    SELECT step_name, state, attempt_number, reason
+    SELECT step_name, status, attempt_number, reason
     FROM steps_view
     WHERE job_id = @jobId
     """,
@@ -115,7 +115,7 @@ while (true)
 await lab.ShowAsync(
     "On replay Acta refuses a second body invocation",
     """
-    SELECT step_name, state, attempt_number, reason, reason_message
+    SELECT step_name, status, attempt_number, reason, reason_message
     FROM steps_view
     WHERE job_id = @jobId
     """,

@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261017091147_init')
+    WHERE name NOT IN ('M20261017112718_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261017091147_init =====
+-- ===== BEGIN M20261017112718_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -459,6 +459,7 @@ SELECT
     a.deduplication_key,
     a.occurrence_count,
     a.resolved_at_utc,
+    a.acknowledged_at_utc,
     a.retry_count,
     a.retry_after_utc,
     a.created_at_utc,
@@ -479,7 +480,7 @@ SELECT
     c.name AS checkpoint_name,
     CASE c.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
     c.kind_code,
-    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS state,
+    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS status,
     c.status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -718,7 +719,7 @@ SELECT
     ns.name AS namespace,
     d.name AS job_name,
     s.name AS step_name,
-    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS state,
+    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS status,
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
@@ -779,10 +780,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261017091147_init')
+VALUES ('M20261017112718_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017091147_init =====
+-- ===== END M20261017112718_init =====
 
 COMMIT;
 

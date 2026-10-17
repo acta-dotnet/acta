@@ -4,7 +4,7 @@ SELECT
     ns.name AS namespace,
     d.name AS job_name,
     s.name AS step_name,
-    {{decode:job-step-status:s.status_code}} AS state,
+    {{decode:job-step-status:s.status_code}} AS status,
     s.status_code,
     s.attempt_number,
     s.next_retry_at_utc,
