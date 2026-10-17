@@ -57,7 +57,7 @@ internal sealed class WorkerEntity : IEntity<int>
 
     /// <summary>
     /// Worker lifecycle status, written by the <c>StartWorker</c> handler at startup. Crash recovery
-    /// flips stale rows to <c>Dead</c> when <see cref="LastHeartbeatAtUtc"/> falls past
+    /// flips stale rows to <c>Dead</c> when <see cref="LastSeenAtUtc"/> falls past
     /// <c>JobsOptions.WorkerDeadAfter</c>, alongside its stuck-job lease reclaim.
     /// </summary>
     [DbColumn("status_code")]
@@ -109,7 +109,7 @@ internal sealed class WorkerEntity : IEntity<int>
     /// <c>JobsOptions.HeartbeatInterval</c> by <c>WorkerHeartbeat</c> while the worker runs.
     /// </summary>
     [DbColumn("last_seen_at_utc", DbKind.UtcInstant)]
-    public DateTime LastHeartbeatAtUtc { get; set; }
+    public DateTime LastSeenAtUtc { get; set; }
 
     /// <summary>
     /// Process start time.

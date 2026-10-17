@@ -273,7 +273,7 @@
                 <td><JobRef value={worker.workerRef} href={routes.worker(worker.workerRef, { namespace: worker.jobNamespace })} /></td>
                 <td><StatusBadge status={worker.status} /></td>
                 <td>{worker.jobNamespace}</td>
-                <td><RelativeTime value={worker.lastHeartbeatAtUtc} /></td>
+                <td><RelativeTime value={worker.lastSeenAtUtc} /></td>
               </tr>
             {/each}
           </tbody>

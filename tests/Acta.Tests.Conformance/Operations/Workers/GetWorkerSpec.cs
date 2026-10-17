@@ -43,7 +43,7 @@ public sealed class GetWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(".NET detail", worker.DotnetVersion);
         Assert.Equal(4242, worker.ProcessId);
         Assert.Equal(12, worker.MaxConcurrency);
-        Assert.True(worker.LastHeartbeatAtUtc >= worker.StartedAtUtc);
+        Assert.True(worker.LastSeenAtUtc >= worker.StartedAtUtc);
         Assert.True(worker.ModifiedAtUtc >= worker.StartedAtUtc);
     }
 

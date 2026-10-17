@@ -49,10 +49,10 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         var workerA = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == nsA).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerA);
         Assert.Equal(WorkerStatusCode.Active, workerA!.Status);
-        var agedAtA = workerA.LastHeartbeatAtUtc.AddHours(-1);
+        var agedAtA = workerA.LastSeenAtUtc.AddHours(-1);
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == workerA.Id)
-            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = agedAtA }, ct);
+            .UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAtA }, ct);
 
         // A worker in a SECOND namespace: StartWorker upserts the namespace and registers the worker.
         var nsBName = Unique("mark-dead-ns-b");
@@ -70,9 +70,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             ct
         );
         var agedAtB = DateTime.UtcNow.AddHours(-1);
-        await Db.From<WorkerEntity>()
-            .Where(w => w.Id == workerBId)
-            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = agedAtB }, ct);
+        await Db.From<WorkerEntity>().Where(w => w.Id == workerBId).UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAtB }, ct);
 
         // A cleanly-stopped worker that must ALSO survive, aged past the same window. The sweep matches on
         // a live status AND a stale heartbeat, so aging this row leaves its status as the only thing
@@ -94,7 +92,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(nsA, stoppedWorkerId, ct);
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == stoppedWorkerId)
-            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
+            .UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
 
         // A worker that went silent mid-drain, killed or past its host's shutdown budget: nothing but this
         // sweep ever moves a Draining row, so it must be reaped like an Active one.
@@ -114,7 +112,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == drainingWorkerId)
             .UpdateOnlyAsync(
-                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) },
+                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastSeenAtUtc = DateTime.UtcNow.AddHours(-1) },
                 ct
             );
 

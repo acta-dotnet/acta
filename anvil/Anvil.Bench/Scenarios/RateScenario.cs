@@ -173,11 +173,11 @@ public sealed class RateScenario : IScenario
     private static async Task WaitForPolicyReloadAsync(IActaOperations operations, CancellationToken ct)
     {
         var query = new ListWorkersQuery(BenchHost.Namespace, WorkerStatusCode.Active, PageSize: 100);
-        var before = (await operations.Workers.ListAsync(query, ct)).Items.ToDictionary(w => w.WorkerRef, w => w.LastHeartbeatAtUtc);
+        var before = (await operations.Workers.ListAsync(query, ct)).Items.ToDictionary(w => w.WorkerRef, w => w.LastSeenAtUtc);
         while (true)
         {
             var now = (await operations.Workers.ListAsync(query, ct)).Items;
-            if (before.Count > 0 && before.All(b => now.Any(w => w.WorkerRef == b.Key && w.LastHeartbeatAtUtc > b.Value)))
+            if (before.Count > 0 && before.All(b => now.Any(w => w.WorkerRef == b.Key && w.LastSeenAtUtc > b.Value)))
             {
                 break;
             }

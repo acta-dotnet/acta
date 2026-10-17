@@ -172,9 +172,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // sweep reaches every namespace, so its window stays far above the few minutes other specs age
         // their live workers by. The cleanly-stopped row is untouched by that sweep and stays Stopped.
         var agedAt = DateTime.UtcNow.AddHours(-1);
-        await Db.From<WorkerEntity>()
-            .Where(w => w.Id == worker.Id)
-            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = agedAt }, ct);
+        await Db.From<WorkerEntity>().Where(w => w.Id == worker.Id).UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAt }, ct);
         await workers.MarkDeadWorkersAsync(1800, ct);
         Assert.Equal(
             WorkerStatusCode.Stopped,

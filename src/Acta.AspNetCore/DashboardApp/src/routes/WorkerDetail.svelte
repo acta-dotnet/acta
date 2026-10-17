@@ -95,8 +95,8 @@
           <h2 id="worker-status-heading">Status</h2>
           <p>{workerStatusInterpretation(worker.status)}</p>
           <dl class="detail-readonly detail-readonly-grid">
-            <div><dt>Heartbeat lag</dt><dd><RelativeTime value={worker.lastHeartbeatAtUtc} /></dd></div>
-            <div><dt>Exact heartbeat</dt><dd>{displayFormatter.timestamp(worker.lastHeartbeatAtUtc)}</dd></div>
+            <div><dt>Heartbeat lag</dt><dd><RelativeTime value={worker.lastSeenAtUtc} /></dd></div>
+            <div><dt>Exact heartbeat</dt><dd>{displayFormatter.timestamp(worker.lastSeenAtUtc)}</dd></div>
             <div><dt>Started</dt><dd>{displayFormatter.timestamp(worker.startedAtUtc)}</dd></div>
             <div><dt>Last row change</dt><dd>{displayFormatter.timestamp(worker.modifiedAtUtc)}</dd></div>
           </dl>

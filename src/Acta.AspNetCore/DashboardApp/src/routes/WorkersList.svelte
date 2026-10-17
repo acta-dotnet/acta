@@ -24,7 +24,7 @@
     dotnetVersion: string | null;
     processId: number | null;
     maxConcurrency: number;
-    lastHeartbeatAtUtc: string;
+    lastSeenAtUtc: string;
     startedAtUtc: string;
   }
 
@@ -53,14 +53,14 @@
     { key: 'dotnetVersion', header: '.NET', class: 'mono mobile-hide' },
     { key: 'processId', header: 'PID', class: 'mono mobile-hide', align: 'right' },
     { key: 'maxConcurrency', header: 'Concurrency', class: 'mono mobile-hide', align: 'right' },
-    { key: 'lastHeartbeatAtUtc', header: 'Last heartbeat' },
+    { key: 'lastSeenAtUtc', header: 'Last heartbeat' },
     { key: 'startedAtUtc', header: 'Started', class: 'mobile-hide' }
   ];
 
   function isStale(worker: WorkerRow, nowMs: number): boolean {
     return (
       (worker.status === 'active' || worker.status === 'draining') &&
-      nowMs - new Date(worker.lastHeartbeatAtUtc).getTime() > 180000
+      nowMs - new Date(worker.lastSeenAtUtc).getTime() > 180000
     );
   }
 </script>
@@ -85,7 +85,7 @@
       <JobRef value={w.workerRef} href={routes.worker(w.workerRef, { namespace: $scope })} copy />
     {/snippet}
     {#snippet statusCell(w: WorkerRow)}<StatusBadge status={w.status} />{/snippet}
-    {#snippet lastSeenCell(w: WorkerRow)}<RelativeTime value={w.lastHeartbeatAtUtc} />{/snippet}
+    {#snippet lastSeenCell(w: WorkerRow)}<RelativeTime value={w.lastSeenAtUtc} />{/snippet}
     {#snippet startedCell(w: WorkerRow)}<RelativeTime value={w.startedAtUtc} />{/snippet}
     {#snippet concurrencyCell(w: WorkerRow)}{displayFormatter.number(w.maxConcurrency)}{/snippet}
 
@@ -102,7 +102,7 @@
       emptyText={activeChips.length > 0
         ? 'No workers match these ' + displayFormatter.number(activeChips.length) + ' filters.'
         : 'No workers registered here. Confirm a worker process is running and configured for this namespace.'}
-      cells={{ workerRef: workerCell, status: statusCell, maxConcurrency: concurrencyCell, lastHeartbeatAtUtc: lastSeenCell, startedAtUtc: startedCell }}
+      cells={{ workerRef: workerCell, status: statusCell, maxConcurrency: concurrencyCell, lastSeenAtUtc: lastSeenCell, startedAtUtc: startedCell }}
       rowClass={(w: WorkerRow) => (w.status === 'dead' ? 'trouble' : isStale(w, $now) ? 'stale' : '')} />
   </div>
 </Page>

@@ -184,7 +184,7 @@ public sealed class AnvilStateReader(
                 DisplayMessage: "This database worker was not started by the current Anvil process.",
                 ProcessStatus: "external",
                 DatabaseStatus: row.Status.ToString().ToLowerInvariant(),
-                LastHeartbeatAtUtc: row.LastHeartbeatAtUtc,
+                LastSeenAtUtc: row.LastSeenAtUtc,
                 ProcessExitedAtUtc: null,
                 ExitCode: null,
                 ApproximateRecoveryRemainingSeconds: null,
@@ -230,7 +230,7 @@ public sealed class AnvilStateReader(
             displayState = "crashed";
             title = "CRASHED";
             message = "The process has stopped, but Acta is still honoring its current leases.";
-            var expectedRecoveryAt = row!.LastHeartbeatAtUtc + workerDeadAfter;
+            var expectedRecoveryAt = row!.LastSeenAtUtc + workerDeadAfter;
             recoveryRemaining = Math.Max(0, (int)Math.Ceiling((expectedRecoveryAt - utcNow).TotalSeconds));
         }
         else if (unexpectedExit && dbStatus == WorkerStatusCode.Dead)
@@ -261,7 +261,7 @@ public sealed class AnvilStateReader(
             DisplayMessage: message,
             ProcessStatus: process.ProcessStatus,
             DatabaseStatus: row?.Status.ToString().ToLowerInvariant() ?? (databaseAvailable ? "unregistered" : "unavailable"),
-            LastHeartbeatAtUtc: row?.LastHeartbeatAtUtc,
+            LastSeenAtUtc: row?.LastSeenAtUtc,
             ProcessExitedAtUtc: process.ExitedAtUtc,
             ExitCode: process.ExitCode,
             ApproximateRecoveryRemainingSeconds: recoveryRemaining,
@@ -350,7 +350,7 @@ public sealed record AnvilWorker(
     string DisplayMessage,
     string ProcessStatus,
     string DatabaseStatus,
-    DateTime? LastHeartbeatAtUtc,
+    DateTime? LastSeenAtUtc,
     DateTime? ProcessExitedAtUtc,
     int? ExitCode,
     int? ApproximateRecoveryRemainingSeconds,

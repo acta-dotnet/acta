@@ -553,7 +553,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                 DeploymentVersion = "test",
                 Host = "test-host",
                 MaxConcurrency = maxConcurrency,
-                LastHeartbeatAtUtc = DateTime.UtcNow,
+                LastSeenAtUtc = DateTime.UtcNow,
             };
 
         Assert.True(await Db.From<WorkerEntity>().InsertAsync<int>(NewWorker(4), ct) > 0);

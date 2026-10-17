@@ -20,7 +20,7 @@ test('worker support summary carries durable identity and version evidence', () 
     dotnetVersion: '.NET 10',
     processId: 4242,
     maxConcurrency: 8,
-    lastHeartbeatAtUtc: '2026-07-14T08:00:00Z',
+    lastSeenAtUtc: '2026-07-14T08:00:00Z',
     startedAtUtc: '2026-07-14T07:00:00Z',
     modifiedAtUtc: '2026-07-14T08:00:00Z'
   };

@@ -8,7 +8,7 @@ export interface WorkerDetailShape {
   dotnetVersion: string | null;
   processId: number | null;
   maxConcurrency: number;
-  lastHeartbeatAtUtc: string;
+  lastSeenAtUtc: string;
   startedAtUtc: string;
   modifiedAtUtc: string;
 }
@@ -38,7 +38,7 @@ export function workerSupportSummary(worker: WorkerDetailShape): string {
     `Engine: ${worker.engineVersion ?? 'unknown'}`,
     `.NET: ${worker.dotnetVersion ?? 'unknown'}`,
     `Concurrency: ${worker.maxConcurrency}`,
-    `Last heartbeat: ${worker.lastHeartbeatAtUtc}`,
+    `Last heartbeat: ${worker.lastSeenAtUtc}`,
     `Started: ${worker.startedAtUtc}`
   ].join('\n');
 }

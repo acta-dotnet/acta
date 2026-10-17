@@ -30,7 +30,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var workerBefore = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerBefore);
         var workerId = workerBefore!.Id;
-        var lastSeenBefore = workerBefore.LastHeartbeatAtUtc;
+        var lastSeenBefore = workerBefore.LastSeenAtUtc;
 
         var enqueued = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
@@ -60,7 +60,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
 
         var workerAfter = await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerAfter);
-        Assert.True(workerAfter!.LastHeartbeatAtUtc > lastSeenBefore, "heartbeat should advance last_seen_at_utc");
+        Assert.True(workerAfter!.LastSeenAtUtc > lastSeenBefore, "heartbeat should advance last_seen_at_utc");
 
         // A live (heartbeat-fresh) lease is not stuck - reclaim finds nothing and leaves it claimed.
         Assert.Equal(0, (await Services.GetRequiredService<ExecutionOperations>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);

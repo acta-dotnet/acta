@@ -375,7 +375,7 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
         Assert.Contains($"\"workerRef\":\"{knownRef}\"", body);
         Assert.Contains("\"jobNamespace\":\"billing\"", body);
-        Assert.Contains("\"lastHeartbeatAtUtc\":", body);
+        Assert.Contains("\"lastSeenAtUtc\":", body);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }

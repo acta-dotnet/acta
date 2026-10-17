@@ -856,13 +856,13 @@ sealed class Acta.GetJobExplanationAction
     System.String Description { get;init; }
     System.String Kind { get;init; }
 sealed class Acta.GetJobExplanationLease
-    .ctor(System.Int32 WorkerId, System.String WorkerName, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastHeartbeatAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
+    .ctor(System.Int32 WorkerId, System.String WorkerName, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastSeenAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
     System.Boolean Expired { get;init; }
     System.Boolean WorkerStale { get;init; }
     System.Int32 WorkerId { get;init; }
     System.Nullable<Acta.WorkerRef> WorkerRef { get;init; }
     System.Nullable<System.DateTime> ExpiresAtUtc { get;init; }
-    System.Nullable<System.DateTime> WorkerLastHeartbeatAtUtc { get;init; }
+    System.Nullable<System.DateTime> WorkerLastSeenAtUtc { get;init; }
     System.String RecoveryExpectation { get;init; }
     System.String WorkerName { get;init; }
 sealed class Acta.GetJobExplanationResponse
@@ -1012,10 +1012,10 @@ sealed class Acta.GetTenantResponse
     System.String DisplayName { get;init; }
     System.String TenantName { get;init; }
 sealed class Acta.GetWorkerResponse
-    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastSeenAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.WorkerRef WorkerRef { get;init; }
     Acta.WorkerStatusCode Status { get;init; }
-    System.DateTime LastHeartbeatAtUtc { get;init; }
+    System.DateTime LastSeenAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.DateTime StartedAtUtc { get;init; }
     System.Int32 MaxConcurrency { get;init; }
@@ -1906,10 +1906,10 @@ sealed class Acta.ListTenantsResponse
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed class Acta.ListWorkersItem
-    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastSeenAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.WorkerRef WorkerRef { get;init; }
     Acta.WorkerStatusCode Status { get;init; }
-    System.DateTime LastHeartbeatAtUtc { get;init; }
+    System.DateTime LastSeenAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.DateTime StartedAtUtc { get;init; }
     System.Int32 MaxConcurrency { get;init; }

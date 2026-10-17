@@ -8,7 +8,7 @@ SELECT TOP (@p_take)
     w.dotnet_version,
     w.process_id,
     w.max_concurrency,
-    w.last_seen_at_utc AS last_heartbeat_at_utc,
+    w.last_seen_at_utc,
     w.created_at_utc AS started_at_utc,
     w.modified_at_utc,
     w.worker_ref

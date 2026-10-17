@@ -237,7 +237,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         await Db.From<WorkerEntity>()
             .Where(w => w.Id == w2Id)
             .UpdateOnlyAsync(
-                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-2) },
+                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastSeenAtUtc = DateTime.UtcNow.AddMinutes(-2) },
                 ct
             );
 

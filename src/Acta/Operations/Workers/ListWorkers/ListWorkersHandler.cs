@@ -37,7 +37,7 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
         var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
             rows,
             total,
-            static item => [item.LastHeartbeatAtUtc, item.WorkerId]
+            static item => [item.LastSeenAtUtc, item.WorkerId]
         );
         return new ListWorkersResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }

@@ -18,7 +18,7 @@ public sealed record ListWorkersItem(
     string? DotnetVersion,
     int? ProcessId,
     int MaxConcurrency,
-    DateTime LastHeartbeatAtUtc,
+    DateTime LastSeenAtUtc,
     DateTime StartedAtUtc,
     DateTime ModifiedAtUtc
 );

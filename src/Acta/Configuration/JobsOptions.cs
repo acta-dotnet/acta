@@ -27,7 +27,7 @@ public sealed class JobsOptions
 
     /// <summary>
     /// How long terminal <c>JobWorker</c> rows - both <c>Stopped</c> and <c>Dead</c> - are retained
-    /// past <c>LastHeartbeatAtUtc</c> before <c>sys.retention</c> sweeps them. Default 90 days.
+    /// past <c>LastSeenAtUtc</c> before <c>sys.retention</c> sweeps them. Default 90 days.
     /// </summary>
     public TimeSpan WorkerRetention { get; set; } = TimeSpan.FromDays(90);
 

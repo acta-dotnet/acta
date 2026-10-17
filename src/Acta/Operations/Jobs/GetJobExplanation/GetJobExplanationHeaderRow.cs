@@ -21,7 +21,7 @@ internal sealed record GetJobExplanationHeaderRow(
     DateTime? LeaseExpiresAtUtc,
     string? WorkerDeploymentVersion,
     WorkerStatusCode? WorkerStatus,
-    DateTime? WorkerLastHeartbeatAtUtc,
+    DateTime? WorkerLastSeenAtUtc,
     EventReasonCode? LatestReasonCode,
     string? LatestReasonMessage,
     int? LastExecutedByWorkerId,

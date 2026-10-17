@@ -291,7 +291,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
             Blank(h.WorkerDeploymentVersion),
             h.LeaseExpiresAtUtc,
             expired,
-            h.WorkerLastHeartbeatAtUtc,
+            h.WorkerLastSeenAtUtc,
             stale,
             recovery,
             h.LeasedByWorkerRef is { } leaseRef ? new WorkerRef(leaseRef) : null
