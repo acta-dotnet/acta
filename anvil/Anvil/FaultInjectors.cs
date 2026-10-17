@@ -294,9 +294,11 @@ public sealed class FaultInjectors(
             return;
         }
 
+        // About 4 ms on both servers. WAITFOR takes a datetime, whose 1/300 s steps have no 2 ms: '.003' is the 3.33 ms
+        // step and runs about 4.1 ms with scheduling, so PostgreSQL sleeps 4 ms to hold its transactions as long.
         await using var command = transaction.Connection!.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = LocalDatabase.IsSqlServer(database.Provider) ? "WAITFOR DELAY '00:00:00.002'" : "SELECT pg_sleep(0.002)";
+        command.CommandText = LocalDatabase.IsSqlServer(database.Provider) ? "WAITFOR DELAY '00:00:00.003'" : "SELECT pg_sleep(0.004)";
         await command.ExecuteNonQueryAsync(ct);
     }
 
