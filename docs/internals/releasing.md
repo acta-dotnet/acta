@@ -50,9 +50,6 @@ certified commit.
 - The packed packages deploy: `tests/PackageSmoke/run.ps1` on the final feed, then
   `tests/DeploymentSmoke/run.ps1` on the same feed for the dashboard behind a real proxy with a path
   base and an authorization policy. Its README says what the run does not cover.
-- Load with maintenance on: a `tests/HardeningSoak` run per server provider with autovacuum on and
-  retention sweeping under the workload, kept with its progress sidecar. Its README says how to read
-  the numbers; they are not a benchmark round.
 
 ## Frozen contracts
 
