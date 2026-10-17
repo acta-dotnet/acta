@@ -123,12 +123,12 @@ builder.Services.UseActa(j =&gt;
       <p class="record">What changes</p>
       <h2>The differences you will feel in week one.</h2>
       <ul class="changes">
-        <li><b>Retries run for days, not hours.</b> Hangfire's default policy retries 10 times over roughly 4.5 hours; Acta's default is 15 attempts on <code>min(1m x 2^(n-1), 1d)</code> with about 10% jitter, a horizon of about 4.4 days with at most one retry per day at the tail. Both are tunable; the defaults state what each expects a retry to outlive. A job that used to be dead by Sunday evening still has attempts left on Monday morning. Tune <code>MaxAttempts</code> and backoff if you want the old horizon.</li>
-        <li><b>Typed inputs replace serialized expressions.</b> The input is a record you declare and version, not a captured lambda. What was enqueued is readable on the job row, and a failed job restarts with its original input.</li>
+        <li><b>Retries run for days, not hours.</b> Hangfire's default policy retries 10 times over roughly 4.5 hours; Acta's default is 15 attempts on <code>min(1m x 2^(n-1), 1d)</code> with about 10% jitter, a horizon of about 4.4 days with at most one retry per day at the tail.</li>
+        <li><b>Typed inputs replace serialized expressions.</b> The input is a record you declare and version, not a captured lambda.</li>
         <li><b>Curated SQL views replace a private storage schema.</b> <code>jobs_view</code>, <code>events_view</code>, and friends are the supported operator surface: backlog, stuck jobs, worker liveness, and history are queries, not dashboard-only knowledge.</li>
         <li><b>Durable steps, sleeps, signals, and lineage are first-class.</b> The patterns that continuations and batches approximate become recorded state: a step's outcome survives a crash, a wait holds no worker, and children stay traceable to their parent.</li>
-        <li><b>Operators get verbs, not just views.</b> Pause, resume, cancel, restart, signal, reprioritize a live job in place, amend a payload before a restart, override a schedule's expression or time zone with version checks. And the CLI ships in every host: <code>jobs explain</code> says why a job is where it is, <code>jobs debug</code> re-runs a persisted job under your debugger.</li>
-        <li><b>Dashboard verbs are off until you turn them on.</b> Both dashboards ship embedded in your app and default to local requests only. The difference is the mutating surface: Acta's dashboard is read-only until you explicitly enable controls, so exposing it never silently exposes retry, delete, or trigger buttons.</li>
+        <li><b>Operators get verbs, not just views.</b> Pause, resume, cancel, restart, signal, reprioritize a live job in place, amend a payload before a restart, override a schedule's expression or time zone with version checks.</li>
+        <li><b>Dashboard verbs are off until you turn them on.</b> Both dashboards ship embedded in your app and default to local requests only.</li>
       </ul>
     </section>
 

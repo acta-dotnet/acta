@@ -154,7 +154,6 @@
       <nav class="contents" aria-labelledby="contents-title">
         <h2 id="contents-title">In this article</h2>
         <ol>
-          <li><a href="#why">Work that should not vanish</a></li>
           <li><a href="#build">What you are going to build</a></li>
           <li><a href="#create">Create the project</a></li>
           <li><a href="#data">Some sales to report on</a></li>
@@ -166,19 +165,11 @@
           <li><a href="#steps">Recording progress with steps</a></li>
           <li><a href="#shutdown">Ctrl+C is a polite request</a></li>
           <li><a href="#crash">Pulling the plug</a></li>
-          <li><a href="#promises">What Acta promised</a></li>
           <li><a href="#your-app">From tutorial to your application</a></li>
           <li><a href="#next">Further reading</a></li>
         </ol>
       </nav>
 
-      <section id="why" aria-labelledby="why-title">
-        <h2 id="why-title">Work that should not vanish</h2>
-        <p>Most web applications eventually grow a request that should not do its work while the user waits. Somebody clicks "Generate the August sales report", and the report takes half a minute to build. You do not want the browser spinning for thirty seconds, so you answer straight away with "Your report is on its way" and do the work in the background.</p>
-        <p>The easy version of that is a <code>Task.Run</code> or an in-memory queue feeding a hosted service. It works on your machine. Then one day the application restarts in the middle of a report, because of a deploy, a crash, or a container being moved, and the report simply never arrives. Nothing failed loudly. The work lived in memory, and memory is gone.</p>
-        <p>Acta is a .NET library for exactly this problem. It writes each piece of background work to your application's own SQL database as a row before anything runs, and it treats that row, not the running thread, as the truth. A worker inside your application claims the row, runs your code, and records the outcome. If the code throws, the row says so and schedules another try. If the process disappears, the row still says the work is unfinished, and Acta hands it to the next process that comes along. There is no message broker to install and no separate server: PostgreSQL, SQL Server, or an embedded SQLite file is enough.</p>
-        <p>That is the idea. The rest of this article makes it concrete, one small piece at a time.</p>
-      </section>
 
       <section id="build" aria-labelledby="build-title">
         <h2 id="build-title">What you are going to build</h2>
@@ -679,13 +670,6 @@ info: Reports.SalesReportJobs[0]
         <p>Now remove the <code>Task.Delay</code> line and its comment from <code>write-report</code>. Its work is done.</p>
       </section>
 
-      <section id="promises" aria-labelledby="promises-title">
-        <h2 id="promises-title">What Acta promised, and what it did not</h2>
-        <p>It is tempting to say Acta resumed the job where it stopped. It did not, and the difference is the most important thing in this article. Acta started the handler again, from the top, as a fresh call in a new process. The local variable <code>figures</code> in execution 2 did not survive from execution 1; nothing in memory did. It was filled in by <code>RunStepAsync</code> from the step record in the database. Any code outside a step, like the first log line, simply runs again. Acta's model is checkpoints, not replay: named steps are the checkpoints, and everything between them is ordinary code that must be safe to run more than once.</p>
-        <p>The name for this is <strong>at-least-once</strong> execution. Acta guarantees that the job's work will be attempted until it succeeds or its budget runs out. It does not guarantee that each piece runs exactly once, and no system that talks to the outside world can. Consider the worst moment for our report: the process dies after <code>File.Move</code> has put the report in place but before the step's success has been written to the database. On the next execution, <code>write-report</code> has no recorded outcome, so it runs again.</p>
-        <p>In this program that is harmless, and not by luck. The file name comes from the job ref, which is the same in every execution. The content comes from the recorded figures, which are the same too. The write replaces the whole file in one move. Running the step twice produces exactly what running it once did. Code with that property is called <strong>idempotent</strong>, and it is what makes at-least-once execution safe.</p>
-        <p>Now imagine a third step that emails the report to the finance team. The same worst moment means the email might go out twice, and no amount of care in Acta can prevent it, because the mail server is not in your database. The usual cure is to give the external system a key that stays the same across attempts, such as the job ref, and let it discard duplicates. When a duplicate is truly worse than a missing action, a step can be declared <code>AtMostOnce()</code>: it will never run twice, and if it was interrupted, the handler is told so and must check the outside world before deciding what to do. Either way, the protection belongs in your design, next to the side effect, not in a hope that crashes are rare.</p>
-      </section>
 
       <section id="your-app" aria-labelledby="your-app-title">
         <h2 id="your-app-title">From tutorial to your application</h2>
@@ -703,13 +687,11 @@ info: Reports.SalesReportJobs[0]
 
       <section id="next" aria-labelledby="next-title">
         <h2 id="next-title">Further reading</h2>
-        <p>You know enough now to use Acta in a real project and to read its documentation with the right picture in your head. These are the pages worth reading next, in roughly this order:</p>
+        <p>Next:</p>
         <ul class="next-links">
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#concepts-and-glossary">Concepts and glossary</a> <span>covers the vocabulary: executions, attempts, namespaces, refs, and durable slots.</span></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#handler-contract">The handler contract</a> <span>lists every handler shape, the rules for inputs and results, and exactly how exceptions and cancellation are treated.</span></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#what-happens-if">What happens if…</a> <span>answers the crash, timeout, and database-outage questions this article only started.</span></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#testing-custom-jobs">Testing jobs</a> <span>shows how to cover handlers, steps, and retries in fast automated tests.</span></li>
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#production-guide">The production guide</a> <span>is the checklist for migrations, dashboard security, worker sizing, and rolling deploys.</span></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#handler-contract">The handler contract</a></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#what-happens-if">What happens if…</a></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#production-guide">The production guide</a></li>
         </ul>
         <p>If you would rather have your coding assistant add Acta to an existing project, point it at <a href="/start">useacta.net/start</a>, which has prompts written for that.</p>
       </section>

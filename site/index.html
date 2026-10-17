@@ -487,43 +487,37 @@
         <div>
           <h2>Long-running work that survives crashes and deploys.</h2>
           <p class="example-subtitle">Different domains, one shape</p>
-          <p class="lede">Acta has no domain types and never will: no <code>Agent</code>, no <code>Pipeline</code>, no <code>Workflow</code>. It does not care whether a step calls a model, a payment rail, FFmpeg, or a machine. What these have in common is work measured in minutes or days, expensive to repeat, and unacceptable to lose.</p>
+          <p class="lede">No domain types: a step may call a model, a payment rail, FFmpeg, or a machine. What these share is work measured in minutes or days, expensive to repeat, and unacceptable to lose.</p>
         </div>
         <aside class="callout">
           <b>The common thread</b>
-          <p>Each of these has a step you must not pay for twice and a wait you must not hold a thread for. That is the whole product: a step whose successful outcome was recorded is not re-run, and a job waiting on a human or a cure time occupies a row, not a worker.</p>
+          <p>A recorded step is not run again, and a long wait holds a row, not a worker.</p>
         </aside>
       </div>
 
       <div class="builds">
         <div class="build">
           <h3>AI agents and LLM pipelines</h3>
-          <p>A retried agent step repeats the latency, the tokens, the tool calls, and the human approval, and a nondeterministic model does not repeat the same answer. Your agent can reason again; it should not have to do the work again.</p>
           <span class="carries"><b>RunStepAsync</b> persists a completed step<br /><b>WaitSignalAsync</b> holds approval for days<br /><b>GetOrSetVariableAsync</b> is memory that survives the process</span>
         </div>
         <div class="build">
           <h3>Document processing</h3>
-          <p>Ingest, OCR, extract, validate, index. A thousand-page batch is a thousand chances to lose the eight hundredth page, and re-running the whole batch to recover one document is the thing you are trying to avoid.</p>
           <span class="carries"><b>MapAsync</b> fans a batch out with lineage<br /><b>JobPayload</b> by reference for large artifacts<br /><b>ctx.NoteAsync</b> for the per-document audit line</span>
         </div>
         <div class="build">
           <h3>Media and video encoding</h3>
-          <p>A render measured in hours, several renditions per source, and a publish step where doing it twice is worse than reconciling an uncertain outcome, even though the encode around it may be attempted many times.</p>
           <span class="carries"><b>MapAsync</b> fans out one encode per rendition<br /><b>AtMostOnce()</b> on the publish<br />leases reclaimed when the encoder box dies</span>
         </div>
         <div class="build">
           <h3>Manufacturing and physical processes</h3>
-          <p>ERP above, machines below, and Acta coordinating the business process between them. The six-hour cure, the cooldown, the maintenance window: nobody argues those should hold a thread.</p>
           <span class="carries"><b>SleepAsync</b> for a wait measured in hours<br /><b>AtMostOnce()</b> where a repeat is a physical event<br />never real-time or safety control</span>
         </div>
         <div class="build">
           <h3>Orders, billing, and payments</h3>
-          <p>When they share a database transaction, the job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work never overlaps itself, without a queue per customer.</p>
           <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>Lane</b> one at a time per customer, in order</span>
         </div>
         <div class="build">
           <h3>Pipelines, backfills, and ETL</h3>
-          <p>Scheduled work that must be explainable a month later: what ran, when, why it failed, what it produced, and whether the backfill you started on Friday is still going.</p>
           <span class="carries"><b>[JobSchedule]</b> with cron or a duration<br />retries budgeted, not unbounded<br />the ledger is the audit trail</span>
         </div>
       </div>
@@ -536,58 +530,58 @@
         <div>
           <h2>Every design decision, as a project you can run.</h2>
           <p class="example-subtitle">Nine questions, answered in rows</p>
-          <p class="lede">An Engineering Lab is a small project in the repository whose README carries the whole loop: the question, the alternatives, what the design costs, the exact rows that prove the behavior, and what happens when a worker dies at the worst moment. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The field guide</a> sequences them into a 45-minute tour.</p>
+          <p class="lede">Each lab is a small project whose README asks the question and prints the rows that answer it. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The field guide</a> orders them into a 45-minute tour.</p>
         </div>
         <aside class="callout">
-          <b>How to read one</b>
-          <p>Every lab prints the rows that prove its claim and names the source files behind them. Run it from a fresh clone on embedded SQLite; the crash lab 705 asks for a real server so the kill is real.</p>
+          <b>How to run one</b>
+          <p>From a fresh clone, on embedded SQLite; the crash lab 705 needs a real server.</p>
         </aside>
       </div>
 
       <div class="builds">
         <div class="build">
           <h3>Can recurring work run forever on one row?</h3>
-          <p>One reusable job identity and one cursor per schedule. Due schedules re-arm the same slot instead of inserting a job per tick, coincident schedules coalesce into one execution that names which of them fired, and a missed window is a per-schedule decision, skip or catch up once, never an accident of the worker loop.</p>
+          <p>One job row per recurring slot, re-armed on every fire, with coincident schedules coalesced and missed windows skipped or caught up once.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/103-multiple-schedules"><b>103-multiple-schedules</b></a><br /><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><b>106-schedule-misfire</b></a></span>
         </div>
         <div class="build">
           <h3>Can real-database tests take milliseconds and run in parallel?</h3>
-          <p><code>Acta.Testing</code> drives the real runtime one tick at a time: a tick is one claim plus one handler run, with no polling, no sleeps, and no background worker racing your assertions. Each test host owns its own schema, so one database serves many tests at once, and an end-to-end job test finishes in tens of milliseconds.</p>
+          <p><code>Acta.Testing</code> drives the real runtime one tick at a time, each test in its own schema, in tens of milliseconds.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#testing-custom-jobs"><b>docs/guide.md</b></a></span>
         </div>
         <div class="build">
           <h3>Can SQL replace a job queue, without a leader?</h3>
-          <p>Claim, heartbeat, lease, and recovery are SQL operations, and recovery rides every worker's heartbeat, whichever worker comes due first, so no worker is ever the leader. The lab kills worker A in the middle of an attempt and lets worker B recover the same durable identity from the rows A left behind.</p>
+          <p>Claim, lease, and recovery are SQL, and recovery rides every worker&rsquo;s heartbeat: the lab kills a worker mid-attempt and another recovers the job.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery"><b>705-worker-crash-recovery</b></a><br />PostgreSQL or SQL Server</span>
         </div>
         <div class="build">
           <h3>Can the worker binary be the admin tool, and can a job explain itself?</h3>
-          <p>Start the same app with <code>jobs …</code> and it runs Acta's CLI with the app's real manifest, dependency injection, and database. <code>info</code> is the snapshot, <code>events</code> the path to it, <code>explain</code> turns durable state into operator guidance, and <code>jobs debug</code> claims one persisted job and runs it under your debugger's breakpoint.</p>
+          <p><code>app jobs explain</code> reads a job&rsquo;s durable state and says what to do; <code>jobs debug</code> runs one job under your debugger.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><b>021-jobs-cli</b></a></span>
         </div>
         <div class="build">
           <h3>Can hot keys stop blocking workers?</h3>
-          <p>Admission happens after the claim and before the handler. The loser of a concurrency key re-arms with a short delay and hands its executor back instead of waiting on a lock, <code>ConcurrencyLimit</code> sizes the gate to N at once, and <code>RateLimit</code> books each job the next free instant rather than letting a crowd re-race a counter.</p>
+          <p>A concurrency-key loser re-arms instead of waiting on a lock, and a rate limit books each job its turn.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key"><b>209-concurrency-key</b></a></span>
         </div>
         <div class="build">
           <h3>Can a job refuse unsafe replay?</h3>
-          <p><code>AtMostOnce()</code> records the intent before the body runs. Re-entering a slot that is still pending marks it interrupted and throws instead of calling the body a second time, so the handler reconciles a charge that may or may not have happened rather than repeating it and hoping.</p>
+          <p><code>AtMostOnce()</code> never runs a step body twice: an interrupted step throws, and the handler reconciles.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><b>220-at-most-once-step</b></a></span>
         </div>
         <div class="build">
           <h3>Can fan-out be ordinary jobs?</h3>
-          <p>Children are normal jobs with their own retries, workers, results, and events. The parent suspends without holding a lease, and each child's terminal outcome sets a checkpoint the parent owns, so the join is a durable latch in a row, not a thread waiting on a task.</p>
+          <p>Children are normal jobs, and the parent waits on a durable latch without holding a lease.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><b>211-child-jobs</b></a></span>
         </div>
         <div class="build">
           <h3>Can the schema be the runtime?</h3>
-          <p>One checkout identity is a handful of relational facts: completed step outcomes, a durable variable, a signal latch, a timer, a terminal result, and an append-only event ledger. The worker executes from those rows and operators read the same rows through curated views. The hot runtime row is split from the job row, so it stays tiny.</p>
+          <p>The worker runs from a handful of rows (steps, variables, signals, timers, results, events) that operators read through views.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout"><b>201-durable-checkout</b></a></span>
         </div>
         <div class="build">
           <h3 id="data-model">Can the data model stay this small?</h3>
-          <p>Every persisted code family is a small integer, a <code>tinyint</code> or <code>smallint</code> rather than a status string, with the names generated beside it. The job row is append-mostly: only an operator’s input amendment rewrites it; the hot runtime row carries only what changes, keeps the definition behind a surrogate id, and stores no JSON. Column widths come from one fixed ladder, so a hot row stays narrow, an index stays dense, and an update rewrites bytes, not pages. The model freezes at 1.0: no renames, drops, retypes, or renumbered codes, ever, and anything new arrives as an additive migration a rolling deploy can run.</p>
+          <p>Codes are small integers, the hot row stays narrow, and the model is frozen at 1.0: only additive migrations from here.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/design.md"><b>docs/design.md</b></a></span>
         </div>
       </div>
@@ -679,7 +673,7 @@
     <section class="wrap" id="inventory">
       <p class="record">Capabilities · quick reference</p>
       <h2>Everything Acta includes, at a glance.</h2>
-      <p class="lede">The one-line version of everything Acta does. Each item is expanded, with the API that does it, in <a href="#reference">the full reference</a> below.</p>
+      <p class="lede">The one-line version of everything Acta does. Each is explained, with the API behind it, in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md">the guide</a>.</p>
       <div class="fgrid">
         <div class="fcol">
           <h3>Jobs &amp; scheduling</h3>
@@ -740,93 +734,6 @@
       </div>
     </section>
 
-    <section class="wrap" id="reference">
-      <a id="capabilities"></a>
-      <p class="record">Capabilities · in full</p>
-      <h2>Every capability: what it does and the API behind it.</h2>
-      <p class="lede">The quick reference above, expanded: what each piece does, how it behaves when things fail, and the API that does it.</p>
-
-      <div class="ref">
-        <h3 class="ref-group">Jobs &amp; scheduling</h3>
-        <dl>
-          <div class="ref-row"><dt>Fire-and-forget jobs</dt><dd>Mark a method with <code>[Job("name")]</code> and call <code>EnqueueAsync(input)</code>. Enqueue is typed, dispatch is source-generated from your project manifest, and the job name is the durable, operator-facing contract. The host that enqueues can also execute: no separate worker process to deploy unless you want one.</dd></div>
-          <div class="ref-row"><dt>Enqueue and wait</dt><dd><code>RunAndWaitAsync</code> enqueues, waits for the terminal outcome, and hands back the typed result: request-response over durable execution, for the places where fire-and-forget isn't an answer.</dd></div>
-          <div class="ref-row"><dt>Delayed jobs</dt><dd>Enqueue with a not-before time. The job is durable, SQL-visible state from the moment of enqueue and is dispatched when due: surviving any restarts in between.</dd></div>
-          <div class="ref-row"><dt>Recurring schedules</dt><dd><code>[JobSchedule]</code> with an interval (<code>5m</code>) or cron expression. One stable slot job carries moving schedule cursors instead of creating a job row per firing. Missed windows are visible and handled by explicit misfire policy, and operators can pause a schedule (with an auto-resume time if they want one), resume it, or fire it immediately with trigger-now, all without touching the cadence.</dd></div>
-          <div class="ref-row"><dt>Deduplication keys</dt><dd>Enqueue with a caller-supplied key and a duplicate enqueue returns the existing job instead of creating a second one: resubmitting the same form doesn't enqueue the email job twice. It deduplicates the job row, not the side effect: execution stays at-least-once, which is what durable steps and idempotency keys are for.</dd></div>
-          <div class="ref-row"><dt>Retries with typed backoff</dt><dd>Retry count and backoff are explicit, typed policy on the job, not folklore in a catch block. Attempts are counted on the job row, and at the default audit level each one is recorded as start and finish events, so "how many times did this run and when" is a query.</dd></div>
-          <div class="ref-row"><dt>Atomic enqueue with your data</dt><dd>Enqueue on the transaction you already opened, so the job and the business write commit or roll back together in the same database. When the job belongs to a different database, stage the handoff in your own transaction with <code>AddToActaOutboxAsync</code> and the built-in <code>sys.outbox</code> relay moves it into the ledger, deduplicating and quarantining as it goes. Neither is a universal exactly-once guarantee: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#transactional-enqueue-and-the-external-outbox">the guide</a> states exactly what each one buys.</dd></div>
-        </dl>
-
-        <h3 class="ref-group">Durable execution</h3>
-        <dl>
-          <div class="ref-row"><dt>Durable steps</dt><dd>Wrap work in a named durable step. The outcome is recorded in the database; when the handler re-enters after a crash, retry, or suspend, a completed step returns its stored result. External side effects still need idempotency because a process can die after the effect but before its outcome is recorded. Checkpoints, not replay: no determinism rules on your code.</dd></div>
-          <div class="ref-row"><dt>At-most-once steps · <code>AtMostOnce()</code></dt><dd>For side effects where a duplicate is worse than an ambiguous interruption. If the process dies after Acta records the start, the body is not invoked again; it may have run zero or one times, and the handler must reconcile deliberately.</dd></div>
-          <div class="ref-row"><dt>Checkpoint slots</dt><dd>Save intermediate values mid-handler and read them back after a crash or restart: resume long work where it left off, with the evidence in a row.</dd></div>
-          <div class="ref-row"><dt>Durable progress</dt><dd><code>SetProgressAsync</code> writes typed progress into a reserved checkpoint slot: a long import can say "43,000 of 90,000", and the dashboard, the API, and plain SQL all read the same row.</dd></div>
-          <div class="ref-row"><dt>Durable sleep</dt><dd>Sleep for minutes or days without occupying a worker thread. The job leaves the worker, the timer is durable state, and the job is re-dispatched when it fires: surviving deploys in between.</dd></div>
-          <div class="ref-row"><dt>Signals</dt><dd>A job can suspend until a named signal arrives: a webhook, an approval, another job finishing. Deliver the signal from anywhere: code, CLI, or dashboard. No worker is held while waiting.</dd></div>
-          <div class="ref-row" id="lineage"><dt>Child jobs, fan-out / fan-in</dt><dd>Spawn jobs from a handler; parent lineage is recorded, so a batch that fans out into a thousand items stays traceable, and the parent can wait on the children's results.</dd></div>
-          <div class="ref-row"><dt>Lanes</dt><dd><code>.Lane("customer-42")</code> on the enqueue, or <code>[Job("...", Lane = "...")]</code> on the definition, runs the lane's jobs one at a time in enqueue order, like an SQS FIFO message group. Only the head is claimable; the jobs behind it wait as Blocked, outside the claim scan, and the transaction that finishes the head promotes the next one. A failing head keeps its place through its retries, so a poison item needs a retry budget. Different lanes run in parallel, and jobs without a lane are unaffected. <a href="#admission">How it compares to a concurrency key</a></dd></div>
-          <div class="ref-row"><dt>Concurrency keys &amp; locks</dt><dd>Serialize work that shares a key: one settlement run per account at a time. A <code>ConcurrencyKey</code> bounces the losing job back to the queue so no worker waits on it; <code>RunWithLockAsync</code> waits inside the running handler instead, for the small critical section that wants it. Exclusion rides the lease, and admission order is unspecified: exclusive, unordered work.</dd></div>
-          <div class="ref-row"><dt>Concurrency limits</dt><dd><code>[Job("...", ConcurrencyLimit = 8)]</code> caps how many jobs run at once per concurrency key across the whole fleet, or across the definition when the enqueue names no key, admitted through slot rows in the same lock store. A job the limit turns away bounces back to the queue budget-neutral, so no worker waits on it, and the limit is an operator-overridable policy slot on a running system.</dd></div>
-          <div class="ref-row"><dt>Rate limits</dt><dd><code>[Job("...", RateLimit = "600/m")]</code> meters how often a definition may start. An idle meter admits one second's worth of the rate at once and then one per interval; every job that arrives early books a turn and comes back for it, so a backlog drains at the rate with no re-race, and definitions that share a key share one meter. The contract is the upper envelope, measured under chaos on every provider: never more than the rate plus its burst over any window.</dd></div>
-          <div class="ref-row"><dt>Job results</dt><dd>Return a value from a handler and fetch it later by job reference: the result is durable state like everything else.</dd></div>
-          <div class="ref-row"><dt>Handler-directed outcomes</dt><dd>A handler can end its own run deliberately: reschedule itself to a chosen instant, fail with a stated reason, cancel, or pause for an operator. The outcome is policy stated in code, not an exception dressed up as control flow.</dd></div>
-        </dl>
-
-        <h3 class="ref-group">Failure &amp; recovery</h3>
-        <dl>
-          <div class="ref-row"><dt>Worker leases &amp; heartbeats</dt><dd>A claimed job carries a lease held by a live, heartbeating worker. Kill the process: the lease lapses on its own. You can watch it happen in the workers table.</dd></div>
-          <div class="ref-row"><dt>Leaderless recovery</dt><dd>Any surviving worker reclaims lapsed jobs and retries them. There is no coordinator, no leader election, no recovery service to run: recovery is itself ordinary durable work.</dd></div>
-          <div class="ref-row"><dt>Rolling deploys</dt><dd>Two builds share a namespace while a deploy runs, and a rollback is the same picture in reverse. A worker that claims a job it has no handler for hands it back and stops claiming that definition; registration never retires a definition the new build omits, so the old fleet finishes its work and a rollback is just starting the old build. Retiring a definition and cancelling its queue is an operator verb, on the API and the dashboard.</dd></div>
-          <div class="ref-row"><dt>Explain</dt><dd>Ask any job why it is in its current state and what happens next. The answer comes from its recorded rows, not from log archaeology.</dd></div>
-          <div class="ref-row"><dt>Restart with stored input</dt><dd>A job that failed a month ago is still a row, with its input. Restart it as-is: no re-constructing the payload from logs. The restart runs whatever the row holds now, so if an operator amended the input first, the amendment is what runs.</dd></div>
-          <div class="ref-row"><dt>Job repair, beyond restart</dt><dd>Reschedule a job to run now or at a chosen instant, amend its stored input (bounded metadata records that you did), or purge it outright: the repair verbs operators actually reach for, durable and audited like everything else.</dd></div>
-          <div class="ref-row"><dt>Failure alerts</dt><dd>Failures raise alert rows by default: query, route, and resolve them like everything else, on-failure visibility without bolting on a separate alerting pipeline. An outage is one open incident per job and reason that re-notifies on the reminder interval (daily by default) until it resolves, not a row per failure. Per-definition profiles can quiet a job down to terminal failures only, or to nothing.</dd></div>
-          <div class="ref-row"><dt>Outbox quarantine</dt><dd>The <code>sys.outbox</code> relay deduplicates as it admits staged work, and what cannot be admitted lands in a quarantine you can read, requeue, or discard: from code, the dashboard, or HTTP, with the decision recorded.</dd></div>
-        </dl>
-
-        <h3 class="ref-group">Visibility &amp; operations</h3>
-        <dl>
-          <div class="ref-row"><dt>SQL-visible state, documented</dt><dd>Jobs, leases, events, schedules, checkpoints, workers, and alerts are ordinary rows, with curated operator views (<code>acta.jobs_view</code> and friends) for the common questions: backlog, stuck jobs, worker liveness, open alerts. The model is documented column by column - 16 entities with their keys, indexes, and checks - and the full provisioning SQL for all three providers ships in the repo, so you can read the schema before you adopt it. Attempt-by-attempt history rides the event ledger, as complete as the definition's audit level.</dd></div>
-          <div class="ref-row"><dt>Append-only event ledger</dt><dd>Every job carries an append-only timeline of what happened to it - each execution's outcome, retries, suspensions, signals, operator actions, completion - as queryable rows. The audit level chooses how much of it each definition writes: the full timeline at <code>Audit</code>, failures only or nothing at all where churn matters more than history.</dd></div>
-          <div class="ref-row"><dt>Notes &amp; manual alerts</dt><dd><code>ctx.NoteAsync</code> appends handler-authored evidence to the job's timeline even where audit is turned down; <code>ctx.AlertAsync</code> opens an alert the handler decided is worth an operator's attention. Both are rows, like everything else.</dd></div>
-          <div class="ref-row"><dt>Built-in metrics</dt><dd>An <code>Acta</code> meter emits executions, durations, claims, steps, live executing jobs, lock contention, and alert activity through <code>System.Diagnostics.Metrics</code>: OpenTelemetry picks it up with one line, no Acta-specific exporter.</dd></div>
-          <div class="ref-row"><dt>Embedded dashboard &amp; JSON API</dt><dd><code>Acta.AspNetCore</code> serves an operational dashboard and query API from inside your app. Local-only by default (requests from this machine, addressed as localhost or an IP), no login system to configure, and every mutating verb is disabled until you explicitly enable it.</dd></div>
-          <div class="ref-row"><dt>Embedded CLI · including <code>jobs debug</code></dt><dd>Every host binary is also the admin tool. <code>jobs debug</code> claims an eligible persisted job - one this host's manifest knows and no worker is running right now - and steps through its real handler under your debugger: reproduce a production failure with a breakpoint, not printf.</dd></div>
-          <div class="ref-row"><dt>Operator verbs, opt-in</dt><dd>Pause, resume, cancel, restart, signal: explicit controls for humans running the system. Over HTTP and the dashboard they are off by default, so remote exposure is a decision, not an accident. The in-binary CLI ships enabled - it already implies shell access to the host - and <code>DisableCli()</code> turns it off where even that is too much.</dd></div>
-          <div class="ref-row"><dt>Namespaces &amp; tenants</dt><dd>Two questions, one job row. A namespace answers who owns and runs the work: routing, team-ownership metadata, and the peer workers that drain it. A tenant answers who the work is about: registered once by an opaque business key, resolved at enqueue, inherited by child jobs, carried into the event timeline, and readable beside every job in <code>acta.jobs_view</code>. Definitions can require or forbid tenant scope, and suspending a tenant rejects new enqueues at the commit boundary; jobs already admitted keep running, and children they spawn inherit the tenant with them. Namespaces carry the same operator lifecycle: list, suspend, resume, and version-checked metadata updates. A tenant is an audit, query, and runtime dimension, not a security or database-isolation boundary.</dd></div>
-        </dl>
-
-        <h3 class="ref-group">Engineering</h3>
-        <dl>
-          <div class="ref-row"><dt>Three SQL providers</dt><dd><code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, <code>Acta.Sqlite</code>: one reference is enough, and all three share the same schema shape and operational model. Develop against an embedded SQLite file; ship the same code against your server.</dd></div>
-          <div class="ref-row"><dt>Claim and complete</dt><dd>A worker claims a row for every free executor, and the claim starts each job in the same statement. The worker's finalizer commits completions, up to 128 at a time, and repeats a write until it lands.</dd></div>
-          <div class="ref-row"><dt>Source-generated dispatch, NativeAOT</dt><dd>Handlers are dispatched through generated code (no reflection on the hot path). NativeAOT is exercised, not asserted: every shipped package declares AOT compatibility and the bundled lab app publishes under NativeAOT as a gated test. SQL Server is the exception at publish time, because <code>Microsoft.Data.SqlClient</code> is not a Native AOT target. One SQL round-trip per state change.</dd></div>
-          <div class="ref-row"><dt>Deterministic test host</dt><dd><code>Acta.Testing</code> drives the real runtime one tick at a time: no sleeps, no polling, no flaky waits. Real-database job tests run in tens of milliseconds.</dd></div>
-          <div class="ref-row"><dt>Contract-drift guard</dt><dd>Worker startup compares each job's input and output contracts against what the ledger recorded, and warns or refuses - your choice - before a mismatched payload meets a live queue.</dd></div>
-          <div class="ref-row"><dt>Payload codecs</dt><dd>JSON, text, and bytes ship built in; the serializer registry is pluggable per job, with worked MessagePack and gzip examples in the concepts.</dd></div>
-          <div class="ref-row"><dt>Redis as a bell, only</dt><dd>Optional <code>Acta.Redis</code> wakes idle workers faster. It is never a source of truth: lose Redis and you degrade to polling, not to data loss.</dd></div>
-          <div class="ref-row"><dt>Anvil · the failure lab</dt><dd>The bundled load-and-failure laboratory: enqueue a million jobs, kill real worker processes mid-flight, and watch leases lapse and recovery reclaim the work, on your machine.</dd></div>
-          <div class="ref-row"><dt>Published baselines</dt><dd>The benchmark matrix and its methodology ship in the repo, with dated results on documented hardware: sixteen worker processes on the conservative Buffered profile drained about 6,800 jobs/s on PostgreSQL and 6,300 on SQL Server (rc.4 round, 32 logical cores, NVMe). Regression evidence and rough sizing, not capacity promises: re-run it on yours.</dd></div>
-        </dl>
-
-        <h3 class="ref-group">Policy &amp; operations</h3>
-        <dl>
-          <div class="ref-row"><dt>Priorities &amp; reprioritization</dt><dd>Claim priority is per-definition policy, and operators can change it in place on a live job with <code>ReprioritizeAsync</code>, no cancel-and-re-enqueue dance.</dd></div>
-          <div class="ref-row"><dt>Live policy overrides</dt><dd>Priority, retries, backoff, timeout, deadline, retention, audit, alerting, the concurrency limit, and the rate limit can be overridden per definition on a running system, guarded by expected-version checks: tune a hot job without a deploy.</dd></div>
-          <div class="ref-row"><dt>Durable named settings</dt><dd>Global, namespace, and definition-scoped settings live in the ledger next to the work: compare-and-swap writes, audited changes, new names without a migration. Configuration your operators can see.</dd></div>
-          <div class="ref-row"><dt>Execution timeouts &amp; deadlines</dt><dd>Per-definition execution timeout, plus whole-job deadlines in two strengths: a Strict deadline terminates the job; an Advisory one sets <code>ctx.IsOverdue</code> so the handler can degrade gracefully.</dd></div>
-          <div class="ref-row"><dt>Batch enqueue</dt><dd><code>EnqueueBatchAsync</code> alongside single enqueue for high-volume producers, one round-trip for many jobs.</dd></div>
-          <div class="ref-row"><dt>Tags &amp; correlation keys</dt><dd>Attach searchable tags and a caller-supplied correlation key to any job, so operators can find work by what it means to the business, not just by id. Tenants, namespaces, and definitions take tags too.</dd></div>
-          <div class="ref-row"><dt>Time-zone schedules</dt><dd>Recurring schedules run in a named time zone. Operators preview upcoming instants and override expression or zone with expected-version checks.</dd></div>
-          <div class="ref-row"><dt>Alert routing</dt><dd>Definitions route alerts to named channels; startup validation of that routing is a policy you choose. Off, Warn, or Fail.</dd></div>
-          <div class="ref-row"><dt>Audit levels &amp; retention</dt><dd>Audit level and retention are per-definition contract values; terminal job rows purge on schedule while events remain the audit ledger.</dd></div>
-          <div class="ref-row"><dt>Large payloads, by reference</dt><dd>Inline payloads are capped (1&nbsp;MiB default; oversized writes are refused, not truncated). Big artifacts belong in blob storage with the job carrying a reference - URI, checksum, size, content type - a pattern the concepts show worked end to end. The cap is Acta's; the blob store and the verification stay yours.</dd></div>
-        </dl>
-      </div>
-    </section>
 
     <section class="wrap" id="run">
       <p class="record">Run it</p>

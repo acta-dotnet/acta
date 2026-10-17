@@ -160,10 +160,10 @@
       <p class="record">Stated plainly</p>
       <h2>What Acta gives up.</h2>
       <ul class="changes">
-        <li><b>Exactly-once side effects: which nobody has.</b> Acta steps are at-least-once, and so are the replay engines' activities: a crash between an external call and its recording re-runs the call on every one of these systems, because no engine can make the outside world transactional. Replay makes the orchestrator's decisions exactly-once, not your HTTP request. So external calls need idempotency or reconciliation there and here alike; Acta adds <code>AtMostOnce()</code> for the steps where duplication is worse than an explicit ambiguity. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#at-most-once-steps">At-most-once steps →</a></li>
+        <li><b>Exactly-once side effects, which nobody has.</b> Steps and activities alike are at-least-once, so external calls need idempotency everywhere; Acta adds <code>AtMostOnce()</code> where a repeat is worse than ambiguity. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#at-most-once-steps">At-most-once steps →</a></li>
         <li><b>.NET only.</b> Handlers, workers, and the tooling are .NET. There are no SDKs for other languages and none planned.</li>
-        <li><b>One database is the durability boundary.</b> Acta is exactly as durable and as available as the Postgres, SQL Server, or SQLite you point it at. That is the point of the design, and also its limit.</li>
-        <li><b>Production miles.</b> The replay engines have a decade of them; Acta is young. Its evidence is accumulated in the open instead: about 950 conformance tests run identically against real Postgres, SQL Server, and SQLite, and committed certification seals. The latest pair: a million jobs on Postgres and again on SQL Server, dozens of worker processes with one killed every five seconds, 113 and 128 workers reclaimed dead, 7,868 and 7,505 orphaned attempts, and every job on each at its expected end, none lost and no step run twice, with every SQL check green, on unmodified production defaults. <a href="https://github.com/acta-dotnet/acta/tree/v1.0.0-rc.4/docs/certification">The seals →</a></li>
+        <li><b>One database is the durability boundary.</b> Acta is as durable and available as the database you point it at.</li>
+        <li><b>Production miles.</b> Acta is young. Its evidence is public instead: about 950 conformance specs run against real PostgreSQL, SQL Server, and SQLite, and each release passes a chaos certification that kills workers mid-job, recorded in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/release-notes.md">the release notes</a>.</li>
       </ul>
     </section>
 
