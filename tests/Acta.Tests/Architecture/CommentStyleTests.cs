@@ -139,7 +139,6 @@ public sealed partial class CommentStyleTests
         );
     }
 
-    // Files with a longer block are listed in the doc-length ratchet.
     [Fact]
     public void Production_xml_doc_blocks_stay_short()
     {
@@ -164,8 +163,7 @@ public sealed partial class CommentStyleTests
             }
         }
 
-        Ratchet.Check(
-            "doc-length",
+        ArchitectureAssert.NoViolations(
             oversized,
             $"Keep each XML doc block within {MaxXmlDocBlockLines} lines: compress it to the invariants; a public summary is one plain sentence by default."
         );

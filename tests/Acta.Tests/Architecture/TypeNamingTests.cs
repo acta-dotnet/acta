@@ -4,8 +4,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Holds every shipped type to the suffix table in <c>docs/internals/naming-conventions.md</c>. Names that predate
-/// the table are listed in the <c>naming</c> ratchet.
+/// Holds every shipped type to the suffix table in <c>docs/internals/naming-conventions.md</c>.
 /// </summary>
 public sealed class TypeNamingTests
 {
@@ -54,7 +53,7 @@ public sealed class TypeNamingTests
             Violations(type, projected).Select(reason => $"{ShippedCode.Key(type)} ({reason})")
         );
 
-        Ratchet.Check("naming", violations, "Rename the type by the suffix table in docs/internals/naming-conventions.md.");
+        ArchitectureAssert.NoViolations(violations, "Rename the type by the suffix table in docs/internals/naming-conventions.md.");
     }
 
     private static IEnumerable<string> Violations(Type type, HashSet<Type> projected)

@@ -1,1 +1,0 @@
-# Known handler-response violations; entries may only be removed.

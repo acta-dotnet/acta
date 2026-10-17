@@ -13,8 +13,7 @@ namespace Acta.Tests.Architecture;
 /// outside <c>Engine/Wakeup/</c>, while only Operations files and registration name a handler. A group's root holds its
 /// operations class and the interfaces that class implements; a type several operations share sits in the <c>Shared/</c>
 /// folder of the nearest folder holding them all, and one that code outside Operations names sits in <c>Domain/</c>.
-/// A route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What still differs is listed in the
-/// <c>layout</c> ratchet.
+/// A route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names.
 /// </summary>
 public sealed class OperationLayoutTests
 {
@@ -44,7 +43,7 @@ public sealed class OperationLayoutTests
             violations.AddRange(CheckFolder(root, route));
         }
 
-        Ratchet.Check("layout", violations, "Move the file to match docs/internals/source-layout.md.");
+        ArchitectureAssert.NoViolations(violations, "Move the file to match docs/internals/source-layout.md.");
     }
 
     // A group's Shared/ folder holds what several of its operations share; it is not an operation.

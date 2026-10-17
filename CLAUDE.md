@@ -12,7 +12,7 @@ Acta is a durable job engine for .NET: jobs, schedules, steps, waits, and alerts
 
 - Comments: one-home-per-fact convention in CONTRIBUTING.md, "C# comment style". Enforced by `CommentStyleTests`.
 - SQL: CONTRIBUTING.md, "SQL style". Naming: docs/internals/naming-conventions.md.
-- Layout: docs/internals/source-layout.md. The files in `tests/ratchets/` list known violations and may only shrink; never add an entry to make a test pass.
+- Layout: docs/internals/source-layout.md. Architecture tests allow no known violations; fix the code, never loosen the test.
 
 ## Working agreements
 

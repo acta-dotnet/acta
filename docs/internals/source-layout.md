@@ -114,4 +114,4 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
 | `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta` |
 
-Each rule but the last two starts from a ratchet. `tests/ratchets/<rule>.txt` lists the violations that existed when the rule arrived, and entries may only be removed: a new violation fails the test, and so does an entry that no longer occurs. Entries name files, types, members, and SQL stems rather than folders, so moving code leaves them alone. After fixing violations, delete their entries, or delete the file and run the test: it writes the current list and fails once, so the change shows up in review.
+Every rule holds with no known exception: a single violation fails its test.

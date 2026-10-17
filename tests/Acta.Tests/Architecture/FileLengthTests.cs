@@ -3,8 +3,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Caps every C# file under <c>src/</c> at 700 lines; files that predate the cap are listed in the <c>length</c>
-/// ratchet. The 150-line method cap is MA0051's, in the build.
+/// Caps every C# file under <c>src/</c> at 700 lines. The 150-line method cap is MA0051's, in the build.
 /// </summary>
 public sealed class FileLengthTests
 {
@@ -18,6 +17,6 @@ public sealed class FileLengthTests
             .Where(file => File.ReadLines(file.Path).Count() > MaxFileLines)
             .Select(file => (Path.GetFileName(file.Path), (string?)file.Relative));
 
-        Ratchet.Check("length", tooLong, $"Split the file so it stays within {MaxFileLines} lines.");
+        ArchitectureAssert.NoViolations(tooLong, $"Split the file so it stays within {MaxFileLines} lines.");
     }
 }

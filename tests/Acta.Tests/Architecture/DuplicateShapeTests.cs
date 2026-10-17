@@ -9,7 +9,7 @@ namespace Acta.Tests.Architecture;
 /// Fails when two shipped types declare the same set of property names, which is how a row, its outcome, and its
 /// public model end up as three copies of one shape. A type declared in an operation's folder belongs to that
 /// operation, and a route's request to its folder in <c>Acta.AspNetCore</c>, so types of different folders may match
-/// on purpose. Copies that predate the rule are listed in the <c>duplicate-shape</c> ratchet, one entry per copy.
+/// on purpose.
 /// </summary>
 public sealed class DuplicateShapeTests
 {
@@ -49,7 +49,7 @@ public sealed class DuplicateShapeTests
                 )
             );
 
-        Ratchet.Check("duplicate-shape", copies, "Return the existing type instead of copying it; SQL can fill a public model directly.");
+        ArchitectureAssert.NoViolations(copies, "Return the existing type instead of copying it; SQL can fill a public model directly.");
     }
 
     // Every operation has its own input, response, row, and parts, so two operations may match on purpose: a Get's

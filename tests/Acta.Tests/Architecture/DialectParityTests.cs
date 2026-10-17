@@ -7,7 +7,6 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// The SQL files of one operation must return the same columns in every dialect: a PostgreSQL routine's
 /// <c>RETURNS TABLE</c>, otherwise the last result-producing <c>SELECT</c>, <c>RETURNING</c>, or <c>OUTPUT</c>.
-/// Differences that predate the rule are listed in the <c>dialect-parity</c> ratchet, one entry per SQL stem.
 /// </summary>
 public sealed partial class DialectParityTests
 {
@@ -72,7 +71,7 @@ public sealed partial class DialectParityTests
             .Where(entry => entry.Value.Count > 1 && !AllAgree(entry.Value.Values))
             .Select(entry => (entry.Key, (string?)string.Join(" ", entry.Value.Select(d => $"{d.Key}({string.Join(",", d.Value)})"))));
 
-        Ratchet.Check("dialect-parity", differences, "Return the same column names, in the same order, from every dialect.");
+        ArchitectureAssert.NoViolations(differences, "Return the same column names, in the same order, from every dialect.");
     }
 
     // X.<dialect>.sql or X.routine.<dialect>.sql beside each operation; the operator views are not operations.

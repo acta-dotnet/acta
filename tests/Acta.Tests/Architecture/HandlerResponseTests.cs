@@ -10,8 +10,7 @@ namespace Acta.Tests.Architecture;
 /// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, a list
 /// returns its own page, a Get its own <c>GetXResponse</c>, and a row, command, query, response, or response element is
 /// declared in its operation's folder under the operation's name, a row named by no other operation; any other type in
-/// that folder, such as a response's part or the enum its SQL answers in, starts with the operation's name. What predates
-/// a rule is listed in its ratchet, <c>handler-response</c> or <c>slice-members</c>.
+/// that folder, such as a response's part or the enum its SQL answers in, starts with the operation's name.
 /// </summary>
 public sealed class HandlerResponseTests
 {
@@ -63,8 +62,7 @@ public sealed class HandlerResponseTests
             .Where(handler => handler.Returns?.Name != handler.Operation + "Response")
             .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Operation} returns {Describe(handler.Returns)}"));
 
-        Ratchet.Check(
-            "handler-response",
+        ArchitectureAssert.NoViolations(
             inputs.Concat(responses).Concat(lists).Concat(gets),
             "Take the operation's own XCommand or XQuery in HandleAsync, return its own XResponse, or nothing, from a command, "
                 + "its own ListXResponse : IPagedResponse<ListXItem> from a list, and its own GetXResponse from a Get."
@@ -118,8 +116,7 @@ public sealed class HandlerResponseTests
             .ToList();
         var violations = types.SelectMany(type => SliceViolations(type.Name, type.Slice, users));
 
-        Ratchet.Check(
-            "slice-members",
+        ArchitectureAssert.NoViolations(
             violations,
             "Declare the type in its operation's folder, named for the operation, and keep a row to that operation."
         );

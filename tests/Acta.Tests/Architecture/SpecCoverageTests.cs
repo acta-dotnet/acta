@@ -6,8 +6,7 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Every operation has a conformance spec a reader finds by its name, and every engine area has specs beside it:
 /// <c>Operations/Group/OperationSpec.cs</c> (or <c>OperationFacetSpec.cs</c>) and <c>Engine/Area/</c> under
-/// <c>tests/Acta.Tests.Conformance</c>, mirroring <c>src/Acta</c>. What still lacks one is listed in the
-/// <c>specs</c> ratchet.
+/// <c>tests/Acta.Tests.Conformance</c>, mirroring <c>src/Acta</c>.
 /// </summary>
 public sealed class SpecCoverageTests
 {
@@ -45,8 +44,7 @@ public sealed class SpecCoverageTests
             }
         }
 
-        Ratchet.Check(
-            "specs",
+        ArchitectureAssert.NoViolations(
             missing,
             "Add a spec named after the operation (Operations/<Group>/<Operation>Spec.cs), or one under Engine/<Area>/."
         );

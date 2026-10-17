@@ -1,1 +1,0 @@
-# Known naming violations; entries may only be removed.
