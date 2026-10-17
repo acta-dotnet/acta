@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Acta.Tests.Attributes;
+namespace Acta.Tests.Abstractions;
 
 /// <summary>
 /// The runtime fallback default for a <c>[JobSchedule]</c> with no explicit misfire is Skip

@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Acta.Tests.Migrations;
+namespace Acta.Tests.Schema;
 
 /// <summary>
 /// Unit coverage for <see cref="SchemaMigrations.Discover"/>. Discovery reads an assembly's embedded

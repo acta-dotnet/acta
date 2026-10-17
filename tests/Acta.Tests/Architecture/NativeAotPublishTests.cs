@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Xunit;
 
-namespace Acta.Tests.Aot;
+namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Guards that the real Anvil lab app publishes with NativeAOT: <c>dotnet publish</c> of <c>anvil/Anvil</c>

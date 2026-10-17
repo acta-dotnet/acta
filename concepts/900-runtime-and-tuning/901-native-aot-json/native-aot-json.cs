@@ -1,7 +1,7 @@
 // Concept: AOT-safe JSON payloads via j.UseJsonPayloads(JsonSerializerContext) and
 // JobPayload.Json(value, typeInfo) -- no runtime reflection touches the payload type.
 // The NativeAOT *publish* guarantee is enforced by the framework's CI guardrail
-// (tests/Acta.Tests/Aot/NativeAotPublishTests.cs, gated by ACTA_AOT_PUBLISH_TEST), which publishes
+// (tests/Acta.Tests/Architecture/NativeAotPublishTests.cs, gated by ACTA_AOT_PUBLISH_TEST), which publishes
 // anvil/Anvil with NativeAOT. This rung teaches the consumer-side API, not the publish step.
 using System.Text.Json.Serialization;
 using Acta;
