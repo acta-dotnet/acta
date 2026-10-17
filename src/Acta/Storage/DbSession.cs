@@ -86,6 +86,7 @@ internal sealed class DbSession : IDbSession
                 cmd.CommandText = _sql.Load(stem);
                 cmd.CommandTimeout = _commandTimeoutSeconds;
                 bind(cmd);
+                _dialect.PrepareInlineCommand(cmd);
                 await using var reader = await cmd.ExecuteReaderAsync(token);
                 return await read(reader, token);
             },
@@ -115,6 +116,7 @@ internal sealed class DbSession : IDbSession
                 {
                     cmd.CommandText = _sql.Load(command.Operation);
                     bind(cmd);
+                    _dialect.PrepareInlineCommand(cmd);
                 }
 
                 await using var reader = await cmd.ExecuteReaderAsync(token);
@@ -343,6 +345,7 @@ internal sealed class DbSession : IDbSession
             {
                 cmd.CommandText = _sql.Load(command.Operation);
                 bind(cmd);
+                _dialect.PrepareInlineCommand(cmd);
             }
 
             return cmd;

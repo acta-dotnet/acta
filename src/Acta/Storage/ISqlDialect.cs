@@ -60,6 +60,12 @@ internal interface ISqlDialect
     /// </summary>
     void PrepareCallerConnection(DbConnection connection) { }
 
+    /// <summary>
+    /// Adjusts an inline command's text once its parameters are bound, just before it executes. The default is a no-op;
+    /// SQLite folds its <c>(@p IS NULL OR x)</c> catch-all filters against the bound values.
+    /// </summary>
+    void PrepareInlineCommand(DbCommand command) { }
+
     DbParameter CreateParameter(DbParameterSpec spec);
 
     void ConfigureRoutineCommand(DbCommand command, string schema, string routineName);

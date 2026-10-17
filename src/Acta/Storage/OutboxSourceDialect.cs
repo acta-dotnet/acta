@@ -35,6 +35,8 @@ internal class OutboxSourceDialect(ISqlDialect inner) : ISqlDialect
 
     public void PrepareCallerConnection(DbConnection connection) => inner.PrepareCallerConnection(connection);
 
+    public void PrepareInlineCommand(DbCommand command) => inner.PrepareInlineCommand(command);
+
     public virtual DbParameter CreateParameter(DbParameterSpec spec) => inner.CreateParameter(spec);
 
     /// <summary>

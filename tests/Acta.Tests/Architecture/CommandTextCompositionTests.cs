@@ -71,6 +71,12 @@ public sealed class CommandTextCompositionTests
         // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueJob"] = (1, "embedded SQL with a marked section removed"),
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindCompleteExecutions"] = (1, "embedded SQL with marked sections removed"),
+        // The catch-all fold. Each (@p IS NULL OR x) becomes its own x or the literal 1, chosen by whether
+        // @p holds a value; the value itself still travels as a parameter and never enters the text.
+        ["Acta.Sqlite/Services/SqliteDialect.cs::PrepareInlineCommand"] = (
+            1,
+            "embedded SQL with catch-alls folded to 1 or their own filter"
+        ),
         // Migration apply. The text is an embedded DDL resource (a provider's migration script), split
         // into GO batches on SQL Server; the only substitution is {{schema}}.
         ["Acta/Schema/SchemaMigrations.cs::ApplyAsync"] = (1, "embedded migration DDL, {{schema}} only"),
