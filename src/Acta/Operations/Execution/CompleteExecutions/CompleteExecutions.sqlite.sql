@@ -39,6 +39,9 @@ SELECT
         WHEN json_extract(c.value, '$.succeeded') = 1 THEN 100 /* JobStatusCode.Succeeded */
         ELSE 200 /* JobStatusCode.Failed */
     END AS to_status,
+    -- One instant for the whole completion, as PostgreSQL's now() and SQL Server's @now give the server providers:
+    -- SQLite holds now steady only within a statement, and the script stamps a row across several.
+    {{now}} AS now_utc,
     NULL AS sig_state,
     NULL AS sig_due,
     NULL AS slot_wake,
@@ -83,11 +86,11 @@ WHERE wait_signal_name IS NOT NULL AND sig_state = 20 /* CheckpointStatusCode.Se
 -- ck_runtimes_ready_due holds a Ready row to one.
 UPDATE {{schema}}.runtimes AS r
 SET next_run_at_utc = CASE
-    WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 20 /* CheckpointStatusCode.Set */ THEN {{now}}
+    WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 20 /* CheckpointStatusCode.Set */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
     WHEN d.wait_signal_name IS NOT NULL THEN d.sig_due
-    WHEN d.reschedule_status_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, {{now}} + d.reschedule_delay_seconds * 1000)
+    WHEN d.reschedule_status_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1) + d.reschedule_delay_seconds * 1000)
     -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
-    WHEN d.handler_status_code = 30 /* JobStatusCode.Paused */ THEN {{now}}
+    WHEN d.handler_status_code = 30 /* JobStatusCode.Paused */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
     WHEN d.handler_status_code IS NOT NULL THEN NULL
     ELSE d.job_next_run_at_utc
 END
@@ -105,16 +108,16 @@ SET
     lease_expires_at_utc = NULL,
     retention_until_utc = CASE
         WHEN d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            THEN COALESCE({{now}} + d.retention_seconds * 1000, r.retention_until_utc)
+            THEN COALESCE((SELECT now_utc FROM temp._ces_done LIMIT 1) + d.retention_seconds * 1000, r.retention_until_utc)
         ELSE r.retention_until_utc
     END,
-    modified_at_utc = {{now}},
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = r.version + 1
 FROM temp._ces_done d
 WHERE r.job_id = d.job_id;
 
 INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
-SELECT d.job_id, d.execution_number, d.result_format_id, d.result, {{now}}
+SELECT d.job_id, d.execution_number, d.result_format_id, d.result, (SELECT now_utc FROM temp._ces_done LIMIT 1)
 FROM temp._ces_done d
 WHERE d.result_format_id <> 0 /* JobPayloadFormat.None */;
 
@@ -126,7 +129,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
-    102 /* EventCode.SchedulePauseExpired */, {{now}}, d.namespace_id, 10 /* ActorCode.Sys */, NULL,
+    102 /* EventCode.SchedulePauseExpired */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 10 /* ActorCode.Sys */, NULL,
     d.job_id, d.job_ref, d.execution_number, COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
     NULL, NULL, NULL, NULL, NULL, NULL, js.name
 FROM json_each(@p_schedule_advances) a
@@ -137,7 +140,7 @@ WHERE
     AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND js.status_code = 30 /* ScheduleStatusCode.Paused */
     AND js.paused_until_utc IS NOT NULL
-    AND js.paused_until_utc <= {{now}};
+    AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1);
 
 UPDATE {{schema}}.schedules AS js
 SET
@@ -145,7 +148,7 @@ SET
     last_occurrence_at_utc = js.next_run_at_utc,
     status_code = 10 /* ScheduleStatusCode.Active */,
     paused_until_utc = NULL,
-    modified_at_utc = {{now}},
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = js.version + 1
 FROM json_each(@p_schedule_advances) a
 WHERE
@@ -156,7 +159,7 @@ WHERE
     AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND (
         js.status_code <> 30 /* ScheduleStatusCode.Paused */
-        OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= {{now}})
+        OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1))
     );
 
 -- The slot's next state is read from the schedules as they stand now, not from the plan made before the handler ran.
@@ -203,7 +206,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
-    41 /* EventCode.JobExecutionFinished */, {{now}}, d.namespace_id, 70 /* ActorCode.Worker */, NULL,
+    41 /* EventCode.JobExecutionFinished */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 70 /* ActorCode.Worker */, NULL,
     d.job_id, d.job_ref, d.execution_number, COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
     @p_leased_by_worker_id, 50 /* JobStatusCode.Executing */, d.to_status,
     CASE
@@ -239,7 +242,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
-    k.event_code, {{now}}, k.namespace_id, 70 /* ActorCode.Worker */, NULL,
+    k.event_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), k.namespace_id, 70 /* ActorCode.Worker */, NULL,
     k.job_id, k.job_ref, k.execution_number, COALESCE(k.lineage_root_id, k.job_id), k.definition_id, k.tenant_id,
     @p_leased_by_worker_id, 50 /* JobStatusCode.Executing */, k.to_status, NULL, NULL, k.reason_code, k.reason_message
 FROM (
@@ -294,7 +297,7 @@ SELECT
     20 /* CheckpointStatusCode.Set */,
     1 /* JobPayloadFormat.Json */,
     CAST(json_object('childJobId', d.job_id, 'status', d.to_status) AS BLOB),
-    {{now}},
+    (SELECT now_utc FROM temp._ces_done LIMIT 1),
     0
 FROM temp._ces_done d
 WHERE
@@ -304,7 +307,7 @@ ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
     status_code = 20 /* CheckpointStatusCode.Set */,
     value_format_id = excluded.value_format_id,
     value = excluded.value,
-    modified_at_utc = {{now}},
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = {{schema}}.checkpoints.version + 1;
 
 -- The resumed event goes once per parent; the raised event once per child, its message capped at the column width.
@@ -313,7 +316,7 @@ INSERT INTO {{schema}}.events (
     lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
-    80 /* EventCode.JobSignalRaised */, {{now}}, pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
+    80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
     d.parent_id, pj.job_ref, pr.execution_number, COALESCE(pj.lineage_root_id, d.parent_id), pj.definition_id, pj.tenant_id,
     NULL, d.parent_status, d.parent_status, NULL, NULL, d.reason_code,
     CASE
@@ -329,7 +332,7 @@ WHERE
     AND pj.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
 UNION ALL
 SELECT DISTINCT
-    72 /* EventCode.JobResumed */, {{now}}, pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
+    72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
     d.parent_id, pj.job_ref, pr.execution_number, COALESCE(pj.lineage_root_id, d.parent_id), pj.definition_id, pj.tenant_id,
     NULL, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, NULL, NULL, 60 /* EventReasonCode.JobSignalReleased */, NULL
 FROM temp._ces_done d
@@ -343,8 +346,8 @@ WHERE
 UPDATE {{schema}}.runtimes
 SET
     status_code = 10 /* JobStatusCode.Ready */,
-    next_run_at_utc = {{now}},
-    modified_at_utc = {{now}},
+    next_run_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = version + 1
 WHERE
     status_code = 20 /* JobStatusCode.Suspended */
@@ -385,8 +388,8 @@ WHERE
 UPDATE {{schema}}.runtimes
 SET
     status_code = 10 /* JobStatusCode.Ready */,
-    next_run_at_utc = MAX(next_run_at_utc, {{now}}),
-    modified_at_utc = {{now}},
+    next_run_at_utc = MAX(next_run_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1)),
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = version + 1
 WHERE job_id IN (SELECT d.head_id FROM temp._ces_done d);
 -- end lanes
