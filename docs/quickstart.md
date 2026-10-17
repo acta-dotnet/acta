@@ -192,11 +192,12 @@ var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail(...), ct: ct);
 var job     = await jobs.GetAsync(outcome, ct);   // GetJobResponse? with Status, attempts, timestamps
 ```
 
-Or with SQL, because the state is rows:
+Or with SQL, because the state is rows. Open `acta-local.db` in any SQLite client; on PostgreSQL or SQL Server
+the views sit in the configured schema, so the same query reads `acta.jobs_view`:
 
 ```sql
 SELECT job_id, job_ref, job_name, status, failure_count, created_at_utc
-FROM   acta.jobs_view
+FROM   jobs_view
 WHERE  namespace = 'users'
 ORDER  BY created_at_utc DESC;
 ```

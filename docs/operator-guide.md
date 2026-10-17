@@ -462,9 +462,9 @@ Use SQL Server or PostgreSQL when more than one process will claim work from the
 They are the server providers and the right default for service deployments. A PostgreSQL database
 must keep a deterministic collation, which is the default, so that keys compare exactly.
 
-Use SQLite when the database is embedded in one process or one node. SQLite is useful for concepts,
-local exploration, tests, and small single-node tools, but it has concurrency limits compared with
-server databases.
+Use SQLite when the database is embedded in one process. SQLite is useful for concepts, local
+exploration, tests, and small single-process tools. Several processes can share one SQLite file on one
+machine for a try-out, as the demos do, but that is not a supported deployment.
 
 Redis wakeup is optional. SQL polling is the correctness baseline; a wakeup transport only lowers
 pickup latency.

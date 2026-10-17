@@ -33,7 +33,7 @@ Six labs, in order, that cover the model end to end:
 
 | Lab | What it proves |
 | --- | --- |
-| [`201-durable-checkout`](../concepts/200-durable-execution/201-durable-checkout/) | The flagship: a multi-step checkout that survives crashes between steps. |
+| [`201-durable-checkout`](../concepts/200-durable-execution/201-durable-checkout/) | The flagship: a checkout that waits on a review and a timer and re-enters from the top, each completed step replayed from its row. |
 | [`202-durable-step`](../concepts/200-durable-execution/202-durable-step/), [`220-at-most-once-step`](../concepts/200-durable-execution/220-at-most-once-step/) | Recorded step outcomes; refusing unsafe replay with `AtMostOnce()`. |
 | [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/) | Recurring work on one stable row; explicit misfire policy. |
 | [`705-worker-crash-recovery`](../concepts/700-topology-and-deployment/705-worker-crash-recovery/) | Leaderless recovery after a real process kill. |
@@ -66,7 +66,7 @@ processes, and watch recovery, with the dashboard attached.
 Every rung is a small project in `concepts/` that teaches one idea, numbered in bands so the ladder can
 grow without renumbering. Run one with `dotnet run --project concepts/<band>/<rung>`. Most rungs
 enqueue work and keep the worker running until Ctrl+C; the ones whose lesson is a value read back
-(003, 012, 013, 015, 016) exit on their own, and the 800 band runs with `dotnet test`. Every rung
+(003, 012, 013, 015, 016) exit on their own, and the 800 band runs with `dotnet test`. Every rung but 705
 defaults to SQLite; set `ACTA_LOCAL_PROVIDER=postgres` or `sqlserver` with `ACTA_TEST_PG` or
 `ACTA_TEST_MSSQL` to run it on a server ([CONTRIBUTING.md](../CONTRIBUTING.md) has the setup).
 Engineering Labs also accept `--brief` to skip row output and `--all-columns` to show complete

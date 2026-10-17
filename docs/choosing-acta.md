@@ -169,6 +169,7 @@ For a host that only knows namespace and job name:
 ```csharp
 var request = JobRequestBuilder
     .Create("billing", "reconcile-invoices")
+    .Json(new { BusinessDate = DateOnly.FromDateTime(DateTime.UtcNow) }) // the same JSON the typed record writes
     .DeduplicationKey(DeduplicationKey.PerDay("reconcile-invoices", "billing"))
     .Build();
 
@@ -218,7 +219,7 @@ control actions.
 - Keep platform clocks only when the organization already standardizes on them.
 - Add deduplication keys to platform-triggered jobs and user-triggered duplicate-prone jobs.
 - Use `JobContext.JobRef` or `JobContext.JobId` in logger scopes for correlation.
-- Use durable steps for side effects that must not be repeated after a retry.
+- Wrap side effects in durable steps so a retry skips the ones that completed; a crash before a step records its outcome can still repeat it, so the side effect needs an idempotency key or `AtMostOnce()`.
 - Teach operators to start with `jobs_view`, `events_view`, the dashboard, and `jobs explain`.
 
 ## AI and agent steps

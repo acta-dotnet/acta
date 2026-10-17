@@ -7,7 +7,7 @@ database you already run.
 | Document | What it covers |
 | --- | --- |
 | [Choosing Acta](./choosing-acta.md) | Whether Acta fits your problem, when to keep what you have, and moving from another scheduler. |
-| [Quickstart](./quickstart.md) | Clone to a running durable job on embedded SQLite, then inspect the row. |
+| [Quickstart](./quickstart.md) | A durable job in your own app on embedded SQLite, then the row it left. |
 | [Engineering Labs](./engineering-labs.md) | Runnable proof (crash recovery, durable steps, signals, the dashboard, deterministic tests) and the full concept ladder. |
 | [Guide](./guide.md) | Writing jobs: concepts, the handler contract, configuration, transactional enqueue and the outbox, schedules, contract evolution, and testing. |
 | [Operator guide](./operator-guide.md) | Running Acta: verbs, CLI, dashboard and API, retention, production deployment, alerting, failure modes, troubleshooting, and SQL recipes. |

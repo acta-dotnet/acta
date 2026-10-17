@@ -144,7 +144,7 @@ A job handler has exactly one input and zero or one durable result. The declared
 
 ```csharp
 public Task Run(SendEmail request, CancellationToken ct);              // no durable result
-public Task<ReceiptResult?> Run(SendReceipt request, CancellationToken ct);  // durable result, even when returned value is null
+public Task<ReceiptResult> Run(SendReceipt request, CancellationToken ct);   // durable result; returning null fails the attempt
 ```
 
 The generator emits descriptors from the declared signature. The runtime uses those descriptors and does not infer result behavior from return values at invocation time.
@@ -458,7 +458,7 @@ Task<TOut>
 ValueTask<TOut>
 ```
 
-A declared result type writes a `JobResult` row on successful completion. The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt (see *Null results*); `null` is never persisted as a result. No result row means no result was declared.
+A declared result type writes a `JobResult` row on successful completion. The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result row when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
 
 Failed, cancelled, or abandoned attempts do not write successful result rows (timeouts record failed with reason `job.execution-timeout`). The job's `runtimes` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TOut`.
 
@@ -609,7 +609,7 @@ run handlers.
 
 ### Provider Options
 
-SQL Server, Postgres, and SQLite all inherit the same provider option shape. SQLite is embedded and
+SQL Server, Postgres, and SQLite all take the one `SqlProviderOptions` type. SQLite is embedded and
 uses schema `main`; SQL Server and Postgres default to schema `acta`.
 
 | Option | Default | Use |
@@ -927,6 +927,7 @@ Its `EmailService` dependency is replaced with a fake through `ActaTestHostOptio
 
 ```csharp
 using Acta;
+using Acta.Postgres;
 using Acta.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Users;

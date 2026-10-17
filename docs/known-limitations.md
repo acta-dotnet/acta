@@ -4,14 +4,12 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0.0-rc.4, which carries the 1.0 baseline; rc.5, a reorganisation of the source, comes
-before 1.0.0. From 1.0.0 the public API, schema, and persisted codes
-are frozen, and the migration history with them: schema changes ship only as additive
-migrations, and the baseline is never re-cut, so a database provisioned by a 1.x build
-upgrades by migration alone. A database an earlier release candidate provisioned needs one
-reprovision on the way in, because a re-cut baseline carries no translation migration and
-nothing in the database says which cut it came from; old renumbered code values are intentionally incompatible, and there
-is no translation migration.
+Acta is at 1.0.0-rc.4. The next release rebuilds the execution engine, removes APIs, changes persisted
+codes, and re-cuts the schema ([release notes](./release-notes.md)), so every database an earlier release
+candidate provisioned is dropped and reprovisioned: no translation migration exists, and nothing in a
+database says which cut it came from. From 1.0.0 the public API, schema, and persisted codes are frozen,
+and the migration history with them: schema changes ship only as additive migrations and the baseline is
+never re-cut, so a database provisioned by a 1.x build upgrades by migration alone.
 
 Every baseline statement is existence-guarded, so a pre-1.0 database pointed at a later build would
 take the re-cut baseline as a no-op and keep, for example, `events.actor` as `varchar(128)` on SQL
