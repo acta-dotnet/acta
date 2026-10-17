@@ -67,7 +67,7 @@ internal sealed partial class WorkerFinalizer(
 
     // Rows still failing alone after BatchTries, each repeating apart from the loop so it holds only itself. The bound
     // is the executor count: past it the loop repeats in place, so a failure that refuses every completion still stops
-    // intake (docs/technical/known-limitations.md, the completion backpressure).
+    // intake (docs/known-limitations.md, the completion backpressure).
     private readonly ConcurrentDictionary<InFlightJob, Task> _apart = new();
     private readonly int _apartLimit = options.MaxConcurrentExecutors;
 

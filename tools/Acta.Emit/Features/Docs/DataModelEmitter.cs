@@ -37,7 +37,7 @@ internal static class DataModelEmitter
                 + $"**{model.Entities.Sum(e => e.ForeignKeys.Count)} foreign keys**. Names render with the default `acta` schema prefix; "
                 + "substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). "
                 + "The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in "
-                + "[`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy)."
+                + "[SQL recipes](../operator-guide.md#foreign-key-policy)."
         );
         sb.AppendLine();
     }

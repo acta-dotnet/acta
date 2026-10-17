@@ -553,7 +553,7 @@
         <div class="build">
           <h3>Can real-database tests take milliseconds and run in parallel?</h3>
           <p><code>Acta.Testing</code> drives the real runtime one tick at a time: a tick is one claim plus one handler run, with no polling, no sleeps, and no background worker racing your assertions. Each test host owns its own schema, so one database serves many tests at once, and an end-to-end job test finishes in tens of milliseconds.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/testing.md"><b>docs/guide/testing.md</b></a></span>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#testing-custom-jobs"><b>docs/guide.md</b></a></span>
         </div>
         <div class="build">
           <h3>Can SQL replace a job queue, without a leader?</h3>
@@ -635,7 +635,7 @@
         </div>
         <figcaption>
           <span class="stamp">Field record · Anvil steady run</span>
-          <span>Captured mid-run: 10,000 jobs draining through two workers. The ledger shows the backlog, the oldest ready job, live heartbeats, and the next schedule firings. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Operator guide</a></span>
+          <span>Captured mid-run: 10,000 jobs draining through two workers. The ledger shows the backlog, the oldest ready job, live heartbeats, and the next schedule firings. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md">Operator guide</a></span>
         </figcaption>
       </figure>
     </section>
@@ -671,7 +671,7 @@
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
-        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md#at-most-once-steps">At-most-once steps</a></li>
+        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#at-most-once-steps">At-most-once steps</a></li>
         <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
       </ul>
     </section>
@@ -755,7 +755,7 @@
           <div class="ref-row"><dt>Recurring schedules</dt><dd><code>[JobSchedule]</code> with an interval (<code>5m</code>) or cron expression. One stable slot job carries moving schedule cursors instead of creating a job row per firing. Missed windows are visible and handled by explicit misfire policy, and operators can pause a schedule (with an auto-resume time if they want one), resume it, or fire it immediately with trigger-now, all without touching the cadence.</dd></div>
           <div class="ref-row"><dt>Deduplication keys</dt><dd>Enqueue with a caller-supplied key and a duplicate enqueue returns the existing job instead of creating a second one: resubmitting the same form doesn't enqueue the email job twice. It deduplicates the job row, not the side effect: execution stays at-least-once, which is what durable steps and idempotency keys are for.</dd></div>
           <div class="ref-row"><dt>Retries with typed backoff</dt><dd>Retry count and backoff are explicit, typed policy on the job, not folklore in a catch block. Attempts are counted on the job row, and at the default audit level each one is recorded as start and finish events, so "how many times did this run and when" is a query.</dd></div>
-          <div class="ref-row"><dt>Atomic enqueue with your data</dt><dd>Enqueue on the transaction you already opened, so the job and the business write commit or roll back together in the same database. When the job belongs to a different database, stage the handoff in your own transaction with <code>AddToActaOutboxAsync</code> and the built-in <code>sys.outbox</code> relay moves it into the ledger, deduplicating and quarantining as it goes. Neither is a universal exactly-once guarantee: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/transactional-enqueue-and-outbox.md">the guide</a> states exactly what each one buys.</dd></div>
+          <div class="ref-row"><dt>Atomic enqueue with your data</dt><dd>Enqueue on the transaction you already opened, so the job and the business write commit or roll back together in the same database. When the job belongs to a different database, stage the handoff in your own transaction with <code>AddToActaOutboxAsync</code> and the built-in <code>sys.outbox</code> relay moves it into the ledger, deduplicating and quarantining as it goes. Neither is a universal exactly-once guarantee: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#transactional-enqueue-and-the-external-outbox">the guide</a> states exactly what each one buys.</dd></div>
         </dl>
 
         <h3 class="ref-group">Durable execution</h3>

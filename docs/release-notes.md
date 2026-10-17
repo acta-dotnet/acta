@@ -518,6 +518,16 @@ settles, and what an operator sees when it fails.
   and book it instead of admitting it. The routine now works at the column's precision; the object
   package moves to revision 48.
 
+### Documentation
+
+- The guides are fewer and longer: [`docs/guide.md`](./guide.md) covers writing jobs and
+  [`docs/operator-guide.md`](./operator-guide.md) running them, and `docs/known-limitations.md` and
+  `docs/design.md` move to the root of `docs/`. `docs/guide/` and `docs/technical/` are gone, and the
+  contributor pages under `docs/internals/` moved into `CONTRIBUTING.md`.
+- Benchmark rounds and certification seals are no longer filed in the repository. The latest round
+  is [`docs/reference/benchmark.md`](./reference/benchmark.md), and the release notes record each
+  certification verdict.
+
 ## 1.0.0-rc.4
 
 Tagged 2026-10-03. A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the
@@ -1266,7 +1276,7 @@ or over 512 characters is rejected, and `DisplayName` and `Description` are cut 
   it is in flight on a lapsed lease. The guard reads the lease against database time inside the
   statement, so simultaneous checks commit one repair and one event between them, and a heartbeat
   that renewed the lease is never overtaken. Normal claiming then decides which worker runs the sweep; no worker sweeps the
-  namespace on its own. See [known limitations](./technical/known-limitations.md) for the delay this
+  namespace on its own. See [known limitations](./known-limitations.md) for the delay this
   bounds.
 - **Finishing an in-flight attempt can no longer resurrect a removed schedule.** A recurring slot
   plans its cursor advances before the handler runs and applies them at completion. If a deployment
@@ -1433,7 +1443,7 @@ defect landed in: `RecoveryJob.Handle` is still executed by no test.
 > `job_schedule_advance_batch` table type gains `expected_version`, the schedule version a recurring
 > fire read, which completion checks before it advances the cursor. The routines re-install on every
 > start and need no action. Re-cutting on a later day moves the stamp to that day, so two cuts
-> collide only when they happen on the same day; [known limitations](./technical/known-limitations.md)
+> collide only when they happen on the same day; [known limitations](./known-limitations.md)
 > states that one-day gap.
 >
 > The same applies to the host's outbox table on SQL Server: `last_error` is now `nvarchar(512)`
@@ -1636,7 +1646,7 @@ a locked-down principal that cannot see it is indistinguishable from an unprovis
 is refused the same way.
 If you were relying on lazy failure — pointing a worker at a database you provision later — provision
 first now. The preflight checks history, not routine bodies: keep running the full provisioning
-script on every upgrade, as [`production.md`](./guide/production.md#migration-ownership) describes.
+script on every upgrade, as [`production.md`](./operator-guide.md#migration-ownership) describes.
 
 The **driver-major preflight** compares the loaded ADO driver's major version against the one Acta
 was certified with and refuses to start on a mismatch. Acta's driver dependencies stay floors with
@@ -2159,7 +2169,7 @@ observability, and the dashboard grows its operator depth surface.
 - The curated `acta.jobs_view` resolves `tenant_key` beside the raw `tenant_id`, so tenant-scoped
   SQL reads no longer need a join.
 - The tenant catalog is global per store and a tenant is a routing and reporting dimension, not a
-  security or isolation boundary; see [concepts](./guide/concepts.md).
+  security or isolation boundary; see [concepts](./guide.md#concepts-and-glossary).
 
 ### Outbox observability
 
@@ -2202,7 +2212,7 @@ First public preview of Acta: the SQL-native durable work ledger for .NET.
   `DbTransaction` (same database), and provider-package outbox staging (`AddToActaOutboxAsync` on the
   caller's own transaction) plus an Acta-owned `sys.outbox` relay for a different database. Neither is a
   universal exactly-once guarantee.
-  See [transactional enqueue and the external outbox](./guide/transactional-enqueue-and-outbox.md).
+  See [transactional enqueue and the external outbox](./guide.md#transactional-enqueue-and-the-external-outbox).
 
 APIs, schema, and behavior may change without deprecation during the preview. Known gaps are
-tracked in [known limitations](./technical/known-limitations.md).
+tracked in [known limitations](./known-limitations.md).

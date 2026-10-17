@@ -26,8 +26,8 @@ uses.
 
 > This page is a fit guide, not a claim that every existing scheduler should be replaced.
 
-For concrete migration patterns from `BackgroundService`, cron, Hangfire, Quartz, TickerQ, platform
-schedulers, and custom task tables, see [Scheduler migration](./guide/scheduler-migration.md).
+For concrete migration patterns from Hangfire, Quartz, TickerQ, platform schedulers, and custom task
+tables, see [Moving from another scheduler](#moving-from-another-scheduler).
 
 ## The real split
 
@@ -100,7 +100,7 @@ where the two live:
 | You want a single universal exactly-once guarantee | Neither. Execution is at-least-once; handlers own idempotency for external side effects |
 
 Full walkthrough, including the canonical table, cadence, and quarantine policy:
-[Transactional enqueue and the external outbox](./guide/transactional-enqueue-and-outbox.md).
+[Transactional enqueue and the external outbox](./guide.md#transactional-enqueue-and-the-external-outbox).
 
 ## If you already use Hangfire, Quartz, or TickerQ
 
@@ -124,6 +124,102 @@ The migration trigger is not **we need cron**. The migration trigger is one of t
 - We need durable steps, child jobs, signals, long waits, or operator controls.
 - We do not want a broker, sidecar, hosted scheduler, or separate control plane.
 - We want the application database to be the source of truth.
+
+## Moving from another scheduler
+
+Migrate when the job is application state and you want the database to be the source of truth, not
+because Acta also schedules jobs.
+
+| Existing concept | Acta equivalent |
+| --- | --- |
+| Background job | `[Job]` + `IJobs.EnqueueAsync` |
+| Recurring job | `[JobSchedule]` on the `[Job]` method |
+| Dashboard | `MapActa()` under `/acta` |
+| Retry policy | `[Job(MaxAttempts = ...)]` and backoff settings |
+| Queue | Job namespace and worker registration |
+| Job id | `JobRef` for public references, `JobId` internally |
+| Continuations / batches | Child jobs and fan-out / fan-in APIs |
+| Job parameters | Typed input contracts and payload formats |
+| Job history / logs | Durable `events`, `jobs_view`, dashboard/API, CLI, and `events_view` SQL |
+| Application logs | Use normal app logging and correlate with `JobRef` / `JobId` when needed |
+
+The event timeline is the durable job log: operators query `acta.events_view`, open the dashboard's
+Events page, drill into a job's timeline, or use the CLI, without decoding a private scheduler store.
+
+### Keep the platform clock
+
+When the team already standardizes on a clock (Kubernetes CronJob, Azure Functions TimerTrigger, SQL
+Server Agent, cron, systemd timers, Windows Task Scheduler), keep the trigger and let it enqueue an
+Acta job. The platform owns when to poke the app; Acta owns idempotency, retries, execution history,
+recovery, and operator controls.
+
+For a typed job:
+
+```csharp
+public sealed record ReconcileInvoices(DateOnly BusinessDate);
+
+await jobs.EnqueueAsync(
+    new ReconcileInvoices(DateOnly.FromDateTime(DateTime.UtcNow)),
+    o => o.DeduplicationKey(DeduplicationKey.PerDay("reconcile-invoices", "billing")),
+    ct);
+```
+
+For a host that only knows namespace and job name:
+
+```csharp
+var request = JobRequestBuilder
+    .Create("billing", "reconcile-invoices")
+    .DeduplicationKey(DeduplicationKey.PerDay("reconcile-invoices", "billing"))
+    .Build();
+
+await jobs.EnqueueAsync(request, ct);
+```
+
+Do not write directly into Acta tables from the platform scheduler. Call application code, an
+internal endpoint, a small console host, or another supported enqueue surface, so payload formats,
+idempotency rules, validation, and catalog lookup stay in one place.
+
+### Replace a custom job table
+
+A homemade scheduler starts as `Tasks(Id, Name, LastRunTime, Interval, Status, Error)` and a processor
+that scans due rows, flips a status, runs code, and records a timestamp, then grows retries, locks,
+error history, and recovery. Replace both with a scheduled job:
+
+```csharp
+public sealed class ImportJobs
+{
+    [Job("import-files")]
+    [JobSchedule("default", "PT10M")]
+    public Task ImportFiles(CancellationToken ct)
+    {
+        return Task.CompletedTask;
+    }
+}
+```
+
+| Custom table field | Acta replacement |
+| --- | --- |
+| `Name` | `[Job("import-files")]` |
+| `Interval` | `[JobSchedule("default", "PT10M")]` or cron |
+| `LastRunTime` | event timeline and schedule cursor |
+| `Status` | `jobs_view.status`, schedule status, worker lease state |
+| `Error` | failed execution event, reason code, alert, result/detail payload |
+| processor loop | Acta worker runtime |
+| manual lock row | worker leases, concurrency keys, durable locks |
+
+Afterwards the question is no longer what the scheduler code did but what the durable rows say:
+start with the [SQL recipes](./operator-guide.md#sql-recipes), then use the dashboard or CLI for
+control actions.
+
+### Checklist
+
+- Pick one namespace per owning service, such as `billing`, `users`, or `imports`.
+- Convert recurring work to `[Job]` + `[JobSchedule]`.
+- Keep platform clocks only when the organization already standardizes on them.
+- Add deduplication keys to platform-triggered jobs and user-triggered duplicate-prone jobs.
+- Use `JobContext.JobRef` or `JobContext.JobId` in logger scopes for correlation.
+- Use durable steps for side effects that must not be repeated after a retry.
+- Teach operators to start with `jobs_view`, `events_view`, the dashboard, and `jobs explain`.
 
 ## AI and agent steps
 
@@ -154,7 +250,7 @@ are the same primitive either way.
 
 When a step is physically consequential, a repeated step is a physical event: a second machine
 command, a second label. For those steps, see
-[At-most-once steps](./guide/handler-contract.md#at-most-once-steps).
+[At-most-once steps](./guide.md#at-most-once-steps).
 
 ## The smallest scheduled job
 
@@ -173,7 +269,8 @@ public sealed class CleanupJobs
 ```
 
 During local demos, use a short interval such as `10s` so the run is visible. In production, use the
-business cadence as a cron expression, or as a plain interval such as `5m` or `1h`.
+business cadence as a cron expression, or as a plain interval such as `5m` or `1h`. For common cron
+expressions, the `Cron` constants read better: `Cron.Every5Minutes`, `Cron.DailyAt5`, `Cron.Weekdays`.
 
 For a runnable first pass, start with [Quickstart](./quickstart.md). For the unusual implementation
 ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence

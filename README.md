@@ -104,7 +104,7 @@ The Anvil step builds the dashboard UI, which needs Node.js 20.19+ or 22.12+ on 
 
 The `[Job]` name is the durable, operator-facing contract: it is what the row carries, what the dashboard shows, and what you must not rename casually. Enqueue is typed; dispatch is generated.
 
-SQLite state is one file. The quickstart writes `acta-local.db` beside your project; the bundled concepts write `acta-local*.db` to your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` elsewhere) - delete it to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`. Docker is optional, only needed to run against real Postgres / SQL Server / Redis: setup, tests, and benchmarks in [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md).
+SQLite state is one file. The quickstart writes `acta-local.db` beside your project; the bundled concepts write `acta-local*.db` to your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` elsewhere) - delete it to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`. Docker is optional, only needed to run against real Postgres / SQL Server / Redis: setup, tests, and benchmarks in [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems in [local setup problems](./CONTRIBUTING.md#local-setup-problems).
 
 ## Use Acta when
 
@@ -139,7 +139,7 @@ from acta.jobs_view
 where status = 'executing';
 ```
 
-More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [`docs/guide/sql-recipes.md`](./docs/guide/sql-recipes.md); the numeric codes decode via [`docs/reference/code-families.md`](./docs/reference/code-families.md). Because state is rows, a job that failed a month ago is still there to inspect, and to restart with its original input.
+More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [SQL recipes](./docs/operator-guide.md#sql-recipes); the numeric codes decode via [`docs/reference/code-families.md`](./docs/reference/code-families.md). Because state is rows, a job that failed a month ago is still there to inspect, and to restart with its original input.
 
 ## Capabilities and boundaries
 
@@ -170,8 +170,8 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 ## Status
 
 - From 1.0.0 the migration history is frozen: schema changes ship only as additive migrations, and the baseline is never re-cut. Until then a release candidate may re-cut it, and rc.4 does. A database an earlier release candidate provisioned needs one reprovision on the way in: a re-cut baseline carries no translation migration.
-- Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/production.md`](./docs/guide/production.md#dashboard-exposure-and-auth) before exposing anything.
-- Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
+- Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [dashboard exposure and auth](./docs/operator-guide.md#dashboard-exposure-and-auth) before exposing anything.
+- Known limitations are tracked in [`docs/known-limitations.md`](./docs/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).
 
 ## How this was built

@@ -368,7 +368,7 @@ does not remove this executable compatibility obligation.
 Dashboard/API are the normal administration surface; human database access can be restricted without
 making Acta opaque. Ordinary SELECT inspection and the documented direct SQL enqueue recipes remain
 supported, including SSMS, DBeaver, and psql. SQL enqueue becomes visible to worker polling after commit;
-it does not itself send an application transport wake-up. See [SQL recipes](../guide/sql-recipes.md).
+it does not itself send an application transport wake-up. See [SQL recipes](../operator-guide.md#sql-recipes).
 This policy does not declare every internal routine an independently supported operator API or require
 an EXECUTE-only runtime account. Installed views remain the curated query surface; storage tables and
 custom payload encodings retain their existing compatibility and decoding limits.

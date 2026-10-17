@@ -46,11 +46,11 @@ Things that are **not** vulnerabilities, because they are documented design boun
   that names the host as `localhost` or an IP address) and fail closed when exposed remotely without
   host authorization through `ConfigureEndpoints` or the explicit unsafe opt-in; the host owns authentication and
   authorization. Exposing them publicly without configuring that is a deployment choice, not a flaw.
-  See `docs/guide/operator-guide.md`.
+  See `docs/operator-guide.md`.
 - **Execution is at-least-once.** A handler can run more than once, so external side effects need
-  idempotency or reconciliation. See `docs/technical/known-limitations.md`.
+  idempotency or reconciliation. See `docs/known-limitations.md`.
 - **The tenant field is not a security boundary.** Acta validates, persists, and propagates tenant
   identity; it does not authorize callers or filter application data. Separate residency or blast
-  radius takes separate stores or deployments. See `docs/guide/concepts.md`.
+  radius takes separate stores or deployments. See `docs/guide.md`.
 - **Job payloads are stored as supplied.** Acta does not encrypt them; a payload containing secrets
   is readable by anyone with database access.

@@ -26,7 +26,7 @@ The job row's creation columns are the enqueue record; enqueue does not append a
 business data and a job atomically takes one of Acta's two explicit paths: `IJobs.EnqueueAsync` with the
 application's `DbTransaction` when the data lives in Acta's database, or `AddToActaOutboxAsync` and the
 relay when it lives in another; see
-[transactional enqueue and the outbox](../../docs/guide/transactional-enqueue-and-outbox.md). Job claims, heartbeats, and completions consume database capacity, and contract changes
+[transactional enqueue and the outbox](../../docs/guide.md#transactional-enqueue-and-the-external-outbox). Job claims, heartbeats, and completions consume database capacity, and contract changes
 must remain safe while old and new processes overlap during a deployment.
 
 Use a broker or streaming platform instead when very high event throughput, broad fan-out, or log replay

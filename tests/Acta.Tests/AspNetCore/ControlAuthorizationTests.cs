@@ -249,7 +249,7 @@ public sealed class ControlAuthorizationTests
             dir = dir.Parent;
         }
 
-        var guide = File.ReadAllLines(Path.Combine(dir.FullName, "docs", "guide", "operator-guide.md"));
+        var guide = File.ReadAllLines(Path.Combine(dir.FullName, "docs", "operator-guide.md"));
         var start = Array.IndexOf(guide, "```text", Array.IndexOf(guide, "### Control authorization")) + 1;
         return [.. guide[start..Array.IndexOf(guide, "```", start)].Order(StringComparer.Ordinal)];
     }

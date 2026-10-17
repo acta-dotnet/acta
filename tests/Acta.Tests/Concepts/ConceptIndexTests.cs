@@ -6,7 +6,7 @@ namespace Acta.Tests.Concepts;
 /// <summary>
 /// Keeps the concept ladder, the solution, and the tutorial index in sync. Every concept project on
 /// disk must be listed in <c>concepts/Concepts.slnx</c> (or solution builds silently skip it) and every
-/// numbered rung must have a row in <c>docs/guide/tutorials.md</c> (or it is undiscoverable). The reverse
+/// numbered rung must have a row in the ladder of <c>docs/engineering-labs.md</c> (or it is undiscoverable). The reverse
 /// direction is checked too: a solution path with no project on disk is a stale entry.
 /// </summary>
 public sealed partial class ConceptIndexTests
@@ -52,19 +52,28 @@ public sealed partial class ConceptIndexTests
     public void EveryNumberedRungHasATutorialRow()
     {
         var repoRoot = ResolveRepoRoot();
-        var tutorials = File.ReadAllText(Path.Combine(repoRoot, "docs", "guide", "tutorials.md"));
+        var ladder = Ladder(repoRoot);
 
         var missing = ConceptProjects(repoRoot)
             .Where(p => RungFolder.IsMatch(p.Folder))
-            .Where(p => !tutorials.Contains($"concepts/{p.Category}/{p.Folder}/)", StringComparison.Ordinal))
+            .Where(p => !ladder.Contains($"concepts/{p.Category}/{p.Folder}/)", StringComparison.Ordinal))
             .Select(p => $"{p.Category}/{p.Folder}")
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(
             missing.Count == 0,
-            "Concept rungs missing a docs/guide/tutorials.md ladder row (undiscoverable):\n  " + string.Join("\n  ", missing)
+            "Concept rungs missing a row in the docs/engineering-labs.md ladder (undiscoverable):\n  " + string.Join("\n  ", missing)
         );
+    }
+
+    /// <summary>The concept ladder section of <c>docs/engineering-labs.md</c>, the one index of every rung.</summary>
+    internal static string Ladder(string repoRoot)
+    {
+        var labs = File.ReadAllText(Path.Combine(repoRoot, "docs", "engineering-labs.md"));
+        var start = labs.IndexOf("## The concept ladder", StringComparison.Ordinal);
+        Assert.True(start >= 0, "docs/engineering-labs.md has no '## The concept ladder' section.");
+        return labs[start..];
     }
 
     [Fact]

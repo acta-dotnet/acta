@@ -41,7 +41,7 @@ public sealed partial class EngineeringLabsIndexTests
     {
         var repoRoot = ResolveRepoRoot();
         var guide = File.ReadAllText(Path.Combine(repoRoot, "docs", "engineering-labs.md"));
-        var tutorials = File.ReadAllText(Path.Combine(repoRoot, "docs", "guide", "tutorials.md"));
+        var ladder = ConceptIndexTests.Ladder(repoRoot);
 
         var failures = new List<string>();
         foreach (var lab in EngineeringLabs(repoRoot))
@@ -91,14 +91,9 @@ public sealed partial class EngineeringLabsIndexTests
             {
                 failures.Add($"{relative}: missing from the Engineering Labs index");
             }
-            if (!tutorials.Contains($"(../../{conceptPath}/)", StringComparison.Ordinal))
+            if (!ladder.Contains($"(../{conceptPath}/)", StringComparison.Ordinal))
             {
-                failures.Add($"{relative}: missing from the tutorial ladder");
-            }
-            var labelLink = $"[`{Path.GetFileName(lab.Directory)}`](../../{conceptPath}/)";
-            if (!tutorials.Contains(labelLink, StringComparison.Ordinal))
-            {
-                failures.Add($"{relative}: missing from the Engineering Lab label matrix");
+                failures.Add($"{relative}: missing from the concept ladder");
             }
         }
 

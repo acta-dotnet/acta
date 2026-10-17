@@ -12,7 +12,7 @@ Two tiers, depending on what you are doing:
 | Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js with npm: 20.19+ or 22.12+ builds the dashboard, and its tests need 22.13+ (CI uses 22). |
 
 Environment sanity check at any point: `dotnet run --project tools/Acta.Doctor`. Setup failures are
-tabled in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md#local-environment-setup-fails).
+tabled in [Local setup problems](#local-setup-problems).
 
 ## Five-minute SQLite path
 
@@ -72,6 +72,26 @@ Docker notes (all optional):
 
 Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_EMIT_API` (regenerate the public API baseline), `ACTA_EMIT_OPENAPI` (regenerate `docs/reference/openapi.json`), `ACTA_AOT_PUBLISH_TEST`, `ASPNETCORE_ENVIRONMENT`. Compose binds SQL Server to IPv4 loopback only, so connection strings name `127.0.0.1`, not `localhost` (`.env.example` has the full set).
 
+## Local setup problems
+
+Run `dotnet run --project tools/Acta.Doctor` first: it checks the SDK, the SQLite path, env vars,
+Docker, and ports, and prints the fix for most of the rows below.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| A concept/Anvil demands `ACTA_TEST_PG` though you wanted SQLite | Stale `ACTA_LOCAL_PROVIDER=postgres` in your shell or a copied `.env` | Unset `ACTA_LOCAL_PROVIDER` (SQLite is the default when it is unset) |
+| `docker compose up` fails: cannot connect to the daemon | Docker Desktop / dockerd not running | Start it, or skip Docker entirely; the SQLite path needs none |
+| Compose fails: port 5432/1433/6379 already allocated | You already run a server on that port | Reuse yours via `ACTA_TEST_PG` / `ACTA_TEST_MSSQL` / `ACTA_TEST_REDIS`, or set `ACTA_PG_PORT` / `ACTA_MSSQL_PORT` / `ACTA_REDIS_PORT` in `.env` |
+| SQL Server container unhealthy or login fails right after start | ~20–30 s startup; password must satisfy complexity policy; memory capped at `MSSQL_MEMORY_LIMIT_MB: 8192` | Wait for `healthy` in `docker compose ps`; keep any `ACTA_MSSQL_SA_PASSWORD` override complex |
+| Postgres `28P01: password authentication failed` | Connection string password differs from the one the volume was initialized with | Match `.env.example`, or re-init: `docker compose down -v` then `up -d` (destroys the container's data) |
+| Redis unavailable | Container/service not running | Optional: rung 903 degrades to the poll floor without it. Redis is a latency accelerator, not a correctness dependency |
+| Anvil exits at start: port 5059 taken | Another Anvil (or app) is listening on 5059 | Close it, then rerun `dotnet run --project anvil/Anvil` |
+| Reset local SQLite state | One temp-file database per machine | Delete `acta-local*.db` in `%TEMP%` (Windows) / `$TMPDIR` or `/tmp` (macOS/Linux) |
+
+Concepts, demos, and Anvil pick their database through `UseLocalDatabase(...)`, in this order: an
+explicit provider argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite. For Postgres or SQL
+Server, set `ACTA_LOCAL_PROVIDER` and provide `ConnectionStrings:acta`, `ACTA_TEST_PG`, or
+`ACTA_TEST_MSSQL`.
 ## Database lifecycle: create, migrate, reset, destroy
 
 **Create.** SQLite creates its file on first connection. Against Postgres / SQL Server, the local
@@ -141,7 +161,7 @@ dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
 dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
 ```
 
-See [`docs/guide/testing.md`](./docs/guide/testing.md) for the test taxonomy and
+See [Testing custom jobs](./docs/guide.md#testing-custom-jobs) for the test taxonomy and
 [Schema migrations](#schema-migrations) for the migration workflow.
 
 ## Dashboard development
@@ -830,7 +850,7 @@ The shortest paths to the design-review-worthy parts:
 | Area | Where to look |
 |---|---|
 | Public-API design | `src/Acta/Operations/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
-| Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
+| Durable execution model | [Concepts](./docs/guide.md#concepts-and-glossary), [handler contract](./docs/guide.md#handler-contract) |
 | Persistence architecture | `src/Acta/Operations/` (one folder per operation: its public types, handler, and SQL), `src/Acta/{Schema,Storage}/`, the dialect class in each of `src/Acta.{Postgres,SqlServer,Sqlite}/` |
 | Provider conformance | `tests/Acta.Tests.Conformance` (specs and test infrastructure); each of `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}` compiles the specs against its own `ConformanceFixture` alias, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |

@@ -4,7 +4,7 @@ The non-negotiable identity of Acta and the rationale behind it: the "why" manif
 document defers to this one. Reopening anything here is a category-reshaping change, not a refinement.
 
 The vocabulary itself (Job, Execution, Attempt, Status, namespace, durable slot, provider, the three
-identities, the substrate tables) is defined once in [`concepts.md`](./guide/concepts.md). This
+identities, the substrate tables) is defined once in [concepts](./guide.md#concepts-and-glossary). This
 document explains why the model is shaped that way; it does not re-teach the mechanics. Where the code
 lives is in [source layout](../CONTRIBUTING.md#source-layout). Whether Acta fits a problem is
 [`choosing-acta.md`](./choosing-acta.md).
@@ -45,7 +45,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 **Everything externally scheduled, claimed, retried, paused, cancelled, and audited as work is a
 Job; Job-internal state lives in the `checkpoints` and `steps` substrate tables, not as Jobs.** The mechanics
 (which slot writes which checkpoint kind, the `(JobId, Kind, Name)` keying, the CASCADE FKs) are in
-[`concepts.md`](./guide/concepts.md).
+[concepts](./guide.md#concepts-and-glossary).
 
 The reason is the two-tier model: it keeps heavy machinery (claim queue, lease, audit, alerting) at
 the unit-of-work tier and lightweight per-Job substrate at the Job-internal tier, so one
@@ -90,7 +90,7 @@ handler run that processes it (1:1 in steady state; misfire policy decides misse
 ## Settled decisions ledger
 
 Every load-bearing decision, one line each, the call plus its reason. Vocabulary is defined in
-[`concepts.md`](./guide/concepts.md); the rationale behind the model is the principles above.
+[concepts](./guide.md#concepts-and-glossary); the rationale behind the model is the principles above.
 Reopening an entry means writing a proposal, not editing this file.
 
 ### Identity
@@ -198,7 +198,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 ### Handler contract
 
 - **Two handler attributes and two invocation modes.** `[Job]` and `[JobSchedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` (fire-and-forget durable) or `RunAndWaitAsync` (durable enqueue + await). *Reason:* the declarative surface stays small.
-- **The handler-contract specification lives in [`handler-contract.md`](./guide/handler-contract.md)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
+- **The handler-contract specification lives in [the handler contract](./guide.md#handler-contract)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
 
 ### Tooling
 

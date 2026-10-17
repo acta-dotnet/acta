@@ -66,7 +66,7 @@ holds the row. Open the dashboard URL: the Jobs count reads 1, and the Jobs scre
 > **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
 > root namespace, while top-level statements live in the global namespace, so without it
 > `ShippingJobs` will not resolve. The naming rule and the fix are in
-> [Troubleshooting](./guide/troubleshooting.md#the-generated-manifest-type-does-not-resolve).
+> [Troubleshooting](./operator-guide.md#the-generated-manifest-type-does-not-resolve).
 
 ## No web host?
 
@@ -206,7 +206,7 @@ The events view holds the append-only timeline per job: every transition, with a
 ## Where to go next
 
 - Idempotent enqueue with deduplication keys, durable steps, signals, sleeps, and child jobs:
-  [Concepts](./guide/concepts.md) and the [Engineering Labs](./engineering-labs.md).
-- Namespace naming, policy defaults, and production wiring: [Configuration](./guide/configuration.md)
-  and the [Production guide](./guide/production.md).
-- The full handler surface: [Handler contract](./guide/handler-contract.md).
+  [Concepts](./guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
+- Namespace naming, policy defaults, and production wiring: [Configuration](./guide.md#configuration-and-options)
+  and the [Production guide](./operator-guide.md#production-guide).
+- The full handler surface: [Handler contract](./guide.md#handler-contract).

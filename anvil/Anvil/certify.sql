@@ -254,7 +254,7 @@ HAVING COUNT(*) >= 0;
 -- is the far side of enqueue, claim, dispatch and payload decode, and this compares that against the
 -- row the job was stored with.
 --
--- Not a security claim. docs/guide/concepts.md states plainly that the tenant field is not a security
+-- Not a security claim. docs/guide.md states plainly that the tenant field is not a security
 -- or isolation boundary; this asserts that the value survives intact, not that it confines anything.
 SELECT 'tenant-context' AS check_name, e.job_id, e.reason_message AS observed, COALESCE(t.tenant_name, '-') AS job_tenant
 FROM   {s}events e

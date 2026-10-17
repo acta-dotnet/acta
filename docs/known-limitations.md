@@ -1,7 +1,5 @@
 # Known limitations
 
-## Purpose
-
 Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
@@ -176,7 +174,7 @@ events window has lost the failure it would be answered against, and needs an op
 
 A one-shot job's in-budget retries are invisible at that level, so `FirstFailure` and
 `ThresholdReached` never fire for its own throws while a recurring slot's failed fire is heard;
-[the alerting guide](../guide/alerting.md#what-projects-an-alert) owns the full account of what
+[the alerting guide](./operator-guide.md#what-projects-an-alert) owns the full account of what
 that level records and what it drops.
 
 The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,
@@ -240,7 +238,7 @@ invariant.
 
 **Strict ordered processing.** A lane: jobs enqueued with `.Lane(...)`, or of a definition with
 `[Job(Lane = "...")]`, run one at a time in enqueue order. The semantics are in
-[Concepts: Lanes](../guide/concepts.md#lanes). Its limits:
+[Concepts: Lanes](./guide.md#lanes). Its limits:
 
 - **Head-of-line blocking is the design.** A head that retries, waits, is paused, or is delayed holds
   its whole lane. A poison job holds it until it exhausts `MaxAttempts` or an operator cancels it.
@@ -285,8 +283,8 @@ ahead of the first claimable one, so a long run of jobs no running worker can ex
 such claim walk it until the definition is retired or its build returns; and retiring a definition
 cancels its parked jobs but not their descendants, which finish into a cancelled parent.
 
-See [`contract-evolution.md`](../guide/contract-evolution.md) and
-[Production § rolling deploys](../guide/production.md#rolling-deploys).
+See [Contract evolution](./guide.md#contract-evolution) and
+[Production § rolling deploys](./operator-guide.md#rolling-deploys).
 
 Two schedule writes work from a read a moment older than the write, and neither carries a guard for
 the instant between. A worker start reads schedule state and registers it a few milliseconds

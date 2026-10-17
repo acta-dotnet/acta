@@ -227,7 +227,7 @@ internal sealed partial class RuntimeJobContext(
     /// timeline must not say it was. Follow-up transactions, like every cascade, not atomic with the Expired flip
     /// that preceded them: a crash mid-walk leaves live stragglers no maintenance pass sweeps, and the only repair is
     /// the parent replaying this wait, re-deriving TimedOut off the Expired slot, and re-running the cancel. A parent
-    /// that lands terminal without replaying strands them (docs/technical/known-limitations.md).
+    /// that lands terminal without replaying strands them (docs/known-limitations.md).
     /// </summary>
     private protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {

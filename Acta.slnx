@@ -31,31 +31,20 @@
   <Folder Name="/docs/">
     <File Path="docs/README.md" />
     <File Path="docs/choosing-acta.md" />
+    <File Path="docs/design.md" />
     <File Path="docs/engineering-labs.md" />
+    <File Path="docs/guide.md" />
+    <File Path="docs/known-limitations.md" />
+    <File Path="docs/operator-guide.md" />
     <File Path="docs/quickstart.md" />
     <File Path="docs/release-notes.md" />
-  </Folder>
-  <Folder Name="/docs/guide/">
-    <File Path="docs/guide/concepts.md" />
-    <File Path="docs/guide/configuration.md" />
-    <File Path="docs/guide/contract-evolution.md" />
-    <File Path="docs/guide/failure-modes.md" />
-    <File Path="docs/guide/handler-contract.md" />
-    <File Path="docs/guide/operator-guide.md" />
-    <File Path="docs/guide/production.md" />
-    <File Path="docs/guide/schedule-operations.md" />
-    <File Path="docs/guide/scheduler-migration.md" />
-    <File Path="docs/guide/sql-recipes.md" />
-    <File Path="docs/guide/testing.md" />
-    <File Path="docs/guide/troubleshooting.md" />
-    <File Path="docs/guide/tutorials.md" />
+    <File Path="docs/support.md" />
   </Folder>
   <Folder Name="/docs/reference/">
+    <File Path="docs/reference/benchmark.md" />
     <File Path="docs/reference/code-families.md" />
     <File Path="docs/reference/conformance-contracts.md" />
     <File Path="docs/reference/data-model.md" />
-  </Folder>
-  <Folder Name="/docs/technical/">
-    <File Path="docs/technical/known-limitations.md" />
+    <File Path="docs/reference/operations.md" />
   </Folder>
 </Solution>
