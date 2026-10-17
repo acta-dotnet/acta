@@ -40,14 +40,6 @@ jobs:
             echo 'Workflow actions must be pinned to full commit SHAs (uses: owner/repo@<sha> # vX.Y.Z).'
             exit 1
           fi
-      - name: Provider SQL changed-sibling report
-        if: github.event_name == 'pull_request'
-        shell: pwsh
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          tools/sql-compare.ps1 -ChangedSince $env:BASE_SHA | Tee-Object -FilePath sql-siblings.md
-          Get-Content sql-siblings.md | Add-Content $env:GITHUB_STEP_SUMMARY
       - name: Restore tools
         run: dotnet tool restore
       - name: CSharpier format check

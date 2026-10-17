@@ -3,18 +3,6 @@
 Anvil.Bench (`anvil/Anvil.Bench`) captures comparable Acta benchmark baselines for local
 regression checks and before/after framework, schema, provider, and optimizer work.
 
-When a provider A/B points at SQL, resolve the feature-local siblings by logical resource rather
-than by the former core operation path:
-
-```powershell
-tools/sql-compare.ps1 EnqueueJobs
-tools/sql-compare.ps1 -List
-```
-
-The resolver maps `EnqueueJobs` to each dialect's
-`src/Acta/Operations/Jobs/EnqueueJobs/EnqueueJobs.<dialect>.sql` file and runs pairwise diffs.
-CI emits the same sibling report whenever a SQL file changes in a pull request.
-
 Every run writes two files with the same timestamped basename:
 
 - `anvil/Anvil.Bench/.benchmarks/baseline-<yyyyMMddTHHmmssZ>.json`
