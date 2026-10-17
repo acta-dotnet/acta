@@ -557,7 +557,7 @@
         </div>
         <div class="build">
           <h3>Can SQL replace a job queue, without a leader?</h3>
-          <p>Claim, heartbeat, lease, and recovery are SQL operations, and recovery itself is an ordinary competitively claimed recurring job, so no worker is ever the leader. The lab kills worker A in the middle of an attempt and lets worker B recover the same durable identity from the rows A left behind.</p>
+          <p>Claim, heartbeat, lease, and recovery are SQL operations, and recovery rides every worker's heartbeat, whichever worker comes due first, so no worker is ever the leader. The lab kills worker A in the middle of an attempt and lets worker B recover the same durable identity from the rows A left behind.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery"><b>705-worker-crash-recovery</b></a><br />PostgreSQL or SQL Server</span>
         </div>
         <div class="build">
@@ -761,7 +761,7 @@
         <h3 class="ref-group">Durable execution</h3>
         <dl>
           <div class="ref-row"><dt>Durable steps</dt><dd>Wrap work in a named durable step. The outcome is recorded in the database; when the handler re-enters after a crash, retry, or suspend, a completed step returns its stored result. External side effects still need idempotency because a process can die after the effect but before its outcome is recorded. Checkpoints, not replay: no determinism rules on your code.</dd></div>
-          <div class="ref-row"><dt>At-most-once steps · <code>AtMostOnce()</code></dt><dd>For side effects where a duplicate is worse than an ambiguous interruption. If the process dies after Acta records the start, the body is not invoked again; it may have run zero or one times, and the handler must reconcile deliberately. On SQLite under the Direct profile the guarantee holds across a process crash but not across power loss, so run such steps under Buffered there.</dd></div>
+          <div class="ref-row"><dt>At-most-once steps · <code>AtMostOnce()</code></dt><dd>For side effects where a duplicate is worse than an ambiguous interruption. If the process dies after Acta records the start, the body is not invoked again; it may have run zero or one times, and the handler must reconcile deliberately.</dd></div>
           <div class="ref-row"><dt>Checkpoint slots</dt><dd>Save intermediate values mid-handler and read them back after a crash or restart: resume long work where it left off, with the evidence in a row.</dd></div>
           <div class="ref-row"><dt>Durable progress</dt><dd><code>SetProgressAsync</code> writes typed progress into a reserved checkpoint slot: a long import can say "43,000 of 90,000", and the dashboard, the API, and plain SQL all read the same row.</dd></div>
           <div class="ref-row"><dt>Durable sleep</dt><dd>Sleep for minutes or days without occupying a worker thread. The job leaves the worker, the timer is durable state, and the job is re-dispatched when it fires: surviving deploys in between.</dd></div>
