@@ -147,6 +147,35 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         Assert.Null(after.ExpressionOverride);
     }
 
+    [Fact(DisplayName = "An interval override under one second is rejected in C# before any write")]
+    public async Task A_sub_second_interval_override_is_rejected_before_any_write()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var now = FloorSeconds(await NowAsync(ct));
+        var jobName = Unique("fastint");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        var tick = new SlotSchedule(
+            "tick",
+            "10s",
+            null,
+            MisfireStrategyCode.Skip,
+            ScheduleExpressionKindCode.Interval,
+            null,
+            now.AddSeconds(10)
+        );
+        await RegisterAsync(db, dialect, defId, jobName, now.AddSeconds(10), [tick], JobStatusCode.Ready, ct);
+
+        var before = await ScheduleAsync(Db, jobName, "tick", ct);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            Schedules.UpdateOverridesAsync(Lookup(jobName, "tick"), before.Version, "500ms", null, ct: ct).AsTask()
+        );
+
+        var after = await ScheduleAsync(Db, jobName, "tick", ct);
+        Assert.Equal(before.Version, after.Version);
+        Assert.Null(after.ExpressionOverride);
+    }
+
     [Fact(DisplayName = "An unrecognized time zone is rejected in C# before any write")]
     public async Task An_unrecognized_time_zone_is_rejected_before_any_write()
     {

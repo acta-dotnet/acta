@@ -1787,6 +1787,7 @@
   - A stale expected version is rejected with the schedule's current state and nothing changes
   - Clearing both overrides returns the schedule to its defaults
   - An invalid expression is rejected in C# before any write
+  - An interval override under one second is rejected in C# before any write
   - An unrecognized time zone is rejected in C# before any write
   - An unknown or orphaned schedule reports not found
   - Overriding a paused schedule updates its cursor without waking the slot, and resume honors the new expression

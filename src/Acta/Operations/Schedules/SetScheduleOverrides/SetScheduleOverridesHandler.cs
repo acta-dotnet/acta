@@ -86,9 +86,13 @@ internal sealed class SetScheduleOverridesHandler(
         {
             if (kind == ScheduleExpressionKindCode.Interval)
             {
-                if (NextOccurrenceCalculator.ParseInterval(expression) <= TimeSpan.Zero)
+                // The generator's floor: an interval fires at most once a second, as cron does.
+                if (NextOccurrenceCalculator.ParseInterval(expression) < TimeSpan.FromSeconds(1))
                 {
-                    throw new ArgumentException($"Expression '{expression}' must be a positive interval duration.", nameof(expression));
+                    throw new ArgumentException(
+                        $"Expression '{expression}' must be an interval duration of at least one second.",
+                        nameof(expression)
+                    );
                 }
             }
             else

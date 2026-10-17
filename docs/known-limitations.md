@@ -28,6 +28,7 @@ provisioned before 1.0.
 - **Checkpoints, not replay.** A handler re-enters from the top; completed durable slots return their stored results.
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
 - **A dead worker's jobs come back within two leases**, six minutes at the default heartbeat.
+- **One job row takes about 700 million state changes**, about three per run. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about three months; a loop that long should enqueue a successor job instead.
 - **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition.
 - **An override reaches workers on their next heartbeat.** Two edits of one namespace committed in the same instant in reverse order can leave one unseen until the next edit.
 - **One rate meter is one row lock**, about a thousand admissions a second cluster-wide. A turn under a quarter second away is waited out holding the executor, and a worker that dies in that wait costs the job one attempt.
