@@ -40,23 +40,17 @@ internal sealed class WorkerExecutor(
     /// executor permit.
     /// </summary>
     public Task<RunOnceStatus> RunOnceAsync(string namespaceName, CancellationToken ct) =>
-        RunOnceCoreAsync(namespaceName, explicitJobId: null, leaseRunway: null, ct);
+        RunOnceCoreAsync(namespaceName, explicitJobId: null, ct);
 
     /// <summary>
     /// Claim and run a specific Ready job by id (through <c>claim_job</c>), for callers that already know which job
     /// to run. Still a single tick: the claim uses READPAST, so a transiently-locked row yields
-    /// <see cref="RunOnceStatus.NothingClaimed"/>, and the caller decides whether to tick again. With
-    /// <paramref name="leaseRunway"/> the attempt cancels on its own lease deadline, as a claimed one does.
+    /// <see cref="RunOnceStatus.NothingClaimed"/>, and the caller decides whether to tick again.
     /// </summary>
-    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct, TimeSpan? leaseRunway = null) =>
-        RunOnceCoreAsync(namespaceName, jobId, leaseRunway, ct);
+    public Task<RunOnceStatus> RunOnceAsync(string namespaceName, long jobId, CancellationToken ct) =>
+        RunOnceCoreAsync(namespaceName, jobId, ct);
 
-    private async Task<RunOnceStatus> RunOnceCoreAsync(
-        string namespaceName,
-        long? explicitJobId,
-        TimeSpan? leaseRunway,
-        CancellationToken ct
-    )
+    private async Task<RunOnceStatus> RunOnceCoreAsync(string namespaceName, long? explicitJobId, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
         var (namespaceId, workerId) = context.ResolveWorker(namespaceName);
@@ -79,9 +73,9 @@ internal sealed class WorkerExecutor(
 
         metrics?.RecordClaim(namespaceName, "claimed");
 
-        // No lease deadline unless the caller passes one: the CLI's jobs debug run pumps the heartbeat around a
-        // handler a debugger may hold paused past it. The heartbeat still cancels the attempt once its row is gone.
-        var entry = new InFlightJob(claim.Jobs[0], leaseRunway, ct);
+        // No lease deadline: the CLI's jobs debug run pumps the heartbeat around a handler a debugger may hold paused
+        // past it. The heartbeat still cancels the attempt once its row is gone.
+        var entry = new InFlightJob(claim.Jobs[0], leaseRunway: null, ct);
         registry.TryAdd(entry);
         return await RunInlineAsync(entry, ct);
     }
@@ -184,56 +178,71 @@ internal sealed class WorkerExecutor(
                 entry.ArmTimeout(TimeSpan.FromSeconds(timeoutSeconds));
             }
 
-            await using var attemptScope = _rootServices.CreateAsyncScope();
-            (RuntimeJobContext Context, RecurringFirePlan? Fire) attempt;
+            var attemptScope = _rootServices.CreateAsyncScope();
             try
             {
-                attempt = await PrepareAsync(entry, descriptor, namespaceName, namespaceId, workerId, attemptScope.ServiceProvider, hostCt);
-            }
-            catch (Exception ex) when (!hostCt.IsCancellationRequested)
-            {
-                _log.LogError(
-                    ex,
-                    "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
-                    job.JobId
-                );
-                return Finalizing(
-                    entry,
-                    HandBack($"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.")
-                );
-            }
+                (RuntimeJobContext Context, RecurringFirePlan? Fire) attempt;
+                try
+                {
+                    attempt = await PrepareAsync(
+                        entry,
+                        descriptor,
+                        namespaceName,
+                        namespaceId,
+                        workerId,
+                        attemptScope.ServiceProvider,
+                        hostCt
+                    );
+                }
+                catch (Exception ex) when (!hostCt.IsCancellationRequested)
+                {
+                    _log.LogError(
+                        ex,
+                        "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
+                        job.JobId
+                    );
+                    return Finalizing(
+                        entry,
+                        HandBack($"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.")
+                    );
+                }
 
-            var (jobContext, fire) = attempt;
-            ExecutionCompletion? completion;
-            try
-            {
-                // A fire that only ends timed pauses with nothing due takes no slot, no turn, and no handler call;
-                // it completes as a re-arm that applies the advances (ScheduleWalker.PlanFire).
-                completion = fire is { NothingDue: true }
-                    ? new ExecutionCompletion(CompletionKind.Rescheduled)
-                    {
-                        ReasonMessage = "A timed schedule pause ended with no occurrence due; the handler did not run.",
-                    }
-                    : await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
-                        ?? await _invocation.InvokeAsync(attemptScope.ServiceProvider, descriptor, job, jobContext, hostCt);
+                var (jobContext, fire) = attempt;
+                ExecutionCompletion? completion;
+                try
+                {
+                    // A fire that only ends timed pauses with nothing due takes no slot, no turn, and no handler call;
+                    // it completes as a re-arm that applies the advances (ScheduleWalker.PlanFire).
+                    completion = fire is { NothingDue: true }
+                        ? new ExecutionCompletion(CompletionKind.Rescheduled)
+                        {
+                            ReasonMessage = "A timed schedule pause ended with no occurrence due; the handler did not run.",
+                        }
+                        : await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
+                            ?? await _invocation.InvokeAsync(attemptScope.ServiceProvider, descriptor, job, jobContext, hostCt);
+                }
+                finally
+                {
+                    // Mutual exclusion covers the handler, not the completion write: the slot admission took goes back on
+                    // every exit, a refusal, the handler's end, or worker shutdown. Release is best-effort, non-throwing, and
+                    // a no-op when no slot was taken; a failed release self-heals via the lock's TTL.
+                    await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+                }
+
+                if (completion is null)
+                {
+                    return false;
+                }
+
+                entry.Descriptor = descriptor;
+                entry.Context = jobContext;
+                entry.Fire = fire;
+                return Finalizing(entry, completion);
             }
             finally
             {
-                // Mutual exclusion covers the handler, not the completion write: the slot admission took goes back on
-                // every exit, a refusal, the handler's end, or worker shutdown. Release is best-effort, non-throwing, and
-                // a no-op when no slot was taken; a failed release self-heals via the lock's TTL.
-                await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+                await DisposeAttemptScopeAsync(attemptScope, job.JobId);
             }
-
-            if (completion is null)
-            {
-                return false;
-            }
-
-            entry.Descriptor = descriptor;
-            entry.Context = jobContext;
-            entry.Fire = fire;
-            return Finalizing(entry, completion);
         }
         finally
         {
@@ -352,6 +361,20 @@ internal sealed class WorkerExecutor(
             context.RecurringSlotJobIds.TryAdd(job.JobId, 0);
         }
         return isRecurring ? ScheduleWalker.PlanFire(live, nowUtc) : null;
+    }
+
+    // The outcome is decided before the attempt's services are disposed, so a service that throws while disposing is
+    // logged and the outcome stands: an escaping throw would leave the entry Finalizing, never written or released.
+    private async Task DisposeAttemptScopeAsync(AsyncServiceScope attemptScope, long jobId)
+    {
+        try
+        {
+            await attemptScope.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "WorkerRuntime: disposing the attempt's services threw for job {JobId}; its outcome stands.", jobId);
+        }
     }
 
     // A claim this worker will not run goes back to Ready budget-neutral, through the finalizer, which writes it as a

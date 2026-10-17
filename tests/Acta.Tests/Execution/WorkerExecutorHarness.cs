@@ -34,6 +34,7 @@ internal sealed class WorkerExecutorHarness(
     DateTime? deadlineAtUtc = null,
     bool slotThrows = false,
     bool rateThrows = false,
+    bool scopeDisposalThrows = false,
     string jobName = "harness-job"
 )
 {
@@ -146,7 +147,7 @@ internal sealed class WorkerExecutorHarness(
             _locks.Locks,
             new HarnessClock(),
             new HarnessSerializers(),
-            new StoreOnlyServices(_store.Execution, _store.Jobs),
+            new StoreOnlyServices(_store.Execution, _store.Jobs, scopeDisposalThrows),
             options,
             new JobBehaviorPipeline([]),
             context,
@@ -342,7 +343,7 @@ internal sealed class WorkerExecutorHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(ExecutionOperations store, JobsOperations jobs)
+    private sealed class StoreOnlyServices(ExecutionOperations store, JobsOperations jobs, bool disposalThrows)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -367,7 +368,9 @@ internal sealed class WorkerExecutorHarness(
 
         public void Dispose() { }
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        // The attempt scope is this provider, so a throwing disposal stands in for a scoped service that throws.
+        public ValueTask DisposeAsync() =>
+            disposalThrows ? throw new InvalidOperationException("A scoped service threw while disposing.") : ValueTask.CompletedTask;
     }
 
     private sealed class HarnessClock : IActaClock

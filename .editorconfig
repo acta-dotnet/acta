@@ -641,6 +641,12 @@ dotnet_diagnostic.CA1031.severity = none
 [src/Acta/Engine/Worker/WorkerFinalizer.cs]
 dotnet_diagnostic.CA1031.severity = none
 
+# CA1031: one catch around the disposal of an attempt's DI scope, which runs the application's own Dispose
+# methods after the attempt's outcome is decided. Escaping would leave the entry marked Finalizing, never
+# written and never releasing its executor, so whatever a disposal throws is logged and the outcome stands.
+[src/Acta/Engine/Worker/WorkerExecutor.cs]
+dotnet_diagnostic.CA1031.severity = none
+
 # CA1031: two catches that tear down a failed attempt and must never become the failure themselves. A
 # rollback on a connection the database already aborted is the likeliest thing here to throw, and
 # escaping would replace the attempt's own exception - DeadlockRetry classifies whatever leaves this
