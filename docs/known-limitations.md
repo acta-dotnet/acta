@@ -24,288 +24,47 @@ provisioned before 1.0.
 
 ## Execution model
 
-Acta jobs are at-least-once. A handler can run more than once after a crash, completion-write
-failure, lease expiry, retry, or worker shutdown before completion is recorded.
-
-A worker renews only the executions it holds in memory, so a claim that committed and lost its answer
-on the way back is treated like a worker that crashed right after claiming: the row is `Executing`
-from the claim, nothing renews it, and recovery reclaims it after the lease and charges it as a crash
-at that instant would. An operator override reaches a worker on its next heartbeat, read when the
-namespace's newest definition change moved; two edits of one namespace committed within the same
-instant in reverse order can leave one of them unseen until the next edit.
-
-Administrative actions can also make work run again. An operator restart deliberately re-arms a
-job, and a database restore can rewind Acta state to a point where work appears runnable even if
-external side effects already happened.
-
-A claim carries no capability check up front. The claim selects by namespace and the descriptor
-index is process-side, so a worker can claim a job it has no handler for; it releases the claim
-budget-neutral, due again one safety-poll interval later, and from then on excludes that definition
-from its own claims for the rest of the process. While no live worker carries the definition the
-job sits `Ready`, each worker having handed it back once (one event under `Audit` per hand-back)
-and never progressing; the way out is a build that carries the handler or the operator retire verb.
-
-A completion write that fails is repeated until it lands or the worker stops, backing off from one
-second to a thirty-second ceiling with jitter. Every failure is repeated, a provider error and a
-defect alike: the write is a compare-and-swap that is safe to resubmit, and a completion abandoned
-part way leaves the row `Executing` under a lease the worker's heartbeat keeps renewing, which
-recovery cannot reclaim while the heartbeat reaches the database. A database outage longer than the
-lease lets every lease lapse, and recovery then reclaims the row and re-runs it, finished or not. A
-defect in the completion path therefore loops instead of surfacing once, so it is logged at `Warning`
-for the first three tries and at `Error` after, always naming the job id, and
-`acta.completions.unsettled` counts the writes in that state.
-
-The executor is freed as soon as its completion is built; the entry stays held, renewed by the
-heartbeat, until the finalizer lands the write. That is still deliberate backpressure, one channel
-later. There is one finalizer per worker, and a batch that keeps failing is written row by row, so
-every row that can land does. A row that still fails alone repeats apart from the finalizer, which
-goes on to the completions behind it, so one bad row holds only itself. Once as many rows repeat apart
-as the worker has executors, the finalizer repeats in place: the channel between executors and
-finalizer fills, executors then block on it while they still hold their claim permits, and the claimer
-stops. A failing database stops intake instead of growing memory. Acta keeps the finalization it owes
-rather than abandoning it to run more handlers whose completions would be abandoned in turn. Repairing
-the underlying database failure lets the pending completions land without restarting the worker, as
-long as each entry still owns its row. Recovery itself is unaffected: the heartbeat takes the recovery
-pass and runs it outside the executor pool, so a worker whose executors are all held still sweeps.
-
-A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
-lapses, crash recovery reclaims it, and the handler runs again. A graceful drain keeps repeating
-while the host's shutdown budget lasts, so completions land; a hard stop ends the repeat and leaves
-the row for recovery.
-
-A rate meter paces starts, not what a handler does after it starts, and one meter is one row lock:
-every admission is a round trip that serializes on that row, so a single key tops out around a
-thousand admissions per second cluster-wide, which is also the fastest rate the parser accepts. An
-executor that draws a turn under a quarter second away holds its slot while it sleeps it out, so a fleet
-saturated with rate-limited jobs spends up to a quarter second of executor time per job waiting; the
-alternative, a re-arm and a claim per turn, costs more and paces worse. A process that dies inside
-that wait leaves the job Executing under its lease, and recovery reclaims it as it would one that
-died in its handler: one attempt of retry budget charged for a handler that never ran, bounded to
-the quarter second the wait can last. A turn farther away re-arms Ready durably, costs nothing, and
-leaves the executor to other work, which is why the wait is short.
-
-A shared rate meter is kept to one rate by registration and by the override write, which applies a
-rate to every participant at once; two shapes can still leave a meter's participants at different
-effective rates. A definition whose manifest moves it onto another meter keeps the override it
-carried, and a retune that lands between a starting worker's catalog read and its registration
-write is not seen by that registration. Both are reported: the worker logs one warning per split
-meter at startup and on every policy reload, naming the participants and their rates, and the
-dashboard shows each definition's effective rate. The repair is one override on any participant,
-which lands on all of them. Until then the meter admits at a rate between the two declared ones,
-never above the faster.
-
-A provider error during admission, when the concurrency slot is taken or the rate turn is reserved,
-bounces the attempt instead of escaping, so the row is never stranded that way. The bounce is
-recorded as `job.unclassified` with the message "Admission failed on a provider error", spends no
-retry budget, and raises no alert, so a persistent error shows as a job re-arming every two seconds
-and a warning in the worker log. What it can leave
-behind is a slot the acquire committed without answering: that row is untracked by the worker and
-expires with its lease TTL, so one slot of that key is unavailable for up to that long. A rate turn
-the meter charged without answering is spent: the job is metered again when it returns, so a lost
-answer costs the meter one turn of capacity and never admits extra.
-
-Crash recovery runs on the heartbeat, and its cadence is the lease. The reclaim sweep, which returns a
-job whose lease lapsed to `Ready`, runs once per lease per namespace: the heartbeat call that finds the
-namespace's pass due moves the due time one lease on in the same statement, and that worker runs the pass
-beside its heartbeat, outside the executor pool. A worker that dies mid-pass holds nothing, so the next pass
-falls to whichever worker's heartbeat finds it due. A killed worker's jobs are therefore back within two
-leases, six minutes at the default heartbeat, and a pass that fails waits out its interval. Recovery adds
-no statement of its own beyond the pass; the check rides the heartbeat every worker already sends.
-
-Acta does not provide deterministic workflow replay. The model is checkpoints, not replay: durable
-slots record completed work and return stored results on re-entry, but the handler can re-enter from
-the top.
-
-Bounded waits carry the same at-least-once shape. A child-wait timeout's subtree cancellation is
-initiated by the parent's resumed attempt: the expiry itself is durable, but a crash between the
-expiry and the cancellation re-runs the cancellation on replay, and a parent that lands terminal
-without ever replaying leaves its live descendants running — as parent death always has. An
-expired wait slot is terminal for its name: any later wait on it resolves timed-out, which for the
-unbounded overloads means the job is cancelled with `job.wait-timed-out` rather than parked on a
-wait that can no longer complete. A deadline introduced by a code upgrade arms only when the job
-is next claimed, so a job already suspended under the old unbounded code needs one operator
-reschedule before the new bound takes effect.
-
-Reclaiming a worker that died while a resolved timeout was being acted on re-arms the job on its
-unchanged deadline without charging retry budget, so the replay lands the timed-out outcome
-with the budget the feature promised untouched. The match is deliberately wide: any lease death
-while the job's cached wake instant still points at the expired slot — which is the whole
-resolving attempt, including work a `Try` handler does after the wait returned — re-arms uncharged
-rather than burning budget on the feature's own promise. The cost: a worker that crashes
-deterministically on every such replay loops without consuming budget. The loop is loud, twice
-over — each uncharged reclaim projects a non-terminal failure into the job's own alert incident,
-which re-notifies on the reminder interval for as long as the loop runs, and the job visibly
-ping-pongs between suspended and claimed — and an operator cancel ends it at any phase. Bounding
-it automatically would require persisting which overload armed the wait; 1.0 chooses the loud
-unbounded loop over a budget charge that would break the promise for every ordinary crash.
-
-No durable executor can guarantee exactly-once effects against arbitrary external systems. Acta gives
-you at-least-once jobs, checkpointed durable steps, deduplication keys, and `AtMostOnce()` step
-semantics; the application still owns external side-effect safety.
-
-`AtMostOnce()` is for selected step bodies where duplicate execution is worse than an ambiguous
-outcome. If the worker dies after Acta records the step start but before recording the outcome,
-replay does not run the body again and the handler must reconcile whether the external side effect
-happened. A `ctx.ResetStateAsync` commits before the completion does, so a crash between the two
-re-runs the fire with no step rows; use per-period step names in recurring jobs for at-most-once work.
-
-The application owns side-effect safety. External systems such as payment providers, email
-providers, webhooks, object storage, and partner APIs need deduplication keys, `AtMostOnce()`
-placement, or reconciliation paths.
-
-A recurring job's failure is a rollover, not a terminal failure, and the quieter alert profiles wait
-for a terminal one. `MaxAttempts` is the one-shot retry budget: a recurring slot never exhausts it,
-re-arming for its next occurrence however many consecutive runs throw, which is deliberate — a nightly
-job should not die permanently after three bad nights. But it means `AlertProfile.OnTerminal` and
-`AlertProfile.Info`, which alert only on the terminal transition, stay silent for a recurring job that
-throws or loses its lease. They still fire on the terminal shapes a recurring slot *can* reach, all of
-which stop the whole slot: a handler that declares failure through `ctx.FailAsync(...)`, an uncaught
-non-retryable exception, and an uncaught `StepInterruptedException` from a re-entered `AtMostOnce()`
-step. A whole-job deadline is *not* among them — it lands the job `Cancelled` rather than `Failed`, and
-no alert profile fires on a cancellation. **Choose `AlertProfile.OnFailure` for recurring work you want
-to hear about**; it alerts on
-each failure transition, and incident identity collapses a repeating nightly failure onto one row
-rather than one per night.
-
-Under `AuditLevel.Failures` a success is recorded only when it answers a recorded failure, which is
-the one success the projector needs to close the incident. `AlertRetention` may not exceed
-`JobEventsRetention`; the alerting guide says why. An incident that stays open longer than the
-events window has lost the failure it would be answered against, and needs an operator.
-
-A one-shot job's in-budget retries are invisible at that level, so `FirstFailure` and
-`ThresholdReached` never fire for its own throws while a recurring slot's failed fire is heard;
-[the alerting guide](./operator-guide.md#profiles) owns the full account of what
-that level records and what it drops.
-
-The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,
-and assumes that clock does not step backwards (slewing, the way NTP corrects small drift, is fine).
-After a backward step, failures stamped on the new clock below the cursor's instant are never offered
-to the projector, and failures of one job that straddle the step can be collapsed onto one incident
-instead of counted per attempt. Recovery is manual: rewind the cursor by editing the `alerts-cursor`
-variable row of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an
-instant before the step>,"EventId":0}`, no further back than `AlertRetention`, since older replayed
-failures have no incident row left to absorb them and would open fresh ones. The next pass replays
-from there idempotently.
+- **At-least-once.** A handler can run again after a crash, a lease expiry, a failed completion write, or a shutdown, and a restart or a database restore can re-run work whose external effects already happened. No durable executor makes external effects exactly-once; the application owns that, with deduplication keys, durable steps, `AtMostOnce()`, or reconciliation.
+- **Checkpoints, not replay.** A handler re-enters from the top; completed durable slots return their stored results.
+- **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
+- **A dead worker's jobs come back within two leases**, six minutes at the default heartbeat.
+- **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition.
+- **An override reaches workers on their next heartbeat.** Two edits of one namespace committed in the same instant in reverse order can leave one unseen until the next edit.
+- **One rate meter is one row lock**, about a thousand admissions a second cluster-wide. A turn under a quarter second away is waited out holding the executor, and a worker that dies in that wait costs the job one attempt.
+- **A meter can run at two rates** when a deploy moves a definition onto another meter or a retune races a worker start. Workers warn, and one override on any participant fixes it.
+- **A provider error at admission bounces the attempt** with `job.unclassified`, spending no budget and raising no alert; a concurrency slot it took without an answer stays taken for up to one lease.
+- **A wait deadline added in a code upgrade arms at the job's next claim**, so a job already suspended under the old code needs a reschedule.
+- **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
+- **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which roll over instead of landing Failed. Use `OnFailure` for recurring work.
+- **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
+- **A writer that freezes past twice the command timeout** can commit an event the projector already passed, which is then missed (never wrong). Keep command timeouts the same across the fleet.
 
 ## Ordering
 
-Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then
-by next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. Each
-claim selects eligible, unlocked jobs by descending priority, next-run time, then job ID. For
-sequential enqueues by one producer, the ID breaks ties in enqueue order. Concurrent claims
-guarantee neither global FIFO nor handler-start order. Retries are scheduled again and may be
-overtaken by later jobs. Concurrency keys limit simultaneous execution; they do not preserve
-execution order. Lanes do, under the limits listed below.
-
-The alert projector does not trust that identity to mean committed: it walks by `(created_at_utc, id)`
-and withholds events until they are older than a safe horizon. The horizon is twice the
-configured command timeout, which covers an event whose transaction commits after a later-numbered
-one because a routine writing an alertable event is a single statement inside a single transaction
-and cannot outlive its own timeout. That bound is enforced by the client, not the server: a writer
-host that freezes after its statement reaches the server can still commit past the horizon, and its
-event is then skipped. The consequence is a missed alert, never a wrong ledger. A fleet that raises
-the command timeout on some hosts and not others narrows the margin silently, so keep it uniform.
-
-Priority is strict, with no aging and no anti-starvation budget: while higher-priority ready rows
-exist, lower-priority rows are not claimed, and a sustained high-priority flood can defer the
-low-priority tail indefinitely. The intended remedy is a mechanism, not a knob: give bulk or
-low-urgency workloads their own namespace, because each declared worker runs its own claim loop and
-executor pool per namespace, so one namespace's flood cannot consume another's slots.
-
-`ConcurrencyKey` provides admission, not ordering. While workers hold valid leases on all of a key's
-slots (`ConcurrencyLimit`, one by default), no other job with that `(namespace, ConcurrencyKey)` is
-admitted. The exclusion is as strong as the
-lease and no stronger: a heartbeat renews it while the handler runs, so if that heartbeat stops — a
-stalled process, a long pause, a partition — the lease can expire while the handler is still running
-and another worker can admit the next job. That is the same at-least-once boundary described under
-[Execution model](#execution-model), not a separate one.
-
-Admission order is unspecified: under sustained arrivals that keep a key held, an older job can be
-repeatedly overtaken, and Acta does not bound its wait. Use it for exclusive *unordered* work. There
-is no fairness, aging, or queue-position guarantee for a contended key, and none is planned; a job
-that needs a bounded wait needs a different design.
-
-Three levels are available, and only the third one orders anything.
-
-**Best-effort serial dispatch under restricted conditions.** One worker process for the namespace,
-`MaxConcurrentExecutors = 1`, equal priority, and jobs that are due immediately. This yields serial
-execution, not strict FIFO: retries, delayed eligibility, priority changes, and operator actions move
-a row's next-run instant and reorder what is claimed next. Acta does not enforce that only one process
-claims a namespace, so the single-process condition is an operational promise, not a runtime
-invariant.
-
-**Exclusive unordered work.** `ConcurrencyKey`, under the contract above.
-
-**Strict ordered processing.** A lane: jobs enqueued with `.Lane(...)`, or of a definition with
-`[Job(Lane = "...")]`, run one at a time in enqueue order. The semantics are in
-[Concepts: Lanes](./guide.md#lanes). Its limits:
-
-- **Head-of-line blocking is the design.** A head that retries, waits, is paused, or is delayed holds
-  its whole lane. A poison job holds it until it exhausts `MaxAttempts` or an operator cancels it.
-- **A lane advances on failure.** Failed on the last attempt and Cancelled both release the next job,
-  as an SQS dead-letter move does. Work that must stop after a failure needs a coordinator job, or a
-  cancel of the rest of the lane.
-- **One job per lane is in flight.** A lane's throughput is one handler at a time; SQS can hand a
-  consumer several messages of one group in a batch, and Acta never does.
-- **An open transaction holds its lane.** A laned enqueue locks the lane row until its transaction
-  commits, and the head's completion waits for that lock. Keep transactions that enqueue into a lane
-  short.
-- **A laned enqueue needs fresh reads.** Inside your own transaction it is refused under PostgreSQL
-  REPEATABLE READ or SERIALIZABLE and under SQL Server SNAPSHOT, because an old snapshot cannot see a
-  lane's newest head. READ COMMITTED, with or without RCSI, is the supported level.
-- **A head no worker runs stalls its lane.** During a rolling deploy, a head whose definition no
-  running worker supports waits for a worker that does. A removed definition needs its laned jobs
-  drained, cancelled, or retired.
-- **Cross-lane waits can deadlock.** The enqueue guard refuses a child in an unfinished ancestor's
-  lane. A cycle of waits through several lanes is invisible to it, and waits with a timeout break it.
-- **A restarted job runs out of its original place.** Restarting a finished laned job runs it next,
-  after the current head, so it lands after the jobs that ran while it sat Failed or Cancelled.
-- **Exclusion is at-least-once.** Cancelling a running head, or recovering its expired lease, lets
-  the next job start while the old handler may still run. The lane orders admission, not external
-  effects.
+- **Claims are ordered, work is not.** There is no global FIFO, and a retry can be overtaken by later jobs.
+- **Priority is strict, with no aging.** A sustained high-priority flood defers the rest; put bulk work in its own namespace.
+- **A `ConcurrencyKey` excludes, it does not order.** Waiters are admitted in no order with no bound on the wait, and the exclusion lasts only as long as the lease.
+- **Lanes order strictly, at a cost:**
+  - a head that retries, waits, or is paused holds its lane, and a poison head holds it until its attempts run out or it is cancelled;
+  - a lane advances past a head that failed for good or was cancelled;
+  - one job per lane runs at a time;
+  - an open transaction that enqueued into a lane holds it until it ends;
+  - a laned enqueue inside your transaction needs READ COMMITTED: it is refused under PostgreSQL REPEATABLE READ or SERIALIZABLE and SQL Server SNAPSHOT;
+  - a head whose definition no running worker carries stalls its lane;
+  - a cycle of waits across lanes is invisible to Acta; give such waits a timeout;
+  - a restarted job runs right after the current head, out of its original place;
+  - cancelling or recovering a running head can let the next one start while the old handler still runs.
 
 ## Contract evolution
 
-Contract evolution requires discipline. Jobs are durable rows, and old rows may execute after a new
-deploy. Keep the same job name only when old stored payloads still deserialize and run correctly;
-use versioned job names for incompatible changes.
-
-Acta's contract drift guard is not a full JSON schema compatibility checker. It catches
-definition-level input/output type and payload-format changes; the application owns JSON wire
-compatibility.
-
-Rolling deploys are covered by three rules and nothing persisted: registration never retires a
-definition the manifest omits, a worker excludes a definition it bounced for the rest of its
-process, and retiring is an operator verb. The boundaries of that: the exclusion is per process, so
-every worker of a build bounces each unknown definition once before excluding it; while a worker's
-exclusion set is non-empty, each of its claims looks up `jobs.definition_id` for every excluded row
-ahead of the first claimable one, so a long run of jobs no running worker can execute makes every
-such claim walk it until the definition is retired or its build returns; and retiring a definition
-cancels its parked jobs but not their descendants, which finish into a cancelled parent.
-
-See [Contract evolution](./guide.md#contract-evolution) and
-[Production § rolling deploys](./operator-guide.md#rolling-deploys).
-
-Two schedule writes work from a read a moment older than the write, and neither carries a guard for
-the instant between. A worker start reads schedule state and registers it a few milliseconds
-later, so a recurring run that completes in between can have its occurrence written back and run
-once more. A schedule verb racing another verb on the same job, or a run of that job completing, sets
-the job's next run from what it read, so the job can run once with no schedule due, or wait for its
-next start or schedule verb.
+- **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
+- **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
+- **Retiring a definition cancels its parked jobs but not their descendants.**
+- **Two schedule writes can act on a read a moment old.** A worker start racing a recurring completion can run that occurrence once more, and a schedule verb racing another can run the job once with no schedule due, or hold it until its next start.
 
 ## Dashboard and API exposure
 
-Dashboard auth is the host application's responsibility. Acta ships no login system.
-
-The dashboard and JSON API are local-only by default, and controls are disabled by default. Remote
-exposure requires `LocalOnly = false` plus host authorization through `ConfigureEndpoints`; mapping
-without either throws at startup unless `UnsafeAllowAnonymousRemoteAccess = true` is set explicitly.
-
-Local-only also requires the request to name the host as `localhost`, a `.localhost` name, or an IP
-address, so a browser on the same machine that uses the machine name gets 403; browse to `localhost`
-or `127.0.0.1`.
-
-Behind a reverse proxy on the same host, do not rely on `LocalOnly`; use real authorization.
+Authentication is the host's: Acta ships none. The surface is local-only by default with controls off, and behind a reverse proxy on the same host `LocalOnly` protects nothing.
 
 ## Storage and providers
 
