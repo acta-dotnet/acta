@@ -297,7 +297,7 @@ dotnet run --project anvil/Anvil                                        # loopba
 dotnet run --project anvil/Anvil.Bench -- quick --db pg                 # short comparable benchmark capture
 ```
 
-Anvil defaults to SQLite for a quick dashboard look. Anvil.Bench asks for the target database in the interactive menu, or accepts `quick|release|full --db sqlite|pg|mssql|all [--scenario <name>]... [--seed-history <n>]` for scripted runs. Prefer PostgreSQL or SQL Server when you want server-database throughput numbers; SQLite is still useful for zero-setup local checks.
+Anvil defaults to SQLite for a quick dashboard look. Anvil.Bench asks for the target database in the interactive menu, or accepts `quick|release|full --db sqlite|pg|mssql|all [--scenario <name>]... [--seed-history <n>]` for scripted runs. Prefer PostgreSQL or SQL Server when you want server-database throughput numbers; SQLite is still useful for zero-setup local checks. Every run replaces `docs/reference/benchmark.md`; commit it only for a release round.
 
 ## Repository layout
 

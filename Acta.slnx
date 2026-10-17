@@ -35,10 +35,6 @@
     <File Path="docs/quickstart.md" />
     <File Path="docs/release-notes.md" />
   </Folder>
-  <Folder Name="/docs/benchmarks/">
-    <File Path="docs/benchmarks/baseline-20260714T182846Z.md" />
-    <File Path="docs/benchmarks/stress-tests.md" />
-  </Folder>
   <Folder Name="/docs/guide/">
     <File Path="docs/guide/concepts.md" />
     <File Path="docs/guide/configuration.md" />

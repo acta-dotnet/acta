@@ -1159,7 +1159,7 @@ the one-second turn validity, reported with its busiest windows on every seal.
 
 ### Certification and benchmarks
 
-The release gate is [a full-matrix round](./benchmarks/rc3-full-matrix-20260921.md) on all three
+The release gate is [a full-matrix round](https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.3/docs/benchmarks/rc3-full-matrix-20260921.md) on all three
 providers against a same-hour `v1.0.0-rc.2` control, candidate, control, candidate per server
 provider from clean worktrees of the certified commit: no Direct, Bulk, drain, enqueue, or query
 cell regresses beyond the machine's own movement between two runs of the same tree, PostgreSQL and
@@ -1324,7 +1324,7 @@ escalating plan and others did not. All three profiles now rise monotonically, a
 eighteen cells are above that baseline; Buffered at 32 executors is about 2% below it. PostgreSQL
 neither gains nor needs to: it does not have the pathology, and its Bulk sweep reads 1% to 5% under
 the baseline, a dip with a plausible cause in the `job_id` sort that one round cannot separate from
-ordinary movement. [The benchmark record](benchmarks/rc2-benchmarks-20260910.md) carries the three
+ordinary movement. [The benchmark record](https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.2/docs/benchmarks/rc2-benchmarks-20260910.md) carries the three
 matrices and says what a single round does and does not establish.
 
 ### The audit trail

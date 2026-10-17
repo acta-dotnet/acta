@@ -731,7 +731,11 @@ public static class BaselineCapture
     /// <summary>A repo-relative directory resolved to an absolute path.</summary>
     public static string RepoSubdir(string relative) => Path.GetFullPath(Path.Combine(RepoRoot(), relative));
 
+    /// <summary>The raw captures, timestamped and git-ignored, kept so a report the writer fails on can be rebuilt.</summary>
     public static string OutputDirectory() => RepoSubdir(Path.Combine("anvil", "Anvil.Bench", ".benchmarks"));
+
+    /// <summary>The one committed report, replaced by every run.</summary>
+    public static string ReportPath() => RepoSubdir(Path.Combine("docs", "reference", "benchmark.md"));
 
     public static BaselineFile Read(string path) =>
         JsonSerializer.Deserialize(File.ReadAllText(path), BaselineJsonContext.Default.BaselineFile)

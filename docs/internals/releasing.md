@@ -95,7 +95,7 @@ Two commits carry a release, and their roles do not mix:
   the certified commit. A release may skip certification by decision when the execution model did not
   change; the release notes say so, and the benchmark round is then the gate.
 - **The tag commit, B**, is the last of the documentation-only commits after A that file whatever
-  evidence the release produced (seals, the benchmark pages, the certification index)
+  evidence the release produced (seals, the benchmark report, the certification index)
   and the release-notes header flip. `A..B` touches only `docs/`, `site/`, `README.md`, and
   `llms.txt`: prose that no binary compiles or packs, so a documentation correction found after
   certification does not move A.
@@ -105,12 +105,12 @@ Two commits carry a release, and their roles do not mix:
 
 ## Benchmark round
 
-A round is evidence only when its files record the commit with `gitDirty = false` and every number
+A round is evidence only when its report records the commit without `(dirty)` and every number
 that looks like a finding was rerun beside the previous tag, back to back, before it counts. The rules
 below are what the rounds on this machine cost to learn.
 
 - Measure from a clean `git worktree` of the exact commit. The harness records `git status`, and an
-  untracked file in the main tree marks every JSON of the round dirty.
+  untracked file in the main tree marks the round dirty.
 - Leave PostgreSQL autovacuum on. A round that needed the server's own maintenance disabled to look
   good is not a round worth publishing, and the reason anyone wanted it off was a harness leak that is
   now fixed: each cell drops its schema when its measurement is recorded, so a `full` matrix leaves
@@ -127,8 +127,9 @@ below are what the rounds on this machine cost to learn.
   flushes per second after sustained writes, stays there for hours, and flaps between the two states,
   so take readings minutes apart and start only when several agree. A probe in a tight loop is itself
   a write load and keeps the drive from recovering.
-- Run the `release` preset on the candidate: the quick matrix's points, one warmup and one measured
-  run, about half an hour a database. Its drains are sustained: 500,000 jobs on
+- Run the `release` preset on the candidate with `--db all`: the quick matrix's points, one warmup and
+  one measured run, about half an hour a database. The run replaces `docs/reference/benchmark.md` with
+  one report for every database; commit that file as the round. Its drains are sustained: 500,000 jobs on
   PostgreSQL and SQL Server and 100,000 on SQLite, all due at one instant, so a drain measures what the
   engine sustains, not how fast the preload came due. Compare against the previous tag's
   round on this machine: drain, enqueue, latency, and the list query reproduce from day to day within a
@@ -214,5 +215,5 @@ Each line names the evidence that asserts it; none is checked by hand.
 - No generated docs drift.
 - No generated migration snapshot drift.
 - No accidental dashboard build artifacts.
-- No local benchmark output committed unless intentionally included.
+- No benchmark output committed but `docs/reference/benchmark.md`.
 - Public examples still match current package names and startup APIs.

@@ -109,7 +109,7 @@
       <div class="facts two">
         <div>
           <b>Measured, on one rig</b>
-          <p>32 logical cores, NVMe, zero-work handlers, 8 executors, on the rc.4 benchmark round. One lane holding a thousand jobs ran about <em>280 to 330 jobs a second</em> on PostgreSQL and SQL Server with the Direct profile, about <em>700 to 730</em> on SQLite with no network hop. A thousand lanes in round-robin ran at <em>80 to 95 percent</em> of unlaned throughput. One hot concurrency key with limit 1 managed <em>21 to 24 jobs a second</em> on the servers, because every loser is claimed, bounced, and re-armed. Rough illustrations of the shape of each gate, not capacity claims. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md">Benchmark round</a></p>
+          <p>32 logical cores, NVMe, zero-work handlers, 8 executors, on the rc.4 benchmark round. One lane holding a thousand jobs ran about <em>280 to 330 jobs a second</em> on PostgreSQL and SQL Server with the Direct profile, about <em>700 to 730</em> on SQLite with no network hop. A thousand lanes in round-robin ran at <em>80 to 95 percent</em> of unlaned throughput. One hot concurrency key with limit 1 managed <em>21 to 24 jobs a second</em> on the servers, because every loser is claimed, bounced, and re-armed. Rough illustrations of the shape of each gate, not capacity claims. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md">Benchmark round</a></p>
         </div>
         <div>
           <b>Certified, under chaos</b>

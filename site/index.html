@@ -405,7 +405,7 @@
         </div>
         <div>
           <b>Durable, and still fast</b>
-          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box drained <em>23,349 jobs a second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc5-engine-drain-20261010.md">Engine round</a></p>
+          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box drained <em>23,349 jobs a second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/da9bff0d2bcc3f5ce2473acdf1b85a4bfbee1aa1/docs/benchmarks/rc5-engine-drain-20261010.md">Engine round</a></p>
         </div>
         <div>
           <b>Bounded, and it heals</b>
@@ -644,9 +644,9 @@
       <p class="record">Numbers &amp; boundaries</p>
       <h2>Benchmarks, tests, and what Acta does not do.</h2>
       <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc5-engine-drain-20261010.md" style="text-decoration:none">23,349</a></b><span>jobs/s drain · Postgres · Direct · 16 workers, completions group-committed, every job durable</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">179,639</a></b><span>jobs/s batch enqueue · Postgres · 200k-job fleet insert</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">2.0 ms</a></b><span>p50 pickup latency · Direct · SQLite</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/da9bff0d2bcc3f5ce2473acdf1b85a4bfbee1aa1/docs/benchmarks/rc5-engine-drain-20261010.md" style="text-decoration:none">23,349</a></b><span>jobs/s drain · Postgres · Direct · 16 workers, completions group-committed, every job durable</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">179,639</a></b><span>jobs/s batch enqueue · Postgres · 200k-job fleet insert</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">2.0 ms</a></b><span>p50 pickup latency · Direct · SQLite</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>

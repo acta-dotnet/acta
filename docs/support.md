@@ -55,8 +55,8 @@ produced by the project, on the project's machine, and published in this reposit
 - The certification seals: chaos runs that kill a worker every five seconds and then judge the
   ledger with SQL, including one million jobs per server provider
   ([certification](./certification/README.md)).
-- The benchmark rounds: full matrices against the previous release on one machine, with its caveats
-  stated on each page ([benchmarks](./benchmarks/stress-tests.md)).
+- The benchmark round: the release preset on one machine, the latest round kept in
+  [benchmark.md](./reference/benchmark.md).
 
 There is no independent evidence yet: no third-party audit, no published production case study, no
 benchmark someone else ran. If you run Acta in production, an issue describing the workload and what

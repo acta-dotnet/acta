@@ -231,13 +231,14 @@ public static class BenchCli
 
         var measurements = MeasurementCount(preset, providers, scenarios);
         var outputDir = BaselineCapture.OutputDirectory();
+        var reportPath = BaselineCapture.ReportPath();
         var config = new BenchConfig(SeedHistory: seedHistory);
         Console.WriteLine(
             $"Running {preset.Name} benchmark for {string.Join(", ", providers)} "
                 + $"(jobs={preset.Jobs}, batchJobs={preset.EnqueueBatchJobs}, rows={preset.QueryRows}"
                 + $"{(seedHistory > 0 ? $", seedHistory={seedHistory}" : "")})  -  {measurements} measurements, ETA shown live"
         );
-        Console.WriteLine($"Output: {outputDir}");
+        Console.WriteLine($"Report: {reportPath}");
 
         var baseline = await BaselineCapture.CaptureAsync(
             preset,
@@ -249,10 +250,9 @@ public static class BenchCli
         );
         var outPath = BaselineCapture.OutputPath(baseline, outputDir);
         BaselineCapture.Write(baseline, outPath);
-        var reportPath = Path.ChangeExtension(outPath, ".md");
+        Console.WriteLine($"Wrote capture to {outPath}");
         BaselineReport.WriteMarkdown(baseline, reportPath);
-        Console.WriteLine($"Wrote baseline to {outPath}");
-        Console.WriteLine($"Wrote report to   {reportPath}");
+        Console.WriteLine($"Wrote report to  {reportPath}");
         return 0;
     }
 
@@ -433,7 +433,8 @@ public static class BenchCli
                                     retainedEvents / retainedResults.
 
             Output:
-              Every run writes JSON and Markdown to anvil/Anvil.Bench/.benchmarks/.
+              Every run replaces docs/reference/benchmark.md with its report, and keeps its raw capture as
+              timestamped JSON in anvil/Anvil.Bench/.benchmarks/, which git ignores.
 
             Database connection:
               ACTA_TEST_PG / ACTA_TEST_MSSQL; with neither the run fails.

@@ -1,0 +1,329 @@
+# Benchmark Baseline: release
+
+- Captured: 2026-10-12T10:02:49Z
+- Commit: 4f410f68
+- Engine: 1.0.0-rc.4.329+4f410f6862061bb810fc1458ea837c8855516657
+- Runtime: .NET 10.0.12
+- OS: Microsoft Windows 10.0.26300
+- CPU: Intel(R) Core(TM) i9-14900K (32 logical)
+- RAM: 95.8 GB
+- Disk: NVMe SOLIDIGM SSDPFKKW010X7 [SSD]; NVMe SOLIDIGM SSDPFKKW020X7 [SSD]
+- Policy: 1 warmup, 1 measured run
+- Providers: pg
+
+## Throughput: end-to-end jobs/s (higher is better)
+
+One worker process; executors swept per worker. Cells are median jobs/s.
+
+| profile | e=1 | e=8 | e=32 |
+| --- | ---: | ---: | ---: |
+| Buffered | 578 | 3433 | 8487 |
+| Direct | 613 | 3878 | 13916 |
+
+Peak: 13916 jobs/s (Direct, 32 executors).
+
+## Drain: sustained jobs/s (higher is better)
+
+A preloaded backlog drained by N worker processes, 64 executors each. Cells are median jobs/s.
+
+| profile | w=1 | w=16 |
+| --- | ---: | ---: |
+| Buffered | 8283 | 11916 |
+| Direct | 14878 | 33126 |
+
+Peak: 33126 jobs/s (Direct, 16 workers).
+
+## Latency: per-job round-trip ms (lower is better)
+
+One executor, one job at a time.
+
+| profile | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: |
+| Buffered | 4.80 | 5.81 | 6.23 |
+| Direct | 3.70 | 4.70 | 5.19 |
+
+## Enqueue: single-call fleet insert jobs/s (higher is better)
+
+N concurrent producers each enqueue one job at a time into the one namespace; worker idle (no draining).
+
+| provider | producers | jobs/s | p95 ms/call |
+| --- | ---: | ---: | ---: |
+| pg | 1 | 682 | 1.95 |
+| pg | 16 | 6718 | 3.21 |
+
+## Enqueue (batch): fleet insert jobs/s (higher is better)
+
+N concurrent producers each batch-enqueue their share into the one namespace; worker idle (no draining).
+
+| provider | producers | jobs/s |
+| --- | ---: | ---: |
+| pg | 1 | 23020 |
+| pg | 16 | 163826 |
+
+## Query: job-list read ms (lower is better)
+
+Paged job-list read over a retained backlog.
+
+| provider | retained rows | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: | ---: |
+| pg | 50000 | 91.13 | 93.22 | 93.58 |
+
+## Rate limit: what the meter admitted
+
+A backlog released at once against one meter. Admitted jobs/s is measured over the first-to-last admission span.
+Excess is max(admissions in the window) - (R*(T+W) + burst), W being how long a booked turn stays valid: one second, or one interval when longer. At most 0 is inside the contract.
+Re-arms/job counts the turns each job had to book before it ran.
+
+| provider | rate | jobs | workers | side jobs | admitted/s | max 1s | excess 1s | excess 5s | excess 10s | re-arms/job |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| pg | 600/m | 600 | 1 | 0 | 1182.8 | 600 | 570 | 530 | 480 | 0.00 |
+| pg | 100/s | 3000 | 3 | 0 | 869.6 | 911 | 611 | 2300 | 1800 | 0.00 |
+
+## Lanes: end-to-end jobs/s and pickup ms
+
+Enqueue and drain overlapped at 8 executors: unlaned jobs, 1000 lanes round-robin, one hot concurrency key (limit 1), and one lane holding every job. Pickup is enqueue to handler entry.
+
+| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| pg | Buffered | unlaned | 5000 | 3361 | 724.4 | 1362.0 | ok |
+| pg | Buffered | lane-wide | 5000 | 3228 | 723.7 | 1328.3 | ok |
+| pg | Buffered | key-hot | 1000 | 13 | 10751.8 | 67817.7 | ok |
+| pg | Buffered | lane-deep | 1000 | 181 | 2798.2 | 5489.7 | ok |
+| pg | Direct | unlaned | 5000 | 3945 | 589.9 | 1147.2 | ok |
+| pg | Direct | lane-wide | 5000 | 3733 | 597.8 | 1132.3 | ok |
+| pg | Direct | key-hot | 1000 | 17 | 6758.8 | 48794.5 | ok |
+| pg | Direct | lane-deep | 1000 | 245 | 2072.4 | 4042.0 | ok |
+
+## Claim skew: drain jobs/s and pickup ms
+
+10000 due jobs drained at 16 executors alone (none), beside 50000 Suspended jobs parked on an unbounded wait in the due jobs' band (parked), or behind 200000 High jobs due tomorrow ahead of due Bulk jobs (delayed-high). Pickup is due instant to handler entry.
+
+| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| pg | Buffered | none | 10000 | 5899 | 917.5 | 1681.7 | ok |
+| pg | Buffered | parked | 10000 | 6248 | 835.8 | 1595.4 | ok |
+| pg | Buffered | delayed-high | 10000 | 5869 | 899.0 | 1690.0 | ok |
+| pg | Direct | none | 10000 | 8033 | 672.4 | 1244.6 | ok |
+| pg | Direct | parked | 10000 | 7735 | 696.0 | 1292.5 | ok |
+| pg | Direct | delayed-high | 10000 | 7913 | 667.1 | 1256.9 | ok |
+
+
+# Benchmark Baseline: release
+
+- Captured: 2026-10-12T10:13:40Z
+- Commit: 4f410f68
+- Engine: 1.0.0-rc.4.329+4f410f6862061bb810fc1458ea837c8855516657
+- Runtime: .NET 10.0.12
+- OS: Microsoft Windows 10.0.26300
+- CPU: Intel(R) Core(TM) i9-14900K (32 logical)
+- RAM: 95.8 GB
+- Disk: NVMe SOLIDIGM SSDPFKKW010X7 [SSD]; NVMe SOLIDIGM SSDPFKKW020X7 [SSD]
+- Policy: 1 warmup, 1 measured run
+- Providers: mssql
+
+## Throughput: end-to-end jobs/s (higher is better)
+
+One worker process; executors swept per worker. Cells are median jobs/s.
+
+| profile | e=1 | e=8 | e=32 |
+| --- | ---: | ---: | ---: |
+| Buffered | 518 | 3110 | 5767 |
+| Direct | 605 | 3297 | 5069 |
+
+Peak: 5767 jobs/s (Buffered, 32 executors).
+
+## Drain: sustained jobs/s (higher is better)
+
+A preloaded backlog drained by N worker processes, 64 executors each. Cells are median jobs/s.
+
+| profile | w=1 | w=16 |
+| --- | ---: | ---: |
+| Buffered | 3994 | 10680 |
+| Direct | 12841 | 22360 |
+
+Peak: 22360 jobs/s (Direct, 16 workers).
+
+## Latency: per-job round-trip ms (lower is better)
+
+One executor, one job at a time.
+
+| profile | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: |
+| Buffered | 4.78 | 5.52 | 6.24 |
+| Direct | 3.63 | 4.30 | 5.54 |
+
+## Enqueue: single-call fleet insert jobs/s (higher is better)
+
+N concurrent producers each enqueue one job at a time into the one namespace; worker idle (no draining).
+
+| provider | producers | jobs/s | p95 ms/call |
+| --- | ---: | ---: | ---: |
+| mssql | 1 | 757 | 1.62 |
+| mssql | 16 | 7068 | 2.97 |
+
+## Enqueue (batch): fleet insert jobs/s (higher is better)
+
+N concurrent producers each batch-enqueue their share into the one namespace; worker idle (no draining).
+
+| provider | producers | jobs/s |
+| --- | ---: | ---: |
+| mssql | 1 | 39619 |
+| mssql | 16 | 24841 |
+
+## Query: job-list read ms (lower is better)
+
+Paged job-list read over a retained backlog.
+
+| provider | retained rows | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: | ---: |
+| mssql | 50000 | 7.82 | 20.48 | 104.44 |
+
+## Rate limit: what the meter admitted
+
+A backlog released at once against one meter. Admitted jobs/s is measured over the first-to-last admission span.
+Excess is max(admissions in the window) - (R*(T+W) + burst), W being how long a booked turn stays valid: one second, or one interval when longer. At most 0 is inside the contract.
+Re-arms/job counts the turns each job had to book before it ran.
+
+| provider | rate | jobs | workers | side jobs | admitted/s | max 1s | excess 1s | excess 5s | excess 10s | re-arms/job |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| mssql | 600/m | 600 | 1 | 0 | 492.6 | 523 | 493 | 530 | 480 | 0.00 |
+| mssql | 100/s | 3000 | 3 | 0 | 1206.8 | 1278 | 978 | 2300 | 1800 | 0.00 |
+
+## Lanes: end-to-end jobs/s and pickup ms
+
+Enqueue and drain overlapped at 8 executors: unlaned jobs, 1000 lanes round-robin, one hot concurrency key (limit 1), and one lane holding every job. Pickup is enqueue to handler entry.
+
+| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| mssql | Buffered | unlaned | 5000 | 3245 | 769.1 | 1368.8 | ok |
+| mssql | Buffered | lane-wide | 5000 | 2585 | 906.0 | 1355.7 | ok |
+| mssql | Buffered | key-hot | 1000 | 16 | 9696.9 | 55926.6 | ok |
+| mssql | Buffered | lane-deep | 1000 | 173 | 3063.2 | 5748.4 | ok |
+| mssql | Direct | unlaned | 5000 | 3085 | 712.4 | 1439.4 | ok |
+| mssql | Direct | lane-wide | 5000 | 2639 | 793.9 | 1317.4 | ok |
+| mssql | Direct | key-hot | 1000 | 21 | 6619.5 | 40573.5 | ok |
+| mssql | Direct | lane-deep | 1000 | 239 | 2176.6 | 4145.0 | ok |
+
+## Claim skew: drain jobs/s and pickup ms
+
+10000 due jobs drained at 16 executors alone (none), beside 50000 Suspended jobs parked on an unbounded wait in the due jobs' band (parked), or behind 200000 High jobs due tomorrow ahead of due Bulk jobs (delayed-high). Pickup is due instant to handler entry.
+
+| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| mssql | Buffered | none | 10000 | 4780 | 1134.6 | 2085.8 | ok |
+| mssql | Buffered | parked | 10000 | 4939 | 1050.3 | 2018.7 | ok |
+| mssql | Buffered | delayed-high | 10000 | 3720 | 1406.8 | 2651.8 | ok |
+| mssql | Direct | none | 10000 | 4672 | 1140.5 | 2114.5 | ok |
+| mssql | Direct | parked | 10000 | 5330 | 974.5 | 1861.3 | ok |
+| mssql | Direct | delayed-high | 10000 | 5277 | 997.0 | 1878.2 | ok |
+
+
+# Benchmark Baseline: release
+
+- Captured: 2026-10-12T10:29:44Z
+- Commit: 4f410f68
+- Engine: 1.0.0-rc.4.329+4f410f6862061bb810fc1458ea837c8855516657
+- Runtime: .NET 10.0.12
+- OS: Microsoft Windows 10.0.26300
+- CPU: Intel(R) Core(TM) i9-14900K (32 logical)
+- RAM: 95.8 GB
+- Disk: NVMe SOLIDIGM SSDPFKKW010X7 [SSD]; NVMe SOLIDIGM SSDPFKKW020X7 [SSD]
+- Policy: 1 warmup, 1 measured run
+- Providers: sqlite
+
+## Throughput: end-to-end jobs/s (higher is better)
+
+One worker process; executors swept per worker. Cells are median jobs/s.
+
+| profile | e=1 | e=8 | e=32 |
+| --- | ---: | ---: | ---: |
+| Buffered | 106 | 281 | 251 |
+| Direct | 1058 | 3721 | 6146 |
+
+Peak: 6146 jobs/s (Direct, 32 executors).
+
+## Drain: sustained jobs/s (higher is better)
+
+A preloaded backlog drained by N worker processes, 64 executors each. Cells are median jobs/s.
+
+| profile | w=1 |
+| --- | ---: |
+| Buffered | 93 |
+| Direct | 9659 |
+
+Peak: 9659 jobs/s (Direct, 1 worker).
+
+## Latency: per-job round-trip ms (lower is better)
+
+One executor, one job at a time.
+
+| profile | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: |
+| Buffered | 16.80 | 17.62 | 32.28 |
+| Direct | 19.60 | 21.64 | 23.26 |
+
+## Enqueue: single-call fleet insert jobs/s (higher is better)
+
+N concurrent producers each enqueue one job at a time into the one namespace; worker idle (no draining).
+
+| provider | producers | jobs/s | p95 ms/call |
+| --- | ---: | ---: | ---: |
+| sqlite | 1 | 1260 | 0.93 |
+| sqlite | 16 | 1279 | 0.93 |
+
+## Enqueue (batch): fleet insert jobs/s (higher is better)
+
+N concurrent producers each batch-enqueue their share into the one namespace; worker idle (no draining).
+
+| provider | producers | jobs/s |
+| --- | ---: | ---: |
+| sqlite | 1 | 25218 |
+| sqlite | 16 | 25179 |
+
+## Query: job-list read ms (lower is better)
+
+Paged job-list read over a retained backlog.
+
+| provider | retained rows | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: | ---: |
+| sqlite | 50000 | 31.85 | 32.72 | 33.09 |
+
+## Rate limit: what the meter admitted
+
+A backlog released at once against one meter. Admitted jobs/s is measured over the first-to-last admission span.
+Excess is max(admissions in the window) - (R*(T+W) + burst), W being how long a booked turn stays valid: one second, or one interval when longer. At most 0 is inside the contract.
+Re-arms/job counts the turns each job had to book before it ran.
+
+| provider | rate | jobs | workers | side jobs | admitted/s | max 1s | excess 1s | excess 5s | excess 10s | re-arms/job |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| sqlite | 600/m | 600 | 1 | 0 | 224.6 | 301 | 271 | 530 | 480 | 0.00 |
+| sqlite | 100/s | 3000 | 3 | 0 | 339.0 | 578 | 278 | 1173 | 1800 | 0.00 |
+
+## Lanes: end-to-end jobs/s and pickup ms
+
+Enqueue and drain overlapped at 8 executors: unlaned jobs, 1000 lanes round-robin, one hot concurrency key (limit 1), and one lane holding every job. Pickup is enqueue to handler entry.
+
+| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| sqlite | Buffered | unlaned | 5000 | 290 | 8371.6 | 16557.8 | ok |
+| sqlite | Buffered | lane-wide | 5000 | 291 | 8157.2 | 16525.7 | ok |
+| sqlite | Buffered | key-hot | 1000 | 133 | 3128.3 | 5840.2 | ok |
+| sqlite | Buffered | lane-deep | 1000 | 64 | 7836.3 | 15477.3 | ok |
+| sqlite | Direct | unlaned | 5000 | 3788 | 645.5 | 1127.6 | ok |
+| sqlite | Direct | lane-wide | 5000 | 3633 | 674.0 | 1133.5 | ok |
+| sqlite | Direct | key-hot | 1000 | 147 | 1430.6 | 6621.4 | ok |
+| sqlite | Direct | lane-deep | 1000 | 64 | 7794.2 | 15408.2 | ok |
+
+## Claim skew: drain jobs/s and pickup ms
+
+10000 due jobs drained at 16 executors alone (none), beside 50000 Suspended jobs parked on an unbounded wait in the due jobs' band (parked), or behind 200000 High jobs due tomorrow ahead of due Bulk jobs (delayed-high). Pickup is due instant to handler entry.
+
+| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| sqlite | Buffered | none | 10000 | 304 | 11783.6 | 31918.0 | ok |
+| sqlite | Buffered | parked | 10000 | 283 | 19047.7 | 34231.7 | ok |
+| sqlite | Buffered | delayed-high | 10000 | 270 | 18862.5 | 36201.1 | ok |
+| sqlite | Direct | none | 10000 | 7492 | 712.3 | 1334.4 | ok |
+| sqlite | Direct | parked | 10000 | 7336 | 726.7 | 1356.6 | ok |
+| sqlite | Direct | delayed-high | 10000 | 7061 | 756.8 | 1421.6 | ok |
+

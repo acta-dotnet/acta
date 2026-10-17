@@ -51,7 +51,8 @@ application principal is not allowed DDL. The [HTTP API contract](./reference/op
 OpenAPI document of the dashboard JSON API, and the
 [conformance contracts](./reference/conformance-contracts.md) list every specified behavior with the
 arrange/act/assert that proves it. The [operations index](./reference/operations.md) maps each operation
-to its facade method, HTTP routes, CLI verb, SQL, and specs.
+to its facade method, HTTP routes, CLI verb, SQL, and specs. The [benchmark](./reference/benchmark.md)
+is the latest benchmark round, written by `anvil/Anvil.Bench`.
 
 ## Internals
 
@@ -60,6 +61,5 @@ Contributor-facing; not needed to use Acta: [design principles and settled decis
 [migration tooling](./internals/migrations.md),
 [releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
 [source layout](./internals/source-layout.md),
-[benchmarks](./benchmarks/stress-tests.md),
 [certification seals](./certification/README.md),
 and [operator surface](./internals/operator-surface.md).
