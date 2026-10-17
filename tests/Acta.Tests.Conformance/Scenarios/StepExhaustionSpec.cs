@@ -13,22 +13,34 @@ internal static class StepExhaustionProbes
 {
     public static readonly ConcurrentDictionary<long, int> BodyInvocations = new();
 
+    private static readonly ConcurrentDictionary<long, int> Exhaustions = new();
+
     public static int RecordInvocation(long jobId) => BodyInvocations.AddOrUpdate(jobId, 1, static (_, n) => n + 1);
 
-    // Job 1: parent MaxAttempts=2, zero-backoff; step MaxAttempts=2, zero-backoff, always fails.
+    // Job 1: step MaxAttempts=2, zero-backoff, always fails. The handler catches the first exhaustion and reschedules,
+    // so the replay re-enters the exhausted slot; the second exhaustion goes uncaught.
     // Proves: exhausted slot re-entry throws WITHOUT re-running the body.
-    public static async Task ExhaustReplay(JobContext ctx, CancellationToken ct) =>
-        await ctx.RunStepAsync(
-            "always-fails",
-            async bodyCt =>
-            {
-                RecordInvocation(ctx.JobId);
-                await Task.CompletedTask;
-                throw new InvalidOperationException("step body always fails");
-            },
-            o => o.MaxAttempts(2).BackoffInitialDelay(TimeSpan.Zero),
-            ct
-        );
+    public static async Task ExhaustReplay(JobContext ctx, CancellationToken ct)
+    {
+        try
+        {
+            await ctx.RunStepAsync(
+                "always-fails",
+                async bodyCt =>
+                {
+                    RecordInvocation(ctx.JobId);
+                    await Task.CompletedTask;
+                    throw new InvalidOperationException("step body always fails");
+                },
+                o => o.MaxAttempts(2).BackoffInitialDelay(TimeSpan.Zero),
+                ct
+            );
+        }
+        catch (StepExhaustedException) when (Exhaustions.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1) == 1)
+        {
+            await ctx.RescheduleAsync(TimeSpan.Zero, ct: ct);
+        }
+    }
 
     // Job 2: parent MaxAttempts=1; step MaxAttempts=100, RetryWindow=5s, initial backoff delay=30s.
     // Proves: window exhaustion (30s > 5s window) fires after attempt 1, far below MaxAttempts=100.
@@ -173,7 +185,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(1, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
         // Tick 2: step attempt 2 → body fails (invocations=2) → step Exhausted →
-        //   StepExhaustedException → parent attempt 1 fails (FailureCount=1 of MaxAttempts=2) → Rearmed.
+        //   StepExhaustedException → the handler catches it and reschedules → Rearmed.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var stepAfterExhaust = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
@@ -183,12 +195,8 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Body ran exactly twice: once per in-budget attempt.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
-        // Make the parent immediately claimable regardless of backoff jitter.
-        await SetJobNextRunAsync(Db, enqueued.JobId, DateTime.UtcNow.AddMinutes(-1), ct);
-
-        // Tick 3: parent attempt 2 replays the handler → RunStepAsync re-enters the exhausted slot →
-        //   StartStep sees state=Exhausted → outcome=Exhausted(4) → StepExhaustedException WITHOUT body →
-        //   parent attempt 2 fails (FailureCount=2, MaxAttempts=2) → RunOnceStatus.Failed.
+        // Tick 3: the replay re-enters the exhausted slot → StartStep sees state=Exhausted → outcome=Exhausted(4) →
+        //   StepExhaustedException WITHOUT body → uncaught this time, it fails the parent at once → RunOnceStatus.Failed.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invocation count must NOT have increased: body was never called on re-entry.
@@ -203,19 +211,12 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
         var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(EventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
+        Assert.Equal(0, job.FailureCount);
     }
 
     private async Task<IReadOnlyList<StepEntity>> ReadStepsAsync(long jobId, CancellationToken ct)
     {
         return await Db.From<StepEntity>().Where(s => s.JobId == jobId).ToListAsync(ct);
     }
-
-    private static Task SetJobNextRunAsync(IDbSession db, long jobId, DateTime nextRun, CancellationToken ct) =>
-        db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
-            ct,
-            ("@p_next", nextRun),
-            ("@p_id", jobId)
-        );
 }

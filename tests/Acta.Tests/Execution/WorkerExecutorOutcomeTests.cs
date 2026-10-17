@@ -4,8 +4,8 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Pins which outcome an attempt lands when something other than the handler's return decides it: a control verb
-/// called inside a step body, and a service that throws while the attempt's scope is disposed after the outcome is
-/// decided.
+/// called inside a step body, a step exhausted before this attempt, and a service that throws while the attempt's
+/// scope is disposed after the outcome is decided.
 /// </summary>
 public sealed class WorkerExecutorOutcomeTests
 {
@@ -22,6 +22,22 @@ public sealed class WorkerExecutorOutcomeTests
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal((byte)JobStatusCode.Failed, harness.Completion.HandlerStatusCode);
         Assert.Equal(EventReasonCode.JobHandlerFailed, harness.Completion.EventReasonCode);
+    }
+
+    [Fact]
+    public async Task An_uncaught_exhausted_step_fails_the_job_at_once_instead_of_retrying_it()
+    {
+        // Every retry would replay the exhausted step and throw again, so the budget is not spent on it.
+        var harness = new WorkerExecutorHarness(maxAttempts: 10);
+
+        var outcome = await harness.RunAsync(
+            static (_, _) =>
+                throw new StepExhaustedException(WorkerExecutorHarness.StepName, 3, EventReasonCode.JobUnhandledException, "declined")
+        );
+
+        Assert.Equal(RunOnceStatus.Failed, outcome);
+        Assert.Equal(EventReasonCode.JobNonRetryableException, harness.Completion.EventReasonCode);
+        Assert.Null(harness.Completion.RescheduleStatusCode);
     }
 
     [Fact]

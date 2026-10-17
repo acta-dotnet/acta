@@ -31,7 +31,8 @@ WHERE
             AND e.reason_code IN (
                 20 /* EventReasonCode.JobUnhandledException */,
                 21 /* EventReasonCode.JobLeaseExpired */,
-                22 /* EventReasonCode.JobExecutionTimeout */
+                22 /* EventReasonCode.JobExecutionTimeout */,
+                23 /* EventReasonCode.JobNonRetryableException */
             )
         )
         /* Reclaim's uncharged arm lands Suspended rather than Ready, and charges nothing, so an

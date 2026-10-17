@@ -242,7 +242,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobUnhandledException` | 20 | `job.unhandled-exception` | Handler threw an exception that was not raised via ctx.Fail. | Active |
 | `JobLeaseExpired` | 21 | `job.lease-expired` | Worker lease expired; crash recovery reclaimed the Job. | Active |
 | `JobExecutionTimeout` | 22 | `job.execution-timeout` | Execution exceeded JobDefinition.ExecutionTimeout for this attempt. | Active |
-| `JobNonRetryableException` | 23 | `job.non-retryable-exception` | Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException); terminal Failed without consuming the retry budget. | Active |
+| `JobNonRetryableException` | 23 | `job.non-retryable-exception` | Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException, or an uncaught StepExhaustedException); a one-off job lands terminal Failed without consuming the retry budget, and a recurring job rolls over to its next occurrence. | Active |
 | `JobDeadlineExceeded` | 24 | `job.deadline-exceeded` | Job passed its whole-job deadline; the engine terminated it Cancelled without consuming the retry budget. | Active |
 | `JobAttemptAborted` | 25 | `job.attempt-aborted` | Worker aborted the attempt mid-flight (lease renewal at risk, a held lock lost, or a step's ownership unconfirmed); retried under the failure budget. | Active |
 | `JobSchedulesExhausted` | 30 | `job.schedules-exhausted` | Recurring slot has no live JobSchedule yielding a next instant; row is system-paused. | Active |

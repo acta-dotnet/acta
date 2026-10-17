@@ -331,9 +331,10 @@ internal sealed class HandlerInvocation(
             );
         }
 
-        // A programming error retrying cannot fix lands terminal Failed through the same
-        // completion branch as ctx.FailAsync, leaving the retry budget untouched.
-        var nonRetryable = ex is NotImplementedException or NotSupportedException;
+        // A failure retrying cannot change, a programming error or a step that already spent its budget and so throws
+        // again on every replay, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the
+        // retry budget untouched.
+        var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException;
         return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = nonRetryable ? EventReasonCode.JobNonRetryableException : EventReasonCode.JobUnhandledException,

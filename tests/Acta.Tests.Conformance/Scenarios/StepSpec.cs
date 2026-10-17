@@ -130,7 +130,8 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
         var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(EventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
+        // Uncaught, the exhaustion is non-retryable: every retry would replay the exhausted step and throw again.
+        Assert.Equal(EventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 

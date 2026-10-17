@@ -56,7 +56,7 @@ internal sealed partial class WorkerFinalizer
             HasParent = job.ParentId is not null,
         };
 
-    private static CompleteExecutionsValues BuildCommand(
+    internal static CompleteExecutionsValues BuildCommand(
         JobDescriptor descriptor,
         ClaimedJob job,
         RecurringFirePlan? fire,
@@ -117,7 +117,9 @@ internal sealed partial class WorkerFinalizer
             };
         }
 
-        if (s.HandlerStatusCode is { } handlerStatus)
+        // A non-retryable exception ends a one-off job, but a fire's is one more failed occurrence: it rolls over below,
+        // since a library throwing NotSupportedException on one night's data must not stop the schedule for good.
+        if (s.HandlerStatusCode is { } handlerStatus && !(fire is not null && s.Reason == EventReasonCode.JobNonRetryableException))
         {
             // Handler fail/cancel/pause: a deliberate terminal/hold decision. Takes the non-recurring
             // shape even on a recurring slot (like the re-arm shape) so its schedule cursors are never
@@ -179,7 +181,7 @@ internal sealed partial class WorkerFinalizer
     /// Recurring completion outcome from the attempt and the planned slot MIN. A recurring slot re-arms Ready on any
     /// failure (MaxAttempts is the one-off budget only); exhausted schedules pause; a success resets the failure
     /// counter and a failure bumps it. The Ready rollover keeps the attempt's reason like every other shape: the
-    /// alertable set admits a Ready event only for reasons 20/21/22 (GetAlertableEvents.sql), so a nightly job that
+    /// alertable set admits a Ready event only for reasons 20/21/22/23 (GetAlertableEvents.sql), so a nightly job that
     /// throws every night still alerts and explains. An aborted attempt (25) rolls over Ready without alerting.
     /// </summary>
     internal static (

@@ -155,7 +155,7 @@ Execution is at-least-once: a crash or lease expiry re-runs the attempt, so a ha
 
 Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new slot (see [durable slot evolution](#durable-slot-evolution)). Durable state belongs to the job, not to one fire, so a recurring job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
-A step that spends its retry budget is `Exhausted`, and `RunStepAsync` then throws `StepExhaustedException` without running it; catch it where the job can go on. Restarting the job gives the step a fresh budget.
+A step that spends its retry budget is `Exhausted`, and `RunStepAsync` then throws `StepExhaustedException` without running it; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job gives the step a fresh budget.
 
 #### At-most-once steps
 
@@ -479,7 +479,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's reason, at the job's audit level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException` and `NotSupportedException` are non-retryable: the job lands terminal `Failed` immediately (reason `job.non-retryable-exception`) without consuming retry budget, since retrying cannot fix a programming error. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `job.non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A recurring job instead rolls over to its next occurrence, as it does after any failure. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -1009,7 +1009,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 |---------|---------|----------------------|
 | `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled`; a recurring slot goes back to `Ready` for its next occurrence |
 | `Rearmed` | The job re-armed for a later claim: the handler rescheduled, slept, paused, suspended on a signal, or threw with retry attempts remaining, or a concurrency or rate limit bounced it | `Ready` (forward-dated `NextRunAtUtc`), `Suspended`, or `Paused` |
-| `Failed` | The handler threw and the row settled terminally (attempts exhausted, or an exception classified as non-retryable: `NotImplementedException` / `NotSupportedException`) | `Failed` |
+| `Failed` | The handler threw and the row settled terminally (attempts exhausted, or a [non-retryable exception](#exception-semantics)) | `Failed` |
 | `NothingClaimed` | No claimable row this tick (not enqueued, not yet due, or already claimed) | unchanged |
 
 A first failure of a job with default policy (`MaxAttempts = 15`) returns `Rearmed`, not `Failed`:

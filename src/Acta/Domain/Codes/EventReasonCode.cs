@@ -36,7 +36,7 @@ public enum EventReasonCode : byte
 
     [Code(
         "job.non-retryable-exception",
-        "Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException); terminal Failed without consuming the retry budget."
+        "Handler threw an exception the runtime classifies as non-retryable (NotImplementedException, NotSupportedException, or an uncaught StepExhaustedException); a one-off job lands terminal Failed without consuming the retry budget, and a recurring job rolls over to its next occurrence."
     )]
     JobNonRetryableException = 23,
 

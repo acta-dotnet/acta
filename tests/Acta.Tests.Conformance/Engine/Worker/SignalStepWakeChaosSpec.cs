@@ -100,14 +100,14 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Equal(2, step.AttemptNumber);
 
-        // --- 3. The parent is Failed with the step's failure reason.
+        // --- 3. The parent is Failed at once: an uncaught exhaustion is non-retryable.
         var job = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(job);
         Assert.Equal(JobStatusCode.Failed, job!.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(EventReasonCode.JobUnhandledException, finished.EventReasonCode);
+        Assert.Equal(EventReasonCode.JobNonRetryableException, finished.EventReasonCode);
         Assert.Single(events, e => e.EventCode == EventCode.JobRescheduled);
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }

@@ -68,7 +68,66 @@ public class RecurringOutcomeTests
         Assert.Equal(EventReasonCode.JobSchedulesExhausted, reason);
     }
 
+    [Fact]
+    public void A_non_retryable_exception_rolls_a_fire_over_instead_of_ending_the_slot()
+    {
+        // A one-off job lands Failed on NotSupportedException; a fire is one failed occurrence, so the slot rolls over
+        // with the reason that makes it alert, and the next occurrence runs once the code is fixed.
+        var failed = new ExecutionCompletion(CompletionKind.Failed)
+        {
+            Reason = EventReasonCode.JobNonRetryableException,
+            ReasonMessage = "Specified method is not supported.",
+            HandlerStatusCode = JobStatusCode.Failed,
+        };
+
+        var command = WorkerFinalizer.BuildCommand(Descriptor(), Job(failureCount: 2), Fire(NextRun), failed, (0, 0, false));
+
+        Assert.Null(command.HandlerStatusCode);
+        Assert.Equal(JobStatusCode.Ready, command.FinalStatus);
+        Assert.Equal(NextRun, command.JobNextRunAtUtc);
+        Assert.Equal(3, command.FailureCount);
+        Assert.Equal(EventReasonCode.JobNonRetryableException, command.EventReasonCode);
+    }
+
+    [Fact]
+    public void A_handler_fail_still_ends_the_slot()
+    {
+        // ctx.FailAsync is the handler deciding, so it keeps stopping the whole schedule.
+        var failed = new ExecutionCompletion(CompletionKind.Failed)
+        {
+            Reason = EventReasonCode.JobHandlerFailed,
+            HandlerStatusCode = JobStatusCode.Failed,
+        };
+
+        var command = WorkerFinalizer.BuildCommand(Descriptor(), Job(failureCount: 0), Fire(NextRun), failed, (0, 0, false));
+
+        Assert.Equal((byte)JobStatusCode.Failed, command.HandlerStatusCode);
+        Assert.Null(command.FinalStatus);
+    }
+
     private static RecurringFirePlan Fire(DateTime? nextRun) => new([], [], nextRun);
+
+    // BuildCommand reads the retention policy and the result cap; nothing else of the descriptor reaches a fire.
+    private static JobDescriptor Descriptor() =>
+        new(
+            "nightly",
+            typeof(RecurringOutcomeTests),
+            MethodName: "Run",
+            InputType: typeof(object),
+            OutputType: null,
+            InputPayloadFormat: default,
+            OutputPayloadFormat: null,
+            InvocationKind: default,
+            RequiresJobContextParameter: false,
+            RequiresCancellationToken: false,
+            Priority: default,
+            MaxAttempts: 1,
+            AuditLevel: default,
+            AlertProfile: default,
+            Invoker: null!,
+            DeserializeInput: null!,
+            SerializeOutput: null
+        );
 
     private static ClaimedJob Job(int failureCount) =>
         new(
