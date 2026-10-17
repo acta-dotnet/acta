@@ -61,7 +61,7 @@ dotnet run
 ```
 
 The program enqueues a job, a worker in the same process claims and runs it, and `acta-local.db`
-holds the row. Open the dashboard URL: the Jobs count reads 1, and the Jobs screen lists `ship-order` as completed.
+holds the row. Open the dashboard URL: the Jobs screen lists `ship-order` as completed.
 
 > **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
 > root namespace, while top-level statements live in the global namespace, so without it

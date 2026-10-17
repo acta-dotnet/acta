@@ -9,21 +9,9 @@
 
 > **1.0.0-rc.4.** A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source, and 1.0.0 after it. From 1.0.0 the public API, the schema, and the persisted codes are frozen: schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
 
-Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your database. It gives .NET teams one standard substrate for app-owned background work: simple enough for scheduled jobs, durable enough for retries and recovery, and visible because every state transition is ordinary SQL state you can inspect with `SELECT`.
+Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your own SQL database, so every state transition is a row you can `SELECT`. No broker, no sidecar, no hosted control plane, no replay engine. Execution is **at-least-once**: Acta makes its own state repeat-safe, and handlers own the idempotency of their side effects.
 
-> **See the model work.** [`Acta Engineering Labs`](./docs/engineering-labs.md) is the hands-on field guide:
-> run crash recovery, durable steps, signals, schedule cursors, Explain, and operator controls, then
-> inspect the exact rows and source behind each behavior.
-
-The core model is implemented: durable jobs, retries, schedules, steps, signals, sleeps, child jobs, operator queries, dashboard/API, CLI, testing support, and SQL providers. Execution is **at-least-once**: Acta makes durable state repeat-safe, and handlers own idempotency for external side effects.
-
-No broker required. No sidecar. No hosted control plane. No deterministic replay engine. No hidden work state.
-
-Most teams do not need another scheduler choice. They need one clear way for app-owned work to
-happen later or repeatedly without becoming hidden state. Use `BackgroundService`, cron, Task
-Scheduler, platform jobs, or timers for disposable local loops. Use Acta when the work needs durable
-state, retries, audit, recovery, and operator control in your own SQL database. See
-[`docs/choosing-acta.md`](./docs/choosing-acta.md) for the decision guide.
+For a disposable local loop, `BackgroundService` or cron is enough. Use Acta when the work needs durable state, retries, audit, recovery, and operator control: [`docs/choosing-acta.md`](./docs/choosing-acta.md) helps decide, and [Acta Engineering Labs](./docs/engineering-labs.md) shows each behavior with the rows that prove it.
 
 ## Quickstart
 
@@ -78,7 +66,7 @@ dotnet run
 # Shipping order 1042
 ```
 
-Open the dashboard: the Jobs count reads 1, and the Jobs screen lists `ship-order` as completed. The job was a row in `acta-local.db`
+Open the dashboard: the Jobs screen lists `ship-order` as completed. The job was a row in `acta-local.db`
 before it was a method call. `ShippingJobs` is the source-generated manifest: the last segment of
 your project's `RootNamespace` plus `Jobs` (`Shipping` → `ShippingJobs`), generated into that
 namespace and registered once. One worker runtime owns one namespace, and the host that enqueues
@@ -104,7 +92,7 @@ The Anvil step builds the dashboard UI, which needs Node.js 20.19+ or 22.12+ on 
 
 The `[Job]` name is the durable, operator-facing contract: it is what the row carries, what the dashboard shows, and what you must not rename casually. Enqueue is typed; dispatch is generated.
 
-SQLite state is one file. The quickstart writes `acta-local.db` beside your project; the bundled concepts write `acta-local*.db` to your temp directory (`%TEMP%` on Windows, `$TMPDIR` or `/tmp` elsewhere) - delete it to reset. Smoke-run every non-interactive concept: `dotnet run --project tools/Acta.Doctor -- smoke`. Docker is optional, only needed to run against real Postgres / SQL Server / Redis: setup, tests, and benchmarks in [`CONTRIBUTING.md`](./CONTRIBUTING.md); environment problems in [local setup problems](./CONTRIBUTING.md#local-setup-problems).
+SQLite state is one file (`acta-local*.db`); delete it to reset. Docker is needed only for real PostgreSQL, SQL Server, or Redis: see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Use Acta when
 
