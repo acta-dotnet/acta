@@ -13,10 +13,7 @@ Superseded seals are pruned: when a certification round is re-cut on a later com
 shapes, the earlier round's seals leave the tree (git history keeps them). What remains is the
 evidence chain for released tags plus the runs that proved something no later run repeats.
 
-Not every page here is a seal. [coverage-baseline-rc1.md](./coverage-baseline-rc1.md) is the other
-kind of evidence: line and branch coverage for the unit and SQLite suites, recorded with no gate and
-no target, and the blind-spot list that reading it produced. A seal says what held under chaos; that
-page says what nothing has ever run. [burst-rc1.md](./burst-rc1.md) is a third kind: the alert
+Not every page here is a seal. [burst-rc1.md](./burst-rc1.md) is another kind: the alert
 burst certification — five runs proving a 10,000-event backlog projects in one invocation and
 drains in seconds, and a 100,000 backlog drains under bounded memory.
 
@@ -50,7 +47,3 @@ every provider while the workers running their heads were killed: 38 laned attem
 re-run in place on PostgreSQL, 39 on SQL Server, 8 on SQLite, 28 in the ensemble, 85 and 320 in the
 two million-job runs. The three meters stayed inside their budgets everywhere, the busiest million-job
 window at 1,007 starts in ten seconds against 1,200 on the 100/s meter.
-
-[coverage-baseline-rc4.md](./coverage-baseline-rc4.md) is the current coverage page: the unit and
-SQLite suites at 89.3% line and 73.1% branch, and the two rc.2 blind spots, `RecoveryJob` and
-`WorkerRuntimeHost`, now executed by tests.

@@ -91,11 +91,11 @@ Two commits carry a release, and their roles do not mix:
 - **The certified code commit, A**, is the last commit that touches code, schema, routines, tests,
   tools, anvil, project files, or a generated artifact. The format check, `Acta.Emit check`, the unit
   suite, every provider conformance suite, the benchmarks, and, when the release certifies, the
-  certification quartet and the coverage run all execute against exactly A. Every seal records A as
+  certification quartet all execute against exactly A. Every seal records A as
   the certified commit. A release may skip certification by decision when the execution model did not
   change; the release notes say so, and the benchmark round is then the gate.
 - **The tag commit, B**, is the last of the documentation-only commits after A that file whatever
-  evidence the release produced (seals, the benchmark and coverage pages, the certification index)
+  evidence the release produced (seals, the benchmark pages, the certification index)
   and the release-notes header flip.
   `tools/release-guard.ps1 -CertifiedCommit <A> -TagCommit HEAD` runs before tagging and fails when
   `A..B` touches anything outside `docs/certification/`, `docs/benchmarks/`, `site/` (the useacta.net
@@ -155,19 +155,6 @@ below are what the rounds on this machine cost to learn.
   until the harness gets a settle step after seeding; report it as informational.
 - Docker Desktop keeps its disk image on C: by default and applies a new location only through its own
   Settings dialog (Resources, Advanced, Disk image location); editing the settings file does nothing.
-
-## Coverage
-
-Published, never gated. The `build-test` CI job runs `tools/coverage.ps1`, which instruments
-`tests/Acta.Tests` and `tests/Acta.Tests.Conformance.Sqlite` with coverlet and merges them into one
-report, uploaded as the `coverage` artifact. There is no threshold and no percentage to fail on
-purpose: a target invites tests written to colour lines rather than to falsify behaviour.
-
-The deliverable is [the blind-spot list](../certification/coverage-baseline-rc1.md) — the recorded
-baseline plus, for ten failure areas, which code paths nothing executes — and, per release round, a
-baseline page beside it that records the new numbers with `tools/coverage.ps1` and says which
-entries moved ([coverage-baseline-rc4.md](../certification/coverage-baseline-rc4.md) is the current
-one); a blind spot that a new test closed should leave the list, and a new one should join it.
 
 ## Packaging
 

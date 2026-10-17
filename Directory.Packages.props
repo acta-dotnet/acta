@@ -57,7 +57,7 @@
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
   </ItemGroup>
   <!-- Testing: xunit v3. Held at 3.2.2: xunit 4 runs only on Microsoft.Testing.Platform, and moving the
-       suites, the runsettings, the coverage leg, and CI onto it is a change of its own. -->
+       suites, the runsettings, and CI onto it is a change of its own. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
@@ -67,9 +67,5 @@
     <PackageVersion Include="xunit.v3.core" Version="3.2.2" />
     <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <!-- Coverage instrumentation for the two suites the coverage leg measures (unit + SQLite
-         conformance). Referenced only by those two projects, PrivateAssets=all: it is a VSTest
-         data collector, never a dependency of anything that ships. -->
-    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
   </ItemGroup>
 </Project>
