@@ -43,9 +43,7 @@ certified commit.
   for the verdicts, including a release-candidate baseline, and the three `*ProvisionScriptSpec`
   classes for a schema that runs with migrations disabled and keeps its data, grants, and dependent
   views across a re-run.
-- The packed packages deploy: `tests/PackageSmoke/run.ps1` on the final feed, then
-  `tests/DeploymentSmoke/run.ps1` on the same feed for the dashboard behind a real proxy with a path
-  base and an authorization policy. Its README says what the run does not cover.
+- The packed packages deploy: `tests/PackageSmoke/run.ps1` on the final feed.
 
 ## Frozen contracts
 

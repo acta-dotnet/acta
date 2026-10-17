@@ -666,7 +666,7 @@
             </tbody>
           </table>
         </div>
-        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-01 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a deployment smoke behind a real nginx proxy, a package smoke, and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
+        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-01 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke, and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
       </div>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>

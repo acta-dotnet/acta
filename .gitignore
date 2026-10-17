@@ -484,10 +484,9 @@ $RECYCLE.BIN/
 # Local dev env script (contains a dev password) - do not commit
 scripts/set-dev-env.ps1
 
-# Package consumer fixture artifacts (PackageSmoke and DeploymentSmoke restore from a local feed)
+# Package consumer fixture artifacts (PackageSmoke restores from a local feed)
 tests/PackageSmoke/feed/
 tests/PackageSmoke/.packages/
-tests/DeploymentSmoke/.packages/
 
 # DocSamples fixture artifacts (the samples themselves are extracted from the docs on every run)
 tests/DocSamples/feed/

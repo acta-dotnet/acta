@@ -1,3 +1,0 @@
-<!-- Isolation stub: the smoke consumer must build like a real external app, untouched by the
-     repo's build conventions. -->
-<Project />
