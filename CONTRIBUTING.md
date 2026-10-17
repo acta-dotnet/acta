@@ -446,7 +446,7 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
 
 ### Type names: one suffix per role
 
-A type is named `{Subject}{Role}`, and each role has exactly one suffix. An operation is named `VerbNoun` (`PauseJob`, `ListJobs`), and that name is also its folder, its SQL file stem, and its method on the group's operations class without `Async` ([source layout](#source-layout)).
+A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`PauseJob`, `ListJobs`), which is also its folder, its SQL file stem, and its method name without `Async`.
 
 | Role | Suffix | Example |
 |---|---|---|
@@ -465,16 +465,14 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `SignalWaitOutcome` |
 | An in-memory registry, built at startup or kept by a running worker | `Registry` | `JobDescriptorRegistry`, `IJobPayloadSerializerRegistry` |
 
-- **A `Get` returns its `GetXResponse`, and a `List` returns its page.** `GetX` returns `GetXResponse`, and `null` when nothing is found; a value it answers is the response's one member, as a command's is (`GetJobStatusResponse(JobStatusCode Status)`). `ListX` always returns its own `ListXResponse : IPagedResponse<ListXItem>`, never an unpaged list, and its element `ListXItem` sits in its folder beside the query and the response. `IPagedResponse<T>` is the one paging contract, the interface every list response implements. A response's parts are records of their own beside it, named `<Operation><Part>` (`GetJobExplanationWait`) and never shared with another operation, and a `Get` that answers a list carries it as `Items`, of `GetXItem` (`GetTagsResponse`). The typed `<T>` facade methods (`GetResultAsync<T>`, `RaiseSignalAsync<T>`) are conveniences over the operation, not operations of their own.
-- **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation. A subject's `GetXResponse` and its list's `ListXItem` stay two types for the same reason, even where they match today.
-- **Every value a command answers is its `XResponse`, and a command that answers nothing returns nothing.** A flag, a count, a token, or a list becomes the response's one member, named for what it means (`ReleaseLockResponse(bool Released)`, `ClaimOutboxResponse(IReadOnlyList<ClaimOutboxRow> Rows)`); a row the handler returns unchanged is the response itself, so no wrapper only forwards its members. No command returns an empty record or a bare row.
-- **`EnqueueJobRequest` and `EnqueueJobResponse` are the SDK's enqueue contract**, the pair behind every `IJobs.EnqueueAsync` overload, named verb first like every operation's response; `EnqueueBatchAsync` answers `EnqueueJobsResponse`, one `EnqueueJobResponse` per request in request order. It is the one `Request` outside `Acta.AspNetCore`; `POST /jobs` reads its own `EnqueueJobRequest` there, and the SDK record never travels as JSON.
-- **A route's bodies are named for its operation.** A route that reads a JSON body reads its own `XRequest`, declared in `src/Acta.AspNetCore/Operations/<Group>/X/`, and no body serves two routes; bodies that belong together share an interface (`IControlRequest`, `IUpsertTagsRequest`). A route answers with the SDK's `XResponse` whenever the wire shape is the SDK's. When the wire renders or composes what the facades answer, the route is its own operation, with its own `XResponse` in its folder: `GetJobDetail` composes the job screen, `GetJobInputBody` renders a payload, and `GetCapabilities` reports the host.
-- **`Row` means the database loaded it.** Every `*Row` carries `[DbProjection]`. A model the public API exposes is never a row; SQL fills it directly. A row is declared in its operation's folder as `<Operation>Row`, or `<Operation><Part>Row` when one operation reads several shapes, and no other operation names it.
-- **A type takes the subject of the table it describes.** `StepStatusCode` maps `steps.status_code`, `DefinitionAuditLevelCode` maps `definitions.audit_level_code`, and `EventReasonCode` maps `events.reason_code`. `Job` prefixes only what describes a job itself (`JobStatusCode`, `JobRef`).
-- **`Outcome` is a handler-code noun, never an operation's return.** It names how a job, a child, a map, or a wait ended inside handler code; what an operation returns is a `Response`.
-- **Banned suffixes:** `Result`, `Dto`, `Data`, `Info`, `Model`, `Entity` outside table models, `Record`, `Item` outside an operation response's element, `ListItem`, `Detail`, `Snapshot`, `Set`, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`, `HttpRequest`, `HttpResponse`, and `Request` outside `Acta.AspNetCore` but for the SDK's `EnqueueJobRequest`.
-- **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Entity` rule** over every shipped assembly, and **`HandlerResponseTests` holds `XHandler.HandleAsync` to taking its own `XCommand` or `XQuery`, `HandleAsync(XCommand)` to returning `XResponse` or nothing, `HandleAsync(ListXQuery)` to returning `ListXResponse`, a `GetX` handler to returning `GetXResponse`, and every row, command, query, response, and response element to its slice, with every other type in a slice, enums included, named for its operation.** **`RouteBodyTests` holds every mapped route's body to its own `XRequest`, on no other route, its answer to an `XResponse`, and every request and response in `Acta.AspNetCore` to the folder named for it.**
+- `GetX` returns `GetXResponse`, or `null` when nothing is found; `ListX` returns `ListXResponse : IPagedResponse<ListXItem>`. A response's parts are records of their own, named `<Operation><Part>`.
+- Every operation has its own input and response; responses that belong together share an interface, never a class.
+- A command's answer is its `XResponse`, its one member named for what it means; a command that answers nothing returns nothing.
+- A route reads its own `XRequest` and answers with the SDK's `XResponse`; a route that renders or composes is its own operation. `EnqueueJobRequest` is the one `Request` outside `Acta.AspNetCore`.
+- Every `*Row` carries `[DbProjection]`, lives in its operation's folder, and is never public.
+- A type takes the subject of the table it describes (`StepStatusCode` maps `steps.status_code`); `Job` prefixes only what describes a job.
+- Banned suffixes: `Result`, `Dto`, `Data`, `Info`, `Model`, `Record`, `ListItem`, `Detail`, `Snapshot`, `Set`, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`, `HttpRequest`, `HttpResponse`, and `Entity` or `Item` outside their roles.
+- `TypeNamingTests`, `HandlerResponseTests`, and `RouteBodyTests` enforce these.
 
 ### Public identity: refs and the wire boundary
 
@@ -554,9 +552,7 @@ operator's index maps a log field, so both outlive the release that introduced t
 
 ### Telemetry: structured log fields
 
-**There are twelve field names, and a new log line draws from them rather than inventing a thirteenth.**
-Every distinct name becomes a mapped field in the operator's index, so a tail of one-off names is not
-free and it grows with every line anyone adds.
+A log line draws its fields from these twelve names; a new name costs a mapped field in every index that receives Acta's logs.
 
 | Field | Type | Holds |
 |-------|------|-------|
@@ -573,68 +569,14 @@ free and it grows with every line anyone adds.
 | `DurationMs` | int32 / int64 / double | An elapsed or configured span |
 | `Detail` | string | The genuinely one-off value nobody filters or groups by |
 
-- **Durations are always milliseconds.** One name, one unit, so an average over the field means
-  something; a `TimeSpan` converts at the call site rather than arriving as a second spelling.
-- **`Ref` is any minted entity ref** - job, alert, worker - and the message around it names which
-  (`alert {Ref}`), so there is no field per entity type. **`SubjectRef` is the second one**, for the
-  line that legitimately carries two: the alert transport logs the alert under `Ref` and the job it
-  concerns under `SubjectRef`.
-- **What an operator filters or groups by stays distinct and typed; everything else is `Detail`.**
-  Where a name was doing the explaining - a bare channel, a lock kind - the sentence says it instead,
-  because the field is an index key and the message is what a human reads.
-- **The categorical fields are rendered at the call site, not passed typed.** `Ref` and `SubjectRef`
-  take the `alr_` / `job_` string rather than the ref struct, and `Outcome` and `Reason` take a token
-  rather than the enum they often come from. Both for the same reason: a sink may serialize the
-  property *object* instead of formatting it, and then a typed ref stores the wrapped uuid an operator
-  cannot address, while an enum stores whichever of its name and its numeric value that sink prefers -
-  making the mapped shape depend on where Acta happens to be hosted. `Count`, `DurationMs` and `JobId`
-  stay numeric for the opposite reason: written as text they could not be averaged or bucketed at all,
-  which is the whole point of splitting categorical from cardinal.
-- **`Outcome` values are PascalCase; `Operation` and `Reason` values are kebab-case.** The split is not
-  cosmetic, it follows what the value *is*. An `Outcome` reports a state C# already names - a
-  `RunOnceStatus`, a `CompleteExecutionsAction` - so it mirrors the enum member exactly (`Succeeded`,
-  `NothingClaimed`), and the handful of sites with no enum behind them spell their literal the same way
-  (`Bounced`, `Suppressed`, `Quarantined`). `Operation` and `Reason` are invented labels rather than
-  enum members - `concurrency-key-admission`, `outbox-relay`, `key-held`, `unknown-job` - so they take
-  the identifier convention, which is kebab. Mirroring rather than mapping is deliberate: rendering an
-  enum through a translation table would need a `_ =>` fallback that silently swallows a member added
-  later, and `.ToString()` keeps the enum the single source of truth, so a new state needs no telemetry
-  change at all.
-- **A string value is delimited by parentheses in the message text - `({Detail})`, `({Reason})`,
-  `({Outcome})`, `({Operation})`, `({Namespace})`, `({Ref})`, `({SubjectRef})`, `({JobName})` - rather
-  than recased to stand out.** A kebab token sitting bare in an English sentence has no visible
-  boundary. Recasing the value to give it one makes the spelling do a delimiter's job, which is why the
-  spelling rules above and this one are separate: the parens make the boundary unambiguous and the
-  value greppable, and the value keeps whatever spelling its own nature earns it.
-  Numeric fields (`{JobId}`, `{Count}`, `{DurationMs}`) are never parenthesized - a number already reads
-  as a number - and a placeholder already delimited by a `key=value` pair, such as `ns={Namespace}` in
-  the alert transport's line, is left alone rather than double-delimited. This one rule replaces the
-  single quotes some templates used around a value (`'{Detail}'`), so the vocabulary has one delimiter
-  instead of three.
-- **Log `Outcome` values and metric `outcome` tags diverge on purpose, and neither should be "fixed" to
-  match the other.** `WorkerFinalizer.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
-  into `ActaMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze
-  at 1.0; a log field mirrors the C# code and does not freeze. Two surfaces, each internally consistent,
-  beats one convention bent across both. Persisted code tokens are a third such surface and stay kebab
-  for the same kind of reason - `AlertDeliveryStatusCode.Suppressed` is the C# member and `suppressed`
-  is what the ledger stores, so a log line reporting that state writes `Suppressed`.
-- **The vocabulary is enforced, not merely documented.** `LoggerParameterTypes.txt` at the repo root
-  is the list, and Meziantou.Analyzer's `MA0135` (name not declared) and `MA0124` (argument is not a
-  declared type) fail the build over `src/**/*.cs`. `.editorconfig` holds the two lines that switch
-  them on and the reason for the `src` scope; `src/Directory.Build.props` holds the reference. Nothing
-  outside `src` is held to it - concepts, specs and Anvil do not ship, so an index schema is not a cost
-  they pay.
-- **These names are not frozen the way the instrument names above are.** A metric name is a dashboard
-  query's binding and breaks it when it moves; a log field can be added by agreeing it in
-  `LoggerParameterTypes.txt`. What it costs is one more mapped field in every index that receives Acta's
-  logs, forever, paid by whoever runs Acta rather than whoever wrote the line - so the bar is that
-  filtering or grouping by the new name is worth one, not that a message reads better with it.
-- **`JobLogScope` additionally stamps `ExecutionNumber`, `WorkerId` and `CorrelationKey`** as scope
-  state, so every framework and handler line emitted during an attempt carries them. Those three sit
-  outside the template set by necessity: scope keys must be unique across the scope stack, so they
-  cannot fold into `Count` or `Detail`. They are also invisible to the gate, which reads template
-  placeholders and not the key/value list a scope is built from, so `JobLogScopeTests` is what pins
-  them.
+- Durations are always milliseconds.
+- `Ref` is any entity ref, and the message names which (`alert {Ref}`); `SubjectRef` is the second one when a line carries two.
+- Categorical fields are rendered to strings at the call site (refs as `job_...`, `Outcome` and `Reason` as tokens); `Count`, `DurationMs`, and `JobId` stay numeric.
+- `Outcome` values are PascalCase, mirroring the enum member; `Operation` and `Reason` values are kebab-case.
+- A string value sits in parentheses in the message (`({Detail})`); a number does not.
+- Metric `outcome` tags are lowercase and frozen at 1.0, so they differ from log `Outcome` on purpose.
+- `LoggerParameterTypes.txt` is the list, enforced over `src` by Meziantou.Analyzer `MA0135` and `MA0124`.
+- `JobLogScope` also stamps `ExecutionNumber`, `WorkerId`, and `CorrelationKey` on every line of an attempt; `JobLogScopeTests` pins them.
 
 ## Source layout
 
