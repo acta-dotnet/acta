@@ -17,7 +17,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // Parallel/Map/Join all compile to ordinary child jobs plus child-completion latches: replay finds
-// the same children by name and re-runs nothing.
+// the same children by name and enqueues none twice; a child that had not finished runs on as its own job.
 //   Parallel - independent analyzes of the same source,
 //   Map      - one child per item, keyed by a stable key,
 //   Join     - wait on handles you started by hand.

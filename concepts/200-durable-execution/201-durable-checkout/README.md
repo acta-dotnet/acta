@@ -85,8 +85,9 @@ Reject the fraud review:
 dotnet run --project concepts/200-durable-execution/201-durable-checkout -- --reject
 ```
 
-The same signal mechanism now ends the checkout as `cancelled`. The resulting rows prove that no timer,
-receipt step, or terminal result was created, while the completed inventory and payment evidence remains.
+The same signal mechanism now ends the checkout as `cancelled`. The review runs before inventory and
+payment, so the resulting rows prove that nothing was reserved or charged: no step, timer, or terminal
+result was created.
 
 This lab does not stage a process kill. Use [`220-at-most-once-step`](../220-at-most-once-step/) for the
 ambiguous side-effect crash window and [`705-worker-crash-recovery`](../../700-topology-and-deployment/705-worker-crash-recovery/)

@@ -72,18 +72,18 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             ct
         );
         await lab.ShowAsync(
-            "Completed external operations are durable step outcomes",
+            "Nothing is reserved or charged before the review: no step has run",
             """
             SELECT step_name, state, attempt_number, result_format
             FROM steps_view
             WHERE job_id = @jobId
-            ORDER BY step_id
+            ORDER BY created_at_utc
             """,
             new { jobId = checkout.JobId },
             ct
         );
         await lab.ShowAsync(
-            "The charge variable and pending approval are checkpoint rows",
+            "The pending approval is a checkpoint row",
             """
             SELECT checkpoint_name, kind, state, value_format, due_at_utc, modified_at_utc
             FROM checkpoints_view
@@ -112,12 +112,12 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
                 ct
             );
             await lab.ShowAsync(
-                "Only the inventory and payment steps exist",
+                "No step ran: inventory and payment come after the review",
                 """
                 SELECT step_name, state, attempt_number, result_format
                 FROM steps_view
                 WHERE job_id = @jobId
-                ORDER BY step_id
+                ORDER BY created_at_utc
                 """,
                 new { jobId = checkout.JobId },
                 ct
@@ -166,7 +166,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             ct
         );
         await lab.ShowAsync(
-            "The signal is latched and the settlement timer is pending",
+            "The signal is latched, the charge is a variable, and the settlement timer is pending",
             """
             SELECT checkpoint_name, kind, state, due_at_utc, modified_at_utc
             FROM checkpoints_view
@@ -194,7 +194,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             SELECT step_name, state, attempt_number, result_format
             FROM steps_view
             WHERE job_id = @jobId
-            ORDER BY step_id
+            ORDER BY created_at_utc
             """,
             new { jobId = checkout.JobId },
             ct

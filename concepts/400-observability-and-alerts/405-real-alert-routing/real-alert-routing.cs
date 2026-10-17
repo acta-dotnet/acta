@@ -15,13 +15,15 @@ builder.Services.UseActa(j =>
         {
             w.AddManifest<RealAlertRoutingJobs>();
 
-            // Built-in Slack incoming-webhook transport; endpoint is the webhook URL supplied from
-            // startup configuration. Acta SQL stores only channel_name = "ops-slack".
+            // Built-in Slack incoming-webhook transport, with the webhook URL from configuration
+            // (Alerts:SlackWebhookUrl). Without one the channel logs instead, so a plain run sends nothing.
+            // Acta SQL stores only channel_name = "ops-slack" either way.
             // MinSeverity = Warning suppresses lower-severity alerts at delivery.
+            var webhookUrl = builder.Configuration["Alerts:SlackWebhookUrl"];
             w.AddAlertChannel(
                 "ops-slack",
-                AlertTransportKinds.SlackWebhook,
-                endpoint: "https://hooks.slack.com/services/T000/B000/XXXXXXXXXXXX", // placeholder webhook URL
+                webhookUrl is null ? AlertTransportKinds.Log : AlertTransportKinds.SlackWebhook,
+                endpoint: webhookUrl ?? "ops-slack",
                 o =>
                 {
                     o.MinSeverity = AlertSeverityCode.Warning;

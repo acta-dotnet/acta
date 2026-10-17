@@ -21,9 +21,13 @@ var outcome = await jobs.EnqueueAsync(new AddNumbers(20, 22));
 var early = await jobs.GetResultAsync<AddNumbersResult>(outcome);
 Console.WriteLine($"right away:        {(early is null ? "no result yet" : early.Sum.ToString())}");
 
-await Task.Delay(500);
-var done = await jobs.GetResultAsync<AddNumbersResult>(outcome);
-Console.WriteLine($"after it finishes: {done!.Sum}");
+var done = early;
+while (done is null)
+{
+    await Task.Delay(100);
+    done = await jobs.GetResultAsync<AddNumbersResult>(outcome);
+}
+Console.WriteLine($"after it finishes: {done.Sum}");
 
 await host.StopAsync();
 

@@ -1,4 +1,4 @@
-# 706 — API/worker split
+# API/worker split
 
 This production-shape capstone runs an enqueue-only ASP.NET Core API and an Acta worker as separate
 processes. Both coordinate through the same durable database; neither calls the other.
@@ -69,7 +69,9 @@ dotnet run --project demos/ApiWorkerSplit/Api
 ```
 
 Use [`ApiWorkerSplit.http`](./ApiWorkerSplit.http) for the requests. Both processes default to the same
-SQLite file, so no database server or connection string is required.
+SQLite file, so no database server or connection string is required. That is for trying the split on one
+machine: SQLite is supported for a single process, so a real split runs on PostgreSQL or SQL Server
+(`ACTA_LOCAL_PROVIDER=postgres` or `sqlserver` plus a connection string; see [`LocalDatabase.cs`](./LocalDatabase.cs)).
 
 ## Break the boundary
 

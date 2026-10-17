@@ -155,7 +155,7 @@ curated-view rows.
 | 402 | [alerts](../concepts/400-observability-and-alerts/402-alerts/) | Raise an operator alert from a handler (`ctx.AlertAsync`), then read it back via `operations.Alerts` |
 | 403 | [alert-channel](../concepts/400-observability-and-alerts/403-alert-channel/) | Declare a custom alert channel (`AddAlertChannel`) and route an alert to it by name |
 | 404 | [read-event-timeline](../concepts/400-observability-and-alerts/404-read-event-timeline/) | Read the `JobEvent` timeline ("why did this happen?") across a job lineage |
-| 405 | [real-alert-routing](../concepts/400-observability-and-alerts/405-real-alert-routing/) | A real Slack-webhook channel with a severity floor; a deduplication key collapses repeats of one incident |
+| 405 | [real-alert-routing](../concepts/400-observability-and-alerts/405-real-alert-routing/) | A Slack-webhook channel from configuration, logging when none is set, with a severity floor; a deduplication key collapses repeats of one incident |
 | 406 | [automatic-failure-alerts](../concepts/400-observability-and-alerts/406-automatic-failure-alerts/) | An automatic failure alert via `[Job(AlertProfile=...)]`; same-job repeats dedupe and count up |
 | 407 | [audit-level](../concepts/400-observability-and-alerts/407-audit-level/) | `AuditLevel` (Off/Failures/Audit) changes how many `JobEvent`s a job emits |
 | 408 | [correlation-id](../concepts/400-observability-and-alerts/408-correlation-id/) | Propagate a `CorrelationKey` parent->child (read via log scope / raw SQL) |

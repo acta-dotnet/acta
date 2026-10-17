@@ -21,7 +21,8 @@ await workerHost.StartAsync();
 
 Console.WriteLine("Worker host started: owns the namespace, runs the claim loop.");
 
-// Frontend host: Reference only - no handler code loaded, no claim loop.
+// Frontend host: Reference only - no claim loop, so it never runs a handler. This demo keeps both hosts in one
+// assembly; a real frontend references only the shared manifest and contracts.
 // Any process that can reach the same database and knows the manifest type can enqueue.
 var frontendBuilder = Host.CreateApplicationBuilder(args);
 frontendBuilder.Services.UseActa(j =>
@@ -32,7 +33,7 @@ frontendBuilder.Services.UseActa(j =>
 using var frontendHost = frontendBuilder.Build();
 await frontendHost.StartAsync();
 
-Console.WriteLine("Frontend host started: Reference only - no worker, no handlers.");
+Console.WriteLine("Frontend host started: Reference only - no worker, so no handler runs here.");
 
 // Enqueue from the frontend host; it can reach the job type through the reference.
 var frontendJobs = frontendHost.Services.GetRequiredService<IJobs>();

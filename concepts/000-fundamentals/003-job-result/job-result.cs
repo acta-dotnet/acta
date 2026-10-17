@@ -17,9 +17,15 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var outcome = await jobs.EnqueueAsync(new AddNumbers(2, 3));
-await Task.Delay(500);
+
+// The result exists once the job has succeeded; until then the read answers null, so poll for it.
 var result = await jobs.GetResultAsync<AddNumbersResult>(outcome);
-Console.WriteLine($"2 + 3 = {result!.Sum}");
+while (result is null)
+{
+    await Task.Delay(100);
+    result = await jobs.GetResultAsync<AddNumbersResult>(outcome);
+}
+Console.WriteLine($"2 + 3 = {result.Sum}");
 
 await host.StopAsync();
 

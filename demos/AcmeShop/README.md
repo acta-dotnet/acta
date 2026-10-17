@@ -26,9 +26,10 @@ dotnet run --project demos/AcmeShop/Acme.Shop.Api
 Start a worker before enqueuing. The worker owns its job definitions, so an enqueue against a namespace
 no worker has registered yet is rejected with `ENQ_ROUTE_UNKNOWN`.
 
-No setup is required: the demo defaults to embedded SQLite in your temp folder. Set
-`ACTA_LOCAL_PROVIDER=postgres` (or `sqlserver`) plus a connection string to run it on a server instead;
-see `LocalDatabase.cs`, which is ordinary consumer code you can copy.
+No setup is required: the demo defaults to embedded SQLite in your temp folder. That suits a try-out on
+one machine, but SQLite is supported for a single process, so several processes belong on a server: set
+`ACTA_LOCAL_PROVIDER=postgres` (or `sqlserver`) plus a connection string; see `LocalDatabase.cs`, which is
+ordinary consumer code you can copy.
 
 ## Try it
 
@@ -44,7 +45,7 @@ charges the card, then hands off durably to shipping, which labels and dispatche
 | --- | --- |
 | `POST /orders` | Enqueue: the API returns as soon as the job row is committed |
 | `GET /orders/{jobRef}` | Poll a job's durable status by its public ref |
-| `GET /orders/{orderId}/shipping` | Read the result the shipping worker wrote |
+| `GET /orders/{orderId}/shipping` | Find the shipping job by its deduplication key and read its durable status |
 | `POST /admin/orders/{jobRef}/fraud-decision` | Release a job that is suspended waiting on a signal |
 | `/acta` | The operator dashboard, read plus controls |
 
