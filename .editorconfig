@@ -748,14 +748,6 @@ dotnet_diagnostic.CA1031.severity = none
 [tests/Acta.Tests/Storage/DbSessionRetryRegionTests.cs]
 dotnet_diagnostic.CA1861.severity = none
 
-# CA1040: IConformanceMetaSpec<TFixture> is an empty interface because being empty is the whole
-# mechanism. HarnessReflection.IsCandidateContractSpec walks the assembly and excludes any spec
-# assignable to it from the parity set, so the type carries no members to declare - membership is the
-# signal. Giving it a method to satisfy the rule would put a member on every meta-spec that nothing
-# calls, which is the dead code CA1040 is trying to prevent, one level up.
-[tests/Acta.Tests.Conformance/Contracts/IConformanceMetaSpec.cs]
-dotnet_diagnostic.CA1040.severity = none
-
 # CA1822: ClaimedExpiredRow, one of the private protected arrange helpers every derived outbox spec
 # calls by bare name. Its siblings - ClaimAsync, SeedAndClaimAsync, SeedAndQuarantineAsync - reach
 # Store and Fixture; this one composes its row with a `with` expression over DueRow and so touches no
