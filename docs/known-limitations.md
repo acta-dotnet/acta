@@ -4,9 +4,9 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0.0-rc.4. The next release rebuilds the execution engine, removes APIs, changes persisted
-codes, and re-cuts the schema ([release notes](./release-notes.md)), so every database an earlier release
-candidate provisioned is dropped and reprovisioned: no translation migration exists, and nothing in a
+Acta is at 1.0.0-rc.5, the last release candidate before 1.0.0. It rebuilt the execution engine, removed
+APIs, changed persisted codes, and re-cut the schema ([release notes](./release-notes.md)), so every database
+an earlier release candidate provisioned is dropped and reprovisioned: no translation migration exists, and nothing in a
 database says which cut it came from. From 1.0.0 the public API, schema, and persisted codes are frozen,
 and the migration history with them: schema changes ship only as additive migrations and the baseline is
 never re-cut, so a database provisioned by a 1.x build upgrades by migration alone.
@@ -25,6 +25,7 @@ provisioned before 1.0.
 - **At-least-once.** A handler can run again after a crash, a lease expiry, a failed completion write, or a shutdown, and a restart or a database restore can re-run work whose external effects already happened. No durable executor makes external effects exactly-once; the application owns that, with deduplication keys, durable steps, `AtMostOnce()`, or reconciliation.
 - **Checkpoints, not replay.** A handler re-enters from the top; completed durable slots return their stored results.
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
+- **SQLite pickup can wait a Windows timer tick.** A write that meets another commit holding SQLite's lock waits in SQLite's busy handler, which sleeps in whole milliseconds that Windows rounds up to a 15.6 ms tick, so one job at a time picks up in about 20 ms where the server providers take 3.
 - **A dead worker's jobs come back within two leases**, six minutes at the default heartbeat.
 - **One job row takes about 700 million state changes**, about three per run. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about three months; a loop that long should enqueue a successor job instead.
 - **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition.

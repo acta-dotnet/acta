@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.5
 
-Not yet tagged. Upgrading from rc.4 takes the changes below.
+Tagged 2026-10-17. Upgrading from rc.4 takes the changes below.
 
 ### What a consumer must change
 
@@ -75,7 +75,7 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 - An attempt cancels at its own lease deadline when renewals stop, so a database outage stops the handler.
 - A definition override reaches every worker within one heartbeat.
 - A claim starts where the worker's last full claim ended, so it skips the dead index entries earlier claims left behind.
-- SQLite syncs every commit (`synchronous = FULL`), so the `AtMostOnce()` caveat for SQLite is gone. Workers with few executors pay for it in throughput.
+- SQLite syncs every commit (`synchronous = FULL`), so the `AtMostOnce()` caveat for SQLite is gone. Single enqueues and workers with few executors pay for it in throughput, and on Windows one job at a time picks up in about 20 ms instead of 2 ([known limitations](./known-limitations.md)).
 - The system slots claim at Realtime, so a Realtime backlog no longer starves them.
 - Retention walks `runtimes` from a cursor instead of an index, and SQL Server no longer page-compresses `results`.
 
@@ -109,6 +109,10 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 
 - The guides are [`docs/guide.md`](./guide.md) for writing jobs and [`docs/operator-guide.md`](./operator-guide.md) for running them; contributor pages moved into `CONTRIBUTING.md`.
 - The latest benchmark round is [`docs/reference/benchmark.md`](./reference/benchmark.md); the release notes record each certification verdict.
+
+### Evidence
+
+Certified on `ba12ef95`; the tagged commit adds test fixes and leaves `src/` unchanged. The three standard gates (10,000 jobs, 5 steps of 1 s, 7 minutes of chaos; PostgreSQL and SQL Server on 8 workers of 8 executors, SQLite on 6 of 8) and the PostgreSQL ensemble (three processes over two namespaces, 4,000 jobs) passed, with kills in flight in every work shape. Both million-job runs, on PostgreSQL and SQL Server (1,005,000 jobs each, 24 workers of 64 executors, 5 steps of 250 ms, 12 minutes of chaos), passed the same way. The benchmark round on the same commit is [`docs/reference/benchmark.md`](./reference/benchmark.md). Against rc.4's best profile on the same machine, drain more than doubles on PostgreSQL and SQL Server and grows fivefold on SQLite, and pickup latency and enqueue are level or ahead on the servers. Three cells trail: SQLite picks up one job at a time in about 20 ms on Windows ([known limitations](./known-limitations.md)), its single enqueues run at about 1,400 a second now that every commit syncs, and one deep lane runs about a quarter below rc.4's Direct profile, since each handoff waits for the previous completion to commit.
 
 ## Earlier releases
 

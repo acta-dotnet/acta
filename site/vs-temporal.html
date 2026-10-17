@@ -163,7 +163,7 @@
         <li><b>Exactly-once side effects, which nobody has.</b> Steps and activities alike are at-least-once, so external calls need idempotency everywhere; Acta adds <code>AtMostOnce()</code> where a repeat is worse than ambiguity. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#at-most-once-steps">At-most-once steps →</a></li>
         <li><b>.NET only.</b> Handlers, workers, and the tooling are .NET. There are no SDKs for other languages and none planned.</li>
         <li><b>One database is the durability boundary.</b> Acta is as durable and available as the database you point it at.</li>
-        <li><b>Production miles.</b> Acta is young. Its evidence is public instead: about 950 conformance specs run against real PostgreSQL, SQL Server, and SQLite, and each release passes a chaos certification that kills workers mid-job, recorded in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/release-notes.md">the release notes</a>.</li>
+        <li><b>Production miles.</b> Acta is young. Its evidence is public instead: about 1,050 conformance specs run against real PostgreSQL, SQL Server, and SQLite, and each release passes a chaos certification that kills workers mid-job, recorded in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/release-notes.md">the release notes</a>.</li>
       </ul>
     </section>
 

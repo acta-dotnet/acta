@@ -405,7 +405,7 @@
         </div>
         <div>
           <b>Durable, and still fast</b>
-          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box drained <em>23,349 jobs a second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/da9bff0d2bcc3f5ce2473acdf1b85a4bfbee1aa1/docs/benchmarks/rc5-engine-drain-20261010.md">Engine round</a></p>
+          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box drained <em>66,405 jobs a second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md">Benchmark round</a></p>
         </div>
         <div>
           <b>Bounded, and it heals</b>
@@ -625,7 +625,7 @@
       <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default (browse to it as localhost or 127.0.0.1), with mutating verbs off until you enable them; removing the local-only guard without configuring authorization does not degrade, it refuses to start.</p>
       <figure class="shot">
         <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
-          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, workers with heartbeats, and next schedules" loading="lazy" width="3200" height="2000" />
+          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, failed jobs, alerts, outbox relays, and workers with heartbeats, captured mid-run" loading="lazy" width="3200" height="2000" />
         </div>
         <figcaption>
           <span class="stamp">Field record · Anvil steady run</span>
@@ -638,29 +638,29 @@
       <p class="record">Numbers &amp; boundaries</p>
       <h2>Benchmarks, tests, and what Acta does not do.</h2>
       <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/da9bff0d2bcc3f5ce2473acdf1b85a4bfbee1aa1/docs/benchmarks/rc5-engine-drain-20261010.md" style="text-decoration:none">23,349</a></b><span>jobs/s drain · Postgres · Direct · 16 workers, completions group-committed, every job durable</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">179,639</a></b><span>jobs/s batch enqueue · Postgres · 200k-job fleet insert</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.4/docs/benchmarks/rc4-release-round-20261002.md" style="text-decoration:none">2.0 ms</a></b><span>p50 pickup latency · Direct · SQLite</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/tree/v1.0.0-rc.4/docs/certification" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">66,405</a></b><span>jobs/s drain · PostgreSQL · 16 workers, completions group-committed, every job durable</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">238,839</a></b><span>jobs/s batch enqueue · PostgreSQL · 200k-job fleet insert</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">3.7 ms</a></b><span>p50 pickup latency · SQL Server · one job at a time</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), the release preset (one warmup, one measured run, 5,000 jobs), the release candidate beside the previous one in the same hour, for regression tracking and rough sizing, not capacity claims.</p>
+      <p class="bench-note">One rig (32 logical cores, NVMe), the release preset (one warmup, one measured run), for regression tracking and rough sizing, not capacity claims.</p>
       <div class="proof" id="tests">
-        <h3><em>4,708 tests</em> on every run. The median end-to-end test takes <em>29 ms</em> on PostgreSQL.</h3>
-        <p class="lede">Each of about 945 conformance specs drives a real Acta runtime, claiming, executing, settling, and recovering, against a real database, and the same spec runs on all three providers: 2,811 end-to-end runs plus 1,897 unit and contract tests. Test speed is a feature, so the suites are measured, too.</p>
+        <h3><em>5,053 tests</em> on every run. The median end-to-end test takes <em>27 ms</em> on PostgreSQL.</h3>
+        <p class="lede">Each of about 1,050 conformance specs drives a real Acta runtime, claiming, executing, settling, and recovering, against a real database, and the same spec runs on all three providers: 3,126 end-to-end runs plus 1,927 unit and contract tests. Test speed is a feature, so the suites are measured, too.</p>
         <div class="table-scroll" tabindex="0" aria-label="Test suite sizes and timings; horizontally scrollable on small screens">
           <table class="data-table">
             <caption class="sr-only">Test suites: number of tests, wall time for the whole suite in parallel, and each test's own duration percentiles measured one test at a time</caption>
             <thead><tr><th scope="col">Suite</th><th scope="col">Tests</th><th scope="col">Wall</th><th scope="col">p50</th><th scope="col">p90</th><th scope="col">p95</th><th scope="col">p99</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Unit and contract<small>no database</small></th><td>1,897</td><td class="lead">12 s</td><td>0.4 ms</td><td>44 ms</td><td>62 ms</td><td>151 ms</td></tr>
-              <tr><th scope="row">End to end<small>PostgreSQL</small></th><td>945</td><td class="lead">12 s</td><td>29 ms</td><td>92 ms</td><td>224 ms</td><td>2.34 s</td></tr>
-              <tr><th scope="row">End to end<small>SQLite</small></th><td>919<small>24 provider-skipped</small></td><td class="lead">28 s</td><td>13 ms</td><td>44 ms</td><td>121 ms</td><td>1.08 s</td></tr>
-              <tr><th scope="row">End to end<small>SQL Server</small></th><td>947</td><td class="lead">21 s</td><td>31 ms</td><td>111 ms</td><td>365 ms</td><td>2.39 s</td></tr>
+              <tr><th scope="row">Unit and contract<small>no database</small></th><td>1,927</td><td class="lead">15 s</td><td>0.4 ms</td><td>54 ms</td><td>79 ms</td><td>434 ms</td></tr>
+              <tr><th scope="row">End to end<small>PostgreSQL</small></th><td>1,047</td><td class="lead">11 s</td><td>27 ms</td><td>81 ms</td><td>138 ms</td><td>1.73 s</td></tr>
+              <tr><th scope="row">End to end<small>SQLite</small></th><td>1,029<small>15 provider-skipped</small></td><td class="lead">22 s</td><td>11 ms</td><td>29 ms</td><td>70 ms</td><td>1.07 s</td></tr>
+              <tr><th scope="row">End to end<small>SQL Server</small></th><td>1,050</td><td class="lead">21 s</td><td>43 ms</td><td>135 ms</td><td>242 ms</td><td>2.11 s</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-01 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/v1.0.0-rc.4/docs/certification">Certification records</a></p>
+        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-17 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence">Certification records</a></p>
       </div>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>

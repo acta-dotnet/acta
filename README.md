@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **1.0.0-rc.4.** A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source, and 1.0.0 after it. From 1.0.0 the public API, the schema, and the persisted codes are frozen: schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
+> **1.0.0-rc.5.** The last release candidate before 1.0.0: it rebuilt the execution engine and re-cut the schema, so a database an earlier candidate provisioned is reprovisioned ([release notes](./docs/release-notes.md)). From 1.0.0 the public API, the schema, and the persisted codes are frozen: schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
 
 Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your own SQL database, so every state transition is a row you can `SELECT`. No broker, no sidecar, no hosted control plane, no replay engine. Execution is **at-least-once**: Acta makes its own state repeat-safe, and handlers own the idempotency of their side effects.
 
@@ -118,7 +118,7 @@ SQLite state is one file (`acta-local*.db`); delete it to reset. Docker is neede
 
 There is no proprietary console and no hidden state to decode. Jobs, leases, attempts, events, schedules, checkpoints, alerts, and workers are rows; common reads start from curated operator views:
 
-![Acta operator dashboard: Overview with health verdict, job counts, worker heartbeats, and next schedules, captured mid-run with 10,000 jobs draining through two workers](./site/assets/dash-dark-overview.webp)
+![Acta operator dashboard: Overview with health verdict, job counts, failed jobs, alerts, outbox relays, and worker heartbeats, captured mid-run with 100,000 jobs draining through two workers](./site/assets/dash-dark-overview.webp)
 
 ```sql
 -- In-flight work and who holds it.
@@ -157,7 +157,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-- From 1.0.0 the migration history is frozen: schema changes ship only as additive migrations, and the baseline is never re-cut. Until then a release candidate may re-cut it, and rc.4 does. A database an earlier release candidate provisioned needs one reprovision on the way in: a re-cut baseline carries no translation migration.
+- From 1.0.0 the migration history is frozen: schema changes ship only as additive migrations, and the baseline is never re-cut. Until then a release candidate may re-cut it, and rc.5 does. A database an earlier release candidate provisioned needs one reprovision on the way in: a re-cut baseline carries no translation migration.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [dashboard exposure and auth](./docs/operator-guide.md#dashboard-exposure-and-auth) before exposing anything.
 - Known limitations are tracked in [`docs/known-limitations.md`](./docs/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).
@@ -168,7 +168,7 @@ The inner core is the author's. The data model, the execution semantics, the cla
 machinery, and every public API signature are deliberate human decisions, defensible column by
 column and method by method. AI was used heavily, and deliberately, on the outer core: test
 scaffolding, documentation, consistency sweeps, benchmark tooling. Every line passed the same gates
-either way: ~4,000 tests on three databases, a conformance contract, drift-checked generated docs,
+either way: ~5,000 tests on three databases, a conformance contract, drift-checked generated docs,
 recorded benchmark baselines. AI made the work faster. It did not make the decisions.
 
 ## License
