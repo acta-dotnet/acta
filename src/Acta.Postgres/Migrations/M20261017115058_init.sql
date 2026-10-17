@@ -3438,12 +3438,36 @@ BEGIN
             v_now,
             v_now,
             0)
+        ON CONFLICT (job_id, name) DO NOTHING
         RETURNING steps.attempt_number, steps.version
         INTO v_attempt, v_version;
 
-        RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
-    ELSIF v_state = 100 /* StepStatusCode.Succeeded */ THEN
+        IF FOUND THEN
+            RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
+                NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            RETURN;
+        END IF;
+
+        -- A concurrent first start inserted the slot first: read it as a replay would, as SQL Server's step lock
+        -- queues this caller behind that insert.
+        SELECT
+            a.status_code,
+            a.attempt_number,
+            a.version,
+            a.next_retry_at_utc,
+            a.result_format_id,
+            a.result,
+            a.reason_code,
+            a.reason_message
+        INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+        FROM {{schema}}.steps a
+        WHERE
+            a.job_id = p_job_id
+            AND a.name = p_name
+        FOR UPDATE;
+    END IF;
+
+    IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
         RETURN QUERY SELECT 3 /* StartStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
@@ -3961,5 +3985,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261017113413_init')
+VALUES ('M20261017115058_init')
 ON CONFLICT (name) DO NOTHING;

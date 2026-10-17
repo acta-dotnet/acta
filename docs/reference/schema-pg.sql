@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261017113413_init')
+        WHERE name NOT IN ('M20261017115058_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261017113413_init =====
+-- ===== BEGIN M20261017115058_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -3489,12 +3489,36 @@ BEGIN
             v_now,
             v_now,
             0)
+        ON CONFLICT (job_id, name) DO NOTHING
         RETURNING steps.attempt_number, steps.version
         INTO v_attempt, v_version;
 
-        RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
-    ELSIF v_state = 100 /* StepStatusCode.Succeeded */ THEN
+        IF FOUND THEN
+            RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
+                NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            RETURN;
+        END IF;
+
+        -- A concurrent first start inserted the slot first: read it as a replay would, as SQL Server's step lock
+        -- queues this caller behind that insert.
+        SELECT
+            a.status_code,
+            a.attempt_number,
+            a.version,
+            a.next_retry_at_utc,
+            a.result_format_id,
+            a.result,
+            a.reason_code,
+            a.reason_message
+        INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+        FROM acta.steps a
+        WHERE
+            a.job_id = p_job_id
+            AND a.name = p_name
+        FOR UPDATE;
+    END IF;
+
+    IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
         RETURN QUERY SELECT 3 /* StartStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
@@ -4012,10 +4036,10 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017113413_init')
+VALUES ('M20261017115058_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017113413_init =====
+-- ===== END M20261017115058_init =====
 
 COMMIT;
 
