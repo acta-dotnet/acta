@@ -472,7 +472,14 @@ settles, and what an operator sees when it fails.
   event in the schema, then sorted them, to return 50 rows: 12.8 s per call on a lab schema of 64M jobs.
   The jobs, events, alerts, schedules, workers, and definitions lists and the overview now compare
   their own `namespace_id` with the id looked up once, and the events and jobs pages read about 270
-  buffers in under a millisecond. SQLite's reads change the same way.
+  buffers in under a millisecond.
+- **SQLite's lists seek by namespace too.** SQLite compiles a statement without its parameter values,
+  so a list filter written as `(@p IS NULL OR x)` never reached an index, and every list page scanned
+  its whole table and sorted it: on a scratch ledger of 2M events, the newest events page took 126 ms
+  for a namespace of 100K events and 790 ms for one of 1.9M. Before a command runs, the SQLite dialect
+  now rewrites each such filter to `x` when its parameter is set and to true when it is null, so the
+  events and jobs pages read their namespace index and return in about 0.2 ms however long the history.
+  PostgreSQL plans with the bound values and SQL Server recompiles each call, so neither changes.
 - **The overview no longer blames idle workers for another namespace's backlog.** With all namespaces
   selected, a namespace whose workers were gone and whose jobs were overdue read as "ready jobs not
   draining while N executor slots sit idle", counting the slots of workers in other namespaces that
