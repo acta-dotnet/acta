@@ -8,11 +8,6 @@ namespace Acta.Tests.Docs;
 /// Markdown-ish documents and <c>&lt;pre&gt;&lt;code&gt;</c> blocks in the site's HTML, with entities
 /// decoded and line endings normalized so a CRLF checkout compares equal to an LF one.
 /// </summary>
-/// <remarks>
-/// Shared by the drift gates in this project and by tests/DocSamples/Extractor, which materializes
-/// the same blocks as real projects and compiles them against the candidate packages. Both halves
-/// read the docs through this file so a sample can never pass one gate under different rules.
-/// </remarks>
 public static partial class DocSampleExtraction
 {
     /// <summary>The documents that must all carry the identical first-run program.</summary>
@@ -54,36 +49,6 @@ public static partial class DocSampleExtraction
             );
     }
 
-    /// <summary>The single code block containing <paramref name="marker"/>, for samples selected by content.</summary>
-    public static string BlockContaining(string relativeDocument, string marker)
-    {
-        var matches = CodeBlocks(relativeDocument).Where(b => b.Contains(marker, StringComparison.Ordinal)).ToList();
-        return matches.Count == 1
-            ? matches[0]
-            : throw new InvalidOperationException(
-                $"{relativeDocument}: expected exactly one code block containing '{marker}', found {matches.Count}."
-            );
-    }
-
-    /// <summary>
-    /// Code blocks whose first line is a <c>// File: path</c> header, paired with that path. This is
-    /// how a multi-file sample names the files it must be split into to compile as one project.
-    /// </summary>
-    public static IReadOnlyList<(string File, string Code)> FileHeaderedBlocks(string relativeDocument)
-    {
-        const string header = "// File: ";
-        var blocks = new List<(string, string)>();
-        foreach (var block in CodeBlocks(relativeDocument))
-        {
-            var firstLine = block.Split('\n')[0];
-            if (firstLine.StartsWith(header, StringComparison.Ordinal))
-            {
-                blocks.Add((firstLine[header.Length..].Trim(), block));
-            }
-        }
-        return blocks;
-    }
-
     /// <summary>Every job name declared by a <c>[Job("...")]</c> attribute in the given code.</summary>
     public static IReadOnlyList<string> JobNames(string code) => JobAttributeRegex().Matches(code).Select(m => m.Groups[1].Value).ToList();
 
@@ -94,8 +59,7 @@ public static partial class DocSampleExtraction
     /// Whether a trimmed line opens a C# fence. A fence's info string is the language followed by
     /// whatever attributes the renderer understands (<c>```csharp title="Program.cs"</c>), so only its
     /// first whitespace-separated token names the language. Matching the whole line instead made an
-    /// attributed fence invisible to every gate at once: neither the drift tests nor the compile
-    /// extractor could see the sample, so an uncompilable one would ship unnoticed.
+    /// attributed fence invisible to every drift gate at once.
     /// </summary>
     public static bool OpensCSharpFence(string line) =>
         line.StartsWith(Fence, StringComparison.Ordinal)

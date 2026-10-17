@@ -183,9 +183,7 @@ The full workflow is in [`docs/internals/migrations.md`](./docs/internals/migrat
 ## Before opening a PR
 
 The canonical sequence (CI runs these, plus the markdown link check `bash tools/check-md-links.sh`, the
-Playwright smoke, and the package and doc-sample smokes `tests/PackageSmoke/run.ps1` and
-`tests/DocSamples/run.ps1`, which compile the README, llms.txt, and quickstart samples against the
-packed packages):
+Playwright smoke, and the package smoke `tests/PackageSmoke/run.ps1`):
 
 ```bash
 dotnet tool restore
@@ -210,11 +208,11 @@ written beside it; see the `[concepts/**/*.cs]` and `[demos/**/*.cs]` blocks for
 `[SuppressMessage]` attribute to production code — the ruling belongs where the next reader will look for
 it, not at the site.
 
-Three trees are exempt on purpose. `concepts/`, `tests/PackageSmoke/`, and `tests/DocSamples/` carry
-their own `Directory.Build.props` that does not chain to the root: concepts are executable documentation
-whose shape is dictated by what they teach, and the two smoke consumers exist to build the way a real
-external consumer would, untouched by this repository's build conventions. Holding any of them to the
-repo's analyzer tier would defeat the reason it exists.
+Two trees are exempt on purpose. `concepts/` and `tests/PackageSmoke/` carry their own
+`Directory.Build.props` that does not chain to the root: concepts are executable documentation whose
+shape is dictated by what they teach, and the package smoke exists to build the way a real external
+consumer would, untouched by this repository's build conventions. Holding either to the repo's analyzer
+tier would defeat the reason it exists.
 
 ## SQL style
 
