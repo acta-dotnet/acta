@@ -3,7 +3,8 @@ namespace Acta;
 /// <summary>
 /// One stale child-done latch: a parent's Pending <c>sys.child.{id}</c> slot whose child is already
 /// terminal (its raise was lost to a crash, or the slot was re-armed after a state reset) or whose
-/// child row no longer exists. <see cref="ChildStatus"/> is null when the row is gone.
+/// child row no longer exists. <see cref="ChildStatus"/> and <see cref="ChildExecutionNumber"/>, the execution that
+/// landed it, are null when the row is gone.
 /// </summary>
 [DbProjection(ByName = true)]
-internal sealed record GetStaleChildLatchesItem(long ParentJobId, long ChildJobId, JobStatusCode? ChildStatus);
+internal sealed record GetStaleChildLatchesItem(long ParentJobId, long ChildJobId, JobStatusCode? ChildStatus, int? ChildExecutionNumber);

@@ -74,7 +74,7 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(NamespaceStatusCode.Active, after!.Status);
         Assert.Equal(before!.Version, after.Version);
 
-        var page = await Operations.Namespaces.ListNamesAsync(new ListNamespaceNamesQuery(NameContains: "sys"), ct);
-        Assert.Contains("sys", page.Items);
+        var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        Assert.Contains(page.Items, item => item.JobNamespace == "sys");
     }
 }

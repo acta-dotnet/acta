@@ -32,7 +32,7 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
         var response = await Tags.UpsertAsync(target, new TagInput("added", "now"), ct: ct);
 
-        Assert.Equal(TagMutationAction.Applied, response.Action);
+        Assert.Equal(ControlAction.Applied, response.Action);
         var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
         Assert.Equal([new GetTagsItem("added", "now"), new GetTagsItem("kept", "yes")], tags.Items);
     }
@@ -44,8 +44,8 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
         var target = await TenantAsync("upsert-over", ct);
         await Tags.UpsertAsync(target, new TagInput("stage", "draft"), ct: ct);
 
-        Assert.Equal(TagMutationAction.Applied, (await Tags.UpsertAsync(target, new TagInput("stage", "final"), ct: ct)).Action);
-        Assert.Equal(TagMutationAction.Applied, (await Tags.UpsertAsync(target, new TagInput("stage", "final"), ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.UpsertAsync(target, new TagInput("stage", "final"), ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.UpsertAsync(target, new TagInput("stage", "final"), ct: ct)).Action);
 
         var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
         Assert.Equal([new GetTagsItem("stage", "final")], tags.Items);
@@ -71,7 +71,7 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(TagLimits.MaxTagsPerTarget, full.Items.Count);
         Assert.DoesNotContain(full.Items, t => t.Name == "one-too-many");
 
-        Assert.Equal(TagMutationAction.Applied, (await Tags.UpsertAsync(target, new TagInput("tag-0", "updated"), ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.UpsertAsync(target, new TagInput("tag-0", "updated"), ct: ct)).Action);
         Assert.Contains(new GetTagsItem("tag-0", "updated"), Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 

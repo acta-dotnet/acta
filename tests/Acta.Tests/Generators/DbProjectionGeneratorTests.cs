@@ -200,37 +200,23 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
-    public void Private_nested_projection_emits_binder_inside_containing_type()
+    public void Nested_projection_errors_ACTA0501()
     {
-        var (result, compilation) = RunGenerator(
+        var (result, _) = RunGenerator(
             """
             namespace GenTests;
             using Acta;
 
             internal static partial class Operation
             {
-                public static object Read(System.Data.Common.DbDataReader reader) => DbProjectionBinder.BindPrivateRow(reader, [0]);
-
                 [DbProjection]
                 private sealed record PrivateRow(int Id);
             }
             """
         );
 
-        AssertNoCompileErrors(compilation);
-        var source = SingleGeneratedSource(result, "BindPrivateRow");
-        Assert.Contains("internal static partial class Operation", source);
-        Assert.Contains("private static partial class DbProjectionBinder", source);
-        Assert.Contains("public static global::GenTests.Operation.PrivateRow BindPrivateRow(DbDataReader r, int[] o)", source);
-        Assert.Contains("internal static void __ActaTryResolveDbProjection<T>(ref Func<DbDataReader, T>? read)", source);
-        Assert.Contains("if (typeof(T) == typeof(global::GenTests.Operation.PrivateRow))", source);
-        Assert.Contains(
-            "read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.ByPosition<global::GenTests.Operation.PrivateRow>(DbProjectionBinder.PrivateRowColumns.Length, DbProjectionBinder.BindPrivateRow);",
-            source
-        );
-
-        var resolver = SingleGeneratedSource(result, "TryResolveGenerated");
-        Assert.Contains("global::GenTests.Operation.__ActaTryResolveDbProjection(ref read);", resolver);
+        var error = Assert.Single(result.Diagnostics, d => d.Id == "ACTA0501");
+        Assert.Contains("top-level", error.GetMessage());
     }
 
     [Fact]
@@ -257,23 +243,13 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
-    public void Ref_and_payload_members_build_from_their_columns()
+    public void Ref_members_build_from_their_guid_column()
     {
         var (result, compilation) = RunGenerator(
             """
             namespace Acta
             {
                 public readonly record struct JobRef(System.Guid Value);
-
-                public readonly struct JobPayloadFormat
-                {
-                    public static JobPayloadFormat ForId(byte id) => default;
-                }
-
-                public readonly struct JobPayload
-                {
-                    public static JobPayload FromBytes(JobPayloadFormat format, byte[] ownedBytes) => default;
-                }
             }
 
             namespace GenTests
@@ -281,27 +257,16 @@ public sealed class DbProjectionGeneratorTests
                 using Acta;
 
                 [DbProjection(ByName = true)]
-                internal sealed record DetailRow(JobRef JobRef, JobRef? ParentJobRef, JobPayload Input, JobPayload? Result);
+                internal sealed record DetailRow(JobRef JobRef, JobRef? ParentJobRef);
             }
             """
         );
 
         AssertNoCompileErrors(compilation);
         var source = SingleGeneratedSource(result, "BindDetailRow");
-        Assert.Contains(
-            "DetailRowColumns = [\"job_ref\", \"parent_job_ref\", \"input_format_id\", \"input\", \"result_format_id\", \"result\"];",
-            source
-        );
+        Assert.Contains("DetailRowColumns = [\"job_ref\", \"parent_job_ref\"];", source);
         Assert.Contains("JobRef: new global::Acta.JobRef(r.GetGuid(o[0]))", source);
         Assert.Contains("ParentJobRef: r.IsDBNull(o[1]) ? null : new global::Acta.JobRef(r.GetGuid(o[1]))", source);
-        Assert.Contains(
-            "Input: global::Acta.JobPayload.FromBytes(global::Acta.JobPayloadFormat.ForId(Convert.ToByte(r.GetValue(o[2]), CultureInfo.InvariantCulture)), r.IsDBNull(o[3]) ? [] : (byte[])r.GetValue(o[3]))",
-            source
-        );
-        Assert.Contains(
-            "Result: r.IsDBNull(o[4]) || Convert.ToByte(r.GetValue(o[4]), CultureInfo.InvariantCulture) == 0 ? null : global::Acta.JobPayload.FromBytes(",
-            source
-        );
     }
 
     [Fact]

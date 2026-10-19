@@ -175,8 +175,8 @@ public sealed class ListAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             ct
         );
 
-        var alerts = await Db.From<AlertEntity>().OrderByDescending(a => a.Id).ToListAsync(ct);
-        var acked = alerts.First(a => a.Title == "ack-me");
+        var alerts = await Db.From<AlertEntity>().ToListAsync(ct);
+        var acked = alerts.OrderByDescending(a => a.Id).First(a => a.Title == "ack-me");
         var ackedRef = new AlertRef(acked.AlertRef);
 
         await queries.Alerts.AcknowledgeAsync(ackedRef, actor: "op", ct: ct);

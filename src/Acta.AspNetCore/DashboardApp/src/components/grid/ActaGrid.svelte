@@ -34,7 +34,7 @@
     mode?: 'pager' | 'feed';
     initialPageSize?: number;
     includeTotal?: boolean;
-    /** Exact-count policy. High-volume pages use on-demand; small catalog pages may use always. */
+    /** Exact-count policy. High-volume pages use on-demand; small catalog pages pass includeTotal. */
     countMode?: CountMode;
     loadingText?: string;
     emptyText?: string;
@@ -49,12 +49,10 @@
      *  false empty state. Paging counts (hasMore/totalCount) reflect the unfiltered server page. */
     rowFilter?: (row: T) => boolean;
     onPageSizeChange?: (size: number) => void;
-    /** Feed mode: reports the new-rows count so the page can render the pill itself (e.g. in the
-     *  page header, where its appearance causes no layout shift); suppresses the built-in pill. */
+    /** Feed mode: reports the new-rows count so the page renders the pill itself, in its filter bar. */
     onNewCount?: (count: number, label: string) => void;
     /** Render priority fields as stacked cards at the mobile breakpoint. */
     mobileCards?: boolean;
-    tableLabel?: string;
   }
 
   let {
@@ -73,8 +71,7 @@
     rowFilter,
     onPageSizeChange,
     onNewCount,
-    mobileCards = false,
-    tableLabel = `${endpoint} results`
+    mobileCards = false
   }: Props<T> = $props();
 
   // mode and initialPageSize are read once by design: a grid instance never changes mode after
@@ -135,7 +132,7 @@
   const items: T[] = $derived(rowFilter ? rawItems.filter((row) => rowFilter(row)) : rawItems);
   const pending = $derived(!isFeed ? page!.isPending : feed!.isPending);
   const errorMessage = $derived(!isFeed ? (page!.error?.message ?? null) : (feed!.error?.message ?? null));
-  const display = $derived(gridDisplay(pending, !!errorMessage, rawItems.length, items.length));
+  const display = $derived(gridDisplay(rawItems.length, items.length));
 
   // The primary polled query behind the freshness indicator: the plain page, or the polling head feed.
   const freshQuery = $derived(!isFeed ? page! : head!);
@@ -242,12 +239,9 @@
   <StateView loading={pending} error={errorMessage} {loadingText} {emptyText} onRetry={() => refresh()} />
 {/if}
 {#if display.showTable}
-  {#if isFeed && newCount > 0 && !onNewCount}
-    <button class="chip feed-new" onclick={jumpToTop}>{newLabel} new: jump to top</button>
-  {/if}
   <div class="table-wrap" bind:this={scrollEl} onscroll={onScroll}>
     <table class="data" class:mobile-cards={mobileCards}>
-      <caption class="sr-only">{tableLabel}</caption>
+      <caption class="sr-only">{endpoint} results</caption>
       <thead>
         <tr>
           {#each columns as col}

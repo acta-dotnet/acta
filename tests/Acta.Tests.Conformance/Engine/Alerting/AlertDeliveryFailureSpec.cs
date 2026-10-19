@@ -234,7 +234,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         var due = Assert.Single(
             (await Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts
         );
-        Assert.Null(due.JobId);
+        Assert.Null(due.JobRef);
         Assert.Null(due.RunbookUrl); // no job → no definition → runbook is null
 
         // Drive delivery: LogAlertTransport returns Delivered → Delivered(30), retry_count stays 0.

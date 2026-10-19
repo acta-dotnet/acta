@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>The claimed row of a by-id claim, in the claim scan's column order; its horizon columns are always null.</summary>
+/// <summary>The claimed row of a by-id claim: the claim scan's columns, in its order, without the horizon.</summary>
 [DbProjection]
 internal sealed record ClaimJobRow(
     long? JobId,
@@ -16,8 +16,6 @@ internal sealed record ClaimJobRow(
     int? FailureCount,
     Guid? JobRef,
     int? TenantId,
-    DateTime? DbNowUtc,
-    DateTime? NextReadyAtUtc,
     long? LaneId,
     long? ParentId
 ) : IClaimColumns;

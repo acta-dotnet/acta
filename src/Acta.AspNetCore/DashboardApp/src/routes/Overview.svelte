@@ -18,7 +18,7 @@
   import JobRef from '../components/JobRef.svelte';
   import OutboxPanel from '../components/OutboxPanel.svelte';
 
-  // One composite snapshot query: the five reads land together so the verdict, metric cards, and
+  // One composite snapshot query: the six reads land together so the verdict, metric cards, and
   // panels always describe the same instant. Scope changes swap the key, so caching is per-scope.
   const snapshot = createQuery(() => {
     const ns = $scope;

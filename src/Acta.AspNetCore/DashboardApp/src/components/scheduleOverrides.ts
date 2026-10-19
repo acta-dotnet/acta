@@ -15,11 +15,10 @@ export function buildOverridesPayload(input: ScheduleOverridesInput): { expressi
   };
 }
 
-// Only 'applied' means the row is now in the state the caller expects. 'rejected' - which covers
-// both a stale expectedVersion (CAS conflict) and any other state that no longer accepts the
-// override, since ScheduleControlResponse carries no separate VersionConflict tag - and 'notFound'
-// both mean the caller's local copy is stale: the caller must reload rather than silently resend
-// the same expectedVersion (that would just conflict again, or worse, race a different change).
+// Only 'applied' means the row is now in the state the caller expects. 'versionConflict' (a stale
+// expectedVersion) and 'notFound' both mean the caller's local copy is stale: the caller must reload
+// rather than silently resend the same expectedVersion (that would just conflict again, or worse,
+// race a different change).
 export function overridesNeedsReload(action: string): boolean {
   return action !== 'applied';
 }

@@ -261,7 +261,14 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(child.Id, childId);
         Assert.Equal(parent.JobId, parentId);
         Assert.True(
-            await RaiseChildLatch.Run(Services.GetRequiredService<SignalsOperations>(), childId, parentId, JobStatusCode.Failed, ct)
+            await RaiseChildLatch.Run(
+                Services.GetRequiredService<SignalsOperations>(),
+                childId,
+                parentId,
+                JobStatusCode.Failed,
+                childExecutionNumber: null,
+                ct
+            )
         );
 
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(child.Id, ct)).Status);
@@ -294,6 +301,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
                 latch.ChildJobId,
                 latch.ParentJobId,
                 latch.ChildStatus!.Value,
+                latch.ChildExecutionNumber,
                 ct
             )
         );
@@ -339,6 +347,50 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             var job = await ReadJobAsync(child.JobId, ct);
             Assert.True(job.Status is JobStatusCode.Succeeded or JobStatusCode.Cancelled, $"child {child.JobId} ended {job.Status}");
         }
+    }
+
+    [Fact(
+        DisplayName = "The typed child wait reads the result of the execution whose landing set the latch, so a restarted child that stored none throws rather than answering an earlier result"
+    )]
+    public async Task Typed_child_wait_reads_the_latched_execution_result()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-of-restarted-child", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+
+        // The parent is held while an operator restarts the succeeded child, whose second execution drops its oversize
+        // result and leaves the first execution's "old" stored.
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(parent, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(child.JobRef), ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(parent, ct: ct)).Action);
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Contains("stored no result", await ExecutionFailureMessageAsync(parent.JobId, ct), StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "The typed child wait throws on a child that stored no result rather than answering a value type's default")]
+    public async Task Typed_child_wait_throws_on_a_resultless_child()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-of-resultless-child", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Contains("stored no result", await ExecutionFailureMessageAsync(parent.JobId, ct), StringComparison.Ordinal);
+    }
+
+    private async Task<string> ExecutionFailureMessageAsync(long jobId, CancellationToken ct)
+    {
+        var finished = await Db.From<EventEntity>()
+            .Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionFinished && e.ToStatus == JobStatusCode.Failed)
+            .SingleOrDefaultAsync(ct);
+        Assert.NotNull(finished);
+        return finished!.ReasonMessage ?? "";
     }
 
     private async Task<IReadOnlyList<TestJobRow>> ReadChildrenAsync(long parentId, CancellationToken ct)

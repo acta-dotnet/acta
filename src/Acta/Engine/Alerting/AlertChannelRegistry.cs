@@ -33,16 +33,6 @@ internal sealed class AlertChannelRegistry
 
     public bool IsConfigured(string namespaceName, string channelName) => Resolve(namespaceName, channelName) is not null;
 
-    public IReadOnlyCollection<string> NamesForNamespace(string namespaceName)
-    {
-        namespaceName = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), reserveSystem: true);
-        return _channels
-            .Keys.Where(k => string.Equals(k.Namespace, namespaceName, StringComparison.Ordinal))
-            .Select(k => k.Name)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-    }
-
     private void RegisterDefault(string namespaceName)
     {
         _channels[(namespaceName, "default")] = new AlertChannelDeclaration(

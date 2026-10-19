@@ -98,14 +98,12 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
 
         var due = await DueAsync(TestNamespaceId, 50, ct);
 
-        var bound = Assert.Single(due, a => a.JobId == JobIdValue);
+        var bound = Assert.Single(due, a => a.JobRef == JobRefValue);
         Assert.Equal("https://runbooks.example/override", bound.RunbookUrl);
-        Assert.Equal(JobRefValue, bound.JobRef);
         AssertMatchesRow(rows[bound.AlertId], bound);
 
-        var jobless = Assert.Single(due, a => a.JobId is null);
+        var jobless = Assert.Single(due, a => a.JobRef is null);
         Assert.Null(jobless.RunbookUrl);
-        Assert.Null(jobless.JobRef);
         AssertMatchesRow(rows[jobless.AlertId], jobless);
     }
 

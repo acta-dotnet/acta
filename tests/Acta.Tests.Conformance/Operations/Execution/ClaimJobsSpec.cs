@@ -260,6 +260,26 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Contains(earlier.JobId, fromHead);
     }
 
+    [Fact(DisplayName = "A claim from the head takes a row due before 1970")]
+    public async Task A_claim_from_the_head_takes_a_row_due_before_1970()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, _, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
+        // SQLite stores an instant as epoch milliseconds, so this one is negative there.
+        var dueAt = new DateTime(1960, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var early = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dueAt), ct);
+
+        var fromHead = await ClaimIdsUntilAsync(
+            () =>
+                Services
+                    .GetRequiredService<ExecutionOperations>()
+                    .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
+            early.JobId,
+            ct
+        );
+        Assert.Contains(early.JobId, fromHead);
+    }
+
     /// <summary>
     /// Claims until one read takes <paramref name="wanted"/>, bounded like <see cref="ReadClaimUntilAsync"/> because a
     /// sibling's lock can hide a row from one read, and returns every job id the reads claimed.

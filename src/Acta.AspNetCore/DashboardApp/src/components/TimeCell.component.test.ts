@@ -14,8 +14,8 @@ describe('TimeCell', () => {
     expect(document.querySelector(`[title="${displayFormatter.timestamp(iso)}"]`)).toBeTruthy();
   });
 
-  it('renders the empty text for missing values', () => {
-    render(TimeCell, { value: null, emptyText: '·' });
-    expect(screen.getByText('·')).toBeTruthy();
+  it('renders a dash for missing values', () => {
+    render(TimeCell, { value: null });
+    expect(screen.getByText('-')).toBeTruthy();
   });
 });

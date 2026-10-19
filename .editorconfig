@@ -499,7 +499,7 @@ dotnet_diagnostic.CA2000.severity = none
 # directly instead of through the serializer. The code-generated converters in the same assembly emit
 # the identical unguarded one-line body for this shape, so a throw in these three alone would put them
 # out of step with the generator for no reachable gain.
-[src/Acta/Domain/{Alerts/AlertRef.cs,Jobs/JobRef.cs,Workers/WorkerRef.cs}]
+[src/Acta/Domain/{Alerts/AlertRefJsonConverter.cs,Jobs/JobRefJsonConverter.cs,Workers/WorkerRefJsonConverter.cs}]
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1805: two documented defaults that happen to coincide with the CLR zero. SqlProviderOptions'
@@ -526,10 +526,9 @@ dotnet_diagnostic.CA1716.severity = none
 
 # CA1024: GetBehavior(), which CA1024 wants as a property. It is the one member of that extension
 # block that throws - its switch closes with ArgumentOutOfRangeException for a code outside the
-# family - and .NET's own property guidance is that a getter should not throw. Its two neighbours,
-# IsTerminal and ChargesFailureBudget, are total over the enum and are properties for exactly that
-# reason; the split follows the guidance rather than ignoring it.
-[src/Acta/Domain/Codes/ExecutionStatusCode.cs]
+# family - and .NET's own property guidance is that a getter should not throw. Its neighbour,
+# IsTerminal, is total over the enum and is a property for exactly that reason; the split follows the guidance rather than ignoring it.
+[src/Acta/Domain/Codes/ExecutionStatusExtensions.cs]
 dotnet_diagnostic.CA1024.severity = none
 
 # CA2225: the implicit widening from JobContract<TInput, TResult> to JobContract<TInput>, which drops
@@ -560,15 +559,17 @@ dotnet_diagnostic.CA2225.severity = none
 
 # CA1711: JobBehaviorDelegate is a delegate declaration, on the same reasoning as
 # JobHandlerInvokeDelegate's - the suffix is accurate, and here it also separates the continuation
-# from the IJobPipelineBehavior that receives it.
-# CA1716: the 'next' parameter, which collides with VB's Next keyword. It is the name every .NET
-# pipeline gives its continuation, starting with ASP.NET Core's own
-# IMiddleware.InvokeAsync(HttpContext, RequestDelegate next) - so the two rules together would have
-# Acta rename the exact shape the framework it hosts in ships, and readers would meet a middleware
-# chain whose continuation is called something else. Both the delegate and the interface member are
-# public and frozen at 1.0.0.
-[src/Acta/Handlers/JobPipelineBehavior.cs]
+# from the IJobPipelineBehavior that receives it. Public and frozen at 1.0.0.
+[src/Acta/Handlers/JobBehaviorDelegate.cs]
 dotnet_diagnostic.CA1711.severity = none
+
+# CA1716: IJobPipelineBehavior.InvokeAsync's 'next' parameter, which collides with VB's Next keyword.
+# It is the name every .NET pipeline gives its continuation, starting with ASP.NET Core's own
+# IMiddleware.InvokeAsync(HttpContext, RequestDelegate next) - so the rule, with CA1711 on the
+# delegate, would have Acta rename the exact shape the framework it hosts in ships, and readers would
+# meet a middleware chain whose continuation is called something else. The interface member is public
+# and frozen at 1.0.0.
+[src/Acta/Handlers/IJobPipelineBehavior.cs]
 dotnet_diagnostic.CA1716.severity = none
 
 # CA1815: JobPayload deliberately does not define what two payloads being equal means. The struct is
@@ -736,7 +737,7 @@ dotnet_diagnostic.CA1031.severity = none
 # anything - including the caller's own cancellation - would report failure for an operation that
 # already succeeded. Counted on the publish-failure metric and logged at warning; waiters keep a poll
 # floor.
-[src/Acta/Engine/Wakeup/WorkerWakeup.cs]
+[src/Acta/Engine/Wakeup/WorkerWakeupPublisher.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: best-effort release of an outbox claim whose rows were already finalized. Escaping would fail

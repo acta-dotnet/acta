@@ -1,45 +1,20 @@
 namespace Acta;
 
 /// <summary>Reads and mutates exact searchable metadata attachments.</summary>
-/// <remarks>
-/// The mutation verbs accept <c>actor</c> / <c>reasonMessage</c> like every other operator
-/// mutation on the surface. Tag writes are unevented (tags are searchable metadata, not ledger
-/// state), so both values are accepted and unrecorded: the parameters exist because adding them
-/// after the surface freezes is a binary-breaking change, while an audit sink that consumes them
-/// is an additive one.
-/// </remarks>
 public interface ITags
 {
     /// <summary>Returns null for a missing target, otherwise its normalized name-ordered tag set.</summary>
     ValueTask<GetTagsResponse?> GetAsync(TagTarget target, CancellationToken ct = default);
 
     /// <summary>Atomically replaces all tags on an existing target. An empty list clears the target.</summary>
-    ValueTask<ReplaceTagsResponse> ReplaceAsync(
-        TagTarget target,
-        IReadOnlyList<TagInput> tags,
-        string? reasonMessage = null,
-        string? actor = null,
-        CancellationToken ct = default
-    );
+    ValueTask<ReplaceTagsResponse> ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct = default);
 
     /// <summary>
     /// Inserts or replaces one tag on an existing target; repeating the same write is harmless. A new name past
     /// <see cref="TagLimits.MaxTagsPerTarget"/> throws <see cref="ArgumentException"/> and writes nothing.
     /// </summary>
-    ValueTask<UpsertTagsResponse> UpsertAsync(
-        TagTarget target,
-        TagInput tag,
-        string? reasonMessage = null,
-        string? actor = null,
-        CancellationToken ct = default
-    );
+    ValueTask<UpsertTagsResponse> UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct = default);
 
     /// <summary>Removes one normalized tag name from an existing target; a missing tag is harmless.</summary>
-    ValueTask<RemoveTagsResponse> RemoveAsync(
-        TagTarget target,
-        string name,
-        string? reasonMessage = null,
-        string? actor = null,
-        CancellationToken ct = default
-    );
+    ValueTask<RemoveTagsResponse> RemoveAsync(TagTarget target, string name, CancellationToken ct = default);
 }

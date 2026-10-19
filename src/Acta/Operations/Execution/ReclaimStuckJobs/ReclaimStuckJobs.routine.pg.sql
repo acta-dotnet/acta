@@ -96,6 +96,30 @@ BEGIN
     END LOOP;
     v_stranded := ARRAY(SELECT s.id FROM unnest(v_stranded) AS s (id) WHERE s.id = ANY (v_lanes));
 
+    -- Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it while
+    -- that event lasts. Workers lock in id order before any runtime, the order the heartbeat takes them.
+    UPDATE {{schema}}.workers w
+    SET
+        modified_at_utc = now(),
+        version = w.version + 1
+    FROM (
+        SELECT w0.id
+        FROM {{schema}}.workers w0
+        WHERE w0.id IN (
+            SELECT r.leased_by_worker_id
+            FROM {{schema}}.runtimes r
+            WHERE
+                r.status_code = 50 /* JobStatusCode.Executing */
+                AND r.leased_by_worker_id IS NOT NULL
+                AND r.lease_expires_at_utc < now()
+                AND r.namespace_id = p_namespace_id
+                AND (r.lane_id IS NULL OR r.lane_id = ANY (v_lanes))
+        )
+        ORDER BY w0.id
+        FOR UPDATE
+    ) k
+    WHERE w.id = k.id;
+
     -- The walk read without locks, so each stranded lane is re-read under its lock and repaired only
     -- when its lowest-id unfinished member is still Blocked and no member runs.
     FOREACH v_lane_id IN ARRAY v_stranded
@@ -158,7 +182,6 @@ BEGIN
         lineage_root_id,
         definition_id,
         tenant_id,
-        worker_id,
         from_status_code,
         to_status_code,
         execution_status_code,
@@ -177,7 +200,6 @@ BEGIN
         COALESCE(j.lineage_root_id, j.id),
         j.definition_id,
         j.tenant_id,
-        NULL,
         15 /* JobStatusCode.Blocked */,
         10 /* JobStatusCode.Ready */,
         NULL,

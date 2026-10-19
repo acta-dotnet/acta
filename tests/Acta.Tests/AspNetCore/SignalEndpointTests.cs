@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
@@ -91,6 +92,22 @@ public sealed class SignalEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Found, "sys.child.1"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Jobs.SignalCalls);
+    }
+
+    [Fact]
+    public async Task Body_that_is_not_utf8_is_400_and_never_reaches_jobs()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
+        await using var _ = app;
+        var request = Post(Found, "approval");
+        request.Content = new ByteArrayContent([0x22, 0xFF, 0x22]);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(fakes.Jobs.SignalCalls);

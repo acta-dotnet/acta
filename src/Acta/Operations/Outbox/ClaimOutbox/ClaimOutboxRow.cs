@@ -24,7 +24,6 @@ internal sealed record ClaimOutboxRow(
     int? DelaySeconds,
     string? TenantName,
     string? MetaJson,
-    DateTime CreatedAtUtc,
     int FailureCount,
     long Id
 );

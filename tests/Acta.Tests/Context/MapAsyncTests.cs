@@ -31,7 +31,6 @@ public sealed class MapAsyncTests
             ct: TestContext.Current.CancellationToken
         );
 
-        Assert.Equal("resize-images", resized.GroupName);
         Assert.Equal([1, 2, 3], resized.Items.Select(i => i.Key));
         Assert.All(resized.Items, i => Assert.True(i.Outcome.Succeeded));
         Assert.Equal(resized.Items.Select(i => i.ChildJobId), resized.Items.Select(i => i.Outcome.ChildJobId));

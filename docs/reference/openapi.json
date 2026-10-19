@@ -7105,7 +7105,7 @@
       "AlertOriginCode": { },
       "AlertProfileCode": { },
       "AlertRef": {
-        "description": "Public stable reference for one alert row: \"alr_\" plus 26 lowercase Crockford Base32\ncharacters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert\ntransports address alerts by this value; the numeric alert id stays the internal engine\nidentity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication\nnever re-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
+        "description": "Public stable reference for one alert row: \"alr_\" plus the Guid's 32 lowercase hex digits, such as\n`alr_01a14f5038c17d0e9b2f6a4c81d3e5f7`. Dashboards, HTTP APIs, and alert transports address\nalerts by this value; the numeric alert id stays the internal engine identity. Deduplication never\nre-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": { },
       "CancelJobRequest": {
@@ -7174,7 +7174,7 @@
           "versionConflict",
           "alreadyInState"
         ],
-        "description": "Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings."
+        "description": "Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces."
       },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
@@ -8087,7 +8087,6 @@
           "lineage",
           "schedules",
           "schedulesTotal",
-          "tenantName",
           "maxAttemptsEffective",
           "workers",
           "workersTotal"
@@ -8151,12 +8150,6 @@
             ],
             "format": "int64"
           },
-          "tenantName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
           "maxAttemptsEffective": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -8200,7 +8193,7 @@
             "type": "string"
           }
         },
-        "description": "A suggested operator move. string GetJobExplanationAction.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `view-result` | `none`); string GetJobExplanationAction.Description is the prose shown to the operator."
+        "description": "A suggested operator move. string GetJobExplanationAction.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `none`); string GetJobExplanationAction.Description is the prose shown to the operator."
       },
       "GetJobExplanationLease": {
         "required": [
@@ -9053,10 +9046,10 @@
         "description": "Durable operator detail for one worker process registration."
       },
       "JobPriorityCode": {
-        "description": "Claim-priority value for `JobRuntime.Priority`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
+        "description": "Claim-priority value for `runtimes.priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
       },
       "JobRef": {
-        "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
+        "description": "Public stable reference for one Job row: \"job_\" plus the Guid's 32 lowercase hex digits, such as\n`job_01a14f4e954e7bf68ac609f3fcad8e3d`. Dashboards, HTTP APIs, and clients address jobs by this\nvalue; the numeric JobId stays the internal engine identity. It copies and searches as one word,\nand a UUIDv7 reads in creation order."
       },
       "JobStatusCode": { },
       "JsonElement": { },
@@ -9558,7 +9551,7 @@
             ]
           }
         },
-        "description": "One audit event row in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantName`, and `WorkerRef` are\nnull when absent or purged, and a worker actor's `Actor` is its public ref. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
+        "description": "One audit event row in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantName`, and `WorkerRef` are\nnull when absent or purged, and retention keeps a worker's row as long as its events. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
       },
       "ListEventsResponse": {
         "required": [
@@ -9811,7 +9804,7 @@
             "format": "int32"
           }
         },
-        "description": "One namespace row in an ValueTask&lt;ListNamespacesResponse&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `namespaces` table and the\none representation `GET /namespaces` answers with; ValueTask&lt;ListNamespaceNamesResponse&gt; INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers\nthat want only the names. `NamespaceId` is the DB-assigned id `job.namespace_id` references, internal and\nnever serialized, since a namespace is addressed by its unique kebab-case name; `Status` Active resolves at\nenqueue and Suspended rejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "One namespace row in an ValueTask&lt;ListNamespacesResponse&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `namespaces` table and the\none representation `GET /namespaces` answers with. `NamespaceId` is the DB-assigned id\n`job.namespace_id` references, internal and never serialized, since a namespace is addressed by its unique\nkebab-case name; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
       },
       "ListNamespacesResponse": {
         "required": [
@@ -10018,7 +10011,7 @@
             "type": "boolean"
           }
         },
-        "description": "One relay source as ValueTask&lt;ListOutboxSourcesResponse&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's `sys.outbox` slot\n(`SlotJobRef`, whose audit trail holds the operator evidence) plus the accounting parsed from the slot's\npersisted tick summary: `LastTickSummary` verbatim, `Backlog` (pending rows still awaiting relay), and\n`QuarantineTotal`, all null until the slot's first successful tick. `IsLocal` says this process\nregistered the source, so ValueTask&lt;ListOutboxQuarantinedResponse&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
+        "description": "One relay source as ValueTask&lt;ListOutboxSourcesResponse&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's `sys.outbox` slot\n(`SlotJobRef`, whose audit trail holds the operator evidence) plus the accounting of its last successful tick,\nread from the slot's `outbox-status` variable: `LastTickSummary`, `Backlog` (pending rows still awaiting relay), and\n`QuarantineTotal`, all null until the slot's first successful tick. `IsLocal` says this process\nregistered the source, so ValueTask&lt;ListOutboxQuarantinedResponse&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
       },
       "ListOutboxSourcesResponse": {
         "required": [
@@ -10630,15 +10623,7 @@
         }
       },
       "PurgeJobRequest": {
-        "type": "object",
-        "properties": {
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
+        "type": "object"
       },
       "PurgeJobResponse": {
         "required": [
@@ -10748,7 +10733,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "$ref": "#/components/schemas/TagMutationAction"
+            "$ref": "#/components/schemas/ControlAction"
           }
         },
         "description": "What removing one tag did: applied, or the target did not exist."
@@ -11206,15 +11191,25 @@
       },
       "RetireDefinitionResponse": {
         "required": [
-          "action"
+          "action",
+          "version"
         ],
         "type": "object",
         "properties": {
           "action": {
             "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "What retiring a definition did."
+        "description": "What retiring a definition did, and the definition's version after the attempt."
       },
       "ScheduleExpressionKindCode": { },
       "ScheduleOriginCode": { },
@@ -11250,15 +11245,25 @@
       },
       "SetDefinitionOverridesResponse": {
         "required": [
-          "action"
+          "action",
+          "version"
         ],
         "type": "object",
         "properties": {
           "action": {
             "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "What setting a definition's policy overrides did."
+        "description": "What setting a definition's policy overrides did, and the definition's version after the attempt."
       },
       "SetScheduleOverridesRequest": {
         "type": "object",
@@ -11342,7 +11347,7 @@
         "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
       },
       "StepStatusCode": {
-        "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
+        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
       "SuspendNamespaceRequest": {
         "type": "object",
@@ -11409,13 +11414,6 @@
           }
         },
         "description": "What suspending a tenant did, and the tenant's version after the attempt."
-      },
-      "TagMutationAction": {
-        "enum": [
-          "applied",
-          "notFound"
-        ],
-        "description": "What a tag mutation did to its target."
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
@@ -11715,7 +11713,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "$ref": "#/components/schemas/TagMutationAction"
+            "$ref": "#/components/schemas/ControlAction"
           }
         },
         "description": "What upserting one tag did: applied, or the target did not exist."

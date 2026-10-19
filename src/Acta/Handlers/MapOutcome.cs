@@ -5,7 +5,7 @@ namespace Acta;
 /// item, in input order. The map waits for every child and returns; it never throws because a child
 /// failed. Call <see cref="ThrowIfAnyFailed"/> to opt into escalation.
 /// </summary>
-public sealed record MapOutcome<TKey>(string GroupName, IReadOnlyList<MapItemOutcome<TKey>> Items)
+public sealed record MapOutcome<TKey>(IReadOnlyList<MapItemOutcome<TKey>> Items)
     where TKey : notnull
 {
     /// <summary>
@@ -33,10 +33,3 @@ public sealed record MapOutcome<TKey>(string GroupName, IReadOnlyList<MapItemOut
         }
     }
 }
-
-/// <summary>
-/// One mapped item's result: the original key, the child job id it was fanned out to, and the
-/// child's terminal outcome.
-/// </summary>
-public sealed record MapItemOutcome<TKey>(TKey Key, long ChildJobId, ChildJobOutcome Outcome)
-    where TKey : notnull;

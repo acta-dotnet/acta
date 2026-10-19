@@ -380,6 +380,39 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }
 
+    /// <summary>
+    /// A ref route reads one form, the exact prefix and 32 hex digits. The Crockford form, the dashed Guid, the bare
+    /// Guid, and an uppercase prefix name nothing, so each is a 400; uppercase hex is the same ref, so it reaches the
+    /// read and answers 404 for a row that is not there.
+    /// </summary>
+    [Theory]
+    [InlineData("workers/", "", WorkerRef.Prefix)]
+    [InlineData("alerts/", "", AlertRef.Prefix)]
+    [InlineData("jobs/", "/detail", JobRef.Prefix)]
+    public async Task Ref_routes_read_only_the_prefix_and_hex_form(string before, string after, string prefix)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        const string Hex = "01a14f4e954e7bf68ac609f3fcad8e3d";
+        string[] malformed =
+        [
+            prefix + "2n1t201rmv87aae5j4csam8000",
+            prefix + "01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d",
+            Hex,
+            prefix.ToUpperInvariant() + Hex,
+        ];
+
+        foreach (var value in malformed)
+        {
+            var response = await client.GetAsync($"/acta/api/v1/{before}{value}{after}", ct);
+            Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"{value} answered {response.StatusCode}.");
+        }
+
+        var uppercase = await client.GetAsync($"/acta/api/v1/{before}{prefix}{Hex.ToUpperInvariant()}{after}", ct);
+        Assert.Equal(HttpStatusCode.NotFound, uppercase.StatusCode);
+    }
+
     [Fact]
     public async Task Overview_returns_health_counters()
     {
@@ -756,6 +789,19 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("jobNamespace=bad!&deduplicationKey=ck-1")]
+    [InlineData("jobNamespace=billing&deduplicationKey=ck%201")]
+    public async Task JobByKey_malformed_namespace_or_key_returns_400(string query)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync($"/acta/api/v1/jobs/by-key?{query}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Schedule_preview_returns_shape_or_404()
     {
@@ -773,6 +819,20 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("\"timeZoneId\":\"UTC\"", body);
         Assert.Contains("\"nextRunsUtc\":[", body);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("bad!/send-invoice/daily")]
+    [InlineData("billing/send%20invoice/daily")]
+    [InlineData("billing/send-invoice/bad!")]
+    public async Task Schedule_preview_with_a_malformed_segment_returns_400(string schedule)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync($"/acta/api/v1/schedules/{schedule}/preview", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

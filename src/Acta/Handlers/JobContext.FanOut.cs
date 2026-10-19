@@ -119,7 +119,7 @@ public abstract partial class JobContext
             byBranch[branches[i].BranchName] = outcomes[i];
         }
 
-        return new ParallelOutcome(groupName, byBranch);
+        return new ParallelOutcome(byBranch);
     }
 
     /// <summary>
@@ -223,7 +223,7 @@ public abstract partial class JobContext
             resultItems[i] = new MapItemOutcome<TKey>(keys[i], ids[i], outcomes[i]);
         }
 
-        return new MapOutcome<TKey>(groupName, resultItems);
+        return new MapOutcome<TKey>(resultItems);
     }
 
     private static string ChildGroupName<TKey>(string groupName, TKey key)

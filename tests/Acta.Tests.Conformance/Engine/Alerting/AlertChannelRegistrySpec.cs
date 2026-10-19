@@ -80,7 +80,5 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
         Assert.Equal(AlertSeverityCode.Error, ops.MinSeverity);
 
         Assert.Null(registry.Resolve(OtherNamespace, "ops-oncall"));
-        Assert.Equal(["default", "ops-oncall"], registry.NamesForNamespace(PrimaryNamespace));
-        Assert.Equal(["default"], registry.NamesForNamespace(OtherNamespace));
     }
 }

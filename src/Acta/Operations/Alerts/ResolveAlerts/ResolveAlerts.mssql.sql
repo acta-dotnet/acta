@@ -50,8 +50,6 @@ BEGIN TRY
         AND a.resolved_at_utc IS NULL
         AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < @p_source_event_id);
 
-    SELECT @@ROWCOUNT AS resolved_count;
-
     IF @entry_trancount = 0
         COMMIT TRANSACTION;
 END TRY

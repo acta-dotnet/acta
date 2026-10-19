@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Conformance for <c>reset_job_state</c> (<c>ctx.ResetStateAsync</c>): clears a Job's checkpoints /
-/// steps / results rows so the next execution starts as new,
+/// steps rows so the next execution starts as new,
 /// leaving the job row and sibling jobs untouched, and emits one audit-filtered <c>job.state-reset</c>
 /// substrate event (no status transition).
 /// </summary>
@@ -56,7 +55,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // Substrate event: no transition, so from == to == the job's current status.
         Assert.Equal(ev.FromStatus, ev.ToStatus);
         Assert.Null(ev.ReasonCode);
-        Assert.Null(ev.WorkerId);
+        Assert.Equal(0, ev.WorkerId);
     }
 
     [Fact(DisplayName = "Reset below the audit level clears the rows but emits no event")]
@@ -86,7 +85,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     // Populates every substrate table for one job: variable/timer/signal via their operations,
-    // step/result via direct inserts (no op surface creates those mid-handler).
+    // step via a direct insert (no op surface creates one mid-handler).
     private async Task SeedSubstrateAsync(IDbSession db, long jobId, CancellationToken ct)
     {
         var execution = Services.GetRequiredService<ExecutionOperations>();
@@ -113,13 +112,6 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
             ("@p_name", "a.test"),
             ("@p_state", (byte)StepStatusCode.Succeeded)
         );
-
-        await db.ExecuteRawAsync(
-            "INSERT INTO {schema}.results (job_id, execution_number, result_format_id, result) VALUES (@p_job_id, 1, 2, @p_result)",
-            ct,
-            ("@p_job_id", jobId),
-            ("@p_result", Encoding.UTF8.GetBytes("x"))
-        );
     }
 
     private static async Task AssertSubstrateCountsAsync(IDbSession db, long jobId, int expected, CancellationToken ct)
@@ -138,7 +130,6 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
             await db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal).CountAsync(ct)
         );
         Assert.Equal(expected, await db.From<StepEntity>().Where(a => a.JobId == jobId).CountAsync(ct));
-        Assert.Equal(expected, await db.From<ResultEntity>().Where(r => r.JobId == jobId).CountAsync(ct));
     }
 
     private static Task SetAuditLevelAsync(IDbSession db, long jobId, byte auditLevel, CancellationToken ct) =>

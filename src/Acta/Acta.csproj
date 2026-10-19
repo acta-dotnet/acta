@@ -56,8 +56,8 @@
     <!-- Code-emission tool reads the [DbTable]/[DbColumn] attribute graph and the ActaSchema metadata
          to render DDL and docs. -->
     <InternalsVisibleTo Include="Acta.Emit" />
-    <!-- The benchmark sweeps the lease window as an experiment variable, which a deployment cannot. -->
-    <InternalsVisibleTo Include="Anvil.Bench" />
+    <!-- Acta Bench wraps IDbSession to inject faults after a store command commits. -->
+    <InternalsVisibleTo Include="Acta.Bench" />
   </ItemGroup>
 
   <ItemGroup>

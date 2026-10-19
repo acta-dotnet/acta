@@ -20,18 +20,12 @@ internal abstract class SqlDdlDialect
     public virtual string? SessionOptions => null;
 
     /// <summary>
-    /// Whether a sole single-column integer primary key is rendered inline on the column
+    /// Whether the identity column is rendered inline as the table's whole key
     /// (<c>INTEGER PRIMARY KEY AUTOINCREMENT</c>, the SQLite rowid alias that auto-assigns ids
-    /// without reuse) instead of via a separate table-level constraint with an identity/sequence
-    /// default. SQLite returns <c>true</c>.
+    /// without reuse) instead of an identity/sequence default under the declared table-level
+    /// constraint. SQLite returns <c>true</c>.
     /// </summary>
     public virtual bool InlineIntegerPrimaryKey => false;
-
-    /// <summary>
-    /// Whether the provider supports covering-index <c>INCLUDE (...)</c> columns. SQL Server and
-    /// PostgreSQL return <c>true</c>; SQLite returns <c>false</c> (the include set is dropped).
-    /// </summary>
-    public virtual bool SupportsIndexInclude => true;
 
     public abstract string CreateSchemaStatement { get; }
 
@@ -111,16 +105,8 @@ internal abstract class SqlDdlDialect
     public abstract string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk);
 
     /// <summary>
-    /// Trailing <c>WITH (...)</c> clause for a standalone <c>CREATE INDEX</c>, driven by the index's
-    /// storage flags (e.g. <see cref="DbIndexAttribute.OptimizeForSequentialKey"/>). Empty when none
-    /// apply.
-    /// </summary>
-    public abstract string IndexTrailingOptions(DbIndexSpec idx);
-
-    /// <summary>
-    /// Per-table CHECK constraints the dialect requires beyond the shared set (e.g. Postgres byte
-    /// range / bytes octet length, both of which SQL Server enforces natively via tinyint /
-    /// varbinary(N)).
+    /// Per-table CHECK constraints the dialect requires beyond the shared set (e.g. the Postgres byte
+    /// range, which SQL Server enforces natively via tinyint).
     /// </summary>
     public abstract void EmitProviderColumnChecks(StringBuilder sb, EntityModel e);
 
@@ -141,7 +127,7 @@ internal abstract class SqlDdlDialect
 
     /// <summary>
     /// Provider table-type (TVP) definitions appended verbatim after the entity schema. These are
-    /// request-shape table types consumed by hot-path routines (enqueue / claim / schedule batches),
+    /// request-shape table types consumed by hot-path routines (enqueue / completion / schedule batches),
     /// not domain entities, so they live as a dialect literal rather than in the entity model that
     /// drives the data-model docs. Null when the provider needs none (Postgres uses typed arrays).
     /// </summary>

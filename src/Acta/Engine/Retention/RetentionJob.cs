@@ -7,10 +7,10 @@ namespace Acta;
 /// <summary>
 /// <c>sys.retention</c>, the system retention sweep. A recurring, competitively-claimed
 /// <c>[Job]</c> auto-registered into every worker namespace; whichever live worker claims the hourly
-/// tick runs one namespace-scoped <c>purge_expired_data</c> pass (sections and bounds:
-/// <see cref="RetentionSection"/>, <see cref="RetentionSweep"/>). Leaderless: the recurring slot's single claim per tick is the
-/// only coordination, so exactly one pass runs per namespace per tick. <c>AuditLevel.Failures</c>
-/// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
+/// tick runs one namespace-scoped <c>purge_expired_data</c> pass, plus the sys namespace's expired events
+/// (sections and bounds: <see cref="RetentionSection"/>, <see cref="RetentionSweep"/>). Leaderless: the recurring
+/// slot's single claim per tick is the only coordination, so exactly one pass runs per namespace per tick.
+/// <c>AuditLevel.Failures</c> keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
 /// </summary>
 internal sealed class RetentionJob(
     MaintenanceOperations maintenance,
@@ -28,6 +28,9 @@ internal sealed class RetentionJob(
 
     /// <summary>The job variable that keeps the jobs walk's position from one tick to the next.</summary>
     private const string JobsCursorVariable = "purge-cursor";
+
+    /// <summary>The seeded sys namespace, which owns the tenant events and where no worker runs a pass of its own.</summary>
+    private const int SysNamespaceId = 1;
 
     /// <summary>
     /// These casts truncate nothing: JobsOptionsValidator already rejected any events or alerts
@@ -62,16 +65,14 @@ internal sealed class RetentionJob(
                 _workerRetentionSeconds,
                 BatchSize,
                 MaxIterations,
-                await ctx.GetVariableOrDefaultAsync(JobsCursorVariable, 0L, ct)
+                await ctx.GetVariableOrDefaultAsync(JobsCursorVariable, 0L, ct),
+                SweepSystemEvents: true
             ),
             count => LogUndeliveredPurge(ctx, count),
             ct
         );
         await ctx.SetVariableAsync(JobsCursorVariable, swept.JobsCursor, ct);
     }
-
-    public Task<RetentionSweepCounts> PurgeExpiredDataAsync(RetentionSweep command, CancellationToken ct) =>
-        PurgeExpiredDataAsync(command, null, ct);
 
     /// <summary>
     /// Runs bounded atomic batches against cutoffs captured once from the database clock. Reports committed
@@ -99,7 +100,10 @@ internal sealed class RetentionJob(
                     RetentionSection.Events => now.AddDays(-command.EventsRetentionDays),
                     RetentionSection.SettledAlerts or RetentionSection.UndeliveredAlerts or RetentionSection.PoisonSkipCheckpoints =>
                         now.AddDays(-command.AlertRetention),
-                    RetentionSection.Workers => now.AddSeconds(-command.WorkerRetentionSeconds),
+                    // A terminal worker is also kept for the events window, so an event's worker_id finds its row while the event lasts.
+                    RetentionSection.Workers => now.AddSeconds(
+                        -Math.Max(command.WorkerRetentionSeconds, command.EventsRetentionDays * TimeSpan.SecondsPerDay)
+                    ),
                     _ => now,
                 };
                 var batch = new PurgeExpiredDataCommand(command.NamespaceId, section, cutoff, command.BatchSize);
@@ -131,6 +135,18 @@ internal sealed class RetentionJob(
                         break;
                     }
                 }
+                if (section == RetentionSection.Events && command.SweepSystemEvents)
+                {
+                    // Every namespace's pass also sweeps sys; concurrent passes skip each other's staged rows.
+                    for (var iteration = 0; iteration < command.MaxIterations; iteration++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if ((await maintenance.PurgeExpiredDataAsync(batch with { NamespaceId = SysNamespaceId }, ct)).Purged == 0)
+                        {
+                            break;
+                        }
+                    }
+                }
             }
 
             return new RetentionSweepCounts(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7], cursor);
@@ -159,3 +175,39 @@ internal sealed class RetentionJob(
             "alert-retention-cap"
         );
 }
+
+/// <summary>
+/// Validated purge sweep bounds for one namespace, and where the jobs walk stopped last time: the walk reads below
+/// <see cref="JobsCursor"/>, or from the newest row when zero. <see cref="MaxJobSlices"/> bounds the rows a sweep walks,
+/// apart from the rows it deletes: expired jobs sit at the oldest end, so a walk reads the live rows before its first
+/// delete, and a walk budget tied to the delete budget would take days to get there on a large table.
+/// <see cref="SweepSystemEvents"/> also sweeps the sys namespace's expired events, uncounted.
+/// </summary>
+internal sealed record RetentionSweep(
+    int NamespaceId,
+    int EventsRetentionDays,
+    int AlertRetention,
+    int WorkerRetentionSeconds,
+    int BatchSize,
+    int MaxIterations,
+    long JobsCursor = 0,
+    int MaxJobSlices = 200,
+    bool SweepSystemEvents = false
+);
+
+/// <summary>
+/// Per-section deleted counts from one <c>purge_expired_data</c> sweep.
+/// <see cref="UndeliveredAlertsPurged"/> is counted apart from <see cref="Alerts"/> because an alert
+/// aged out before delivery settled is a lost operator signal, not routine housekeeping. <see cref="JobsCursor"/> is
+/// where the jobs walk stopped, for the next sweep to continue from.
+/// </summary>
+internal readonly record struct RetentionSweepCounts(
+    int Jobs,
+    int Events,
+    int Alerts,
+    int UndeliveredAlertsPurged,
+    int Workers,
+    int Locks,
+    int Lanes,
+    long JobsCursor
+);

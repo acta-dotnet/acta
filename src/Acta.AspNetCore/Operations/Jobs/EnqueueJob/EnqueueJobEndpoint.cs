@@ -91,7 +91,18 @@ internal static class EnqueueJobEndpoint
                     }
                     else if (body.Text is not null)
                     {
-                        input = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
+                        try
+                        {
+                            input = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
+                        }
+                        catch (ArgumentException)
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Invalid request.",
+                                "text cannot contain U+0000."
+                            );
+                        }
                     }
                     else
                     {

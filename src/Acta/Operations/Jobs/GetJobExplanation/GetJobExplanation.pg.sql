@@ -1,15 +1,15 @@
 -- Explain read: three result sets for one Job, read at one instant so the diagnostic reasons about a
--- consistent snapshot. Cross-dialect (no now(), no LIMIT/TOP); the caller supplies the DB clock.
+-- consistent snapshot. No now(); the caller supplies the DB clock.
 
--- 1) Header: job + runtime snapshot, the leasing worker's liveness (LEFT JOIN on the lease owner), and
---    the latest reason recorded on the timeline (the most recent reasoned event, joined by MAX(id)).
+-- 1) Header: job + runtime snapshot, the leasing worker's liveness (LEFT JOIN on the lease owner), the
+--    latest reason recorded on the timeline, and the worker of the newest event that names one. Each walks
+--    the job's timeline index newest first and stops at its first match.
 SELECT
     j.id,
     j.job_ref,
     ns.name AS namespace_name,
     jd.name AS job_name,
     r.status_code,
-    r.execution_number,
     r.failure_count,
     jd.max_attempts_effective,
     r.next_run_at_utc,
@@ -20,7 +20,6 @@ SELECT
     w.last_seen_at_utc,
     le.reason_code,
     le.reason_message,
-    lx.worker_id AS last_executed_worker_id,
     lxw.deployment_version AS last_executed_worker_name,
     w.worker_ref AS leased_by_worker_ref,
     lxw.worker_ref AS last_executed_worker_ref
@@ -29,10 +28,20 @@ INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
 INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
 LEFT JOIN {{schema}}.workers w ON w.id = r.leased_by_worker_id
-LEFT JOIN {{schema}}.events le
-    ON le.id = (SELECT MAX(e.id) FROM {{schema}}.events e WHERE e.job_id = j.id AND e.reason_code IS NOT NULL)
-LEFT JOIN {{schema}}.events lx
-    ON lx.id = (SELECT MAX(e.id) FROM {{schema}}.events e WHERE e.job_id = j.id AND e.worker_id IS NOT NULL)
+LEFT JOIN LATERAL (
+    SELECT e.reason_code, e.reason_message
+    FROM {{schema}}.events e
+    WHERE e.job_id = j.id AND e.reason_code IS NOT NULL
+    ORDER BY e.created_at_utc DESC, e.id DESC
+    LIMIT 1
+) le ON true
+LEFT JOIN LATERAL (
+    SELECT e.worker_id
+    FROM {{schema}}.events e
+    WHERE e.job_id = j.id AND e.worker_id <> 0
+    ORDER BY e.created_at_utc DESC, e.id DESC
+    LIMIT 1
+) lx ON true
 LEFT JOIN {{schema}}.workers lxw ON lxw.id = lx.worker_id
 WHERE j.id = @p_id;
 

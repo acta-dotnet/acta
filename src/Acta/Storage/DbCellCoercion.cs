@@ -5,45 +5,18 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// Provider-neutral <see cref="DbDataReader"/> readers and scalar-result coercers used by
-/// query stores. Reader-extension methods (<c>r.GetDateTimeUtc(n)</c>) coexist with factory
-/// funcs that build scalar coercers passed to <c>QueryScalarAsync</c> call sites.
+/// Provider-neutral <see cref="DbDataReader"/> cell readers used by the handlers and the generated binders.
 /// </summary>
 internal static class DbCellCoercion
 {
-    public static Func<object?, byte> Byte(string emptyMessage) =>
-        value => value is null ? throw new InvalidOperationException(emptyMessage) : Convert.ToByte(value, CultureInfo.InvariantCulture);
-
-    public static Func<object?, int> Int32(string emptyMessage) =>
-        value => value is null ? throw new InvalidOperationException(emptyMessage) : Convert.ToInt32(value, CultureInfo.InvariantCulture);
-
-    public static Func<object?, short> Int16(string emptyMessage) =>
-        value => value is null ? throw new InvalidOperationException(emptyMessage) : Convert.ToInt16(value, CultureInfo.InvariantCulture);
-
-    public static Func<object?, long> Int64(string emptyMessage) =>
-        value => value is null ? throw new InvalidOperationException(emptyMessage) : Convert.ToInt64(value, CultureInfo.InvariantCulture);
-
-    public static Func<object?, string> String(string emptyMessage) =>
-        value =>
-            value is null
-                ? throw new InvalidOperationException(emptyMessage)
-                : Convert.ToString(value, CultureInfo.InvariantCulture) ?? throw new InvalidOperationException(emptyMessage);
-
-    /// <summary>
-    /// Postgres/SQL Server return a UTC DateTime (kind Unspecified); SQLite stores instants as epoch
-    /// milliseconds and returns a long. Normalize both to a Utc-kind DateTime.
-    /// </summary>
-    public static Func<object?, DateTime> DateTimeUtc(string emptyMessage) =>
-        value => value is null or DBNull ? throw new InvalidOperationException(emptyMessage) : ToUtc(value);
-
     /// <summary>
     /// Postgres/SQL Server return a DateTime; SQLite returns a long (epoch milliseconds).
     /// </summary>
     public static DateTime GetDateTimeUtc(this IDataRecord reader, int ordinal) => ToUtc(reader.GetValue(ordinal));
 
     /// <summary>
-    /// The single DB-value -&gt; UTC rule shared by the reader extension, the scalar factory,
-    /// the query materializer, and DbScalarCoercion.
+    /// The single DB-value -&gt; UTC rule: Postgres/SQL Server return a UTC DateTime (kind Unspecified), SQLite
+    /// returns epoch milliseconds as a long, and both come back as a Utc-kind DateTime.
     /// </summary>
     public static DateTime ToUtc(object raw) =>
         raw switch
@@ -65,19 +38,6 @@ internal static class DbCellCoercion
             long l => (byte)l,
             object o => Convert.ToByte(o, CultureInfo.InvariantCulture),
         };
-
-    public static short ToShortOrThrow(object? raw, string message) => Convert.ToInt16(NotNull(raw, message), CultureInfo.InvariantCulture);
-
-    public static int ToIntOrThrow(object? raw, string message) => Convert.ToInt32(NotNull(raw, message), CultureInfo.InvariantCulture);
-
-    public static long ToLongOrThrow(object? raw, string message) => Convert.ToInt64(NotNull(raw, message), CultureInfo.InvariantCulture);
-
-    public static byte ToByteOrThrow(object? raw, string message) => Convert.ToByte(NotNull(raw, message), CultureInfo.InvariantCulture);
-
-    public static long? OptionalInt64(object? raw) => raw is null or DBNull ? null : Convert.ToInt64(raw, CultureInfo.InvariantCulture);
-
-    private static object NotNull(object? raw, string message) =>
-        raw is null or DBNull ? throw new InvalidOperationException(message) : raw;
 
     /// <summary>
     /// Reads the trailing opt-in total of a single-trip list read: advances past the page rows to the

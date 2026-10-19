@@ -13,7 +13,6 @@ internal sealed record GetJobExplanationHeaderRow(
     string JobNamespace,
     string JobName,
     JobStatusCode Status,
-    int ExecutionNumber,
     int FailureCount,
     int MaxAttemptsEffective,
     DateTime? NextRunAtUtc,
@@ -24,7 +23,6 @@ internal sealed record GetJobExplanationHeaderRow(
     DateTime? WorkerLastSeenAtUtc,
     EventReasonCode? LatestReasonCode,
     string? LatestReasonMessage,
-    int? LastExecutedByWorkerId,
     string? LastExecutedByWorkerName,
     Guid? LeasedByWorkerRef,
     Guid? LastExecutedByWorkerRef

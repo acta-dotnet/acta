@@ -154,13 +154,4 @@
     margin: 8px 0 0;
     font-size: var(--text-sm);
   }
-  .control-message.ok {
-    color: var(--ok);
-  }
-  .control-message.warn {
-    color: var(--warn);
-  }
-  .control-message.bad {
-    color: var(--bad);
-  }
 </style>

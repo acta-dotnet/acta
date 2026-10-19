@@ -38,14 +38,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             DbKind.Int64 => "bigint",
             DbKind.Guid => "uniqueidentifier",
             DbKind.UtcInstant => "datetime2(3)",
-            DbKind.Decimal => $"decimal({c.Precision}, {c.Scale})",
             DbKind.AsciiString => c.Size <= 0 ? "varchar(max)" : $"varchar({c.Size})",
             DbKind.UnicodeString => c.Size <= 0 ? "nvarchar(max)" : $"nvarchar({c.Size})",
-            DbKind.Bytes => c.Size > 0
-                ? $"varbinary({c.Size})"
-                : throw new InvalidOperationException(
-                    $"DbKind.Bytes on {c.Property.DeclaringType?.Name}.{c.Property.Name} requires Size > 0; use DbKind.BinaryPayload for unbounded."
-                ),
             DbKind.BinaryPayload => "varbinary(max)",
             _ => throw new InvalidOperationException($"Unhandled DbKind {c.Kind} on {c.Property.DeclaringType?.Name}.{c.Property.Name}"),
         };
@@ -56,8 +50,6 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             DbDefault.None => "",
             DbDefault.UtcNow => " DEFAULT SYSUTCDATETIME()",
             DbDefault.Zero => " DEFAULT 0",
-            DbDefault.EmptyString => " DEFAULT ''",
-            DbDefault.NewGuid => " DEFAULT NEWID()",
             _ => throw new InvalidOperationException($"Unhandled DbDefault {d} on {c.Property.DeclaringType?.Name}.{c.Property.Name}"),
         };
 
@@ -75,8 +67,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
     public override string RenderIdentity() => " IDENTITY(1,1)";
 
-    // PAGE compression suits large/cold tables (events), not small or insert-hot ones
-    // (e.g. leases, results), so it is a per-table opt-in via [DbTable(PageCompression = true)].
+    // PAGE compression suits large/cold tables (events), not small or insert-hot ones, so it is a
+    // per-table opt-in via [DbTable(PageCompression = true)].
     public override string TableTrailingOptions(EntityModel e) => e.PageCompression ? " WITH (DATA_COMPRESSION = PAGE)" : "";
 
     // SQL Server's CREATE INDEX has no IF NOT EXISTS; the baseline guards indexes with their table's block.
@@ -89,19 +81,13 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
     // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic clustered key,
     // so it is opted in per-PK via [DbPrimaryKey(OptimizeForSequentialKey = true)]: only on the
-    // high-insert sequence-keyed tables (jobs, events), not blanket on every index.
+    // high-insert sequence-keyed tables (events, jobs, results, runtimes), not blanket on every index.
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) =>
         pk.OptimizeForSequentialKey ? " WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)" : "";
 
-    // Same hint, opted in per-index via [DbIndex(OptimizeForSequentialKey = true)] for a non-PK
-    // index that also takes tail inserts in key order (e.g. a retention scan keyed by instant).
-    public override string IndexTrailingOptions(DbIndexSpec idx) =>
-        idx.OptimizeForSequentialKey ? " WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)" : "";
-
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
-        // SQL Server's tinyint and varbinary(N) already enforce byte range / payload length at the
-        // type level; no extra CHECKs needed.
+        // SQL Server's tinyint already enforces the byte range at the type level; no extra CHECKs needed.
     }
 
     public override string MigrationStamp(string stem) =>
@@ -128,7 +114,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 namespace_name    VARCHAR(128)     NOT NULL,
                 job_name          VARCHAR(128)     NOT NULL,
                 deduplication_key        VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-                correlation_key    VARCHAR(64)      NULL,
+                correlation_key    VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 priority_override TINYINT          NULL,
                 input_format_id   TINYINT          NOT NULL,
                 input             VARBINARY(MAX)   NULL,
@@ -150,7 +136,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 ordinal INT          NOT NULL,
                 name    VARCHAR(128) NOT NULL,
                 value   NVARCHAR(128) NULL,
-                value_search NVARCHAR(128) NULL,
+                value_search NVARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 PRIMARY KEY (ordinal, name)
             );');
             GO
@@ -176,7 +162,6 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 handler_status_code      TINYINT        NULL,
                 final_status             TINYINT        NULL,
                 job_next_run_at_utc      DATETIME2(3)   NULL,
-                recurring_result_cap     INT            NULL,
                 PRIMARY KEY (job_id, execution_number)
             );');
             GO

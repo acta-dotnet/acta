@@ -96,31 +96,6 @@ may see a resource in full, see metadata without payloads, see a redacted payloa
 resource at all. It could make that decision using the namespace, tenant, job, and kind of payload.
 The typed operations API, HTTP API, and dashboard would all follow the same decision.
 
-## Results from every retained execution
-
-Acta currently keeps result rows by execution number, but the public API and dashboard only expose
-the latest result. `GetResultAsync` asks the store for the newest row, the job-detail response carries
-one result, and the Result tab renders that one payload. The Executions tab shows the attempt history,
-but it cannot open the result produced by a particular attempt.
-
-A result-history viewer could connect those two parts of the job page. The Result tab would still
-open on the latest value, but it could list every retained result with its execution number,
-completion time, format, and size. Selecting one would open that payload and link back to the matching
-execution and its events. For recurring jobs this would make it possible to inspect the outputs of
-several recent occurrences instead of seeing only the newest one.
-
-The API should expose a paged metadata list and fetch the selected payload separately. Returning every
-result body inside the existing job-detail response would make one screen unexpectedly expensive.
-The typed API could likewise gain a way to read a result by execution number while keeping the current
-latest-result method as the convenient default.
-
-The viewer can only show rows that are still retained. In particular, a recurring definition's
-`RecurringResultCap` defaults to one, so operators would need to raise that value when they want a
-deeper result history. The UI should state that limit rather than making an intentionally trimmed
-history look like missing data. Existing payload size limits, format handling, and any future read
-authorization rules should apply to every historical result in exactly the same way as they apply to
-the latest one.
-
 ## Schedules created by operators
 
 Acta already has most of the vocabulary for this idea. `ScheduleOriginCode.Operator` is reserved, and
@@ -197,7 +172,7 @@ being allowed to grow unnoticed as new screens, charts, and flow diagrams arrive
 
 Vite already minifies the production build, but the current output is mostly one JavaScript file.
 Larger features can be loaded only when their route or panel is opened. A definition chart, flow
-renderer, payload editor, or historical result viewer does not need to be part of the initial
+renderer, or payload editor does not need to be part of the initial
 Overview download. Tree shaking, small dependency choices, and route-level splitting should keep the
 common path light while still allowing richer operator screens.
 

@@ -1,5 +1,89 @@
 # Release notes
 
+## 1.0.0-rc.6
+
+Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
+
+### What a consumer must change
+
+**Drop and reprovision every database an rc.5 build provisioned**: the baseline is re-cut, and nothing translates it.
+
+- `JobDescriptor` loses `InvocationKind`, `RequiresJobContextParameter`, and `RequiresCancellationToken`, and `JobInvocationKind` is gone: the generated invoker already carries those facts. Only code that builds descriptors by hand changes.
+- `JobStatusCode.IsClaimable` is gone: compare the status with `JobStatusCode.Ready`.
+- `JobStatusCode.IsActiveExecution` is gone: compare the status with `JobStatusCode.Executing`.
+- `StepStatusCode.IsTerminal` is gone: a step is terminal when it is `Succeeded`, `Exhausted`, or `Interrupted`.
+- `JobOutcome.IsCancelled` is gone: check `TerminalStatus == JobStatusCode.Cancelled` on an outcome that is not `IsTimedOut`.
+- `ParallelOutcome.GroupName` and `MapOutcome<TKey>.GroupName` are gone, with their constructor parameters: the handler already holds the name it passed.
+- The `ParallelOutcome` indexer is gone: read a branch as `outcome.Branches["branch-name"]`.
+- `IAlertTransportRegistry` is internal: register an `IAlertTransport` and the alert job resolves it by its `TransportKind`.
+- `ITags.ReplaceAsync`, `UpsertAsync`, and `RemoveAsync` lose their `reasonMessage` and `actor` parameters, which no tag write ever recorded.
+- `INamespaces.ListNamesAsync`, `ListNamespaceNamesQuery`, and `ListNamespaceNamesResponse` are gone: call `ListAsync` and read each item's `JobNamespace`.
+- `POST /jobs/{jobRef}/purge` takes an empty body: a `reasonMessage` member now answers 400, since purge never recorded it.
+- `GET /jobs/{jobRef}/detail` drops the top-level `tenantName`: read `job.tenantName`.
+- `CodeManifests.MarkdownReport` is gone: the code families are documented in `docs/reference/code-families.md`, and `CodeManifests.All` stays.
+- A job's input and output type names must be printable ASCII and at most 512 characters: registration refuses others, and the generator reports ACTA0103 at compile time.
+- `TagMutationAction` is gone: tag writes answer `ControlAction` (`Applied` or `NotFound`), with the same wire values.
+- `JobAttribute.Tags` is gone; it never had an effect.
+- `ActaEndpointOptions.ControlConfirmationHeaderValue` is gone: the confirmation header's value is always `true`, and only its name is configurable.
+- `ExecutionStatusCode.ChargesFailureBudget` is gone: a `Failed` attempt charges the budget only when it retries, which the status alone cannot say.
+- `JobPayload.Text`, `FromBytes`, `CopyBytes`, and `JobRequestBuilder.Text` throw `ArgumentException` for json or text bytes that are not valid UTF-8 or hold a NUL byte; binary and custom formats are unaffected.
+- `JobAttribute.RecurringResultCap` and `JobDescriptor.RecurringResultCap` are gone: a job stores one result, and a handler that wants more history keeps it itself.
+- `ActaJobs.SysOutbox` is `JobContract<NoInput>`: the outbox relay returns no result and keeps its last tick's counts in the slot's `outbox-status` variable.
+- `jobs_view` replaces `last_result_execution_number`, `last_result_format`, `last_result_text`, and `last_result_created_at_utc` with `result_format` (`none` when there is no result) and `result_text`.
+- `tags_view` has no namespace columns: join `jobs_view` for a job tag's namespace.
+- The job explanation's `view-result` action is gone.
+- `events_view.worker_id` is 0, not NULL, for an event no worker wrote; `worker_ref` stays NULL for it.
+- A ref prints as its prefix and the Guid's 32 lowercase hex digits, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, and parses only in that form, with the hex in any casing. The Crockford form, a dashed or bare Guid, and an uppercase prefix no longer parse, and the HTTP routes answer 400 for them. `job.purged` names the job the same way.
+
+### Behaviour changes
+
+- On SQL Server, `correlation_key` and the tag search column compare bytewise, as they already did on PostgreSQL and SQLite. A correlation filter no longer matches a key that differs only by case, and a tag filter no longer matches full-width letters, a different emoji, or a sharp-s spelling.
+- A correlation filter is trimmed and checked like a key, and a tag value filter ignores surrounding whitespace, on every provider.
+- A job ref resolves only while its job row exists. Once retention purges the job, by-ref reads return null and the by-ref HTTP routes answer 404; its events stay queryable in `events_view`, and by job id.
+- Retiring a definition also stops the jobs running when it lands: the attempt finishes, then the job lands Cancelled with `JobDefinitionRetired` instead of retrying, rescheduling, or rolling a recurring slot over. Workers learn of a retire on their next heartbeat.
+- Worker events carry a null actor and name their worker by `worker_id`. Retention keeps a worker row as long as events can name it: the longer of `WorkerRetention` and `JobEventsRetention`, counted from the newest event about the worker, recovery's included, and never while it still leases an Executing job.
+- Automatic retention also deletes expired tenant events, which live in the `sys` namespace.
+- An instance handler registered in DI is the instance invoked, so a typed `HttpClient` keeps its configuration; a Singleton registration is shared by every concurrent attempt. An unregistered handler is constructed per attempt and disposed when the attempt ends (`DisposeAsync` first), and a dispose that throws fails the attempt.
+- A stale `expectedVersion` on definition overrides, retire, or schedule overrides answers `VersionConflict` (409 `versionConflict`) instead of `Rejected`, as every other versioned verb already did. `SetDefinitionOverridesResponse` and `RetireDefinitionResponse` carry the definition's `Version`.
+- The alert, definition, outbox, and tag response interfaces extend `IControlResponse`; the versionless families report a null `Version` and keep their JSON shape.
+- A failed attempt that retries within budget records execution status `failed` (200), not `rescheduled` (150), which now means only a handler-requested reschedule. A query that counted retries by 150 counts 200 with to-status `ready`.
+- HTTP enqueue and input amend with text holding U+0000, and a signal body that is not UTF-8 or holds a NUL byte, answer 400; an outbox row like that quarantines.
+- The descriptions of `job.rescheduled`, the `Failures` audit level, the `OnFailure` alert profile, the `job` and `worker` actors, and the `failed` execution status now say what Acta records; behaviour is unchanged.
+- A job stores at most one result, on its runtime row: a one-shot job's terminal success, or a recurring job's latest successful occurrence. Every claim and every restart clears it, so a running attempt or a failed occurrence leaves the job without one. The `results` table and its per-execution history are gone, and a successful completion writes one row instead of two.
+- The dashboard's job view shows the input and the result beside the status; the Input and Result tabs are gone.
+- On SQL Server, events are clustered by worker, then id, so each worker appends to its own end of the table instead of every worker contending for one last page; PostgreSQL keys events the same way. A purge deletes events by that pair.
+- A generic input or output type is stored without assembly versions (``System.Collections.Generic.List`1[MyApp.Line]``), so an application version bump no longer reports contract drift for it.
+
+### Fixes
+
+- Typed `RunAndWaitAsync` reads the result of the execution it saw succeed. After a restart whose second result was too large to store, it returned the first execution's result; now it throws.
+- Typed `ExecuteChildAsync` reads the result of the child execution that released the parent, and throws when that execution stored none. It returned an older execution's result after a restart, and a value-type default such as 0 for a child that stored no result.
+- On SQLite, the recovery pass's lane repair seeks the lanes primary key instead of scanning and sorting every lane inside the write transaction.
+- The checkpoint and tag shape checks accept code values this build does not name, so a future checkpoint kind or status, or tag scope, needs no table change.
+- A malformed name or key in a query string or route segment answers 400 instead of a sanitized 500.
+- A payload type whose state is get-only properties set through a constructor travels as JSON. It was classified as carrying no payload, so the handler received default values and a result of that shape was dropped.
+- Two job names that differ only in `.` and `-`, such as `send.mail` and `send-mail`, compile and warn ACTA0106, as do names matching a member the manifest class declares or a type it uses; they failed the build with duplicate members.
+- The dashboard's schedule editor saves with the version its draft was opened at, so another operator's change made while the editor was open is refused instead of silently reverted.
+- An outbox row whose tags hold a null entry, or that fails reconstruction any other way, is quarantined alone; it stalled its whole claimed batch on every relay tick.
+- A job of a retired definition that recovery returns to Ready is claimed and landed Cancelled, even by a worker that had stopped claiming the definition for want of its handler; it stayed Ready forever.
+- On SQLite, a job due before 1970 is claimed; the claim never reached it, and the worker retried every poll floor.
+- A Redis wake whose jitter draw was zero no longer disables remote wakes for its channel until the process restarts.
+- A metric listener that throws no longer stops a worker's recovery passes for good.
+- Application types in the root namespace named like the types generated code uses, such as `JobContext` or `ValueTask`, no longer break the build: the generated manifest names every type with `global::`.
+
+### Evidence
+
+The engine was certified on `fc5fbf1a` with the Acta Bench standard profile: all 61 engine cases on SQLite, PostgreSQL, and SQL Server, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md).
+- **Result.** No case failed safety or liveness, every trial's ledger passed the certification checks, and all 60 fault-case instances ran.
+- **Two bench defects.** They left three instances unfinished, and the fixes touch only `tools/Acta.Bench`:
+  - F09 on SQLite started 8 workers of 64 executors on one database file and timed out waiting for them to report ready. F09 now runs 3 workers on SQLite and keeps 8 on the servers.
+  - O03 on PostgreSQL gave up on its recovery deadline while completions were still landing. Case waits now follow the same progress rule as a trial's drain.
+- **A third bench defect.** The first clean rerun of F09 on SQLite stopped three minutes in, with no ledger violation. SQLite refused the bench's probe of a paused victim's in-flight attempts with `SQLITE_PROTOCOL`. The bench now resumes that victim and kills on a later tick.
+- **Reruns.** The tagged commit adds the three fixes and leaves `src/` unchanged. With them, the affected cases were rerun from a clean tree against the same engine, and both passed:
+  - F09 on SQLite, on `4e7453a9`: 10,000 jobs, 3 workers of 64 executors, 7 minutes of chaos, 82 kills, 16 ledger checks with no violation. SQLite refused one probe; that victim resumed, and the next tick killed a worker.
+  - O03 on PostgreSQL, on `f5bbc7bb`. The third fix touches only F09.
+- **Capacity.** The standard profile reports capacity for information only. rc.5's round ran on Anvil, so there is no Acta Bench bundle to compare against. The figures on useacta.net stay linked to [rc.5's round](https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md).
+
 ## 1.0.0-rc.5
 
 Tagged 2026-10-17. Upgrading from rc.4 takes the changes below.
@@ -112,7 +196,7 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 
 ### Evidence
 
-Certified on `ba12ef95`; the tagged commit adds test fixes and leaves `src/` unchanged. The three standard gates (10,000 jobs, 5 steps of 1 s, 7 minutes of chaos; PostgreSQL and SQL Server on 8 workers of 8 executors, SQLite on 6 of 8) and the PostgreSQL ensemble (three processes over two namespaces, 4,000 jobs) passed, with kills in flight in every work shape. Both million-job runs, on PostgreSQL and SQL Server (1,005,000 jobs each, 24 workers of 64 executors, 5 steps of 250 ms, 12 minutes of chaos), passed the same way. The benchmark round on the same commit is [`docs/reference/benchmark.md`](./reference/benchmark.md). Against rc.4's best profile on the same machine, drain more than doubles on PostgreSQL and SQL Server and grows fivefold on SQLite, and pickup latency and enqueue are level or ahead on the servers. Three cells trail: SQLite picks up one job at a time in about 20 ms on Windows ([known limitations](./known-limitations.md)), its single enqueues run at about 1,400 a second now that every commit syncs, and one deep lane runs about a quarter below rc.4's Direct profile, since each handoff waits for the previous completion to commit.
+Certified on `ba12ef95`; the tagged commit adds test fixes and leaves `src/` unchanged. The three standard gates (10,000 jobs, 5 steps of 1 s, 7 minutes of chaos; PostgreSQL and SQL Server on 8 workers of 8 executors, SQLite on 6 of 8) and the PostgreSQL ensemble (three processes over two namespaces, 4,000 jobs) passed, with kills in flight in every work shape. Both million-job runs, on PostgreSQL and SQL Server (1,005,000 jobs each, 24 workers of 64 executors, 5 steps of 250 ms, 12 minutes of chaos), passed the same way. The benchmark round on the same commit is [`docs/reference/benchmark.md` at the tag](https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md). Against rc.4's best profile on the same machine, drain more than doubles on PostgreSQL and SQL Server and grows fivefold on SQLite, and pickup latency and enqueue are level or ahead on the servers. Three cells trail: SQLite picks up one job at a time in about 20 ms on Windows ([known limitations](./known-limitations.md)), its single enqueues run at about 1,400 a second now that every commit syncs, and one deep lane runs about a quarter below rc.4's Direct profile, since each handoff waits for the previous completion to commit.
 
 ## Earlier releases
 

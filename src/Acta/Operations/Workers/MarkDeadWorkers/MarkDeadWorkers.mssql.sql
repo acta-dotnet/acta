@@ -6,14 +6,14 @@ BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
+    DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL);
 
     UPDATE {{schema}}.workers WITH (ROWLOCK, READPAST)
     SET
         status_code = 200 /* WorkerStatusCode.Dead */,
         modified_at_utc = SYSUTCDATETIME(),
         version = version + 1
-    OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
+    OUTPUT INSERTED.id, INSERTED.namespace_id INTO @marked (id, namespace_id)
     WHERE
         -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
         -- dead as an active one; nothing else ever moves a Draining row.
@@ -30,7 +30,7 @@ BEGIN TRY
         SYSUTCDATETIME(),
         m.namespace_id,
         70 /* ActorCode.Worker */,
-        LOWER(CONVERT(varchar(36), m.worker_ref)),
+        NULL,
         NULL,
         NULL,
         NULL,

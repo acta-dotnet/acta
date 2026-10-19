@@ -58,7 +58,6 @@ public sealed class AlertChannelVerdictTests
     private static DeliverableAlert Alert(AlertSeverityCode severity = AlertSeverityCode.Error) =>
         new(
             AlertId: 1,
-            JobId: null,
             Severity: severity,
             Kind: AlertKindCode.FinalFailure,
             Title: "t",

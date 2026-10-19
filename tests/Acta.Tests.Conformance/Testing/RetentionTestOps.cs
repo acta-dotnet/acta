@@ -17,7 +17,8 @@ internal static class RetentionTestOps
         int batchSize,
         int maxIterations,
         CancellationToken ct,
-        long jobsCursor = 0
+        long jobsCursor = 0,
+        bool sweepSystemEvents = false
     ) =>
         ActivatorUtilities
             .CreateInstance<RetentionJob>(services)
@@ -29,8 +30,10 @@ internal static class RetentionTestOps
                     workerRetentionSeconds,
                     batchSize,
                     maxIterations,
-                    jobsCursor
+                    jobsCursor,
+                    SweepSystemEvents: sweepSystemEvents
                 ),
+                null,
                 ct
             );
 
@@ -71,7 +74,8 @@ internal static class RetentionTestOps
         int batchSize,
         int maxIterations,
         Func<Task<bool>> settled,
-        CancellationToken ct
+        CancellationToken ct,
+        bool sweepSystemEvents = false
     )
     {
         const int maxAttempts = 300;
@@ -87,7 +91,8 @@ internal static class RetentionTestOps
                 batchSize,
                 maxIterations,
                 ct,
-                total.JobsCursor
+                total.JobsCursor,
+                sweepSystemEvents
             );
             total = new RetentionSweepCounts(
                 total.Jobs + result.Jobs,

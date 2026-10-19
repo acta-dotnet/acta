@@ -6,22 +6,30 @@ DROP TABLE IF EXISTS temp._repair_lanes;
    repairs at most 100 stranded ones in visiting order; a stranded lane's lowest-id unfinished member is
    Blocked. The immediate transaction is the lanes' mutex on SQLite. */
 CREATE TEMP TABLE _repair_start AS
-SELECT MIN(l.id) + ABS(RANDOM()) % (MAX(l.id) - MIN(l.id) + 1) AS start_id
-FROM {{schema}}.lanes l;
+SELECT b.lo + ABS(RANDOM()) % (b.hi - b.lo + 1) AS start_id
+FROM (
+    -- SQLite seeks one end of the key only for a lone MIN or MAX; one aggregate holding both scans every lane.
+    SELECT
+        (SELECT MIN(id) FROM {{schema}}.lanes) AS lo,
+        (SELECT MAX(id) FROM {{schema}}.lanes) AS hi
+) b;
 
+-- Each window seeks the rowid from the scalar start and reads forward; the unary + keeps the planner off ux_lanes_namespace_name.
 CREATE TEMP TABLE _repair_window AS
 SELECT l.id
 FROM {{schema}}.lanes l
-JOIN temp._repair_start s ON l.id >= s.start_id
-WHERE l.namespace_id = @p_namespace_id
+WHERE
+    l.id >= (SELECT s.start_id FROM temp._repair_start s)
+    AND +l.namespace_id = @p_namespace_id
 ORDER BY l.id
 LIMIT 1000;
 
 INSERT INTO temp._repair_window (id)
 SELECT l.id
 FROM {{schema}}.lanes l
-JOIN temp._repair_start s ON l.id < s.start_id
-WHERE l.namespace_id = @p_namespace_id
+WHERE
+    l.id < (SELECT s.start_id FROM temp._repair_start s)
+    AND +l.namespace_id = @p_namespace_id
 ORDER BY l.id
 LIMIT (SELECT 1000 - COUNT(*) FROM temp._repair_window);
 
@@ -81,7 +89,6 @@ INSERT INTO {{schema}}.events (
     lineage_root_id,
     definition_id,
     tenant_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -99,7 +106,6 @@ SELECT
     COALESCE(j.lineage_root_id, j.id),
     j.definition_id,
     j.tenant_id,
-    NULL,
     15 /* JobStatusCode.Blocked */,
     10 /* JobStatusCode.Ready */,
     NULL,
@@ -118,6 +124,7 @@ CREATE TEMP TABLE _reclaim_jobs AS
 SELECT
     s.id,
     s.parent_id,
+    s.worker_id,
     s.wait_resolved,
     s.new_failure_count,
     /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no cost, so
@@ -131,6 +138,7 @@ FROM (
     SELECT
         r.job_id AS id,
         j.parent_id,
+        r.leased_by_worker_id AS worker_id,
         r.failure_count + 1 AS new_failure_count,
         jd.max_attempts_effective AS max_attempts,
         /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc, so
@@ -207,6 +215,13 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN temp._reclaim_jobs rj ON rj.id = j.id
 WHERE
     j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
+
+-- Each worker a reclaimed row names is stamped after its Orphaned event, so the purge keeps it while that event lasts.
+UPDATE {{schema}}.workers
+SET
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE id IN (SELECT rj.worker_id FROM temp._reclaim_jobs rj);
 
 UPDATE {{schema}}.runtimes
 SET

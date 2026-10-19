@@ -5,8 +5,7 @@ namespace Acta;
 /// (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; returned, never thrown.
 /// Construction is gated to the framework (private-protected constructor, internal factories) so no caller can
 /// synthesise an inconsistent <c>(TerminalStatus, IsTimedOut)</c> pair. The terminal cause is not carried here; read
-/// it from the Job's event timeline. <c>JobResult</c> names the durable payload entity (<c>acta.results</c>), so this
-/// wire-return type is <c>JobOutcome</c>.
+/// it from the Job's event timeline.
 /// </summary>
 public class JobOutcome
 {
@@ -23,7 +22,6 @@ public class JobOutcome
 
     public bool IsSuccess => !IsTimedOut && TerminalStatus == JobStatusCode.Succeeded;
     public bool IsFailed => !IsTimedOut && TerminalStatus == JobStatusCode.Failed;
-    public bool IsCancelled => !IsTimedOut && TerminalStatus == JobStatusCode.Cancelled;
 
     /// <summary>
     /// No-op when <see cref="IsSuccess"/>; throws <c>JobFailedException</c> on <c>Failed</c>/<c>Cancelled</c>

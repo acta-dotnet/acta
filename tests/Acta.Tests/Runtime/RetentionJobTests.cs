@@ -13,7 +13,7 @@ public sealed class RetentionJobTests
     {
         var clock = new Clock();
         var store = new Store(static _ => 1);
-        var result = await Job(store.Handler, clock).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
+        var result = await Job(store.Handler, clock).PurgeExpiredDataAsync(Sweep, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(16, store.Calls.Count);
@@ -31,7 +31,7 @@ public sealed class RetentionJobTests
                 {
                     1 => Now.AddDays(-2),
                     2 or 3 or 4 => Now.AddDays(-3),
-                    5 => Now.AddSeconds(-4),
+                    5 => Now.AddDays(-2),
                     _ => Now,
                 },
                 first.CutoffUtc
@@ -44,9 +44,34 @@ public sealed class RetentionJobTests
     {
         // A jobs slice with nothing expired says nothing about the slices below it, so the walk goes on.
         var store = new Store(static _ => 0);
-        var result = await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
+        var result = await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, null, TestContext.Current.CancellationToken);
         Assert.Equal(9, store.Calls.Count);
         Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
+    }
+
+    [Fact]
+    public async Task The_sys_events_sweep_follows_the_events_section_with_its_bounds_and_is_not_counted()
+    {
+        var store = new Store(static command => command.NamespaceId == 1 ? 1 : 0);
+        var result = await Job(store.Handler, new Clock())
+            .PurgeExpiredDataAsync(Sweep with { SweepSystemEvents = true }, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(11, store.Calls.Count);
+        Assert.Equal(RetentionSection.Events, store.Calls[2].Section);
+        Assert.All(store.Calls.Skip(3).Take(2), call => Assert.Equal(store.Calls[2] with { NamespaceId = 1 }, call));
+        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
+    }
+
+    [Theory]
+    [InlineData(4, 2 * 86_400)]
+    [InlineData(3 * 86_400, 3 * 86_400)]
+    public async Task Terminal_workers_are_kept_for_the_longer_of_their_window_and_the_events_window(int workerSeconds, int keptSeconds)
+    {
+        var store = new Store(static _ => 0);
+        await Job(store.Handler, new Clock())
+            .PurgeExpiredDataAsync(Sweep with { WorkerRetentionSeconds = workerSeconds }, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(Now.AddSeconds(-keptSeconds), store.Calls.Single(c => c.Section == RetentionSection.Workers).CutoffUtc);
     }
 
     [Fact]
@@ -54,7 +79,7 @@ public sealed class RetentionJobTests
     {
         var store = new Store(static _ => 1, static command => command.BeforeJobId == 70 ? 0 : 70);
         var result = await Job(store.Handler, new Clock())
-            .PurgeExpiredDataAsync(Sweep with { JobsCursor = 500 }, TestContext.Current.CancellationToken);
+            .PurgeExpiredDataAsync(Sweep with { JobsCursor = 500 }, null, TestContext.Current.CancellationToken);
 
         var jobs = store.Calls.Where(c => c.Section == RetentionSection.Jobs).ToList();
         Assert.Equal([500L, 70L], jobs.Select(c => c.BeforeJobId));
@@ -76,7 +101,7 @@ public sealed class RetentionJobTests
             return 1;
         });
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken)
+            Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, null, TestContext.Current.CancellationToken)
         );
         Assert.Equal(2, committed);
         Assert.Equal(3, store.Calls.Count);
@@ -93,7 +118,7 @@ public sealed class RetentionJobTests
             return 1;
         });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, cancellation.Token)
+            Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, null, cancellation.Token)
         );
         Assert.Single(store.Calls);
     }
@@ -113,6 +138,7 @@ public sealed class RetentionJobTests
                         BatchSize = batchSize,
                         MaxIterations = iterations,
                     },
+                    null,
                     TestContext.Current.CancellationToken
                 )
         );
@@ -128,7 +154,8 @@ public sealed class RetentionJobTests
         // Nothing expired: the walk takes every slice it is given. Ten a slice: it stops at the delete budget of
         // MaxIterations x BatchSize = 20, though slices remain.
         var store = new Store(_ => deletedPerSlice);
-        await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, TestContext.Current.CancellationToken);
+        await Job(store.Handler, new Clock())
+            .PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(expectedSlices, store.Calls.Count(c => c.Section == RetentionSection.Jobs));
     }

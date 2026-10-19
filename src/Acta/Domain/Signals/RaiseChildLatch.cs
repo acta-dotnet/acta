@@ -19,6 +19,7 @@ internal static class RaiseChildLatch
         long childJobId,
         long parentJobId,
         JobStatusCode childStatus,
+        int? childExecutionNumber,
         CancellationToken ct
     )
     {
@@ -27,7 +28,7 @@ internal static class RaiseChildLatch
         // two renderings must agree byte for byte; the invariant culture is stated on both sides rather
         // than inherited from whatever the ambient one happens to be.
         var slotName = NamePrefix + childJobId.ToString(CultureInfo.InvariantCulture);
-        var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus);
+        var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus, childExecutionNumber);
         var input = new JobControlInput(new JobControlActor(ActorCode.Sys), EventReasonCode.JobSignalReleased, null);
         var outcome = await signals.RaiseSignalAsync(
             new RaiseSignalSlot(parentJobId, CheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),

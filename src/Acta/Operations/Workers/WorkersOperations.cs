@@ -38,22 +38,8 @@ internal sealed class WorkersOperations(
     /// window each lock hold whose token still holds its key and the lease of each held execution the worker still
     /// leases. Answers the renewed holds and those executions, each flagged renewed or skipped because another
     /// transaction held the row; a hold or held execution not answered is gone, and a leased row nothing holds lapses.
-    /// Also answers the namespace's newest <c>definitions.modified_at_utc</c>. Does not bump <c>runtimes.version</c>.
-    /// Takes no recovery pass; the heartbeat passes its interval through the command overload.
-    /// </summary>
-    internal Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(
-        int workerId,
-        int leaseTtlSeconds,
-        bool draining,
-        IReadOnlyList<(long JobId, int ExecutionNumber)> executions,
-        IReadOnlyList<LockToken> locks,
-        CancellationToken ct
-    ) => extendWorkerLeases.HandleAsync(new ExtendWorkerLeasesCommand(workerId, leaseTtlSeconds, draining, executions, locks), ct);
-
-    /// <summary>
-    /// The heartbeat's call, as above, which also takes the namespace's recovery pass when it is due and the command
-    /// carries a recovery interval: the due time moves one interval on in the same call, so one worker takes each pass,
-    /// and a namespace row another transaction holds is skipped rather than waited on.
+    /// Also answers the namespace's newest <c>definitions.modified_at_utc</c>, and never bumps <c>runtimes.version</c>. With a
+    /// recovery interval it takes the namespace's due pass, moving it one interval on, and skips a namespace row held elsewhere.
     /// </summary>
     internal Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(ExtendWorkerLeasesCommand command, CancellationToken ct) =>
         extendWorkerLeases.HandleAsync(command, ct);

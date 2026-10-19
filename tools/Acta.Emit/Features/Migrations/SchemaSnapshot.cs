@@ -20,7 +20,8 @@ internal sealed record SchemaSnapshot(
         var entities = model
             .Entities.Select(e => new EntitySnapshot(
                 e.TableName,
-                $"{e.PrimaryKey.Name}({string.Join(",", e.PrimaryKey.Columns)})|manual={e.PrimaryKey.Manual}|seq={e.PrimaryKey.OptimizeForSequentialKey}",
+                $"{e.PrimaryKey.Name}({string.Join(",", e.PrimaryKey.Columns)})|manual={e.PrimaryKey.Manual}|seq={e.PrimaryKey.OptimizeForSequentialKey}"
+                    + (e.PrimaryKey.Identity is { } identity ? $"|identity={identity}" : ""),
                 e.Columns.Select(c => new ColumnSnapshot(c.Name, ColumnSignature(c))).ToList(),
                 e.Indexes.Select(i => new IndexSnapshot(i.Name, IndexSignature(i))).OrderBy(i => i.Name, StringComparer.Ordinal).ToList(),
                 e.Checks.Select(c => new CheckSnapshot(c.Name, c.Sql)).OrderBy(c => c.Name, StringComparer.Ordinal).ToList(),
@@ -55,16 +56,18 @@ internal sealed record SchemaSnapshot(
         ?? throw new InvalidOperationException($"Empty or invalid schema snapshot at {path}.");
 
     // Coded identity is IsCoded and the stable CodeKind, never EnumTypeName, so a CLR enum rename is not drift;
-    // member ids are not schema, since no column constrains its code values.
+    // member ids are not schema, since no column constrains its code values. The literal 0|0, inc=, and seq=False
+    // hold the places of a column's precision and scale and an index's includes and sequential-key hint, which
+    // the model no longer has, so the committed signatures stay unchanged.
     private static string ColumnSignature(ColumnModel c) =>
-        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|caseExact={c.CaseExact}";
+        $"{c.Kind}|{c.Size}|0|0|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|caseExact={c.CaseExact}";
 
     private static string IndexSignature(DbIndexSpec i) =>
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"
-        + $"|inc={(i.Includes is null ? "" : string.Join(",", i.Includes))}"
+        + "|inc="
         + $"|desc={(i.Descending is null ? "" : string.Join(",", i.Descending))}"
         + $"|filter={i.Filter}"
-        + $"|seq={i.OptimizeForSequentialKey}";
+        + "|seq=False";
 
     // Signed by the target table, as the DDL references it, so renaming a table model is not a schema change.
     private static string ForeignKeySignature(DbForeignKeySpec f) =>
@@ -81,11 +84,3 @@ internal sealed record EntitySnapshot(
     // Table-level options a delta can apply in place; null when the table sets none.
     string? Options = null
 );
-
-internal sealed record ColumnSnapshot(string Name, string Signature);
-
-internal sealed record IndexSnapshot(string Name, string Signature);
-
-internal sealed record CheckSnapshot(string Name, string Sql);
-
-internal sealed record ForeignKeySnapshot(string Name, string Signature);

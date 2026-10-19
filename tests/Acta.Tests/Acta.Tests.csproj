@@ -34,7 +34,6 @@
     <ProjectReference Include="..\..\src\Acta.Postgres\Acta.Postgres.csproj" />
     <ProjectReference Include="..\..\src\Acta.SqlServer\Acta.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
-    <ProjectReference Include="..\..\anvil\Anvil.Bench\Anvil.Bench.csproj" />
     <!-- Abstract conformance specs + test infrastructure shared with per-provider projects. -->
     <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
   </ItemGroup>

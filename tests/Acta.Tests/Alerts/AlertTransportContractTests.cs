@@ -10,7 +10,7 @@ namespace Acta.Tests.Alerts;
 /// The third No_integer_identities gate: an alert leaves Acta addressed by its public ref. Structural
 /// first (reflection over the transport contract, so a numeric identity cannot be added without failing
 /// here), then rendered (both shipped transports print <c>alr_</c> / <c>job_</c> and never the stored
-/// uuid the ref decodes to, which is the internal form an operator can neither read nor address).
+/// uuid on its own, which is the internal form an operator cannot address).
 /// </summary>
 public sealed class AlertTransportContractTests
 {
@@ -54,7 +54,7 @@ public sealed class AlertTransportContractTests
         );
 
         // A bare Guid is the other way an unaddressable identity gets here, and the one this codebase is
-        // actually prone to: alert_ref, worker_ref, and events.actor all STORE the uuid, and only
+        // actually prone to: alert_ref and worker_ref both STORE the uuid, and only
         // AlertRef / JobRef render it as the alr_ / job_ handle an operator can paste. A Guid-typed
         // member would pass the integer check and still deliver the stored form.
         var rawGuids = properties
@@ -125,20 +125,23 @@ public sealed class AlertTransportContractTests
 
     // The sentinel is the ref's stored form, in both spellings a leak could take. events.actor and
     // workers.worker_ref hold canonical uuid text, so "renders the ref" and "renders whatever the row
-    // holds" look alike in a fixture unless the uuid itself is banned. There is no numeric check here
-    // because there is no numeric member to leak: the reflection gate above proves AlertNotification
-    // carries no integer identity at all, which is what makes this pair of checks sufficient.
+    // holds" look alike in a fixture unless the uuid itself is banned. A ref carries its uuid's hex
+    // after the prefix, so the ban covers what is left once the expected refs are cut out. There is no
+    // numeric check here because there is no numeric member to leak: the reflection gate above proves
+    // AlertNotification carries no integer identity at all, which is what makes this pair of checks sufficient.
     private static void AssertRendersRefsOnly(string rendered, params string[] expectedRefs)
     {
-        foreach (var stored in new[] { AlertRefValue, JobRefValue })
-        {
-            Assert.DoesNotContain(stored.ToString("D", CultureInfo.InvariantCulture), rendered, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain(stored.ToString("N", CultureInfo.InvariantCulture), rendered, StringComparison.OrdinalIgnoreCase);
-        }
-
+        var outsideRefs = rendered;
         foreach (var expected in expectedRefs)
         {
             Assert.Contains(expected, rendered, StringComparison.Ordinal);
+            outsideRefs = outsideRefs.Replace(expected, "", StringComparison.Ordinal);
+        }
+
+        foreach (var stored in new[] { AlertRefValue, JobRefValue })
+        {
+            Assert.DoesNotContain(stored.ToString("D", CultureInfo.InvariantCulture), outsideRefs, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(stored.ToString("N", CultureInfo.InvariantCulture), outsideRefs, StringComparison.OrdinalIgnoreCase);
         }
     }
 

@@ -8,8 +8,9 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// <summary>
 /// Conformance for one-shot retry/backoff. A failed one-shot (unhandled exception) re-arms to Ready
 /// with the failure budget incremented while attempts remain, then lands terminal Failed once
-/// <c>MaxAttempts</c> is reached. <c>MaxAttempts</c> is the one-off retry budget only; a recurring slot
-/// never terminalizes on its consecutive-failure count. <c>retry-probe</c> uses a zero initial backoff
+/// <c>MaxAttempts</c> is reached. Every failed attempt records execution status Failed, the retried ones
+/// too, because each charges the budget. <c>MaxAttempts</c> is the one-off retry budget only; a recurring
+/// slot never terminalizes on its consecutive-failure count. <c>retry-probe</c> uses a zero initial backoff
 /// so each tick re-claims immediately.
 /// </summary>
 [ConformanceSpec(
@@ -52,5 +53,31 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(EventReasonCode.JobUnhandledException, finished.EventReasonCode);
 
         Assert.Equal(3, RetryProbe.Attempts(TestNamespace));
+    }
+
+    [Fact(DisplayName = "A one-shot that throws twice and then succeeds records both retried attempts as failed at the audit level")]
+    public async Task Retried_failures_record_failed_and_the_success_records_succeeded()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        FlakyRecoverProbe.Reset(TestNamespace, failingAttempts: 2);
+
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
+        await Runtime.RunOnceAsync(enqueued, ct);
+        await Runtime.RunOnceAsync(enqueued, ct);
+        await Runtime.RunOnceAsync(enqueued, ct);
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
+
+        var finished = (await GetEventsByJobId.Run(Services, enqueued.JobId, ct))
+            .Where(e => e.EventCode == EventCode.JobExecutionFinished)
+            .OrderBy(e => e.Id)
+            .Select(e => (e.ExecutionStatus, e.ToStatus))
+            .ToList();
+        (ExecutionStatusCode?, JobStatusCode?)[] expected =
+        [
+            (ExecutionStatusCode.Failed, JobStatusCode.Ready),
+            (ExecutionStatusCode.Failed, JobStatusCode.Ready),
+            (ExecutionStatusCode.Succeeded, JobStatusCode.Succeeded),
+        ];
+        Assert.Equal(expected, finished);
     }
 }

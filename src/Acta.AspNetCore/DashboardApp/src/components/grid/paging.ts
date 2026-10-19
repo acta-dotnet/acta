@@ -5,7 +5,7 @@ export type CursorStack = readonly (string | null)[];
 
 export const first: CursorStack = [null];
 
-export type CountMode = 'none' | 'on-demand' | 'always';
+export type CountMode = 'none' | 'on-demand';
 
 export interface PagingState {
   filterKey: string;
@@ -36,7 +36,7 @@ export function exactCountPaging(state: PagingState, filterKey: string): PagingS
 }
 
 export function shouldIncludeTotal(mode: CountMode, requested: boolean, legacyIncludeTotal = false): boolean {
-  return legacyIncludeTotal || mode === 'always' || (mode === 'on-demand' && requested);
+  return legacyIncludeTotal || (mode === 'on-demand' && requested);
 }
 
 export function current(stack: CursorStack): string | null {
@@ -70,11 +70,10 @@ export interface GridDisplay {
   showPager: boolean;
 }
 
-// `pending`/`error` decide the state card's CONTENT (loading vs error vs empty) only when there is
-// nothing cached to show. Whenever rows are present - a background refetch or a failed poll over
-// placeholder data - the table stays up and the freshness indicator carries the updating/failed
-// state, so a populated grid is never replaced by a spinner or a full error card.
-export function gridDisplay(pending: boolean, error: boolean, rawCount: number, filteredCount: number): GridDisplay {
+// Loading and error never decide the layout: whenever rows are present - a background refetch or a
+// failed poll over placeholder data - the table stays up and the freshness indicator carries the
+// updating/failed state, so a populated grid is never replaced by a spinner or a full error card.
+export function gridDisplay(rawCount: number, filteredCount: number): GridDisplay {
   if (rawCount === 0) return { showState: true, showTable: false, showPager: false };
   if (filteredCount === 0) return { showState: true, showTable: false, showPager: true };
   return { showState: false, showTable: true, showPager: true };

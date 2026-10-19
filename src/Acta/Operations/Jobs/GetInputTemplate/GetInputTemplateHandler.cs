@@ -8,7 +8,7 @@ internal sealed class GetInputTemplateHandler(JobDescriptorRegistry descriptorRe
             ? new GetInputTemplateResponse(
                 query.JobNamespace,
                 query.JobName,
-                descriptor.InputType.FullName ?? descriptor.InputType.Name,
+                JobDefinitionRegistration.ContractTypeName(descriptor.InputType),
                 descriptor.InputPayloadFormat,
                 descriptor.InputTemplateJson
             )

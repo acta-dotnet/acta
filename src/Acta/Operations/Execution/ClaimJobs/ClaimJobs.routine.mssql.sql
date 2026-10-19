@@ -111,6 +111,8 @@ BEGIN
             execution_number = r.execution_number + 1,
             leased_by_worker_id = @p_leased_by_worker_id,
             lease_expires_at_utc = @lease_expires,
+            result_format_id = 0 /* JobPayloadFormat.None */,
+            result = NULL,
             modified_at_utc = @now,
             version = r.version + 1
         OUTPUT

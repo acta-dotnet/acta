@@ -3,7 +3,7 @@
   // currentColor fill, so each icon tracks its control's text color (incl. light/dark tokens).
   // Names are resolved at runtime, so nothing here can be tree-shaken: every path ships to every
   // operator. Add an icon when a screen uses it, and drop it when the last use goes.
-  let { name, label = '' } = $props(); // label gives icon-only controls an accessible name + tooltip
+  let { name } = $props();
   const P = {
     play: 'M3.9 2.79a.7.7 0 0 1 1.05-.61l8.1 4.71a.7.7 0 0 1 0 1.21l-8.1 4.71a.7.7 0 0 1-1.05-.6V2.79Z',
     'magnifying-glass': 'M10 6.5C10 8.433 8.433 10 6.5 10C4.567 10 3 8.433 3 6.5C3 4.567 4.567 3 6.5 3C8.433 3 10 4.567 10 6.5ZM9.30884 10.0159C8.53901 10.6318 7.56251 11 6.5 11C4.01472 11 2 8.98528 2 6.5C2 4.01472 4.01472 2 6.5 2C8.98528 2 11 4.01472 11 6.5C11 7.56251 10.6318 8.53901 10.0159 9.30884L12.8536 12.1464C13.0488 12.3417 13.0488 12.6583 12.8536 12.8536C12.6583 13.0488 12.3417 13.0488 12.1464 12.8536L9.30884 10.0159Z',
@@ -36,6 +36,6 @@
   };
 </script>
 
-<svg class="ic" viewBox="0 0 15 15" role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : 'true'}>
+<svg class="ic" viewBox="0 0 15 15" aria-hidden="true">
   <path d={P[name]} fill="currentColor" />
 </svg>

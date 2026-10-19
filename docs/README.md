@@ -27,7 +27,8 @@ OpenAPI document of the dashboard JSON API, and the
 [conformance contracts](./reference/conformance-contracts.md) list every specified behavior with the
 arrange/act/assert that proves it. The [operations index](./reference/operations.md) maps each operation
 to its facade method, HTTP routes, CLI verb, SQL, and specs. The [benchmark](./reference/benchmark.md)
-is the latest benchmark round, written by `anvil/Anvil.Bench`.
+is the latest published benchmark round, written by [Acta Bench](../tools/Acta.Bench/README.md)'s
+`publish` command.
 
 ## Design and contributing
 

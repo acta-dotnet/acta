@@ -261,8 +261,10 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             {
                 valid.Add((OutboxRequestReconstruction.ToRequest(group.Representative, options.MaxInlinePayloadBytes), group));
             }
-            catch (OutboxContractException ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Reconstruction does no I/O, so any throw is deterministic for this row: quarantine the row
+                // instead of failing the batch, which the claim order would hand back every tick.
                 immediateQuarantine.Add((group, ex.Message));
             }
         }
@@ -297,7 +299,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
         foreach (var (group, error) in immediateQuarantine)
         {
-            // Malformed/oversize is a pre-target contract failure: quarantine at once, leaving each row's
+            // A reconstruction failure is a pre-target contract failure: quarantine at once, leaving each row's
             // existing failure count untouched (no retry budget was consumed).
             quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error)));
         }
@@ -533,31 +535,4 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// </summary>
     private static bool IsDeterministicRejection(Exception ex) =>
         ex is ArgumentException or PayloadTooLargeException or EnqueueRejectedException;
-}
-
-/// <summary>Per-tick relay configuration resolved from the source registration and worker options.</summary>
-internal sealed record OutboxRelayTickOptions(string SourceName, int QuarantineThreshold, int LeaseTtlSeconds, int MaxInlinePayloadBytes);
-
-/// <summary>
-/// One relay tick's accounting, persisted as the <c>sys.outbox</c> job result on success: source rows claimed, new
-/// jobs inserted, rows absorbed by deduplication (coalesced members plus already-present handoffs), rows quarantined
-/// (zero on every persisted summary, since a quarantine fails the tick), the source's remaining Pending backlog, and
-/// the Quarantined total. The rendered string is the cross-peer contract: operator surfaces on peers without this
-/// source registration parse <c>backlog=</c> and <c>quarantine=</c> out of the slot's persisted result.
-/// </summary>
-internal sealed record OutboxTickSummary(
-    int Claimed,
-    int Relayed,
-    int Deduplicated,
-    int Quarantined,
-    long Backlog,
-    long QuarantineTotal,
-    int Requeued = 0,
-    int Discarded = 0
-)
-{
-    public override string ToString() =>
-        $"claimed={Claimed} relayed={Relayed} dedup={Deduplicated} quarantined={Quarantined} backlog={Backlog} quarantine={QuarantineTotal}"
-        + (Requeued > 0 ? $" requeued={Requeued}" : "")
-        + (Discarded > 0 ? $" discarded={Discarded}" : "");
 }

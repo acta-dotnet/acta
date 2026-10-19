@@ -304,12 +304,18 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
 
     private Task<int> ResolveAsync(CancellationToken ct) => ResolveAsync(JobIdValue, ct);
 
-    private async Task<int> ResolveAsync(long jobId, CancellationToken ct) =>
-        (
-            await Services
-                .GetRequiredService<AlertsOperations>()
-                .ResolveAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct)
-        ).Resolved;
+    // How many of the job's open alerts the resolve closed, read from the rows.
+    private async Task<int> ResolveAsync(long jobId, CancellationToken ct)
+    {
+        var open = await OpenAlertCountAsync(jobId, ct);
+        await Services
+            .GetRequiredService<AlertsOperations>()
+            .ResolveAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
+        return open - await OpenAlertCountAsync(jobId, ct);
+    }
+
+    private Task<int> OpenAlertCountAsync(long jobId, CancellationToken ct) =>
+        Db.From<AlertEntity>().Where(a => a.JobId == jobId && a.ResolvedAtUtc == null).CountAsync(ct);
 
     // Moves the row's scheduled instant without touching anything else, which is how these facts travel
     // in time: the delivery read compares retry_after_utc against the database's own clock, so rewinding

@@ -4,14 +4,13 @@ using Xunit;
 namespace Acta.Tests.Abstractions;
 
 /// <summary>
-/// Freezes the public JobRef format: "job_" plus 26 lowercase Crockford Base32 characters over
-/// the canonical big-endian UUID bytes. The golden pair below is the format contract; changing
-/// either value breaks every externally stored job ref.
+/// Freezes the public JobRef format: "job_" plus the Guid's 32 lowercase hex digits, its N format. The golden pair
+/// below is the format contract; changing either value breaks every externally stored job ref.
 /// </summary>
 public class JobRefTests
 {
-    private static readonly Guid GoldenGuid = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
-    private const string GoldenRef = "job_2n1t201rmv87aae5j4csam8000";
+    private static readonly Guid GoldenGuid = Guid.Parse("01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d");
+    private const string GoldenRef = "job_01a14f4e954e7bf68ac609f3fcad8e3d";
 
     [Fact]
     public void Formats_golden_guid_stably()
@@ -26,52 +25,42 @@ public class JobRefTests
         Assert.Equal(GoldenGuid, jobRef.Value);
     }
 
-    [Theory]
-    [InlineData("job_550e8400-e29b-41d4-a716-446655440000")]
-    [InlineData("JOB_550E8400-E29B-41D4-A716-446655440000")]
-    [InlineData("job_550e8400e29b41d4a716446655440000")]
-    [InlineData("550e8400-e29b-41d4-a716-446655440000")]
-    [InlineData("550e8400e29b41d4a716446655440000")]
-    public void Parses_a_plain_guid_with_or_without_the_prefix(string value)
+    [Fact]
+    public void Parses_uppercase_hex_and_emits_lowercase()
     {
-        Assert.True(JobRef.TryParse(value, out var jobRef));
+        Assert.True(JobRef.TryParse("job_01A14F4E954E7BF68AC609F3FCAD8E3D", out var jobRef));
         Assert.Equal(GoldenGuid, jobRef.Value);
         Assert.Equal(GoldenRef, jobRef.ToString());
     }
 
     [Fact]
-    public void Parses_case_insensitively_and_emits_canonical_lowercase()
+    public void Rejects_the_crockford_form()
     {
-        Assert.True(JobRef.TryParse(GoldenRef.ToUpperInvariant(), out var jobRef));
-        Assert.Equal(GoldenGuid, jobRef.Value);
-        Assert.Equal(GoldenRef, jobRef.ToString());
-    }
-
-    [Theory]
-    [InlineData("job_2n1t2o1rmv87aae5j4csam8000")]
-    [InlineData("job_2n1t20lrmv87aae5j4csam8000")]
-    [InlineData("job_2n1t20irmv87aae5j4csam8000")]
-    [InlineData("job_2N1T2O1RMV87AAE5J4CSAM8000")]
-    public void Parses_crockford_aliases(string aliased)
-    {
-        Assert.True(JobRef.TryParse(aliased, out var jobRef));
-        Assert.Equal(GoldenGuid, jobRef.Value);
+        Assert.False(JobRef.TryParse("job_2n1t201rmv87aae5j4csam8000", out _));
+        Assert.False(JobRef.TryParse("job_01m3f3jf65ettsq0k29zbzjk0h", out _));
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("job_")]
-    [InlineData("2n1t201rmv87aae5j4csam8000")]
-    [InlineData("job_2n1t201rmv87aae5j4csam800")]
-    [InlineData("job_2n1t201rmv87aae5j4csam80000")]
-    [InlineData("job_2n1t201rmv87aae5j4csam800u")]
-    [InlineData("job_zn1t201rmv87aae5j4csam8000")]
-    [InlineData("ref_2n1t201rmv87aae5j4csam8000")]
-    [InlineData("job-2n1t201rmv87aae5j4csam8000")]
-    [InlineData("alr_550e8400-e29b-41d4-a716-446655440000")]
-    [InlineData("{550e8400-e29b-41d4-a716-446655440000}")]
-    [InlineData(" 550e8400-e29b-41d4-a716-446655440000")]
+    [InlineData("01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d")]
+    [InlineData("job_01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d")]
+    [InlineData("job_{01a14f4e954e7bf68ac609f3fcad8e3d}")]
+    [InlineData("JOB_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("Job_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("job_01a14f4e954e7bf68ac609f3fcad8e3")]
+    [InlineData("job_01a14f4e954e7bf68ac609f3fcad8e3d0")]
+    [InlineData("job_01a14f4e954e7bf68ac609f3fcad8e3g")]
+    [InlineData("job_+1a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("job_0xa14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData(" job_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("job_01a14f4e954e7bf68ac609f3fcad8e3d ")]
+    [InlineData("job_ 1a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("job-01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("ref_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("alr_01a14f4e954e7bf68ac609f3fcad8e3d")]
     public void Rejects_malformed_refs(string? value)
     {
         Assert.False(JobRef.TryParse(value, out _));
@@ -99,6 +88,7 @@ public class JobRefTests
         for (var i = 0; i < 100; i++)
         {
             var guid = Guid.NewGuid();
+            Assert.Equal(JobRef.Prefix + guid.ToString("N"), new JobRef(guid).ToString());
             Assert.True(JobRef.TryParse(new JobRef(guid).ToString(), out var parsed));
             Assert.Equal(guid, parsed.Value);
         }
@@ -116,5 +106,6 @@ public class JobRefTests
     public void Json_rejects_malformed_ref()
     {
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<JobRef>("\"job_nope\""));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<JobRef>("\"job_2n1t201rmv87aae5j4csam8000\""));
     }
 }

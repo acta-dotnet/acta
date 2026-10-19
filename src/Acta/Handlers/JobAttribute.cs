@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Declares a <c>JobDefinition</c> on a handler method, registering it with the source generator; the
+/// Declares a job definition on a handler method, registering it with the source generator; the
 /// operator-facing kebab-case <see cref="Name"/> is the identity copied into SQL, dashboards, and alerts. Two knobs
 /// are absent on purpose: no <c>LeaseTtl</c>, since the lease window is one worker-wide value
 /// (<c>JobsOptions.LeaseTtlSeconds</c>) the heartbeat refreshes while a handler runs and a per-definition policy
@@ -99,7 +99,7 @@ public sealed class JobAttribute(string name) : Attribute
     public string? JobRetention { get; init; }
 
     /// <summary>
-    /// Audit emission level; gates audit-filtered per-job <c>JobEvent</c> writes but not the alert
+    /// Audit emission level; gates audit-filtered per-job <c>events</c> writes but not the alert
     /// MERGE. When left unset the generator applies the framework default (<c>Audit</c>). Sub-minute
     /// recurring definitions should consider <c>Off</c> or <c>Failures</c> to keep <c>events</c> lean.
     /// </summary>
@@ -112,12 +112,6 @@ public sealed class JobAttribute(string name) : Attribute
     /// <c>Forbidden</c> rejects an explicit TenantName and suppresses parent inheritance.
     /// </summary>
     public DefinitionTenantRequirementCode TenantRequirement { get; init; } = DefinitionTenantRequirementCode.Optional;
-
-    /// <summary>
-    /// For a recurring definition, the maximum <c>results</c> rows retained on the slot (newest
-    /// by execution). Definition/runtime metadata only; never persisted as a <c>jobs</c> column.
-    /// </summary>
-    public int RecurringResultCap { get; init; } = 1;
 
     /// <summary>
     /// Kebab-case payload format applied to both this Job's input and result bytes. Built-in formats
@@ -143,14 +137,6 @@ public sealed class JobAttribute(string name) : Attribute
     /// use Bytes). Has no effect on void-returning handlers.
     /// </summary>
     public string? OutputFormat { get; init; }
-
-    /// <summary>
-    /// Search tags persisted as <c>Tag</c> rows. Each entry is <c>"name"</c> (presence-only) or
-    /// <c>"name=value"</c>; names are kebab-case <c>varchar(64)</c>, values <c>varchar(128)</c>.
-    /// Read-only after enqueue. Canonicalization rules
-    /// live on the <c>Tag</c> entity XML docs.
-    /// </summary>
-    public string[]? Tags { get; init; }
 
     /// <summary>
     /// Automatic-alert profile; default <c>OnFailure</c> for user Jobs. The transition-to-severity

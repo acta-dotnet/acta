@@ -4,12 +4,12 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0.0-rc.5, the last release candidate before 1.0.0. It rebuilt the execution engine, removed
-APIs, changed persisted codes, and re-cut the schema ([release notes](./release-notes.md)), so every database
-an earlier release candidate provisioned is dropped and reprovisioned: no translation migration exists, and nothing in a
-database says which cut it came from. From 1.0.0 the public API, schema, and persisted codes are frozen,
-and the migration history with them: schema changes ship only as additive migrations and the baseline is
-never re-cut, so a database provisioned by a 1.x build upgrades by migration alone.
+Acta is at 1.0.0-rc.6, a release candidate. It re-cut the schema ([release notes](./release-notes.md)), so
+every database an earlier release candidate provisioned is dropped and reprovisioned: no translation
+migration exists, and nothing in a database says which cut it came from. From 1.0.0 the public API,
+schema, and persisted codes are frozen, and the migration history with them: schema changes ship only
+as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
+upgrades by migration alone.
 
 Every baseline statement is existence-guarded, so a pre-1.0 database pointed at a later build would
 take the re-cut baseline as a no-op and keep, for example, `events.actor` as `varchar(128)` on SQL
@@ -35,6 +35,7 @@ provisioned before 1.0.
 - **A provider error at admission bounces the attempt** with `job.unclassified`, spending no budget and raising no alert; a concurrency slot it took without an answer stays taken for up to one lease.
 - **A wait deadline added in a code upgrade arms at the job's next claim**, so a job already suspended under the old code needs a reschedule.
 - **A worker that dies right after its handler cancels the job leaves the descendants running.** Cancelling the job again walks them.
+- **On SQL Server, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits. Cancelling the parent again walks it.
 - **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
 - **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which roll over instead of landing Failed. Use `OnFailure` for recurring work.
 - **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
@@ -61,6 +62,7 @@ provisioned before 1.0.
 - **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
 - **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
+- **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
 - **Two schedule writes can act on a read a moment old.** A worker start racing a recurring completion can run that occurrence once more, and a schedule verb racing another can run the job once with no schedule due, or hold it until its next start.
 
 ## Dashboard and API exposure

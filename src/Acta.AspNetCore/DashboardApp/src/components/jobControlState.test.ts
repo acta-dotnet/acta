@@ -8,7 +8,6 @@ import { TERMINAL_STATUSES } from '../format.ts';
 
 test('ready: pause/restart/cancel/reschedule/reprioritize available, resume/purge are not', () => {
   assert.deepEqual(jobControlState('ready'), {
-    terminal: false,
     canPause: true,
     canResume: false,
     canRestart: true,
@@ -21,7 +20,6 @@ test('ready: pause/restart/cancel/reschedule/reprioritize available, resume/purg
 
 test('paused: resume/restart/cancel/reschedule/reprioritize available, pause/purge are not', () => {
   assert.deepEqual(jobControlState('paused'), {
-    terminal: false,
     canPause: false,
     canResume: true,
     canRestart: true,
@@ -34,7 +32,6 @@ test('paused: resume/restart/cancel/reschedule/reprioritize available, pause/pur
 
 test('executing: only cancel/reprioritize available (in-flight rejects pause/restart/reschedule; not terminal so no purge)', () => {
   assert.deepEqual(jobControlState('executing'), {
-    terminal: false,
     canPause: true, // hidden only when already paused or terminal; server rejects the actual pause
     canResume: false,
     canRestart: false,
@@ -48,7 +45,6 @@ test('executing: only cancel/reprioritize available (in-flight rejects pause/res
 test('terminal statuses: only restart and purge are offered', () => {
   for (const status of TERMINAL_STATUSES) {
     assert.deepEqual(jobControlState(status), {
-      terminal: true,
       canPause: false,
       canResume: false,
       canRestart: true,

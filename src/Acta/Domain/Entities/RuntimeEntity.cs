@@ -84,6 +84,13 @@ namespace Acta;
 // RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecutions (re-arm and signal release),
 // ReclaimStuckJobs. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]
+[DbCheck(
+    Name = "ck_runtimes_result_pair",
+    Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"
+)]
+// No result while Executing: every claim clears it in the statement that enters Executing, so a stored result always
+// belongs to the row's execution_number.
+[DbCheck(Name = "ck_runtimes_result_idle", Sql = "result_format_id = 0 OR status_code <> 50")]
 internal sealed class RuntimeEntity : IEntity<long>
 {
     /// <summary>
@@ -175,6 +182,17 @@ internal sealed class RuntimeEntity : IEntity<long>
     /// <summary>When the runtime row was last updated. Set server-side on every mutation.</summary>
     [DbColumn("modified_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime ModifiedAtUtc { get; set; }
+
+    /// <summary>
+    /// Format-id selector for <see cref="Result"/>; <c>0</c> means no result. A success stores the job's result, a
+    /// recurring slot's successful occurrence overwriting the last one, and every claim and restart clears it.
+    /// </summary>
+    [DbColumn("result_format_id", DbKind.Byte, Default = DbDefault.Zero)]
+    public byte ResultFormatId { get; set; }
+
+    /// <summary>Encoded result payload; opaque bytes governed by <see cref="ResultFormatId"/>.</summary>
+    [DbColumn("result", DbKind.BinaryPayload)]
+    public byte[]? Result { get; set; }
 
     /// <summary>
     /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat and a replayed

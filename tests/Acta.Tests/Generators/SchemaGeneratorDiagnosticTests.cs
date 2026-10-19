@@ -17,9 +17,9 @@ public class SchemaGeneratorDiagnosticTests
         {
             using System;
 
-            internal enum DbKind { Boolean, Byte, Int16, Int32, Int64, Guid, UtcInstant, Decimal, AsciiString, UnicodeString, Bytes, BinaryPayload }
+            internal enum DbKind { Boolean, Byte, Int16, Int32, Int64, Guid, UtcInstant, AsciiString, UnicodeString, BinaryPayload }
 
-            internal enum DbDefault { None, UtcNow, Zero, EmptyString, NewGuid }
+            internal enum DbDefault { None, UtcNow, Zero }
 
             internal enum DbForeignKeyAction { NoAction, Cascade, SetNull }
 
@@ -35,13 +35,10 @@ public class SchemaGeneratorDiagnosticTests
             internal sealed class DbColumnAttribute : Attribute
             {
                 public DbColumnAttribute(string name) { Name = name; }
-                public DbColumnAttribute(string name, DbKind kind) { Name = name; Kind = kind; HasExplicitKind = true; }
+                public DbColumnAttribute(string name, DbKind kind) { Name = name; Kind = kind; }
                 public string Name { get; }
                 public DbKind Kind { get; }
-                public bool HasExplicitKind { get; }
                 public int Size { get; init; }
-                public int Precision { get; init; }
-                public int Scale { get; init; }
                 public DbDefault Default { get; init; }
             }
 
@@ -51,6 +48,7 @@ public class SchemaGeneratorDiagnosticTests
                 public string Name { get; init; } = "";
                 public string[] Columns { get; init; } = [];
                 public bool Manual { get; init; }
+                public string? Identity { get; init; }
                 public bool OptimizeForSequentialKey { get; init; }
             }
 
@@ -59,7 +57,6 @@ public class SchemaGeneratorDiagnosticTests
             {
                 public string Name { get; init; } = "";
                 public string[] Columns { get; init; } = [];
-                public string[]? Includes { get; init; }
                 public string[]? Descending { get; init; }
                 public string? Filter { get; init; }
             }
@@ -69,8 +66,6 @@ public class SchemaGeneratorDiagnosticTests
             {
                 public string Name { get; init; } = "";
                 public string[] Columns { get; init; } = [];
-                public string[]? Includes { get; init; }
-                public string[]? Descending { get; init; }
                 public string? Filter { get; init; }
             }
 
@@ -93,9 +88,6 @@ public class SchemaGeneratorDiagnosticTests
 
             [AttributeUsage(AttributeTargets.Property)]
             internal sealed class DbConcurrencyTokenAttribute : Attribute { }
-
-            [AttributeUsage(AttributeTargets.Property)]
-            internal sealed class DbIgnoreAttribute : Attribute { }
 
             [AttributeUsage(AttributeTargets.Enum)]
             internal sealed class CodeKindAttribute(string codeKind) : Attribute
@@ -180,6 +172,33 @@ public class SchemaGeneratorDiagnosticTests
             {
                 [DbColumn("id", DbKind.Int64)]
                 public long Id { get; set; }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0401"));
+    }
+
+    [Fact]
+    public void Pk_identity_outside_the_key_errors_ACTA0401()
+    {
+        var result = RunGenerator(
+            """
+            namespace GenTests;
+            using Acta;
+
+            [DbTable("widget")]
+            [DbPrimaryKey(Name = "pk_widget", Columns = ["shard_id", "id"], Identity = "seq")]
+            internal sealed class Widget
+            {
+                [DbColumn("shard_id", DbKind.Int32)]
+                public int ShardId { get; set; }
+
+                [DbColumn("id", DbKind.Int64)]
+                public long Id { get; set; }
+
+                [DbColumn("seq", DbKind.Int64)]
+                public long Seq { get; set; }
             }
             """
         );
@@ -380,30 +399,6 @@ public class SchemaGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Decimal_column_without_precision_errors_ACTA0402()
-    {
-        var result = RunGenerator(
-            """
-            namespace GenTests;
-            using Acta;
-
-            [DbTable("widget")]
-            [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
-            internal sealed class Widget
-            {
-                [DbColumn("id", DbKind.Int64)]
-                public long Id { get; set; }
-
-                [DbColumn("rate", DbKind.Decimal)]
-                public decimal Rate { get; set; }
-            }
-            """
-        );
-
-        Assert.Single(Of(result, "ACTA0402"));
-    }
-
-    [Fact]
     public void Kind_clr_mismatch_errors_ACTA0402()
     {
         var result = RunGenerator(
@@ -457,6 +452,35 @@ public class SchemaGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0402"));
     }
 
+    [Fact]
+    public void Enum_column_without_code_kind_errors_ACTA0402()
+    {
+        var result = RunGenerator(
+            """
+            namespace GenTests;
+            using Acta;
+
+            internal enum WidgetStatusCode : byte
+            {
+                Ready = 1,
+            }
+
+            [DbTable("widget")]
+            [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
+            internal sealed class Widget
+            {
+                [DbColumn("id", DbKind.Int64)]
+                public long Id { get; set; }
+
+                [DbColumn("status_code")]
+                public WidgetStatusCode StatusCode { get; set; }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0402"));
+    }
+
     // ACTA0403: column defaults must match the kind and not fight allocation
 
     [Fact]
@@ -485,7 +509,7 @@ public class SchemaGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void EmptyString_default_on_guid_column_errors_ACTA0403()
+    public void Zero_default_on_guid_column_errors_ACTA0403()
     {
         var result = RunGenerator(
             """
@@ -499,7 +523,7 @@ public class SchemaGeneratorDiagnosticTests
                 [DbColumn("id", DbKind.Int64)]
                 public long Id { get; set; }
 
-                [DbColumn("token", DbKind.Guid, Default = DbDefault.EmptyString)]
+                [DbColumn("token", DbKind.Guid, Default = DbDefault.Zero)]
                 public System.Guid Token { get; set; }
             }
             """

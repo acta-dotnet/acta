@@ -18,8 +18,8 @@ test('overridesNeedsReload is false only for an applied result', () => {
   assert.equal(overridesNeedsReload('applied'), false);
 });
 
-test('overridesNeedsReload is true for rejected (covers a stale expectedVersion) and notFound - never silently resend', () => {
-  for (const action of ['rejected', 'notFound']) {
+test('overridesNeedsReload is true for versionConflict and notFound - never silently resend', () => {
+  for (const action of ['versionConflict', 'notFound']) {
     assert.equal(overridesNeedsReload(action), true);
   }
 });

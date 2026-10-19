@@ -43,7 +43,9 @@ There are exactly two ways a worker process ends, and the terminal status names 
 | `Stopped = 100` | Exited cleanly through SIGTERM / `IHostedService.StopAsync` | `121 worker.stopped` / `100 worker.clean-shutdown` |
 | `Dead = 200` | Heartbeat went stale past the liveness window; crash recovery flipped it | `122 worker.died` / `101 worker.heartbeat-stale` |
 
-On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. A worker
+On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. Crash
+recovery stamps it again when it reclaims a job the worker still leased, because that writes an event
+naming the worker. A worker
 killed outright never reaches the clean path, so it stays `Active`, or `Draining` if the kill landed
 mid-drain, until recovery marks it `Dead` - which is why a kill and a crash are indistinguishable
 here, and correctly so. A worker cut off by a database outage longer than `WorkerDeadAfter` is
@@ -79,7 +81,8 @@ large namespace can take several passes. Restart a laned job with the restart ve
 under the lane lock and runs it right after the current head.
 
 ```sql
--- One job, by public ref (the job_ref backs the "job_..." value dashboards and clients use).
+-- One job, by public ref: job_ref holds the uuid whose 32 hex digits follow "job_" in the value
+-- dashboards and clients use.
 SELECT * FROM acta.jobs_view WHERE job_ref = :job_ref;
 
 -- One job, by internal id (engine identity; logs and SQL joins use it).
@@ -148,7 +151,7 @@ SELECT checkpoint_name, status, due_at_utc
 -- Jobs carrying an exact tag, optionally narrowed by its preserved value.
 SELECT t.scope_id AS job_id, j.status, t.tag_name, t.tag_value
   FROM acta.tags_view t JOIN acta.jobs_view j ON j.job_id = t.scope_id
- WHERE t.scope = 'job' AND t.namespace = :ns
+ WHERE t.scope = 'job' AND j.namespace = :ns
    AND t.tag_name = :tag_name AND t.tag_value = :tag_value;
 ```
 
@@ -163,7 +166,7 @@ the actor and reason, so callers cannot forge the audit trail.
 ```csharp
 // Address the job by its public ref (what dashboards and clients hold), by deduplication key,
 // or by internal id (advanced/debug); all three resolve through the same JobLookup.
-JobLookup job = JobRef.Parse("job_2n1t201rmv87aae5j4csam8000");
+JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job
@@ -400,9 +403,9 @@ tenants.update
 
 ## Retention and purge
 
-A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints, steps, and results, and deletes events, alerts, and stopped or dead workers past `JobEventsRetention`, `AlertRetention`, and `WorkerRetention`. Each tick walks `runtimes` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `runtimes` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
 
-A recurring slot is never purged while its definition is live. Its results are capped by the definition's `RecurringResultCap` (default 1), trimmed on every completion.
+A recurring slot is never purged while its definition is live. Like every job it holds at most one result: its latest successful occurrence's, cleared when the next occurrence is claimed.
 
 `AlertRetention` is a hard cap: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
 
@@ -1072,7 +1075,7 @@ Acta enforces database foreign keys in one shape: NO ACTION from transactional t
 rows (schedules → definitions; workers → namespaces; runtimes → lanes). Definitions and namespaces
 have no delete surface, and retention deletes a lane only once no job references it.
 
-A job's own rows carry no key to it: purge and retention delete `runtimes`, `checkpoints`, `results`,
+A job's own rows carry no key to it: purge and retention delete `runtimes`, `checkpoints`,
 `steps`, `schedules`, and the job's `tags` with the job, and conformance checks that nothing is left.
 Nor does `jobs` reference `namespaces`, `tenants`, or `definitions` by key; enqueue resolves those in
 its own transaction. A key on `runtimes` checked, on every enqueue, the new job row on the hottest page
@@ -1127,14 +1130,14 @@ SQLite has no callable enqueue routine; enqueue through the application (`IJobs.
 ### Recent Jobs
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, status, failure_count, next_run_at_utc, input_format, input_text, last_result_format, last_result_text, created_at_utc
+SELECT job_id, job_ref, namespace, job_name, status, failure_count, next_run_at_utc, input_format, input_text, result_format, result_text, created_at_utc
   FROM acta.jobs_view
  WHERE namespace = 'billing'
  ORDER BY created_at_utc DESC
  LIMIT 50;
 ```
 
-`input_text` and `last_result_text` decode only built-in `json` and `text` payloads. Binary and custom
+`input_text` and `result_text` decode only built-in `json` and `text` payloads. Binary and custom
 formats stay opaque: the format columns tell you why the text column is `NULL`; inspect those payloads
 through application code.
 
@@ -1291,8 +1294,8 @@ retention have their own windows in `JobsOptions`.
 
 ### Tags
 
-`tags_view` decodes the exact target scope while retaining `scope_code` and `scope_id`. Join job-scoped
-tags to `jobs_view` when you need runtime context:
+`tags_view` decodes the exact target scope while retaining `scope_code` and `scope_id`. It carries no
+namespace: join job-scoped tags to `jobs_view` for the job's namespace and runtime context:
 
 ```sql
 SELECT t.scope_id AS job_id, j.job_ref, j.namespace, j.job_name, j.status, t.tag_name, t.tag_value

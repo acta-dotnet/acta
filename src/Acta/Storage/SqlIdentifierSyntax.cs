@@ -15,11 +15,11 @@ internal static class SqlIdentifierSyntax
     /// delimited-identifier quoting on any provider.</summary>
     public static bool IsBareIdentifier(string value) => HasShape(value, allowHyphen: false);
 
-    /// <summary>Validates a bare identifier of at most <paramref name="maxLength"/> characters; every site that
+    /// <summary>Validates a bare identifier of at most <see cref="BareIdentifierMaxLength"/> characters; every site that
     /// substitutes a name into unquoted SQL (the <c>{{schema}}</c> token, routine headers) calls this first.</summary>
-    public static void ValidateBareIdentifier(string value, string paramName, int maxLength = BareIdentifierMaxLength)
+    public static void ValidateBareIdentifier(string value, string paramName)
     {
-        EnsureNonEmptyAndLength(value, paramName, maxLength);
+        EnsureNonEmptyAndLength(value, paramName);
         if (!IsBareIdentifier(value))
         {
             throw new ArgumentException(
@@ -34,9 +34,9 @@ internal static class SqlIdentifierSyntax
     /// names like <c>acta-pg</c> pass while the delimiters that would break out of the bracketed, string-literal, and
     /// quoted-identifier contexts it is interpolated into (<c>]</c>, <c>'</c>, <c>"</c>) do not.
     /// </summary>
-    public static void ValidateDatabaseName(string value, string paramName, int maxLength = BareIdentifierMaxLength)
+    public static void ValidateDatabaseName(string value, string paramName)
     {
-        EnsureNonEmptyAndLength(value, paramName, maxLength);
+        EnsureNonEmptyAndLength(value, paramName);
         if (!HasShape(value, allowHyphen: true))
         {
             throw new ArgumentException(
@@ -46,7 +46,7 @@ internal static class SqlIdentifierSyntax
         }
     }
 
-    private static void EnsureNonEmptyAndLength(string value, string paramName, int maxLength)
+    private static void EnsureNonEmptyAndLength(string value, string paramName)
     {
         ArgumentNullException.ThrowIfNull(value, paramName);
         if (value.Length == 0)
@@ -54,9 +54,12 @@ internal static class SqlIdentifierSyntax
             throw new ArgumentException("Identifier must not be empty.", paramName);
         }
 
-        if (value.Length > maxLength)
+        if (value.Length > BareIdentifierMaxLength)
         {
-            throw new ArgumentException($"Identifier must not exceed {maxLength} characters (got {value.Length}).", paramName);
+            throw new ArgumentException(
+                $"Identifier must not exceed {BareIdentifierMaxLength} characters (got {value.Length}).",
+                paramName
+            );
         }
     }
 

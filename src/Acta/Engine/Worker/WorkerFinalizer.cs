@@ -283,8 +283,34 @@ internal sealed partial class WorkerFinalizer(
     private Task<CompleteExecutionsResponse> CompleteAsync(List<PlannedWrite> writes, CancellationToken ct) =>
         execution.CompleteExecutionsAsync(new CompleteExecutionsCommand(WorkerId, [.. writes.Select(write => write.Row)]), ct);
 
-    /// <summary>Plans <paramref name="entry"/>'s write and the status it reports once the write lands.</summary>
+    /// <summary>
+    /// Plans <paramref name="entry"/>'s write and the status it reports once the write lands. A job whose definition is
+    /// retired never runs again, so a landing that would leave it runnable (a re-arm, a hand-back, or a recurring
+    /// rollover) lands Cancelled instead.
+    /// </summary>
     private PlannedWrite Plan(InFlightJob entry)
+    {
+        var planned = PlanCompletion(entry);
+        if (
+            planned.Row is { RescheduleStatusCode: null, FinalStatus: null }
+            || !context.RetentionSecondsByRetiredDefinitionId.TryGetValue(entry.Claim.DefinitionId, out var retentionSeconds)
+        )
+        {
+            return planned;
+        }
+
+        var retired = new ExecutionCompletion(CompletionKind.Cancelled)
+        {
+            Reason = EventReasonCode.JobDefinitionRetired,
+            ReasonMessage = "The job's definition is retired, so the job does not run again.",
+            HandlerStatusCode = JobStatusCode.Cancelled,
+            DurationMs = planned.Completion.DurationMs,
+        };
+        return new(entry, retired, Retire(entry.Claim, retired, retentionSeconds), RunOnceStatus.Completed);
+    }
+
+    /// <summary>Plans <paramref name="entry"/>'s write as its completion stands.</summary>
+    private PlannedWrite PlanCompletion(InFlightJob entry)
     {
         var job = entry.Claim;
         var completion = entry.Completion!;
@@ -330,7 +356,8 @@ internal sealed partial class WorkerFinalizer(
     /// What follows <paramref name="write"/>'s answer: only the wakes when the row no longer matched (NotOwner,
     /// AlreadyTerminal), since the entry can outlive its lease while it waits; otherwise the wakes, descendant cancel,
     /// and metric its final state calls for, none of them for a hand-back, since every claim loop re-polls within its
-    /// delay. With <paramref name="apart"/> the descendant cancel runs off the caller.
+    /// delay. A retirement cancels no descendants, as the retire itself does not. With <paramref name="apart"/> the
+    /// descendant cancel runs off the caller.
     /// </summary>
     private async Task<RunOnceStatus> LandAsync(PlannedWrite write, CompleteExecutionsRow complete, bool apart, CancellationToken hostCt)
     {
@@ -338,6 +365,7 @@ internal sealed partial class WorkerFinalizer(
         var job = entry.Claim;
         var ns = context.WorkerRegistration!.NamespaceName;
         var landed = complete.Action == CompleteExecutionsAction.Completed;
+        var retired = completion.Reason == EventReasonCode.JobDefinitionRetired;
         if (!landed)
         {
             // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
@@ -351,7 +379,7 @@ internal sealed partial class WorkerFinalizer(
             );
         }
 
-        if (entry.Descriptor is { } descriptor)
+        if (entry.Descriptor is not null || retired)
         {
             try
             {
@@ -363,6 +391,7 @@ internal sealed partial class WorkerFinalizer(
                 // walk leaves the descendants to an operator cancel of this job, which walks them again.
                 if (
                     completion.HandlerStatusCode == JobStatusCode.Cancelled
+                    && !retired
                     && (landed || complete.FinalStatusCode == (byte)JobStatusCode.Cancelled)
                 )
                 {
@@ -377,7 +406,7 @@ internal sealed partial class WorkerFinalizer(
                 }
 
                 // reason_code is the failure cause's kebab (null on success).
-                if (landed)
+                if (landed && entry.Descriptor is { } descriptor)
                 {
                     metrics?.RecordExecution(
                         ns,

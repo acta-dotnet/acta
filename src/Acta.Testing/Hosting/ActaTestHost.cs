@@ -1,117 +1,10 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Testing;
-
-/// <summary>
-/// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick: the public mirror of the
-/// runtime's internal run outcome, so integrators can assert on what a single drive did.
-/// </summary>
-public enum ActaRunStatus : byte
-{
-    /// <summary>Nothing was claimable this tick (no Ready job, or a claim lost its row before start).</summary>
-    NothingClaimed = 1,
-
-    /// <summary>
-    /// A job ran to terminal <c>Succeeded</c>, or the run was cancelled; a recurring slot's success leaves it
-    /// <c>Ready</c> for its next occurrence.
-    /// </summary>
-    Completed = 2,
-
-    /// <summary>A job ran and settled terminal <c>Failed</c>: its budget spent, or a non-retryable exception.</summary>
-    Failed = 3,
-
-    /// <summary>
-    /// The job re-armed for a later claim: it rescheduled, slept, paused, suspended on a signal, or threw
-    /// with budget left (that retry spends budget), or a concurrency or rate limit bounced it.
-    /// </summary>
-    Rearmed = 4,
-}
-
-/// <summary>
-/// What one test-driven recovery pass for a namespace changed.
-/// </summary>
-public sealed record ActaRecoveryReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches);
-
-/// <summary>
-/// Optional configuration for <see cref="ActaTestHost.StartAsync"/>.
-/// </summary>
-public sealed class ActaTestHostOptions
-{
-    /// <summary>
-    /// The schema the host targets. Passed to the <c>configureJobs</c> callback so the provider call
-    /// binds to it. Defaults to a unique throwaway name (<c>acta_test_{n}</c>).
-    /// </summary>
-    public string? Schema { get; set; }
-
-    /// <summary>Extra DI registrations (fakes, a deterministic <c>IActaClock</c>, …) applied after <c>UseActa</c>.</summary>
-    public Action<IServiceCollection>? ConfigureServices { get; set; }
-}
-
-/// <summary>
-/// A running Acta runtime for tests: enqueue jobs, drive them deterministically with
-/// <see cref="RunOnceAsync"/>, and assert through the <see cref="Jobs"/> read surface. Provider-agnostic:
-/// the integrator wires their own <c>UseSqlServer</c> / <c>UsePostgres</c> in the start callback.
-/// </summary>
-public interface IActaTestHost : IAsyncDisposable
-{
-    /// <summary>The schema this host's runtime targets.</summary>
-    string Schema { get; }
-
-    /// <summary>The built service provider: escape hatch for resolving anything the runtime registered.</summary>
-    IServiceProvider Services { get; }
-
-    /// <summary>The public job control / enqueue surface.</summary>
-    IJobs Jobs { get; }
-
-    /// <summary>The operator facade (list reads, domain facades, overview).</summary>
-    IActaOperations Operations { get; }
-
-    /// <summary>Claim + execute at most one job in <paramref name="jobNamespace"/>; returns what happened.</summary>
-    Task<ActaRunStatus> RunOnceAsync(string jobNamespace, CancellationToken ct = default);
-
-    /// <summary>
-    /// Claim + execute the specific job <paramref name="jobId"/> (by id), retrying a transient claim
-    /// miss under parallel load. Multi-worker hosts route by the job's own namespace.
-    /// </summary>
-    Task<ActaRunStatus> RunOnceAsync(long jobId, CancellationToken ct = default);
-
-    /// <summary>Convenience overload taking the enqueue result directly: <c>RunOnceAsync(enqueued, ct)</c>.</summary>
-    Task<ActaRunStatus> RunOnceAsync(EnqueueJobResponse enqueued, CancellationToken ct = default);
-
-    /// <summary>Run one framework recovery pass for <paramref name="jobNamespace"/>.</summary>
-    Task<ActaRecoveryReport> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default);
-
-    /// <summary>Move the job's next-run instant into the past without otherwise changing its state.</summary>
-    Task ForceJobDueAsync(long jobId, CancellationToken ct = default);
-
-    /// <summary>Move the next pending timer checkpoint, or the named pending timer, into the past.</summary>
-    Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default);
-
-    /// <summary>Move the next pending step retry, or the named pending step retry, into the past.</summary>
-    Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default);
-
-    /// <summary>
-    /// Move a bounded signal or child wait's stored expiration, and the job's next-run instant, into
-    /// the past so the next tick claims the Suspended job and resolves the wait as timed out. Throws
-    /// when the named wait (or any pending wait) carries no expiration, because an unbounded wait can
-    /// never time out and a silent no-op would look like a passing test.
-    /// </summary>
-    Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default);
-
-    /// <summary>
-    /// The group twin of <see cref="ForceWaitTimeoutDueAsync"/>: move the job's stored group wait
-    /// deadline, every child latch it has armed, and the job's next-run instant into the past, so the
-    /// next tick claims the Suspended job and the group resolves timed out. A group spends one stored
-    /// deadline rather than a per-slot one, so rewinding the latches alone would leave a member armed
-    /// after the rewind counting down from a fresh budget. Takes no wait name because the deadline is
-    /// the group's, not any one child's. Throws when the job stores no group deadline, because an
-    /// unbounded group wait can never time out and a silent no-op would look like a passing test.
-    /// </summary>
-    Task ForceGroupWaitTimeoutDueAsync(long jobId, CancellationToken ct = default);
-
-    /// <summary>Expire the current execution lease for a claimed job.</summary>
-    Task ExpireExecutionLeaseAsync(long jobId, CancellationToken ct = default);
-}
 
 /// <summary>
 /// Stands up an Acta runtime against an integrator's provider on a throwaway schema, for testing their
@@ -242,7 +135,7 @@ public static class ActaTestHost
 
         public async Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
-            var timer = await FindCheckpointAsync(jobId, CheckpointKindCode.Timer, CheckpointStatusCode.Pending, name, ct);
+            var timer = await FindPendingTimerAsync(jobId, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Name == timer.Name)
@@ -355,13 +248,7 @@ public static class ActaTestHost
                 : runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(jobNamespace));
         }
 
-        private async Task<CheckpointEntity> FindCheckpointAsync(
-            long jobId,
-            CheckpointKindCode kind,
-            CheckpointStatusCode state,
-            string? name,
-            CancellationToken ct
-        )
+        private async Task<CheckpointEntity> FindPendingTimerAsync(long jobId, string? name, CancellationToken ct)
         {
             if (jobId <= 0)
             {
@@ -369,7 +256,7 @@ public static class ActaTestHost
             }
 
             var checkpoints = await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == kind && c.Status == state)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
                 .ToListAsync(ct);
             var candidates = checkpoints.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(name))
@@ -380,7 +267,7 @@ public static class ActaTestHost
             var checkpoint = candidates.OrderBy(c => c.DueAtUtc ?? DateTime.MaxValue).FirstOrDefault();
             if (checkpoint is null)
             {
-                var target = string.IsNullOrWhiteSpace(name) ? $"a pending {kind} checkpoint" : $"{kind} checkpoint '{name}'";
+                var target = string.IsNullOrWhiteSpace(name) ? "a pending Timer checkpoint" : $"Timer checkpoint '{name}'";
                 throw new InvalidOperationException($"Job {jobId} has no {target} to force due.");
             }
 
@@ -415,5 +302,231 @@ public static class ActaTestHost
                         : $"Job {jobId} has no pending wait '{name}' with an expiration to force due; an unbounded wait never times out."
                 );
         }
+    }
+}
+
+/// <summary>
+/// Optional configuration for <see cref="ActaTestHost.StartAsync"/>.
+/// </summary>
+public sealed class ActaTestHostOptions
+{
+    /// <summary>
+    /// The schema the host targets. Passed to the <c>configureJobs</c> callback so the provider call
+    /// binds to it. Defaults to a unique throwaway name (<c>acta_test_{n}</c>).
+    /// </summary>
+    public string? Schema { get; set; }
+
+    /// <summary>Extra DI registrations (fakes, a deterministic <c>IActaClock</c>, …) applied after <c>UseActa</c>.</summary>
+    public Action<IServiceCollection>? ConfigureServices { get; set; }
+}
+
+/// <summary>
+/// Test-only drive helpers that claim a <em>specific</em> job by id and retry while the claim comes
+/// back empty. The single-row claim uses READPAST, so under parallel load a sibling's concurrent
+/// activity on the shared ready index can momentarily hide a freshly-committed row; production
+/// tolerates this by ticking again (its batch loop never depends on one tick), so these reproduce that
+/// for the deterministic single-shot test primitives. Retry up to a short budget, then return the last
+/// result so a genuinely unclaimable job still surfaces <see cref="RunOnceStatus.NothingClaimed"/> /
+/// an empty claim. The retry lives here (test code), never in the production claim path.
+/// </summary>
+/// <remarks>
+/// An empty claim is transient only while the row is still claimable: a Ready row may yet be taken,
+/// whether the empty answer was a skip or the row is not due; a Suspended row with a due instant is a
+/// bounded wait the claim admits once that instant passes, and a scenario that ticks a parent toward a
+/// child-wait deadline depends on that; a Suspended row with no due instant is an unbounded wait nothing
+/// here can release, and every other status is owned, paused or finished. For those the answer will not
+/// change however long this waits, and a fact expecting it used to wait out the whole budget to hear it,
+/// which over the suite was more waiting than testing. A host attaches its facade per runtime and the
+/// loop then stops as soon as the row is no longer claimable; a host that attaches nothing keeps the
+/// budget. The claim-only helper keys on a store, not a runtime, and keeps the budget: it obtains a lease
+/// that is expected to succeed, so it only ever pays on failure.
+/// </remarks>
+internal static class TestRunners
+{
+    private static readonly TimeSpan Budget = TimeSpan.FromSeconds(5);
+
+    // The answer changes only when the claim itself succeeds, which the loop already sees, so the
+    // status is read at most this often rather than on every empty claim.
+    private static readonly TimeSpan ProbeEvery = TimeSpan.FromMilliseconds(500);
+
+    private static readonly ConditionalWeakTable<WorkerRuntime, IJobs> s_facades = new();
+
+    /// <summary>Lets the run-once loop stop retrying an empty claim once the row can no longer be claimed.</summary>
+    internal static void AttachClaimabilityProbe(this WorkerRuntime runtime, IJobs jobs) => s_facades.AddOrUpdate(runtime, jobs);
+
+    /// <summary>
+    /// Convenience overload taking the enqueue result directly: <c>Runtime.RunOnceAsync(enqueued, ct)</c>.
+    /// </summary>
+    internal static Task<RunOnceStatus> RunOnceAsync(this WorkerRuntime runtime, EnqueueJobResponse enqueued, CancellationToken ct) =>
+        runtime.RunOnceAsync(enqueued.JobId, ct);
+
+    /// <summary>
+    /// Claim and run the specific job <paramref name="jobId"/> in this runtime's (single) namespace,
+    /// retrying the by-id claim while it is transiently skipped. The deterministic "run my job" drive.
+    /// Retries only NothingClaimed: any settled outcome ends the loop, including Rearmed from an
+    /// concurrency-key bounce, so a test that expects completion past a held key must tick again itself.
+    /// </summary>
+    internal static async Task<RunOnceStatus> RunOnceAsync(this WorkerRuntime runtime, long jobId, CancellationToken ct)
+    {
+        var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
+        s_facades.TryGetValue(runtime, out var jobs);
+        // The budget covers the retries, not the first drive: a drive that repeats a failing start or
+        // completion paces its own retry and can outlast the budget on a loaded box, and the row it leaves
+        // Ready still deserves the re-claim this loop exists for.
+        Stopwatch? elapsed = null;
+        var lastProbe = -ProbeEvery;
+        while (true)
+        {
+            var outcome = await runtime.RunOnceAsync(jobNamespace, jobId, ct);
+            elapsed ??= Stopwatch.StartNew();
+            if (outcome != RunOnceStatus.NothingClaimed || elapsed.Elapsed > Budget)
+            {
+                return outcome;
+            }
+
+            if (jobs is not null && elapsed.Elapsed - lastProbe >= ProbeEvery)
+            {
+                lastProbe = elapsed.Elapsed;
+                if (!await StillClaimableAsync(jobs, jobId, ct))
+                {
+                    return outcome;
+                }
+            }
+
+            await Task.Delay(25, ct);
+        }
+    }
+
+    private static async ValueTask<bool> StillClaimableAsync(IJobs jobs, long jobId, CancellationToken ct) =>
+        await jobs.GetAsync(JobLookup.ById(jobId), ct) is { } job
+        && (job.Status == JobStatusCode.Ready || (job.Status == JobStatusCode.Suspended && job.NextRunAtUtc is not null));
+
+    /// <summary>
+    /// Convenience overload taking the enqueue result directly.
+    /// </summary>
+    internal static Task<IReadOnlyList<ClaimedJob>> ClaimJobAsync(
+        this ExecutionOperations execution,
+        int namespaceId,
+        int workerId,
+        int leaseTtlSeconds,
+        EnqueueJobResponse enqueued,
+        CancellationToken ct
+    ) => execution.ClaimJobAsync(namespaceId, workerId, leaseTtlSeconds, enqueued.JobId, ct);
+
+    /// <summary>
+    /// Claim the specific job <paramref name="jobId"/> without running it, retrying while the claim is
+    /// transiently skipped. For setups that need a claimed-but-not-run lease (heartbeat / reclaim).
+    /// </summary>
+    internal static async Task<IReadOnlyList<ClaimedJob>> ClaimJobAsync(
+        this ExecutionOperations execution,
+        int namespaceId,
+        int workerId,
+        int leaseTtlSeconds,
+        long jobId,
+        CancellationToken ct
+    )
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (true)
+        {
+            var claim = (
+                await execution.ClaimJobAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), leaseTtlSeconds, jobId, ct)
+            ).Jobs;
+            if (claim.Count > 0 || elapsed.Elapsed > Budget)
+            {
+                return claim;
+            }
+            await Task.Delay(25, ct);
+        }
+    }
+}
+
+/// <summary>
+/// The one implementation of "move a bounded group wait past its deadline", shared by
+/// <see cref="IActaTestHost.ForceGroupWaitTimeoutDueAsync"/> and by the conformance specs that drive a
+/// WorkerRuntime directly instead of a test host. Two copies of it could disagree about which rows a
+/// staged expiry moves, and the failure mode is a test that reads as passing.
+/// </summary>
+internal static class WaitTimeoutStaging
+{
+    /// <summary>
+    /// Rewrites every stored group deadline on <paramref name="jobId"/> to <paramref name="dueAtUtc"/>
+    /// and moves every armed child latch to the same instant, which is what real elapsed time would do
+    /// to both. Rewinding the latches alone would leave the deadline in the future and let a member
+    /// armed after it start a fresh countdown. Returns how many group deadlines were moved, so the
+    /// caller can decide whether finding none is an error. <paramref name="slotName"/> narrows the
+    /// write to one group on a job holding several, which the public helper deliberately does not
+    /// expose: an author has no way to know a slot's derived name.
+    /// </summary>
+    public static async Task<int> ForceGroupWaitDueAsync(
+        IDbSession db,
+        long jobId,
+        DateTime dueAtUtc,
+        CancellationToken ct,
+        string? slotName = null
+    )
+    {
+        var deadlines = await FindGroupDeadlinesAsync(db, jobId, slotName, ct);
+        if (deadlines.Count == 0)
+        {
+            return 0;
+        }
+
+        // The bytes are written directly rather than through the payload serializer registry, because
+        // this helper holds a db session and nothing else, and JSON for a long is its invariant decimal
+        // digits either way. What the shortcut cannot see is a change of payload format on the sink, so
+        // the format id is checked rather than assumed: a mismatch means the sink moved and this write
+        // would quietly store bytes the runtime cannot read back.
+        var value = Encoding.UTF8.GetBytes(dueAtUtc.Ticks.ToString(CultureInfo.InvariantCulture));
+        foreach (var name in deadlines)
+        {
+            await db.From<CheckpointEntity>()
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable && c.Name == name)
+                .UpdateOnlyAsync(() => new CheckpointEntity { Value = value, ModifiedAtUtc = DbFn.UtcNow }, ct);
+        }
+
+        await db.From<CheckpointEntity>()
+            .Where(c =>
+                c.JobId == jobId
+                && c.Kind == CheckpointKindCode.ChildLatch
+                && c.Status == CheckpointStatusCode.Pending
+                && c.DueAtUtc != null
+            )
+            .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = dueAtUtc, ModifiedAtUtc = DbFn.UtcNow }, ct);
+
+        return deadlines.Count;
+    }
+
+    /// <summary>
+    /// Filtered in memory rather than in the query: the slot name is a prefix match on a framework-owned
+    /// key, and a job carries a handful of variables at most.
+    /// </summary>
+    private static async Task<IReadOnlyList<string>> FindGroupDeadlinesAsync(
+        IDbSession db,
+        long jobId,
+        string? slotName,
+        CancellationToken ct
+    )
+    {
+        var variables = await db.From<CheckpointEntity>()
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable)
+            .ToListAsync(ct);
+        var deadlines = variables
+            .Where(c => c.Name.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))
+            .Where(c => slotName is null || c.Name == slotName)
+            .ToList();
+
+        foreach (var slot in deadlines)
+        {
+            if (slot.ValueFormatId != JobPayloadFormat.Json.Id)
+            {
+                throw new InvalidOperationException(
+                    $"Group deadline slot '{slot.Name}' on job {jobId} carries payload format {slot.ValueFormatId}, not JSON. "
+                        + "The staging helper writes the deadline as JSON ticks and has to move with the sink that stores it."
+                );
+            }
+        }
+
+        return [.. deadlines.Select(c => c.Name)];
     }
 }

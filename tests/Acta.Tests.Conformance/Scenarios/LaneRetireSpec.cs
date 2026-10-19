@@ -9,7 +9,8 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Retiring a definition cancels its parked laned jobs in the same transaction as the retire, and
 /// hands each lane to its next member only after every one of them is cancelled, so no member of the
-/// retired definition is promoted and nothing depends on the caller staying around after the commit.
+/// retired definition is promoted and nothing depends on the caller staying around after the commit. A
+/// running head of the retired definition lands Cancelled when its attempt ends and hands its lane on then.
 /// </summary>
 [ConformanceSpec(
     "lanes.retire",
@@ -58,6 +59,27 @@ public sealed class LaneRetireSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         }
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(other.JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "A running laned head of the retired definition lands Cancelled instead of retrying and hands its lane on")]
+    public async Task A_running_head_of_the_retired_definition_hands_its_lane_on()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var head = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-blocking", JobPayload.None, Lane: "orders"), ct);
+        var follower = await Jobs.EnqueueAsync(Step("orders", "follower", "orders"), ct);
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(follower.JobId, ct)).Status);
+        ChaosProbes.Reset(head.JobId);
+
+        var run = Runtime.RunOnceAsync(head, ct);
+        await ChaosProbes.WaitStartedAsync(head.JobId, ct);
+        var definition = await Operations.Definitions.GetAsync(TestNamespace, "chaos-blocking", ct);
+        await Operations.Definitions.RetireAsync(TestNamespace, "chaos-blocking", definition!.Version, "retired mid-run", "tester", ct);
+        await Runtime.RunHeartbeatOnceAsync(ct);
+        ChaosProbes.Fail(head.JobId);
+
+        Assert.Equal(RunOnceStatus.Completed, await run);
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(head.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(follower.JobId, ct)).Status);
     }
 
     private EnqueueJobRequest Step(string probeLane, string label, string? lane) =>

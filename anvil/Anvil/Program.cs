@@ -11,17 +11,6 @@ switch (role.ToLowerInvariant())
     case "worker":
         await RunWorkerAsync(args);
         return;
-    case "certify":
-        // Verdict only: run certify.sql against a finished run so nobody has to remember which checks
-        // are inverted, which need a quiesced run, or that nothing happens before the lease floor.
-        Environment.Exit(
-            await CertifyVerdict.RunAsync(
-                GetArg(args, "--provider") ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite",
-                GetArg(args, "--schema") ?? "acta",
-                CancellationToken.None
-            )
-        );
-        return;
     default:
         // Empty counts as unset (a shell's VAR='' must not bypass the SQLite default).
         var provider = GetArg(args, "--provider") ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER");
@@ -177,38 +166,6 @@ static async Task RunDashboardAsync(string[] args, string provider)
         Browser.TryOpen(url);
     }
 
-    // --certify-jobs turns this into a one-shot certification: same host, same services, but the
-    // orchestration runs in-process instead of a shell driving it over HTTP. See CertifyRun.
-    if (GetArg(args, "--certify-jobs") is { } certifyJobs)
-    {
-        // Executor slots per worker. Total concurrency is workers x executors, and the ceiling that
-        // matters is the database's max_connections, not the CPU: the workload is Task.Delay, so every
-        // slot is a connection holder rather than a core.
-        if (GetArg(args, "--certify-executors") is { } certifyExecutors)
-        {
-            app.Services.GetRequiredService<WorkerProcessLauncher>().ExecutorsPerWorker = int.Parse(
-                certifyExecutors,
-                CultureInfo.InvariantCulture
-            );
-        }
-
-        var exit = await CertifyRun.ExecuteAsync(
-            app.Services,
-            id,
-            provider,
-            int.Parse(certifyJobs, CultureInfo.InvariantCulture),
-            int.Parse(GetArg(args, "--certify-workers") ?? "8", CultureInfo.InvariantCulture),
-            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-chaos-min") ?? "10", CultureInfo.InvariantCulture)),
-            TimeSpan.FromMinutes(double.Parse(GetArg(args, "--certify-quiesce-min") ?? "45", CultureInfo.InvariantCulture)),
-            int.Parse(GetArg(args, "--certify-step-delay-ms") ?? "1000", CultureInfo.InvariantCulture),
-            isSeeder,
-            participant,
-            CancellationToken.None
-        );
-        await app.StopAsync();
-        Environment.Exit(exit);
-    }
-
     await app.WaitForShutdownAsync();
 }
 
@@ -220,7 +177,6 @@ static async Task RunWorkerAsync(string[] args)
     var provider = Required(args, "--provider"); // fail-fast: never silently default to pg
     var ns = Required(args, "--namespace");
     var outboxSource = Required(args, "--outbox-source");
-    int? executors = GetArg(args, "--executors") is { } e && int.TryParse(e, out var ex) ? ex : null;
 
     if (GetArg(args, "--parent-pid") is { } p && int.TryParse(p, out var pid))
     {
@@ -235,11 +191,11 @@ static async Task RunWorkerAsync(string[] args)
         j.UseLocalDatabase(builder.Configuration, schema, provider, applyMigrations: false);
         j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
         // A lab worker runs the product's executor default, stated here because UseLocalDatabase caps the concept
-        // programs at four; only a certification run passes --executors. The deployment version lines the process up
-        // with its worker row. Lease/heartbeat/dead-worker windows stay at the framework production defaults.
+        // programs at four. The deployment version lines the process up with its worker row. Lease/heartbeat/dead-worker
+        // windows stay at the framework production defaults.
         j.ConfigureOptions(o =>
         {
-            o.MaxConcurrentExecutors = executors ?? new JobsOptions().MaxConcurrentExecutors;
+            o.MaxConcurrentExecutors = new JobsOptions().MaxConcurrentExecutors;
             o.SafetyPollInterval = TimeSpan.FromSeconds(1);
             o.DeploymentVersion = workerName;
         });

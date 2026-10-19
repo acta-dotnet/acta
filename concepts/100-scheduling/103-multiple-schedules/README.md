@@ -25,9 +25,8 @@ coincident schedules can coalesce into one execution, whose `TriggeringScheduleN
 
 ## Trade-offs
 
-Occurrence history lives in the event/result ledger rather than in a new job identity, as far as the
-slot keeps it: `RecurringResultCap` (one by default) bounds the results and `AuditLevel` decides the
-events. Each schedule
+Occurrence history lives in the event ledger rather than in a new job identity, as far as `AuditLevel`
+keeps it; the slot itself stores only its latest successful occurrence's result. Each schedule
 still needs its own cursor, and coalescing is intentionally not a record of every missed business event.
 
 ## Run the experiment

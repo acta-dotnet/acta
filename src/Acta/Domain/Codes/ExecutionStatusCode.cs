@@ -24,7 +24,10 @@ public enum ExecutionStatusCode : byte
     [Code("paused", "Handler threw PauseJobException.")]
     Paused = 152,
 
-    [Code("failed", "Handler threw or ctx.Fail called. Charges failure budget.")]
+    [Code(
+        "failed",
+        "Handler threw or ctx.Fail called. A retry within budget charges the failure budget; ctx.Fail and a non-retryable exception end the job without charging it."
+    )]
     Failed = 200,
 
     [Code("cancelled", "Handler ended via cancel; does not charge budget.")]
@@ -32,44 +35,4 @@ public enum ExecutionStatusCode : byte
 
     [Code("orphaned", "Lease lapsed past grace; reclaimed by crash recovery and charged to the failure budget.")]
     Orphaned = 230,
-}
-
-/// <summary>Explicit runtime behavior of a completed execution attempt.</summary>
-public enum ExecutionBehavior : byte
-{
-    Succeeded = 2,
-    Controlled = 3,
-    Failed = 4,
-    Cancelled = 5,
-    Indeterminate = 6,
-}
-
-public static partial class ExecutionStatusExtensions
-{
-    extension(ExecutionStatusCode value)
-    {
-        public bool IsTerminal =>
-            value
-                is ExecutionStatusCode.Succeeded
-                    or ExecutionStatusCode.Rescheduled
-                    or ExecutionStatusCode.Suspended
-                    or ExecutionStatusCode.Paused
-                    or ExecutionStatusCode.Failed
-                    or ExecutionStatusCode.Cancelled
-                    or ExecutionStatusCode.Orphaned;
-
-        public bool ChargesFailureBudget => value is ExecutionStatusCode.Failed or ExecutionStatusCode.Orphaned;
-
-        public ExecutionBehavior GetBehavior() =>
-            value switch
-            {
-                ExecutionStatusCode.Succeeded => ExecutionBehavior.Succeeded,
-                ExecutionStatusCode.Rescheduled or ExecutionStatusCode.Suspended or ExecutionStatusCode.Paused =>
-                    ExecutionBehavior.Controlled,
-                ExecutionStatusCode.Failed => ExecutionBehavior.Failed,
-                ExecutionStatusCode.Cancelled => ExecutionBehavior.Cancelled,
-                ExecutionStatusCode.Orphaned or ExecutionStatusCode.Unspecified => ExecutionBehavior.Indeterminate,
-                _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
-            };
-    }
 }

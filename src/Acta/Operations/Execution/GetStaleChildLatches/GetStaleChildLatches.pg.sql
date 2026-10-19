@@ -1,7 +1,8 @@
 SELECT
     js.job_id AS parent_job_id,
     CASE WHEN js.name ~ '^sys\.child\.[0-9]+$' THEN substring(js.name from 11)::bigint END AS child_job_id,
-    cr.status_code AS child_status
+    cr.status_code AS child_status,
+    cr.execution_number AS child_execution_number
 FROM {{schema}}.checkpoints js
 INNER JOIN {{schema}}.jobs p ON p.id = js.job_id AND p.namespace_id = @p_namespace_id
 LEFT JOIN {{schema}}.jobs c

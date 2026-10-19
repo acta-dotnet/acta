@@ -49,7 +49,7 @@ internal sealed class WorkerHeartbeat(
     private volatile bool _draining;
 
     /// <summary>
-    /// Serializes TickAsync: the heartbeat loop and BeginDrainAsync's immediate stamp can fire
+    /// Serializes TickAsync: the heartbeat loop and StampDrainingAsync's immediate stamp can fire
     /// concurrently, and a tick must not race itself (double lease extends, double feed).
     /// </summary>
     private readonly SemaphoreSlim _tickGate = new(1, 1);
@@ -104,7 +104,7 @@ internal sealed class WorkerHeartbeat(
         }
         finally
         {
-            await _recovery;
+            await _recovery.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         }
     }
 
@@ -230,24 +230,35 @@ internal sealed class WorkerHeartbeat(
         _recovery = Task.Run(
             async () =>
             {
-                await previous;
+                // An earlier pass's fault is its own: this pass runs regardless.
+                await previous.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                var outcome = "completed";
                 try
                 {
                     await recoveryPass.RunAsync(namespaceId, namespaceName, ct);
-                    metrics?.RecordRecoveryPass(namespaceName, "completed");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     // A hard stop; the next pass falls to whichever worker takes it.
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    metrics?.RecordRecoveryPass(namespaceName, "failed");
+                    outcome = "failed";
                     _log.LogError(
                         ex,
                         "Namespace ({Namespace}): the recovery pass failed; the next one runs when it comes due.",
                         namespaceName
                     );
+                }
+
+                try
+                {
+                    metrics?.RecordRecoveryPass(namespaceName, outcome);
+                }
+                catch (Exception)
+                {
+                    // A listener that throws must not fault the chain.
                 }
             },
             CancellationToken.None
@@ -255,10 +266,11 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// Re-reads the namespace's effective policy and re-overlays it onto the live descriptors, so an operator override
-    /// edited in the dashboard reaches the hot path (backoff, timeout, deadline, retention, max attempts) within one
-    /// heartbeat, no restart required. Runs only when the newest definition change moved: two edits of one namespace
-    /// committed within the same instant in reverse order can leave one of them unseen until the next edit.
+    /// Re-reads the namespace's catalog: re-overlays the effective policy onto the live descriptors, so an operator
+    /// override edited in the dashboard reaches the hot path (backoff, timeout, deadline, retention, max attempts), and
+    /// records the retired definitions, so a retire stops their jobs, both within one heartbeat and no restart required.
+    /// Runs only when the newest definition change moved: two edits of one namespace committed within the same instant
+    /// in reverse order can leave one of them unseen until the next edit.
     /// </summary>
     private async Task OverlayDefinitionsAsync(CancellationToken ct)
     {
@@ -275,6 +287,9 @@ internal sealed class WorkerHeartbeat(
                 _context.DescriptorByDefinitionId[c.Id] = EffectivePolicyOverlay.Apply(descriptor, c.Effective);
             }
         }
+        _context.ReplaceRetiredDefinitions(
+            catalog.Where(c => c.Status == DefinitionStatusCode.Retired).ToDictionary(c => c.Id, c => c.Effective.JobRetentionSeconds)
+        );
         MeterConsistencyCheck.Check(ns, catalog, _log);
     }
 

@@ -20,7 +20,6 @@ public sealed class MeterConsistencyCheckTests
             Id: name.GetHashCode(StringComparison.Ordinal),
             DefinitionHash: "hash",
             Status: DefinitionStatusCode.Active,
-            ModifiedAtUtc: new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
             Effective: new EffectiveJobPolicy(
                 JobPriorityCode.Normal,
                 MaxAttempts: 15,

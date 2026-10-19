@@ -12,11 +12,7 @@ namespace Acta.AspNetCore;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
-    Converters = [
-        typeof(CamelCaseJobControlActionConverter),
-        typeof(CamelCaseJobEnqueueActionConverter),
-        typeof(CamelCaseTagMutationActionConverter),
-    ],
+    Converters = [typeof(CamelCaseJobControlActionConverter), typeof(CamelCaseJobEnqueueActionConverter)],
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
@@ -29,13 +25,10 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(ListEventsResponse))]
 [JsonSerializable(typeof(ListAlertsResponse))]
 [JsonSerializable(typeof(GetAlertResponse))]
-[JsonSerializable(typeof(ListNamespaceNamesResponse))]
 [JsonSerializable(typeof(ListTenantsResponse))]
 [JsonSerializable(typeof(GetTenantResponse))]
 [JsonSerializable(typeof(ListNamespacesResponse))]
 [JsonSerializable(typeof(GetJobResponse))]
-[JsonSerializable(typeof(GetJobExplanationResponse))]
-[JsonSerializable(typeof(GetJobLineageMapResponse))]
 [JsonSerializable(typeof(PurgeJobRequest))]
 [JsonSerializable(typeof(SuspendNamespaceRequest))]
 [JsonSerializable(typeof(ResumeNamespaceRequest))]
@@ -116,15 +109,7 @@ internal sealed class CamelCaseJobControlActionConverter()
 
 /// <summary>
 /// Serializes <see cref="EnqueueJobAction"/> camelCase ("inserted", "deduplicated"), the same
-/// convention its two sibling action enums already follow. Without this it was the one action on the
-/// API answering in PascalCase.
+/// convention <see cref="ControlAction"/> follows.
 /// </summary>
 internal sealed class CamelCaseJobEnqueueActionConverter()
     : JsonStringEnumConverter<EnqueueJobAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
-
-/// <summary>
-/// Serializes <see cref="TagMutationAction"/> camelCase ("applied", "notFound"), the words the tag writes
-/// answer with like every other control verb.
-/// </summary>
-internal sealed class CamelCaseTagMutationActionConverter()
-    : JsonStringEnumConverter<TagMutationAction>(System.Text.Json.JsonNamingPolicy.CamelCase);

@@ -282,7 +282,7 @@ BEGIN
         DECLARE @parents TABLE (
             ordinal INT PRIMARY KEY,
             lineage_root_id BIGINT NOT NULL,
-            correlation_key VARCHAR(64) NULL,
+            correlation_key VARCHAR(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
             tenant_id INT NULL
         );
 
@@ -558,18 +558,16 @@ BEGIN
                 OPTION (LOOP JOIN);
             END;
 
-        INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
+        INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
         SELECT
             50 /* TagScopeCode.Job */,
             m.id,
-            r.ns_id,
             t.name,
             t.value,
             t.value_search
         FROM @p_tag_batch t
         INNER JOIN @p_batch b ON b.ordinal = t.ordinal
-        INNER JOIN @map m ON m.job_ref = b.job_ref
-        INNER JOIN @resolved r ON r.ordinal = t.ordinal;
+        INNER JOIN @map m ON m.job_ref = b.job_ref;
 
         SELECT
             b.ordinal,

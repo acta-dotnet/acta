@@ -545,8 +545,6 @@ button.side-collapse:hover:not(:disabled) { color: var(--ink); background: var(-
   nav.side.rail .side-theme .trigger-dot { margin-left: 0; width: 13px; height: 13px; }
 }
 
-.nav-divider { height: 1px; margin: 8px 20px; background: var(--line); }
-
 main { flex: 1; padding: 20px 28px; min-width: 0; overflow-y: auto; container-type: inline-size; }
 .mobile-nav-toggle,
 .nav-scrim { display: none; }
@@ -828,9 +826,8 @@ table.data td { padding: 9px 10px; vertical-align: middle; height: var(--grid-ro
 table.data tbody td { border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 :root[data-text-size='small'] table.data td { padding-top: 7px; padding-bottom: 7px; }
 :root[data-text-size='large'] table.data td { padding-top: 12px; padding-bottom: 12px; }
-/* In-row action controls (schedule pause/resume) must not grow the row: drop the stacking margin and
-   make the buttons compact so an Actions cell reads at the same height as a plain text cell. */
-table.data td .control-row { margin: 0; }
+/* In-row action buttons must not grow the row: compact, so an Actions cell reads at the same height
+   as a plain text cell. */
 table.data td button { padding: 2px 10px; font-size: var(--text-sm); }
 /* Shrink-to-content column (the jobs list ref): stops the auto table layout from handing it the
    row's slack, which pushed the neighbouring name column far right on wide screens. */
@@ -945,8 +942,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 
 .pager { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
 .pager .total { color: var(--muted); margin-left: auto; }
-/* Doubled selector so the accent treatment beats .chip's later muted/centered rules. Lives in the
-   page-head next to the title, where appearing/disappearing causes no layout shift. */
+/* Doubled selector so the accent treatment beats .chip's later muted/centered rules. Lives at the end
+   of the events filter bar, where appearing/disappearing causes no layout shift. */
 .chip.feed-new {
   background: var(--accent-solid);
   color: var(--on-accent);
@@ -1187,9 +1184,6 @@ main.fill-page { display: flex; flex-direction: column; }
 .metric.bad .metric-icon { color: color-mix(in srgb, var(--bad) 65%, transparent); }
 a.metric:hover { border-color: var(--accent); text-decoration: none; }
 /* Flex so the note is a wrappable item. As plain inline content there was no whitespace between
-   the value and the note, so the line had no break opportunity and the note overflowed the card's
-   border once the tile got narrow. overflow-wrap contains a pathologically long value too. */
-/* Flex so the note is a wrappable item. As plain inline content there was no whitespace between
    the value and the note, so the line had no break opportunity and the note escaped the card's
    border - by up to 20px at large text. overflow-wrap contains an over-long value too. */
 .metric-value {
@@ -1248,10 +1242,6 @@ button.copy:hover { color: var(--accent); }
    field. Here the trigger is borderless and indented to the sidebar's 20px margin, so the list insets
    to put its option text under the trigger text instead of 8px to the left of it. */
 .side-scope .dropdown .listbox { left: 12px; right: 12px; }
-
-.lineage-trail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 16px; font-size: var(--text-md); }
-.lineage-trail .sep { color: var(--muted); }
-.lineage-trail .current { color: var(--ink); }
 
 .timeline { display: flex; flex-direction: column; }
 .timeline-tools {
@@ -1335,9 +1325,6 @@ button.copy:hover { color: var(--accent); }
 .rail-reason .mono { color: color-mix(in srgb, var(--tone) 78%, var(--ink)); }
 .rail-code { font-family: var(--font-mono); font-size: var(--text-2xs); color: color-mix(in srgb, var(--muted) 72%, transparent); margin-top: 3px; }
 .rail-when { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--muted); padding-top: 6px; white-space: nowrap; }
-
-details.raw summary { cursor: pointer; color: var(--muted); }
-details.raw pre { margin: 10px 0 0; overflow: auto; }
 
 @media (max-width: 800px) {
   body { font-size: var(--text-mobile-base); }

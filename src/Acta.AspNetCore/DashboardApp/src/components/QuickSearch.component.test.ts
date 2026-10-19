@@ -86,10 +86,10 @@ describe('QuickSearch', () => {
     renderPalette();
 
     await user.keyboard('{Control>}k{/Control}');
-    await user.keyboard('job_01k2zk03vf6fh0aeds62dscdvb');
+    await user.keyboard('job_01a14f4e954e7bf68ac609f3fcad8e3d');
     await user.keyboard('{Enter}');
 
-    expect(location.hash).toContain('#/jobs/job_01k2zk03vf6fh0aeds62dscdvb');
+    expect(location.hash).toContain('#/jobs/job_01a14f4e954e7bf68ac609f3fcad8e3d');
     expect(screen.queryByRole('dialog', { name: 'Quick search' })).toBeNull();
   });
 

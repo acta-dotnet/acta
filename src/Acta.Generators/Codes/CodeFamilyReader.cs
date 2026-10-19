@@ -17,7 +17,7 @@ internal static class CodeFamilyReader
         // [CodeKind("kebab-name")] is required on every [Code]-bearing enum. Every
         // persisted name in Acta is explicit on its attribute; the catalog discriminator is no
         // exception. The generator derives nothing from the C# enum name: that decoupling
-        // protects operator queries against silent C# renames (see proposal 0008).
+        // protects operator queries against silent C# renames.
         var codeKindAttr = enumType.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "CodeKindAttribute");
         if (
             codeKindAttr is null
@@ -31,7 +31,7 @@ internal static class CodeFamilyReader
                     "ACTA0201",
                     $"Enum `{enumType.Name}` declares `[Code]` members but is missing `[CodeKind(\"...\")]`. "
                         + $"Add `[CodeKind(\"kebab-name\")]` to the enum, where the kebab name matches the "
-                        + $"stable `code_kind` discriminator documented in docs/98.",
+                        + $"stable `code_kind` discriminator documented in docs/reference/code-families.md.",
                     Fatal: true
                 )
             );
@@ -65,14 +65,7 @@ internal static class CodeFamilyReader
         var seenIds = new HashSet<short>();
         foreach (var hit in familyHits)
         {
-            if (hit.OutOfRange)
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord("ACTA0202", $"`{enumType.Name}.{hit.MemberName}` value is out of short range.", Fatal: true)
-                );
-                continue;
-            }
-            if (hit.Id is < 0 or > 254)
+            if (hit.Id > 254)
             {
                 diagnostics.Add(
                     new DiagnosticRecord(

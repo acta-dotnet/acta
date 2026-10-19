@@ -17,9 +17,6 @@ public class ContractDriftDetectorTests
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
             OutputPayloadFormat: null,
-            InvocationKind: default,
-            RequiresJobContextParameter: false,
-            RequiresCancellationToken: false,
             Priority: default,
             MaxAttempts: 1,
             AuditLevel: default,
@@ -37,7 +34,6 @@ public class ContractDriftDetectorTests
             Id: 0,
             DefinitionHash: "",
             Status: DefinitionStatusCode.Active,
-            ModifiedAtUtc: gen,
             Effective: null! // drift detection ignores effective policy
         );
 

@@ -151,7 +151,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<LedgerOperations>();
         services.TryAddSingleton<ILedger>(sp => sp.GetRequiredService<LedgerOperations>());
 
-        services.TryAddSingleton<ListNamespaceNamesHandler>();
         services.TryAddSingleton<ListNamespacesHandler>();
         services.TryAddSingleton<ResumeNamespaceHandler>();
         services.TryAddSingleton<SuspendNamespaceHandler>();

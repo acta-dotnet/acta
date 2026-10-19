@@ -28,7 +28,6 @@ internal static class JobControl
         }
     }
 
-    /// <summary>The optional CAS guard, bound last to match every versioned routine's trailing parameter (PostgreSQL arguments are positional).</summary>
     public static void BindExpectedVersion(DbCommand cmd, ISqlDialect dialect, JobControlInput input) =>
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, input.ExpectedVersion));
 

@@ -1,5 +1,5 @@
 -- One statement: the job's runtimes row is locked first (every delete reads the locked target), then its
--- checkpoints, steps, and results go, and an audited definition records the reset.
+-- checkpoints and steps go, and an audited definition records the reset.
 WITH target AS (
     SELECT
         r.job_id, r.status_code, r.execution_number, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id,
@@ -14,9 +14,6 @@ cleared_checkpoints AS (
 ),
 cleared_steps AS (
     DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT t.job_id FROM target t)
-),
-cleared_results AS (
-    DELETE FROM {{schema}}.results WHERE job_id IN (SELECT t.job_id FROM target t)
 )
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,

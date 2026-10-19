@@ -7,14 +7,14 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @stopped TABLE (id INT NOT NULL PRIMARY KEY, worker_ref UNIQUEIDENTIFIER NOT NULL);
+    DECLARE @stopped TABLE (id INT NOT NULL PRIMARY KEY);
 
     UPDATE {{schema}}.workers
     SET
         status_code = 100 /* WorkerStatusCode.Stopped */,
         modified_at_utc = @now,
         version = version + 1
-    OUTPUT INSERTED.id, INSERTED.worker_ref INTO @stopped (id, worker_ref)
+    OUTPUT INSERTED.id INTO @stopped (id)
     WHERE
         id = @p_worker_id
         AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */);
@@ -29,7 +29,7 @@ BEGIN TRY
         @now,
         @p_namespace_id,
         70 /* ActorCode.Worker */,
-        LOWER(CONVERT(varchar(36), s.worker_ref)),
+        NULL,
         NULL,
         NULL,
         NULL,

@@ -6,9 +6,6 @@ namespace Acta;
 /// </summary>
 public interface INamespaces
 {
-    /// <summary>List registered namespace names alphabetically, optionally restricted to names containing a fragment.</summary>
-    ValueTask<ListNamespaceNamesResponse> ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default);
-
     /// <summary>List registered namespaces alphabetically with their status, owner team, description, and version for the admin page.</summary>
     ValueTask<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default);
 

@@ -4,7 +4,7 @@ CREATE TEMP TABLE _sso_target AS
 SELECT
     js.name,
     CASE
-        WHEN js.version <> @p_expected_version THEN 3 /* ControlAction.Rejected */
+        WHEN js.version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         ELSE 1 /* ControlAction.Applied */
     END AS action
 FROM {{schema}}.schedules js
@@ -24,7 +24,6 @@ INSERT INTO {{schema}}.events (
     execution_number,
     lineage_root_id,
     definition_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -42,7 +41,6 @@ SELECT
     r.execution_number,
     COALESCE(j.lineage_root_id, j.id),
     j.definition_id,
-    NULL,
     NULL,
     NULL,
     NULL,

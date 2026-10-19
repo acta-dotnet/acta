@@ -1,4 +1,7 @@
 using System.Collections.Immutable;
+using System.Runtime.Loader;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -23,9 +26,6 @@ public sealed class DefinitionRegistrationValidationTests
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.None,
             OutputPayloadFormat: null,
-            InvocationKind: JobInvocationKind.Task,
-            RequiresJobContextParameter: false,
-            RequiresCancellationToken: false,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
             AuditLevel: DefinitionAuditLevelCode.Audit,
@@ -64,7 +64,6 @@ public sealed class DefinitionRegistrationValidationTests
             Id: 1,
             DefinitionHash: "hash",
             Status: DefinitionStatusCode.Active,
-            ModifiedAtUtc: Gen,
             Effective: new EffectiveJobPolicy(
                 JobPriorityCode.Normal,
                 MaxAttempts: 3,
@@ -296,5 +295,72 @@ public sealed class DefinitionRegistrationValidationTests
 
         // The session stub rejects every call, so reaching it is the proof that the row was built.
         await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(descriptor));
+    }
+
+    public sealed record Größe(int Value);
+
+    // A contract type is stored by its full name with generic arguments rendered the same way, never assembly-qualified.
+    [Theory]
+    [InlineData(typeof(int), "System.Int32")]
+    [InlineData(typeof(Environment.SpecialFolder), "System.Environment+SpecialFolder")]
+    [InlineData(typeof(int[,]), "System.Int32[,]")]
+    [InlineData(typeof(Dictionary<string, int[]>), "System.Collections.Generic.Dictionary`2[System.String,System.Int32[]]")]
+    [InlineData(typeof(List<int>[]), "System.Collections.Generic.List`1[System.Int32][]")]
+    public void A_contract_type_name_carries_no_assembly_identity(Type type, string expected) =>
+        Assert.Equal(expected, JobDefinitionRegistration.ContractOf(Descriptor("typed") with { InputType = type }).InputTypeName);
+
+    [Fact]
+    public void A_generic_contract_name_survives_a_version_bump_of_its_type_argument()
+    {
+        var before = typeof(List<>).MakeGenericType(LoadLineType("1.0.0.0"));
+        var after = typeof(List<>).MakeGenericType(LoadLineType("2.0.0.0"));
+
+        Assert.NotEqual(before.FullName, after.FullName);
+        Assert.Equal(
+            JobDefinitionRegistration.ContractOf(Descriptor("lines") with { InputType = before }),
+            JobDefinitionRegistration.ContractOf(Descriptor("lines") with { InputType = after })
+        );
+    }
+
+    [Fact]
+    public async Task A_non_ascii_contract_type_fails_registration()
+    {
+        var input = await Assert.ThrowsAsync<ArgumentException>(() =>
+            RegisterAsync(Descriptor("sized") with { InputType = typeof(Größe) })
+        );
+        var output = await Assert.ThrowsAsync<ArgumentException>(() =>
+            RegisterAsync(Descriptor("sizes") with { OutputType = typeof(List<Größe>) })
+        );
+
+        Assert.Contains("input type \"Acta.Tests.Runtime.DefinitionRegistrationValidationTests+Größe\"", input.Message);
+        Assert.Contains("output type", output.Message);
+    }
+
+    [Fact]
+    public async Task An_ascii_generic_contract_type_passes_the_gate()
+    {
+        var descriptor = Descriptor("lines") with { InputType = typeof(List<int>), OutputType = typeof(Dictionary<string, int>) };
+
+        // The session stub rejects every call, so reaching it is the proof that the gate let it through.
+        await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(descriptor));
+    }
+
+    /// <summary>The same <c>Shop.Line</c> type compiled into an assembly of the given version, each in its own load context.</summary>
+    private static Type LoadLineType(string version)
+    {
+        var compilation = CSharpCompilation.Create(
+            "Shop",
+            [
+                CSharpSyntaxTree.ParseText(
+                    $"[assembly: System.Reflection.AssemblyVersion(\"{version}\")] namespace Shop {{ public sealed class Line {{ }} }}"
+                ),
+            ],
+            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        );
+        using var image = new MemoryStream();
+        Assert.True(compilation.Emit(image).Success);
+        image.Position = 0;
+        return new AssemblyLoadContext(version, isCollectible: true).LoadFromStream(image).GetType("Shop.Line", throwOnError: true)!;
     }
 }

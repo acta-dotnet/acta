@@ -46,6 +46,10 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     /// coalescing has no other outward sign.
     /// </summary>
     internal long JitteredWakesScheduled => Interlocked.Read(ref _jitteredWakesScheduled);
+
+    /// <summary>Draws each remote wake's jitter. Test seam, since a zero draw is otherwise left to chance.</summary>
+    internal Random JitterSource { get; init; } = Random.Shared;
+
     private readonly SemaphoreSlim _subscribeGate = new(1, 1);
     private volatile bool _subscribed;
 
@@ -129,7 +133,8 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
     }
 
-    private void OnRemoteWake(RedisChannel redisChannel, RedisValue message)
+    /// <summary>Relays one message the pattern subscription received. Internal so a test can deliver one without a server.</summary>
+    internal void OnRemoteWake(RedisChannel redisChannel, RedisValue message)
     {
         var name = (string?)redisChannel;
         if (
@@ -159,7 +164,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
 
         Interlocked.Increment(ref _jitteredWakesScheduled);
-        _ = DeliverAsync(channel, TimeSpan.FromTicks(Random.Shared.NextInt64(_remoteJitterMax.Ticks + 1)));
+        _ = DeliverAsync(channel, TimeSpan.FromTicks(JitterSource.NextInt64(_remoteJitterMax.Ticks + 1)));
     }
 
     private async Task DeliverAsync(WorkerWakeupChannel channel, TimeSpan jitter)
@@ -169,13 +174,13 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
             if (jitter > TimeSpan.Zero)
             {
                 await Task.Delay(jitter);
-
-                // Clear the slot BEFORE waking, never after: a message landing in the gap starts a
-                // fresh pending wake, which is one redundant wake onto a latch. Clearing afterwards
-                // would instead drop a message that this wake had already passed, losing it outright.
-                _pendingJittered.TryRemove(channel, out _);
             }
 
+            // Clear the slot BEFORE waking, never after: a message landing in the gap starts a
+            // fresh pending wake, which is one redundant wake onto a latch. Clearing afterwards
+            // would instead drop a message that this wake had already passed, losing it outright.
+            // A zero draw clears it too, or every later wake on the channel would be dropped.
+            _pendingJittered.TryRemove(channel, out _);
             await _local.WakeAsync(channel, WorkerWakeupReason.Unknown);
         }
         catch (Exception ex)

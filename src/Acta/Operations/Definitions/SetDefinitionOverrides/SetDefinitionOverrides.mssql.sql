@@ -19,13 +19,13 @@ BEGIN TRY
 
     IF @ns IS NULL
         BEGIN
-            SELECT CAST(2 /* DefinitionOverrideAction.NotFound */ AS TINYINT) AS action;
+            SELECT CAST(2 /* DefinitionOverrideAction.NotFound */ AS TINYINT) AS action, CAST(NULL AS INT) AS version;
             GOTO Finish;
         END;
 
     IF @existing_version <> @p_version
         BEGIN
-            SELECT CAST(3 /* DefinitionOverrideAction.VersionConflict */ AS TINYINT) AS action;
+            SELECT CAST(3 /* DefinitionOverrideAction.VersionConflict */ AS TINYINT) AS action, @existing_version AS version;
             GOTO Finish;
         END;
 
@@ -71,7 +71,6 @@ BEGIN TRY
         actor_code, actor,
         job_id, job_ref, execution_number,
         lineage_root_id, definition_id,
-        worker_id,
         from_status_code, to_status_code,
         execution_status_code, duration_ms,
         reason_code, reason_message
@@ -81,13 +80,12 @@ BEGIN TRY
         @p_actor_code, @p_actor,
         NULL, NULL, NULL,
         NULL, @p_id,
-        NULL,
         NULL, NULL,
         NULL, NULL,
         @p_reason_code, @p_reason_message
     );
 
-    SELECT CAST(1 /* DefinitionOverrideAction.Applied */ AS TINYINT) AS action;
+    SELECT CAST(1 /* DefinitionOverrideAction.Applied */ AS TINYINT) AS action, @existing_version + 1 AS version;
 
 Finish:
 

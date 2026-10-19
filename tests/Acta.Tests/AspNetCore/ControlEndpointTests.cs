@@ -159,6 +159,26 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    // The header's name is the host's to choose, and its value is always true, which is what the dashboard sends.
+    [Theory]
+    [InlineData("true", HttpStatusCode.OK)]
+    [InlineData("yes", HttpStatusCode.BadRequest)]
+    public async Task A_renamed_confirmation_header_still_carries_true(string value, HttpStatusCode expected)
+    {
+        var (app, client) = await StartWithControlsAsync(configure: options => options.ControlConfirmationHeaderName = "X-Ops-Confirm");
+        await using var _ = app;
+
+        var request = Post($"/acta/api/v1/jobs/{Found}/pause", confirm: false);
+        request.Headers.Add("X-Ops-Confirm", value);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.BadRequest)
+        {
+            Assert.Contains("X-Ops-Confirm: true", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+    }
+
     [Fact]
     public async Task Controls_are_disabled_by_default_and_never_reach_jobs()
     {
@@ -177,7 +197,11 @@ public sealed class ControlEndpointTests
     [InlineData("-5")]
     [InlineData("12345")]
     [InlineData("job_nope")]
-    [InlineData("job_zn1t201rmv87aae5j4csam8000")]
+    [InlineData("job_2n1t201rmv87aae5j4csam8000")]
+    [InlineData("job_01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d")]
+    [InlineData("01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("JOB_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("job_01a14f4e954e7bf68ac609f3fcad8e3g")]
     public async Task Malformed_job_ref_is_400(string jobRef)
     {
         var (app, client) = await StartWithControlsAsync();
@@ -190,6 +214,22 @@ public sealed class ControlEndpointTests
         // names no row, which is what lets the 404 carry the family envelope.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("jobRef is not a valid job ref.", body);
+    }
+
+    [Theory]
+    [InlineData("bad!/send-invoice/only")]
+    [InlineData("billing/send%20invoice/only")]
+    [InlineData("billing/send-invoice/bad!")]
+    public async Task Malformed_schedule_segment_is_400(string schedule)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Post($"/acta/api/v1/schedules/{schedule}/trigger"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Schedules.TriggerCalls);
     }
 
     [Fact]
@@ -606,10 +646,11 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        var response = await client.SendAsync(PostOverrides(scheduleName: "rejected"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(PostOverrides(version: 999), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("\"action\":\"versionConflict\"", body);
         Assert.Contains("\"version\":7", body);
     }
 
@@ -627,13 +668,16 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Purge_applies_and_ignores_the_reason()
+    public async Task Purge_applies_with_an_empty_body()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/purge"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(
+            Post($"/acta/api/v1/jobs/{Found}/purge", rawBody: "{}"),
+            TestContext.Current.CancellationToken
+        );
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -762,6 +806,18 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(AmendInput(new { text = "x" }), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Jobs.InputAmendCalls);
+    }
+
+    [Fact]
+    public async Task Amend_text_job_with_text_holding_nul_is_400()
+    {
+        var fakes = JobWithInput(JobPayload.Text("old"));
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(AmendInput(new { text = "a\0b" }), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
@@ -947,6 +1003,28 @@ public sealed class ControlEndpointTests
         Assert.Empty(fakes.Jobs.EnqueueRequests);
     }
 
+    [Fact]
+    public async Task Enqueue_text_holding_nul_is_400()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            PostEnqueue(
+                new
+                {
+                    jobNamespace = "billing",
+                    jobName = "send-invoice",
+                    text = "a\0b",
+                }
+            ),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Jobs.EnqueueRequests);
+    }
+
     private static HttpRequestMessage PostTenant(object body, bool confirm = true)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/tenants");
@@ -1081,7 +1159,7 @@ public sealed class ControlEndpointTests
 
     [Theory]
     [InlineData("send-invoice", 1, HttpStatusCode.OK, "applied")]
-    [InlineData("send-invoice", 999, HttpStatusCode.Conflict, "rejected")]
+    [InlineData("send-invoice", 999, HttpStatusCode.Conflict, "versionConflict")]
     [InlineData("missing", 1, HttpStatusCode.NotFound, "notFound")]
     public async Task Definition_retire_maps_the_verb_outcome(string jobName, int expectedVersion, HttpStatusCode status, string action)
     {

@@ -56,6 +56,20 @@ public sealed class FacadeReadValidationTests
     }
 
     [Fact]
+    public async Task Invalid_tenant_and_lane_names_throw()
+    {
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
+            await ListJobs().HandleAsync(new ListJobsQuery(TenantName: "bad!"), Ct)
+        );
+
+        await Assert.ThrowsAsync<InvalidQueryException>(async () => await ListJobs().HandleAsync(new ListJobsQuery(Lane: "bad!"), Ct));
+
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
+            await ListEvents().HandleAsync(new ListEventsQuery(TenantName: "bad!"), Ct)
+        );
+    }
+
+    [Fact]
     public async Task Framework_job_name_is_accepted()
     {
         var result = await ListJobs().HandleAsync(new ListJobsQuery(JobNamespace: "billing", JobName: "sys.retention"), Ct);

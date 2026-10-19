@@ -1,43 +1,34 @@
-using System.Globalization;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using TestJobs;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for worker identity across retention: <c>events</c> outlives the <c>workers</c> row, so
-/// the timeline has to stay readable once the holder is gone. The joined <c>worker_ref</c> is a live
-/// lookup and goes null with the row; the denormalized <c>actor</c> is the durable copy and still
-/// renders the canonical <c>wrk_</c> string. The internal worker id keeps filtering the surviving rows.
+/// Conformance for worker identity across retention: an event names its worker by <c>worker_id</c> alone, with a null
+/// <c>actor</c>, so the sweep keeps a terminal worker's row for as long as the events window and the joined
+/// <c>workerRef</c> keeps resolving on every event that survives.
 /// </summary>
 [ConformanceSpec(
     "worker-ref.survives-purge",
-    "Events outlive a purged worker with a canonical actor",
+    "A worker's events keep resolving its ref through retention",
     Area = "Retention",
-    Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor, and the historical worker id still selecting them."
+    Contract = "Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves, and worker events carry a null actor."
 )]
-public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Windows wide enough that the jobs, events, and alerts sections are no-ops: only the worker
-    // section, driven by a future cutoff, may delete anything in this spec.
-    private const int NoEventPurgeDays = 100_000;
-    private const int NoAlertPurgeDays = 100_000;
-
     [Fact(
-        DisplayName = "After purge the worker row is gone while its events keep a canonical wrk_ actor, a null workerRef, and the historical worker id"
+        DisplayName = "Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default windows"
     )]
-    public async Task Events_outlive_the_worker_row_with_a_canonical_actor_and_no_worker_ref()
+    public async Task Aged_events_resolve_their_worker_ref_after_a_default_sweep()
     {
         var ct = TestContext.Current.CancellationToken;
-        var ledger = Services.GetRequiredService<IActaOperations>().Ledger;
-        var workers = Services.GetRequiredService<WorkersOperations>();
-
-        // The ref is minted here so the expected actor is known without reading the row that this
-        // spec is about to delete.
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var execution = Services.GetRequiredService<ExecutionOperations>();
         var workerRef = WorkerRef.New();
-        var (namespaceId, workerId) = await WorkerTestOps.StartAsync(
+        var (_, workerId) = await WorkerTestOps.StartAsync(
             Services,
             TestNamespace,
             "test",
@@ -51,53 +42,131 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<Conformance
             ct,
             workerRef.Value
         );
-        await workers.StopWorkerAsync(namespaceId, workerId, ct);
 
-        // Before purge: both lifecycle events name the worker twice over - the joined ref and the
-        // denormalized actor - which is what makes the after-purge difference meaningful.
-        var before = await ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct);
-        Assert.Equal(2, before.Items.Count);
-        Assert.Contains(before.Items, e => e.EventCode == EventCode.WorkerStarted);
-        Assert.Contains(before.Items, e => e.EventCode == EventCode.WorkerStopped);
-        Assert.All(before.Items, e => Assert.Equal<WorkerRef?>(workerRef, e.WorkerRef));
-        Assert.All(before.Items, e => Assert.Equal(workerRef.ToString(), e.Actor));
+        // One attempt claimed and completed by this worker writes its job.execution-finished event.
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
+            ct
+        );
+        var claimed = Assert.Single(
+            (await execution.ClaimJobAsync(new ClaimOptions(ns, workerId, MaxBatch: 1), 30, enqueued.JobId, ct)).Jobs
+        );
+        Assert.Equal(
+            CompleteExecutionsAction.Completed,
+            (await execution.CompleteAsync(workerId, CompletionTestOps.Landing(claimed), ct)).Action
+        );
+        await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(ns, workerId, ct);
 
-        // Retention reaps both terminal worker statuses, so the cleanly stopped row is purged as it
-        // stands: the deletion runs through the production purge routine, which is the path under test.
-        // Drain rather than assert one call reaps it: the sweep skips rows another transaction holds.
-        var purged = 0;
-        for (var pass = 1; pass <= 20 && purged == 0; pass++)
-        {
-            var result = await RetentionTestOps.PurgeAsync(
-                Services,
-                namespaceId,
-                NoEventPurgeDays,
-                NoAlertPurgeDays,
-                workerRetentionSeconds: -1,
-                1000,
-                50,
-                ct
-            );
-            purged += result.Workers;
-        }
-        Assert.Equal(1, purged);
-        Assert.Null(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
+        // Past the default worker window, inside the default events window.
+        var agedAt = DateTime.UtcNow.AddDays(-200);
+        await Db.From<WorkerEntity>().Where(w => w.Id == workerId).UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAt }, ct);
+        await Db.From<EventEntity>()
+            .Where(e => e.WorkerId == workerId)
+            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = agedAt }, ct);
 
-        var after = await ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct);
+        await PurgeWithDefaultWindowsAsync(ns, ct);
 
-        // The historical id still selects the rows: events.worker_id carries no foreign key, so purging
-        // the holder does not cascade the timeline away.
-        Assert.Equal(before.Items.Count, after.Items.Count);
-        Assert.Equal(before.Items.Select(e => e.JobEventId).OrderBy(id => id), after.Items.Select(e => e.JobEventId).OrderBy(id => id));
+        Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
+        var events = (
+            await Operations.Ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct)
+        ).Items;
+        Assert.Equal(
+            [EventCode.JobExecutionFinished, EventCode.WorkerStarted, EventCode.WorkerStopped],
+            events.Select(e => e.EventCode).Order()
+        );
+        Assert.All(events, e => Assert.Equal<WorkerRef?>(workerRef, e.WorkerRef));
+        Assert.All(events, e => Assert.Equal(ActorCode.Worker, e.ActorCode));
+        Assert.All(events, e => Assert.Null(e.Actor));
+    }
 
-        // The joined ref is a live lookup, so it reads null; the denormalized actor is the durable
-        // copy and still renders the canonical wrk_ form rather than the stored uuid text.
-        Assert.All(after.Items, e => Assert.Null(e.WorkerRef));
-        Assert.All(after.Items, e => Assert.Equal(workerRef.ToString(), e.Actor));
-        Assert.All(after.Items, e => Assert.Equal(ActorCode.Worker, e.ActorCode));
-        Assert.DoesNotContain(
-            after.Items,
-            e => string.Equals(e.Actor, workerRef.Value.ToString("D", CultureInfo.InvariantCulture), StringComparison.Ordinal)
+    [Fact(DisplayName = "A terminal worker aged past the window survives a sweep while it still leases an Executing job")]
+    public async Task Terminal_worker_survives_while_it_leases_an_executing_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var (workerId, _, _) = await AgedStoppedWorkerHoldingAJobAsync(ns, ct);
+
+        // Recovery has not reclaimed the job yet, and will name this worker when it does.
+        await PurgeWithDefaultWindowsAsync(ns, ct);
+
+        Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
+    }
+
+    [Fact(
+        DisplayName = "A worker whose last heartbeat is past the window keeps its row and ref through a sweep after recovery orphans its job in its name"
+    )]
+    public async Task Recovery_event_keeps_its_worker_ref_through_a_sweep()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var (workerId, workerRef, jobRef) = await AgedStoppedWorkerHoldingAJobAsync(ns, ct);
+
+        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
+        await PurgeWithDefaultWindowsAsync(ns, ct);
+
+        Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
+        var orphaned = Assert.Single(
+            (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct)).Items,
+            e => e.JobRef == jobRef && e.ExecutionStatus == ExecutionStatusCode.Orphaned
+        );
+        Assert.Equal<WorkerRef?>(workerRef, orphaned.WorkerRef);
+    }
+
+    /// <summary>
+    /// A worker that stopped while its job was still Executing, with its last heartbeat and its last write aged past
+    /// the retention windows and the job's lease lapsed: the state a cluster finds when it restarts long after.
+    /// </summary>
+    private async Task<(int WorkerId, WorkerRef WorkerRef, JobRef JobRef)> AgedStoppedWorkerHoldingAJobAsync(int ns, CancellationToken ct)
+    {
+        var workerRef = WorkerRef.New();
+        var (_, workerId) = await WorkerTestOps.StartAsync(
+            Services,
+            TestNamespace,
+            "test",
+            null,
+            "purge-host",
+            "v1",
+            null,
+            null,
+            4242,
+            4,
+            ct,
+            workerRef.Value
+        );
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
+            ct
+        );
+        Assert.Single(
+            (
+                await Services
+                    .GetRequiredService<ExecutionOperations>()
+                    .ClaimJobAsync(new ClaimOptions(ns, workerId, MaxBatch: 1), 30, enqueued.JobId, ct)
+            ).Jobs
+        );
+        await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(ns, workerId, ct);
+
+        // Past both default windows, worker and events.
+        var agedAt = DateTime.UtcNow.AddDays(-400);
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == workerId)
+            .UpdateOnlyAsync(() => new WorkerEntity { LastSeenAtUtc = agedAt, ModifiedAtUtc = agedAt }, ct);
+        await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
+        return (workerId, workerRef, enqueued.JobRef);
+    }
+
+    private Task PurgeWithDefaultWindowsAsync(int ns, CancellationToken ct)
+    {
+        var defaults = new JobsOptions();
+        return RetentionTestOps.PurgeAsync(
+            Services,
+            ns,
+            (int)defaults.JobEventsRetention.TotalDays,
+            (int)defaults.AlertRetention.TotalDays,
+            (int)defaults.WorkerRetention.TotalSeconds,
+            1000,
+            50,
+            ct
         );
     }
 }

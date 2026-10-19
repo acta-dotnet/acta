@@ -113,20 +113,6 @@ test('schedulesListSql emits the SQL Server TOP form with no LIMIT', () => {
   );
 });
 
-// The ref columns store canonical uuid text, so the copied SQL compares against the decoded uuid -
-// never the wrk_ string an operator sees.
-test('eventsListSql emits the worker ref as its decoded uuid', () => {
-  assert.equal(
-    eventsListSql({ workerRef: 'wrk_01kydka200fay8000000000002' }),
-    "SELECT * FROM acta.events_view WHERE worker_ref = '019f9b35-0800-7abc-8000-000000000002' "
-      + 'ORDER BY created_at_utc DESC LIMIT 100;'
-  );
-});
-
-test('eventsListSql drops a malformed worker ref rather than emitting an unmatchable predicate', () => {
-  assert.equal(eventsListSql({ workerRef: 'not-a-ref' }), 'SELECT * FROM acta.events_view ORDER BY created_at_utc DESC LIMIT 100;');
-});
-
 test('eventsListSql with no filters selects the whole view', () => {
   assert.equal(eventsListSql({}), 'SELECT * FROM acta.events_view ORDER BY created_at_utc DESC LIMIT 100;');
 });

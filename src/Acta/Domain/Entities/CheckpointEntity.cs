@@ -12,13 +12,12 @@ namespace Acta;
     Name = "ck_checkpoints_value_pair",
     Sql = "(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)"
 )]
-// Each stateful arm names status_code NOT NULL before testing membership. A CHECK passes on unknown,
-// and `NULL IN (...)` is unknown, so an arm without it admits the stateless shape it means to reject.
+// Each conjunct binds only the kinds it names, so a kind or status this build does not know still inserts.
 [DbCheck(
     Name = "ck_checkpoints_kind_shape",
-    Sql = "(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL)"
-        + " OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30))"
-        + " OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)"
+    Sql = "(kind_code NOT IN (10, 40) OR (status_code IS NULL AND due_at_utc IS NULL))"
+        + " AND (kind_code NOT IN (20, 30, 50) OR status_code IS NOT NULL)"
+        + " AND (kind_code <> 30 OR due_at_utc IS NOT NULL)"
 )]
 // The recovery pass's stale-latch read: a latch is Pending only while its parent waits on that child, so the pass
 // reads the parents waiting right now, never every checkpoint the namespace retains. The read restates the filter.

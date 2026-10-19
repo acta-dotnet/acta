@@ -29,9 +29,6 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 OutputType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
                 OutputPayloadFormat: null,
-                InvocationKind: JobInvocationKind.Task,
-                RequiresJobContextParameter: true,
-                RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Critical,
                 MaxAttempts: 2,
                 AuditLevel: DefinitionAuditLevelCode.Audit,
@@ -60,7 +57,6 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 ],
                 CreateDefaultInput = static () => new NoInput(),
                 SerializeInput = null,
-                RecurringResultCap = 3,
             },
         ]);
 }

@@ -189,7 +189,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "29EE1E9DE5313F20E008431AC3240A8517BBF95F5E43F8A0904173DDE3C6637F";
+    private const string ExpectedDescriptionHash = "EE247E0229B54F2354EE2CB4B8C7F4010BCD6C069A0FBC7BF6CAAF807806ED39";
 
     [Fact]
     public void Frozen_contract_covers_all_28_families_and_178_values()
@@ -319,11 +319,8 @@ public sealed class PersistedCodeContractTests
     [Fact]
     public void An_unknown_status_is_inert()
     {
-        // An old worker reads a newer build's status as Unspecified; it must neither claim nor finish on it.
-        Assert.False(JobStatusCode.Unspecified.IsClaimable);
+        // An old worker reads a newer build's status as Unspecified; it must not treat it as finished.
         Assert.False(JobStatusCode.Unspecified.IsTerminal);
-        Assert.False(JobStatusCode.Unspecified.IsActiveExecution);
-        Assert.False(StepStatusCode.Unspecified.IsTerminal);
         Assert.False(ExecutionStatusCode.Unspecified.IsTerminal);
     }
 
@@ -332,8 +329,6 @@ public sealed class PersistedCodeContractTests
     {
         Assert.False(JobStatusCode.Ready.IsTerminal);
         Assert.False(JobStatusCode.Blocked.IsTerminal);
-        Assert.False(JobStatusCode.Blocked.IsClaimable);
-        Assert.False(JobStatusCode.Blocked.IsActiveExecution);
         Assert.All([JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsTerminal));
 
         var expected = new Dictionary<ExecutionStatusCode, ExecutionBehavior>

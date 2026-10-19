@@ -17,7 +17,6 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions(
     p_handler_status_codes SMALLINT[],
     p_final_statuses SMALLINT[],
     p_job_next_run_at_utc TIMESTAMPTZ[],
-    p_recurring_result_caps INT[],
     p_advance_job_ids BIGINT[],
     p_advance_schedule_names VARCHAR[],
     p_advance_next_runs TIMESTAMPTZ[],
@@ -74,6 +73,8 @@ BEGIN
                 leased_by_worker_id = NULL,
                 lease_expires_at_utc = NULL,
                 retention_until_utc = COALESCE(now() + c.retention_seconds * INTERVAL '1 second', r.retention_until_utc),
+                result_format_id = c.result_format_id,
+                result = c.result,
                 modified_at_utc = now(),
                 version = r.version + 1
             FROM eligible e
@@ -81,15 +82,9 @@ BEGIN
             INNER JOIN {{schema}}.jobs j ON j.id = e.job_id
             WHERE r.job_id = e.job_id
             RETURNING
-                r.job_id, r.execution_number, r.status_code, r.next_run_at_utc, c.succeeded, c.result_format_id, c.result,
+                r.job_id, r.execution_number, r.status_code, r.next_run_at_utc, c.succeeded,
                 c.reason_code, c.reason_message, c.duration_ms, j.namespace_id, j.lineage_root_id, j.definition_id,
                 j.tenant_id, j.audit_level_code, j.job_ref
-        ),
-        stored AS (
-            INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
-            SELECT d.job_id, d.execution_number, d.result_format_id, d.result, now()
-            FROM done d
-            WHERE d.result_format_id <> 0 /* JobPayloadFormat.None */
         ),
         finished AS (
             INSERT INTO {{schema}}.events (
@@ -226,6 +221,8 @@ BEGIN
                     THEN now() + c.retention_seconds * INTERVAL '1 second'
                 ELSE r.retention_until_utc
             END,
+            result_format_id = c.result_format_id,
+            result = c.result,
             modified_at_utc = now(),
             version = r.version + 1
         FROM eligible e
@@ -242,13 +239,7 @@ BEGIN
             END AS to_status
         ) t
         WHERE r.job_id = e.job_id
-        RETURNING r.job_id, r.execution_number, r.status_code, e.lane_id, e.parent_id, c.result_format_id, c.result
-    ),
-    stored AS (
-        INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
-        SELECT d.job_id, d.execution_number, d.result_format_id, d.result, now()
-        FROM done d
-        WHERE d.result_format_id <> 0 /* JobPayloadFormat.None */
+        RETURNING r.job_id, r.execution_number, r.status_code, e.lane_id, e.parent_id
     )
     SELECT
         array_agg(d.job_id),
@@ -271,7 +262,6 @@ BEGIN
             actor_code, actor,
             job_id, job_ref, execution_number,
             lineage_root_id, definition_id, tenant_id,
-            worker_id,
             from_status_code, to_status_code,
             execution_status_code, duration_ms,
             reason_code, reason_message
@@ -281,7 +271,6 @@ BEGIN
             10 /* ActorCode.Sys */, NULL,
             j.id, j.job_ref, r.execution_number,
             COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
-            NULL,
             NULL, NULL,
             NULL, NULL,
             NULL, js.name
@@ -331,21 +320,6 @@ BEGIN
             WHERE js.job_id = c.job_id AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
         ) w
         WHERE r.job_id = c.job_id AND r.execution_number = c.execution_number AND c.final_status IS NOT NULL AND c.job_id = ANY (v_done);
-
-        DELETE FROM {{schema}}.results res
-        USING (
-            SELECT
-                k.job_id,
-                k.execution_number,
-                c.cap,
-                ROW_NUMBER() OVER (PARTITION BY k.job_id ORDER BY k.execution_number DESC) AS newest
-            FROM unnest(p_job_ids, p_execution_numbers, p_final_statuses, p_recurring_result_caps) AS c (job_id, execution_number, final_status, cap)
-            -- Only the row that completed: a stale execution of the same job in the batch would count each result twice.
-            INNER JOIN {{schema}}.runtimes r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
-            INNER JOIN {{schema}}.results k ON k.job_id = c.job_id
-            WHERE c.final_status IS NOT NULL AND c.cap > 0 AND c.job_id = ANY (v_done)
-        ) old
-        WHERE res.job_id = old.job_id AND res.execution_number = old.execution_number AND old.newest > old.cap;
     END IF;
 
     /* At Failures a failure carrying no re-arm or handler hold is written, and a success only when it answers a
@@ -491,6 +465,7 @@ BEGIN
                 j.parent_id,
                 r.job_id AS child_id,
                 r.status_code AS child_status,
+                r.execution_number AS child_execution,
                 c.reason_code,
                 c.reason_message,
                 COALESCE(l.status_code = 30 /* CheckpointStatusCode.Expired */, FALSE) AS latch_expired,
@@ -526,7 +501,10 @@ BEGIN
                 'sys.child.' || s.child_id::text,
                 20 /* CheckpointStatusCode.Set */,
                 1 /* JobPayloadFormat.Json */,
-                convert_to(json_build_object('childJobId', s.child_id, 'status', s.child_status)::text, 'UTF8'),
+                convert_to(
+                    json_build_object('childJobId', s.child_id, 'status', s.child_status, 'executionNumber', s.child_execution)::text,
+                    'UTF8'
+                ),
                 now(),
                 now(),
                 0
@@ -546,7 +524,6 @@ BEGIN
                 actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
-                worker_id,
                 from_status_code, to_status_code,
                 execution_status_code, duration_ms,
                 reason_code, reason_message
@@ -556,7 +533,6 @@ BEGIN
                 10 /* ActorCode.Sys */, NULL,
                 s.parent_id, s.job_ref, s.parent_execution,
                 COALESCE(s.lineage_root_id, s.parent_id), s.definition_id, s.tenant_id,
-                NULL,
                 s.parent_status, s.parent_status,
                 NULL, NULL,
                 s.reason_code,
@@ -587,7 +563,6 @@ BEGIN
                 actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
-                worker_id,
                 from_status_code, to_status_code,
                 execution_status_code, duration_ms,
                 reason_code, reason_message
@@ -597,7 +572,6 @@ BEGIN
                 10 /* ActorCode.Sys */, NULL,
                 w.parent_id, w.job_ref, w.parent_execution,
                 COALESCE(w.lineage_root_id, w.parent_id), w.definition_id, w.tenant_id,
-                NULL,
                 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
                 NULL, NULL,
                 60 /* EventReasonCode.JobSignalReleased */, NULL

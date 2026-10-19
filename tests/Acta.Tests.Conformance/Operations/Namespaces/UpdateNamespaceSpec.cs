@@ -75,8 +75,8 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(before!.OwnerTeam, after!.OwnerTeam);
         Assert.Equal(before.Version, after.Version);
 
-        var page = await Operations.Namespaces.ListNamesAsync(new ListNamespaceNamesQuery(NameContains: "sys"), ct);
-        Assert.Contains("sys", page.Items);
+        var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        Assert.Contains(page.Items, item => item.JobNamespace == "sys");
     }
 
     [Fact(DisplayName = "Overlong namespace fields is rejected before the store write")]

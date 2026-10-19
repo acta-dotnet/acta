@@ -1,14 +1,12 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Acta;
 
 /// <summary>
-/// Public stable reference for one alert row: "alr_" plus 26 lowercase Crockford Base32
-/// characters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert
-/// transports address alerts by this value; the numeric alert id stays the internal engine
-/// identity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication
-/// never re-mints it: a condition that re-fires while its incident is open keeps that incident's ref.
+/// Public stable reference for one alert row: "alr_" plus the Guid's 32 lowercase hex digits, such as
+/// <c>alr_01a14f5038c17d0e9b2f6a4c81d3e5f7</c>. Dashboards, HTTP APIs, and alert transports address
+/// alerts by this value; the numeric alert id stays the internal engine identity. Deduplication never
+/// re-mints it: a condition that re-fires while its incident is open keeps that incident's ref.
 /// </summary>
 [JsonConverter(typeof(AlertRefJsonConverter))]
 public readonly record struct AlertRef(Guid Value)
@@ -30,9 +28,8 @@ public readonly record struct AlertRef(Guid Value)
         TryParse(value, out var alertRef) ? alertRef : throw new FormatException($"'{value}' is not a valid alert ref.");
 
     /// <summary>
-    /// Parse an alert ref: <c>alr_</c> plus its Crockford payload, in any casing and with the o/i/l
-    /// aliases, or the alert's Guid written plainly, with the prefix or without it. Rejects malformed values,
-    /// another entity's prefix included.
+    /// Parse an alert ref: <c>alr_</c> exactly, then 32 hex digits in any casing. Rejects every other value,
+    /// another entity's prefix, the dashed Guid, and the bare Guid included.
     /// </summary>
     public static bool TryParse(string? value, out AlertRef alertRef)
     {
@@ -45,16 +42,4 @@ public readonly record struct AlertRef(Guid Value)
         alertRef = default;
         return false;
     }
-}
-
-/// <summary>
-/// Serializes <see cref="AlertRef"/> as its canonical lowercase string form.
-/// </summary>
-public sealed class AlertRefJsonConverter : JsonConverter<AlertRef>
-{
-    public override AlertRef Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        AlertRef.TryParse(reader.GetString(), out var alertRef) ? alertRef : throw new JsonException("Invalid alert ref.");
-
-    public override void Write(Utf8JsonWriter writer, AlertRef value, JsonSerializerOptions options) =>
-        writer.WriteStringValue(value.ToString());
 }

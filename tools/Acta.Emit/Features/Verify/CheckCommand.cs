@@ -24,7 +24,7 @@ internal static class CheckCommand
         (string Path, string Expected)[] artifacts =
         [
             (Path.Combine(repoRoot, "docs", "reference", "data-model.md"), DataModelEmitter.EmitDataModelReference(model)),
-            (Path.Combine(repoRoot, "docs", "reference", "code-families.md"), CodeFamilyEmitter.EmitCodes(model)),
+            (Path.Combine(repoRoot, "docs", "reference", "code-families.md"), CodeFamilyEmitter.EmitCodes()),
             .. ProviderCatalog.All.Select(p =>
                 (ProvisionScriptEmitter.PathFor(repoRoot, p.Token), ProvisionScriptEmitter.Emit(repoRoot, p.Token))
             ),

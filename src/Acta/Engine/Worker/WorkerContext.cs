@@ -18,13 +18,27 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 
     /// <summary>
     /// definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
-    /// UpsertDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
+    /// RegisterDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
     /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_jobs</c> free of any JOIN to
     /// definitions. Each descriptor carries the definition's effective (override-or-default)
     /// policy. Concurrent because the definition-policy reload tick re-overlays entries while
     /// executor threads read them.
     /// </summary>
     public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
+
+    /// <summary>
+    /// definitions.id to effective retention in seconds for each definition the heartbeat's last catalog read found
+    /// Retired, whether or not this deployment carries its handler. Their jobs never start another attempt or re-arm.
+    /// Replaced whole on each read, so a definition a newer build made Active again leaves it.
+    /// </summary>
+    public IReadOnlyDictionary<int, int> RetentionSecondsByRetiredDefinitionId { get; private set; } = new Dictionary<int, int>();
+
+    /// <summary>Replaces the retired definitions and republishes the claim exclusion without them.</summary>
+    public void ReplaceRetiredDefinitions(IReadOnlyDictionary<int, int> retentionSecondsByDefinitionId)
+    {
+        RetentionSecondsByRetiredDefinitionId = retentionSecondsByDefinitionId;
+        RebuildUnsupportedSnapshot();
+    }
 
     /// <summary>
     /// definitions.id values this worker bounced for want of a handler, and therefore stops claiming.
@@ -41,9 +55,10 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     private volatile int[] _unsupportedDefinitionIdsSnapshot = [];
 
     /// <summary>
-    /// The excluded set as an array to bind into a claim, rebuilt on each change. Readers take the
-    /// whole array, so a claim binds a set that was coherent at some instant rather than one
-    /// enumerated while a bounce was adding to it.
+    /// The excluded set less the retired definitions, as an array to bind into a claim, rebuilt on each
+    /// change of either. A retired definition's job must still be claimed, so the executor lands it
+    /// Cancelled rather than leaving it Ready for no worker. Readers take the whole array, so a claim
+    /// binds a set that was coherent at some instant rather than one enumerated while a bounce was adding to it.
     /// </summary>
     public int[] UnsupportedDefinitionIdsSnapshot => _unsupportedDefinitionIdsSnapshot;
 
@@ -62,29 +77,17 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     }
 
     /// <summary>
-    /// Drops <paramref name="definitionId"/> from the excluded set so this worker claims it again.
-    /// A test seam: production never forgets, because the deployment that carries the handler is a
-    /// different process.
-    /// </summary>
-    public bool ForgetUnsupportedDefinition(int definitionId)
-    {
-        if (!UnsupportedDefinitionIds.TryRemove(definitionId, out _))
-        {
-            return false;
-        }
-        RebuildUnsupportedSnapshot();
-        return true;
-    }
-
-    /// <summary>
-    /// Republishes the snapshot, reading the set and storing it under one lock: two concurrent changes
-    /// could otherwise interleave so the one that read the smaller set publishes last, hiding an id.
+    /// Republishes the snapshot, reading its inputs and storing it under one lock: two concurrent changes
+    /// could otherwise interleave so the one that read the older inputs publishes last, hiding a change.
     /// </summary>
     private void RebuildUnsupportedSnapshot()
     {
         lock (_unsupportedGate)
         {
-            _unsupportedDefinitionIdsSnapshot = [.. UnsupportedDefinitionIds.Keys];
+            _unsupportedDefinitionIdsSnapshot =
+            [
+                .. UnsupportedDefinitionIds.Keys.Where(id => !RetentionSecondsByRetiredDefinitionId.ContainsKey(id)),
+            ];
         }
     }
 

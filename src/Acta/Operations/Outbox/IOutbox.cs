@@ -9,7 +9,7 @@ namespace Acta;
 /// </summary>
 public interface IOutbox
 {
-    /// <summary>Lists the relay sources: one item per namespace whose <c>sys.outbox</c> slot exists, composed cross-peer from the slot's persisted tick summary (any host with ledger access can serve it). A namespace whose slot has produced no successful tick yet reports a null summary and null counters. Paging follows the namespace catalog; a <see cref="ListOutboxSourcesQuery.JobNamespace"/> filter returns at most one item.</summary>
+    /// <summary>Lists the relay sources: one item per namespace whose <c>sys.outbox</c> slot exists, composed cross-peer from the slot's <c>outbox-status</c> variable (any host with ledger access can serve it). A namespace whose slot has produced no successful tick yet reports a null summary and null counters. Paging follows the namespace catalog; a <see cref="ListOutboxSourcesQuery.JobNamespace"/> filter returns at most one item.</summary>
     ValueTask<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default);
 
     /// <summary>Lists a source's Quarantined rows (identity and failure evidence, never the payload), ordered by outbox id. This read opens the producer's source database, so it works only on a host that registered the namespace's relay via <c>AddOutboxRelay</c>; elsewhere it throws <see cref="InvalidOperationException"/> naming the constraint. Use <see cref="ListOutboxSourcesItem.IsLocal"/> to discover where the listing can run.</summary>

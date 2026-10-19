@@ -6,11 +6,9 @@ public class JobExplainerTests
 {
     private static readonly DateTime Now = new(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc);
     private static readonly WorkerRef LeaseWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000011"));
-    private static readonly WorkerRef LastRunWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000012"));
 
     private static GetJobExplanationHeaderRow Header(
         JobStatusCode status,
-        int executionNumber = 0,
         int failureCount = 0,
         int maxAttempts = 3,
         DateTime? nextRunAtUtc = null,
@@ -21,7 +19,6 @@ public class JobExplainerTests
         DateTime? workerLastSeenAtUtc = null,
         EventReasonCode? latestReasonCode = null,
         string? latestReasonMessage = null,
-        int? lastExecutedByWorkerId = null,
         string? lastExecutedByWorkerName = null,
         Guid? leasedByWorkerRef = null,
         Guid? lastExecutedByWorkerRef = null,
@@ -35,7 +32,6 @@ public class JobExplainerTests
             JobNamespace: "payments",
             JobName: "checkout",
             Status: status,
-            ExecutionNumber: executionNumber,
             FailureCount: failureCount,
             MaxAttemptsEffective: maxAttempts,
             NextRunAtUtc: nextRunAtUtc,
@@ -46,14 +42,11 @@ public class JobExplainerTests
             WorkerLastSeenAtUtc: workerLastSeenAtUtc,
             LatestReasonCode: latestReasonCode,
             LatestReasonMessage: latestReasonMessage,
-            LastExecutedByWorkerId: lastExecutedByWorkerId,
             LastExecutedByWorkerName: workerRowPurged ? null : lastExecutedByWorkerName,
             // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
             // so the fixture mirrors that.
             LeasedByWorkerRef: workerRowPurged ? null : leasedByWorkerRef ?? (leasedByWorkerId is null ? null : LeaseWorkerRef.Value),
-            LastExecutedByWorkerRef: workerRowPurged
-                ? null
-                : lastExecutedByWorkerRef ?? (lastExecutedByWorkerId is null ? null : LastRunWorkerRef.Value)
+            LastExecutedByWorkerRef: workerRowPurged ? null : lastExecutedByWorkerRef
         );
 
     private static GetJobExplanationRows Data(
@@ -213,7 +206,6 @@ public class JobExplainerTests
                 leasedByWorkerId: 17,
                 leaseExpiresAtUtc: Now.AddMinutes(2),
                 workerDeploymentVersion: "payments-v42",
-                lastExecutedByWorkerId: 17,
                 lastExecutedByWorkerName: "payments-v42",
                 workerRowPurged: true
             )
@@ -307,7 +299,7 @@ public class JobExplainerTests
     public void Suspended_names_the_worker_that_last_ran_it()
     {
         var data = Data(
-            Header(JobStatusCode.Suspended, lastExecutedByWorkerId: 17, lastExecutedByWorkerName: "payments-v42"),
+            Header(JobStatusCode.Suspended, lastExecutedByWorkerName: "payments-v42"),
             checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending)]
         );
 
@@ -385,7 +377,6 @@ public class JobExplainerTests
         var step = Assert.Single(x.Steps);
         Assert.Equal("reserve-stock", step.Name);
         Assert.Contains("will not rerun", step.Explanation);
-        Assert.Contains(x.NextActions, a => a.Kind == "view-result");
     }
 
     [Fact]

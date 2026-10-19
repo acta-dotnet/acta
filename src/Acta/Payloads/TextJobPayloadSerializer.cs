@@ -6,10 +6,10 @@ namespace Acta;
 /// <summary>
 /// Built-in <see cref="IJobPayloadSerializer"/> for <see cref="JobPayloadFormat.Text"/>: renders scalar values as
 /// UTF-8 text with <see cref="CultureInfo.InvariantCulture"/> on every format and parse, so culture cannot drift
-/// between producer and consumer. Strings pass through verbatim; <c>Guid</c> uses <c>"D"</c>; <c>DateTime</c> and
-/// <c>DateTimeOffset</c> use round-trip <c>"O"</c>; <c>TimeSpan</c> <c>"c"</c>; <c>DateOnly</c> <c>"yyyy-MM-dd"</c>;
-/// <c>TimeOnly</c> <c>"HH:mm:ss.fffffff"</c>; enums round-trip by name, parsed case-insensitively; other numerics,
-/// <c>bool</c>, and <c>char</c> use invariant <c>IConvertible</c>. Any other type is a programming error.
+/// between producer and consumer. Strings pass through verbatim, and text holding U+0000 throws; <c>Guid</c> uses
+/// <c>"D"</c>; <c>DateTime</c>/<c>DateTimeOffset</c> round-trip <c>"O"</c>; <c>TimeSpan</c> <c>"c"</c>; <c>DateOnly</c>
+/// <c>"yyyy-MM-dd"</c>; <c>TimeOnly</c> <c>"HH:mm:ss.fffffff"</c>; enums round-trip by name, parsed case-insensitively;
+/// other numerics, <c>bool</c>, and <c>char</c> use invariant <c>IConvertible</c>. Any other type is a programming error.
 /// </summary>
 public sealed class TextJobPayloadSerializer : IJobPayloadSerializer
 {

@@ -23,14 +23,14 @@ internal sealed class FakeClock(DateTime initialUtc) : IActaClock
 
 /// <summary>
 /// Recurring-schedule conformance: a definition-sourced slot fires repeatedly on one stable Job id,
-/// advances its per-schedule + slot cursors, surfaces the due set to the handler, trims its result
-/// ring buffer, applies the failure budget, and emits the audit-gated lifecycle events.
+/// advances its per-schedule + slot cursors, surfaces the due set to the handler, keeps the result of
+/// its last successful occurrence, applies the failure budget, and emits the audit-gated lifecycle events.
 /// </summary>
 [ConformanceSpec(
     "schedule.fires-on-tick",
     "A recurring slot fires repeatedly on one stable id advancing cursors",
     Area = "Scheduling",
-    Contract = "A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events."
+    Contract = "A recurring slot fires on one stable id, advancing cursors, keeping one result that each claim clears, applying the failure budget and emitting rollover events."
 )]
 public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -117,33 +117,35 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
-    [Fact(DisplayName = "Result ring buffer trims to the cap keeping the newest entries")]
-    public async Task Result_ring_buffer_trims_to_the_cap()
+    [Fact(
+        DisplayName = "The slot keeps its last successful occurrence's result, none while the next one runs, and none after a failed one"
+    )]
+    public async Task Slot_keeps_one_result_that_every_claim_clears()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
+        var slot = JobLookup.ById(slotId);
 
-        // RecurringPing declares RecurringResultCap = 3; fire 5 times and expect the newest 3 retained.
-        for (var i = 0; i < 5; i++)
+        await FireOnceAsync(slotId, ct);
+        Assert.Equal(1, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct))?.Sequence);
+
+        var observed = false;
+        GetResultResponse? whileRunning = null;
+        RecurringPingHandler.DuringNextFire[TestNamespace] = async () =>
         {
-            await FireOnceAsync(slotId, ct);
-        }
+            whileRunning = await Jobs.GetResultAsync(slot, ct);
+            observed = true;
+        };
+        await FireOnceAsync(slotId, ct);
+        Assert.True(observed);
+        Assert.Null(whileRunning);
+        Assert.Equal(2, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct))?.Sequence);
 
-        var resultCount = await Db.From<ResultEntity>().Where(r => r.JobId == slotId).CountAsync(ct);
-        Assert.Equal(3, resultCount);
-
-        var latest = await Services.GetRequiredService<GetResultHandler>().ReadAsync(slotId, null, ct);
-        Assert.NotNull(latest);
-        Assert.Equal(5, latest!.ExecutionNumber);
-        Assert.Equal(5, DeserializeResult(latest).Sequence);
-
-        var fourth = await Services.GetRequiredService<GetResultHandler>().ReadAsync(slotId, 4, ct);
-        Assert.NotNull(fourth);
-        Assert.Equal(4, fourth!.ExecutionNumber);
-        Assert.Equal(4, DeserializeResult(fourth).Sequence);
-
-        Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(slotId, 1, ct));
+        RecurringPingHandler.FailWhileSequenceAtMost[TestNamespace] = 3;
+        await FireOnceAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Null(await Jobs.GetResultAsync(slot, ct));
     }
 
     [Fact(DisplayName = "In-budget failure re-arms Ready and a later success resets the failure count")]
@@ -229,13 +231,6 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         var row = Assert.Single(rows);
         Assert.NotNull(row.NextRunAtUtc);
         return row.NextRunAtUtc!.Value;
-    }
-
-    private RecurringPingResult DeserializeResult(GetResultRow row)
-    {
-        var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
-        var payload = JobPayload.FromBytes(row.Format, row.Data.ToArray());
-        return serializers.Resolve(row.Format.Id).Deserialize<RecurringPingResult>(payload);
     }
 
     // Advance the fake clock to the slot's due instant so the walker sees the schedule due, then run

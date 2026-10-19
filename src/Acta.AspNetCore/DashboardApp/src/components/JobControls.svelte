@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
+  import { buildBody } from '../lib/controlMutation.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
   import { jobControlMessage } from '../lib/controlMessages.ts';
@@ -9,11 +10,10 @@
   import ConfirmAction from './ConfirmAction.svelte';
   import Icon from './Icon.svelte';
 
-  let { jobRef, status, priority = null, embedded = false, onChanged = () => {} }: {
+  let { jobRef, status, priority = null, onChanged = () => {} }: {
     jobRef: string;
     status: string;
     priority?: string | null;
-    embedded?: boolean;
     onChanged?: () => void;
   } = $props();
 
@@ -90,7 +90,7 @@
     },
     purge: {
       title: 'Permanently delete this job record?',
-      body: "Permanently deletes this job's events, alerts, and child rows (runtime, schedule, steps, results, checkpoints, tags), then the job row itself. A terminal job with child jobs cannot be purged - that would orphan their lineage.",
+      body: "Permanently deletes this job's events, alerts, and child rows (runtime, schedule, steps, checkpoints, tags), then the job row itself. A terminal job with child jobs cannot be purged - that would orphan their lineage.",
       label: 'Permanently delete record',
       danger: true,
       requireReason: false,
@@ -129,18 +129,8 @@
     rescheduleWireToConfirm = null;
   }
 
-  export function openAction(action: string): void {
-    if (!canControlNow) return;
-    const legal = {
-      pause: canPause,
-      resume: canResume,
-      restart: canRestart,
-      cancel: canCancel,
-      reschedule: canReschedule,
-      reprioritize: canReprioritize,
-      purge: canPurge
-    }[action];
-    if (!legal) return;
+  // Each button renders only under canControlNow and its own can* flag, so the action is legal here.
+  function openAction(action: string): void {
     if (action === 'reschedule') reschedulingOpen = true;
     else if (action === 'reprioritize') openReprioritize();
     else confirming = action;
@@ -148,15 +138,15 @@
 
   // All seven verbs live at jobs/{jobRef}/{action} and return JobControlResponse; invalidating the
   // single-element 'jobs' key prefix covers both the job-detail query (['jobs','detail',ref]) and
-  // every jobs-list query (['jobs', filters]) - the same prefix-match trick JobDetail.svelte's own
-  // reload() uses for the events key.
+  // every jobs-list query (['jobs', filters]).
   const mutation = useControlMutation<
     { jobRef: string; action: string; reason?: string; extra?: Record<string, unknown> },
     JobControlResponse
   >({
     path: (vars) => `jobs/${vars.jobRef}/${vars.action}`,
-    body: (vars) => vars.extra ?? {},
-    notFound: () => ({ action: 'notFound', status: null, version: null }),
+    // Purge records no reason, and the server rejects a body member it does not map, so its body is empty.
+    rawBody: (vars) => (vars.action === 'purge' ? {} : buildBody(vars, () => vars.extra ?? {})),
+    notFound: () => ({ action: 'notFound', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);
@@ -169,7 +159,7 @@
     message = '';
     try {
       const result = await mutation.mutateAsync({ jobRef, action, reason, extra });
-      message = jobControlMessage(action, result.action, result.status);
+      message = jobControlMessage(action, result.action);
       messageKind = result.action === 'applied' ? 'ok' : 'warn';
       onChanged();
     } catch (e) {
@@ -196,7 +186,7 @@
   }
 </script>
 
-<section class:panel={!embedded} class:detail-panel={embedded}>
+<section class="detail-panel">
   <h2>Actions</h2>
   <div class="control-row">
     {#if canControlNow}

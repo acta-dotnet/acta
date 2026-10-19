@@ -82,7 +82,7 @@ public sealed class ControlContractTests
         .. JobVerb("resume", typeof(ResumeJobResponse)),
         .. JobVerb("restart", typeof(RestartJobResponse)),
         .. JobVerb("cancel", typeof(CancelJobResponse)),
-        .. JobVerb("purge", typeof(PurgeJobResponse)),
+        .. JobVerb("purge", typeof(PurgeJobResponse), new JsonObject()),
         .. JobVerb("reschedule", typeof(RescheduleJobResponse), new { nextRunAtUtc = "2030-01-01T00:00:00Z", reasonMessage = "because" }),
         .. JobVerb("reprioritize", typeof(ReprioritizeJobResponse), new { priority = "high", reasonMessage = "because" }),
         .. JobVerbVersionConflict("pause", typeof(PauseJobResponse), new JsonObject { ["reasonMessage"] = "because" }),
@@ -334,8 +334,8 @@ public sealed class ControlContractTests
         ];
     }
 
-    // A schedule name of "missing" reads as absent and "rejected" as a forbidden transition, so all
-    // four schedule verbs stage their three outcomes by name.
+    // A schedule name of "missing" reads as absent and "rejected" as a forbidden transition, so pause,
+    // resume, and trigger stage their three outcomes by name.
     private static IEnumerable<Case> ScheduleVerb(string verb, Type declared)
     {
         var route = $"/schedules/{{jobNamespace}}/{{jobName}}/{{scheduleName}}/{verb}";
@@ -348,8 +348,8 @@ public sealed class ControlContractTests
         ];
     }
 
-    // The one schedule verb with a CAS token: its rejection is a version conflict, and the response
-    // carries the row's current version so the caller retries without a re-read.
+    // The one schedule verb with a CAS token: its 409 is a version conflict, and the response carries
+    // the row's current version so the caller retries without a re-read.
     private static IEnumerable<Case> ScheduleOverrides()
     {
         const string route = "/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides";
@@ -369,12 +369,12 @@ public sealed class ControlContractTests
             ),
             Schedule(
                 route,
-                "rejected",
-                Path("rejected"),
+                "versionConflict",
+                Path("nightly"),
                 StatusCodes.Status409Conflict,
                 typeof(SetScheduleOverridesResponse),
-                "rejected",
-                body,
+                "versionConflict",
+                new { expectedVersion = 999, reasonMessage = "because" },
                 version: 7
             ),
             Schedule(
@@ -400,10 +400,12 @@ public sealed class ControlContractTests
         int? version = null
     ) => new("schedules", route, "POST", outcome, path, status, declared, action, body, version);
 
+    // Both definition verbs answer the definition's version after the attempt: one past the expected on
+    // an apply, the current one on a conflict.
     private static IEnumerable<Case> DefinitionOverrides()
     {
         const string route = "/definitions/{jobNamespace}/{jobName}";
-        static Case Row(string outcome, string path, int status, string action, int expectedVersion) =>
+        static Case Row(string outcome, string path, int status, string action, int expectedVersion, int? version) =>
             new(
                 "definitions",
                 route,
@@ -413,20 +415,21 @@ public sealed class ControlContractTests
                 status,
                 typeof(SetDefinitionOverridesResponse),
                 action,
-                new { expectedVersion, reasonMessage = "because" }
+                new { expectedVersion, reasonMessage = "because" },
+                version
             );
         return
         [
-            Row("applied", "/definitions/billing/send-invoice", StatusCodes.Status200OK, "applied", 1),
-            Row("rejected", "/definitions/billing/send-invoice", StatusCodes.Status409Conflict, "rejected", 999),
-            Row("notFound", "/definitions/billing/missing", StatusCodes.Status404NotFound, "notFound", 1),
+            Row("applied", "/definitions/billing/send-invoice", StatusCodes.Status200OK, "applied", 1, 2),
+            Row("versionConflict", "/definitions/billing/send-invoice", StatusCodes.Status409Conflict, "versionConflict", 999, 2),
+            Row("notFound", "/definitions/billing/missing", StatusCodes.Status404NotFound, "notFound", 1, null),
         ];
     }
 
     private static IEnumerable<Case> DefinitionRetire()
     {
         const string route = "/definitions/{jobNamespace}/{jobName}/retire";
-        static Case Row(string outcome, string path, int status, string action, int expectedVersion) =>
+        static Case Row(string outcome, string path, int status, string action, int expectedVersion, int? version) =>
             new(
                 "definitions",
                 route,
@@ -436,13 +439,14 @@ public sealed class ControlContractTests
                 status,
                 typeof(RetireDefinitionResponse),
                 action,
-                new { expectedVersion, reasonMessage = "because" }
+                new { expectedVersion, reasonMessage = "because" },
+                version
             );
         return
         [
-            Row("applied", "/definitions/billing/send-invoice/retire", StatusCodes.Status200OK, "applied", 1),
-            Row("rejected", "/definitions/billing/send-invoice/retire", StatusCodes.Status409Conflict, "rejected", 999),
-            Row("notFound", "/definitions/billing/missing/retire", StatusCodes.Status404NotFound, "notFound", 1),
+            Row("applied", "/definitions/billing/send-invoice/retire", StatusCodes.Status200OK, "applied", 1, 2),
+            Row("versionConflict", "/definitions/billing/send-invoice/retire", StatusCodes.Status409Conflict, "versionConflict", 999, 2),
+            Row("notFound", "/definitions/billing/missing/retire", StatusCodes.Status404NotFound, "notFound", 1, null),
         ];
     }
 
@@ -588,9 +592,9 @@ public sealed class ControlContractTests
         ];
     }
 
-    private static void TagApplies(FakeOperations fakes) => fakes.Tags.MutationAction = TagMutationAction.Applied;
+    private static void TagApplies(FakeOperations fakes) => fakes.Tags.MutationAction = ControlAction.Applied;
 
-    private static void TagTargetMissing(FakeOperations fakes) => fakes.Tags.MutationAction = TagMutationAction.NotFound;
+    private static void TagTargetMissing(FakeOperations fakes) => fakes.Tags.MutationAction = ControlAction.NotFound;
 
     private static string Path(string route, string key) => route[..route.IndexOf('{', StringComparison.Ordinal)] + key;
 

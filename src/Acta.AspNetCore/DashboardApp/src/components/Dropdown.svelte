@@ -9,7 +9,7 @@
   // A DOM listbox rather than a native <select>. Two reasons, both visible to users: the OS-drawn
   // popup paints with UA colors before the page theme reaches it, which reads as a white sheet on the
   // dark themes; and a long list is a scroll rather than a few keystrokes. Typing filters once the
-  // list is longer than `typeaheadFrom`, so short enum-shaped lists stay plain.
+  // list holds 8 options or more, so short enum-shaped lists stay plain.
   //
   // Short enum filters should keep using a native <select> - this is for the long, data-driven lists
   // (namespaces, job names). ZonePicker stays its own component: it lazy-loads the tzdb and does
@@ -20,17 +20,13 @@
     options = [],
     value = $bindable(''),
     label,
-    placeholder = 'Select',
     disabled = false,
-    typeaheadFrom = 8,
     onchange = undefined,
   }: {
     options?: Option[];
     value?: string;
     label: string;
-    placeholder?: string;
     disabled?: boolean;
-    typeaheadFrom?: number;
     onchange?: (value: string) => void;
   } = $props();
 
@@ -44,13 +40,14 @@
   let inputEl: HTMLInputElement | null = $state(null);
   let optionEls: HTMLButtonElement[] = $state([]);
 
-  let typeahead = $derived(options.length >= typeaheadFrom);
+  let typeahead = $derived(options.length >= 8);
   let matches = $derived(
     query.trim().length === 0
       ? options
       : options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
   );
-  let selectedLabel = $derived(options.find((o) => o.value === value)?.label ?? placeholder);
+  // Every caller lists the current value, so the selection always has a label.
+  let selectedLabel = $derived(options.find((o) => o.value === value)?.label ?? '');
 
   async function openList(): Promise<void> {
     if (disabled) return;
@@ -218,5 +215,5 @@
   .option:hover { background: var(--panel-subtle); }
   .option.selected { color: var(--accent); font-weight: 600; }
 
-  .empty { padding: 7px 8px; color: var(--ink-dim); }
+  .empty { padding: 7px 8px; color: var(--muted); }
 </style>

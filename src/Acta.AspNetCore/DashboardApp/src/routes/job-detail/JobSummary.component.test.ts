@@ -4,11 +4,11 @@ import JobSummary from './JobSummary.svelte';
 import type { JobDetail } from './types.ts';
 import { routes } from '../../routes.ts';
 
-const head = 'job_01kxrwwtf0fe2vygfwffr5c981';
+const head = 'job_019f71ce69e07b85bf41fc7bf0562501';
 
 function job(overrides: Partial<JobDetail>): JobDetail {
   return {
-    jobRef: 'job_01kxrwwtf0fe2vygfwffr5c982',
+    jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
     jobNamespace: 'billing',
     jobName: 'send-invoice',
     lineageRootJobRef: null,

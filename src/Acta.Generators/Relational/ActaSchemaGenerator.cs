@@ -20,7 +20,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
 {
     internal const string DbTableAttr = "Acta.DbTableAttribute";
     internal const string DbColumnAttr = "Acta.DbColumnAttribute";
-    internal const string DbIgnoreAttr = "Acta.DbIgnoreAttribute";
     internal const string DbPrimaryKeyAttr = "Acta.DbPrimaryKeyAttribute";
     internal const string DbIndexAttr = "Acta.DbIndexAttribute";
     internal const string DbUniqueIndexAttr = "Acta.DbUniqueIndexAttribute";
@@ -86,11 +85,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(entities.Collect(), static (spc, items) => Emit(spc, items));
     }
 
-    /// <summary>
-    /// ============================================================================================
-    /// Emit
-    /// ============================================================================================
-    /// </summary>
     internal static void Emit(SourceProductionContext spc, ImmutableArray<EntityInfo> entities)
     {
         if (entities.IsDefaultOrEmpty)
@@ -154,11 +148,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         spc.AddSource("EntityBinder.Generated.cs", EmitEntityBinder(emittable));
     }
 
-    /// <summary>
-    /// ============================================================================================
-    /// Wire types
-    /// ============================================================================================
-    /// </summary>
     internal readonly record struct EntityInfo(
         string EntityName,
         string EntityFqn,
@@ -168,6 +157,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         string PrimaryKeyName,
         ImmutableArray<string> PrimaryKeyColumns,
         bool PrimaryKeyManual,
+        string? PrimaryKeyIdentity,
         bool PrimaryKeyOptimizeForSequentialKey,
         ImmutableArray<ColumnInfo> Columns,
         ImmutableArray<IndexInfo> Indexes,
@@ -218,14 +208,11 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         string NonNullableTypeFqn,
         string KindName,
         int? Size,
-        int? Precision,
-        int? Scale,
         bool IsNullable,
         string DefaultName,
         bool IsCoded,
         bool IsPrimaryKey,
-        bool IsSolePrimaryKey,
-        bool IsManualPrimaryKey,
+        bool IsIdentity,
         bool IsConcurrencyToken,
         string? EnumTypeName,
         string? CodeKind,
@@ -237,12 +224,10 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
     internal readonly record struct IndexInfo(
         string Name,
         ImmutableArray<string> Columns,
-        ImmutableArray<string> Includes,
         ImmutableArray<string> Descending,
         string? Filter,
         string Usage,
-        bool IsUnique,
-        bool OptimizeForSequentialKey
+        bool IsUnique
     );
 
     internal readonly record struct CheckInfo(string Name, string Sql);

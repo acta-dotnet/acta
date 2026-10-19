@@ -246,6 +246,37 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         }
     }
 
+    [Fact(DisplayName = "RunAndWaitAsync reads the result of the execution it saw succeed, never an earlier one")]
+    public async Task ExecuteAndWaitAsync_on_a_restarted_dedup_hit_reads_only_the_succeeding_execution_result()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var input = new OldThenOversizeInput(1);
+        const string key = "typed-restarted-1";
+
+        var first = await Jobs.EnqueueAsync(input, new JobEnqueueOptions { DeduplicationKey = key }, ct);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(first, ct));
+        Assert.Equal("old", await Jobs.GetResultAsync<string>(first, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(first, ct: ct)).Action);
+
+        // The deduplication key lands the wait on the restarted job, whose second execution succeeds with its result
+        // dropped while the first execution's "old" stays stored.
+        var waiting = Jobs.RunAndWaitAsync<OldThenOversizeInput, string>(
+                input,
+                new JobExecutionOptions
+                {
+                    DeduplicationKey = key,
+                    WaitTimeout = TimeSpan.FromSeconds(60),
+                    PollInterval = TimeSpan.FromMilliseconds(100),
+                },
+                ct
+            )
+            .AsTask();
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(first, ct));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => waiting);
+        Assert.Contains("stored no result", ex.Message);
+    }
+
     [Fact(DisplayName = "RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it")]
     public async Task ExecuteAndWaitAsync_returns_at_wait_timeout_when_poll_interval_is_longer()
     {

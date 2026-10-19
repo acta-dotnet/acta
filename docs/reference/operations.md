@@ -51,11 +51,11 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `runtimes` | `ArmOrConsumeSleepTimerSpec` |
 | `ClaimJob` | · | · | · | inline | inline | inline | `runtimes` | `ClaimJobSpec` |
 | `ClaimJobs` | · | · | · | routine | routine | inline | `runtimes` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
-| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionsSchedulesChangedSpec`, `CompleteExecutionsSpec` |
+| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `runtimes`, `schedules` | `CompleteExecutionsSchedulesChangedSpec`, `CompleteExecutionsSpec` |
 | `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
 | `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |
 | `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | `GetStaleChildLatchesSpec` |
-| `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
+| `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `events`, `runtimes`, `workers` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
 | `RecordNote` | · | · | · | inline | inline | inline | `events` | `RecordNoteSpec` |
 | `StartStep` | · | · | · | routine | routine | inline | `steps` | `StartStepSpec` |
 
@@ -78,10 +78,10 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
 | `GetResult` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetResultSpec` |
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | inline | inline | inline | `events`, `runtimes` | `PauseJobSpec` |
-| `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `checkpoints`, `events`, `jobs`, `results`, `runtimes`, `schedules`, `steps`, `tags` | `PurgeJobSpec` |
+| `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `checkpoints`, `events`, `jobs`, `runtimes`, `schedules`, `steps`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `runtimes` | `ReprioritizeJobSpec` |
 | `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `events`, `runtimes` | `RescheduleJobSpec` |
-| `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `results`, `steps` | `ResetJobStateSpec` |
+| `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `steps` | `ResetJobStateSpec` |
 | `ResolveJobIdByDeduplicationKey` | · | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
 | `ResolveJobIdByRef` | · | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
 | `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | inline | inline | inline | `events`, `runtimes`, `steps` | `RestartJobSpec` |
@@ -93,7 +93,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `GetOverview` | `ILedger.GetOverviewAsync` | `GET /overview` | · | inline | inline | inline | · | `GetOverviewSpec` |
-| `ListEvents` | `ILedger.ListEventsAsync` | `GET /events`<br>`GET /jobs/{jobRef}/events`<br>`GET /definitions/{jobNamespace}/{jobName}/events` | `events` | inline | inline | inline | · | `ListEventsFilterMatrixSpec`, `ListEventsSpec` |
+| `ListEvents` | `ILedger.ListEventsAsync` | `GET /events`<br>`GET /jobs/{jobRef}/events`<br>`GET /definitions/{jobNamespace}/{jobName}/events` | `events` | inline | inline | inline | · | `ListEventsFilterMatrixSpec`, `ListEventsSpec`, `ListEventsWorkerSpec` |
 | `ListJobs` | `ILedger.ListJobsAsync` | `GET /jobs` | · | inline | inline | inline | · | `ListJobsFilterMatrixSpec`, `ListJobsSpec` |
 
 ## Locks
@@ -109,13 +109,12 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `lanes`, `locks`, `results`, `runtimes`, `schedules`, `steps`, `tags`, `workers` | `PurgeExpiredDataSpec` |
+| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `lanes`, `locks`, `runtimes`, `schedules`, `steps`, `tags`, `workers` | `PurgeExpiredDataSpec` |
 
 ## Namespaces
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ListNamespaceNames` | `INamespaces.ListNamesAsync` | · | · | inline | inline | inline | · | `ListNamespaceNamesSpec` |
 | `ListNamespaces` | `INamespaces.ListAsync` | `GET /namespaces` | · | inline | inline | inline | · | `ListNamespacesSpec` |
 | `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | inline | inline | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
 | `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` | · | inline | inline | inline | `events`, `namespaces` | `SuspendNamespaceSpec` |
@@ -134,7 +133,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `DiscardQuarantinedOutboxSpec` |
 | `GetOutboxSignal` | · | · | · | inline | inline | inline | · | `GetOutboxSignalSpec` |
 | `ListOutboxQuarantined` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | `ListOutboxQuarantinedSpec` |
-| `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec` |
+| `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec`, `ListOutboxSourcesStatusSpec` |
 | `ListQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `ListQuarantinedOutboxSpec` |
 | `ParkOutboxSignal` | · | · | · | inline | inline | inline | `checkpoints` | `ParkOutboxSignalSpec` |
 | `QuarantineOutbox` | · | · | · | inline | inline | inline | · | `QuarantineOutboxSpec` |

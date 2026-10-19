@@ -33,14 +33,6 @@ internal sealed class PostgresDialect : ISqlDialect
         {
             parameter.Size = size;
         }
-        if (spec.Precision is { } precision)
-        {
-            parameter.Precision = (byte)precision;
-        }
-        if (spec.Scale is { } scale)
-        {
-            parameter.Scale = (byte)scale;
-        }
 
         parameter.Value = coercedValue is byte value ? (object)(short)value : coercedValue;
         return parameter;
@@ -85,10 +77,8 @@ internal sealed class PostgresDialect : ISqlDialect
             DbKind.Int64 => NpgsqlDbType.Bigint,
             DbKind.Guid => NpgsqlDbType.Uuid,
             DbKind.UtcInstant => NpgsqlDbType.TimestampTz,
-            DbKind.Decimal => NpgsqlDbType.Numeric,
             DbKind.AsciiString => NpgsqlDbType.Varchar,
             DbKind.UnicodeString => NpgsqlDbType.Varchar,
-            DbKind.Bytes => NpgsqlDbType.Bytea,
             DbKind.BinaryPayload => NpgsqlDbType.Bytea,
             _ => throw new InvalidOperationException($"Unmapped DbKind '{parameter.Kind}' for Postgres parameter '{parameter.Name}'."),
         };
@@ -311,7 +301,6 @@ internal sealed class PostgresDialect : ISqlDialect
             definitionHashes[i] = row.DefinitionHash;
         }
 
-        // PostgreSQL routine arguments are positional; this order matches register_definitions.
         AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, namespaceId);
         AddScalar(postgres, "@p_manifest_generation", NpgsqlDbType.TimestampTz, manifestGenerationUtc);
         AddArray(postgres, "@p_d_name", NpgsqlDbType.Varchar, names);
@@ -399,7 +388,6 @@ internal sealed class PostgresDialect : ISqlDialect
             }
         }
 
-        // PostgreSQL routine arguments are positional; this order matches register_schedules.
         AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, definitions[0].NamespaceId);
         AddArray(postgres, "@p_d_job_ref", NpgsqlDbType.Uuid, jobRefs);
         AddArray(postgres, "@p_d_definition_id", NpgsqlDbType.Integer, definitionIds);
@@ -429,7 +417,12 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_execution_numbers", NpgsqlDbType.Integer, completions.Select(c => c.ExecutionNumber).ToArray());
         AddArray(postgres, "@p_succeeded", NpgsqlDbType.Boolean, completions.Select(c => c.Succeeded).ToArray());
         AddArray(postgres, "@p_result_format_ids", NpgsqlDbType.Smallint, completions.Select(c => (short)c.ResultFormatId).ToArray());
-        AddArray(postgres, "@p_results", NpgsqlDbType.Bytea, completions.Select(c => c.Result.ToArray()).ToArray());
+        AddArray(
+            postgres,
+            "@p_results",
+            NpgsqlDbType.Bytea,
+            completions.Select(c => c.ResultFormatId == JobPayloadFormat.None.Id ? null : c.Result.ToArray()).ToArray()
+        );
         AddArray(postgres, "@p_reason_codes", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.EventReasonCode).ToArray());
         AddArray(postgres, "@p_reason_messages", NpgsqlDbType.Varchar, completions.Select(c => c.ReasonMessage).ToArray());
         AddArray(postgres, "@p_duration_ms", NpgsqlDbType.Integer, completions.Select(c => c.DurationMs).ToArray());
@@ -462,7 +455,6 @@ internal sealed class PostgresDialect : ISqlDialect
         );
         AddArray(postgres, "@p_final_statuses", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.FinalStatus).ToArray());
         AddArray(postgres, "@p_job_next_run_at_utc", NpgsqlDbType.TimestampTz, completions.Select(c => c.JobNextRunAtUtc).ToArray());
-        AddArray(postgres, "@p_recurring_result_caps", NpgsqlDbType.Integer, completions.Select(c => c.RecurringResultCap).ToArray());
 
         var advances = completions.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a))).ToList();
         AddArray(postgres, "@p_advance_job_ids", NpgsqlDbType.Bigint, advances.Select(a => a.JobId).ToArray());

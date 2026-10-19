@@ -1,6 +1,5 @@
 SELECT
     a.id AS alert_id,
-    a.job_id,
     a.severity_code AS severity,
     a.kind_code AS kind,
     a.title,

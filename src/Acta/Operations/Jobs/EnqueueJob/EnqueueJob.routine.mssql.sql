@@ -305,11 +305,10 @@ BEGIN
                     @now, 0
                 );
 
-                INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
+                INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
                 SELECT
                     50 /* TagScopeCode.Job */,
                     @job_id,
-                    @ns_id,
                     t.name,
                     t.value,
                     t.value_search

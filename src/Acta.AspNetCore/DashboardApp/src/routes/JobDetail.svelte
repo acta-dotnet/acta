@@ -97,12 +97,10 @@
 
   // Real tabs: only the active tab's panels are mounted, so per-tab data (the unbounded event
   // history lives on Details) is only fetched while its tab is open.
-  type DetailTab = 'details' | 'executions' | 'input' | 'result' | 'checkpoints' | 'schedules' | 'lineage';
+  type DetailTab = 'details' | 'executions' | 'checkpoints' | 'schedules' | 'lineage';
   const tabs: { id: DetailTab; label: string }[] = [
     { id: 'details', label: 'Details' },
     { id: 'executions', label: 'Executions' },
-    { id: 'input', label: 'Input' },
-    { id: 'result', label: 'Result' },
     { id: 'checkpoints', label: 'Checkpoints' },
     { id: 'schedules', label: 'Schedules' },
     { id: 'lineage', label: 'Lineage' }
@@ -203,13 +201,16 @@
     <div class="detail-workspace">
       <div class="detail-main">
         {#if activeTab === 'details'}
-          <JobSummary {job} tenantName={detail.tenantName} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
+          <JobSummary {job} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
+          <div class="payload-row">
+            <JobInputPanel input={detail.input} {jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
+            <JobResultPanel result={detail.result} />
+          </div>
           <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
           <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
           <JobEventsPanel
             bind:this={eventsPanel}
             {jobRef}
-            enabled={!!job}
             polling={!TERMINAL_STATUSES.includes(job.status)}
             nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc}
             initialAttempt={focusExecution}
@@ -226,10 +227,6 @@
             polling={!TERMINAL_STATUSES.includes(job.status)}
             {focusExecution}
             onViewInTimeline={viewInTimeline} />
-        {:else if activeTab === 'input'}
-          <JobInputPanel input={detail.input} {jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
-        {:else if activeTab === 'result'}
-          <JobResultPanel result={detail.result} />
         {:else if activeTab === 'checkpoints'}
           <JobCheckpointsPanel checkpoints={detail.checkpoints} />
         {:else if activeTab === 'schedules'}
@@ -240,8 +237,8 @@
       </div>
 
       <aside class="detail-rail">
-        <div id="job-actions"><JobControls {jobRef} status={job.status} priority={job.priority} embedded={true} onChanged={reload} /></div>
-        <div id="job-signals"><SignalDrawer {jobRef} embedded={true} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>
+        <div id="job-actions"><JobControls {jobRef} status={job.status} priority={job.priority} onChanged={reload} /></div>
+        <div id="job-signals"><SignalDrawer {jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>
           <nav>
@@ -261,6 +258,8 @@
 
 <style>
   .support-row { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 8px; }
+  /* Request and result side by side when there is room, stacked when there is not. */
+  .payload-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
   .clone-action {
     display: inline-flex;
     align-items: center;

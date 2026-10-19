@@ -1,12 +1,12 @@
 <Solution>
   <Folder Name="/anvil/">
     <Project Path="anvil/Anvil/Anvil.csproj" />
-    <Project Path="anvil/Anvil.Bench/Anvil.Bench.csproj" />
   </Folder>
   <Folder Name="/support/">
     <Project Path="support/Acta.LocalHost/Acta.LocalHost.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/Acta.Bench/Acta.Bench.csproj" />
     <Project Path="tools/Acta.Doctor/Acta.Doctor.csproj" />
     <Project Path="tools/Acta.Emit/Acta.Emit.csproj" />
   </Folder>
@@ -23,6 +23,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Acta.Tests/Acta.Tests.csproj" />
     <Project Path="tests/Acta.Tests.Conformance/Acta.Tests.Conformance.csproj" />
+    <Project Path="tests/Acta.Bench.Tests/Acta.Bench.Tests.csproj" />
     <Project Path="tests/Acta.Tests.Conformance.Postgres/Acta.Tests.Conformance.Postgres.csproj" />
     <Project Path="tests/Acta.Tests.Conformance.SqlServer/Acta.Tests.Conformance.SqlServer.csproj" />
     <Project Path="tests/Acta.Tests.Conformance.Sqlite/Acta.Tests.Conformance.Sqlite.csproj" />

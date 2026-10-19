@@ -23,33 +23,13 @@ internal static class SqlSchemaEmitter
         AppendTerminator(sb, dialect);
         sb.AppendLine();
 
-        // Table-name order, deferring any table whose inline-FK target has not been emitted yet
-        // (e.g. checkpoints sorts before its FK parent jobs). Stable: non-deferred tables keep
-        // their alphabetical position; a deferred table lands right after its parent.
+        // Table-name order: every foreign key's target sorts before the table that references it, and EmitTable
+        // throws if one does not.
         var emittedTables = new HashSet<string>(StringComparer.Ordinal);
-        var pending = new List<EntityModel>(model.Entities);
-        while (pending.Count > 0)
+        foreach (var entity in model.Entities)
         {
-            var emittedThisPass = false;
-            for (var i = 0; i < pending.Count; )
-            {
-                var entity = pending[i];
-                if (entity.ForeignKeys.Any(fk => !emittedTables.Contains(ResolveTableName(fk.Target))))
-                {
-                    i++;
-                    continue;
-                }
-                EmitTable(sb, entity, dialect, emittedTables);
-                sb.AppendLine();
-                pending.RemoveAt(i);
-                emittedThisPass = true;
-            }
-            if (!emittedThisPass)
-            {
-                throw new InvalidOperationException(
-                    "Inline-FK dependency cycle among tables: " + string.Join(", ", pending.Select(p => p.TableName))
-                );
-            }
+            EmitTable(sb, entity, dialect, emittedTables);
+            sb.AppendLine();
         }
 
         // Request-shape table types (TVPs) consumed by hot-path routines: a dialect literal, not part
@@ -110,9 +90,9 @@ internal static class SqlSchemaEmitter
             sb.AppendLine(CultureInfo.InvariantCulture, $"    {colDefs[i]}{comma}");
         }
 
-        // A sole integer PK is folded into the column itself on inline-PK dialects (SQLite rowid
-        // alias); the separate table-level constraint is then redundant and would create a second
-        // index, so it is skipped.
+        // The identity column is folded into the column itself on inline-PK dialects (SQLite rowid
+        // alias) and is then the whole key; the table-level constraint would create a second index,
+        // so it is skipped.
         if (!PkRenderedInline(e, dialect))
         {
             sb.AppendLine(
@@ -126,7 +106,7 @@ internal static class SqlSchemaEmitter
             sb.AppendLine(CultureInfo.InvariantCulture, $"    , CONSTRAINT {chk.Name} CHECK ({chk.Sql})");
         }
 
-        // Provider-specific extras (Postgres byte range / bytea octet_length CHECKs).
+        // Provider-specific extras (the Postgres and SQLite byte range CHECKs).
         dialect.EmitProviderColumnChecks(sb, e);
 
         // FKs are table-level constraints (not post-CREATE ALTERs) so the whole table block stays
@@ -137,7 +117,7 @@ internal static class SqlSchemaEmitter
             if (!emittedTables.Contains(targetTable))
             {
                 throw new InvalidOperationException(
-                    $"FK {fk.Name} on {e.TableName} references {targetTable}, which is not emitted yet; inline FKs require dependency order in SchemaModel.Entities."
+                    $"FK {fk.Name} on {e.TableName} references {targetTable}, which is not emitted yet; tables emit in name order, so a target must sort first."
                 );
             }
             sb.AppendLine(
@@ -185,25 +165,15 @@ internal static class SqlSchemaEmitter
     internal static string RenderIndex(string tableName, DbIndexSpec idx, SqlDdlDialect dialect)
     {
         var cols = string.Join(", ", idx.Columns.Select(c => idx.Descending?.Contains(c) == true ? $"{c} DESC" : c));
-        var includes =
-            dialect.SupportsIndexInclude && idx.Includes is { Count: > 0 } ? $" INCLUDE ({string.Join(", ", idx.Includes)})" : "";
         var filter = idx.Filter is null ? "" : $" WHERE {idx.Filter}";
-        var trailing = dialect.IndexTrailingOptions(idx);
-        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){includes}{filter}{trailing};";
+        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){filter};";
     }
 
-    // True when this entity's primary key is a sole integer PK that the dialect folds inline on the
-    // column (SQLite rowid alias). The same predicate drives both the column rendering and the
-    // table-level constraint skip so they stay in lockstep.
-    private static bool PkRenderedInline(EntityModel e, SqlDdlDialect dialect)
-    {
-        if (!dialect.InlineIntegerPrimaryKey || e.PrimaryKey.Columns.Count != 1)
-        {
-            return false;
-        }
-        var col = e.Columns.FirstOrDefault(c => c.Name == e.PrimaryKey.Columns[0]);
-        return col is not null && col.IsSolePrimaryKey && !col.IsManualPrimaryKey && IsIdentityEligible(col.Kind);
-    }
+    // True when the dialect folds this entity's identity column inline as its key (SQLite rowid alias).
+    // Paired with the IsIdentity test in RenderColumn, so the column rendering and the table-level
+    // constraint skip stay in lockstep.
+    private static bool PkRenderedInline(EntityModel e, SqlDdlDialect dialect) =>
+        dialect.InlineIntegerPrimaryKey && e.Columns.Any(c => c.IsIdentity);
 
     internal static string RenderColumn(ColumnModel c, SqlDdlDialect dialect)
     {
@@ -212,7 +182,7 @@ internal static class SqlSchemaEmitter
             return dialect.RenderGeneratedColumn(c);
         }
 
-        if (dialect.InlineIntegerPrimaryKey && c.IsSolePrimaryKey && !c.IsManualPrimaryKey && IsIdentityEligible(c.Kind))
+        if (dialect.InlineIntegerPrimaryKey && c.IsIdentity)
         {
             // SQLite rowid alias with AUTOINCREMENT: keep provider parity with SQL Server/Postgres
             // identities by never reusing ids after retention deletes a highest row.
@@ -228,15 +198,8 @@ internal static class SqlSchemaEmitter
         return $"{c.Name} {typeSql}{allocation}{defaultClause} {nullable}";
     }
 
-    // Provider-native PK allocation. Order of precedence:
-    //   1. sole single-column integer PK + no Manual → identity clause
-    //   2. otherwise → no default
-    private static string RenderAllocation(ColumnModel c, SqlDdlDialect dialect)
-    {
-        return c.IsSolePrimaryKey && !c.IsManualPrimaryKey && IsIdentityEligible(c.Kind) ? dialect.RenderIdentity() : "";
-    }
-
-    private static bool IsIdentityEligible(DbKind kind) => kind is DbKind.Byte or DbKind.Int16 or DbKind.Int32 or DbKind.Int64;
+    // Provider-native PK allocation: the identity clause on the identity column, nothing elsewhere.
+    private static string RenderAllocation(ColumnModel c, SqlDdlDialect dialect) => c.IsIdentity ? dialect.RenderIdentity() : "";
 
     private static string RenderOnDelete(DbForeignKeyAction action) =>
         action switch

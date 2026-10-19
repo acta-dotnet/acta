@@ -7,16 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Storage;
 
 /// <summary>
-/// End-to-end coverage of Acta's reflection-based fluent table reader. Enqueues
-/// one job, then reads it back through <c>session.From&lt;Job&gt;()</c> and
-/// <c>session.From&lt;JobRuntime, JobSummary&gt;()</c> against both provider backends. Exercises whole-entity
-/// materialization, projection (column pruning), and the <c>Count</c> terminal.
+/// End-to-end coverage of Acta's fluent table reader. Enqueues one job, then reads it back through
+/// <c>session.From&lt;Job&gt;()</c> against both provider backends. Exercises whole-entity
+/// materialization and the <c>Count</c> terminal.
 /// </summary>
 [ConformanceSpec(
     "fluent-read.testing-seam",
-    "The fluent reader materializes projects and counts entities",
+    "The fluent reader materializes and counts entities",
     Area = "Testing",
-    Contract = "The fluent reader materializes whole entities, prunes columns on projection, supports compound and IN predicates, and counts matching rows."
+    Contract = "The fluent reader materializes whole entities, supports compound and IN predicates, and counts matching rows."
 )]
 public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -52,20 +51,6 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             .Where(r => r.Id == job.Id && r.Status == JobStatusCode.Ready && r.ExecutionNumber == 0)
             .ToListAsync(ct);
         Assert.Single(runtimes);
-    }
-
-    [Fact(DisplayName = "Projection prunes to the declared columns")]
-    public async Task Projection_reads_only_declared_columns()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueJob(ct);
-
-        var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
-        var rows = await Db.From<RuntimeEntity, JobSummary>().Where(r => r.Id == job!.Id).ToListAsync(ct);
-
-        var row = Assert.Single(rows);
-        Assert.True(row.Id > 0);
-        Assert.Equal(JobStatusCode.Ready, row.Status);
     }
 
     [Fact(DisplayName = "Count returns the matching row count")]

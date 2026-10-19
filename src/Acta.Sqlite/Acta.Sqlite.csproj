@@ -17,7 +17,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests" />
-    <InternalsVisibleTo Include="Anvil.Bench" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
     <!-- The one mixed-provider case (a SQLite outbox source relayed into a Postgres ledger) builds the
          SQLite source connection over the internal SqliteOutboxDialect. -->

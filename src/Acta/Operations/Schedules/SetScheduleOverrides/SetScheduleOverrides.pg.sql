@@ -1,6 +1,6 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The slot's runtimes row is
 -- locked before the schedules row: register_schedules writes runtimes then schedules, so every
--- writer of both takes runtimes first. A stale version is Rejected and changes nothing.
+-- writer of both takes runtimes first. A stale version is a VersionConflict and changes nothing.
 DROP TABLE IF EXISTS pg_temp._set_schedule_overrides_slot;
 DROP TABLE IF EXISTS pg_temp._set_schedule_overrides_target;
 CREATE TEMP TABLE _set_schedule_overrides_slot (execution_number INT NOT NULL) ON COMMIT DROP;
@@ -63,7 +63,7 @@ WHERE
 SELECT
     CASE
         WHEN t.name IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN t.version <> @p_expected_version THEN 3 /* ControlAction.Rejected */
+        WHEN t.version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         ELSE 1 /* ControlAction.Applied */
     END::SMALLINT AS action,
     js.status_code AS status_code,

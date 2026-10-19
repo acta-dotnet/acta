@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Tunable settings for an Acta deployment, bound via <c>IOptions&lt;JobsOptions&gt;</c>; per-definition policy
-/// (retry, backoff, retention, alert profile) lives on <c>JobDefinition</c> and <c>[Job(...)]</c>. The coordination
+/// (retry, backoff, retention, alert profile) lives on the <c>definitions</c> row and <c>[Job(...)]</c>. The coordination
 /// triple (heartbeat, lease window, dead-worker window) must agree across every worker or the reclaim math desyncs,
 /// and nothing verifies that at runtime, so only <see cref="HeartbeatInterval"/> is settable and the other two derive
 /// from it. Engine tuning with no operator-legible meaning is not exposed. Per-process settings may differ;
@@ -11,13 +11,13 @@ namespace Acta;
 public sealed class JobsOptions
 {
     /// <summary>
-    /// Retention window in whole days for every <c>JobEvent</c> row, audit timeline and execution
+    /// Retention window in whole days for every <c>events</c> row, audit timeline and execution
     /// ledger alike; a fractional day is rejected at startup because the purge works in days.
     /// </summary>
     public TimeSpan JobEventsRetention { get; set; } = TimeSpan.FromDays(365);
 
     /// <summary>
-    /// Hard retention cap in whole days for <c>JobAlert</c> rows: past it, an alert is purged
+    /// Hard retention cap in whole days for <c>alerts</c> rows: past it, an alert is purged
     /// whatever its state - settled, in-flight, even an open unresolved incident. A still-failing
     /// job whose incident ages out simply opens a fresh one on its next failure. Default 90 days,
     /// shorter than <see cref="JobEventsRetention"/> because an alert is a projection of the
@@ -26,8 +26,10 @@ public sealed class JobsOptions
     public TimeSpan AlertRetention { get; set; } = TimeSpan.FromDays(90);
 
     /// <summary>
-    /// How long terminal <c>JobWorker</c> rows - both <c>Stopped</c> and <c>Dead</c> - are retained
-    /// past <c>LastSeenAtUtc</c> before <c>sys.retention</c> sweeps them. Default 90 days.
+    /// How long terminal <c>workers</c> rows - both <c>Stopped</c> and <c>Dead</c> - are retained
+    /// past their last heartbeat and their last event before <c>sys.retention</c> sweeps them. Default 90 days.
+    /// A row is never swept before <see cref="JobEventsRetention"/> has passed too, or while a job it leased is
+    /// still Executing, so every event that names the worker still resolves its ref.
     /// </summary>
     public TimeSpan WorkerRetention { get; set; } = TimeSpan.FromDays(90);
 
@@ -98,7 +100,7 @@ public sealed class JobsOptions
     /// go without heartbeating before crash recovery flips its <c>workers</c> row from Active to Dead, measured
     /// against <c>last_seen_at_utc</c>. The margin past the lease keeps a worker whose leases just lapsed from being
     /// retired while it might still recover; crash recovery applies the running worker's value, the second reason
-    /// this is derived. The retention sweep deletes Dead rows past <see cref="WorkerRetention"/>. Default 315s.
+    /// this is derived. The retention sweep deletes Dead rows per <see cref="WorkerRetention"/>. Default 315s.
     /// </summary>
     public TimeSpan WorkerDeadAfter
     {
@@ -148,8 +150,8 @@ public sealed class JobsOptions
     public bool RegisterSystemJobs { get; set; } = true;
 
     /// <summary>
-    /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>Job.Input</c>, <c>JobResult.Result</c>,
-    /// <c>JobCheckpoint.Value</c>, <c>JobStep.Result</c>) and the largest HTTP request body, so a body the ledger
+    /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>jobs.input</c>, <c>runtimes.result</c>,
+    /// <c>checkpoints.value</c>, <c>steps.result</c>) and the largest HTTP request body, so a body the ledger
     /// would refuse is refused at the edge with the same number. Caller-controlled writes (enqueue, variables,
     /// progress, signals, step results) throw <c>PayloadTooLargeException</c> past it; a handler result past it is
     /// dropped, the job still succeeds, and the events carry <c>job.result-oversized</c>. An HTTP body is a JSON
@@ -224,33 +226,4 @@ public sealed class JobsOptions
     /// warning when the skew is understood and accepted. Default <c>false</c> (fail-loud).
     /// </summary>
     public bool AllowClockSkew { get; set; }
-}
-
-/// <summary>
-/// Worker behavior when an eligible registration would change a definition's contract columns
-/// (input or output type, payload format) relative to the stored row.
-/// </summary>
-public enum PayloadContractDriftMode : byte
-{
-    /// <summary>Apply the change and log a warning. The default.</summary>
-    Warn = 1,
-
-    /// <summary>Fail worker startup before any catalog write.</summary>
-    Fail = 2,
-}
-
-/// <summary>
-/// Behavior for the startup check that every alerting definition resolves to a configured alert channel
-/// in its namespace.
-/// </summary>
-public enum AlertChannelValidationMode : byte
-{
-    /// <summary>Skip the routing check entirely.</summary>
-    Off = 0,
-
-    /// <summary>Log a structured warning per definition that routes to an unregistered channel; continue.</summary>
-    Warn = 1,
-
-    /// <summary>Throw at worker initialization if any alerting definition routes to an unregistered channel.</summary>
-    Fail = 2,
 }

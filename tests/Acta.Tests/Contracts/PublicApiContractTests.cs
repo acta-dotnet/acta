@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
 
@@ -107,18 +109,55 @@ public sealed class PublicApiContractTests
         return sb.ToString();
     }
 
+    /// <summary>Base types the kind already implies, so the type line leaves them out.</summary>
+    private static readonly Type[] ImpliedBases = [typeof(object), typeof(ValueType), typeof(Enum), typeof(MulticastDelegate)];
+
     private static string Describe(Type type)
     {
+        var record = IsRecord(type);
         var kind =
             type.IsEnum ? "enum"
             : type.IsInterface ? "interface"
-            : type.IsValueType ? "struct"
+            : type.IsValueType ? (record ? "record struct" : "struct")
             : typeof(Delegate).IsAssignableFrom(type) ? "delegate"
             : type.IsAbstract && type.IsSealed ? "static class"
-            : type.IsAbstract ? "abstract class"
-            : type.IsSealed ? "sealed class"
-            : "class";
-        return $"{kind} {Name(type)}";
+            : (
+                type.IsAbstract ? "abstract "
+                : type.IsSealed ? "sealed "
+                : ""
+            ) + (record ? "record" : "class");
+
+        // An enum's underlying type is binary contract: widening it breaks every compiled consumer.
+        var bases = new List<string>();
+        if (type.IsEnum)
+        {
+            bases.Add(Name(Enum.GetUnderlyingType(type)));
+        }
+        else if (type.BaseType is { } baseType && !ImpliedBases.Contains(baseType))
+        {
+            bases.Add(Name(baseType));
+        }
+
+        // An interface that the base type or another listed interface already brings belongs to that
+        // contract, not this type's. A record's IEquatable<Self> comes with the record keyword the kind
+        // already names.
+        var interfaces = type.GetInterfaces()
+            .Except(type.BaseType?.GetInterfaces() ?? [])
+            .Where(i =>
+                !(record && i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GenericTypeArguments[0] == type)
+            )
+            .ToList();
+        bases.AddRange(
+            interfaces
+                .Where(i => !interfaces.Any(other => other != i && i.IsAssignableFrom(other)))
+                .Select(Name)
+                .Order(StringComparer.Ordinal)
+        );
+
+        var name = type.IsGenericTypeDefinition ? Bare(type) + TypeParameters(type.GetGenericArguments()) : Name(type);
+        var baseList = bases.Count == 0 ? "" : " : " + string.Join(", ", bases);
+        var constraints = type.IsGenericTypeDefinition ? Constraints(type.GetGenericArguments()) : "";
+        return $"{kind} {name}{baseList}{constraints}";
     }
 
     private static IEnumerable<string> Members(Type type)
@@ -135,19 +174,22 @@ public sealed class PublicApiContractTests
                 // Skips the synthetic `value__` backing field, which is not a literal.
                 if (field.IsLiteral)
                 {
-                    lines.Add($"{field.Name} = {Convert.ToInt64(field.GetRawConstantValue())}");
+                    lines.Add($"{field.Name} = {Convert.ToInt64(field.GetRawConstantValue(), CultureInfo.InvariantCulture)}");
                 }
                 continue;
             }
 
+            var modifiers =
+                Access(field.IsFamily || field.IsFamilyOrAssembly)
+                + (field.IsLiteral ? "const " : (field.IsStatic ? "static " : "") + (field.IsInitOnly ? "readonly " : ""));
             // A const's value is baked into consumers, so it is part of the contract, not just its type.
-            var constant = field.IsLiteral ? $" = {Literal(field.GetRawConstantValue())}" : "";
-            lines.Add($"{Name(field.FieldType)} {field.Name}{constant}");
+            var constant = field.IsLiteral ? $" = {Literal(field.GetRawConstantValue(), field.FieldType)}" : "";
+            lines.Add($"{modifiers}{Name(field.FieldType)} {field.Name}{constant}");
         }
 
         foreach (var ctor in type.GetConstructors(flags).Where(Visible))
         {
-            lines.Add($".ctor({Parameters(ctor)})");
+            lines.Add($"{Access(ctor)}.ctor({Parameters(ctor)})");
         }
 
         foreach (var property in type.GetProperties(flags))
@@ -159,78 +201,178 @@ public sealed class PublicApiContractTests
                 continue;
             }
             var accessors =
-                (get ? "get;" : "")
+                (get ? Access(property.GetMethod!) + "get;" : "")
                 + (
                     set
-                        ? (
-                            property.SetMethod!.ReturnParameter.GetRequiredCustomModifiers().Any(m => m.Name == "IsExternalInit")
-                                ? "init;"
-                                : "set;"
-                        )
+                        ? Access(property.SetMethod!)
+                            + (
+                                property.SetMethod!.ReturnParameter.GetRequiredCustomModifiers().Any(m => m.Name == "IsExternalInit")
+                                    ? "init;"
+                                    : "set;"
+                            )
                         : ""
                 );
             var indexer = property.GetIndexParameters();
             var name = indexer.Length == 0 ? property.Name : $"this[{string.Join(", ", indexer.Select(p => Name(p.ParameterType)))}]";
-            lines.Add($"{Name(property.PropertyType)} {name} {{ {accessors} }}");
+            var modifier = (property.GetMethod ?? property.SetMethod)!.IsStatic ? "static " : "";
+            lines.Add($"{modifier}{Name(property.PropertyType)} {name} {{ {accessors} }}");
         }
 
         foreach (var evt in type.GetEvents(flags).Where(e => e.AddMethod is { } a && Visible(a)))
         {
-            lines.Add($"event {Name(evt.EventHandlerType!)} {evt.Name}");
+            lines.Add(
+                $"{Access(evt.AddMethod!)}{(evt.AddMethod!.IsStatic ? "static " : "")}event {Name(evt.EventHandlerType!)} {evt.Name}"
+            );
         }
 
-        foreach (var method in type.GetMethods(flags).Where(Visible).Where(NotAccessor))
+        // Property and event accessors render on their own lines above. Every other special-name
+        // method, such as a conversion operator, is callable surface.
+        var accessorMethods = type.GetProperties(flags)
+            .SelectMany(p => p.GetAccessors(nonPublic: true))
+            .Concat(type.GetEvents(flags).SelectMany(e => new[] { e.AddMethod, e.RemoveMethod, e.RaiseMethod }).OfType<MethodInfo>())
+            .ToHashSet();
+
+        // A record's synthesized equality, printing, cloning, and deconstruction come with the record
+        // keyword the kind already names, and they move for reasons that are not API changes. A record
+        // member written by hand, like an override of ToString, is surface like any other.
+        var record = IsRecord(type);
+
+        foreach (
+            var method in type.GetMethods(flags)
+                .Where(Visible)
+                .Where(m => !accessorMethods.Contains(m))
+                .Where(m => !(record && m.IsDefined(typeof(CompilerGeneratedAttribute))))
+        )
         {
-            lines.Add($"{Name(method.ReturnType)} {method.Name}{TypeArgs(method)}({Parameters(method)})");
+            var modifiers = Access(method) + (method.IsStatic ? "static " : "");
+            var typeParameters = method.IsGenericMethodDefinition ? method.GetGenericArguments() : [];
+            lines.Add(
+                $"{modifiers}{Name(method.ReturnType)} {method.Name}{TypeParameters(typeParameters)}({Parameters(method)}){Constraints(typeParameters)}"
+            );
         }
 
         lines.Sort(StringComparer.Ordinal);
         return lines;
     }
 
-    // Compiler-generated record plumbing is not a contract anyone writes against, and it moves for
-    // reasons that are not API changes.
-    private static bool NotAccessor(MethodInfo method) =>
-        !method.IsSpecialName
-        && method.Name is not ("<Clone>$" or "Deconstruct" or "PrintMembers" or "GetHashCode" or "ToString" or "Equals");
+    /// <summary>True for a record class or record struct: every record declares PrintMembers(StringBuilder).</summary>
+    private static bool IsRecord(Type type) =>
+        type.GetMethod(
+            "PrintMembers",
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly,
+            [typeof(StringBuilder)]
+        )
+            is not null;
 
     private static bool Visible(FieldInfo f) => (f.IsPublic || f.IsFamily || f.IsFamilyOrAssembly) && !f.Name.Contains('<');
 
     private static bool Visible(MethodBase m) =>
         (m.IsPublic || m.IsFamily || m.IsFamilyOrAssembly) && !m.Name.Contains('<') && m.Name != "get_EqualityContract";
 
-    // One member per line is the whole point of the format, so a const string with a newline in it
+    /// <summary>Marks protected members: narrowing public to protected breaks every caller outside the hierarchy.</summary>
+    private static string Access(MethodBase m) => Access(m.IsFamily || m.IsFamilyOrAssembly);
+
+    private static string Access(bool isProtected) => isProtected ? "protected " : "";
+
+    // One member per line is the whole point of the format, so a string literal with a newline in it
     // would corrupt the diff rather than show up in it.
-    //
-    // Long values are fingerprinted rather than inlined. A generated const can hold an entire
-    // document (CodeManifests.MarkdownReport is ~20 KB), and dumping it here would both drown the
-    // diff this gate exists to make readable and re-trigger it on every code-family description
-    // edit - which PersistedCodeContractTests already fences with its own hash. The length and digest
-    // still detect any change to the value.
-    private const int MaxLiteralLength = 120;
-
-    private static string Literal(object? value)
+    private static string Literal(object? value, Type type)
     {
-        if (value is null)
+        switch (value)
         {
-            return "null";
+            case null:
+                return "null";
+            case bool flag:
+                return flag ? "true" : "false";
+            case string text:
+                return $"\"{text.Replace("\r", "\\r").Replace("\n", "\\n")}\"";
         }
 
-        var text = value.ToString()!.Replace("\r", "\\r").Replace("\n", "\\n");
-        if (text.Length <= MaxLiteralLength)
+        // Metadata stores an enum constant as its underlying number; the member name is what source writes.
+        if (type.IsEnum)
         {
-            return text;
+            var member = Enum.ToObject(type, value);
+            return Enum.IsDefined(type, member)
+                ? $"{Name(type)}.{member}"
+                : $"({Name(type)}){Convert.ToString(value, CultureInfo.InvariantCulture)}";
         }
 
-        var digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..8];
-        return $"<{text.Length} chars, sha256:{digest}>";
+        return Convert.ToString(value, CultureInfo.InvariantCulture)!;
     }
 
-    private static string Parameters(MethodBase method) =>
-        string.Join(", ", method.GetParameters().Select(p => $"{Name(p.ParameterType)} {p.Name}{(p.HasDefaultValue ? " = default" : "")}"));
+    private static string Parameters(MethodBase method)
+    {
+        var extension = method.IsDefined(typeof(ExtensionAttribute));
+        return string.Join(", ", method.GetParameters().Select(p => Parameter(p, extension && p.Position == 0)));
+    }
 
-    private static string TypeArgs(MethodInfo method) =>
-        method.IsGenericMethodDefinition ? "<" + string.Join(", ", method.GetGenericArguments().Select(a => a.Name)) + ">" : "";
+    private static string Parameter(ParameterInfo parameter, bool receiver)
+    {
+        var type = parameter.ParameterType;
+        var modifiers =
+            (receiver ? "this " : "")
+            + (parameter.IsDefined(typeof(ParamArrayAttribute)) || parameter.IsDefined(typeof(ParamCollectionAttribute)) ? "params " : "")
+            + (
+                !type.IsByRef ? ""
+                : parameter.IsOut ? "out "
+                : parameter.IsDefined(typeof(RequiresLocationAttribute)) ? "ref readonly "
+                : parameter.IsIn ? "in "
+                : "ref "
+            );
+        var element = type.IsByRef ? type.GetElementType()! : type;
+        return $"{modifiers}{Name(element)} {parameter.Name}{(parameter.HasDefaultValue ? " = " + Default(parameter.RawDefaultValue, element) : "")}";
+    }
+
+    /// <summary>Renders a parameter default; metadata records <c>= default</c> on a non-nullable struct as null.</summary>
+    private static string Default(object? value, Type type) =>
+        value is null && type.IsValueType && Nullable.GetUnderlyingType(type) is null
+            ? "default"
+            : Literal(value, Nullable.GetUnderlyingType(type) ?? type);
+
+    private static string TypeParameters(Type[] parameters) =>
+        parameters.Length == 0 ? "" : "<" + string.Join(", ", parameters.Select(p => Variance(p) + p.Name)) + ">";
+
+    private static string Variance(Type parameter) =>
+        (parameter.GenericParameterAttributes & GenericParameterAttributes.VarianceMask) switch
+        {
+            GenericParameterAttributes.Covariant => "out ",
+            GenericParameterAttributes.Contravariant => "in ",
+            _ => "",
+        };
+
+    private static string Constraints(Type[] parameters) => string.Concat(parameters.Select(Constraint));
+
+    private static string Constraint(Type parameter)
+    {
+        var attributes = parameter.GenericParameterAttributes;
+        var valueType = attributes.HasFlag(GenericParameterAttributes.NotNullableValueTypeConstraint);
+        var clauses = new List<string>();
+        if (attributes.HasFlag(GenericParameterAttributes.ReferenceTypeConstraint))
+        {
+            clauses.Add("class");
+        }
+        // Metadata encodes `struct` as a ValueType constraint plus new(); source writes neither.
+        if (valueType)
+        {
+            clauses.Add("struct");
+        }
+        clauses.AddRange(
+            parameter
+                .GetGenericParameterConstraints()
+                .Where(c => !(valueType && c == typeof(ValueType)))
+                .Select(Name)
+                .Order(StringComparer.Ordinal)
+        );
+        if (attributes.HasFlag(GenericParameterAttributes.DefaultConstructorConstraint) && !valueType)
+        {
+            clauses.Add("new()");
+        }
+        if (attributes.HasFlag(GenericParameterAttributes.AllowByRefLike))
+        {
+            clauses.Add("allows ref struct");
+        }
+        return clauses.Count == 0 ? "" : $" where {parameter.Name} : {string.Join(", ", clauses)}";
+    }
 
     private static string Name(Type type)
     {
@@ -246,10 +388,15 @@ public sealed class PublicApiContractTests
         {
             return type.FullName ?? type.Name;
         }
+        return $"{Bare(type)}<{string.Join(", ", type.GetGenericArguments().Select(Name))}>";
+    }
+
+    /// <summary>A generic type's full name without its arity suffix.</summary>
+    private static string Bare(Type type)
+    {
         var definition = type.GetGenericTypeDefinition().FullName ?? type.Name;
         var tick = definition.IndexOf('`');
-        var bare = tick < 0 ? definition : definition[..tick];
-        return $"{bare}<{string.Join(", ", type.GetGenericArguments().Select(Name))}>";
+        return tick < 0 ? definition : definition[..tick];
     }
 
     private static string ResolveRepoRoot()

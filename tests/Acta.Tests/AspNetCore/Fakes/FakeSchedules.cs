@@ -2,7 +2,8 @@ namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
 /// <see cref="ISchedules"/> staged by schedule name: "missing" reads as absent and "rejected" as a transition the
-/// schedule's state forbids; every other name applies. An override expression of "bad-expr" throws like production.
+/// schedule's state forbids; every other name applies. The overrides verb answers an expectedVersion of 999 as the stale
+/// CAS token, and an override expression of "bad-expr" throws like production.
 /// </summary>
 internal sealed class FakeSchedules : ISchedules
 {
@@ -132,9 +133,9 @@ internal sealed class FakeSchedules : ISchedules
             return new SetScheduleOverridesResponse(ControlAction.NotFound, null, null, null, null);
         }
 
-        if (schedule.ScheduleName == "rejected")
+        if (expectedVersion == 999)
         {
-            return new SetScheduleOverridesResponse(ControlAction.Rejected, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 7);
+            return new SetScheduleOverridesResponse(ControlAction.VersionConflict, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 7);
         }
 
         SetOverridesCalls.Add((schedule.ScheduleName, expectedVersion, expression, timeZoneId, reasonMessage, actor));

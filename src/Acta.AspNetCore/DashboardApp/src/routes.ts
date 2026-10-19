@@ -27,7 +27,6 @@ export interface RouteMetadata {
   name: RouteName;
   label: string;
   section: NavigationSection | null;
-  detail: boolean;
   fullHeight: boolean;
   activeNav: RouteName | null;
   navPath?: string;
@@ -37,29 +36,29 @@ export interface RouteMetadata {
   navQuery?: Record<string, string>;
 }
 
-export const routeRegistry: RouteMetadata[] = [
-  { name: 'overview', label: 'Overview', section: 'Operate', detail: false, fullHeight: false, activeNav: 'overview', navPath: '', navOrder: 0, icon: 'dashboard' },
-  { name: 'jobs', label: 'Jobs', section: 'Operate', detail: false, fullHeight: true, activeNav: 'jobs', navPath: 'jobs', navOrder: 1, icon: 'cube' },
+const routeRegistry: RouteMetadata[] = [
+  { name: 'overview', label: 'Overview', section: 'Operate', fullHeight: false, activeNav: 'overview', navPath: '', navOrder: 0, icon: 'dashboard' },
+  { name: 'jobs', label: 'Jobs', section: 'Operate', fullHeight: true, activeNav: 'jobs', navPath: 'jobs', navOrder: 1, icon: 'cube' },
   // Filtered aliases of the jobs screen: same route, a baked-in view filter.
-  { name: 'jobs-history', label: 'Job history', section: 'Operate', detail: false, fullHeight: true, activeNav: 'jobs-history', navPath: 'jobs', navOrder: 2, icon: 'counter-clockwise-clock', navQuery: { view: 'history' } },
-  { name: 'jobs-recurring', label: 'Recurring jobs', section: 'Operate', detail: false, fullHeight: true, activeNav: 'jobs-recurring', navPath: 'jobs', navOrder: 3, icon: 'reload', navQuery: { view: 'recurring' } },
-  { name: 'job-detail', label: 'Job', section: 'Operate', detail: true, fullHeight: false, activeNav: 'jobs' },
-  { name: 'enqueue', label: 'Enqueue job', section: 'Operate', detail: true, fullHeight: false, activeNav: 'jobs' },
-  { name: 'alerts', label: 'Alerts', section: 'Operate', detail: false, fullHeight: true, activeNav: 'alerts', navPath: 'alerts', navOrder: 4, icon: 'bell' },
-  { name: 'alert-detail', label: 'Alert', section: 'Operate', detail: true, fullHeight: false, activeNav: 'alerts' },
-  { name: 'workers', label: 'Workers', section: 'Operate', detail: false, fullHeight: true, activeNav: 'workers', navPath: 'workers', navOrder: 5, icon: 'desktop' },
-  { name: 'worker-detail', label: 'Worker', section: 'Operate', detail: true, fullHeight: false, activeNav: 'workers' },
-  { name: 'events', label: 'Events', section: 'Operate', detail: false, fullHeight: true, activeNav: 'events', navPath: 'events', navOrder: 6, icon: 'activity-log' },
-  { name: 'schedules', label: 'Schedules', section: 'Configure', detail: false, fullHeight: true, activeNav: 'schedules', navPath: 'schedules', navOrder: 0, icon: 'calendar' },
-  { name: 'schedule-detail', label: 'Schedule', section: 'Configure', detail: true, fullHeight: false, activeNav: 'schedules' },
-  { name: 'definitions', label: 'Definitions', section: 'Configure', detail: false, fullHeight: true, activeNav: 'definitions', navPath: 'definitions', navOrder: 1, icon: 'reader' },
-  { name: 'definition-detail', label: 'Definition', section: 'Configure', detail: true, fullHeight: false, activeNav: 'definitions' },
-  { name: 'namespaces', label: 'Namespaces', section: 'Admin', detail: false, fullHeight: true, activeNav: 'namespaces', navPath: 'namespaces', navOrder: 0, icon: 'layers' },
-  { name: 'namespace-detail', label: 'Namespace', section: 'Admin', detail: true, fullHeight: false, activeNav: 'namespaces' },
-  { name: 'tenants', label: 'Tenants', section: 'Admin', detail: false, fullHeight: true, activeNav: 'tenants', navPath: 'tenants', navOrder: 1, icon: 'person' },
-  { name: 'tenant-detail', label: 'Tenant', section: 'Admin', detail: true, fullHeight: false, activeNav: 'tenants' },
-  { name: 'tenant-new', label: 'Register tenant', section: 'Admin', detail: true, fullHeight: false, activeNav: 'tenants' },
-  { name: 'not-found', label: 'Not found', section: null, detail: false, fullHeight: false, activeNav: null }
+  { name: 'jobs-history', label: 'Job history', section: 'Operate', fullHeight: true, activeNav: 'jobs-history', navPath: 'jobs', navOrder: 2, icon: 'counter-clockwise-clock', navQuery: { view: 'history' } },
+  { name: 'jobs-recurring', label: 'Recurring jobs', section: 'Operate', fullHeight: true, activeNav: 'jobs-recurring', navPath: 'jobs', navOrder: 3, icon: 'reload', navQuery: { view: 'recurring' } },
+  { name: 'job-detail', label: 'Job', section: 'Operate', fullHeight: false, activeNav: 'jobs' },
+  { name: 'enqueue', label: 'Enqueue job', section: 'Operate', fullHeight: false, activeNav: 'jobs' },
+  { name: 'alerts', label: 'Alerts', section: 'Operate', fullHeight: true, activeNav: 'alerts', navPath: 'alerts', navOrder: 4, icon: 'bell' },
+  { name: 'alert-detail', label: 'Alert', section: 'Operate', fullHeight: false, activeNav: 'alerts' },
+  { name: 'workers', label: 'Workers', section: 'Operate', fullHeight: true, activeNav: 'workers', navPath: 'workers', navOrder: 5, icon: 'desktop' },
+  { name: 'worker-detail', label: 'Worker', section: 'Operate', fullHeight: false, activeNav: 'workers' },
+  { name: 'events', label: 'Events', section: 'Operate', fullHeight: true, activeNav: 'events', navPath: 'events', navOrder: 6, icon: 'activity-log' },
+  { name: 'schedules', label: 'Schedules', section: 'Configure', fullHeight: true, activeNav: 'schedules', navPath: 'schedules', navOrder: 0, icon: 'calendar' },
+  { name: 'schedule-detail', label: 'Schedule', section: 'Configure', fullHeight: false, activeNav: 'schedules' },
+  { name: 'definitions', label: 'Definitions', section: 'Configure', fullHeight: true, activeNav: 'definitions', navPath: 'definitions', navOrder: 1, icon: 'reader' },
+  { name: 'definition-detail', label: 'Definition', section: 'Configure', fullHeight: false, activeNav: 'definitions' },
+  { name: 'namespaces', label: 'Namespaces', section: 'Admin', fullHeight: true, activeNav: 'namespaces', navPath: 'namespaces', navOrder: 0, icon: 'layers' },
+  { name: 'namespace-detail', label: 'Namespace', section: 'Admin', fullHeight: false, activeNav: 'namespaces' },
+  { name: 'tenants', label: 'Tenants', section: 'Admin', fullHeight: true, activeNav: 'tenants', navPath: 'tenants', navOrder: 1, icon: 'person' },
+  { name: 'tenant-detail', label: 'Tenant', section: 'Admin', fullHeight: false, activeNav: 'tenants' },
+  { name: 'tenant-new', label: 'Register tenant', section: 'Admin', fullHeight: false, activeNav: 'tenants' },
+  { name: 'not-found', label: 'Not found', section: null, fullHeight: false, activeNav: null }
 ];
 
 export const routeMetadata = Object.fromEntries(routeRegistry.map((route) => [route.name, route])) as Record<RouteName, RouteMetadata>;
@@ -90,10 +89,10 @@ const ns = (namespace?: string | null) => namespace || undefined;
 
 export const routes = {
   overview: (options: { namespace?: string | null } = {}) => href('', { ns: ns(options.namespace) }),
-  jobs: (options: { namespace?: string | null; status?: string | null; jobName?: string | null; correlationKey?: string | null; tenantName?: string | null; lane?: string | null; pageSize?: number | string | null } = {}) =>
-    href('jobs', { ns: ns(options.namespace), status: options.status, jobName: options.jobName, correlationKey: options.correlationKey, tenantName: options.tenantName, lane: options.lane, pageSize: options.pageSize }),
-  job: (jobRef: string, options: { namespace?: string | null; tab?: string | null; execution?: number | string | null } = {}) =>
-    href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace), tab: options.tab, execution: options.execution }),
+  jobs: (options: { namespace?: string | null; status?: string | null; jobName?: string | null; correlationKey?: string | null; tenantName?: string | null; lane?: string | null } = {}) =>
+    href('jobs', { ns: ns(options.namespace), status: options.status, jobName: options.jobName, correlationKey: options.correlationKey, tenantName: options.tenantName, lane: options.lane }),
+  job: (jobRef: string, options: { namespace?: string | null } = {}) =>
+    href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace) }),
   enqueue: (options: { namespace?: string | null; jobName?: string | null; from?: string | null } = {}) =>
     href('enqueue', { ns: ns(options.namespace), jobName: options.jobName, from: options.from }),
   events: (options: { namespace?: string | null; tenantName?: string | null } = {}) => href('events', { ns: ns(options.namespace), tenantName: options.tenantName }),

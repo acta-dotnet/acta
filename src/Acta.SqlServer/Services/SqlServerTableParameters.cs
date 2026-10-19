@@ -125,7 +125,6 @@ internal static class SqlServerTableParameters
         new("handler_status_code", SqlDbType.TinyInt),
         new("final_status", SqlDbType.TinyInt),
         new("job_next_run_at_utc", SqlDbType.DateTime2),
-        new("recurring_result_cap", SqlDbType.Int),
     ];
 
     internal static IEnumerable<SqlDataRecord> BuildCompleteExecutionsRecords(IReadOnlyList<CompleteExecutionsValues> completions)
@@ -137,7 +136,8 @@ internal static class SqlServerTableParameters
             record.SetInt32(1, completion.ExecutionNumber);
             record.SetBoolean(2, completion.Succeeded);
             record.SetByte(3, completion.ResultFormatId);
-            // A result with a format and no bytes is still a result, bound zero-length: results.result is NOT NULL.
+            // A result with a format and no bytes is still a result, bound zero-length: ck_runtimes_result_pair refuses a
+            // format with NULL bytes.
             SetBytesOrNull(record, 4, completion.Result, completion.ResultFormatId != JobPayloadFormat.None.Id);
             SetNullableByte(record, 5, (byte?)completion.EventReasonCode);
             SetNullableString(record, 6, completion.ReasonMessage);
@@ -151,7 +151,6 @@ internal static class SqlServerTableParameters
             SetNullableByte(record, 14, completion.HandlerStatusCode);
             SetNullableByte(record, 15, (byte?)completion.FinalStatus);
             SetNullableDateTime(record, 16, completion.JobNextRunAtUtc);
-            SetNullableInt32(record, 17, completion.RecurringResultCap);
             yield return record;
         }
     }
@@ -303,24 +302,6 @@ internal static class SqlServerTableParameters
             }
         }
     }
-
-    /// <summary>
-    /// The TVP CREATE TYPE bodies live in the baseline migration (emitted from tools/Acta.Emit's SqlServerDdlDialect),
-    /// while the SqlDataRecord shapes bind positionally against them here; TvpParityTests compares the
-    /// two through this map so a column added on one side fails a unit test, not a live DB apply.
-    /// Declared last: a static initializer reading the arrays above must run after them.
-    /// </summary>
-    internal static readonly IReadOnlyDictionary<string, SqlMetaData[]> TvpShapes = new Dictionary<string, SqlMetaData[]>(
-        StringComparer.Ordinal
-    )
-    {
-        ["enqueue_jobs_batch"] = BatchColumns,
-        ["enqueue_tags_batch"] = TagColumns,
-        ["complete_executions_batch"] = CompleteExecutionsColumns,
-        ["register_definitions_batch"] = DefinitionColumns,
-        ["register_slots_batch"] = SlotColumns,
-        ["register_schedules_batch"] = ScheduleUpsertColumns,
-    };
 
     /// <summary>
     /// Nullable-aware <see cref="SqlDataRecord"/> setters the dialect's TVP binders use. A TVP record is

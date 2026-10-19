@@ -8,7 +8,7 @@ namespace Acta.Sqlite;
 /// Transactional external-outbox staging for SQLite producers. Validates an <see cref="EnqueueJobRequest"/>
 /// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own
 /// open <see cref="SqliteTransaction"/>, so the outbox row commits or rolls back with the producer's own
-/// business writes. Zero configuration: no dependency injection, no <c>AddActa</c>, no ledger connection;
+/// business writes. Zero configuration: no dependency injection, no <c>UseActa</c>, no ledger connection;
 /// reference the package, write <c>using Acta;</c>, and call the extension. The database defaults populate
 /// the operational columns; the worker-side relay drains the table.
 /// </summary>

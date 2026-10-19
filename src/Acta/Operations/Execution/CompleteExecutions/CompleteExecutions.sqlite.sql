@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS temp._ces_done;
 
 /* SqliteDialect.BindCompleteExecutions cuts each section no row of the batch needs, since SQLite prepares every
    statement on each call. The immediate transaction is the one writer. The completions arrive as JSON, each result
-   as base64, and an empty result is stored as a zero-length blob. */
+   as base64, and a result with a format and no bytes is stored as a zero-length blob. */
 CREATE TEMP TABLE _ces_done AS
 SELECT
     r.job_id,
@@ -17,7 +17,10 @@ SELECT
     j.job_ref,
     json_extract(c.value, '$.succeeded') AS succeeded,
     json_extract(c.value, '$.result_format_id') AS result_format_id,
-    COALESCE(acta_blob(json_extract(c.value, '$.result')), X'') AS result,
+    CASE
+        WHEN json_extract(c.value, '$.result_format_id') <> 0 /* JobPayloadFormat.None */
+            THEN COALESCE(acta_blob(json_extract(c.value, '$.result')), X'')
+    END AS result,
     json_extract(c.value, '$.reason_code') AS reason_code,
     json_extract(c.value, '$.reason_message') AS reason_message,
     json_extract(c.value, '$.duration_ms') AS duration_ms,
@@ -30,7 +33,6 @@ SELECT
     json_extract(c.value, '$.handler_status_code') AS handler_status_code,
     json_extract(c.value, '$.final_status') AS final_status,
     json_extract(c.value, '$.job_next_run_at_utc') AS job_next_run_at_utc,
-    json_extract(c.value, '$.recurring_result_cap') AS recurring_result_cap,
     CASE
         WHEN json_extract(c.value, '$.wait_signal_name') IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
         WHEN json_extract(c.value, '$.reschedule_status_code') IS NOT NULL THEN 10 /* JobStatusCode.Ready */
@@ -111,27 +113,24 @@ SET
             THEN COALESCE((SELECT now_utc FROM temp._ces_done LIMIT 1) + d.retention_seconds * 1000, r.retention_until_utc)
         ELSE r.retention_until_utc
     END,
+    result_format_id = d.result_format_id,
+    result = d.result,
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = r.version + 1
 FROM temp._ces_done d
 WHERE r.job_id = d.job_id;
-
-INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
-SELECT d.job_id, d.execution_number, d.result_format_id, d.result, (SELECT now_utc FROM temp._ces_done LIMIT 1)
-FROM temp._ces_done d
-WHERE d.result_format_id <> 0 /* JobPayloadFormat.None */;
 
 -- begin recurring
 /* A fire advances its schedules: an edit made while it ran wins over the older plan, an operator pause wins unless it
    was timed and has elapsed, and an orphaned schedule is left alone. The audit insert shares the update's predicate. */
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
-    lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
+    lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
     102 /* EventCode.SchedulePauseExpired */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 10 /* ActorCode.Sys */, NULL,
     d.job_id, d.job_ref, d.execution_number, COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
-    NULL, NULL, NULL, NULL, NULL, NULL, js.name
+    NULL, NULL, NULL, NULL, NULL, js.name
 FROM json_each(@p_schedule_advances) a
 INNER JOIN temp._ces_done d ON d.job_id = json_extract(a.value, '$.job_id')
 INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.name = json_extract(a.value, '$.name')
@@ -179,23 +178,6 @@ UPDATE {{schema}}.runtimes AS r
 SET status_code = d.to_status, next_run_at_utc = d.slot_wake
 FROM temp._ces_done d
 WHERE r.job_id = d.job_id AND d.final_status IS NOT NULL;
-
-DELETE FROM {{schema}}.results
-WHERE
-    (job_id, execution_number) IN (
-        SELECT k.job_id, k.execution_number
-        FROM (
-            SELECT
-                res.job_id,
-                res.execution_number,
-                d.recurring_result_cap AS cap,
-                ROW_NUMBER() OVER (PARTITION BY res.job_id ORDER BY res.execution_number DESC) AS newest
-            FROM temp._ces_done d
-            INNER JOIN {{schema}}.results res ON res.job_id = d.job_id
-            WHERE d.final_status IS NOT NULL AND d.recurring_result_cap > 0
-        ) k
-        WHERE k.newest > k.cap
-    );
 -- end recurring
 
 /* At Failures a failure carrying no re-arm or handler hold is written, and a success only when it answers a recorded
@@ -296,7 +278,7 @@ SELECT
     'sys.child.' || d.job_id,
     20 /* CheckpointStatusCode.Set */,
     1 /* JobPayloadFormat.Json */,
-    CAST(json_object('childJobId', d.job_id, 'status', d.to_status) AS BLOB),
+    CAST(json_object('childJobId', d.job_id, 'status', d.to_status, 'executionNumber', d.execution_number) AS BLOB),
     (SELECT now_utc FROM temp._ces_done LIMIT 1),
     0
 FROM temp._ces_done d
@@ -313,12 +295,12 @@ ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
 -- The resumed event goes once per parent; the raised event once per child, its message capped at the column width.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
-    lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
+    lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code,
     execution_status_code, duration_ms, reason_code, reason_message)
 SELECT
     80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
     d.parent_id, pj.job_ref, pr.execution_number, COALESCE(pj.lineage_root_id, d.parent_id), pj.definition_id, pj.tenant_id,
-    NULL, d.parent_status, d.parent_status, NULL, NULL, d.reason_code,
+    d.parent_status, d.parent_status, NULL, NULL, d.reason_code,
     CASE
         WHEN d.latch_state = 30 /* CheckpointStatusCode.Expired */
             THEN substr(COALESCE(d.reason_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 1, 512)
@@ -334,7 +316,7 @@ UNION ALL
 SELECT DISTINCT
     72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
     d.parent_id, pj.job_ref, pr.execution_number, COALESCE(pj.lineage_root_id, d.parent_id), pj.definition_id, pj.tenant_id,
-    NULL, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, NULL, NULL, 60 /* EventReasonCode.JobSignalReleased */, NULL
+    20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, NULL, NULL, 60 /* EventReasonCode.JobSignalReleased */, NULL
 FROM temp._ces_done d
 INNER JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
 INNER JOIN {{schema}}.runtimes pr ON pr.job_id = d.parent_id

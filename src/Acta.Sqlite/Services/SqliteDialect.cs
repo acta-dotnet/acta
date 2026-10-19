@@ -144,7 +144,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 DbKind.UtcInstant => ToUnixMs((DateTime)value),
                 DbKind.Boolean => (bool)value ? 1L : 0L,
                 DbKind.Guid => ((Guid)value).ToString(),
-                DbKind.Decimal => Convert.ToDouble(value, CultureInfo.InvariantCulture),
                 _ => value,
             };
     }
@@ -274,7 +273,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
     {
         if (row.ParentId is null)
         {
-            command.CommandText = WithoutChildOnly(command.CommandText);
+            command.CommandText = WithoutSection(command.CommandText, "child-only");
         }
 
         AddText(command, "@p_job_ref", jobRef.ToString());
@@ -303,20 +302,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
             }
         );
         AddText(command, "@p_tags", jsonTags);
-    }
-
-    internal const string ChildOnlyBegin = "-- begin child-only";
-    internal const string ChildOnlyEnd = "-- end child-only";
-
-    /// <summary>
-    /// The enqueue script without its child-only section. SQLite prepares every statement of a command on
-    /// each call, so a statement that can only matter to a child still costs an unparented enqueue its parse.
-    /// </summary>
-    internal static string WithoutChildOnly(string sql)
-    {
-        var start = sql.IndexOf(ChildOnlyBegin, StringComparison.Ordinal);
-        var end = sql.IndexOf(ChildOnlyEnd, StringComparison.Ordinal);
-        return start < 0 || end < start ? sql : sql[..start] + sql[(end + ChildOnlyEnd.Length)..];
     }
 
     /// <summary>
@@ -569,18 +554,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
         }
 
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
-    }
-
-    private static void WriteNumberOrNull(Utf8JsonWriter writer, string name, short? value)
-    {
-        if (value is { } present)
-        {
-            writer.WriteNumber(name, present);
-        }
-        else
-        {
-            writer.WriteNull(name);
-        }
     }
 
     private static void WriteStringOrNull(Utf8JsonWriter writer, string name, string? value)

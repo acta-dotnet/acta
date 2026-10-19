@@ -60,13 +60,7 @@
       reasonMessage: vars.reason?.trim() || null,
       ...(vars.extra ?? {})
     }),
-    notFound: () => ({
-      action: 'notFound',
-      status: null,
-      pausedUntilUtc: null,
-      nextRunAtUtc: null,
-      version: null
-    }),
+    notFound: () => ({ action: 'notFound' }),
     invalidateKeys: () => [['schedules']] as const
   });
   let busy = $derived(mutation.isPending);
@@ -124,7 +118,7 @@
     previewLoading = true;
     previewError = '';
     try {
-      previewData = await previewSchedule(jobNamespace, jobName, scheduleName, 10);
+      previewData = await previewSchedule(jobNamespace, jobName, scheduleName);
     } catch (e) {
       previewError = (e as Error).message;
     } finally {
@@ -138,17 +132,21 @@
   let overridesOpen = $state(false);
   let expressionInput = $state('');
   let timeZoneInput = $state('');
+  let draftVersion = $state(0);
   let overridesNote = $state('');
   let overridesMessage = $state('');
   let overridesMessageKind = $state('');
   let overridesReloadRequired = $state(false);
 
-  // Keep closed editors synchronized with the deliberately refreshed detail row. Once open, these
-  // inputs are left alone so no prop change can clobber in-flight operator input.
+  // Keep a closed editor synchronized with the refreshed row. Once open, the draft is left alone so
+  // no prop change can clobber in-flight operator input, and the save claims the version its fields
+  // were read at: a change that lands meanwhile comes back as a version conflict instead of being
+  // reverted.
   $effect(() => {
     if (overridesOpen) return;
     expressionInput = expression;
     timeZoneInput = timeZoneId;
+    draftVersion = version;
   });
 
   function toggleOverrides() {
@@ -165,12 +163,12 @@
       const result = await mutation.mutateAsync({
         action: 'overrides',
         reason: overridesNote,
-        extra: { expectedVersion: version, ...buildOverridesPayload({ expression: expressionInput, timeZoneId: timeZoneInput }) }
+        extra: { expectedVersion: draftVersion, ...buildOverridesPayload({ expression: expressionInput, timeZoneId: timeZoneInput }) }
       });
       if (overridesNeedsReload(result.action)) {
-        // Never clobber: the row changed since it was loaded (a stale expectedVersion or a state
-        // that no longer accepts the override) - surface it and refetch, do not resend.
-        overridesMessage = `${scheduleControlMessage('overrides', result.action)} Changed since you loaded it - reload and try again.`;
+        // Never clobber: the row changed or went away since it was loaded - surface it and refetch,
+        // do not resend.
+        overridesMessage = `${scheduleControlMessage('overrides', result.action)} Reload and try again.`;
         overridesMessageKind = 'warn';
         overridesReloadRequired = true;
       } else {

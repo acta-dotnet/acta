@@ -67,7 +67,6 @@ INSERT INTO {{schema}}.events (
     lineage_root_id,
     definition_id,
     tenant_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -86,7 +85,6 @@ SELECT
     p.lineage_root_id,
     p.definition_id,
     p.tenant_id,
-    NULL,
     p.from_status_code,
     220 /* JobStatusCode.Cancelled */,
     NULL,
@@ -108,7 +106,6 @@ INSERT INTO {{schema}}.events (
     lineage_root_id,
     definition_id,
     tenant_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -126,7 +123,6 @@ SELECT
     NULL,
     NULL,
     s.id,
-    NULL,
     NULL,
     NULL,
     NULL,
@@ -182,6 +178,10 @@ SELECT
         WHEN s.version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
         ELSE 1 /* DefinitionOverrideAction.Applied */
     END AS action,
+    CASE
+        WHEN s.version = @p_version AND s.status_code <> 240 /* DefinitionStatusCode.Retired */ THEN s.version + 1
+        ELSE s.version
+    END AS version,
     p.job_id,
     p.parent_id,
     CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted

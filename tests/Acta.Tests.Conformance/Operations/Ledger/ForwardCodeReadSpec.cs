@@ -9,13 +9,15 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 /// <summary>
 /// Conformance for reading forward: a row a newer Acta wrote, carrying a code id this build does not
 /// know, reads back as the family's id-0 member and serializes, instead of
-/// surfacing an undefined enum value that throws when named.
+/// surfacing an undefined enum value that throws when named. The operator views need no fallback, and an
+/// unknown id decodes there to NULL beside its raw code column: the newest build's migration ships the newest
+/// views, so a view knows every code a running build writes.
 /// </summary>
 [ConformanceSpec(
     "persisted-codes.forward-read",
     "An event or alert code from a newer Acta reads back as unspecified",
     Area = "Reads",
-    Contract = "An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as \"unspecified\"."
+    Contract = "An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every API read path and serializes as \"unspecified\"."
 )]
 public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {

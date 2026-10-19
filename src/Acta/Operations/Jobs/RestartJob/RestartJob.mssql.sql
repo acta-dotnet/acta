@@ -172,6 +172,8 @@ BEGIN TRY
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         retention_until_utc = NULL,
+        result_format_id = 0 /* JobPayloadFormat.None */,
+        result = NULL,
         modified_at_utc = @now,
         version = version + 1
     WHERE job_id = @p_id;
@@ -191,7 +193,6 @@ BEGIN TRY
                 actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
-                worker_id,
                 from_status_code, to_status_code,
                 execution_status_code, duration_ms,
                 reason_code, reason_message
@@ -201,7 +202,6 @@ BEGIN TRY
                 @p_actor_code, @p_actor,
                 @p_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                NULL,
                 @from_status, @to_status,
                 NULL, NULL,
                 @p_reason_code, @p_reason_message

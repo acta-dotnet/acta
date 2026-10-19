@@ -29,9 +29,9 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         foreach (var target in MissingTargets())
         {
             Assert.Null(await Operations.Tags.GetAsync(target, ct));
-            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.UpsertAsync(target, new TagInput("missing"), ct: ct)).Action);
-            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.RemoveAsync(target, "missing", ct: ct)).Action);
-            Assert.Equal(TagMutationAction.NotFound, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
+            Assert.Equal(ControlAction.NotFound, (await Operations.Tags.UpsertAsync(target, new TagInput("missing"), ct: ct)).Action);
+            Assert.Equal(ControlAction.NotFound, (await Operations.Tags.RemoveAsync(target, "missing", ct: ct)).Action);
+            Assert.Equal(ControlAction.NotFound, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
         }
     }
 
@@ -45,10 +45,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         Assert.NotNull(await Operations.Tags.GetAsync(target, ct));
         try
         {
-            Assert.Equal(
-                TagMutationAction.Applied,
-                (await Operations.Tags.UpsertAsync(target, new TagInput(name, "value"), ct: ct)).Action
-            );
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput(name, "value"), ct: ct)).Action);
             var tags = Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct));
             Assert.Contains(new GetTagsItem(name, "value"), tags.Items);
         }
@@ -67,7 +64,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         foreach (var target in targets.All)
         {
             Assert.Equal(
-                TagMutationAction.Applied,
+                ControlAction.Applied,
                 (
                     await Operations.Tags.ReplaceAsync(
                         target,
@@ -83,23 +80,20 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
                 ordered.Items
             );
 
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "a-a", ct: ct)).Action);
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "a0", ct: ct)).Action);
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.RemoveAsync(target, "a-a", ct: ct)).Action);
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.RemoveAsync(target, "a0", ct: ct)).Action);
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput("a-first", "Two"), ct: ct)).Action);
             Assert.Equal(
-                TagMutationAction.Applied,
-                (await Operations.Tags.UpsertAsync(target, new TagInput("a-first", "Two"), ct: ct)).Action
-            );
-            Assert.Equal(
-                TagMutationAction.Applied,
+                ControlAction.Applied,
                 (await Operations.Tags.UpsertAsync(target, new TagInput("middle", "Value"), ct: ct)).Action
             );
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "does-not-exist", ct: ct)).Action);
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.RemoveAsync(target, "z-last", ct: ct)).Action);
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.RemoveAsync(target, "does-not-exist", ct: ct)).Action);
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.RemoveAsync(target, "z-last", ct: ct)).Action);
 
             var converged = Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct));
             Assert.Equal([new GetTagsItem("a-first", "Two"), new GetTagsItem("middle", "Value")], converged.Items);
 
-            Assert.Equal(TagMutationAction.Applied, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
+            Assert.Equal(ControlAction.Applied, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
             Assert.Empty(Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct)).Items);
         }
     }
@@ -153,6 +147,43 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         );
     }
 
+    [Fact(DisplayName = "A tag value filter matches the value trimmed and upper-cased, and otherwise exactly")]
+    public async Task Tag_value_filters_compare_exactly()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var suffix = Unique("v");
+        // Full-width letters and two different emoji compare equal under SQL Server's default collation, not bytewise.
+        string[] values =
+        [
+            $"prod{suffix}",
+            $" prod{suffix} ",
+            $"\uFF50\uFF52\uFF4F\uFF44{suffix}",
+            $"\U0001F600{suffix}",
+            $"\U0001F601{suffix}",
+        ];
+        var jobs = new long[values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            var job = await Jobs.EnqueueAsync(
+                new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(i, i))),
+                ct
+            );
+            await Operations.Tags.ReplaceAsync(TagTarget.ForJob(job), [new TagInput("variant", values[i])], ct: ct);
+            jobs[i] = job.JobId;
+        }
+
+        Assert.Equal([jobs[0], jobs[1]], await Tagged(values[0]));
+        Assert.Equal([jobs[2]], await Tagged(values[2]));
+        Assert.Equal([jobs[3]], await Tagged(values[3]));
+
+        async Task<long[]> Tagged(string value) =>
+            [
+                .. (await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, Tags: [new("variant", value)]), ct))
+                    .Items.Select(x => x.JobId)
+                    .Order(),
+            ];
+    }
+
     [Fact(DisplayName = "A deduplicated enqueue preserves the existing job's tags")]
     public async Task Deduplicated_enqueue_does_not_overwrite_tags()
     {
@@ -196,7 +227,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
         Assert.Equal(
-            TagMutationAction.Applied,
+            ControlAction.Applied,
             (await Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("purge-me"), ct: ct)).Action
         );
 
@@ -223,7 +254,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var purgeTask = Jobs.PurgeAsync(lookup, ct: ct).AsTask();
         await Task.WhenAll(mutationTask, purgeTask);
 
-        Assert.Contains((await mutationTask).Action, new[] { TagMutationAction.Applied, TagMutationAction.NotFound });
+        Assert.Contains((await mutationTask).Action, new[] { ControlAction.Applied, ControlAction.NotFound });
         Assert.Equal(ControlAction.Applied, (await purgeTask).Action);
         Assert.Null(await Db.From<JobEntity>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<TagEntity>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));

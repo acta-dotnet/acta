@@ -310,8 +310,12 @@ internal sealed class StepOptionsCapturingContext : JobContext
     private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
         Unsupported<Task<EnqueueJobResponse>>();
 
-    private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
-        where TResult : default => Unsupported<Task<TResult?>>();
+    private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
+        long childJobId,
+        int? executionNumber,
+        CancellationToken ct
+    )
+        where TResult : default => Unsupported<Task<(bool Stored, TResult? Value)>>();
 
     private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
         Unsupported<Task<Guid?>>();

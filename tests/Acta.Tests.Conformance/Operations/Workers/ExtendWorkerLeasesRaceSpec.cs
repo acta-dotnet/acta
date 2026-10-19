@@ -72,7 +72,9 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         // return, and the bound is only a hang guard.
         var held = new[] { (parent.JobId, parentExecution), (child.JobId, childExecution) };
         var rows = (
-            await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, held, [], ct).WaitAsync(SpecWaits.Gate, ct)
+            await store
+                .ExtendWorkerLeasesAsync(new ExtendWorkerLeasesCommand(workerId, leaseTtl, Draining: false, held, []), ct)
+                .WaitAsync(SpecWaits.Gate, ct)
         ).Leases;
         await gate.CommitAsync(ct);
 

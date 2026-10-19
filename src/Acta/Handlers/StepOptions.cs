@@ -6,7 +6,7 @@ namespace Acta;
 /// attempt; <see cref="AtMostOnce"/> is an execution-semantics switch, not a retry override, under which the body runs
 /// zero or one times and every retry field but <c>MaxAttempts(1)</c> is incompatible. Construction is gated to
 /// <see cref="StepOptionsBuilder"/>, the one place that enforces the incompatibility, so no public constructor can
-/// build the contradiction; a <c>RunStepCore</c> override receives an instance, and <c>Inherit with { ... }</c> covers the rest.
+/// build the contradiction; a <c>RunStepCoreAsync</c> override receives an instance, and <c>Inherit with { ... }</c> covers the rest.
 /// </summary>
 public sealed record StepOptions
 {

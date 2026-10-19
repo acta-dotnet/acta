@@ -62,6 +62,7 @@ SELECT
         WHEN t.namespace_id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
         WHEN t.version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
         ELSE 1 /* DefinitionOverrideAction.Applied */
-    END::SMALLINT AS action
+    END::SMALLINT AS action,
+    CASE WHEN t.version = @p_version THEN t.version + 1 ELSE t.version END AS version
 FROM (SELECT 1) one
 LEFT JOIN _set_definition_overrides t ON true;

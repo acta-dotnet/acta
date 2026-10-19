@@ -10,7 +10,7 @@ internal sealed class RemoveTagsHandler(ResolveTagTargetHandler resolveTagTarget
         var json = TagJson.Write([new TagInput(name)]);
         var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(command.Target), ct);
         return target is null
-            ? new RemoveTagsResponse(TagMutationAction.NotFound)
+            ? new RemoveTagsResponse(ControlAction.NotFound)
             : await session.ExecuteOneAsync(
                 new StoreCommand("RemoveTags"),
                 cmd => TagWrites.Bind(cmd, dialect, target, json),

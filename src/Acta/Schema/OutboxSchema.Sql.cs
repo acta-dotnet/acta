@@ -10,32 +10,11 @@ internal static class OutboxSchema
 {
     internal static class Sql
     {
-        public static readonly DbValueSpec<Guid> ClaimToken = new(
-            ParameterName: "p_claim_token",
-            Kind: DbKind.Guid,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
+        public static readonly DbValueSpec<Guid> ClaimToken = new("p_claim_token", DbKind.Guid);
 
-        public static readonly DbValueSpec<int> ClaimBatchSize = new(
-            ParameterName: "p_batch_size",
-            Kind: DbKind.Int32,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
+        public static readonly DbValueSpec<int> ClaimBatchSize = new("p_batch_size", DbKind.Int32);
 
-        public static readonly DbValueSpec<int> LeaseTtlSeconds = new(
-            ParameterName: "p_lease_ttl_seconds",
-            Kind: DbKind.Int32,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
+        public static readonly DbValueSpec<int> LeaseTtlSeconds = new("p_lease_ttl_seconds", DbKind.Int32);
 
         /// <summary>
         /// A JSON array of claimed outbox-id strings (["&lt;guid&gt;", ...]) so the set-based delete/release
@@ -43,49 +22,21 @@ internal static class OutboxSchema
         /// (PG jsonb_array_elements_text, SQLite json_each, SQL Server OPENJSON). Size -1 is the provider
         /// max text width so a full 256-row batch of ids never truncates.
         /// </summary>
-        public static readonly DbValueSpec<string> OutboxIds = new(
-            ParameterName: "p_outbox_ids",
-            Kind: DbKind.UnicodeString,
-            Size: -1,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
+        public static readonly DbValueSpec<string> OutboxIds = new("p_outbox_ids", DbKind.UnicodeString, -1);
 
         /// <summary>
         /// The operator verbs' optional id filter: the same JSON id-array shape as OutboxIds, but NULL
         /// means "every quarantined row" so a bulk requeue-after-fix needs no listing round trip.
         /// </summary>
-        public static readonly DbValueSpec<string?> OutboxIdsOptional = new(
-            ParameterName: "p_outbox_ids",
-            Kind: DbKind.UnicodeString,
-            Size: -1,
-            Precision: null,
-            Scale: null,
-            IsNullable: true
-        );
+        public static readonly DbValueSpec<string?> OutboxIdsOptional = new("p_outbox_ids", DbKind.UnicodeString, -1);
 
-        public static readonly DbValueSpec<int> PageSize = new(
-            ParameterName: "p_page_size",
-            Kind: DbKind.Int32,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
+        public static readonly DbValueSpec<int> PageSize = new("p_page_size", DbKind.Int32);
 
         /// <summary>
         /// Keyset cursor for the quarantined listing: the last outbox_id of the previous page, NULL for
         /// the first page. The id is the order key - see ListQuarantinedOutbox.sql for why not a timestamp.
         /// </summary>
-        public static readonly DbValueSpec<Guid?> AfterOutboxId = new(
-            ParameterName: "p_after_outbox_id",
-            Kind: DbKind.Guid,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: true
-        );
+        public static readonly DbValueSpec<Guid?> AfterOutboxId = new("p_after_outbox_id", DbKind.Guid);
 
         /// <summary>
         /// A JSON array of per-row reschedule/quarantine records
@@ -95,13 +46,6 @@ internal static class OutboxSchema
         /// carries its own failure count, per-row backoff (added to the SOURCE clock in-SQL), and error, so
         /// per-row semantics are preserved. Size -1 is the provider max text width.
         /// </summary>
-        public static readonly DbValueSpec<string> RowRecords = new(
-            ParameterName: "p_rows",
-            Kind: DbKind.UnicodeString,
-            Size: -1,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
+        public static readonly DbValueSpec<string> RowRecords = new("p_rows", DbKind.UnicodeString, -1);
     }
 }

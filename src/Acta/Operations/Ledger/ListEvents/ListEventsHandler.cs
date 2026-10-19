@@ -20,9 +20,7 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
         }
 
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
-        var tenantName = string.IsNullOrWhiteSpace(query.TenantName)
-            ? null
-            : NameSyntax.Canonicalize(query.TenantName, nameof(query.TenantName), NameSyntax.ExtendedMaxLength);
+        var tenantName = QueryValidation.ValidateExtendedName(query.TenantName, nameof(query.TenantName));
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
 
         // The cursor's operation name predates the ListEvents stem; it stays so issued cursors still decode.

@@ -270,8 +270,9 @@ public interface IJobs
     ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Fetch the latest result payload the job identified by <paramref name="job"/> has produced, or
-    /// <c>null</c> when it has produced none (still running, failed, or a handler with no return value).
+    /// Fetch the result payload the job identified by <paramref name="job"/> stored, or <c>null</c> when it
+    /// holds none (still running, failed, restarted, or a handler with no return value). A job keeps one result: a
+    /// recurring job's successful occurrence replaces the last one, and every claim and restart clears it.
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, poll
     /// <see cref="GetStatusAsync"/> until terminal and then read here.
     /// </summary>
@@ -286,7 +287,7 @@ public interface IJobs
 
     /// <summary>
     /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
-    /// latest result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
+    /// stored result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
     /// <c>default</c> when the job has produced no result. Non-blocking (does not wait for completion).
     /// </summary>
     ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);

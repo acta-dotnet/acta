@@ -14,14 +14,12 @@
 
   let {
     jobRef,
-    enabled = true,
     polling = true,
     nextRunAtUtc = null,
     initialAttempt = null,
     onEventsChange = () => {}
   }: {
     jobRef: string;
-    enabled?: boolean;
     polling?: boolean;
     nextRunAtUtc?: string | null;
     initialAttempt?: number | null;
@@ -37,7 +35,6 @@
       api<Paged<JobEvent>>(endpoint, { pageSize: 100, cursor: pageParam }, { signal }),
     initialPageParam: null as string | null,
     getNextPageParam: (last: Paged<JobEvent>) => (last.hasMore ? last.nextCursor : null),
-    enabled,
     // Loaded history is immutable. Polling this infinite query would refetch every accumulated page.
     staleTime: Infinity
   }));
@@ -45,7 +42,6 @@
   // Poll only the newest page, then merge it over the static accumulated history by durable event id.
   const head = createQuery(() => ({
     ...listPage<JobEvent>(endpoint, {}, { pageSize: 100, cursor: null }),
-    enabled,
     refetchInterval: polling && !$livePaused ? listRefetchInterval : false
   }));
 

@@ -31,7 +31,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     /// <summary>Steps invoked, in order: name and the resolved <see cref="StepOptions"/> each call forwarded.</summary>
     public List<(string Name, StepOptions Options)> Steps { get; } = [];
 
-    /// <summary>Seeded value <see cref="GetChildResultCoreAsync{TResult}"/> returns, when it matches <c>TResult</c>.</summary>
+    /// <summary>Seeded value <see cref="ReadChildResultCoreAsync{TResult}"/> returns, when it matches <c>TResult</c>.</summary>
     public object? SeededChildResult { get; set; }
 
     public Exception? LockReleaseException { get; init; }
@@ -148,8 +148,12 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return Task.FromResult(new EnqueueJobResponse(id, JobRef.New(), EnqueueJobAction.Inserted));
     }
 
-    private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
-        where TResult : default => Task.FromResult(SeededChildResult is TResult typed ? typed : default);
+    private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
+        long childJobId,
+        int? executionNumber,
+        CancellationToken ct
+    )
+        where TResult : default => Task.FromResult(SeededChildResult is TResult typed ? (true, typed) : (false, default(TResult)));
 
     private protected override async Task RunStepCoreAsync(
         string name,

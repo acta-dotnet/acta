@@ -69,7 +69,7 @@ WHERE job_id = @jobId;
 ```
 
 The program primarily queries `jobs_view`, `steps_view`, `checkpoints_view`, and `events_view`. It goes
-one level deeper only to compare `jobs` with `runtimes` and to show the terminal `results` row. Those
+one level deeper only to compare `jobs` with `runtimes` and to show the result stored on the runtime row. Those
 base tables explain Acta's design; applications should normally use `IJobs`, and operational tooling
 should prefer the curated views. Base tables are not the storage compatibility contract.
 

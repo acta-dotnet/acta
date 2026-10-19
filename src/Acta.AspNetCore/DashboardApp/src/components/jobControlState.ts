@@ -5,7 +5,6 @@
 import { TERMINAL_STATUSES } from '../format.ts';
 
 export interface JobControlState {
-  terminal: boolean;
   canPause: boolean;
   canResume: boolean;
   canRestart: boolean;
@@ -18,7 +17,6 @@ export interface JobControlState {
 export function jobControlState(status: string): JobControlState {
   const terminal = TERMINAL_STATUSES.includes(status);
   return {
-    terminal,
     canPause: !terminal && status !== 'paused',
     canResume: status === 'paused',
     canRestart: status !== 'executing',

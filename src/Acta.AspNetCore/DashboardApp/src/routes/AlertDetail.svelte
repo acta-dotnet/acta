@@ -44,7 +44,7 @@
   // 'alerts' key prefix refreshes this screen and every cached list page together.
   const mutation = useControlMutation<{ action: 'acknowledge' | 'resolve'; reason?: string }, AlertControlResponse>({
     path: (vars) => `alerts/${encodeURIComponent(alertRef)}/${vars.action}`,
-    notFound: () => ({ alertRef, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
+    notFound: () => ({ action: 'notFound' }),
     invalidateKeys: () => [['alerts']] as const
   });
   let busy = $derived(mutation.isPending);

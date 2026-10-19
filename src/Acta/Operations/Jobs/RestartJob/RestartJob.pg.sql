@@ -125,6 +125,8 @@ SET
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     retention_until_utc = NULL,
+    result_format_id = 0 /* JobPayloadFormat.None */,
+    result = NULL,
     modified_at_utc = now(),
     version = r.version + 1
 FROM _restart_job s

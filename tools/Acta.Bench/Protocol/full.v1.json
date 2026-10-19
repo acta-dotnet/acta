@@ -1,0 +1,453 @@
+{
+  "schema_version": "acta-bench.profile/1",
+  "protocol_id": "acta-bench.full/1",
+  "engine_default": "acta",
+  "profiles": {
+    "quick": {
+      "warmup_seconds": 1,
+      "measurement_seconds": 3,
+      "independent_repetitions": 1,
+      "soak_seconds": 5,
+      "drain_seconds": 120,
+      "discovery_seconds": 5,
+      "discovery_attempt_limit": 6,
+      "overload_seconds": 6,
+      "validation_load_fractions": [0.5, 0.8, 1.0],
+      "measurement_gates_verdict": false,
+      "targeted_fault_repetitions": 1,
+      "chaos_roots": 1000,
+      "chaos_workers": { "sqlite": 3, "pg": 3, "mssql": 3 },
+      "chaos_executors": 8,
+      "chaos_step_ms": 100,
+      "chaos_seconds": 30,
+      "chaos_heartbeat_seconds": 1,
+      "chaos_minimum_busy_kills": 2,
+      "retained_history_populations": [0, 1000, 10000],
+      "parked_background_roots": 100,
+      "future_background_roots": 100,
+      "preloaded_backlog_roots": { "sqlite": 1000, "pg": 1000, "mssql": 1000 }
+    },
+    "standard": {
+      "warmup_seconds": 5,
+      "measurement_seconds": 15,
+      "independent_repetitions": 1,
+      "soak_seconds": 60,
+      "drain_seconds": 30,
+      "discovery_seconds": 5,
+      "discovery_attempt_limit": 8,
+      "overload_seconds": 6,
+      "validation_load_fractions": [0.5],
+      "measurement_gates_verdict": false,
+      "targeted_fault_repetitions": 1,
+      "chaos_roots": 10000,
+      "chaos_workers": { "sqlite": 3, "pg": 8, "mssql": 8 },
+      "chaos_executors": null,
+      "chaos_step_ms": 1000,
+      "chaos_seconds": 420,
+      "chaos_heartbeat_seconds": null,
+      "chaos_minimum_busy_kills": 2,
+      "retained_history_populations": [0, 1000, 10000],
+      "parked_background_roots": 100,
+      "future_background_roots": 100,
+      "preloaded_backlog_roots": { "sqlite": 1000, "pg": 1000, "mssql": 1000 }
+    },
+    "full": {
+      "warmup_seconds": 30,
+      "measurement_seconds": 180,
+      "independent_repetitions": 5,
+      "soak_seconds": 1800,
+      "drain_seconds": 120,
+      "discovery_seconds": 15,
+      "discovery_attempt_limit": 16,
+      "overload_seconds": 60,
+      "validation_load_fractions": [0.5, 0.8, 1.0],
+      "measurement_gates_verdict": true,
+      "targeted_fault_repetitions": 3,
+      "chaos_roots": 10000,
+      "chaos_workers": { "sqlite": 3, "pg": 24, "mssql": 24 },
+      "chaos_executors": 64,
+      "chaos_step_ms": 250,
+      "chaos_seconds": 720,
+      "chaos_heartbeat_seconds": null,
+      "chaos_minimum_busy_kills": 10,
+      "retained_history_populations": [0, 100000, 1000000],
+      "parked_background_roots": 50000,
+      "future_background_roots": 200000,
+      "preloaded_backlog_roots": { "sqlite": 50000, "pg": 200000, "mssql": 200000 }
+    }
+  },
+  "standard_profile": {
+    "scope": "all_catalogue_cases_unless_explicitly_selected",
+    "diagnostic_cells": "explicit_selection_only",
+    "claims_excluded": ["maximum_capacity", "repeated_trial_confidence", "extended_endurance"]
+  },
+  "providers": {
+    "default": [
+      "sqlite",
+      "pg",
+      "mssql"
+    ],
+    "missing_required": "INCONCLUSIVE",
+    "run_sequentially": true,
+    "unsupported_topology": "NOT_APPLICABLE_only_if_predeclared",
+    "license_acceptance": "maintainer_authorized_repository_default_ACCEPT_EULA_Y",
+    "reuse_local_docker": "acta-dev_compose_services_with_fresh_owned_database",
+    "database_process_faults": "separate_owned_container_only"
+  },
+  "provisioning": {
+    "mode": "fresh_owned_database_existing_local_docker_or_owned_container",
+    "auto_use_application_connection_strings": false,
+    "automatic_remote_faults": false,
+    "automatic_upload": false,
+    "preserve_artifacts_on_failure": true
+  },
+  "durability": {
+    "track": "single_node_durable",
+    "verify_effective_settings": true,
+    "forbid_ephemeral_primary_store": true,
+    "postgres": {
+      "fsync": "on",
+      "full_page_writes": "on",
+      "synchronous_commit": "on"
+    },
+    "sqlite": {
+      "journal_mode": "WAL",
+      "synchronous": "FULL"
+    },
+    "sqlserver": {
+      "delayed_durability": "DISABLED"
+    },
+    "fault_claim": "worker_and_database_process_crashes_only_not_physical_power_loss"
+  },
+  "scenario_catalog": "scenario-catalog.v1.json",
+  "required_scenario_ids": [
+    "L01",
+    "L02",
+    "L03",
+    "L04",
+    "C01",
+    "C02",
+    "C03",
+    "C04",
+    "C05",
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08",
+    "T01",
+    "T02",
+    "T03",
+    "T04",
+    "T05",
+    "T06",
+    "R01",
+    "R02",
+    "R03",
+    "O01",
+    "O02",
+    "O03",
+    "O04",
+    "O05",
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F06",
+    "F07",
+    "F08",
+    "F09",
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "I01",
+    "I02",
+    "I03",
+    "I04",
+    "I05",
+    "M01",
+    "M02",
+    "M03",
+    "M04",
+    "D01",
+    "D02",
+    "D03",
+    "D04",
+    "E01",
+    "E02",
+    "E03",
+    "H01",
+    "H02",
+    "H03",
+    "H04",
+    "H05",
+    "H06",
+    "H07",
+    "H08"
+  ],
+  "phases": [
+    "preflight",
+    "self_test",
+    "verify",
+    "discover",
+    "measure",
+    "fault",
+    "soak",
+    "reconcile",
+    "report"
+  ],
+  "measurement": {
+    "build": "Release",
+    "primary_load_model": "open",
+    "additional_repetitions_for_predeclared_instability": 5,
+    "canonical_admission_batch_size": 100,
+    "preloaded_backlog_admission_batch_size": 1000,
+    "retain_all_trials": true,
+    "randomize_or_balance_comparison_order": true,
+    "publication_p99_sample_policy": {
+      "minimum_observed_completed_samples": 10000,
+      "below_minimum": "LOW_SAMPLE_NOT_OMITTED"
+    },
+    "canonical_measured_case_ids": [
+      "L01",
+      "L02",
+      "L03",
+      "L04",
+      "C01",
+      "P01",
+      "R01",
+      "O01",
+      "O02",
+      "O03",
+      "S02",
+      "S03",
+      "I05",
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "E02"
+    ],
+    "other_measure_capable_cases": "one_factor_diagnostics_or_declared_extensions_not_silent_headline_substitutes",
+    "executor_sweep": [
+      1,
+      "product_default",
+      32
+    ],
+    "worker_sweep": [
+      1,
+      4,
+      16
+    ],
+    "sweep_policy": "one_factor_and_selected_pairwise_not_full_cartesian",
+    "sqlite_topology": "one_worker_process_for_clean_measurements_multiple_owned_processes_for_recovery_only",
+    "completion_boundary": "durable_terminal_observed_then_identity_reconciled",
+    "primary_latency": "controller_scheduled_arrival_to_durable_completion_observed",
+    "publish_observer_lag": true,
+    "incomplete_latency_observations": "censored_or_failure_never_silently_dropped",
+    "runtime": {
+      "trial_worker_settings": "product_defaults_recorded_per_trial_diagnostic_cells_override_only_the_setting_they_name",
+      "fault_case_worker_settings": "product_defaults_with_a_compressed_heartbeat_so_lease_expiry_fits_the_recovery_bound_except_F09_which_runs_the_profile_chaos_heartbeat",
+      "worker_ready_seconds": 120,
+      "observer_poll_ms": 25,
+      "observer_stall_tolerance_ms": 1000,
+      "generator_lag_tolerance_ms": 100,
+      "producer_concurrency_limit": 64,
+      "arrival_buffer_capacity": 1024
+    },
+    "namespace_sweep": [
+      1,
+      2
+    ],
+    "batch_arrival_model": "open_batch_arrivals_all_roots_in_a_batch_share_scheduled_arrival",
+    "batch_size_sweep": [
+      1,
+      100,
+      1000
+    ],
+    "instability_rule": "sample_coefficient_of_variation_across_trials_of_primary_p99_latency_for_open_loop_cells_and_of_completed_rate_for_the_fixed_cohort_drain",
+    "instability_coefficient_of_variation_threshold": 0.1,
+    "preloaded_backlog_metric": "fixed_cohort_throughput_including_worker_startup_not_sustainable_arrival_capacity",
+    "diagnostic_cells": [
+      {
+        "name": "batch-1",
+        "case_id": "L03",
+        "batch_size": 1
+      },
+      {
+        "name": "batch-1000",
+        "case_id": "L03",
+        "batch_size": 1000
+      },
+      {
+        "name": "executor-1",
+        "case_id": "L01",
+        "executors": 1
+      },
+      {
+        "name": "executor-32",
+        "case_id": "L01",
+        "executors": 32
+      },
+      {
+        "name": "workers-4",
+        "case_id": "L01",
+        "workers": 4,
+        "namespaces": 2
+      },
+      {
+        "name": "workers-16",
+        "case_id": "L01",
+        "workers": 16,
+        "namespaces": 2
+      },
+      {
+        "name": "workers-16-single-namespace",
+        "case_id": "L01",
+        "workers": 16
+      },
+      {
+        "name": "drain-workers-4",
+        "case_id": "L04",
+        "workers": 4,
+        "namespaces": 2
+      },
+      {
+        "name": "drain-workers-16",
+        "case_id": "L04",
+        "workers": 16,
+        "namespaces": 2
+      },
+      {
+        "name": "payload-256",
+        "case_id": "M04",
+        "payload_bytes": 256
+      },
+      {
+        "name": "payload-4096",
+        "case_id": "M04",
+        "payload_bytes": 4096
+      },
+      {
+        "name": "payload-65536",
+        "case_id": "M04",
+        "payload_bytes": 65536
+      }
+    ]
+  },
+  "capacity": {
+    "discovery_separate_from_measurement": true,
+    "freeze_selected_rate_before_validation": true,
+    "discovery_start_rate": 50,
+    "overload": {
+      "case_id": "E03",
+      "rate": "lowest_non_qualifying_discovery_rate_above_the_best_qualifying_rate_else_a_multiple_of_the_best",
+      "rate_multiple_without_a_failed_discovery_rate": 2,
+      "recovery_rate_fraction_of_validated_capacity": 0.7,
+      "saturation": "backlog_slope_above_the_stability_tolerance_during_the_overload_half",
+      "recovery": "backlog_below_the_threshold_at_least_once_during_the_recovery_half",
+      "backlog_threshold_floor_roots": 8,
+      "backlog_threshold_fraction_of_overload_rate": 0.1
+    },
+    "require_latency_slo": true,
+    "require_backlog_stability": true,
+    "backlog_slope_tolerance_fraction_of_offered_rate": 0.001,
+    "reference_noop_root_p99_slo_ms": 2000,
+    "latency_slo_ms": {
+      "C01": 5000,
+      "P01": 10000,
+      "R01": 10000,
+      "M03": 5000,
+      "E01": 5000
+    },
+    "slo_note": "Reference targets are benchmark policy, not product guarantees. The two-second no-op target includes the supported one-second safety poll across isolated processes without a shared wakeup transport.",
+    "max_generator_missed_fraction_for_valid_capacity": 0.001,
+    "unexpected_terminal_failures_in_success_only_cases": 0,
+    "backlog_trend_estimator": "OLS of one-second block means from samples taken every observer cycle; require at least two blocks each spanning half a second. Preserve raw samples and window clock boundaries.",
+    "backlog_slope_resolution_floor_roots_per_interval": 1,
+    "discovery_candidate_policy": "Require reconciled correctness, latency target, and healthy generator/observer. Short calibration backlog trends are retained but do not qualify or disqualify capacity; fresh full-duration independent repetitions must validate backlog stability."
+  },
+  "faults": {
+    "chaos_seed": 1729,
+    "reclaim_lease_terms": 2,
+    "chaos_kill_interval_seconds": 5,
+    "chaos_mix": {
+      "shape_fraction": 0.1,
+      "metered_roots_cap": 10000,
+      "laned_roots_cap": 20000,
+      "lane_depth": 10,
+      "lane_steps": 3,
+      "slow_steps": 5,
+      "metered_dwell_ms": 300,
+      "charge_work_steps": 2,
+      "meter_shares": { "metered-10": 0.2, "metered-50": 0.4, "metered-100": 0.4 },
+      "outbox_fraction": 0.5,
+      "outbox_rows_min": 200,
+      "outbox_rows_cap": 5000,
+      "outbox_chunk_rows": 200
+    },
+    "require_actual_reclaim_when_scenario_demands_it": true,
+    "missing_required_hit": "INCONCLUSIVE",
+    "recovery_bounds": "resolved_from_recorded_lease_retry_timeout_and_scenario_policy",
+    "instrumented_and_unmodified_binary_tracks": "separate",
+    "optional_endurance_cohort_roots": 1000000
+  },
+  "liveness": {
+    "deadline": "profile_drain_seconds_plus_reclaim_lease_terms_times_the_lease_when_workers_are_killed_plus_jobs_at_the_slower_of_the_minimum_progress_rate_and_the_measured_drain_over_its_divisor_capped_at_the_ceiling",
+    "drain": "a_trial_drain_or_a_case_wait_on_job_completions_waits_past_the_deadline_while_its_last_completion_landed_within_the_stall_seconds_never_past_the_ceiling",
+    "minimum_progress_jobs_per_second": 2,
+    "measured_drain_divisor": 20,
+    "stall_seconds": 60,
+    "deadline_ceiling_seconds": 14400
+  },
+  "soak": {
+    "case_id": "E01",
+    "offered_rate_fraction_of_validated_capacity": 0.7
+  },
+  "telemetry": {
+    "sample_interval_seconds": 1,
+    "missing_value": null,
+    "missing_reason_required": true,
+    "counter_reset_aware": true,
+    "component_attribution_required": true
+  },
+  "resource_safety": {
+    "default_max_memory_fraction": 0.65,
+    "default_max_new_disk_fraction_of_start_free": 0.2,
+    "default_min_free_disk_bytes": 2147483648,
+    "exceeded_budget": "abort_cell_preserve_evidence_mark_incomplete",
+    "never_silently_reduce_required_cases": true
+  },
+  "output": {
+    "directory": "artifacts/bench/<run-id>",
+    "formats": [
+      "html_offline",
+      "markdown",
+      "json"
+    ],
+    "retain": [
+      "resolved_plan",
+      "environment",
+      "histograms",
+      "metrics",
+      "fault_history",
+      "check_results",
+      "repro",
+      "checksums"
+    ],
+    "overwrite_checked_in_benchmark": false
+  },
+  "exit_codes": {
+    "complete_pass": 0,
+    "contract_failure": 1,
+    "inconclusive_or_incomplete": 2,
+    "setup_or_harness_error": 3,
+    "interrupted": 130
+  }
+}

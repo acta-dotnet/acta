@@ -1,0 +1,702 @@
+-- SQLite has no schema container; tables are created in the attached database ({{schema}}).
+
+-- alerts
+CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    alert_ref text NOT NULL,
+    namespace_id integer NOT NULL,
+    job_id integer NULL,
+    job_ref text NULL,
+    origin_code integer NOT NULL,
+    severity_code integer NOT NULL,
+    kind_code integer NOT NULL,
+    title text NOT NULL,
+    message text NOT NULL,
+    channel_name text NOT NULL,
+    deduplication_key text NULL,
+    occurrence_count integer NOT NULL,
+    last_projected_event_id integer NULL,
+    resolved_at_utc integer NULL,
+    acknowledged_at_utc integer NULL,
+    delivery_status_code integer NOT NULL,
+    retry_count integer NOT NULL,
+    retry_after_utc integer NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
+    , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_deduplication_key_identity ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, id);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_created ON alerts (namespace_id, created_at_utc DESC, id DESC);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_namespace_unresolved ON alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_job ON alerts (job_id, id) WHERE job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_ref ON alerts (alert_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_alerts_deduplication_key ON alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
+
+-- checkpoints
+CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
+    job_id integer NOT NULL,
+    kind_code integer NOT NULL,
+    name text NOT NULL,
+    status_code integer NULL,
+    due_at_utc integer NULL,
+    value_format_id integer DEFAULT 0 NOT NULL,
+    value blob NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
+    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code NOT IN (10, 40) OR (status_code IS NULL AND due_at_utc IS NULL)) AND (kind_code NOT IN (20, 30, 50) OR status_code IS NOT NULL) AND (kind_code <> 30 OR due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_checkpoints_pending_latches ON checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
+
+-- definitions
+CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    namespace_id integer NOT NULL,
+    name text NOT NULL,
+    status_code integer NOT NULL,
+    definition_hash text NOT NULL,
+    manifest_generation_at_utc integer NOT NULL,
+    input_type_name text NOT NULL,
+    input_format_id integer NOT NULL,
+    input_format_name text NOT NULL,
+    output_type_name text NULL,
+    output_format_id integer NOT NULL,
+    output_format_name text NOT NULL,
+    tenant_requirement_code integer NOT NULL,
+    priority_code integer NOT NULL,
+    priority_code_override integer NULL,
+    priority_code_effective integer AS (COALESCE(priority_code_override, priority_code)) STORED,
+    max_attempts integer NOT NULL,
+    max_attempts_override integer NULL,
+    max_attempts_effective integer AS (COALESCE(max_attempts_override, max_attempts)) STORED,
+    concurrency_limit integer NULL,
+    concurrency_limit_override integer NULL,
+    concurrency_limit_effective integer AS (COALESCE(concurrency_limit_override, concurrency_limit)) STORED,
+    rate_limit text NULL,
+    rate_limit_override text NULL,
+    rate_limit_effective text AS (COALESCE(rate_limit_override, rate_limit)) STORED,
+    rate_name text NULL,
+    lane text NULL,
+    backoff text NOT NULL,
+    backoff_override text NULL,
+    backoff_effective text AS (COALESCE(backoff_override, backoff)) STORED,
+    execution_timeout_seconds integer NOT NULL,
+    execution_timeout_seconds_override integer NULL,
+    execution_timeout_seconds_effective integer AS (COALESCE(execution_timeout_seconds_override, execution_timeout_seconds)) STORED,
+    deadline_seconds integer NOT NULL,
+    deadline_seconds_override integer NULL,
+    deadline_seconds_effective integer AS (COALESCE(deadline_seconds_override, deadline_seconds)) STORED,
+    deadline_behavior_code integer NOT NULL,
+    deadline_behavior_code_override integer NULL,
+    deadline_behavior_code_effective integer AS (COALESCE(deadline_behavior_code_override, deadline_behavior_code)) STORED,
+    retention_seconds integer NOT NULL,
+    retention_seconds_override integer NULL,
+    retention_seconds_effective integer AS (COALESCE(retention_seconds_override, retention_seconds)) STORED,
+    audit_level_code integer NOT NULL,
+    audit_level_code_override integer NULL,
+    audit_level_code_effective integer AS (COALESCE(audit_level_code_override, audit_level_code)) STORED,
+    alert_profile_code integer NOT NULL,
+    alert_profile_code_override integer NULL,
+    alert_profile_code_effective integer AS (COALESCE(alert_profile_code_override, alert_profile_code)) STORED,
+    alert_channel_name text NULL,
+    alert_channel_name_override text NULL,
+    alert_channel_name_effective text AS (COALESCE(alert_channel_name_override, alert_channel_name)) STORED,
+    runbook_url text NULL,
+    runbook_url_override text NULL,
+    runbook_url_effective text AS (COALESCE(runbook_url_override, runbook_url)) STORED,
+    display_name text NULL,
+    display_name_override text NULL,
+    display_name_effective text AS (COALESCE(display_name_override, display_name)) STORED,
+    description text NULL,
+    description_override text NULL,
+    description_effective text AS (COALESCE(description_override, description)) STORED,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT ck_definitions_max_attempts CHECK (max_attempts >= 1)
+    , CONSTRAINT ck_definitions_max_attempts_override CHECK (max_attempts_override IS NULL OR max_attempts_override >= 1)
+    , CONSTRAINT ck_definitions_execution_timeout CHECK (execution_timeout_seconds > 0)
+    , CONSTRAINT ck_definitions_execution_timeout_override CHECK (execution_timeout_seconds_override IS NULL OR execution_timeout_seconds_override > 0)
+    , CONSTRAINT ck_definitions_deadline CHECK (deadline_seconds >= 0)
+    , CONSTRAINT ck_definitions_deadline_override CHECK (deadline_seconds_override IS NULL OR deadline_seconds_override >= 0)
+    , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
+    , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
+    , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
+    , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_definitions_namespace_name ON definitions (namespace_id, name);
+
+-- events
+CREATE TABLE IF NOT EXISTS {{schema}}.events (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    event_code integer NOT NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    namespace_id integer NOT NULL,
+    actor_code integer NOT NULL,
+    actor text NULL,
+    job_id integer NULL,
+    job_ref text NULL,
+    execution_number integer NULL,
+    lineage_root_id integer NULL,
+    definition_id integer NULL,
+    tenant_id integer NULL,
+    worker_id integer DEFAULT 0 NOT NULL,
+    from_status_code integer NULL,
+    to_status_code integer NULL,
+    execution_status_code integer NULL,
+    duration_ms integer NULL,
+    reason_code integer NULL,
+    reason_message text NULL,
+    detail_format_id integer DEFAULT 0 NOT NULL,
+    detail blob NULL
+    , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
+    , CONSTRAINT ck_events_detail_format_id_byte CHECK (detail_format_id BETWEEN 0 AND 255)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_lineage_timeline ON events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_namespace_timeline ON events (namespace_id, event_code, created_at_utc, id);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_job_timeline ON events (job_id, created_at_utc, id) WHERE job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_events_namespace_created ON events (namespace_id, created_at_utc DESC, id DESC);
+
+-- jobs
+CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    job_ref text NOT NULL,
+    namespace_id integer NOT NULL,
+    definition_id integer NOT NULL,
+    lineage_root_id integer NULL,
+    parent_id integer NULL,
+    tenant_id integer NULL,
+    deduplication_key text NULL,
+    correlation_key text NULL,
+    concurrency_key text NULL,
+    input_format_id integer NOT NULL,
+    input blob NULL,
+    audit_level_code integer NOT NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
+    , CONSTRAINT ck_jobs_input_pair CHECK ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))
+    , CONSTRAINT ck_jobs_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_parent ON jobs (parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_namespace_created ON jobs (namespace_id, created_at_utc DESC, id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_ref ON jobs (job_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_root ON jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_child ON jobs (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL;
+
+-- lanes
+CREATE TABLE IF NOT EXISTS {{schema}}.lanes (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    namespace_id integer NOT NULL,
+    name text NOT NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_lanes_namespace_name ON lanes (namespace_id, name);
+
+-- locks
+CREATE TABLE IF NOT EXISTS {{schema}}.locks (
+    lock_key text NOT NULL,
+    job_id integer NOT NULL,
+    expires_at_utc integer NOT NULL,
+    hold_token text NOT NULL
+    , CONSTRAINT pk_locks PRIMARY KEY (lock_key)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_locks_reclaim_expired ON locks (expires_at_utc);
+
+-- namespaces
+CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    name text NOT NULL,
+    owner_team text NULL,
+    description text NULL,
+    status_code integer NOT NULL,
+    catalog_hash text NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL,
+    recovery_due_at_utc integer NULL
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_namespaces_name ON namespaces (name);
+
+-- Seed: reserved system namespace (id=1, 'sys') for cross-namespace audit events. Collation-neutral.
+INSERT OR IGNORE INTO {{schema}}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)
+VALUES (1, 'sys', 10, 'Reserved system namespace for cross-namespace audit events.', CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER), CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER));
+
+-- runtimes
+CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
+    job_id integer NOT NULL,
+    namespace_id integer NOT NULL,
+    lane_id integer NULL,
+    status_code integer NOT NULL,
+    priority_code integer NOT NULL,
+    next_run_at_utc integer NULL,
+    execution_number integer NOT NULL,
+    failure_count integer NOT NULL,
+    leased_by_worker_id integer NULL,
+    lease_expires_at_utc integer NULL,
+    retention_until_utc integer NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    result_format_id integer DEFAULT 0 NOT NULL,
+    result blob NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_runtimes PRIMARY KEY (job_id)
+    , CONSTRAINT ck_runtimes_blocked_lane CHECK (status_code <> 15 OR lane_id IS NOT NULL)
+    , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
+    , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
+    , CONSTRAINT ck_runtimes_status_lease CHECK (status_code = 50 OR leased_by_worker_id IS NULL)
+    , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code <> 50 OR leased_by_worker_id IS NOT NULL)
+    , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
+    , CONSTRAINT ck_runtimes_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
+    , CONSTRAINT ck_runtimes_result_idle CHECK (result_format_id = 0 OR status_code <> 50)
+    , CONSTRAINT ck_runtimes_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
+    , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES lanes (id)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code = 50;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_lane ON runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 50);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_failed ON runtimes (namespace_id, job_id DESC) WHERE status_code = 200;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_lane_member ON runtimes (lane_id) WHERE lane_id IS NOT NULL;
+
+-- schedules
+CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
+    namespace_id integer NOT NULL,
+    job_id integer NOT NULL,
+    definition_id integer NOT NULL,
+    name text NOT NULL,
+    origin_code integer NOT NULL,
+    expression text NOT NULL,
+    expression_override text NULL,
+    expression_effective text AS (COALESCE(expression_override, expression)) STORED,
+    time_zone_id text NOT NULL,
+    time_zone_id_override text NULL,
+    time_zone_id_effective text AS (COALESCE(time_zone_id_override, time_zone_id)) STORED,
+    expression_kind_code integer NOT NULL,
+    misfire_strategy_code integer NOT NULL,
+    next_run_at_utc integer NULL,
+    last_occurrence_at_utc integer NULL,
+    status_code integer NOT NULL,
+    paused_until_utc integer NULL,
+    description text NULL,
+    reason_message text NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_schedules PRIMARY KEY (job_id, name)
+    , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
+    , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
+    , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (id)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, job_id, name) WHERE status_code <> 230;
+
+-- steps
+CREATE TABLE IF NOT EXISTS {{schema}}.steps (
+    job_id integer NOT NULL,
+    name text NOT NULL,
+    status_code integer NOT NULL,
+    attempt_number integer NOT NULL,
+    next_retry_at_utc integer NULL,
+    reason_code integer NULL,
+    reason_message text NULL,
+    result_format_id integer NOT NULL,
+    result blob NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_steps PRIMARY KEY (job_id, name)
+    , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
+    , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
+    , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
+    , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
+    , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
+    , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
+) STRICT;
+
+-- tags
+CREATE TABLE IF NOT EXISTS {{schema}}.tags (
+    scope_code integer NOT NULL,
+    scope_id integer NOT NULL,
+    name text NOT NULL,
+    value text NULL,
+    value_search text NULL
+    , CONSTRAINT pk_tags PRIMARY KEY (scope_code, scope_id, name)
+    , CONSTRAINT ck_tags_scope_id CHECK (scope_id > 0)
+    , CONSTRAINT ck_tags_value_search CHECK ((value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL))
+) STRICT;
+
+-- tenants
+CREATE TABLE IF NOT EXISTS {{schema}}.tenants (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    tenant_name text NOT NULL,
+    status_code integer NOT NULL,
+    display_name text NULL,
+    description text NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_tenants_name ON tenants (tenant_name);
+
+-- workers
+CREATE TABLE IF NOT EXISTS {{schema}}.workers (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    worker_ref text NOT NULL,
+    namespace_id integer NOT NULL,
+    status_code integer NOT NULL,
+    deployment_version text NOT NULL,
+    host text NOT NULL,
+    engine_version text NULL,
+    dotnet_version text NULL,
+    process_id integer NULL,
+    max_concurrency integer NOT NULL,
+    last_seen_at_utc integer NOT NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    version integer DEFAULT 0 NOT NULL
+    , CONSTRAINT ck_workers_max_concurrency CHECK (max_concurrency > 0)
+    , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES namespaces (id)
+) STRICT;
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_status_last_seen ON workers (namespace_id, status_code, last_seen_at_utc);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_status_last_seen ON workers (status_code, last_seen_at_utc);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_workers_namespace_last_seen ON workers (namespace_id, last_seen_at_utc DESC, id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_workers_ref ON workers (worker_ref);
+
+DROP VIEW IF EXISTS {{schema}}.alerts_view;
+CREATE VIEW {{schema}}.alerts_view AS
+SELECT
+    a.id AS alert_id,
+    a.alert_ref,
+    ns.name AS namespace,
+    a.job_id,
+    a.job_ref,
+    j.definition_id,
+    d.name AS job_name,
+    CASE a.origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'automatic' WHEN 20 THEN 'manual' END AS origin,
+    a.origin_code,
+    CASE a.severity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS severity,
+    a.severity_code,
+    CASE a.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS kind,
+    a.kind_code,
+    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retry-after' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
+    a.delivery_status_code,
+    a.title,
+    a.message,
+    a.channel_name,
+    a.deduplication_key,
+    a.occurrence_count,
+    a.resolved_at_utc,
+    a.acknowledged_at_utc,
+    a.retry_count,
+    a.retry_after_utc,
+    a.created_at_utc,
+    a.modified_at_utc,
+    a.version
+FROM {{schema}}.alerts AS a
+JOIN {{schema}}.namespaces AS ns ON ns.id = a.namespace_id
+LEFT JOIN {{schema}}.jobs AS j ON j.id = a.job_id
+LEFT JOIN {{schema}}.definitions AS d ON d.id = j.definition_id;
+
+DROP VIEW IF EXISTS {{schema}}.checkpoints_view;
+CREATE VIEW {{schema}}.checkpoints_view AS
+SELECT
+    c.job_id,
+    j.job_ref,
+    ns.name AS namespace,
+    d.name AS job_name,
+    c.name AS checkpoint_name,
+    CASE c.kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
+    c.kind_code,
+    CASE c.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS status,
+    c.status_code,
+    c.due_at_utc,
+    CASE c.value_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || CAST(c.value_format_id AS TEXT)
+    END AS value_format,
+    CASE WHEN c.value_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(c.value AS TEXT) END
+        AS value_text,
+    c.created_at_utc,
+    c.modified_at_utc,
+    c.version
+FROM {{schema}}.checkpoints AS c
+JOIN {{schema}}.jobs AS j ON j.id = c.job_id
+JOIN {{schema}}.namespaces AS ns ON ns.id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.id = j.definition_id;
+
+DROP VIEW IF EXISTS {{schema}}.definitions_view;
+CREATE VIEW {{schema}}.definitions_view AS
+SELECT
+    d.id AS definition_id,
+    ns.name AS namespace,
+    d.name AS job_name,
+    CASE d.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 240 THEN 'retired' END AS status,
+    d.status_code,
+    d.definition_hash,
+    d.manifest_generation_at_utc,
+    d.input_type_name,
+    d.input_format_name,
+    d.output_type_name,
+    d.output_format_name,
+    CASE d.priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS priority,
+    d.priority_code_effective AS priority_code,
+    d.priority_code AS priority_default_code,
+    d.priority_code_override AS priority_override_code,
+    d.max_attempts_effective AS max_attempts,
+    d.max_attempts AS max_attempts_default,
+    d.max_attempts_override,
+    d.concurrency_limit_effective AS concurrency_limit,
+    d.concurrency_limit AS concurrency_limit_default,
+    d.concurrency_limit_override,
+    d.rate_limit_effective AS rate_limit,
+    d.rate_limit AS rate_limit_default,
+    d.rate_limit_override,
+    d.rate_name,
+    d.backoff_effective AS backoff,
+    d.backoff AS backoff_default,
+    d.backoff_override,
+    d.execution_timeout_seconds_effective AS execution_timeout_seconds,
+    d.execution_timeout_seconds AS execution_timeout_seconds_default,
+    d.execution_timeout_seconds_override,
+    d.deadline_seconds_effective AS deadline_seconds,
+    d.deadline_seconds AS deadline_seconds_default,
+    d.deadline_seconds_override,
+    CASE d.deadline_behavior_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'strict' WHEN 20 THEN 'advisory' END AS deadline_behavior,
+    d.deadline_behavior_code_effective AS deadline_behavior_code,
+    d.deadline_behavior_code AS deadline_behavior_default_code,
+    d.deadline_behavior_code_override AS deadline_behavior_override_code,
+    d.retention_seconds_effective AS retention_seconds,
+    d.retention_seconds AS retention_seconds_default,
+    d.retention_seconds_override,
+    CASE d.audit_level_code_effective WHEN 0 THEN 'off' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS audit_level,
+    d.audit_level_code_effective AS audit_level_code,
+    d.audit_level_code AS audit_level_default_code,
+    d.audit_level_code_override AS audit_level_override_code,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-terminal' WHEN 40 THEN 'sys-critical' END AS alert_profile,
+    d.alert_profile_code_effective AS alert_profile_code,
+    d.alert_profile_code AS alert_profile_default_code,
+    d.alert_profile_code_override AS alert_profile_override_code,
+    d.alert_channel_name_effective AS alert_channel_name,
+    d.alert_channel_name AS alert_channel_name_default,
+    d.alert_channel_name_override,
+    d.runbook_url_effective AS runbook_url,
+    d.runbook_url AS runbook_url_default,
+    d.runbook_url_override,
+    d.created_at_utc,
+    d.modified_at_utc,
+    d.version
+FROM {{schema}}.definitions AS d
+JOIN {{schema}}.namespaces AS ns ON ns.id = d.namespace_id;
+
+DROP VIEW IF EXISTS {{schema}}.events_view;
+CREATE VIEW {{schema}}.events_view AS
+SELECT
+    e.id AS event_id,
+    e.created_at_utc,
+    ns.name AS namespace,
+    e.job_id,
+    e.job_ref,
+    e.lineage_root_id AS lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    e.definition_id,
+    d.name AS job_name,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    e.event_code,
+    CASE e.actor_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor_kind,
+    e.actor_code,
+    e.actor,
+    CASE e.from_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
+    e.from_status_code,
+    CASE e.to_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
+    e.to_status_code,
+    CASE e.execution_status_code WHEN 0 THEN 'unspecified' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
+    e.execution_status_code,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    e.reason_code,
+    e.reason_message,
+    CASE e.detail_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || CAST(e.detail_format_id AS TEXT)
+    END AS detail_format,
+    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.detail AS TEXT) END
+        AS detail_text,
+    e.worker_id,
+    wkr.worker_ref,
+    e.execution_number,
+    e.duration_ms,
+    e.tenant_id
+FROM {{schema}}.events AS e
+JOIN {{schema}}.namespaces AS ns ON ns.id = e.namespace_id
+LEFT JOIN {{schema}}.definitions AS d ON d.id = e.definition_id
+LEFT JOIN {{schema}}.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN {{schema}}.workers AS wkr ON wkr.id = e.worker_id;
+
+DROP VIEW IF EXISTS {{schema}}.jobs_view;
+CREATE VIEW {{schema}}.jobs_view AS
+SELECT
+    j.id AS job_id,
+    j.job_ref,
+    ns.name AS namespace,
+    d.name AS job_name,
+    CASE r.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
+    r.status_code,
+    j.deduplication_key,
+    j.correlation_key,
+    j.concurrency_key,
+    j.parent_id,
+    COALESCE(j.lineage_root_id, j.id) AS lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    j.tenant_id,
+    t.tenant_name,
+    CASE r.priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS priority,
+    r.priority_code,
+    CASE j.input_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || CAST(j.input_format_id AS TEXT)
+    END AS input_format,
+    CASE WHEN j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(j.input AS TEXT) END
+        AS input_text,
+    CASE r.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || CAST(r.result_format_id AS TEXT)
+    END AS result_format,
+    CASE WHEN r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(r.result AS TEXT) END
+        AS result_text,
+    r.next_run_at_utc,
+    r.execution_number,
+    r.failure_count,
+    r.leased_by_worker_id,
+    w.host AS leased_by_worker_host,
+    r.lease_expires_at_utc,
+    r.retention_until_utc,
+    j.created_at_utc,
+    r.modified_at_utc,
+    r.version,
+    lane.name AS lane
+FROM {{schema}}.jobs AS j
+JOIN {{schema}}.runtimes AS r ON r.job_id = j.id
+JOIN {{schema}}.namespaces AS ns ON ns.id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.id = j.definition_id
+LEFT JOIN {{schema}}.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
+LEFT JOIN {{schema}}.tenants AS t ON t.id = j.tenant_id
+LEFT JOIN {{schema}}.workers AS w ON w.id = r.leased_by_worker_id
+LEFT JOIN {{schema}}.lanes AS lane ON lane.id = r.lane_id;
+
+DROP VIEW IF EXISTS {{schema}}.schedules_view;
+CREATE VIEW {{schema}}.schedules_view AS
+SELECT
+    ns.name AS namespace,
+    s.job_id,
+    j.job_ref,
+    s.definition_id,
+    d.name AS job_name,
+    s.name AS schedule_name,
+    CASE s.origin_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'operator' WHEN 40 THEN 'definition' END AS origin,
+    s.origin_code,
+    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS status,
+    s.status_code,
+    s.expression_effective,
+    s.expression,
+    s.expression_override,
+    s.time_zone_id_effective,
+    s.time_zone_id,
+    s.time_zone_id_override,
+    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
+    s.expression_kind_code,
+    CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' END AS misfire_strategy,
+    s.misfire_strategy_code,
+    s.next_run_at_utc,
+    s.last_occurrence_at_utc,
+    s.paused_until_utc,
+    s.description,
+    s.reason_message,
+    s.created_at_utc,
+    s.modified_at_utc,
+    s.version
+FROM {{schema}}.schedules AS s
+JOIN {{schema}}.namespaces AS ns ON ns.id = s.namespace_id
+JOIN {{schema}}.jobs AS j ON j.id = s.job_id
+JOIN {{schema}}.definitions AS d ON d.id = s.definition_id;
+
+DROP VIEW IF EXISTS {{schema}}.steps_view;
+CREATE VIEW {{schema}}.steps_view AS
+SELECT
+    s.job_id,
+    j.job_ref,
+    ns.name AS namespace,
+    d.name AS job_name,
+    s.name AS step_name,
+    CASE s.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS status,
+    s.status_code,
+    s.attempt_number,
+    s.next_retry_at_utc,
+    CASE s.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    s.reason_code,
+    s.reason_message,
+    CASE s.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || CAST(s.result_format_id AS TEXT)
+    END AS result_format,
+    CASE WHEN s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(s.result AS TEXT) END
+        AS result_text,
+    s.created_at_utc,
+    s.modified_at_utc,
+    s.version
+FROM {{schema}}.steps AS s
+JOIN {{schema}}.jobs AS j ON j.id = s.job_id
+JOIN {{schema}}.namespaces AS ns ON ns.id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.id = j.definition_id;
+
+DROP VIEW IF EXISTS {{schema}}.tags_view;
+CREATE VIEW {{schema}}.tags_view AS
+SELECT
+    CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' END AS scope,
+    t.scope_code,
+    t.scope_id,
+    t.name AS tag_name,
+    t.value AS tag_value,
+    t.value_search AS tag_value_search
+FROM {{schema}}.tags AS t;
+
+DROP VIEW IF EXISTS {{schema}}.workers_view;
+CREATE VIEW {{schema}}.workers_view AS
+SELECT
+    w.id AS worker_id,
+    w.worker_ref,
+    ns.name AS namespace,
+    CASE w.status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 80 THEN 'draining' WHEN 100 THEN 'stopped' WHEN 200 THEN 'dead' END AS status,
+    w.status_code,
+    w.deployment_version,
+    w.host,
+    w.engine_version,
+    w.dotnet_version,
+    w.process_id,
+    w.max_concurrency,
+    w.last_seen_at_utc,
+    w.created_at_utc,
+    w.modified_at_utc,
+    w.version
+FROM {{schema}}.workers AS w
+JOIN {{schema}}.namespaces AS ns ON ns.id = w.namespace_id;
+
+
+INSERT INTO {{schema}}.migrations (name)
+VALUES ('M20261018210615_init')
+ON CONFLICT (name) DO NOTHING;

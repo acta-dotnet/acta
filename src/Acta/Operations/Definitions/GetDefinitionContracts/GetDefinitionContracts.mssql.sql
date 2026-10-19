@@ -10,7 +10,6 @@ SELECT
     jd.id,
     jd.definition_hash,
     jd.status_code AS status,
-    jd.modified_at_utc,
     jd.priority_code_effective AS priority,
     jd.max_attempts_effective AS max_attempts,
     jd.concurrency_limit_effective AS concurrency_limit,

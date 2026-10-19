@@ -42,15 +42,3 @@ public enum JobStatusCode : byte
     [Code("cancelled", "Terminal cancellation by IJobs.CancelAsync or ctx.Cancel.")]
     Cancelled = 220,
 }
-
-public static partial class JobStatusExtensions
-{
-    extension(JobStatusCode value)
-    {
-        public bool IsTerminal => value is JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled;
-
-        public bool IsClaimable => value is JobStatusCode.Ready;
-
-        public bool IsActiveExecution => value is JobStatusCode.Executing;
-    }
-}

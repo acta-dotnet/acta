@@ -8,10 +8,9 @@
 
   let {
     jobRef,
-    embedded = false,
     suggestedName = '',
     onSent = () => {}
-  }: { jobRef: string; embedded?: boolean; suggestedName?: string; onSent?: () => void } = $props();
+  }: { jobRef: string; suggestedName?: string; onSent?: () => void } = $props();
 
   let open = $state(false);
   let name = $state('');
@@ -33,14 +32,13 @@
   const mutation = useControlMutation<{ jobRef: string; name: string; payload: unknown }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/signals/${vars.name}`,
     rawBody: (vars) => vars.payload,
-    notFound: () => ({ action: 'notFound', status: null, version: null }),
+    notFound: () => ({ action: 'notFound', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);
 
-  export function openForm(prefill = suggestedName) {
-    if (!canControlNow) return;
-    name = prefill;
+  function openForm() {
+    name = suggestedName;
     payloadText = '';
     message = '';
     open = true;
@@ -60,7 +58,7 @@
     message = '';
     try {
       const result = await mutation.mutateAsync(vars);
-      message = jobControlMessage('signal', result.action, result.status);
+      message = jobControlMessage('signal', result.action);
       messageKind = result.action === 'applied' ? 'ok' : 'warn';
       onSent();
     } catch (e) {
@@ -70,7 +68,7 @@
   }
 </script>
 
-<section class:panel={!embedded} class:detail-panel={embedded}>
+<section class="detail-panel">
   <h2>Signals</h2>
   {#if !open}
     <div class="control-row">

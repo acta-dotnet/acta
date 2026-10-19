@@ -189,7 +189,7 @@
       "Checks": [
         {
           "Name": "ck_checkpoints_kind_shape",
-          "Sql": "(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)"
+          "Sql": "(kind_code NOT IN (10, 40) OR (status_code IS NULL AND due_at_utc IS NULL)) AND (kind_code NOT IN (20, 30, 50) OR status_code IS NOT NULL) AND (kind_code \u003C\u003E 30 OR due_at_utc IS NOT NULL)"
         },
         {
           "Name": "ck_checkpoints_value_pair",
@@ -499,7 +499,7 @@
     },
     {
       "Table": "events",
-      "PrimaryKey": "pk_events(id)|manual=False|seq=True",
+      "PrimaryKey": "pk_events(worker_id,id)|manual=False|seq=True|identity=id",
       "Columns": [
         {
           "Name": "id",
@@ -551,7 +551,7 @@
         },
         {
           "Name": "worker_id",
-          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+          "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "from_status_code",
@@ -650,7 +650,7 @@
         },
         {
           "Name": "correlation_key",
-          "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|caseExact=False"
+          "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|caseExact=True"
         },
         {
           "Name": "concurrency_key",
@@ -819,40 +819,6 @@
       "ForeignKeys": []
     },
     {
-      "Table": "results",
-      "PrimaryKey": "pk_results(job_id,execution_number)|manual=False|seq=True",
-      "Columns": [
-        {
-          "Name": "job_id",
-          "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "execution_number",
-          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "result_format_id",
-          "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "result",
-          "Signature": "BinaryPayload|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "created_at_utc",
-          "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|caseExact=False"
-        }
-      ],
-      "Indexes": [],
-      "Checks": [
-        {
-          "Name": "ck_results_format_not_none",
-          "Sql": "result_format_id \u003C\u003E 0"
-        }
-      ],
-      "ForeignKeys": []
-    },
-    {
       "Table": "runtimes",
       "PrimaryKey": "pk_runtimes(job_id)|manual=True|seq=True",
       "Columns": [
@@ -905,6 +871,14 @@
           "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|caseExact=False"
         },
         {
+          "Name": "result_format_id",
+          "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "result",
+          "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
           "Name": "version",
           "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         }
@@ -951,6 +925,14 @@
         {
           "Name": "ck_runtimes_ready_due",
           "Sql": "status_code \u003C\u003E 10 OR next_run_at_utc IS NOT NULL"
+        },
+        {
+          "Name": "ck_runtimes_result_idle",
+          "Sql": "result_format_id = 0 OR status_code \u003C\u003E 50"
+        },
+        {
+          "Name": "ck_runtimes_result_pair",
+          "Sql": "(result_format_id = 0 AND result IS NULL) OR (result_format_id \u003C\u003E 0 AND result IS NOT NULL)"
         },
         {
           "Name": "ck_runtimes_status_lease",
@@ -1171,10 +1153,6 @@
           "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "namespace_id",
-          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
           "Name": "name",
           "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
@@ -1184,27 +1162,14 @@
         },
         {
           "Name": "value_search",
-          "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
+          "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|caseExact=True"
         }
       ],
-      "Indexes": [
-        {
-          "Name": "ix_tags_namespace_name_value_search",
-          "Signature": "I|cols=namespace_id,name,value_search,scope_code,scope_id|inc=|desc=|filter=|seq=False"
-        }
-      ],
+      "Indexes": [],
       "Checks": [
-        {
-          "Name": "ck_tags_namespace_id",
-          "Sql": "namespace_id IS NULL OR namespace_id \u003E 0"
-        },
         {
           "Name": "ck_tags_scope_id",
           "Sql": "scope_id \u003E 0"
-        },
-        {
-          "Name": "ck_tags_scope_namespace",
-          "Sql": "(scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50) AND namespace_id IS NOT NULL)"
         },
         {
           "Name": "ck_tags_value_search",
@@ -1358,23 +1323,23 @@
       "alerts_view": "205711ba5f7e16bdf085f404fee8d0a8211f30b7e633564c4428b5cf6a376b38",
       "arm_or_consume_sleep_timer": "67443ce632dff3cae79b736804f4a08094bbfe3a91f26eba04b4297ad70a1e54",
       "checkpoints_view": "a90d01cbb5641aa86092a34ba92c9225ac788594c71b91b95dd7211b0b75da2c",
-      "claim_jobs": "649637183281a1146e3fc567aca87d793cbe7923140e1f0a82b0b08febf29f1a",
-      "complete_executions": "d481a614a5cc3fc5274973e0f51c0df0556f8d38fe0dc9688051c1b7e2837abb",
+      "claim_jobs": "ed6043f63e8212d9ed09ba343b3f2f6da28dd824a7e1c5f562065af3a43163a9",
+      "complete_executions": "3347d55048a44d23e24ed804b6ff950b7e133181d61a3b0e821f36fe49dab00a",
       "complete_step": "7881998f3507cb41f9758a8965c61009703153e4b8e79c9d53e1eefd708504b1",
       "definitions_view": "db0219d5783d0b10f128f9b162db82e693e29ed9c3b4177f2ebbc3e75624fea1",
-      "enqueue_job": "c9f30c980ec46a1f09d1fe50b9609dc431edacb16208f3c82fe1ff9b812954f2",
-      "enqueue_jobs": "39ae86304c938030f108228f9c7c79bcd3a22474f24a3938c4aecf2da1df4a72",
+      "enqueue_job": "729ae4d3213ac9f0cdeb12db992005e96b17fc397b3c960c9a5c8339505ba432",
+      "enqueue_jobs": "fdc9e09fa1a02802562f653055844490650fafbddeb170f4d0a04803e144697c",
       "events_view": "8c5954d1c77b03a2e009843dcf6000107ec2702037c09118d6031e417a3fb49c",
       "extend_worker_leases": "1443c65b8f5b7e5f23d0721777ef398d8f9619b25f270e586ee6216d6bf1c6dc",
-      "jobs_view": "c0fac40d01a3d45da00ae66be38c1ac131b8fe2229e8ef8efe3da2dabad03757",
-      "purge_expired_data": "b4cd77badf8044cffe6270fc199f70ad15af82073a79838d46dc547fb6183761",
-      "raise_signal": "d1afeadb12ff05d4108e35ffa74e12fdda70e7056523e6e6b53b570cca91fbb3",
-      "reclaim_stuck_jobs": "454bf55e40cada428d6a0da51bad10ba82286352e79e314050efcac211e22d4d",
+      "jobs_view": "a9e1ff72836a4a8e894b9fb4149a494cbe832ac9b98e6cc28cca0df400b87c43",
+      "purge_expired_data": "09efe3a3e123346d29183c4fe57da707b0ce1e4849fb29547969777b43e85ad6",
+      "raise_signal": "ff2063c093ed21a87f04e45342e0eef765c5f843871e070cccbe6ba233147099",
+      "reclaim_stuck_jobs": "92bb768c55ca574515d073cee77e00051e767e3939ec2e518175ed8f858bd9a2",
       "reserve_rate": "94566ff56ca49bf8e52471724d2fae5f050edb1f4ab9d21565cf6aabcf364cc1",
       "schedules_view": "ff967b75cee6b61d81ace8ee080f937b2529769c8db01b49ee30a188ac154d0a",
       "start_step": "81e7f70e7c8357fd4db62004f6b88b08227bf1b380c6df9d34b88c71943f99b8",
       "steps_view": "cbccf01990a3d4b129358e119bfce90c6cbd7299d69e438de7b4005a1ac9b6ac",
-      "tags_view": "d70ad801b4508d0d3c824408588bb9dfb632ab1f34a010dabe8d555ded81230a",
+      "tags_view": "12b548b602a5e199ba65daf7e1fec4cc97e2a085b89e19c8aa44861feb73e949",
       "wait_signal": "846f9ed0afd59d6cd9ee45e878403c7ac25f6f9ec16cb1a6140cb27e6d7640fe",
       "workers_view": "11581f48ca5d784101004d0118741e25e3328280ed0cb80c6c47470f9d85c7e7"
     },
@@ -1383,23 +1348,23 @@
       "alerts_view": "351cced8b13be8adf5f2d8eeb8861a7c38f9c083a9ec644ead19f5f34200fafb",
       "arm_or_consume_sleep_timer": "9567d7d16b6a6dced232a72d260caf7169044cb6637f0cd655f903ff3fc9ee26",
       "checkpoints_view": "45e557860a49924084b6f924347091ae8d9577ac12f1ee3fa15f1613106f850d",
-      "claim_jobs": "21b6b7f62aea69c1c497836e37a2543dbae9188e2cde62ea3de555711577ce7f",
-      "complete_executions": "9b7fd9958ed62e916cee02d8dbe975292b28ca8d50b0e4487fcc3051c21f7351",
+      "claim_jobs": "5ce7be9912ffcadde18fd4584ab4bcc8e57919dce42da219c0a52894f786020b",
+      "complete_executions": "13f014b26717689bf5a679dc98835d69733e6320e4837653beace80535c488a2",
       "complete_step": "6f64212a1d6b5065722bb9e59f430cc7fd31e7ae3dc75fa9502179f669e8b206",
       "definitions_view": "3b1b6f02719a3dd58d78a87dc5e2c7d66cbd75e2532479a4b369914821ff81ce",
-      "enqueue_job": "43412e549c2339d08c31e0dbf2843b54102d9e116343a126dde894e8e1fb4479",
-      "enqueue_jobs": "d7b859b700cea6c117eb813762f4398fa84d98f73861eb1b404b3a2c59c1d8df",
+      "enqueue_job": "2649f39763b16509ecce6cb230eef2880b08d82ae395f722df88b51d833a8c6b",
+      "enqueue_jobs": "6857e48a148fcbd43246327fd6239205f73da1bec2b7b05edaad93466617911a",
       "events_view": "c027161c74cb4d56bf9071e49ee58669f6f6ab7aaddd3caf4696adb0d4d8495b",
       "extend_worker_leases": "71259a64ad3d3cc37931b66d31ed913bdacf3306e1e97c6fce899ec6d03f763b",
-      "jobs_view": "b98205d7b1c26edadf4c0c487cd8fd824a0b69e447d52ffb8046bc59cec37c1c",
-      "purge_expired_data": "d6261b3146ae56e6ac4bd7e723572612df080f94bdfd60ba5d0af512460759c7",
-      "raise_signal": "17eef6a07da5de33de99d8dc7b683fe56f41ea21893e0ca97fac9f7fd57787d9",
-      "reclaim_stuck_jobs": "5b9d88a54c5940a2b1d2cc1daaf276db4b3da10bce524e9d7400840759f5dbc4",
+      "jobs_view": "173ac815fadf7083068b1d11476badf0361b5c073eadc68f154015442ee33c74",
+      "purge_expired_data": "5e1a8646638bc6e7b46bc1d4a56680d8186302e34839d04a2960bb4dc2be277a",
+      "raise_signal": "8e203324e2f2dbb2afac2bfd993e476aaae7f1c0aa8acd60ce386c38c902c9c7",
+      "reclaim_stuck_jobs": "a8b3306eb1c06ed870a30950e4badaadeb83f70c0d51f5768a65f184206f6d87",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
       "schedules_view": "a1eb0aa748da79e153d9ca2ee6c9a70ec2b57ea6c08668ace7e0dd5adb75685e",
       "start_step": "2f27265edc3ab383b0b50bc53640b317ba706113ff2697f02c970b29f1682a1e",
       "steps_view": "a22ed70f2c4d97b140006afba922ba5b00c0feb613b27648b4c3436c16b018f8",
-      "tags_view": "3aee2ab41fa7f91a6992108990492b2262456823024d9096a794fdb944c74dd8",
+      "tags_view": "05ede19bfdfecd78e3879dba1ff124bc3f7f9130bc4a9512717ad0b4718586cd",
       "wait_signal": "cc68d06414bcbe91716704c7b5127a68d49ae7ec8bcfb41d795662dac8e471e0",
       "workers_view": "c87466008e805a95a957526099ef81cd643ee4e1cdccc1c845960d93c3db1e89"
     },
@@ -1408,10 +1373,10 @@
       "checkpoints_view": "9e413f347cb082b1e4782bdb3710df068da54b03dbbfe94c20dbfd35b26cac34",
       "definitions_view": "fa95336ed31ed6367343a33f9b4701c120ffe055985cceaa6635834af4e651f0",
       "events_view": "316b7f0d49ea8629ac27121297302e1d46d0b96672254712b272d95220ecc165",
-      "jobs_view": "65b6337e685972c42e1f0a6e4db3ccabcd0b81301daa56ce72f4d691ee5fa56a",
+      "jobs_view": "dd6847e4b90c14671dc4517dcc735c00e6fdcaab65b9637e6e3a0aaacc77f876",
       "schedules_view": "a6b6336d157b622dda1e4d2e20c68e007b52d9f353a8a17280cfccefd9f92572",
       "steps_view": "e3233e4ea210cf14e3522dca857d903c77e4888a19d272f3757f1579f814b1bf",
-      "tags_view": "9f54b37437302462785cc1bbdf75a063ca0bccf71c7df1f3f5556a514e3bdea7",
+      "tags_view": "4119341f49b6c5e02404fe19fe6f6b0778b26440e0e352c7b4ca561c9a77937c",
       "workers_view": "e45c1b37d2ae479b0f541c8c1e3ff592c842dc29c90e8e50eea10fcc7653542a"
     }
   }

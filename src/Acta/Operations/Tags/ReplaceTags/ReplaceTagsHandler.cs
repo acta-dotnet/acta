@@ -10,7 +10,7 @@ internal sealed class ReplaceTagsHandler(ResolveTagTargetHandler resolveTagTarge
         var json = TagJson.Write(TagInput.NormalizeSet(command.Tags, "tags", "target"));
         var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(command.Target), ct);
         return target is null
-            ? new ReplaceTagsResponse(TagMutationAction.NotFound)
+            ? new ReplaceTagsResponse(ControlAction.NotFound)
             : await session.ExecuteOneAsync(
                 new StoreCommand("ReplaceTags"),
                 cmd => TagWrites.Bind(cmd, dialect, target, json),

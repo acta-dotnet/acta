@@ -218,7 +218,6 @@
               <span>Namespace</span>
               <Dropdown
                 label="Namespace"
-                placeholder="Select a namespace"
                 options={namespaceOptions}
                 value={namespace}
                 disabled={busy}
@@ -228,7 +227,6 @@
               <span>Job name</span>
               <Dropdown
                 label="Job name"
-                placeholder={namespace.trim().length === 0 ? 'Select a namespace first' : 'Select a job'}
                 options={jobNameOptions}
                 bind:value={jobName}
                 disabled={busy || namespace.trim().length === 0} />

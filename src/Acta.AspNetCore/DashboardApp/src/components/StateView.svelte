@@ -4,8 +4,7 @@
     error = null,
     loadingText = 'Loading...',
     emptyText = 'Nothing here.',
-    onRetry = null,
-    loadingDelayMs = 200
+    onRetry = null
   } = $props();
 
   // Show the loading line only if the load outlasts this delay, so a fast load (e.g. a local backend
@@ -16,7 +15,7 @@
   $effect(() => {
     clearTimeout(timer);
     if (loading) {
-      timer = setTimeout(() => (showLoading = true), loadingDelayMs);
+      timer = setTimeout(() => (showLoading = true), 200);
     } else {
       showLoading = false;
     }

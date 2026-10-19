@@ -18,6 +18,8 @@ updated AS (
         execution_number = r.execution_number + 1,
         leased_by_worker_id = @p_leased_by_worker_id,
         lease_expires_at_utc = now() + (@p_lease_ttl_seconds * INTERVAL '1 second'),
+        result_format_id = 0 /* JobPayloadFormat.None */,
+        result = NULL,
         modified_at_utc = now(),
         version = r.version + 1
     FROM candidates c
@@ -43,8 +45,6 @@ SELECT
     u.failure_count,
     u.job_ref,
     u.tenant_id,
-    NULL::timestamptz AS db_now,
-    NULL::timestamptz AS next_ready_at_utc,
     u.lane_id,
     u.parent_id
 FROM updated u;

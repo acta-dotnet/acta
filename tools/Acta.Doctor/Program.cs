@@ -23,12 +23,6 @@ if (args is ["smoke", ..])
     return await RunSmokeAsync(repoRoot);
 }
 
-if (args is ["connect", ..])
-{
-    ConnectHelpers();
-    return 0;
-}
-
 Console.WriteLine("Acta doctor");
 Console.WriteLine();
 
@@ -461,7 +455,7 @@ static (bool TimedOut, int Code, string Output) RunConcept(string projectDir, st
     return (false, process.ExitCode, stdout.Result + stderr.Result);
 }
 
-static (int Code, string Output) RunProcess(string fileName, string arguments, int timeoutMs = 8000)
+static (int Code, string Output) RunProcess(string fileName, string arguments)
 {
     try
     {
@@ -474,7 +468,7 @@ static (int Code, string Output) RunProcess(string fileName, string arguments, i
         using var process = Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(timeoutMs))
+        if (!process.WaitForExit(8000))
         {
             process.Kill(entireProcessTree: true);
             return (-1, "timed out");

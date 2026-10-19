@@ -234,7 +234,7 @@ internal static class ControlEndpointValidation
 
     /// <summary>
     /// The anti-accident confirmation-header guard shared by every control endpoint. Returns a 400
-    /// problem result when the header is required and missing or mismatched, else null.
+    /// problem result when the header is required and missing or not <c>true</c>, else null.
     /// </summary>
     internal static IResult? CheckConfirmation(HttpContext http, ActaEndpointOptions options)
     {
@@ -244,11 +244,11 @@ internal static class ControlEndpointValidation
         }
 
         var header = http.Request.Headers[options.ControlConfirmationHeaderName];
-        return header.Count == 0 || !string.Equals(header[0], options.ControlConfirmationHeaderValue, StringComparison.Ordinal)
+        return header.Count == 0 || !string.Equals(header[0], "true", StringComparison.Ordinal)
             ? Problem(
                 StatusCodes.Status400BadRequest,
                 "Missing control confirmation header",
-                $"Control endpoints require {options.ControlConfirmationHeaderName}: {options.ControlConfirmationHeaderValue}."
+                $"Control endpoints require {options.ControlConfirmationHeaderName}: true."
             )
             : null;
     }

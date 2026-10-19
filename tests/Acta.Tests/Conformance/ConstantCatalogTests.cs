@@ -7,7 +7,7 @@ public sealed class ConstantCatalogTests
 {
     [Theory]
     [InlineData("JobStatusCode.Ready", 10)]
-    [InlineData("TagMutationAction.NotFound", 2)]
+    [InlineData("ControlAction.VersionConflict", 5)]
     [InlineData("CompleteExecutionsAction.AlreadyTerminal", 3)]
     [InlineData("JobPayloadFormat.Json", 1)]
     public void Resolves_every_supported_constant_shape(string symbol, int expected)

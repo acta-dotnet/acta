@@ -33,18 +33,15 @@ public class ActaEndpointOptions
     public bool EnableControls { get; set; }
 
     /// <summary>
-    /// Whether control requests must carry the confirmation header. It is the API's barrier against
-    /// cross-site request forgery, since a page on another origin cannot send it without a CORS preflight,
-    /// not authentication. Turn it off only where the host supplies antiforgery of its own and no ambient
+    /// Whether control requests must carry the confirmation header with the value <c>true</c>. It is the API's
+    /// barrier against cross-site request forgery, since a page on another origin cannot send it without a CORS
+    /// preflight, not authentication. Turn it off only where the host supplies antiforgery of its own and no ambient
     /// credentials (integrated Windows auth, <c>SameSite=None</c> cookies) reach the API.
     /// </summary>
     public bool RequireControlConfirmationHeader { get; set; } = true;
 
     /// <summary>Name of the control confirmation header.</summary>
     public string ControlConfirmationHeaderName { get; set; } = "X-Acta-Control";
-
-    /// <summary>Required value of the control confirmation header.</summary>
-    public string ControlConfirmationHeaderValue { get; set; } = "true";
 
     /// <summary>Longest accepted control reason message; longer requests are rejected with 400.</summary>
     public int MaxReasonMessageLength { get; set; } = 512;

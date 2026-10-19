@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using static Acta.Generators.DbProjectionGenerator;
 
@@ -21,68 +20,21 @@ internal static class ProjectionSourceWriter
         sb.AppendLine("{");
         foreach (var projection in projections)
         {
-            AppendBindMethod(sb, projection, "    ");
+            AppendBindMethod(sb, projection);
         }
-        AppendResolverMethod(sb, projections, "    ", binderPrefix: "");
+        AppendResolverMethod(sb, projections);
         sb.AppendLine("}");
-        return sb.ToString();
-    }
-
-    internal static string EmitNestedBinder(ImmutableArray<ProjectionInfo> projections)
-    {
-        var first = projections[0];
-        var sb = NewSourceBuilder();
-        AppendNamespace(sb, first.NamespaceName);
-
-        var indent = "";
-        foreach (var container in first.Containers)
-        {
-            sb.Append(indent);
-            if (!string.IsNullOrEmpty(container.Accessibility))
-            {
-                sb.Append(container.Accessibility).Append(' ');
-            }
-            if (container.IsStatic)
-            {
-                sb.Append("static ");
-            }
-            sb.Append("partial ").Append(container.Kind).Append(' ').Append(container.Name).AppendLine();
-            sb.Append(indent).AppendLine("{");
-            indent += "    ";
-        }
-
-        sb.Append(indent).AppendLine("private static partial class DbProjectionBinder");
-        sb.Append(indent).AppendLine("{");
-        foreach (var projection in projections.OrderBy(static p => p.MethodName, StringComparer.Ordinal))
-        {
-            AppendBindMethod(sb, projection, indent + "    ");
-        }
-        sb.Append(indent).AppendLine("}");
-        sb.AppendLine();
-        AppendResolverMethod(sb, projections, indent, binderPrefix: "DbProjectionBinder.");
-
-        for (var i = first.Containers.Length - 1; i >= 0; i--)
-        {
-            indent = indent.Substring(0, indent.Length - 4);
-            sb.Append(indent).AppendLine("}");
-        }
-
         return sb.ToString();
     }
 
     internal static string EmitResolver(ImmutableArray<ProjectionInfo> projections)
     {
-        var namespaceTargets = projections
-            .Where(static p => p.Containers.IsDefaultOrEmpty)
-            .GroupBy(static p => p.NamespaceName)
-            .Select(static g => string.IsNullOrEmpty(g.Key) ? "global::DbProjectionBinder" : "global::" + g.Key + ".DbProjectionBinder");
-
-        var nestedTargets = projections
-            .Where(static p => !p.Containers.IsDefaultOrEmpty)
-            .GroupBy(static p => p.ContainerKey)
-            .Select(static g => g.First().ContainerFqn);
-
-        var targets = namespaceTargets.Concat(nestedTargets).OrderBy(static t => t, StringComparer.Ordinal).ToArray();
+        var targets = projections
+            .Select(static p => p.NamespaceName)
+            .Distinct(StringComparer.Ordinal)
+            .Select(static ns => string.IsNullOrEmpty(ns) ? "global::DbProjectionBinder" : "global::" + ns + ".DbProjectionBinder")
+            .OrderBy(static t => t, StringComparer.Ordinal)
+            .ToArray();
 
         var sb = NewSourceBuilder();
         sb.AppendLine("namespace Acta;");
@@ -210,18 +162,16 @@ internal static class ProjectionSourceWriter
         }
     }
 
-    internal static void AppendBindMethod(StringBuilder sb, ProjectionInfo projection, string indent)
+    internal static void AppendBindMethod(StringBuilder sb, ProjectionInfo projection)
     {
-        var columns = projection.Members.SelectMany(static m => m.Columns).Select(static c => "\"" + c + "\"");
-        sb.Append(indent)
-            .Append("internal static readonly string[] ")
+        var columns = projection.Members.Select(static m => "\"" + m.Column + "\"");
+        sb.Append("    internal static readonly string[] ")
             .Append(projection.ColumnsName)
             .Append(" = [")
             .Append(string.Join(", ", columns))
             .AppendLine("];");
         sb.AppendLine();
-        sb.Append(indent)
-            .Append("public static ")
+        sb.Append("    public static ")
             .Append(projection.TypeFqn)
             .Append(' ')
             .Append(projection.MethodName)
@@ -229,60 +179,50 @@ internal static class ProjectionSourceWriter
 
         if (projection.Members.Length == 0)
         {
-            sb.Append(indent).AppendLine("    new();");
+            sb.AppendLine("        new();");
             sb.AppendLine();
             return;
         }
 
-        sb.Append(indent).AppendLine("    new(");
-        var column = 0;
+        sb.AppendLine("        new(");
         for (var i = 0; i < projection.Members.Length; i++)
         {
             var member = projection.Members[i];
-            sb.Append(indent).Append("        ").Append(EscapeIdentifier(member.Name)).Append(": ").Append(BindExpression(member, column));
+            sb.Append("            ").Append(EscapeIdentifier(member.Name)).Append(": ").Append(BindExpression(member, i));
             sb.AppendLine(i == projection.Members.Length - 1 ? "" : ",");
-            column += member.Columns.Length;
         }
-        sb.Append(indent).AppendLine("    );");
+        sb.AppendLine("        );");
         sb.AppendLine();
     }
 
-    internal static void AppendResolverMethod(
-        StringBuilder sb,
-        ImmutableArray<ProjectionInfo> projections,
-        string indent,
-        string binderPrefix
-    )
+    internal static void AppendResolverMethod(StringBuilder sb, ImmutableArray<ProjectionInfo> projections)
     {
-        sb.Append(indent).Append("internal static void ").Append(ResolverMethodName).AppendLine("<T>(ref Func<DbDataReader, T>? read)");
-        sb.Append(indent).AppendLine("{");
-        sb.Append(indent).AppendLine("    if (read is not null)");
-        sb.Append(indent).AppendLine("    {");
-        sb.Append(indent).AppendLine("        return;");
-        sb.Append(indent).AppendLine("    }");
+        sb.Append("    internal static void ").Append(ResolverMethodName).AppendLine("<T>(ref Func<DbDataReader, T>? read)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (read is not null)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return;");
+        sb.AppendLine("        }");
         sb.AppendLine();
 
-        foreach (var projection in projections.OrderBy(static p => p.MethodName, StringComparer.Ordinal))
+        foreach (var projection in projections)
         {
-            sb.Append(indent).Append("    if (typeof(T) == typeof(").Append(projection.TypeFqn).AppendLine("))");
-            sb.Append(indent).AppendLine("    {");
-            sb.Append(indent)
-                .Append("        read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.")
+            sb.Append("        if (typeof(T) == typeof(").Append(projection.TypeFqn).AppendLine("))");
+            sb.AppendLine("        {");
+            sb.Append("            read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.")
                 .Append(projection.ByName ? "ByName<" : "ByPosition<")
                 .Append(projection.TypeFqn)
                 .Append(projection.ByName ? ">(\"" + projection.TypeName + "\", " : ">(")
-                .Append(binderPrefix)
                 .Append(projection.ColumnsName)
                 .Append(projection.ByName ? ", " : ".Length, ")
-                .Append(binderPrefix)
                 .Append(projection.MethodName)
                 .AppendLine(");");
-            sb.Append(indent).AppendLine("        return;");
-            sb.Append(indent).AppendLine("    }");
+            sb.AppendLine("            return;");
+            sb.AppendLine("        }");
             sb.AppendLine();
         }
 
-        sb.Append(indent).AppendLine("}");
+        sb.AppendLine("    }");
         sb.AppendLine();
     }
 
@@ -290,22 +230,6 @@ internal static class ProjectionSourceWriter
     internal static string BindExpression(ProjectionMemberInfo member, int column)
     {
         var ord = "o[" + column.ToString(CultureInfo.InvariantCulture) + "]";
-        if (member.Kind == ProjectionMemberKind.Payload)
-        {
-            // A payload is its format id and its bytes; format id 0 is no payload, null when the member allows it.
-            var bytes = "o[" + (column + 1).ToString(CultureInfo.InvariantCulture) + "]";
-            var formatId = "Convert.ToByte(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)";
-            var payload =
-                "global::Acta.JobPayload.FromBytes(global::Acta.JobPayloadFormat.ForId("
-                + formatId
-                + "), r.IsDBNull("
-                + bytes
-                + ") ? [] : (byte[])r.GetValue("
-                + bytes
-                + "))";
-            return member.IsNullable ? "r.IsDBNull(" + ord + ") || " + formatId + " == 0 ? null : " + payload : payload;
-        }
-
         var typed = BindTypedExpression(member, ord);
         return member.IsNullable ? "r.IsDBNull(" + ord + ") ? null : " + typed : typed;
     }
@@ -316,21 +240,14 @@ internal static class ProjectionSourceWriter
         {
             ProjectionMemberKind.Boolean => "Convert.ToBoolean(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.Byte => "Convert.ToByte(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
-            ProjectionMemberKind.SByte => "Convert.ToSByte(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
-            ProjectionMemberKind.Int16 => "Convert.ToInt16(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
-            ProjectionMemberKind.UInt16 => "Convert.ToUInt16(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.Int32 => "Convert.ToInt32(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
-            ProjectionMemberKind.UInt32 => "Convert.ToUInt32(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.Int64 => "Convert.ToInt64(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
-            ProjectionMemberKind.UInt64 => "Convert.ToUInt64(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.Guid => "r.GetGuid(" + ord + ")",
             ProjectionMemberKind.Ref => "new " + member.RefTypeFqn + "(r.GetGuid(" + ord + "))",
             ProjectionMemberKind.UtcInstant => "r.GetDateTimeUtc(" + ord + ")",
-            ProjectionMemberKind.Decimal => "Convert.ToDecimal(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.String => "r.GetString(" + ord + ")",
             ProjectionMemberKind.Bytes => "(byte[])r.GetValue(" + ord + ")",
             ProjectionMemberKind.ReadOnlyMemoryBytes => "(byte[])r.GetValue(" + ord + ")",
-            ProjectionMemberKind.MemoryBytes => "(byte[])r.GetValue(" + ord + ")",
             _ => throw new InvalidOperationException($"Unsupported projection member kind {member.Kind}."),
         };
 
@@ -346,27 +263,6 @@ internal static class ProjectionSourceWriter
         SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None && SyntaxFacts.GetContextualKeywordKind(name) == SyntaxKind.None
             ? name
             : "@" + name;
-
-    internal static string AccessibilityKeyword(Accessibility accessibility) =>
-        accessibility switch
-        {
-            Accessibility.Private => "private",
-            Accessibility.ProtectedAndInternal => "private protected",
-            Accessibility.Protected => "protected",
-            Accessibility.Internal => "internal",
-            Accessibility.ProtectedOrInternal => "protected internal",
-            Accessibility.Public => "public",
-            _ => "",
-        };
-
-    internal static string TypeDeclarationKeyword(INamedTypeSymbol type) =>
-        type.TypeKind switch
-        {
-            TypeKind.Struct when type.IsRecord => "record struct",
-            TypeKind.Struct => "struct",
-            TypeKind.Class when type.IsRecord => "record",
-            _ => "class",
-        };
 
     internal static string HintPart(string value)
     {

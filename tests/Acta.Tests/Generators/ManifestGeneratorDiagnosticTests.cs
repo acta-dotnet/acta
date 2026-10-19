@@ -13,7 +13,11 @@ namespace Acta.Tests.Generators;
 /// </summary>
 public class ManifestGeneratorDiagnosticTests
 {
-    internal static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace = null)
+    internal static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace = null) =>
+        RunGenerator(source, rootNamespace, out _);
+
+    /// <summary>Runs the generator and hands back the compilation with the generated source added.</summary>
+    private static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace, out Compilation output)
     {
         var referencePaths = new HashSet<string>(
             ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator),
@@ -35,7 +39,7 @@ public class ManifestGeneratorDiagnosticTests
             optionsProvider: new TestConfigOptionsProvider(rootNamespace)
         );
 
-        return driver.RunGenerators(compilation).GetRunResult();
+        return driver.RunGeneratorsAndUpdateCompilation(compilation, out output, out _).GetRunResult();
     }
 
     private static Diagnostic[] Of(GeneratorDriverRunResult result, string id) => [.. result.Diagnostics.Where(d => d.Id == id)];
@@ -406,6 +410,49 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0103"));
     }
 
+    // ACTA0103: the runtime stores a contract type's name in an ASCII column, so every part of it must be ASCII.
+    [Theory]
+    [InlineData("public static void Run(Größe input) { }")]
+    [InlineData("public static void Run(Straße.Line input) { }")]
+    [InlineData("public static void Run(Äußere.Line input) { }")]
+    [InlineData("public static void Run(System.Collections.Generic.List<Größe> input) { }")]
+    [InlineData("public static Größe[] Run() => null!;")]
+    public void Non_ascii_contract_type_errors_ACTA0103(string handler) =>
+        Assert.Single(Of(RunGenerator(ContractTypeSource(handler)), "ACTA0103"));
+
+    // An ASCII generic is storable, and a collapsed marker output is never stored.
+    [Theory]
+    [InlineData("public static void Run(System.Collections.Generic.List<int> input) { }")]
+    [InlineData("public static Geschäft Run() => new();")]
+    public void Ascii_or_collapsed_contract_types_pass(string handler) =>
+        Assert.Empty(RunGenerator(ContractTypeSource(handler)).Diagnostics);
+
+    private static string ContractTypeSource(string handler) =>
+        $$"""
+            using Acta;
+
+            namespace Straße
+            {
+                public sealed record Line(int Qty);
+            }
+
+            namespace GenTests
+            {
+                public sealed record Größe(int Value);
+                public sealed record Geschäft;
+                public static class Äußere
+                {
+                    public sealed record Line(int Qty);
+                }
+
+                public static class Handler
+                {
+                    [Job("contract-type")]
+                    {{handler}}
+                }
+            }
+            """;
+
     // ACTA0104: duplicate input type (warning)
 
     [Fact]
@@ -634,25 +681,6 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("huge-numeral", Backoff = "99999999999999999999d")]
-                public static void Run() { }
-            }
-            """
-        );
-
-        Assert.Single(Of(result, "ACTA0105"));
-    }
-
-    [Fact]
-    public void Non_positive_RecurringResultCap_errors_ACTA0105()
-    {
-        var result = RunGenerator(
-            """
-            using Acta;
-            namespace GenTests;
-
-            public static class Handler
-            {
-                [Job("bad-cap", RecurringResultCap = 0)]
                 public static void Run() { }
             }
             """
@@ -916,6 +944,8 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("* * * 13 *")]
     [InlineData("* * * * 8")]
     [InlineData("*/0 * * * *")]
+    [InlineData("/5 * * * *")]
+    [InlineData("- * * * *")]
     [InlineData("@nonsense")]
     public void Invalid_cron_expression_errors_ACTA0122(string expression)
     {
@@ -1000,6 +1030,27 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
+    public void A_schedule_description_with_a_newline_and_a_quote_generates_valid_code()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("described")]
+                [JobSchedule("tick", Cron.Hourly, Description = "first line\nsecond \"line\"")]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        Assert.DoesNotContain(result.GeneratedTrees.SelectMany(t => t.GetDiagnostics()), d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public void Every_Cron_constant_passes_expression_validation()
     {
         foreach (var field in typeof(Cron).GetFields().Where(f => f.IsLiteral))
@@ -1048,6 +1099,86 @@ public class ManifestGeneratorDiagnosticTests
         );
 
         Assert.Single(Of(result, "ACTA0123"));
+    }
+
+    // Payload format inference: a get-only property is state the payload must carry.
+
+    [Theory]
+    [InlineData(
+        """
+            public sealed class Invoice
+            {
+                public Invoice() { }
+
+                [System.Text.Json.Serialization.JsonConstructor]
+                public Invoice(int number) => Number = number;
+
+                public int Number { get; }
+            }
+            """
+    )]
+    [InlineData(
+        """
+            public readonly struct Invoice
+            {
+                [System.Text.Json.Serialization.JsonConstructor]
+                public Invoice(int number) => Number = number;
+
+                public int Number { get; }
+            }
+            """
+    )]
+    public void Get_only_input_state_travels_as_json(string inputDeclaration)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            {{inputDeclaration}}
+
+            public static class Handler
+            {
+                [Job("invoice")]
+                public static void Run(Invoice input) { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Contains("InputPayloadFormat: global::Acta.JobPayloadFormat.Json,", Assert.Single(result.GeneratedTrees).ToString());
+    }
+
+    [Fact]
+    public void Get_only_output_state_is_kept_as_the_result()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public sealed class Receipt
+            {
+                public Receipt() { }
+
+                [System.Text.Json.Serialization.JsonConstructor]
+                public Receipt(string code) => Code = code;
+
+                public string Code { get; }
+            }
+
+            public static class Handler
+            {
+                [Job("receipt")]
+                public static Receipt Run() => new("r-1");
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        var manifest = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("OutputType: typeof(global::GenTests.Receipt),", manifest);
+        Assert.Contains("OutputPayloadFormat: global::Acta.JobPayloadFormat.Json,", manifest);
     }
 
     // ACTA0131: invalid payload format declaration
@@ -1365,6 +1496,84 @@ public class ManifestGeneratorDiagnosticTests
         Assert.All(warnings, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
     }
 
+    // A valid job name compiles without a warning whatever identifier it maps to. A shared one,
+    // `Descriptors`, the manifest type's name, or an object member loses its contract member to
+    // ACTA0106; one named like a type the manifest uses keeps it.
+    [Theory]
+    [InlineData("send.mail,send-mail", 2)]
+    [InlineData("descriptors", 1)]
+    [InlineData("gen-tests-jobs", 1)]
+    [InlineData("to-string", 1)]
+    [InlineData("immutable-array", 0)]
+    [InlineData("generated-handler-dispatch", 0)]
+    [InlineData("job-priority-code", 0)]
+    [InlineData("definition-audit-level-code", 0)]
+    [InlineData("misfire-strategy-code", 0)]
+    [InlineData("job-descriptor", 0)]
+    public void Valid_job_names_compile_cleanly_and_warn_ACTA0106_on_a_collision(string jobNames, int collisions)
+    {
+        var names = jobNames.Split(',');
+        var handlers = string.Concat(
+            names.Select((name, i) => $"[Job(\"{name}\")] [JobSchedule(\"tick\", Cron.Hourly)] public static void Run{i}() {{ }}\n")
+        );
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handlers
+            {
+                {{handlers}}
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        AssertCompilesCleanly(compilation);
+        Assert.Equal(collisions, Of(result, "ACTA0106").Length);
+    }
+
+    // The generated file names framework types in full, so the application's own types of the same
+    // name in the root namespace never stand in for them.
+    [Fact]
+    public void Root_namespace_types_named_like_framework_types_compile_cleanly()
+    {
+        RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public sealed class JobContext { }
+            public sealed class JobPayload { }
+            public sealed class JobHandlerOutput { }
+            public sealed class IJobPayloadSerializer { }
+            public sealed class IServiceProvider { }
+            public sealed class CancellationToken { }
+            public sealed class ValueTask { }
+            public sealed class ActivatorUtilities { }
+
+            public sealed record Greeting(string Name);
+
+            public sealed class Handler
+            {
+                [Job("greet")]
+                public System.Threading.Tasks.Task<string> Run(Greeting input, Acta.JobContext ctx, System.Threading.CancellationToken ct) =>
+                    System.Threading.Tasks.Task.FromResult(input.Name);
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        AssertCompilesCleanly(compilation);
+    }
+
+    private static void AssertCompilesCleanly(Compilation compilation) =>
+        Assert.Empty(
+            compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity >= DiagnosticSeverity.Warning)
+        );
+
     // MisfireStrategy default: an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
     // matching the production scheduler's default; CatchUpOnce is opt-in.
 
@@ -1386,7 +1595,7 @@ public class ManifestGeneratorDiagnosticTests
         );
 
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("MisfireStrategy: MisfireStrategyCode.Skip", manifest);
+        Assert.Contains("MisfireStrategy: global::Acta.MisfireStrategyCode.Skip", manifest);
         Assert.DoesNotContain("MisfireStrategyCode.CatchUpOnce", manifest);
     }
 
@@ -1429,7 +1638,7 @@ public class ManifestGeneratorDiagnosticTests
         );
 
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("MisfireStrategy: MisfireStrategyCode.CatchUpOnce", manifest);
+        Assert.Contains("MisfireStrategy: global::Acta.MisfireStrategyCode.CatchUpOnce", manifest);
     }
 
     // Deadline policy: [Job] Deadline and DeadlineBehavior flow through to the emitted descriptor
@@ -1453,7 +1662,7 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
         Assert.Contains("DeadlineSeconds = 18000,", manifest);
-        Assert.Contains("DeadlineBehavior = (Acta.DeadlineBehaviorCode)20,", manifest);
+        Assert.Contains("DeadlineBehavior = (global::Acta.DeadlineBehaviorCode)20,", manifest);
     }
 
     [Fact]

@@ -97,7 +97,6 @@ INSERT INTO {{schema}}.events (
     lineage_root_id,
     definition_id,
     tenant_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -116,7 +115,6 @@ SELECT
     COALESCE(j.lineage_root_id, j.id),
     j.definition_id,
     j.tenant_id,
-    NULL,
     r.status_code,
     s.to_status,
     NULL,
@@ -149,6 +147,8 @@ SET
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     retention_until_utc = NULL,
+    result_format_id = 0 /* JobPayloadFormat.None */,
+    result = NULL,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE

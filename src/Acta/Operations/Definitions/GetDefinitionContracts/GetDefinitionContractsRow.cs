@@ -16,7 +16,6 @@ internal sealed record GetDefinitionContractsRow(
     int Id,
     string DefinitionHash,
     DefinitionStatusCode Status,
-    DateTime ModifiedAtUtc,
     JobPriorityCode Priority,
     int MaxAttempts,
     int? ConcurrencyLimit,
@@ -41,7 +40,6 @@ internal sealed record GetDefinitionContractsRow(
             Id,
             DefinitionHash,
             Status,
-            ModifiedAtUtc,
             new EffectiveJobPolicy(
                 Priority,
                 MaxAttempts,

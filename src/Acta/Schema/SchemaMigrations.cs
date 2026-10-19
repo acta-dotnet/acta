@@ -5,11 +5,6 @@ using System.Text.RegularExpressions;
 namespace Acta;
 
 /// <summary>
-/// One discovered migration: its file stem, which its history row records, and its <c>{{schema}}</c>-templated body.
-/// </summary>
-internal sealed record SchemaMigration(string Name, string Template);
-
-/// <summary>
 /// Applies and verifies a provider assembly's <c>M{yyyyMMddHHmmss}_{name}.sql</c> migrations. Each file records its own
 /// history row, so the runner only decides which files run; the dialect token selects the bootstrap operations.
 /// </summary>
@@ -208,3 +203,8 @@ internal static partial class SchemaMigrations
     [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex GoSeparatorRegex();
 }
+
+/// <summary>
+/// One discovered migration: its file stem, which its history row records, and its <c>{{schema}}</c>-templated body.
+/// </summary>
+internal sealed record SchemaMigration(string Name, string Template);

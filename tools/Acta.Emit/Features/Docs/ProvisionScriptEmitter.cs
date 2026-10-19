@@ -63,8 +63,8 @@ internal static class ProvisionScriptEmitter
         {
             script.AppendLine("-- before changing anything. A later 1.x release upgrades a 1.x database with");
         }
-        script.AppendLine("-- its own migrations, carried in its own copy of this script. A database provisioned by a");
-        script.AppendLine("-- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one.");
+        script.AppendLine("-- its own migrations, carried in its own copy of this script. A database provisioned before");
+        script.AppendLine("-- 1.0.0 has no upgrade path: provision a new one.");
         script.AppendLine("--");
         script.AppendLine("-- Run it with a client that stops at the first error, which is what makes the transaction below a");
         script.AppendLine(

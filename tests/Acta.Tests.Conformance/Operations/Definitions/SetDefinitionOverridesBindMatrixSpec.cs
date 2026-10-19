@@ -34,9 +34,6 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
             OutputPayloadFormat: null,
-            InvocationKind: default,
-            RequiresJobContextParameter: false,
-            RequiresCancellationToken: false,
             Priority: default, // Bulk = 0
             MaxAttempts: 3,
             AuditLevel: default, // Off = 0

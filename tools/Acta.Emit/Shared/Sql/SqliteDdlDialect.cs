@@ -6,7 +6,7 @@ namespace Acta.Emit.Shared.Sql;
 
 /// <summary>
 /// SQLite DDL strategy. SQLite is embedded and single-node: no schema container, no stored routines,
-/// no sequences, no covering-index INCLUDE, and dynamic typing. Integer surrogate keys are rendered
+/// no sequences, and dynamic typing. Integer surrogate keys are rendered
 /// as the rowid alias with <c>AUTOINCREMENT</c>; instants are INTEGER epoch-milliseconds so they
 /// compare chronologically; payloads are BLOB. Provider feature resources own executable inline SQL.
 /// </summary>
@@ -15,8 +15,6 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
     public override string ProviderToolName => "sqlite";
 
     public override bool InlineIntegerPrimaryKey => true;
-
-    public override bool SupportsIndexInclude => false;
 
     // SQLite has no CREATE SCHEMA; everything lives in the attached database. The emitted statement is
     // an empty placeholder so the migration script stays structurally uniform across providers.
@@ -52,10 +50,8 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
             DbKind.Int64 => "integer",
             DbKind.Guid => "text",
             DbKind.UtcInstant => "integer",
-            DbKind.Decimal => "real",
             DbKind.AsciiString => "text",
             DbKind.UnicodeString => "text",
-            DbKind.Bytes => "blob",
             DbKind.BinaryPayload => "blob",
             _ => throw new InvalidOperationException($"Unhandled DbKind {c.Kind} on {c.Property.DeclaringType?.Name}.{c.Property.Name}"),
         };
@@ -66,7 +62,6 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
             DbDefault.None => "",
             DbDefault.UtcNow => $" DEFAULT ({NowExpression})",
             DbDefault.Zero => " DEFAULT 0",
-            DbDefault.EmptyString => " DEFAULT ''",
             _ => throw new InvalidOperationException(
                 $"Unhandled DbDefault {d} on {c.Property.DeclaringType?.Name}.{c.Property.Name} for SQLite"
             ),
@@ -79,18 +74,16 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
                 + $"VALUES (1, 'sys', {(byte)NamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', {NowExpression}, {NowExpression});"
             : null;
 
-    // Never reached: every identity-backed key is a sole integer PK folded inline as the
-    // AUTOINCREMENT rowid alias (InlineIntegerPrimaryKey).
+    // Never reached: every identity column is folded inline as the AUTOINCREMENT rowid alias
+    // (InlineIntegerPrimaryKey).
     public override string RenderIdentity() =>
         throw new InvalidOperationException("SQLite renders surrogate keys inline as the AUTOINCREMENT rowid alias.");
 
     // STRICT enforces column type affinity (catches a wrong-typed insert at the DB layer). It permits
-    // only INT/INTEGER/REAL/TEXT/BLOB/ANY, which is why DbKind.Decimal renders as REAL, not numeric.
+    // only INT/INTEGER/REAL/TEXT/BLOB/ANY.
     public override string TableTrailingOptions(EntityModel e) => " STRICT";
 
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) => "";
-
-    public override string IndexTrailingOptions(DbIndexSpec idx) => "";
 
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
@@ -102,15 +95,6 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
                 $"    , CONSTRAINT ck_{e.TableName}_{c.Name}_byte CHECK ({c.Name} BETWEEN 0 AND 255)"
-            );
-        }
-
-        // SQLite BLOB is unbounded; enforce the declared Size via length() per bounded Bytes column.
-        foreach (var c in e.Columns.Where(c => c.Kind == DbKind.Bytes))
-        {
-            sb.AppendLine(
-                CultureInfo.InvariantCulture,
-                $"    , CONSTRAINT ck_{e.TableName}_{c.Name}_bytes CHECK (length({c.Name}) <= {c.Size})"
             );
         }
     }

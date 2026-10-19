@@ -1,3 +1,3 @@
-using Acta.Emit.Cli;
+using Acta.Emit;
 
 return CommandRouter.Run(args);

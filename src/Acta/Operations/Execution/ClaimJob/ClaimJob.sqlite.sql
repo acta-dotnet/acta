@@ -18,6 +18,8 @@ SET
     execution_number = execution_number + 1,
     leased_by_worker_id = @p_leased_by_worker_id,
     lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000,
+    result_format_id = 0 /* JobPayloadFormat.None */,
+    result = NULL,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
@@ -38,8 +40,6 @@ SELECT
     r.failure_count,
     j.job_ref,
     j.tenant_id,
-    NULL AS db_now,
-    NULL AS next_ready_at_utc,
     r.lane_id,
     j.parent_id
 FROM {{schema}}.jobs j

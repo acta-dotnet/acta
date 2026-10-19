@@ -1,12 +1,6 @@
 namespace Acta;
 
 /// <summary>
-/// Resolved enqueue route for a job input type: the namespace it was registered under, its job name,
-/// and the wire format its input serializes to.
-/// </summary>
-internal readonly record struct JobRoute(string Namespace, string JobName, JobPayloadFormat InputFormat);
-
-/// <summary>
 /// Maps a job input CLR type to its enqueue route, backing the typed
 /// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> and
 /// <see cref="IJobs.RunAndWaitAsync{TInput}"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>

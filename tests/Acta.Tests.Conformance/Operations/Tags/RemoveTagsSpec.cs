@@ -32,7 +32,7 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
         var response = await Tags.RemoveAsync(target, "drop", ct: ct);
 
-        Assert.Equal(TagMutationAction.Applied, response.Action);
+        Assert.Equal(ControlAction.Applied, response.Action);
         Assert.Equal([new GetTagsItem("keep", "y")], Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 
@@ -43,9 +43,9 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
         var target = await TenantAsync("remove-absent", ct);
         await Tags.UpsertAsync(target, new TagInput("keep"), ct: ct);
 
-        Assert.Equal(TagMutationAction.Applied, (await Tags.RemoveAsync(target, "never-there", ct: ct)).Action);
-        Assert.Equal(TagMutationAction.Applied, (await Tags.RemoveAsync(target, "keep", ct: ct)).Action);
-        Assert.Equal(TagMutationAction.Applied, (await Tags.RemoveAsync(target, "keep", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.RemoveAsync(target, "never-there", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.RemoveAsync(target, "keep", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.RemoveAsync(target, "keep", ct: ct)).Action);
 
         Assert.Empty(Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
@@ -73,6 +73,6 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Tags.RemoveAsync(missing, "Not Kebab", ct: ct));
         await Assert.ThrowsAsync<ArgumentException>(async () => await Tags.RemoveAsync(missing, "sys.internal", ct: ct));
-        Assert.Equal(TagMutationAction.NotFound, (await Tags.RemoveAsync(missing, "well-formed", ct: ct)).Action);
+        Assert.Equal(ControlAction.NotFound, (await Tags.RemoveAsync(missing, "well-formed", ct: ct)).Action);
     }
 }

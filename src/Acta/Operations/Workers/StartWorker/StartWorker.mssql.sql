@@ -80,7 +80,7 @@ BEGIN TRY
         execution_status_code, duration_ms, reason_code, reason_message
     )
     VALUES (
-        120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, LOWER(CONVERT(varchar(36), @p_worker_ref)),
+        120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, NULL,
         NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
     );
 

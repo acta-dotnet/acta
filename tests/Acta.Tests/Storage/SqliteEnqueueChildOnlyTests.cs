@@ -14,10 +14,10 @@ public sealed class SqliteEnqueueChildOnlyTests
     public void An_unparented_enqueue_loses_exactly_the_ancestor_check()
     {
         var sql = new SqlResourceCatalog("sqlite", "main").Load("EnqueueJob");
-        Assert.Equal(2, sql.Split(SqliteDialect.ChildOnlyBegin).Length);
+        Assert.Equal(2, sql.Split("-- begin child-only").Length);
         Assert.Contains("ACTA:ENQ_ANCESTOR_LANE", sql, StringComparison.Ordinal);
 
-        var cut = SqliteDialect.WithoutChildOnly(sql);
+        var cut = SqliteDialect.WithoutSection(sql, "child-only");
 
         Assert.DoesNotContain("ACTA:ENQ_ANCESTOR_LANE", cut, StringComparison.Ordinal);
         Assert.DoesNotContain("child-only", cut, StringComparison.Ordinal);

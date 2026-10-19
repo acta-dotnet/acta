@@ -1,13 +1,12 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Acta;
 
 /// <summary>
-/// Public stable reference for one Job row: "job_" plus 26 lowercase Crockford Base32 characters
-/// encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs
-/// by this value; the numeric JobId stays the internal engine identity. Parsing is
-/// case-insensitive; emission is always canonical lowercase.
+/// Public stable reference for one Job row: "job_" plus the Guid's 32 lowercase hex digits, such as
+/// <c>job_01a14f4e954e7bf68ac609f3fcad8e3d</c>. Dashboards, HTTP APIs, and clients address jobs by this
+/// value; the numeric JobId stays the internal engine identity. It copies and searches as one word,
+/// and a UUIDv7 reads in creation order.
 /// </summary>
 [JsonConverter(typeof(JobRefJsonConverter))]
 public readonly record struct JobRef(Guid Value)
@@ -29,9 +28,8 @@ public readonly record struct JobRef(Guid Value)
         TryParse(value, out var jobRef) ? jobRef : throw new FormatException($"'{value}' is not a valid job ref.");
 
     /// <summary>
-    /// Parse a job ref: <c>job_</c> plus its Crockford payload, in any casing and with the o/i/l aliases,
-    /// or the job's Guid written plainly, with the <c>job_</c> prefix or without it. Rejects malformed
-    /// values, another entity's prefix included. <see cref="ToString"/> always renders the Crockford form.
+    /// Parse a job ref: <c>job_</c> exactly, then 32 hex digits in any casing. Rejects every other value,
+    /// another entity's prefix, the dashed Guid, and the bare Guid included.
     /// </summary>
     public static bool TryParse(string? value, out JobRef jobRef)
     {
@@ -44,16 +42,4 @@ public readonly record struct JobRef(Guid Value)
         jobRef = default;
         return false;
     }
-}
-
-/// <summary>
-/// Serializes <see cref="JobRef"/> as its canonical lowercase string form.
-/// </summary>
-public sealed class JobRefJsonConverter : JsonConverter<JobRef>
-{
-    public override JobRef Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        JobRef.TryParse(reader.GetString(), out var jobRef) ? jobRef : throw new JsonException("Invalid job ref.");
-
-    public override void Write(Utf8JsonWriter writer, JobRef value, JsonSerializerOptions options) =>
-        writer.WriteStringValue(value.ToString());
 }

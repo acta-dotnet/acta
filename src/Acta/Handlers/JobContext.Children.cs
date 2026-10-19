@@ -78,7 +78,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Reads a child's stored result, deserialized to <typeparamref name="TResult"/>; <c>default</c>
-    /// when the child stored none or its result row was already purged by retention, which keeps a
+    /// when the child stored none or was already purged by retention, which keeps a
     /// completed child while this job is not terminal. Point-in-time and non-blocking; wait for the
     /// child first when ordering matters.
     /// </summary>
@@ -86,7 +86,7 @@ public abstract partial class JobContext
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return await GetChildResultCoreAsync<TResult>(childJobId, linked.Token);
+        return (await ReadChildResultCoreAsync<TResult>(childJobId, executionNumber: null, linked.Token)).Value;
     }
 
     /// <summary>
@@ -196,7 +196,7 @@ public abstract partial class JobContext
                 : JobOutcome<TResult>.Failed(child.JobId);
         }
 
-        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(child.JobId, name, ct));
+        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(outcome, name, ct));
     }
 
     /// <summary>
@@ -240,7 +240,7 @@ public abstract partial class JobContext
                 : JobOutcome<TResult>.Failed(child.JobId);
         }
 
-        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(child.JobId, name, ct));
+        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(outcome, name, ct));
     }
 
     /// <summary>
@@ -253,13 +253,24 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull => ExecuteChildAsync<TInput, TResult>(name, input, timeout, configure: null, ct: ct);
 
-    private async Task<TResult> RequireChildResultAsync<TResult>(long childJobId, string name, CancellationToken ct)
-        where TResult : notnull =>
-        await GetChildResultAsync<TResult>(childJobId, ct)
-        ?? throw new InvalidOperationException(
-            $"Child job {childJobId} ('{name}') succeeded but stored no result; "
-                + "use the non-result ExecuteChildAsync overload for result-less children."
-        );
+    /// <summary>
+    /// The result stored by the execution whose landing set the latch, or by the latest execution when the latch does
+    /// not name one. A restarted child keeps its earlier executions' results, so an execution that stored none throws
+    /// rather than answering an older one or a default.
+    /// </summary>
+    private async Task<TResult> RequireChildResultAsync<TResult>(ChildJobOutcome outcome, string name, CancellationToken ct)
+        where TResult : notnull
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
+        var (stored, value) = await ReadChildResultCoreAsync<TResult>(outcome.ChildJobId, outcome.ExecutionNumber, linked.Token);
+        return stored
+            ? value!
+            : throw new InvalidOperationException(
+                $"Child job {outcome.ChildJobId} ('{name}') succeeded but stored no result. Either it is result-less, in "
+                    + "which case use the non-result ExecuteChildAsync overload, or its result exceeded "
+                    + "MaxInlinePayloadBytes and was dropped; the child's events say which."
+            );
+    }
 
     private JobEnqueueOptions BuildChildOptions(string name, Action<JobEnqueueOptionsBuilder>? configure)
     {
@@ -305,7 +316,12 @@ public abstract partial class JobContext
     private protected abstract Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct);
 
     /// <summary>
-    /// Subclass sink: read and deserialize the child's stored result.
+    /// Subclass sink: read and deserialize the result <paramref name="executionNumber"/> of the child stored, or its
+    /// latest execution's when null. <c>Stored</c> is false when that execution has no result row.
     /// </summary>
-    private protected abstract Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct);
+    private protected abstract Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
+        long childJobId,
+        int? executionNumber,
+        CancellationToken ct
+    );
 }

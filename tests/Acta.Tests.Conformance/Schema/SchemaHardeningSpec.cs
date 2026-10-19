@@ -142,7 +142,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     }
 
     [Fact(
-        DisplayName = "ck_runtimes_inflight_leased and ck_runtimes_ready_due bind a status to the column it requires, on INSERT and on UPDATE"
+        DisplayName = "ck_runtimes_inflight_leased, ck_runtimes_result_idle, and ck_runtimes_ready_due bind a status to its columns, and ck_runtimes_result_pair refuses half a result"
     )]
     public async Task Runtimes_status_requires_its_paired_column()
     {
@@ -176,6 +176,32 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await SetUnleasedAsync(JobStatusCode.Ready));
 
         await Assert.ThrowsAnyAsync<DbException>(() => SetUnleasedAsync(JobStatusCode.Executing));
+
+        // An untyped NULL parameter binds as text on SQL Server, so a missing result is written as a literal.
+        Task<int> SetResultAsync(byte formatId, byte[]? result) =>
+            result is null
+                ? Db.ExecuteRawAsync(
+                    "UPDATE {schema}.runtimes SET result_format_id = @p_format, result = NULL WHERE job_id = @p_job_id",
+                    ct,
+                    ("@p_format", formatId),
+                    ("@p_job_id", enq.JobId)
+                )
+                : Db.ExecuteRawAsync(
+                    "UPDATE {schema}.runtimes SET result_format_id = @p_format, result = @p_result WHERE job_id = @p_job_id",
+                    ct,
+                    ("@p_format", formatId),
+                    ("@p_result", result),
+                    ("@p_job_id", enq.JobId)
+                );
+
+        // ck_runtimes_result_pair holds a format to its bytes; ck_runtimes_result_idle keeps a result off an
+        // Executing row, so a claim that did not clear the result is refused.
+        Assert.Equal(1, await SetResultAsync(JobPayloadFormat.Bytes.Id, [1, 2, 3]));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetResultAsync(JobPayloadFormat.Bytes.Id, null));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetResultAsync(JobPayloadFormat.None.Id, [1, 2, 3]));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetLeasedAsync(JobStatusCode.Executing));
+        Assert.Equal(1, await SetResultAsync(JobPayloadFormat.None.Id, null));
+        Assert.Equal(1, await SetLeasedAsync(JobStatusCode.Executing));
 
         // ck_runtimes_ready_due is the same shape of rule on the other hot column: a Ready row is due
         // at a known instant, so the claim can walk ix_runtimes_claim_ready instead of sorting.
@@ -219,11 +245,16 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
     }
 
-    [Fact(DisplayName = "A code column stores an id this build does not know")]
+    [Fact(
+        DisplayName = "A code column stores an id this build does not know, and ck_checkpoints_kind_shape still binds the kinds it names"
+    )]
     public async Task Code_column_stores_an_unknown_id()
     {
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        const byte Unassigned = 99;
+
+        static string Literal(byte? code) => code is null ? "NULL" : code.Value.ToString(CultureInfo.InvariantCulture);
 
         Task<int> SetStatusAsync(byte status) =>
             Db.ExecuteRawAsync(
@@ -233,9 +264,42 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                 ("@p_job_id", enq.JobId)
             );
 
-        // No value-list CHECK: a newer build adds a code value without a migration.
-        Assert.Equal(1, await SetStatusAsync(99));
+        Task<int> InsertCheckpointAsync(string name, byte kind, byte? status, bool due)
+        {
+            var sql =
+                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, due_at_utc, value_format_id) "
+                + $"VALUES (@p_job_id, {Literal(kind)}, @p_name, {Literal(status)}, {(due ? "@p_due" : "NULL")}, 0)";
+            return due
+                ? Db.ExecuteRawAsync(sql, ct, ("@p_job_id", enq.JobId), ("@p_name", name), ("@p_due", DateTime.UtcNow.AddMinutes(5)))
+                : Db.ExecuteRawAsync(sql, ct, ("@p_job_id", enq.JobId), ("@p_name", name));
+        }
+
+        // No value-list CHECK: a newer build adds a code value without a table change.
+        Assert.Equal(1, await SetStatusAsync(Unassigned));
         Assert.Equal(1, await SetStatusAsync((byte)JobStatusCode.Ready));
+
+        // A newer build's kind, in either shape, and a newer build's status on each stateful arm.
+        Assert.Equal(1, await InsertCheckpointAsync("unassigned-kind-stateless", Unassigned, null, due: false));
+        Assert.Equal(1, await InsertCheckpointAsync("unassigned-kind-stateful", Unassigned, Unassigned, due: true));
+        Assert.Equal(1, await InsertCheckpointAsync("unassigned-signal-status", (byte)CheckpointKindCode.Signal, Unassigned, due: false));
+        Assert.Equal(1, await InsertCheckpointAsync("unassigned-timer-status", (byte)CheckpointKindCode.Timer, Unassigned, due: true));
+
+        // A known kind keeps its shape whatever its status: a timer with no due instant is still refused.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            InsertCheckpointAsync("unassigned-timer-no-due", (byte)CheckpointKindCode.Timer, Unassigned, due: false)
+        );
+
+        // A newer build's tag scope.
+        Assert.Equal(
+            1,
+            await Db.ExecuteRawAsync(
+                "INSERT INTO {schema}.tags (scope_code, scope_id, name, value, value_search) "
+                    + $"VALUES ({Literal(Unassigned)}, @p_scope_id, @p_name, NULL, NULL)",
+                ct,
+                ("@p_scope_id", enq.JobId),
+                ("@p_name", "unassigned-scope")
+            )
+        );
     }
 
     [Fact(DisplayName = "Consumer payload format 255 remains storable")]
@@ -321,14 +385,6 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-latch-null", CheckpointKindCode.ChildLatch, null, null));
         await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-timer-null", CheckpointKindCode.Timer, null, due));
 
-        // A stateful kind carrying a status its own arm does not list.
-        await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-timer-set", CheckpointKindCode.Timer, CheckpointStatusCode.Set, due)
-        );
-        await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-signal-consumed", CheckpointKindCode.Signal, CheckpointStatusCode.Consumed, due)
-        );
-
         // A stateless kind carrying either of the columns bound to the stateful arms.
         await Assert.ThrowsAnyAsync<DbException>(() =>
             InsertAsync("bad-variable-status", CheckpointKindCode.Variable, CheckpointStatusCode.Pending, null)
@@ -352,7 +408,6 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // actually reach a bad shape, so the same shapes have to be unreachable that way too.
         Assert.Equal(1, await SetStatusAsync("ok-signal", CheckpointStatusCode.Set));
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-signal", null));
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-timer", CheckpointStatusCode.Set));
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-variable", CheckpointStatusCode.Pending));
         await Assert.ThrowsAnyAsync<DbException>(() =>
             Db.ExecuteRawAsync(
@@ -560,23 +615,16 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => Db.From<WorkerEntity>().InsertAsync<int>(NewWorker(0), ct));
     }
 
-    [Fact(DisplayName = "runtimes and tags agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart")]
+    [Fact(DisplayName = "runtimes agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart")]
     public async Task Denormalized_namespace_id_agrees_with_jobs_across_write_paths()
     {
         var ct = TestContext.Current.CancellationToken;
-        var tags = new[] { new TagInput("kind", "denorm-check") };
 
-        var one = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)), Tags: tags),
-            ct
-        );
+        var one = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
         await AssertNamespaceAgreementAsync(one.JobId, ct);
 
         var batch = (
-            await Jobs.EnqueueBatchAsync(
-                [new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4)), Tags: tags)],
-                ct
-            )
+            await Jobs.EnqueueBatchAsync([new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4)))], ct)
         ).Jobs;
         await AssertNamespaceAgreementAsync(batch[0].JobId, ct);
 
@@ -585,13 +633,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             ct
         );
         var child = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(
-                TestNamespace,
-                "add-numbers",
-                JobPayload.Json(new AddNumbers(7, 8)),
-                Tags: tags,
-                ParentJobId: parent.JobId
-            ),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(7, 8)), ParentJobId: parent.JobId),
             ct
         );
         await AssertNamespaceAgreementAsync(child.JobId, ct);
@@ -624,9 +666,5 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(runtime);
         Assert.Equal(job!.NamespaceId, runtime!.NamespaceId);
-
-        var tags = await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == jobId).ToListAsync(ct);
-        Assert.NotEmpty(tags);
-        Assert.All(tags, t => Assert.Equal(job.NamespaceId, t.NamespaceId));
     }
 }

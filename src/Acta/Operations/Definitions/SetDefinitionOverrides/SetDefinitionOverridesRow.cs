@@ -1,5 +1,5 @@
 namespace Acta;
 
-/// <summary>The action the override routine took, its single result row.</summary>
+/// <summary>The action the override routine took and the definition's version after it, its single result row.</summary>
 [DbProjection(ByName = true)]
-internal sealed record SetDefinitionOverridesRow(DefinitionOverrideAction Action);
+internal sealed record SetDefinitionOverridesRow(DefinitionOverrideAction Action, int? Version);

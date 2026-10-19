@@ -1,0 +1,102 @@
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Acta.Bench;
+
+internal static class ConnectivityCase
+{
+    public static async Task<CaseResult> RunAsync(
+        RunPlan plan,
+        OwnedProvider environment,
+        EvidenceBundle bundle,
+        CancellationToken ct,
+        int repetition = 1
+    )
+    {
+        if (environment.Provider == "sqlite")
+        {
+            return new(
+                "F04",
+                "sqlite",
+                "fault",
+                0,
+                "NOT_APPLICABLE",
+                "SQLite uses embedded storage; this profile has no worker-to-database TCP connection.",
+                "NOT_APPLICABLE",
+                "NOT_APPLICABLE",
+                "NOT_APPLICABLE",
+                "NOT_MEASURED",
+                [],
+                ["resolved-plan.json"]
+            );
+        }
+        var tag = $"{environment.Provider}-F04-connectivity-{repetition}";
+        var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
+        using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
+        await using var proxy = new CutProxy(state.Provider, state.ConnectionString);
+        using var worker = OwnedWorker.Start(state, connectionOverride: proxy.ConnectionString);
+        await worker.ReadyAsync(ct);
+        var jobs = host.Services.GetRequiredService<IJobs>();
+        var input = Enumerable.Range(0, 20).Select(i => new BenchWork($"root-{i}", WorkMs: i == 0 ? 2000 : 10)).ToArray();
+        bundle.Write($"histories/{tag}-expected.json", WorkloadModel.Expected(input), BenchJson.Default.ExpectedOutcomeArray);
+        var root = await jobs.EnqueueAsync(
+            new EnqueueJobRequest("bench", "work", JobPayload.Json(input[0], WorkJson.Default.BenchWork), DeduplicationKey: input[0].Key),
+            ct
+        );
+        await FaultCaseRunner.WaitAsync(
+            async () => (await jobs.GetAsync(root, ct))?.Status == JobStatusCode.Executing,
+            plan.Deadline(input.Length, worker.Settings!.LeaseSeconds, state.DrainRate),
+            ct
+        );
+        proxy.Cut();
+        for (var i = 1; i < input.Length; i++)
+        {
+            await jobs.EnqueueAsync(
+                new EnqueueJobRequest(
+                    "bench",
+                    "work",
+                    JobPayload.Json(input[i], WorkJson.Default.BenchWork),
+                    DeduplicationKey: input[i].Key
+                ),
+                ct
+            );
+            await Task.Delay(100, ct);
+        }
+        proxy.Restore();
+        var reader = new DurableReader(state);
+        await plan.DrainAsync(
+            async () => input.Length - (await reader.ReadAsync(null, ct)).Count(r => r.Status == 100),
+            plan.Deadline(input.Length, worker.Settings!.LeaseSeconds, state.DrainRate),
+            ct
+        );
+        var actual = await reader.OutcomesAsync(ct);
+        var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected(input), actual).ToList();
+        checks.Add(
+            new(
+                "live-connection-cut",
+                input[0].Key,
+                proxy.DroppedConnections > 0,
+                "Owned worker connections were closed while a durably executing root was in flight."
+            )
+        );
+        bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
+        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
+        var covered = proxy.DroppedConnections > 0;
+        var passed = checks.Where(c => c.Code != "live-connection-cut").All(c => c.Passed);
+        return new(
+            "F04",
+            environment.Provider,
+            "fault",
+            repetition,
+            !passed ? "FAIL"
+                : covered ? "PASS"
+                : "INCONCLUSIVE",
+            "Black-box connectivity failure; no specific lost-transaction-reply boundary is inferred.",
+            passed ? "PASS" : "FAIL",
+            passed ? "PASS" : "UNVERIFIED",
+            covered ? "COMPLETE" : "INCOMPLETE",
+            "NOT_MEASURED",
+            [],
+            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json"]
+        );
+    }
+}

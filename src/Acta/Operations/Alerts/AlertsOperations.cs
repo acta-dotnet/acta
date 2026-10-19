@@ -92,11 +92,11 @@ internal sealed class AlertsOperations(
 
     /// <summary>
     /// Resolves one job's open automatic failure alerts whose projection mark precedes
-    /// <paramref name="sourceEventId"/>, the success event driving it, and returns how many it closed; a
-    /// replay behind a newer failure, or a second success, closes nothing. Closing settles delivery: Pending
-    /// and RetryAfter become Suppressed and <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or
-    /// Suppressed row keeps the status that records what happened.
+    /// <paramref name="sourceEventId"/>, the success event driving it; a replay behind a newer failure, or a
+    /// second success, closes nothing. Closing settles delivery: Pending and RetryAfter become Suppressed and
+    /// <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or Suppressed row keeps the status that
+    /// records what happened.
     /// </summary>
-    internal Task<ResolveAlertsResponse> ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+    internal Task ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
         resolveAlerts.HandleAsync(new ResolveAlertsCommand(namespaceId, jobId, sourceEventId), ct);
 }

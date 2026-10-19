@@ -14,15 +14,8 @@ internal sealed class XmlDocSource
 
     public static XmlDocSource ForAssembly(Assembly asm)
     {
-        var dllPath = asm.Location;
-        var xmlPath = Path.ChangeExtension(dllPath, ".xml");
         var src = new XmlDocSource();
-        if (!File.Exists(xmlPath))
-        {
-            return src; // graceful fallback: no XML, no summaries
-        }
-
-        var doc = XDocument.Load(xmlPath);
+        var doc = XDocument.Load(Path.ChangeExtension(asm.Location, ".xml"));
         foreach (var member in doc.Root?.Element("members")?.Elements("member") ?? [])
         {
             var name = member.Attribute("name")?.Value;

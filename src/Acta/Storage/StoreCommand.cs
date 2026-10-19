@@ -12,9 +12,3 @@ internal readonly record struct StoreCommand(string Operation)
     /// <summary>The snake_case routine name a routine provider invokes for this command.</summary>
     public string RoutineName => JsonNamingPolicy.SnakeCaseLower.ConvertName(Operation);
 }
-
-internal enum StoreExecutionKind
-{
-    Inline,
-    Routine,
-}

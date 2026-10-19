@@ -10,14 +10,14 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 
 /// <summary>
 /// The operator retire verb end to end: the definition flips to Retired, its parked jobs are
-/// cancelled with an audited reason, a running attempt keeps its lease, enqueue is refused, and a
-/// build that still carries the definition brings it back.
+/// cancelled with an audited reason, a running attempt keeps its lease and finishes but its job never
+/// runs again, enqueue is refused, and a build that still carries the definition brings it back.
 /// </summary>
 [ConformanceSpec(
     "definitions.retire",
     "Retire flips a definition and cancels its parked jobs",
     Area = "Catalog",
-    Contract = "Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue."
+    Contract = "Retiring a definition cancels its parked jobs with reason JobDefinitionRetired, refuses enqueue, and lets a running attempt finish but never re-arms its job."
 )]
 public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
@@ -75,19 +75,23 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(untouched.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "The retire writes one definition-scoped retired event and leaves the definition Retired")]
+    [Fact(
+        DisplayName = "The retire writes one definition-scoped retired event, leaves the definition Retired, and answers its new version"
+    )]
     public async Task The_definition_is_retired_and_audited()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var before = await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct);
         Assert.NotNull(before);
-        Assert.Equal(ControlAction.Applied, (await RetireAsync("job-wait-signal", ct)).Action);
+        var retired = await RetireAsync("job-wait-signal", ct);
+        Assert.Equal(ControlAction.Applied, retired.Action);
 
         var after = await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct);
         Assert.NotNull(after);
         Assert.Equal(DefinitionStatusCode.Retired, after!.Status);
         Assert.True(after.Version > before!.Version);
+        Assert.Equal(after.Version, retired.Version);
 
         var evt = await Db.From<EventEntity>()
             .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobDefinitionRetired)
@@ -128,6 +132,87 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(running.JobId, ct)).Status);
     }
 
+    [Fact(DisplayName = "A failing attempt in flight at the retire lands Cancelled instead of retrying, and nothing claims it again")]
+    public async Task A_failing_attempt_in_flight_at_the_retire_lands_cancelled()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var running = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-blocking", JobPayload.None), ct);
+        ChaosProbes.Reset(running.JobId);
+
+        var run = Runtime.RunOnceAsync(running, ct);
+        await ChaosProbes.WaitStartedAsync(running.JobId, ct);
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-blocking", ct)).Action);
+        await Runtime.RunHeartbeatOnceAsync(ct);
+        ChaosProbes.Fail(running.JobId);
+
+        Assert.Equal(RunOnceStatus.Completed, await run);
+        await AssertCancelledByTheWorkerAsync(running.JobId, ct);
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(running, ct));
+    }
+
+    [Fact(DisplayName = "A job that recovery reclaims after the retire lands Cancelled without its handler running")]
+    public async Task A_reclaimed_job_of_a_retired_definition_never_runs()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, ns, workerId) = await DepsAsync(ct);
+        var stranded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        ChaosProbes.Reset(stranded.JobId);
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, stranded.JobId, ct);
+
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-counting", ct)).Action);
+        Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(stranded.JobId, ct)).Status);
+        await Runtime.RunHeartbeatOnceAsync(ct);
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(stranded, ct));
+        Assert.False(ChaosProbes.CountingInvocations.ContainsKey(stranded.JobId));
+        await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
+    }
+
+    [Fact(
+        DisplayName = "A worker that bounced a definition before its retire still claims the job recovery reclaims, and lands it Cancelled"
+    )]
+    public async Task A_reclaimed_job_of_a_retired_definition_this_worker_bounced_lands_cancelled()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, ns, workerId) = await DepsAsync(ct);
+        var stranded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, stranded.JobId, ct);
+
+        // A build without the handler bounces the definition's other job and stops claiming the definition.
+        Assert.True(Runtime.TryGetDefinitionId(TestNamespace, "chaos-counting", out var definitionId));
+        Assert.True(Runtime.Descriptors.TryRemove(definitionId, out _));
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, ct));
+
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-counting", ct)).Action);
+        Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
+        await Runtime.RunHeartbeatOnceAsync(ct);
+
+        // The namespace claim, because a claim by id never consults the exclusion.
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, ct));
+        await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
+    }
+
+    [Fact(DisplayName = "A recurring slot retired mid-occurrence lands Cancelled instead of rolling over")]
+    public async Task A_recurring_slot_retired_mid_occurrence_does_not_roll_over()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
+        await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
+        RecurringPingHandler.DuringNextFire[TestNamespace] = async () =>
+        {
+            Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
+            await Runtime.RunHeartbeatOnceAsync(ct);
+        };
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
+        await AssertCancelledByTheWorkerAsync(slotId, ct);
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.JobRecurringRolledOver, ct));
+    }
+
     [Fact(DisplayName = "A Suspended parent waiting on a child of the retired definition is released without a recovery pass")]
     public async Task A_parent_waiting_on_a_cancelled_child_is_released()
     {
@@ -161,8 +246,8 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(EnqueueRejectionReason.DefinitionRetired, rejected.Reason);
     }
 
-    [Fact(DisplayName = "An unknown name is NotFound and a stale version is Rejected, and neither writes")]
-    public async Task Unknown_is_not_found_and_a_stale_version_is_rejected()
+    [Fact(DisplayName = "An unknown name is NotFound and a stale version is VersionConflict with the current version, and neither writes")]
+    public async Task Unknown_is_not_found_and_a_stale_version_is_a_version_conflict()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct);
@@ -174,9 +259,11 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var missing = await Operations.Definitions.RetireAsync(TestNamespace, "no-such-job", 0, Reason, Actor, ct);
         Assert.Equal(ControlAction.NotFound, missing.Action);
+        Assert.Null(missing.Version);
 
         var stale = await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", 9999, Reason, Actor, ct);
-        Assert.Equal(ControlAction.Rejected, stale.Action);
+        Assert.Equal(ControlAction.VersionConflict, stale.Action);
+        Assert.Equal(before.Version, stale.Version);
 
         // Neither call wrote: the row keeps its status and version, its parked job is still Ready, and
         // no definition-level event was recorded.
@@ -200,6 +287,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var second = await Operations.Definitions.RetireAsync(TestNamespace, "job-wait-signal", definition.Version, Reason, Actor, ct);
         Assert.Equal(ControlAction.Applied, second.Action);
+        Assert.Equal(definition.Version, second.Version);
 
         Assert.Equal(eventsBefore, await CountDefinitionEventsAsync(definition.DefinitionId, ct));
         Assert.Equal(1, await CountEventsAsync(parked.JobId, EventCode.JobCancelled, ct));
@@ -236,6 +324,18 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var definition = await Operations.Definitions.GetAsync(TestNamespace, jobName, ct);
         Assert.NotNull(definition);
         return await Operations.Definitions.RetireAsync(TestNamespace, jobName, definition!.Version, Reason, Actor, ct);
+    }
+
+    // The worker's landing for a retired definition: terminal with retention, and one cancel event naming the retirement.
+    private async Task AssertCancelledByTheWorkerAsync(long jobId, CancellationToken ct)
+    {
+        var row = await ReadJobAsync(jobId, ct);
+        Assert.Equal(JobStatusCode.Cancelled, row.Status);
+        Assert.NotNull(row.RetentionUntilUtc);
+
+        var evt = await ReadSingleEventAsync(jobId, EventCode.JobCancelled, ct);
+        Assert.Equal(EventReasonCode.JobDefinitionRetired, evt.ReasonCode);
+        Assert.Equal(ActorCode.Worker, evt.ActorCode);
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>

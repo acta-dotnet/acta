@@ -244,6 +244,10 @@
               <b>Why</b>
               <p>Because production happens: workers die holding work, retries repeat side effects, jobs get "stuck" and nobody can say why. Acta makes every job, attempt, lease, and retry durable SQL state you can see, query, and act on: no broker, no sidecar, no workflow SaaS.</p>
             </div>
+            <div>
+              <b>Where</b>
+              <p>In the app you already have. Almost every app needs background jobs, and Acta is that piece: a library in your .NET process and tables in your database. It works alongside the rest of your stack, with a message queue or without one, in an API, a worker service, or a console app.</p>
+            </div>
           </div>
           <div class="actions">
             <a class="button primary" href="/start">Run your first durable job in five minutes</a>
@@ -460,7 +464,7 @@
     <section class="wrap" id="install">
       <p class="record">Install</p>
       <h2>Install one package for your database. Nothing else to run.</h2>
-      <p class="lede">The provider package carries the runtime, the source generator, the analyzers, and the operator CLI. No broker to stand up, no sidecar, no service to operate. The embedded dashboard is one more package, <code>Acta.AspNetCore</code>, when you want it. Acta is still in release candidates, so the commands carry <code>--prerelease</code>.</p>
+      <p class="lede">The provider package carries the runtime, the source generator, the analyzers, and the operator CLI. No broker to stand up, no sidecar, no service to operate. The embedded dashboard is one more package, <code>Acta.AspNetCore</code>, when you want it.</p>
       <div class="install">
         <div class="install-row primary">
           <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
@@ -660,7 +664,7 @@
             </tbody>
           </table>
         </div>
-        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-17 on the release candidate against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence">Certification records</a></p>
+        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-17 against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence">Certification records</a></p>
       </div>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>

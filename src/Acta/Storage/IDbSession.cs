@@ -18,17 +18,6 @@ internal interface IDbSession
     /// <summary>Runs a read command loaded by SQL stem with no write transaction.</summary>
     Task<T> QueryAsync<T>(string stem, Action<DbCommand> bind, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken ct);
 
-    /// <summary>
-    /// Runs a read command with no write transaction. Its provider resource selects routine or inline
-    /// execution, including routine reads whose bodies are functions instead of literal SELECTs.
-    /// </summary>
-    Task<T> QueryAsync<T>(
-        StoreCommand command,
-        Action<DbCommand> bind,
-        Func<DbDataReader, CancellationToken, Task<T>> read,
-        CancellationToken ct
-    );
-
     /// <summary>Runs a write command and maps every row of its primary result set.</summary>
     Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
@@ -62,16 +51,8 @@ internal interface IDbSession
 
     /// <summary>
     /// Runs <paramref name="action"/> under the session's bounded transient-conflict retry. For raw
-    /// commands composed outside the named operations (the outbox backlog count, test support); named
+    /// commands composed outside the named operations (the test support's table writes); named
     /// operations retry already.
     /// </summary>
     Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct);
-
-    /// <summary>
-    /// Runs <paramref name="work"/> on one owned write transaction under the transient-conflict retry, for
-    /// a store operation whose named commands must commit together; each command joins the transaction
-    /// through <see cref="ExecuteInTransactionAsync{T}"/>. Commits when work returns Commit true and rolls
-    /// back when it returns false or throws.
-    /// </summary>
-    Task<T> RunInOwnedTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work, CancellationToken ct);
 }

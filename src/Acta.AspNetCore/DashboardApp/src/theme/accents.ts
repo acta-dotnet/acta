@@ -100,7 +100,7 @@ export const MANAGED_ACCENT_TOKENS = [
 export type AccentToken = (typeof MANAGED_ACCENT_TOKENS)[number];
 export type AccentTokens = Record<AccentToken, string>;
 
-export function accentSurface(theme: ThemeId): AccentSurface {
+function accentSurface(theme: ThemeId): AccentSurface {
   return theme === 'acta' ? 'dark' : 'light';
 }
 
@@ -114,7 +114,7 @@ function rgba(hex: string, alpha: number): string {
   return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
 }
 
-export function relativeLuminance(hex: string): number {
+function relativeLuminance(hex: string): number {
   const value = Number.parseInt(hex.slice(1), 16);
   const channels = [
     (value >> 16) & 255,

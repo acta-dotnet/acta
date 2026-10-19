@@ -17,7 +17,7 @@ dead AS (
         version = version + 1
     FROM doomed d
     WHERE w.id = d.id
-    RETURNING w.id, w.namespace_id, w.worker_ref
+    RETURNING w.id, w.namespace_id
 ),
 
 evt AS (
@@ -43,7 +43,7 @@ evt AS (
         now(),
         d.namespace_id,
         70 /* ActorCode.Worker */,
-        d.worker_ref::TEXT,
+        NULL,
         NULL,
         NULL,
         NULL,

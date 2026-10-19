@@ -7,16 +7,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for public-identity survival across purge: <c>events</c> outlives the <c>job</c> row,
-/// and the denormalized <c>events.job_ref</c> keeps the public ref resolvable after the job is purged.
+/// Conformance for public identity across a retention purge: <c>events</c> outlives the <c>job</c> row and keeps
+/// the denormalized <c>events.job_ref</c>, while the ref itself resolves only through the job row.
 /// Drives a zero-retention job to terminal, purges it with a wide event window (job deleted, events kept),
-/// then asserts the ref still resolves and its timeline reads back.
+/// then asserts the timeline reads back by job id with the ref intact and the ref resolves to nothing.
 /// </summary>
 [ConformanceSpec(
     "job-ref.survives-purge",
-    "A purged job's public ref still resolves to its surviving event timeline",
+    "A purged job's events keep its public ref, which no longer resolves",
     Area = "Retention",
-    Contract = "After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline."
+    Contract = "After the job row is purged, its surviving events keep the denormalized job_ref and read back by job id, and the ref resolves to null."
 )]
 public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -26,10 +26,8 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
     private const int NoAlertPurgeDays = 100_000;
     private const int NoWorkerPurgeSeconds = 100_000_000;
 
-    [Fact(
-        DisplayName = "After purge the job row is gone and GetAsync by ref is null, but ResolveJobIdByRef falls back to the surviving events that carry the denormalized job_ref"
-    )]
-    public async Task Public_ref_resolves_to_surviving_events_after_the_job_row_is_purged()
+    [Fact(DisplayName = "After a retention purge the events keep job_ref and the timeline reads by job id, while the ref resolves to null")]
+    public async Task Events_keep_the_public_ref_after_the_job_row_is_purged_but_the_ref_no_longer_resolves()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -68,28 +66,14 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
         // events section a no-op on every pass of the drain, which is the property asserted here.
         Assert.Equal(0, purge.Events);
 
-        // Force a fresh insert after purge. SQLite used to reuse the deleted highest row id here,
-        // making the old event fallback resolve to a live unrelated row.
-        var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
-        var replacementPayload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(0, 0));
-        var replacement = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, "add-numbers", replacementPayload, null, null, null),
-            ct
-        );
-        Assert.NotEqual(jobId, replacement.JobId);
-
-        // The heavy row is gone; GetAsync by ref returns null. Both of these are settled-state assertions,
+        // The heavy row is gone, and the ref resolves only through it. These are settled-state assertions,
         // which is why the sweep above loops until they hold rather than firing once: a READPAST skip would
         // otherwise leave the row alive here and fail an assertion about retention with a lock-timing flake.
         Assert.Null(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
+        Assert.Null(await Jobs.GetJobIdAsync(JobLookup.ByRef(jobRef), ct));
         Assert.Null(await Jobs.GetAsync(JobLookup.ByRef(jobRef), ct));
 
-        // But the public ref still resolves to the historical id via the surviving ledger,
-        // and the timeline reads back with the ref intact.
-        Assert.Equal(
-            jobId,
-            await Services.GetRequiredService<ResolveJobIdByRefHandler>().HandleAsync(new ResolveJobIdByRefQuery(jobRef.Value), ct)
-        );
+        // The timeline still reads back by job id with the ref intact.
         var timeline = (
             await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)
         ).Items;

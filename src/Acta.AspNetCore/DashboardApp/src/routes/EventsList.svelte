@@ -182,7 +182,8 @@
       {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
     {#snippet actorCell(evt)}
-      {evt.actorCode}{#if evt.actor}<span class="dim"> · {evt.actor}</span>{/if}
+      {@const who = evt.actor ?? (evt.actorCode === 'worker' ? evt.workerRef : null)}
+      {evt.actorCode}{#if who}<span class="dim"> · {who}</span>{/if}
     {/snippet}
     {#snippet attemptCell(evt)}{evt.executionNumber == null ? '·' : displayFormatter.number(evt.executionNumber)}{/snippet}
     {#snippet reasonCell(evt)}{evt.reasonMessage ?? evt.reasonCode ?? evt.detailText ?? '·'}{/snippet}

@@ -27,7 +27,7 @@ internal sealed class ScriptedSession : DbSessionStub
 
     public List<BoundCall> Calls { get; } = [];
 
-    /// <summary>The graph <c>AddActa</c> builds over SQLite, with this session in place of the database.</summary>
+    /// <summary>The graph <c>UseActa</c> builds over SQLite, with this session in place of the database.</summary>
     public ServiceProvider Services()
     {
         var services = new ServiceCollection();

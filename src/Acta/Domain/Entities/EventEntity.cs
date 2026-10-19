@@ -8,7 +8,11 @@ namespace Acta;
 /// key, because events outlive the job, so the operations that write them keep them consistent.
 /// </summary>
 [DbTable("events", PageCompression = true)]
-[DbPrimaryKey(Name = "pk_events", Columns = ["id"], OptimizeForSequentialKey = true)]
+// Keyed by worker first, so concurrent writers insert into their own key ranges instead of all contending for the
+// last page of one sequence. id stays the one global identity. No index leads with id on SQL Server or PostgreSQL,
+// so a read or delete that needs one row names the pair or walks a timeline index; SQLite, with one writer, keeps
+// id as its rowid key.
+[DbPrimaryKey(Name = "pk_events", Columns = ["worker_id", "id"], Identity = "id", OptimizeForSequentialKey = true)]
 [DbIndex(
     Name = "ix_events_lineage_timeline",
     Columns = ["lineage_root_id", "created_at_utc", "id"],
@@ -129,10 +133,11 @@ internal sealed class EventEntity : IEntity<long>
 
     /// <summary>
     /// Worker that owned the transition; set on claim / execution / heartbeat-derived events. No FK.
-    /// Null on definition events and on Job-level transitions without a worker context.
+    /// 0 on definition events and on Job-level transitions without a worker context: worker ids start
+    /// at 1, and the default lets those writes leave the column out.
     /// </summary>
-    [DbColumn("worker_id", DbKind.Int32)]
-    public int? WorkerId { get; init; }
+    [DbColumn("worker_id", DbKind.Int32, Default = DbDefault.Zero)]
+    public int WorkerId { get; init; }
 
     /// <summary>
     /// Pre-transition <c>runtimes.status_code</c>; null for non-Status-transition events.

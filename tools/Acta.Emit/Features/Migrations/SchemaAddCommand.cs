@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using Acta.Emit.Features.Docs;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Model;
@@ -111,4 +113,137 @@ internal static class SchemaAddCommand
         }
         return 0;
     }
+}
+
+/// <summary>
+/// Renders a per-provider delta migration for an additive <see cref="SchemaDiff"/> by reusing the
+/// full-schema emitter's fragment renderers against the live model, so a drafted statement matches
+/// how the baseline renders the same object. Additive DDL is emitted directly, then each new or changed
+/// routine and view of this dialect whole; non-additive changes (drops, renames, synthetic checks) are
+/// surfaced as `-- WARNING`/`-- TODO` lines for the engineer to hand-edit. The migration self-stamps via
+/// <c>MigrationStamp</c> as its last line.
+/// </summary>
+internal static class MigrationDeltaEmitter
+{
+    internal static string EmitDelta(SchemaDiff diff, SchemaModel live, DialectObjects objects, SqlDdlDialect dialect, string stem)
+    {
+        var byTable = live.Entities.ToDictionary(e => e.TableName, StringComparer.Ordinal);
+        var token = dialect.ProviderToolName;
+        var sb = new StringBuilder();
+
+        foreach (var warning in diff.Warnings)
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"-- WARNING: {warning}");
+        }
+        if (diff.Warnings.Count > 0)
+        {
+            sb.AppendLine();
+        }
+        SqlSchemaEmitter.AppendSessionOptions(sb, dialect);
+
+        var addedTables = diff.AddedTables.ToHashSet(StringComparer.Ordinal);
+        foreach (var entity in live.Entities.Where(e => addedTables.Contains(e.TableName)))
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"-- new table: {entity.TableName}");
+            sb.AppendLine(SqlSchemaEmitter.RenderCreateTableForDraft(entity, dialect, live));
+            sb.AppendLine();
+        }
+
+        foreach (var (table, column) in diff.AddedColumns)
+        {
+            var col = byTable[table].Columns.First(c => c.Name == column);
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"ALTER TABLE {SqlDdlDialect.SchemaPlaceholder}.{table} ADD {SqlSchemaEmitter.RenderColumn(col, dialect)};"
+            );
+            // A code column carries no CHECK, so only a plain byte column needs its synthetic one.
+            if (!col.IsCoded && col.Kind == DbKind.Byte)
+            {
+                sb.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"-- TODO: add the synthetic ck_{table}_{col.Name} 0..255 range constraint for this {col.Kind} column (see the baseline)."
+                );
+            }
+            if (col.IsGenerated)
+            {
+                sb.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"-- TODO: {table}.{col.Name} is a STORED generated column; SQLite cannot ADD one via ALTER TABLE: rebuild the table by hand for the sqlite migration."
+                );
+            }
+            else if (!col.IsNullable && col.Default == DbDefault.None)
+            {
+                sb.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"-- TODO: {table}.{col.Name} is NOT NULL with no default; backfill existing rows in the same migration."
+                );
+            }
+        }
+
+        foreach (var (table, index) in diff.AddedIndexes)
+        {
+            var idx = byTable[table].Indexes.First(i => i.Name == index);
+            sb.AppendLine(dialect.GuardIndexCreate(table, index, SqlSchemaEmitter.RenderIndex(table, idx, dialect)));
+        }
+
+        foreach (var (table, check) in diff.AddedChecks)
+        {
+            var chk = byTable[table].Checks.First(c => c.Name == check);
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"ALTER TABLE {SqlDdlDialect.SchemaPlaceholder}.{table} ADD CONSTRAINT {chk.Name} CHECK ({chk.Sql});"
+            );
+        }
+
+        foreach (var (table, fkName) in diff.AddedForeignKeys)
+        {
+            var fk = byTable[table].ForeignKeys.First(f => f.Name == fkName);
+            var targetTable = live.Entities.First(e => e.ClrType == fk.Target).TableName;
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"ALTER TABLE {SqlDdlDialect.SchemaPlaceholder}.{table} ADD CONSTRAINT {fk.Name} FOREIGN KEY ({fk.Column}) REFERENCES {dialect.ForeignKeyTargetTable(targetTable)} ({fk.TargetColumn}){RenderOnDelete(fk.OnDelete)};"
+            );
+        }
+
+        foreach (var table in diff.ChangedTableOptions)
+        {
+            if (dialect.TableLockEscalation(table, byTable[table].DisableLockEscalation) is { } escalation)
+            {
+                sb.AppendLine(escalation);
+            }
+        }
+
+        var changes = diff.Objects.GetValueOrDefault(token) ?? new ObjectChanges([], []);
+        var drafted = objects.All.Where(o => changes.Changed.Contains(o.Name)).ToList();
+        if (drafted.Count > 0)
+        {
+            // CREATE OR ALTER must open its batch on SQL Server, so whatever came before ends its own.
+            SqlSchemaEmitter.EndBatch(sb, dialect);
+            sb.AppendLine();
+        }
+        foreach (var o in drafted)
+        {
+            SqlSchemaEmitter.AppendObject(sb, o, dialect);
+        }
+
+        foreach (var removed in changes.Removed)
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"-- TODO DROP {removed}: removed from the source SQL; write its drop here.");
+        }
+
+        // Self-stamp so the runner records this migration as applied (else it re-runs every boot).
+        sb.AppendLine();
+        sb.AppendLine(dialect.MigrationStamp(stem));
+        SqlSchemaEmitter.AppendTerminator(sb, dialect);
+
+        return sb.ToString();
+    }
+
+    private static string RenderOnDelete(DbForeignKeyAction action) =>
+        action switch
+        {
+            DbForeignKeyAction.Cascade => " ON DELETE CASCADE",
+            DbForeignKeyAction.SetNull => " ON DELETE SET NULL",
+            _ => "",
+        };
 }

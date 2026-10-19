@@ -8,10 +8,9 @@
   import { routes } from '../../routes.ts';
   import JobRef from '../../components/JobRef.svelte';
 
-  let { job, tenantName = undefined, lastEvent = null, maxAttempts = null }: { job: JobDetail; tenantName?: string; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
+  let { job, lastEvent = null, maxAttempts = null }: { job: JobDetail; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
 
-  // The aggregate echoes the tenant name at the top level; the job row carries it too, so either source serves.
-  let tenant = $derived(tenantName ?? job.tenantName ?? null);
+  let tenant = $derived(job.tenantName ?? null);
 </script>
 
 <section class="panel" aria-labelledby="job-summary-heading">

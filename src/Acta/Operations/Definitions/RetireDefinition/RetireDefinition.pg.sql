@@ -1,7 +1,7 @@
 -- One batch, one implicit transaction. Only the final SELECT returns rows; every earlier statement
 -- writes temp tables, so each later statement reads what the earlier ones did under the locks.
 CREATE TEMP TABLE IF NOT EXISTS _retire_lanes (id BIGINT PRIMARY KEY) ON COMMIT DROP;
-CREATE TEMP TABLE IF NOT EXISTS _retire_action (action SMALLINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE IF NOT EXISTS _retire_action (action SMALLINT NOT NULL, version INT) ON COMMIT DROP;
 CREATE TEMP TABLE IF NOT EXISTS _retire_cancelled (job_id BIGINT NOT NULL, parent_id BIGINT) ON COMMIT DROP;
 CREATE TEMP TABLE IF NOT EXISTS _retire_promoted (promoted INT NOT NULL) ON COMMIT DROP;
 
@@ -41,7 +41,7 @@ retired AS (
         jd.id = t.id
         AND t.version = @p_version
         AND t.status_code <> 240 /* DefinitionStatusCode.Retired */
-    RETURNING jd.id, jd.namespace_id
+    RETURNING jd.id, jd.namespace_id, jd.version
 ),
 -- A laned job is parked here only in a lane locked above; Blocked is parked too, and an in-flight
 -- attempt is left to finish.
@@ -99,7 +99,6 @@ cancel_events AS (
         lineage_root_id,
         definition_id,
         tenant_id,
-        worker_id,
         from_status_code,
         to_status_code,
         execution_status_code,
@@ -118,7 +117,6 @@ cancel_events AS (
         p.lineage_root_id,
         p.definition_id,
         p.tenant_id,
-        NULL,
         p.from_status_code,
         220 /* JobStatusCode.Cancelled */,
         NULL,
@@ -142,7 +140,6 @@ definition_event AS (
         lineage_root_id,
         definition_id,
         tenant_id,
-        worker_id,
         from_status_code,
         to_status_code,
         execution_status_code,
@@ -165,21 +162,22 @@ definition_event AS (
         NULL,
         NULL,
         NULL,
-        NULL,
         @p_reason_code,
         @p_reason_message
     FROM retired d
 ),
 action_row AS (
-    INSERT INTO _retire_action (action)
+    INSERT INTO _retire_action (action, version)
     SELECT
         CASE
             WHEN t.id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
             WHEN t.version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
             ELSE 1 /* DefinitionOverrideAction.Applied */
-        END
+        END,
+        COALESCE(d.version, t.version)
     FROM (SELECT 1 AS probe) q
     LEFT JOIN target t ON TRUE
+    LEFT JOIN retired d ON TRUE
 )
 INSERT INTO _retire_cancelled (job_id, parent_id)
 SELECT p.job_id, p.parent_id
@@ -231,6 +229,7 @@ SELECT COUNT(*) FROM promoted;
 
 SELECT
     a.action,
+    a.version,
     c.job_id,
     c.parent_id,
     (SELECT p.promoted > 0 FROM _retire_promoted p) AS lane_promoted

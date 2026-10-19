@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Acta.Bench</AssemblyName>
+    <RootNamespace>Acta.Bench</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Benchmark raw-route handlers share their input type; no typed enqueue relies on an ambiguous route. -->
+    <NoWarn>$(NoWarn);ACTA0104;IDE0011</NoWarn>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Only dotnet publish compiles natively; a PublishAot build would also turn off dynamic code for
+         dotnet run, and the SQL Server driver needs it. -->
+    <PublishAot Condition="'$(_IsPublishing)' == 'true'">true</PublishAot>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="Acta.Bench.PublishAot" Value="$(PublishAot)" />
+    <AssemblyMetadata Include="Acta.Bench.PublishSingleFile" Value="$(PublishSingleFile)" />
+    <EmbeddedResource Include="Protocol/*.json" LogicalName="Acta.Bench.Protocol.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Certification/certify.sql" LogicalName="Acta.Bench.Certification.certify.sql" />
+    <ProjectReference
+      Include="../../src/Acta.Generators/Acta.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+    <ProjectReference Include="../../src/Acta.Postgres/Acta.Postgres.csproj" />
+    <ProjectReference Include="../../src/Acta.Sqlite/Acta.Sqlite.csproj" />
+    <ProjectReference Include="../../src/Acta.SqlServer/Acta.SqlServer.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <!-- The assembly identity follows .NET naming; publishing exposes the CLI command name. -->
+  <Target Name="PublishManagedBenchCommand" AfterTargets="Publish" Condition="'$(PublishAot)' != 'true' and '$(UseAppHost)' == 'true'">
+    <Move
+      SourceFiles="$(PublishDir)$(AssemblyName)$(_NativeExecutableExtension)"
+      DestinationFiles="$(PublishDir)acta-bench$(_NativeExecutableExtension)"
+    />
+  </Target>
+  <Target Name="PublishNativeBenchCommand" AfterTargets="CopyNativeBinary" Condition="'$(PublishAot)' == 'true'">
+    <Move SourceFiles="$(PublishDir)$(AssemblyName)$(NativeBinaryExt)" DestinationFiles="$(PublishDir)acta-bench$(NativeBinaryExt)" />
+  </Target>
+  <!-- Capture source state when the binary is built. An installed executable's current
+       working directory cannot establish whether its original source tree was dirty. -->
+  <Target Name="CaptureBenchSourceState" BeforeTargets="GetAssemblyAttributes">
+    <Exec
+      Command="git status --porcelain"
+      WorkingDirectory="$(MSBuildProjectDirectory)"
+      ConsoleToMSBuild="true"
+      IgnoreExitCode="true"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="Low"
+    >
+      <Output TaskParameter="ConsoleOutput" ItemName="_BenchSourceStatus" />
+      <Output TaskParameter="ExitCode" PropertyName="_BenchGitStatusExitCode" />
+    </Exec>
+    <PropertyGroup>
+      <_BenchSourceDirty>false</_BenchSourceDirty>
+      <_BenchSourceDirty Condition="'@(_BenchSourceStatus->Count())' != '0' or '$(_BenchGitStatusExitCode)' != '0'">true</_BenchSourceDirty>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>Acta.Bench.SourceDirty</_Parameter1>
+        <_Parameter2>$(_BenchSourceDirty)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -63,7 +63,7 @@ public sealed class AnvilStateReader(
             NamespaceName: _namespaceName,
             Schema: session.Schema,
             Provider: session.Provider,
-            ExecutorsPerWorker: launcher.ExecutorsPerWorker ?? new JobsOptions().MaxConcurrentExecutors,
+            ExecutorsPerWorker: new JobsOptions().MaxConcurrentExecutors,
             Ready: workerRows.Items.Count > 0,
             Counts: counts,
             Beats: new AnvilBeats(_heartbeatSeconds, _leaseTtlSeconds, (int)_workerDeadAfter.TotalSeconds),
@@ -74,7 +74,6 @@ public sealed class AnvilStateReader(
             Seeding: seedProgress.Snapshot(),
             Faults: faults.Snapshot(),
             Outbox: await ReadOutboxAsync(ct),
-            Certification: session.Certification,
             DbError: null
         );
     }
@@ -100,7 +99,7 @@ public sealed class AnvilStateReader(
             NamespaceName: _namespaceName,
             Schema: session.Schema,
             Provider: session.Provider,
-            ExecutorsPerWorker: launcher.ExecutorsPerWorker ?? new JobsOptions().MaxConcurrentExecutors,
+            ExecutorsPerWorker: new JobsOptions().MaxConcurrentExecutors,
             Ready: false,
             Counts: null,
             Beats: new AnvilBeats(_heartbeatSeconds, _leaseTtlSeconds, (int)_workerDeadAfter.TotalSeconds),
@@ -111,7 +110,6 @@ public sealed class AnvilStateReader(
             Seeding: seedProgress.Snapshot(),
             Faults: faults.Snapshot(),
             Outbox: null,
-            Certification: session.Certification,
             DbError: reason
         );
     }
@@ -320,7 +318,6 @@ public sealed record AnvilState(
     SeedProgressSnapshot Seeding,
     FaultSnapshot Faults,
     AnvilOutboxSnapshot? Outbox,
-    CertificationStatus? Certification,
     string? DbError
 );
 

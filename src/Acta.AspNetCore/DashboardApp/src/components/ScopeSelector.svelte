@@ -12,8 +12,8 @@
   //
   // The catalog read is paged, so we walk every page via the cursor to load the full list (the
   // catalog is small). A scope set from the URL that is not present is still kept as its own option
-  // so the selection shows. The typed catalog carries the stable namespace id, letting us exclude
-  // seeded id 1 without guessing its name; a system scope supplied in the URL is cleared to global.
+  // so the selection shows. System namespaces are excluded by name; a system scope supplied in the URL
+  // is cleared to global.
   let namespaces = $state([]);
 
   let options = $derived([

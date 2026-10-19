@@ -91,11 +91,11 @@ public sealed class CommandTextCompositionTests
         // executes SQL the test author wrote. Neither has an untrusted caller - the caller is the
         // test - and both bind every value through DbValueCoercion as a DbParameter, so no value is
         // ever concatenated into the text even here.
-        ["Acta.Testing/Relational/Querying/DbFrom.cs::CountAsync"] = (1, "generated column metadata, values parameterized"),
-        ["Acta.Testing/Relational/Querying/DbFrom.cs::UpdateOnlyAsync"] = (1, "generated column metadata, values parameterized"),
-        ["Acta.Testing/Relational/Querying/DbFrom.cs::DeleteAsync"] = (1, "generated column metadata, values parameterized"),
-        ["Acta.Testing/Relational/Querying/DbFrom.cs::InsertCoreAsync"] = (1, "generated column metadata, values parameterized"),
-        ["Acta.Testing/Relational/Querying/DbFrom.cs::BuildCommand"] = (1, "generated column metadata, values parameterized"),
+        ["Acta.Testing/Relational/DbSessionQueryExtensions.cs::CountAsync"] = (1, "generated column metadata, values parameterized"),
+        ["Acta.Testing/Relational/DbSessionQueryExtensions.cs::UpdateOnlyAsync"] = (1, "generated column metadata, values parameterized"),
+        ["Acta.Testing/Relational/DbSessionQueryExtensions.cs::DeleteAsync"] = (1, "generated column metadata, values parameterized"),
+        ["Acta.Testing/Relational/DbSessionQueryExtensions.cs::InsertCoreAsync"] = (1, "generated column metadata, values parameterized"),
+        ["Acta.Testing/Relational/DbSessionQueryExtensions.cs::BuildCommand"] = (1, "generated column metadata, values parameterized"),
         ["Acta.Testing/Relational/TestConnectionExtensions.cs::ExecuteRawAsync"] = (1, "spec-authored raw SQL, {schema} substitution only"),
     };
 
@@ -201,7 +201,7 @@ public sealed class CommandTextCompositionTests
         [
             // The Schema every {{schema}} substitution and every routine header uses, rejected at
             // host startup by ValidateOnStart before a single command is built.
-            ("src/Acta/Hosting/SqlProviderOptionsValidator.cs", "SqlIdentifierSyntax.IsBareIdentifier(options.Schema)"),
+            ("src/Acta/Hosting/ActaProviderRegistration.cs", "SqlIdentifierSyntax.IsBareIdentifier(options.Schema)"),
             // The external-outbox schema and table, the only physical names an application chooses.
             ("src/Acta/Engine/Outbox/OutboxIdentifier.cs", "SqlIdentifierSyntax.ValidateBareIdentifier(value, kind)"),
             // The routine name each dialect interpolates into its call header.

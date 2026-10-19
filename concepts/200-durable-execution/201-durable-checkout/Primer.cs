@@ -104,7 +104,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             await lab.ShowAsync(
                 "3. Rejected - cancellation is terminal and no timer or receipt was created",
                 """
-                SELECT job_ref, status, execution_number, failure_count, last_result_format
+                SELECT job_ref, status, execution_number, failure_count, result_format
                 FROM jobs_view
                 WHERE job_id = @jobId
                 """,
@@ -134,12 +134,11 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
                 ct
             );
             await lab.ShowAsync(
-                "Cancellation produces no terminal result row",
+                "Cancellation stores no result on the runtime row",
                 """
-                SELECT job_id, execution_number, result_format_id, created_at_utc
-                FROM {{schema}}.results
+                SELECT job_id, execution_number, result_format_id
+                FROM {{schema}}.runtimes
                 WHERE job_id = @jobId
-                ORDER BY execution_number
                 """,
                 new { jobId = checkout.JobId },
                 ct
@@ -181,7 +180,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         await lab.ShowAsync(
             "4. Done - one identity completed through three handler entries",
             """
-            SELECT job_ref, status, execution_number, failure_count, last_result_format, leased_by_worker_id
+            SELECT job_ref, status, execution_number, failure_count, result_format, leased_by_worker_id
             FROM jobs_view
             WHERE job_id = @jobId
             """,
@@ -211,12 +210,11 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             ct
         );
         await lab.ShowAsync(
-            "The terminal result has its own execution-stamped durable row",
+            "The terminal result is stored on the runtime row, beside the execution that produced it",
             """
-            SELECT job_id, execution_number, result_format_id, created_at_utc
-            FROM {{schema}}.results
+            SELECT job_id, execution_number, result_format_id
+            FROM {{schema}}.runtimes
             WHERE job_id = @jobId
-            ORDER BY execution_number
             """,
             new { jobId = checkout.JobId },
             ct

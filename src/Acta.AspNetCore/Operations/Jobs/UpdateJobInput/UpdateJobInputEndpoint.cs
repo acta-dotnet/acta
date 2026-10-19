@@ -84,7 +84,18 @@ internal static class UpdateJobInputEndpoint
                             );
                         }
 
-                        payload = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
+                        try
+                        {
+                            payload = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
+                        }
+                        catch (ArgumentException)
+                        {
+                            return ControlEndpointValidation.Problem(
+                                StatusCodes.Status400BadRequest,
+                                "Invalid request.",
+                                "text cannot contain U+0000."
+                            );
+                        }
                     }
                     else if (body.Base64 is not null)
                     {

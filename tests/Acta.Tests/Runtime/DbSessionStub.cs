@@ -21,13 +21,6 @@ internal class DbSessionStub : IDbSession
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    public virtual Task<T> QueryAsync<T>(
-        StoreCommand command,
-        Action<DbCommand> bind,
-        Func<DbDataReader, CancellationToken, Task<T>> read,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
-
     public virtual Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
@@ -56,9 +49,4 @@ internal class DbSessionStub : IDbSession
 
     public virtual Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         throw new NotSupportedException();
-
-    public virtual Task<T> RunInOwnedTransactionAsync<T>(
-        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
 }

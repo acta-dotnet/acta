@@ -16,7 +16,6 @@ INSERT INTO {{schema}}.events (
     execution_number,
     lineage_root_id,
     definition_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -34,7 +33,6 @@ SELECT
     NULL,
     NULL,
     s.id,
-    NULL,
     NULL,
     NULL,
     NULL,
@@ -86,6 +84,7 @@ SELECT
         WHEN s.id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
         WHEN s.version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
         ELSE 1 /* DefinitionOverrideAction.Applied */
-    END AS action
+    END AS action,
+    CASE WHEN s.version = @p_version THEN s.version + 1 ELSE s.version END AS version
 FROM (SELECT @p_id AS qid) q
 LEFT JOIN temp._set_job_def_overrides s ON s.id = q.qid;

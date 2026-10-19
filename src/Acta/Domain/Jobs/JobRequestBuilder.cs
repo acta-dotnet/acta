@@ -70,7 +70,7 @@ public sealed class JobRequestBuilder
 
     /// <summary>
     /// UTF-8-encode <paramref name="value"/> through <see cref="JobPayload.Text"/> and set the input.
-    /// Empty string is allowed.
+    /// Empty string is allowed; a string holding U+0000 throws <see cref="ArgumentException"/>.
     /// </summary>
     public JobRequestBuilder Text(string value) => Payload(JobPayload.Text(value));
 

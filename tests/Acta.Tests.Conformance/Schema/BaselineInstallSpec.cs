@@ -208,17 +208,11 @@ public sealed class BaselineInstallSpec : IntegrationSpec<ConformanceFixture>
     }
 
     /// <summary>
-    /// Recognizes the constraints the emitter synthesizes per column rather than from a <c>[DbCheck]</c>:
-    /// the closed-family <c>IN</c>-list check, and the Postgres/SQLite byte-range and octet-length checks
-    /// that stand in for a native bounded type. Anything else on the table is drift.
+    /// Recognizes the constraint the emitter synthesizes per column rather than from a <c>[DbCheck]</c>: the
+    /// Postgres/SQLite byte-range check that stands in for a native tinyint. Anything else on the table is drift.
     /// </summary>
     private static bool IsEmitterSynthesized(string name, DbEntitySpec entity) =>
-        entity.Columns.Any(c =>
-            name == $"ck_{entity.TableName}_{c.Name}"
-            || name == $"ck_{entity.TableName}_{c.Name}_code"
-            || name == $"ck_{entity.TableName}_{c.Name}_byte"
-            || name == $"ck_{entity.TableName}_{c.Name}_bytes"
-        );
+        entity.Columns.Any(c => name == $"ck_{entity.TableName}_{c.Name}_byte");
 
     [Fact(DisplayName = "On SQL Server exactly the case-exact columns carry a binary collation, and no column elsewhere")]
     public async Task InstallsBinaryCollationOnExactlyTheCaseExactColumns()

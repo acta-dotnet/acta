@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IJobs.GetResultAsync(JobLookup, CancellationToken)"/>: resolves the lookup, then reads the latest result.</summary>
+/// <summary><see cref="IJobs.GetResultAsync(JobLookup, CancellationToken)"/>: resolves the lookup, then reads the stored result.</summary>
 internal sealed class GetResultHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetResultResponse?> HandleAsync(GetResultQuery query, CancellationToken ct)
@@ -14,14 +14,17 @@ internal sealed class GetResultHandler(GetJobIdHandler getJobId, IDbSession sess
         return record is null ? null : new GetResultResponse(JobPayload.FromBytes(record.Format, record.Data.ToArray()));
     }
 
-    /// <summary>The stored result for the latest execution, or for <paramref name="executionNumber"/>; null when there is none.</summary>
+    /// <summary>
+    /// The job's stored result, or null when there is none or <paramref name="executionNumber"/> did not store it. Every
+    /// claim and restart clears the result, so a stored one belongs to the runtime's current execution number.
+    /// </summary>
     internal Task<GetResultRow?> ReadAsync(long jobId, int? executionNumber, CancellationToken ct) =>
         session.QuerySingleAsync(
             "GetResult",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Result.JobId, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Result.ExecutionNumber, executionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.ExecutionNumber, executionNumber));
             },
             DbProjectionResolver.Resolve<GetResultRow>(),
             ct

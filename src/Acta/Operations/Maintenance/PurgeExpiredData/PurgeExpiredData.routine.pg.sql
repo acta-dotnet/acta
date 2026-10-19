@@ -15,6 +15,7 @@ DECLARE
     v_below BIGINT;
     v_slice_end BIGINT;
     v_ids BIGINT[];
+    v_worker_ids INT[];
     v_lock_keys TEXT[];
     v_alerts_slot_id BIGINT;
 BEGIN
@@ -77,15 +78,15 @@ BEGIN
                 AND scope_id = ANY(v_ids);
             DELETE FROM {{schema}}.checkpoints c WHERE c.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.steps s WHERE s.job_id = ANY(v_ids);
-            DELETE FROM {{schema}}.results x WHERE x.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.jobs j WHERE j.id = ANY(v_ids);
             DELETE FROM {{schema}}.runtimes r WHERE r.job_id = ANY(v_ids);
         END IF;
 
     WHEN 2 THEN
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT id FROM {{schema}}.events
+        -- Collected by the primary key, so each delete is a direct seek on pk_events.
+        SELECT array_agg(q.worker_id), array_agg(q.id) INTO v_worker_ids, v_ids FROM (
+            SELECT worker_id, id FROM {{schema}}.events
             WHERE
                 namespace_id = p_namespace_id
                 AND created_at_utc <= p_cutoff_utc
@@ -94,7 +95,9 @@ BEGIN
             FOR UPDATE SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);
         IF v_rows > 0 THEN
-            DELETE FROM {{schema}}.events WHERE id = ANY(v_ids);
+            DELETE FROM {{schema}}.events e
+            USING unnest(v_worker_ids, v_ids) AS d (worker_id, id)
+            WHERE e.worker_id = d.worker_id AND e.id = d.id;
         END IF;
 
     WHEN 3 THEN
@@ -146,13 +149,25 @@ BEGIN
         GET DIAGNOSTICS v_rows = ROW_COUNT;
 
     WHEN 6 THEN
+        -- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so the
+        -- row goes once both are past the window and no Executing job it leases is left for recovery to reclaim.
         SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT id FROM {{schema}}.workers
+            SELECT w.id FROM {{schema}}.workers w
             WHERE
-                namespace_id = p_namespace_id
-                AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-                AND last_seen_at_utc <= p_cutoff_utc
-            ORDER BY last_seen_at_utc, id
+                w.namespace_id = p_namespace_id
+                AND w.status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                AND w.last_seen_at_utc <= p_cutoff_utc
+                AND w.modified_at_utc <= p_cutoff_utc
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.runtimes r
+                    WHERE
+                        r.leased_by_worker_id = w.id
+                        -- ix_runtimes_worker_inflight's filter restated: a partial index serves only a query that states it.
+                        AND r.leased_by_worker_id IS NOT NULL
+                        AND r.status_code = 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY w.last_seen_at_utc, w.id
             LIMIT p_batch_size
             FOR UPDATE SKIP LOCKED) q;
         v_rows := COALESCE(cardinality(v_ids), 0);

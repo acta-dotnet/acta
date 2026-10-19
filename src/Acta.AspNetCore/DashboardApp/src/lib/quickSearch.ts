@@ -15,11 +15,11 @@ export type Recognition =
   | { kind: 'tag'; token: string }
   | { kind: 'text'; folded: string; raw: string };
 
-// Type tag + 26-char Crockford ULID, same shape JobRef renders. One regex per entity so a pasted
-// ref routes to its own detail screen rather than being probed as a name fragment.
-const JOB_REF = /^job_[0-9a-hjkmnp-tv-z]{26}$/i;
-const WORKER_REF = /^wrk_[0-9a-hjkmnp-tv-z]{26}$/i;
-const ALERT_REF = /^alr_[0-9a-hjkmnp-tv-z]{26}$/i;
+// The exact type tag + 32 hex digits in any casing, the one form the server parses. One regex per
+// entity so a pasted ref routes to its own detail screen rather than being probed as a name fragment.
+const JOB_REF = /^job_[0-9a-fA-F]{32}$/;
+const WORKER_REF = /^wrk_[0-9a-fA-F]{32}$/;
+const ALERT_REF = /^alr_[0-9a-fA-F]{32}$/;
 const JOB_ID = /^(?:id:|#)(\d+)$/i;
 // One token, name:value, no whitespace; the server canonicalizes tag names.
 const TAG_TOKEN = /^[^\s:]+:[^\s:]+$/;
@@ -118,8 +118,7 @@ export function loadRecents(): RecentItem[] {
   return [];
 }
 
-export function pushRecent(item: Omit<RecentItem, 'at'>, at: number): RecentItem[] {
+export function pushRecent(item: Omit<RecentItem, 'at'>, at: number): void {
   const next = [{ ...item, at }, ...loadRecents().filter((existing) => existing.href !== item.href)].slice(0, RECENTS_CAP);
   safeSet(RECENTS_KEY, JSON.stringify({ version: 1, items: next }));
-  return next;
 }

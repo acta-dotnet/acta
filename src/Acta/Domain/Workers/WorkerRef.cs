@@ -1,14 +1,12 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Acta;
 
 /// <summary>
-/// Public stable reference for one worker registration: "wrk_" plus 26 lowercase Crockford
-/// Base32 characters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and
-/// event projections address workers by this value; the numeric worker id stays the internal
-/// engine identity. Parsing is case-insensitive; emission is always canonical lowercase. A
-/// worker row is never reused, so each registration mints a fresh ref for its lifetime.
+/// Public stable reference for one worker registration: "wrk_" plus the Guid's 32 lowercase hex digits,
+/// such as <c>wrk_01a14f4d7b2a7c4f8e1d3b5a6c7e9f01</c>. Dashboards, HTTP APIs, and event projections
+/// address workers by this value; the numeric worker id stays the internal engine identity. A worker
+/// row is never reused, so each registration mints a fresh ref for its lifetime.
 /// </summary>
 [JsonConverter(typeof(WorkerRefJsonConverter))]
 public readonly record struct WorkerRef(Guid Value)
@@ -30,9 +28,8 @@ public readonly record struct WorkerRef(Guid Value)
         TryParse(value, out var workerRef) ? workerRef : throw new FormatException($"'{value}' is not a valid worker ref.");
 
     /// <summary>
-    /// Parse a worker ref: <c>wrk_</c> plus its Crockford payload, in any casing and with the o/i/l
-    /// aliases, or the worker's Guid written plainly, with the prefix or without it. Rejects malformed values,
-    /// another entity's prefix included.
+    /// Parse a worker ref: <c>wrk_</c> exactly, then 32 hex digits in any casing. Rejects every other value,
+    /// another entity's prefix, the dashed Guid, and the bare Guid included.
     /// </summary>
     public static bool TryParse(string? value, out WorkerRef workerRef)
     {
@@ -45,16 +42,4 @@ public readonly record struct WorkerRef(Guid Value)
         workerRef = default;
         return false;
     }
-}
-
-/// <summary>
-/// Serializes <see cref="WorkerRef"/> as its canonical lowercase string form.
-/// </summary>
-public sealed class WorkerRefJsonConverter : JsonConverter<WorkerRef>
-{
-    public override WorkerRef Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        WorkerRef.TryParse(reader.GetString(), out var workerRef) ? workerRef : throw new JsonException("Invalid worker ref.");
-
-    public override void Write(Utf8JsonWriter writer, WorkerRef value, JsonSerializerOptions options) =>
-        writer.WriteStringValue(value.ToString());
 }

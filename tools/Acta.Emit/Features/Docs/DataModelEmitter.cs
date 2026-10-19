@@ -106,7 +106,6 @@ internal static class DataModelEmitter
             var @default = FormatDefault(c);
             var note = CodeOrConstraintNote(c);
             var description = MarkdownEscape.Cell(c.Summary);
-            // The column anchor is load-bearing: code-families.md deep-links here per code column.
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
                 $"| `{c.Name}`{Anchors.Tag(Anchors.Column(e.TableName, c.Name))} | `{c.Kind}` | {size} | {nullable} | {@default} | {note} | {description} |"
@@ -199,32 +198,28 @@ internal static class DataModelEmitter
         return families;
     }
 
-    // Length / precision facet of the column type, mirroring the DDL dialects' RenderType.
+    // Length facet of the column type, mirroring the DDL dialects' RenderType.
     // Only variable-width kinds carry a size; fixed-width kinds (Int, Utc, Code, ...) render "·".
     // Unbounded string / payload columns render "max" to match varchar(max) / varbinary(max).
     private static string FormatSize(ColumnModel c) =>
         c.Kind switch
         {
-            DbKind.Decimal => $"{c.Precision}, {c.Scale}",
             DbKind.AsciiString or DbKind.UnicodeString => c.Size > 0 ? c.Size.ToString(CultureInfo.InvariantCulture) : "max",
-            DbKind.Bytes => c.Size > 0 ? c.Size.ToString(CultureInfo.InvariantCulture) : "max",
             DbKind.BinaryPayload => "max",
             _ => "·",
         };
 
-    // Effective column default, mirroring SqlSchemaEmitter's allocation precedence (identity for an
-    // auto sole PK, then the DbDefault). Rendered as provider-neutral tokens; "·" means no default,
-    // so the caller must supply the value at INSERT.
+    // Effective column default, mirroring SqlSchemaEmitter's allocation precedence (identity, then the
+    // DbDefault). Rendered as provider-neutral tokens; "·" means no default, so the caller must supply
+    // the value at INSERT.
     private static string FormatDefault(ColumnModel c)
     {
-        return c.IsSolePrimaryKey && !c.IsManualPrimaryKey && c.Kind is DbKind.Byte or DbKind.Int16 or DbKind.Int32 or DbKind.Int64
+        return c.IsIdentity
             ? "`Identity`"
             : c.Default switch
             {
                 DbDefault.UtcNow => "`UtcNow`",
                 DbDefault.Zero => "`0`",
-                DbDefault.EmptyString => "`''`",
-                DbDefault.NewGuid => "`NewGuid`",
                 _ => "·",
             };
     }
@@ -233,9 +228,7 @@ internal static class DataModelEmitter
     {
         if (c.EnumTypeName is not null)
         {
-            return c.CodeKind is not null
-                ? $"{Anchors.LinkCodeFamilyToCodeFamilies(c.EnumTypeName)} (`{c.CodeKind}`)"
-                : $"enum `{c.EnumTypeName}` (meta-enum)";
+            return $"{Anchors.LinkCodeFamilyToCodeFamilies(c.EnumTypeName)} (`{c.CodeKind}`)";
         }
         if (c.IsPrimaryKey)
         {
@@ -250,5 +243,72 @@ internal static class DataModelEmitter
             return "case-exact";
         }
         return c.Name.EndsWith("_format_id", StringComparison.Ordinal) ? Anchors.LinkCodeFamilyToCodeFamilies("JobPayloadFormat") : "·";
+    }
+}
+
+/// <summary>
+/// Table-rendering primitives shared by the doc emitters.
+/// </summary>
+internal static class Tables
+{
+    public static void Header(StringBuilder sb, params string[] headers)
+    {
+        sb.Append("| ").Append(string.Join(" | ", headers)).AppendLine(" |");
+        sb.Append('|');
+        for (var i = 0; i < headers.Length; i++)
+        {
+            sb.Append("---|");
+        }
+        sb.AppendLine();
+    }
+}
+
+/// <summary>
+/// Text normalization helpers shared by the documentation emitters.
+/// </summary>
+internal static class MarkdownText
+{
+    // Returns -1 when no sentence-ending period exists. Skips periods inside backtick code spans.
+    public static int FirstSentenceEnd(string s)
+    {
+        var inCode = false;
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (c == '`')
+            {
+                inCode = !inCode;
+                continue;
+            }
+            if (inCode)
+            {
+                continue;
+            }
+            if (c == '.' && (i == s.Length - 1 || char.IsWhiteSpace(s[i + 1])))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // Normalize whitespace, truncate at first sentence end, cap at 280 chars. Null on empty input.
+    public static string? FirstSentenceOrNull(string? summary)
+    {
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            return null;
+        }
+        var s = summary.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
+        var idx = FirstSentenceEnd(s);
+        if (idx > 0)
+        {
+            s = s[..(idx + 1)];
+        }
+        if (s.Length > 280)
+        {
+            s = s[..277] + "...";
+        }
+        return s;
     }
 }

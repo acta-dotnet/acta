@@ -106,6 +106,30 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Null(await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key.ToUpperInvariant()), ct));
     }
 
+    [Fact(DisplayName = "Correlation keys that differ only by case filter apart, and a filter is trimmed like a key")]
+    public async Task Correlation_keys_keep_their_case()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var key = Unique("Order");
+
+        var mixed = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), CorrelationKey: key), ct);
+        var lower = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), CorrelationKey: key.ToLowerInvariant()),
+            ct
+        );
+
+        Assert.Equal([mixed.JobId], await Correlated(key));
+        Assert.Equal([lower.JobId], await Correlated(key.ToLowerInvariant()));
+        Assert.Equal([mixed.JobId], await Correlated(key + " "));
+
+        async Task<long[]> Correlated(string filter) =>
+            [
+                .. (await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, CorrelationKey: filter), ct)).Items.Select(j =>
+                    j.JobId
+                ),
+            ];
+    }
+
     [Fact(DisplayName = "Concurrency keys that differ only by case do not share a lock")]
     public async Task Concurrency_keys_keep_their_case()
     {
@@ -173,7 +197,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var answer = await Services
             .GetRequiredService<WorkersOperations>()
-            .ExtendWorkerLeasesAsync(worker!.Id, leaseTtl, false, [], [exact.Value, folded.Value], ct);
+            .ExtendWorkerLeasesAsync(new ExtendWorkerLeasesCommand(worker!.Id, leaseTtl, false, [], [exact.Value, folded.Value]), ct);
 
         Assert.Equal([key, key.ToLowerInvariant()], answer.RenewedLockKeys.Order(StringComparer.Ordinal));
         Assert.True((await locks.ReleaseLockAsync(exact.Value, ct)).Released);

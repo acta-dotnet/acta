@@ -2,15 +2,12 @@ namespace Acta;
 
 /// <summary>
 /// What an alert control verb did: Applied, or NotFound when no alert carries the ref. Never Rejected, because
-/// nothing beyond the alert existing guards either verb.
+/// nothing beyond the alert existing guards either verb. The version is always null, because an alert carries none.
 /// </summary>
-public interface IAlertControlResponse
+public interface IAlertControlResponse : IControlResponse
 {
     /// <summary>The targeted alert's public ref.</summary>
     AlertRef AlertRef { get; }
-
-    /// <summary>The outcome.</summary>
-    ControlAction Action { get; }
 
     /// <summary>When the alert was acknowledged; null until it is.</summary>
     DateTime? AcknowledgedAtUtc { get; }

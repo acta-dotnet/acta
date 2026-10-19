@@ -93,12 +93,22 @@ public class EntitySchemaTests
     [Fact]
     public void CaseExact_Marks_Only_The_Compared_Keys()
     {
-        // Correlation keys and the actor are carried, never compared, and names fold on input: neither needs it.
+        // The actor is display text, never compared, and names fold on input: neither needs it.
         var caseExact = ActaSchema
             .Entities.SelectMany(e => e.Columns.Where(c => c.CaseExact).Select(c => $"{e.TableName}.{c.Name}"))
             .Order(StringComparer.Ordinal);
 
-        Assert.Equal(["alerts.deduplication_key", "jobs.concurrency_key", "jobs.deduplication_key", "locks.lock_key"], caseExact);
+        Assert.Equal(
+            [
+                "alerts.deduplication_key",
+                "jobs.concurrency_key",
+                "jobs.correlation_key",
+                "jobs.deduplication_key",
+                "locks.lock_key",
+                "tags.value_search",
+            ],
+            caseExact
+        );
     }
 
     [Fact]
@@ -136,8 +146,7 @@ public class EntitySchemaTests
         var c = ActaSchema.For<JobEntity>().Column("id");
 
         Assert.True(c.IsPrimaryKey);
-        Assert.True(c.IsSolePrimaryKey);
-        Assert.False(c.IsManualPrimaryKey);
+        Assert.True(c.IsIdentity);
     }
 
     [Fact]
@@ -147,8 +156,37 @@ public class EntitySchemaTests
         // IDENTITY emission convention.
         var c = ActaSchema.For<NamespaceEntity>().Column("id");
 
-        Assert.True(c.IsSolePrimaryKey);
-        Assert.False(c.IsManualPrimaryKey);
+        Assert.True(c.IsIdentity);
+    }
+
+    [Fact]
+    public void JobRuntime_JobId_Is_ManualKey()
+    {
+        // Manual = true: the enqueue writes the job's id, so no identity is emitted.
+        var c = ActaSchema.For<RuntimeEntity>().Column("job_id");
+
+        Assert.True(c.IsPrimaryKey);
+        Assert.False(c.IsIdentity);
+    }
+
+    [Fact]
+    public void JobEvent_Key_Is_WorkerThenGlobalIdentity()
+    {
+        // Clustered by worker so concurrent writers insert into separate key ranges; id keeps the one
+        // global identity, and a worker-less event takes worker_id 0 from the default.
+        var s = ActaSchema.For<EventEntity>();
+
+        Assert.Equal("pk_events", s.PrimaryKey.Name);
+        Assert.Equal(["worker_id", "id"], s.PrimaryKey.Columns);
+        Assert.Equal("id", s.PrimaryKey.Identity);
+        Assert.True(s.PrimaryKey.OptimizeForSequentialKey);
+        Assert.True(s.Column("id").IsIdentity);
+
+        var worker = s.Column("worker_id");
+        Assert.True(worker.IsPrimaryKey);
+        Assert.False(worker.IsIdentity);
+        Assert.False(worker.IsNullable);
+        Assert.Equal(DbDefault.Zero, worker.Default);
     }
 
     [Fact]
@@ -178,28 +216,6 @@ public class EntitySchemaTests
 
         Assert.Equal(DbDefault.None, c.Default);
         Assert.False(c.HasServerDefault);
-    }
-
-    [Fact]
-    public void JobResult_Has_CompositePk()
-    {
-        var pk = ActaSchema.For<ResultEntity>().PrimaryKey;
-
-        Assert.Equal("pk_results", pk.Name);
-        Assert.Equal(["job_id", "execution_number"], pk.Columns);
-        Assert.False(pk.Manual);
-    }
-
-    [Fact]
-    public void JobResult_Columns_Both_Marked_IsPrimaryKey()
-    {
-        var jobId = ActaSchema.For<ResultEntity>().Column("job_id");
-        var en = ActaSchema.For<ResultEntity>().Column("execution_number");
-
-        Assert.True(jobId.IsPrimaryKey);
-        Assert.True(en.IsPrimaryKey);
-        Assert.False(jobId.IsSolePrimaryKey); // composite - no IDENTITY convention fires
-        Assert.False(en.IsSolePrimaryKey);
     }
 
     [Fact]
@@ -264,17 +280,13 @@ public class EntitySchemaTests
         var byActa = ActaSchema.Runtime.StatusCode;
         var bySchema = ActaSchema.For<RuntimeEntity>().Column("status_code");
 
-        Assert.Equal(bySchema.Name, byActa.Name);
-        Assert.Equal(bySchema.Kind, byActa.Kind);
-        Assert.Equal(bySchema.IsCoded, byActa.IsCoded);
-        Assert.Equal(bySchema.Default, byActa.Default);
-        Assert.Equal(bySchema.IsConcurrencyToken, byActa.IsConcurrencyToken);
+        Assert.Equal(bySchema, byActa.Untyped);
     }
 
     [Fact]
     public void ActaSchema_JobEvent_Table_Name()
     {
-        Assert.Equal("events", ActaSchema.Event.Table);
+        Assert.Equal("events", ActaSchema.Event.Entity.TableName);
     }
 
     [Fact]
@@ -287,7 +299,7 @@ public class EntitySchemaTests
         Assert.Contains("events", names);
         Assert.Contains("definitions", names);
         Assert.Contains("namespaces", names);
-        Assert.Contains("results", names);
+        Assert.Contains("runtimes", names);
         Assert.Contains("workers", names);
     }
 
@@ -315,8 +327,7 @@ public class EntitySchemaTests
     {
         var c = ActaSchema.For<TenantEntity>().Column("id");
 
-        Assert.True(c.IsSolePrimaryKey);
-        Assert.False(c.IsManualPrimaryKey);
+        Assert.True(c.IsIdentity);
         Assert.Equal(DbKind.Int32, c.Kind);
     }
 

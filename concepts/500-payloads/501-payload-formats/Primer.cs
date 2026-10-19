@@ -89,7 +89,7 @@ internal sealed class Primer(
             FROM {{schema}}.jobs AS j
             JOIN {{schema}}.definitions AS d ON d.id = j.definition_id
             JOIN {{schema}}.namespaces AS n ON n.id = j.namespace_id
-            LEFT JOIN {{schema}}.results AS r ON r.job_id = j.id
+            JOIN {{schema}}.runtimes AS r ON r.job_id = j.id
             WHERE n.name = @jobNamespace AND j.correlation_key = @runId AND d.name LIKE 'echo-%'
             GROUP BY d.name
             ORDER BY d.name

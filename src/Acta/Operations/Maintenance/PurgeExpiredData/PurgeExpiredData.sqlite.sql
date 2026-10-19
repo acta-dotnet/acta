@@ -61,7 +61,6 @@ DELETE FROM {{schema}}.tags WHERE scope_code = 50 /* TagScopeCode.Job */ AND sco
 
 DELETE FROM {{schema}}.checkpoints WHERE job_id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT id FROM temp._purge_jobs);
-DELETE FROM {{schema}}.results WHERE job_id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.schedules WHERE job_id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.jobs WHERE id IN (SELECT id FROM temp._purge_jobs);
 DELETE FROM {{schema}}.runtimes WHERE job_id IN (SELECT id FROM temp._purge_jobs);
@@ -126,15 +125,27 @@ CREATE TEMP TABLE _purge_skip AS
 
 DELETE FROM {{schema}}.checkpoints WHERE rowid IN (SELECT id FROM temp._purge_skip);
 
+-- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so the row goes
+-- once both are past the window and no Executing job it leases is left for recovery to reclaim in its name.
 CREATE TEMP TABLE _purge_workers AS
-SELECT id
-FROM {{schema}}.workers
+SELECT w.id
+FROM {{schema}}.workers w
 WHERE
     @p_section = 6
-    AND namespace_id = @p_namespace_id
-    AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-    AND last_seen_at_utc <= @p_cutoff_utc
-ORDER BY last_seen_at_utc, id
+    AND w.namespace_id = @p_namespace_id
+    AND w.status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+    AND w.last_seen_at_utc <= @p_cutoff_utc
+    AND w.modified_at_utc <= @p_cutoff_utc
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes r
+        WHERE
+            r.leased_by_worker_id = w.id
+            -- ix_runtimes_worker_inflight's filter restated: a partial index serves only a query that states it.
+            AND r.leased_by_worker_id IS NOT NULL
+            AND r.status_code = 50 /* JobStatusCode.Executing */
+    )
+ORDER BY w.last_seen_at_utc, w.id
 LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.workers WHERE id IN (SELECT id FROM temp._purge_workers);

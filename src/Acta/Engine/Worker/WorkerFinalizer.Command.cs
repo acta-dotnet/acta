@@ -56,6 +56,27 @@ internal sealed partial class WorkerFinalizer
             HasParent = job.ParentId is not null,
         };
 
+    // The handler-status shape, so the job's lane hands on and its parent's latch is raised. The retention is the
+    // retired definition's own, because a claim this worker carries no handler for has no descriptor to read it from.
+    private static CompleteExecutionsValues Retire(ClaimedJob job, ExecutionCompletion completion, int retentionSeconds) =>
+        new(
+            job.JobId,
+            job.ExecutionNumber,
+            Succeeded: false,
+            0,
+            ReadOnlyMemory<byte>.Empty,
+            completion.Reason,
+            completion.ReasonMessage,
+            completion.DurationMs,
+            FailureCount: null,
+            retentionSeconds
+        )
+        {
+            HandlerStatusCode = (byte)JobStatusCode.Cancelled,
+            HasLane = job.LaneId is not null,
+            HasParent = job.ParentId is not null,
+        };
+
     internal static CompleteExecutionsValues BuildCommand(
         JobDescriptor descriptor,
         ClaimedJob job,
@@ -89,7 +110,7 @@ internal sealed partial class WorkerFinalizer
         {
             // The recurring shape applies the advances, which clear the elapsed pauses, and reads the slot's
             // next run from the schedules; the re-arm status records a re-arm rather than a run, so the
-            // failure count, the results, and any open incident stand as they were.
+            // failure count and any open incident stand as they were.
             return payloadless with
             {
                 EventReasonCode = null,
@@ -146,21 +167,21 @@ internal sealed partial class WorkerFinalizer
                 FinalStatus = finalStatus,
                 JobNextRunAtUtc = fire.SlotMinNextRunAtUtc,
                 FailureCount = failureCount,
-                RecurringResultCap = descriptor.RecurringResultCap,
             };
         }
 
         if (s.Outcome == CompletionKind.Failed && IsRetryable(s.Reason))
         {
             // One-shot failure (unhandled exception / execution timeout / aborted attempt): honor the retry budget.
-            // In budget: re-arm to Ready with a backoff delay and persist the bumped failure_count.
+            // In budget: re-arm to Ready with a backoff delay, record the charged attempt as Failed, and persist the
+            // bumped failure_count.
             // Exhausted: terminal Failed, keeping the final count.
             // The Strict deadline guard may have already converted this to Cancelled with a handler status,
             // routing to the handler-status shape before this one is reached.
             return retry.InBudget
                 ? payloadless with
                 {
-                    RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
+                    RescheduleStatusCode = (byte)ExecutionStatusCode.Failed,
                     RescheduleDelaySeconds = retry.DelaySeconds,
                     FailureCount = retry.Attempted,
                 }
@@ -226,7 +247,7 @@ internal sealed partial class WorkerFinalizer
     /// <summary>
     /// Failures eligible for the one-shot retry budget: an unhandled exception, an execution
     /// timeout, or an attempt aborted by lease/lock pressure. A deliberate ctx.FailAsync
-    /// (HandlerFailed) takes the handler-status path and never retries; a null reason falls through
+    /// (JobHandlerFailed) takes the handler-status path and never retries; a null reason falls through
     /// to a terminal completion.
     /// </summary>
     private static bool IsRetryable(EventReasonCode? reason) =>

@@ -1,9 +1,9 @@
 <script lang="ts">
   import CopyButton from './CopyButton.svelte';
   let { value, href = null, copy = false }: { value: string; href?: string | null; copy?: boolean } = $props();
-  // Public refs are a type tag ('job_') + 26 Crockford-base32 ULID chars. The first 10 id chars encode the
-  // creation millisecond, so rows created together share them; only the entropy tail differs.
-  const match = $derived(/^([a-z0-9]+_)([0-9a-hjkmnp-tv-z]{10})([0-9a-hjkmnp-tv-z]{16})$/i.exec(value ?? ''));
+  // Public refs are a type tag ('job_') + a UUIDv7's 32 hex digits. The first 12 encode the creation
+  // millisecond, so rows created together share them; only the tail differs.
+  const match = $derived(/^([a-z0-9]+_)([0-9a-f]{12})([0-9a-f]{20})$/i.exec(value ?? ''));
 </script>
 
 {#snippet parts()}

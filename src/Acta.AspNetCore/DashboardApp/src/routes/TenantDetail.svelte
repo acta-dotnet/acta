@@ -216,15 +216,15 @@
   {#snippet breadcrumb()}
     <a href={backHref}><Icon name="chevron-left" />Tenants</a>
   {/snippet}
-  {#if !creating}
-    {#snippet actions()}
+  {#snippet actions()}
+    {#if !creating}
       <PageFreshness
         dataUpdatedAt={detail.dataUpdatedAt}
         isFetching={detail.isFetching}
         isError={!!detail.error}
         onRefresh={() => detail.refetch()} />
-    {/snippet}
-  {/if}
+    {/if}
+  {/snippet}
 
   {#if creating}
     <div class="detail-workspace">

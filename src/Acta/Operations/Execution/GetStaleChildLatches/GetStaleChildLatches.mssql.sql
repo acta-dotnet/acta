@@ -1,7 +1,8 @@
 SELECT
     js.job_id AS parent_job_id,
     TRY_CAST(SUBSTRING(js.name, 11, 20) AS BIGINT) AS child_job_id,
-    cr.status_code AS child_status
+    cr.status_code AS child_status,
+    cr.execution_number AS child_execution_number
 FROM {{schema}}.checkpoints js
 INNER JOIN {{schema}}.jobs p ON p.id = js.job_id AND p.namespace_id = @p_namespace_id
 LEFT JOIN {{schema}}.jobs c

@@ -8,7 +8,7 @@ namespace Acta.Postgres;
 /// Transactional external-outbox staging for PostgreSQL producers: validates an <see cref="EnqueueJobRequest"/>
 /// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own open
 /// <see cref="NpgsqlTransaction"/>, so the outbox row commits or rolls back with the producer's business writes. Zero
-/// configuration: no dependency injection, no <c>AddActa</c>, no ledger connection; reference the package, write
+/// configuration: no dependency injection, no <c>UseActa</c>, no ledger connection; reference the package, write
 /// <c>using Acta;</c>, and call the extension. The database defaults populate the operational columns
 /// (<c>created_at_utc</c>, <c>status_code</c>, <c>failure_count</c>, <c>next_attempt_at_utc</c>); the relay drains the table.
 /// </summary>

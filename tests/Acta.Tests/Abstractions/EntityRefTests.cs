@@ -4,17 +4,16 @@ using Xunit;
 namespace Acta.Tests.Abstractions;
 
 /// <summary>
-/// Freezes the properties every minted entity ref shares through the common codec: an exactly
-/// three-letter lowercase prefix plus an underscore, type-checked parsing that rejects a sibling
-/// type's value, the documented Guid.Empty policy, case-insensitive parsing with canonical
-/// lowercase emission, the Crockford o/i/l aliases, and JSON round-tripping. JobRefTests pins the
-/// job_ golden pair; this suite pins the shape that alr_ and wrk_ now share with it.
+/// Freezes the properties every minted entity ref shares through the common codec: an exactly three-letter
+/// lowercase prefix plus an underscore, type-checked parsing that rejects a sibling type's value, the documented
+/// Guid.Empty policy, hex parsing in any casing with lowercase emission, and JSON round-tripping. JobRefTests pins
+/// the job_ golden pair; this suite pins the shape that alr_ and wrk_ share with it.
 /// </summary>
 public class EntityRefTests
 {
-    private static readonly Guid GoldenGuid = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
-    private const string GoldenPayload = "2n1t201rmv87aae5j4csam8000";
-    private const string EmptyPayload = "00000000000000000000000000";
+    private static readonly Guid GoldenGuid = Guid.Parse("01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d");
+    private const string GoldenPayload = "01a14f4e954e7bf68ac609f3fcad8e3d";
+    private const string EmptyPayload = "00000000000000000000000000000000";
 
     /// <summary>
     /// Every ref prefix is exactly three lowercase letters and a trailing underscore, so a pasted
@@ -90,9 +89,9 @@ public class EntityRefTests
     }
 
     /// <summary>
-    /// Documented policy: an all-zero encoded ref stays VALID at the struct level for all three
-    /// types. Rejecting an empty value is the job of the callers that mean it (job lookup, the
-    /// operator facades), and this pins that the codec itself does not silently take on that role.
+    /// Documented policy: an all-zero ref stays VALID at the struct level for all three types. Rejecting an empty
+    /// value is the job of the callers that mean it (job lookup, the operator facades), and this pins that the codec
+    /// itself does not silently take on that role.
     /// </summary>
     [Fact]
     public void Guid_empty_round_trips_as_a_valid_ref()
@@ -141,59 +140,51 @@ public class EntityRefTests
         Assert.Equal(workerA, parsedWorker);
     }
 
+    /// <summary>The hex digits are the Guid's own, so a UUIDv7 ref minted a millisecond later sorts after.</summary>
     [Fact]
-    public void Alert_ref_parses_case_insensitively_and_emits_canonical_lowercase()
+    public void Uuidv7_refs_sort_by_creation_time()
     {
-        var canonical = AlertRef.Prefix + GoldenPayload;
-        Assert.True(AlertRef.TryParse(canonical.ToUpperInvariant(), out var alertRef));
-        Assert.Equal(GoldenGuid, alertRef.Value);
-        Assert.Equal(canonical, alertRef.ToString());
+        var at = new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
+        var earlier = new JobRef(Guid.CreateVersion7(at)).ToString();
+        var later = new JobRef(Guid.CreateVersion7(at.AddMilliseconds(1))).ToString();
+
+        Assert.True(string.CompareOrdinal(earlier, later) < 0, $"{earlier} must sort before {later}.");
     }
 
     [Fact]
-    public void Worker_ref_parses_case_insensitively_and_emits_canonical_lowercase()
+    public void Alert_ref_parses_uppercase_hex_and_emits_lowercase()
     {
-        var canonical = WorkerRef.Prefix + GoldenPayload;
-        Assert.True(WorkerRef.TryParse(canonical.ToUpperInvariant(), out var workerRef));
-        Assert.Equal(GoldenGuid, workerRef.Value);
-        Assert.Equal(canonical, workerRef.ToString());
-    }
-
-    /// <summary>
-    /// Crockford's forgiving aliases: 'o' reads as 0, 'i' and 'l' read as 1, in any casing.
-    /// </summary>
-    [Theory]
-    [InlineData("alr_2n1t2o1rmv87aae5j4csam8000")]
-    [InlineData("alr_2n1t20lrmv87aae5j4csam8000")]
-    [InlineData("alr_2n1t20irmv87aae5j4csam8000")]
-    [InlineData("ALR_2N1T2O1RMV87AAE5J4CSAM8000")]
-    public void Alert_ref_parses_crockford_aliases(string aliased)
-    {
-        Assert.True(AlertRef.TryParse(aliased, out var alertRef));
+        Assert.True(AlertRef.TryParse(AlertRef.Prefix + GoldenPayload.ToUpperInvariant(), out var alertRef));
         Assert.Equal(GoldenGuid, alertRef.Value);
+        Assert.Equal(AlertRef.Prefix + GoldenPayload, alertRef.ToString());
     }
 
-    [Theory]
-    [InlineData("wrk_2n1t2o1rmv87aae5j4csam8000")]
-    [InlineData("wrk_2n1t20lrmv87aae5j4csam8000")]
-    [InlineData("wrk_2n1t20irmv87aae5j4csam8000")]
-    [InlineData("WRK_2N1T2O1RMV87AAE5J4CSAM8000")]
-    public void Worker_ref_parses_crockford_aliases(string aliased)
+    [Fact]
+    public void Worker_ref_parses_uppercase_hex_and_emits_lowercase()
     {
-        Assert.True(WorkerRef.TryParse(aliased, out var workerRef));
+        Assert.True(WorkerRef.TryParse(WorkerRef.Prefix + GoldenPayload.ToUpperInvariant(), out var workerRef));
         Assert.Equal(GoldenGuid, workerRef.Value);
+        Assert.Equal(WorkerRef.Prefix + GoldenPayload, workerRef.ToString());
+    }
+
+    [Fact]
+    public void Crockford_form_never_parses()
+    {
+        Assert.False(AlertRef.TryParse("alr_2n1t201rmv87aae5j4csam8000", out _));
+        Assert.False(WorkerRef.TryParse("wrk_2n1t201rmv87aae5j4csam8000", out _));
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("alr_")]
-    [InlineData("2n1t201rmv87aae5j4csam8000")]
-    [InlineData("alr_2n1t201rmv87aae5j4csam800")]
-    [InlineData("alr_2n1t201rmv87aae5j4csam80000")]
-    [InlineData("alr_2n1t201rmv87aae5j4csam800u")]
-    [InlineData("alr_zn1t201rmv87aae5j4csam8000")]
-    [InlineData("alr-2n1t201rmv87aae5j4csam8000")]
+    [InlineData("01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("alr_01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d")]
+    [InlineData("ALR_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("alr_01a14f4e954e7bf68ac609f3fcad8e3")]
+    [InlineData("alr_01a14f4e954e7bf68ac609f3fcad8e3d0")]
+    [InlineData("alr_01a14f4e954e7bf68ac609f3fcad8e3g")]
+    [InlineData("alr-01a14f4e954e7bf68ac609f3fcad8e3d")]
     public void Alert_ref_rejects_malformed_refs(string? value)
     {
         Assert.False(AlertRef.TryParse(value, out _));
@@ -203,12 +194,13 @@ public class EntityRefTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("wrk_")]
-    [InlineData("2n1t201rmv87aae5j4csam8000")]
-    [InlineData("wrk_2n1t201rmv87aae5j4csam800")]
-    [InlineData("wrk_2n1t201rmv87aae5j4csam80000")]
-    [InlineData("wrk_2n1t201rmv87aae5j4csam800u")]
-    [InlineData("wrk_zn1t201rmv87aae5j4csam8000")]
-    [InlineData("wrk-2n1t201rmv87aae5j4csam8000")]
+    [InlineData("01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("wrk_01a14f4e-954e-7bf6-8ac6-09f3fcad8e3d")]
+    [InlineData("WRK_01a14f4e954e7bf68ac609f3fcad8e3d")]
+    [InlineData("wrk_01a14f4e954e7bf68ac609f3fcad8e3")]
+    [InlineData("wrk_01a14f4e954e7bf68ac609f3fcad8e3d0")]
+    [InlineData("wrk_01a14f4e954e7bf68ac609f3fcad8e3g")]
+    [InlineData("wrk-01a14f4e954e7bf68ac609f3fcad8e3d")]
     public void Worker_ref_rejects_malformed_refs(string? value)
     {
         Assert.False(WorkerRef.TryParse(value, out _));
@@ -221,9 +213,11 @@ public class EntityRefTests
         {
             var guid = Guid.NewGuid();
 
+            Assert.Equal(AlertRef.Prefix + guid.ToString("N"), new AlertRef(guid).ToString());
             Assert.True(AlertRef.TryParse(new AlertRef(guid).ToString(), out var alertRef));
             Assert.Equal(guid, alertRef.Value);
 
+            Assert.Equal(WorkerRef.Prefix + guid.ToString("N"), new WorkerRef(guid).ToString());
             Assert.True(WorkerRef.TryParse(new WorkerRef(guid).ToString(), out var workerRef));
             Assert.Equal(guid, workerRef.Value);
         }

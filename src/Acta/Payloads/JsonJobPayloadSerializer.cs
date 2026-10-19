@@ -132,3 +132,13 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
             ?? throw new InvalidOperationException("JSON payload deserialized to null.");
     }
 }
+
+/// <summary>
+/// Source-generated metadata for the types Acta's own system jobs serialize through the job payload
+/// serializer, currently the <c>sys.alerts</c> cursor (<c>alerts-cursor</c>). Chained after the
+/// app-supplied resolver in <see cref="JsonJobPayloadSerializer"/> so, under reflection-off Native
+/// AOT, a system job never fails for a type the consuming app had no reason to register.
+/// App-registered types take precedence; this only backfills the framework's own.
+/// </summary>
+[JsonSerializable(typeof(AlertsCursor))]
+internal sealed partial class ActaSystemJobJsonContext : JsonSerializerContext;

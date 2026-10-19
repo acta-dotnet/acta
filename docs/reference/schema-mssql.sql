@@ -14,8 +14,8 @@
 -- provisioned: every statement is guarded or idempotent, so a re-run changes nothing that is
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything. A later 1.x release upgrades a 1.x database with
--- its own migrations, carried in its own copy of this script. A database provisioned by a
--- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one.
+-- its own migrations, carried in its own copy of this script. A database provisioned before
+-- 1.0.0 has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261017125154_init')
+    WHERE name NOT IN ('M20261018210615_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261017125154_init =====
+-- ===== BEGIN M20261018210615_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -135,7 +135,7 @@ CREATE TABLE acta.checkpoints (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code NOT IN (10, 40) OR (status_code IS NULL AND due_at_utc IS NULL)) AND (kind_code NOT IN (20, 30, 50) OR status_code IS NOT NULL) AND (kind_code <> 30 OR due_at_utc IS NOT NULL))
 );
 CREATE INDEX ix_checkpoints_pending_latches ON acta.checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
 END
@@ -238,7 +238,7 @@ CREATE TABLE acta.events (
     lineage_root_id bigint NULL,
     definition_id int NULL,
     tenant_id int NULL,
-    worker_id int NULL,
+    worker_id int DEFAULT 0 NOT NULL,
     from_status_code tinyint NULL,
     to_status_code tinyint NULL,
     execution_status_code tinyint NULL,
@@ -247,7 +247,7 @@ CREATE TABLE acta.events (
     reason_message nvarchar(512) NULL,
     detail_format_id tinyint DEFAULT 0 NOT NULL,
     detail varbinary(max) NULL
-    , CONSTRAINT pk_events PRIMARY KEY (id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT pk_events PRIMARY KEY (worker_id, id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
 ) WITH (DATA_COMPRESSION = PAGE);
 CREATE INDEX ix_events_lineage_timeline ON acta.events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
@@ -269,7 +269,7 @@ CREATE TABLE acta.jobs (
     parent_id bigint NULL,
     tenant_id int NULL,
     deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-    correlation_key varchar(64) NULL,
+    correlation_key varchar(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     concurrency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     input_format_id tinyint NOT NULL,
     input varbinary(max) NULL,
@@ -345,21 +345,6 @@ BEGIN
 END
 GO
 
--- results
-IF OBJECT_ID(N'acta.results', N'U') IS NULL
-BEGIN
-CREATE TABLE acta.results (
-    job_id bigint NOT NULL,
-    execution_number int NOT NULL,
-    result_format_id tinyint NOT NULL,
-    result varbinary(max) NOT NULL,
-    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
-    , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
-    , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
-);
-END
-GO
-
 -- runtimes
 IF OBJECT_ID(N'acta.runtimes', N'U') IS NULL
 BEGIN
@@ -376,6 +361,8 @@ CREATE TABLE acta.runtimes (
     lease_expires_at_utc datetime2(3) NULL,
     retention_until_utc datetime2(3) NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    result_format_id tinyint DEFAULT 0 NOT NULL,
+    result varbinary(max) NULL,
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_runtimes PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_runtimes_blocked_lane CHECK (status_code <> 15 OR lane_id IS NOT NULL)
@@ -384,6 +371,8 @@ CREATE TABLE acta.runtimes (
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code = 50 OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code <> 50 OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
+    , CONSTRAINT ck_runtimes_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
+    , CONSTRAINT ck_runtimes_result_idle CHECK (result_format_id = 0 OR status_code <> 50)
     , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES acta.lanes (id)
 );
 CREATE INDEX ix_runtimes_claim_ready ON acta.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
@@ -461,17 +450,13 @@ BEGIN
 CREATE TABLE acta.tags (
     scope_code tinyint NOT NULL,
     scope_id bigint NOT NULL,
-    namespace_id int NULL,
     name varchar(128) NOT NULL,
     value nvarchar(128) NULL,
-    value_search nvarchar(128) NULL
+    value_search nvarchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL
     , CONSTRAINT pk_tags PRIMARY KEY (scope_code, scope_id, name)
     , CONSTRAINT ck_tags_scope_id CHECK (scope_id > 0)
-    , CONSTRAINT ck_tags_namespace_id CHECK (namespace_id IS NULL OR namespace_id > 0)
-    , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50) AND namespace_id IS NOT NULL))
     , CONSTRAINT ck_tags_value_search CHECK ((value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL))
 );
-CREATE INDEX ix_tags_namespace_name_value_search ON acta.tags (namespace_id, name, value_search, scope_code, scope_id);
 END
 GO
 
@@ -533,7 +518,7 @@ EXEC(N'CREATE TYPE acta.enqueue_jobs_batch AS TABLE (
     namespace_name    VARCHAR(128)     NOT NULL,
     job_name          VARCHAR(128)     NOT NULL,
     deduplication_key        VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-    correlation_key    VARCHAR(64)      NULL,
+    correlation_key    VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     priority_override TINYINT          NULL,
     input_format_id   TINYINT          NOT NULL,
     input             VARBINARY(MAX)   NULL,
@@ -555,7 +540,7 @@ EXEC(N'CREATE TYPE acta.enqueue_tags_batch AS TABLE (
     ordinal INT          NOT NULL,
     name    VARCHAR(128) NOT NULL,
     value   NVARCHAR(128) NULL,
-    value_search NVARCHAR(128) NULL,
+    value_search NVARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     PRIMARY KEY (ordinal, name)
 );');
 GO
@@ -581,7 +566,6 @@ EXEC(N'CREATE TYPE acta.complete_executions_batch AS TABLE (
     handler_status_code      TINYINT        NULL,
     final_status             TINYINT        NULL,
     job_next_run_at_utc      DATETIME2(3)   NULL,
-    recurring_result_cap     INT            NULL,
     PRIMARY KEY (job_id, execution_number)
 );');
 GO
@@ -1055,6 +1039,8 @@ BEGIN
             execution_number = r.execution_number + 1,
             leased_by_worker_id = @p_leased_by_worker_id,
             lease_expires_at_utc = @lease_expires,
+            result_format_id = 0 /* JobPayloadFormat.None */,
+            result = NULL,
             modified_at_utc = @now,
             version = r.version + 1
         OUTPUT
@@ -1261,9 +1247,9 @@ BEGIN
                 OPTION (FORCE ORDER, LOOP JOIN);
             END
 
-        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires on a schedule stays
-           Executing and leased here and takes its status with its next run below: it enters ix_runtimes_claim_ready once, a
-           timer consumed this attempt never meets ck_runtimes_ready_due, and a batch of landings never writes next_run_at_utc. */
+        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
+           leased here and takes its status, and a fire its result (ck_runtimes_result_idle), with its next run below: it enters
+           ix_runtimes_claim_ready once, a consumed timer never meets ck_runtimes_ready_due, and landings never write next_run_at_utc. */
         UPDATE r
         SET
             status_code = CASE WHEN s.shaped = 1 THEN r.status_code ELSE s.to_status END,
@@ -1277,6 +1263,8 @@ BEGIN
                     THEN DATEADD(SECOND, c.retention_seconds, @now)
                 ELSE r.retention_until_utc
             END,
+            result_format_id = CASE WHEN s.shaped = 1 THEN r.result_format_id ELSE c.result_format_id END,
+            result = CASE WHEN s.shaped = 1 THEN r.result ELSE c.result END,
             modified_at_utc = @now,
             version = r.version + 1
         OUTPUT
@@ -1328,12 +1316,6 @@ BEGIN
             INNER JOIN acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
             WHERE (c.reschedule_status_code IS NOT NULL OR c.handler_status_code IS NOT NULL) AND c.final_status IS NULL;
 
-        INSERT INTO acta.results (job_id, execution_number, result_format_id, result, created_at_utc)
-        SELECT d.job_id, d.execution_number, c.result_format_id, c.result, @now
-        FROM @done d
-        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-        WHERE c.result_format_id <> 0 /* JobPayloadFormat.None */;
-
         IF @p_plain = 0
             BEGIN
             IF @recurring = 1
@@ -1346,7 +1328,6 @@ BEGIN
                         actor_code, actor,
                         job_id, job_ref, execution_number,
                         lineage_root_id, definition_id, tenant_id,
-                        worker_id,
                         from_status_code, to_status_code,
                         execution_status_code, duration_ms,
                         reason_code, reason_message
@@ -1356,7 +1337,6 @@ BEGIN
                         10 /* ActorCode.Sys */, NULL,
                         d.job_id, j.job_ref, d.execution_number,
                         COALESCE(j.lineage_root_id, d.job_id), j.definition_id, j.tenant_id,
-                        NULL,
                         NULL, NULL,
                         NULL, NULL,
                         NULL, js.name
@@ -1414,26 +1394,17 @@ BEGIN
                     WHERE c.final_status IS NOT NULL;
 
                     UPDATE r
-                    SET status_code = d.status_code, next_run_at_utc = d.slot_wake, leased_by_worker_id = NULL, lease_expires_at_utc = NULL
+                    SET
+                        status_code = d.status_code,
+                        next_run_at_utc = d.slot_wake,
+                        leased_by_worker_id = NULL,
+                        lease_expires_at_utc = NULL,
+                        result_format_id = c.result_format_id,
+                        result = c.result
                     FROM @done d
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
                     INNER JOIN acta.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
                     WHERE c.final_status IS NOT NULL;
-
-                    DELETE res
-                    FROM acta.results res
-                    INNER JOIN (
-                        SELECT
-                            k.job_id,
-                            k.execution_number,
-                            c.recurring_result_cap AS cap,
-                            ROW_NUMBER() OVER (PARTITION BY k.job_id ORDER BY k.execution_number DESC) AS newest
-                        FROM @done d
-                        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                        INNER JOIN acta.results k ON k.job_id = d.job_id
-                        WHERE c.final_status IS NOT NULL AND c.recurring_result_cap > 0
-                    ) old ON old.job_id = res.job_id AND old.execution_number = res.execution_number
-                    WHERE old.newest > old.cap;
                 END
             END
 
@@ -1568,7 +1539,9 @@ BEGIN
                         'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
                         CAST(
                             CAST(
-                                N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20)) + N',"status":' + CAST(d.status_code AS NVARCHAR(3)) + N'}'
+                                N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
+                                + N',"status":' + CAST(d.status_code AS NVARCHAR(3))
+                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(11)) + N'}'
                                 AS VARCHAR(MAX)
                             ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
                         ),
@@ -1645,7 +1618,6 @@ BEGIN
                         actor_code, actor,
                         job_id, job_ref, execution_number,
                         lineage_root_id, definition_id, tenant_id,
-                        worker_id,
                         from_status_code, to_status_code,
                         execution_status_code, duration_ms,
                         reason_code, reason_message
@@ -1655,7 +1627,6 @@ BEGIN
                         10 /* ActorCode.Sys */, NULL,
                         p.parent_id, pj.job_ref, p.parent_execution,
                         COALESCE(pj.lineage_root_id, p.parent_id), pj.definition_id, pj.tenant_id,
-                        NULL,
                         p.parent_status, p.parent_status,
                         NULL, NULL,
                         p.reason_code,
@@ -1695,7 +1666,6 @@ BEGIN
                         actor_code, actor,
                         job_id, job_ref, execution_number,
                         lineage_root_id, definition_id, tenant_id,
-                        worker_id,
                         from_status_code, to_status_code,
                         execution_status_code, duration_ms,
                         reason_code, reason_message
@@ -1705,7 +1675,6 @@ BEGIN
                         10 /* ActorCode.Sys */, NULL,
                         w.parent_id, pj.job_ref, w.parent_execution,
                         COALESCE(pj.lineage_root_id, w.parent_id), pj.definition_id, pj.tenant_id,
-                        NULL,
                         20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
                         NULL, NULL,
                         60 /* EventReasonCode.JobSignalReleased */, NULL
@@ -2235,11 +2204,10 @@ BEGIN
                     @now, 0
                 );
 
-                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
+                INSERT INTO acta.tags (scope_code, scope_id, name, value, value_search)
                 SELECT
                     50 /* TagScopeCode.Job */,
                     @job_id,
-                    @ns_id,
                     t.name,
                     t.value,
                     t.value_search
@@ -2551,7 +2519,7 @@ BEGIN
         DECLARE @parents TABLE (
             ordinal INT PRIMARY KEY,
             lineage_root_id BIGINT NOT NULL,
-            correlation_key VARCHAR(64) NULL,
+            correlation_key VARCHAR(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
             tenant_id INT NULL
         );
 
@@ -2827,18 +2795,16 @@ BEGIN
                 OPTION (LOOP JOIN);
             END;
 
-        INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
+        INSERT INTO acta.tags (scope_code, scope_id, name, value, value_search)
         SELECT
             50 /* TagScopeCode.Job */,
             m.id,
-            r.ns_id,
             t.name,
             t.value,
             t.value_search
         FROM @p_tag_batch t
         INNER JOIN @p_batch b ON b.ordinal = t.ordinal
-        INNER JOIN @map m ON m.job_ref = b.job_ref
-        INNER JOIN @resolved r ON r.ordinal = t.ordinal;
+        INNER JOIN @map m ON m.job_ref = b.job_ref;
 
         SELECT
             b.ordinal,
@@ -3031,6 +2997,7 @@ BEGIN
         DECLARE @rows INT = 0;
         DECLARE @next_job_id BIGINT = 0;
         DECLARE @del TABLE (id BIGINT NOT NULL);
+        DECLARE @event_del TABLE (worker_id INT NOT NULL, id BIGINT NOT NULL, PRIMARY KEY (worker_id, id));
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
         DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
         DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
@@ -3105,7 +3072,6 @@ BEGIN
                 DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
                 DELETE r FROM acta.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
                 DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
-                DELETE x FROM acta.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
                 DELETE s FROM acta.schedules s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
                 DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
@@ -3114,17 +3080,18 @@ BEGIN
 
         ELSE IF @p_section = 2
             BEGIN
-                DELETE @del;
+                DELETE @event_del;
 
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
+                -- Collected by the clustered key, so each delete is a direct seek on pk_events.
+                INSERT INTO @event_del (worker_id, id)
+                SELECT TOP (@p_batch_size) worker_id, id
                 FROM acta.events WITH (UPDLOCK, READPAST, FORCESEEK (ix_events_namespace_created (namespace_id)))
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
                 ORDER BY created_at_utc, id;
-                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
+                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @event_del d ON d.worker_id = e.worker_id AND d.id = e.id;
+                SET @rows = (SELECT COUNT(*) FROM @event_del);
 
             END;
 
@@ -3248,14 +3215,26 @@ BEGIN
             BEGIN
                 DELETE @del;
 
+                -- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so
+                -- the row goes once both are past the window and no Executing job it leases is left for recovery.
                 INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM acta.workers WITH (UPDLOCK, READPAST)
+                SELECT TOP (@p_batch_size) w.id
+                FROM acta.workers w WITH (UPDLOCK, READPAST)
                 WHERE
-                    namespace_id = @p_namespace_id
-                    AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-                    AND last_seen_at_utc <= @p_cutoff_utc
-                ORDER BY last_seen_at_utc, id;
+                    w.namespace_id = @p_namespace_id
+                    AND w.status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                    AND w.last_seen_at_utc <= @p_cutoff_utc
+                    AND w.modified_at_utc <= @p_cutoff_utc
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM acta.runtimes r
+                        WHERE
+                            r.leased_by_worker_id = w.id
+                            -- ix_runtimes_worker_inflight's filter restated: a filtered index serves only a query that states it.
+                            AND r.leased_by_worker_id IS NOT NULL
+                            AND r.status_code = 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY w.last_seen_at_utc, w.id;
                 DELETE w FROM acta.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
@@ -3424,7 +3403,6 @@ BEGIN
                 actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
-                worker_id,
                 from_status_code, to_status_code,
                 execution_status_code, duration_ms,
                 reason_code, reason_message
@@ -3434,7 +3412,6 @@ BEGIN
                 @p_actor_code, @p_actor,
                 @p_job_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
-                NULL,
                 @from_status, @from_status,
                 NULL, NULL,
                 @p_reason_code, @message
@@ -3456,7 +3433,6 @@ BEGIN
                         actor_code, actor,
                         job_id, job_ref, execution_number,
                         lineage_root_id, definition_id, tenant_id,
-                        worker_id,
                         from_status_code, to_status_code,
                         execution_status_code, duration_ms,
                         reason_code, reason_message
@@ -3466,7 +3442,6 @@ BEGIN
                         @p_actor_code, @p_actor,
                         @p_job_id, @job_ref, @execution_number,
                         COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
-                        NULL,
                         20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
                         NULL, NULL,
                         @p_reason_code, @p_reason_message
@@ -3583,9 +3558,9 @@ BEGIN
         /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
            and only those rows are locked below, by primary key: the index is shared by every namespace, so
            holding its keys would make another namespace's sweep skip its own rows under READPAST. */
-        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL);
-        INSERT INTO @stuck (id, lane_id)
-        SELECT r.job_id, r.lane_id
+        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
+        INSERT INTO @stuck (id, lane_id, worker_id)
+        SELECT r.job_id, r.lane_id, r.leased_by_worker_id
         FROM acta.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
         WHERE
             r.status_code = 50 /* JobStatusCode.Executing */
@@ -3627,6 +3602,21 @@ BEGIN
 
                 SET @lane_cursor = @lane_next;
             END;
+
+        /* Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it
+           while that event lasts. Workers lock before any runtime, the order the heartbeat takes them. */
+        UPDATE w
+        SET
+            modified_at_utc = @now,
+            version = w.version + 1
+        FROM acta.workers w WITH (FORCESEEK, ROWLOCK)
+        INNER JOIN (
+            SELECT DISTINCT k.worker_id
+            FROM @stuck k
+            WHERE
+                k.lane_id IS NULL
+                OR k.lane_id IN (SELECT e.id FROM @lanes e)
+        ) s ON s.worker_id = w.id;
 
         /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
            only while it is still Blocked and no member runs. */
@@ -3672,7 +3662,6 @@ BEGIN
             actor_code, actor,
             job_id, job_ref, execution_number,
             lineage_root_id, definition_id, tenant_id,
-            worker_id,
             from_status_code, to_status_code,
             execution_status_code, duration_ms,
             reason_code, reason_message
@@ -3689,7 +3678,6 @@ BEGIN
             COALESCE(j.lineage_root_id, j.id),
             j.definition_id,
             j.tenant_id,
-            NULL,
             15 /* JobStatusCode.Blocked */,
             10 /* JobStatusCode.Ready */,
             NULL,
@@ -4507,19 +4495,18 @@ SELECT
             j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
             THEN CAST(j.input AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS input_text,
-    lr.execution_number AS last_result_execution_number,
-    CASE lr.result_format_id
+    CASE r.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE CASE WHEN lr.result_format_id IS NULL THEN NULL ELSE CONCAT('custom-', lr.result_format_id) END
-    END AS last_result_format,
+        ELSE CONCAT('custom-', r.result_format_id)
+    END AS result_format,
     CASE
         WHEN
-            lr.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
-            THEN CAST(lr.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS last_result_text,
-    lr.created_at_utc AS last_result_created_at_utc,
+            r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            THEN CAST(r.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
     r.next_run_at_utc,
     r.execution_number,
     r.failure_count,
@@ -4539,13 +4526,6 @@ LEFT JOIN acta.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
 LEFT JOIN acta.tenants AS t ON t.id = j.tenant_id
 LEFT JOIN acta.workers AS w ON w.id = r.leased_by_worker_id
 LEFT JOIN acta.lanes AS lane ON lane.id = r.lane_id
-LEFT JOIN acta.results AS lr
-    ON
-        lr.job_id = j.id
-        AND lr.execution_number = (
-            SELECT MAX(rr.execution_number) FROM acta.results AS rr
-            WHERE rr.job_id = j.id
-        )
 GO
 
 CREATE OR ALTER VIEW acta.schedules_view AS
@@ -4624,13 +4604,10 @@ SELECT
     CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' END AS scope,
     t.scope_code,
     t.scope_id,
-    ns.name AS namespace,
-    t.namespace_id,
     t.name AS tag_name,
     t.value AS tag_value,
     t.value_search AS tag_value_search
 FROM acta.tags AS t
-LEFT JOIN acta.namespaces AS ns ON ns.id = t.namespace_id
 GO
 
 CREATE OR ALTER VIEW acta.workers_view AS
@@ -4655,11 +4632,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261017125154_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261018210615_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261017125154_init');
+VALUES ('M20261018210615_init');
 GO
--- ===== END M20261017125154_init =====
+-- ===== END M20261018210615_init =====
 GO
 COMMIT TRANSACTION;
 GO

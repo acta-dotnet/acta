@@ -48,7 +48,7 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 `jobs_view` shows the durable format and whether input is human-readable. The second query deliberately
-descends to `jobs`/`results` to measure physical bytes; `{{bytes:...}}` and `{{schema}}` are expanded by
+descends to `jobs`/`runtimes` to measure physical bytes; `{{bytes:...}}` and `{{schema}}` are expanded by
 the lab for SQLite, PostgreSQL, or SQL Server. Base tables are internal, not an application query API.
 
 ## Break it
@@ -68,4 +68,4 @@ data before choosing compression.
 - [`Primer.cs`](./Primer.cs)
 - [`ScalarV1Serializer.cs`](./Serializers/ScalarV1Serializer.cs)
 - [`JobPayloadSerializerRegistry.cs`](../../../src/Acta/Payloads/JobPayloadSerializerRegistry.cs)
-- [`ActaManifestGenerator.cs`](../../../src/Acta.Generators/Features/Jobs/ActaManifestGenerator.cs)
+- [`ActaManifestGenerator.cs`](../../../src/Acta.Generators/Jobs/ActaManifestGenerator.cs)

@@ -1,12 +1,5 @@
 namespace Acta;
 
-internal enum CompleteExecutionsAction : byte
-{
-    Completed = 1,
-    NotOwner = 2,
-    AlreadyTerminal = 3,
-}
-
 /// <summary>
 /// One completion's answer, keyed by its job and execution number. <c>Action</c> says whether the batch completed the
 /// attempt, lost ownership, or found the job terminal or moved past this execution. <c>FinalStatusCode</c> and

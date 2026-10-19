@@ -52,23 +52,26 @@ public sealed class UnsupportedDefinitionExclusionTests
     }
 
     [Fact]
+    public void A_retired_definition_stays_out_of_the_snapshot_until_it_is_active_again()
+    {
+        var context = NewContext();
+
+        context.ExcludeDefinition(7);
+        context.ReplaceRetiredDefinitions(new Dictionary<int, int> { [7] = 60, [9] = 60 });
+        // A bounce that read the retired map before the overlay replaced it lands after it.
+        context.ExcludeDefinition(9);
+        Assert.Empty(context.UnsupportedDefinitionIdsSnapshot);
+
+        context.ReplaceRetiredDefinitions(new Dictionary<int, int>());
+        Assert.Equal([7, 9], [.. context.UnsupportedDefinitionIdsSnapshot.Order()]);
+    }
+
+    [Fact]
     public void Reads_between_changes_return_the_same_array()
     {
         var context = NewContext();
         context.ExcludeDefinition(7);
 
         Assert.Same(context.UnsupportedDefinitionIdsSnapshot, context.UnsupportedDefinitionIdsSnapshot);
-    }
-
-    [Fact]
-    public void Forgetting_a_definition_drops_it_from_the_snapshot()
-    {
-        var context = NewContext();
-        context.ExcludeDefinition(7);
-        context.ExcludeDefinition(9);
-
-        Assert.True(context.ForgetUnsupportedDefinition(7));
-        Assert.False(context.ForgetUnsupportedDefinition(7));
-        Assert.Equal([9], context.UnsupportedDefinitionIdsSnapshot);
     }
 }

@@ -205,12 +205,7 @@ internal static class LedgerEndpoints
                         "Exact event code as its kebab string.",
                         CodeKind: "event"
                     ),
-                    new QueryParameterDoc("pageSize", QueryParameterKind.Int, "Rows per page; the server clamps to its bounds."),
-                    new QueryParameterDoc(
-                        "cursor",
-                        QueryParameterKind.String,
-                        "Opaque keyset cursor from the previous page's nextCursor; omit for the first page."
-                    ),
+                    .. QueryParameterDocExtensions.PagingCore,
                 ]
             )
             .ProducesProblem(StatusCodes.Status404NotFound);

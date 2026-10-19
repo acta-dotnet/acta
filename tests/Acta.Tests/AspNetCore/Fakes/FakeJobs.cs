@@ -88,10 +88,6 @@ internal sealed class FakeJobs : IJobs
 
     public IReadOnlyList<GetCheckpointsItem> StoredCheckpoints { get; set; } = [];
 
-    /// <summary>Tenant id on the found job's snapshot. Id 1 carries the key "cust-001"; any other id models a purged
-    /// tenant row, an id without a key.</summary>
-    public int? SnapshotTenantId { get; set; }
-
     public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, int? ExpectedVersion)> ControlCalls { get; } = [];
 
     public List<(JobRef JobRef, DateTime NextRunAtUtc, string? Reason, string? Actor, int? ExpectedVersion)> RescheduleCalls { get; } = [];
@@ -346,7 +342,7 @@ internal sealed class FakeJobs : IJobs
     {
         if (IsFound(job) || (job.JobNamespace == "billing" && job.DeduplicationKey == "ck-1"))
         {
-            return Snapshot(42, "billing", "send-invoice", SnapshotTenantId);
+            return Snapshot(42, "billing", "send-invoice");
         }
 
         // An enqueued ref resolves to its recorded request so the aggregate detail read can compose
@@ -354,7 +350,7 @@ internal sealed class FakeJobs : IJobs
         if (Resolve(job) is { } enqueuedId && enqueuedId - 101 is >= 0 and var i && i < EnqueueRequests.Count)
         {
             var request = EnqueueRequests[(int)i];
-            return Snapshot(enqueuedId, request.JobNamespace, request.JobName, null);
+            return Snapshot(enqueuedId, request.JobNamespace, request.JobName);
         }
 
         return null;
@@ -431,7 +427,7 @@ internal sealed class FakeJobs : IJobs
             )
             : null;
 
-    private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName, int? tenantId) =>
+    private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName) =>
         new(
             JobId: jobId,
             JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
@@ -444,8 +440,8 @@ internal sealed class FakeJobs : IJobs
             JobNamespace: jobNamespace,
             JobName: jobName,
             DefinitionId: 5,
-            TenantId: tenantId,
-            TenantName: tenantId == 1 ? "cust-001" : null,
+            TenantId: null,
+            TenantName: null,
             Status: JobStatusCode.Ready,
             Priority: JobPriorityCode.Normal,
             Lane: null,

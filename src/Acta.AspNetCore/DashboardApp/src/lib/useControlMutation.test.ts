@@ -13,9 +13,9 @@ import { buildBody, invalidateAll } from './controlMutation.ts';
 (globalThis as unknown as { document: { baseURI: string } }).document = { baseURI: 'http://localhost/' };
 
 test('buildBody trims the reason and merges it with the caller body, blank reason becomes null', () => {
-  assert.deepEqual(buildBody({ reason: '  keep it  ' }, (v) => ({ foo: 1 })), { foo: 1, reasonMessage: 'keep it' });
+  assert.deepEqual(buildBody({ reason: '  keep it  ' }, () => ({ foo: 1 })), { foo: 1, reasonMessage: 'keep it' });
   assert.deepEqual(buildBody({ reason: '   ' }, undefined), { reasonMessage: null });
-  assert.deepEqual(buildBody({}, (v) => ({ a: 2 })), { a: 2, reasonMessage: null });
+  assert.deepEqual(buildBody({}, () => ({ a: 2 })), { a: 2, reasonMessage: null });
 });
 
 test('invalidateAll marks every caller-named query key invalidated', () => {

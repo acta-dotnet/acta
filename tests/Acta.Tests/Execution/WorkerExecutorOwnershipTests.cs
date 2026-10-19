@@ -25,10 +25,10 @@ public sealed class WorkerExecutorOwnershipTests
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
 
-        // The re-arm shape, not a terminal one: the execution row records Rescheduled, the job goes
-        // back to Ready with a backoff delay, and the bumped failure count is what the budget reads
-        // on the next attempt. A terminal landing would carry none of these and no HandlerStatusCode.
-        Assert.Equal((byte)ExecutionStatusCode.Rescheduled, completion.RescheduleStatusCode);
+        // The re-arm shape, not a terminal one: the execution row records the charged attempt as Failed,
+        // the job goes back to Ready with a backoff delay, and the bumped failure count is what the budget
+        // reads on the next attempt. A terminal landing would carry none of these and no HandlerStatusCode.
+        Assert.Equal((byte)ExecutionStatusCode.Failed, completion.RescheduleStatusCode);
         Assert.NotNull(completion.RescheduleDelaySeconds);
         Assert.Equal(1, completion.FailureCount);
         Assert.Null(completion.HandlerStatusCode);
@@ -60,7 +60,7 @@ public sealed class WorkerExecutorOwnershipTests
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
         Assert.DoesNotContain("boom", completion.ReasonMessage, StringComparison.Ordinal);
-        Assert.Equal((byte)ExecutionStatusCode.Rescheduled, completion.RescheduleStatusCode);
+        Assert.Equal((byte)ExecutionStatusCode.Failed, completion.RescheduleStatusCode);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class WorkerExecutorOwnershipTests
 
         Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.Empty(harness.Applied);
-        Assert.Equal((byte)ExecutionStatusCode.Rescheduled, harness.Completion.RescheduleStatusCode);
+        Assert.Equal((byte)ExecutionStatusCode.Failed, harness.Completion.RescheduleStatusCode);
     }
 
     [Fact]

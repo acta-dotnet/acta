@@ -50,8 +50,8 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
         start.SetResult();
         var outcomes = await Task.WhenAll(attempts);
 
-        Assert.Single(outcomes, o => o.Action == ControlAction.Applied);
-        Assert.Equal(7, outcomes.Count(o => o.Action == ControlAction.Rejected));
+        Assert.Equal(before.Version + 1, Assert.Single(outcomes, o => o.Action == ControlAction.Applied).Version);
+        Assert.Equal(7, outcomes.Count(o => o.Action == ControlAction.VersionConflict));
         Assert.Equal(before.Version + 1, (await ReadAsync(name, ct)).Version);
         var events = await Db.From<EventEntity>()
             .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
@@ -68,9 +68,6 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
             OutputPayloadFormat: null,
-            InvocationKind: default,
-            RequiresJobContextParameter: false,
-            RequiresCancellationToken: false,
             Priority: default,
             MaxAttempts: maxAttempts,
             AuditLevel: default,
@@ -123,6 +120,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
         Assert.Equal(9, after.MaxAttemptsEffective); // DB recomputed COALESCE
         Assert.Equal(before.DefinitionHash, after.DefinitionHash); // hash untouched
         Assert.True(after.Version > before.Version);
+        Assert.Equal(after.Version, outcome.Version);
     }
 
     [Fact(DisplayName = "Clearing an override reverts effective to the default")]
@@ -162,8 +160,8 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
         Assert.Equal(4, cleared.MaxAttemptsEffective); // reverts to default
     }
 
-    [Fact(DisplayName = "A stale version is rejected and changes nothing")]
-    public async Task Stale_version_is_rejected()
+    [Fact(DisplayName = "A stale version is VersionConflict with the current version and changes nothing")]
+    public async Task Stale_version_is_a_version_conflict()
     {
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
@@ -182,7 +180,8 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
             ct
         );
 
-        Assert.Equal(ControlAction.Rejected, outcome.Action);
+        Assert.Equal(ControlAction.VersionConflict, outcome.Action);
+        Assert.Equal(before.Version, outcome.Version);
         var after = await ReadAsync(name, ct);
         Assert.Null(after.MaxAttemptsOverride);
         Assert.Equal(before.Version, after.Version);

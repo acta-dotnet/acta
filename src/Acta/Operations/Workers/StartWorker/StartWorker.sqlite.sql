@@ -43,7 +43,7 @@ SELECT
     120 /* EventCode.WorkerStarted */,
     w.namespace_id,
     70 /* ActorCode.Worker */,
-    w.worker_ref,
+    NULL,
     NULL,
     NULL,
     NULL,

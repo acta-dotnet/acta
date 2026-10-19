@@ -166,7 +166,6 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
 
             case JobStatusCode.Succeeded:
                 headline = "Succeeded.";
-                actions.Add(Move("view-result", "view the result with 'jobs result' if the job stores one"));
                 actions.Add(Move("inspect-timeline", "inspect the event timeline if needed"));
                 break;
 
@@ -395,3 +394,10 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
 
     private static string? Blank(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }
+
+/// <summary>The three consistent result sets the explain read returns for one Job.</summary>
+internal sealed record GetJobExplanationRows(
+    GetJobExplanationHeaderRow Header,
+    IReadOnlyList<GetJobExplanationStepRow> Steps,
+    IReadOnlyList<GetJobExplanationCheckpointRow> Checkpoints
+);

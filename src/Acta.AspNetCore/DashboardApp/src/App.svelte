@@ -107,7 +107,7 @@
     <nav id="dashboard-navigation" class="side" class:rail={$sidebarRail} class:mobile-open={mobileNavOpen} aria-label="Dashboard sections">
       <div class="brand-q">
         <a class="brand" href={routes.overview({ namespace: $scope })} aria-label="Acta: go to Overview" onclick={() => (mobileNavOpen = false)}>
-          <span class="brand-mark"><LogoMark size={30} /></span><span class="nav-label">Acta<span class="brand-dot">.</span></span>
+          <span class="brand-mark"><LogoMark /></span><span class="nav-label">Acta<span class="brand-dot">.</span></span>
         </a>
         <div class="brand-sub">operator dashboard</div>
         {#if readOnlyHost}

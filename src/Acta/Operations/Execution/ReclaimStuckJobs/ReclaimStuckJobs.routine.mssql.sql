@@ -86,9 +86,9 @@ BEGIN
         /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
            and only those rows are locked below, by primary key: the index is shared by every namespace, so
            holding its keys would make another namespace's sweep skip its own rows under READPAST. */
-        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL);
-        INSERT INTO @stuck (id, lane_id)
-        SELECT r.job_id, r.lane_id
+        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
+        INSERT INTO @stuck (id, lane_id, worker_id)
+        SELECT r.job_id, r.lane_id, r.leased_by_worker_id
         FROM {{schema}}.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
         WHERE
             r.status_code = 50 /* JobStatusCode.Executing */
@@ -130,6 +130,21 @@ BEGIN
 
                 SET @lane_cursor = @lane_next;
             END;
+
+        /* Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it
+           while that event lasts. Workers lock before any runtime, the order the heartbeat takes them. */
+        UPDATE w
+        SET
+            modified_at_utc = @now,
+            version = w.version + 1
+        FROM {{schema}}.workers w WITH (FORCESEEK, ROWLOCK)
+        INNER JOIN (
+            SELECT DISTINCT k.worker_id
+            FROM @stuck k
+            WHERE
+                k.lane_id IS NULL
+                OR k.lane_id IN (SELECT e.id FROM @lanes e)
+        ) s ON s.worker_id = w.id;
 
         /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
            only while it is still Blocked and no member runs. */
@@ -175,7 +190,6 @@ BEGIN
             actor_code, actor,
             job_id, job_ref, execution_number,
             lineage_root_id, definition_id, tenant_id,
-            worker_id,
             from_status_code, to_status_code,
             execution_status_code, duration_ms,
             reason_code, reason_message
@@ -192,7 +206,6 @@ BEGIN
             COALESCE(j.lineage_root_id, j.id),
             j.definition_id,
             j.tenant_id,
-            NULL,
             15 /* JobStatusCode.Blocked */,
             10 /* JobStatusCode.Ready */,
             NULL,

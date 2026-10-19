@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-const jobRef = 'job_00000000000000000000000042';
+const jobRef = 'job_019f9b3509487d1b911f2020158384a3';
 const timestamp = '2026-07-14T08:00:00Z';
 
 const paged = <T>(items: T[]) => ({ items, nextCursor: null, hasMore: false, pageSize: 50, totalCount: items.length });
@@ -35,7 +35,7 @@ const event = {
   createdAtUtc: timestamp,
   jobNamespace: 'billing',
   jobRef,
-  workerRef: 'wrk_01kydka200fay8000000000002',
+  workerRef: 'wrk_019f9b3508007e4dbfd13d9d20bc81f4',
   executionNumber: 1,
   fromStatus: 'executing',
   toStatus: 'failed',
@@ -96,23 +96,8 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     }
     if (path === 'tenants') return json(paged([]));
     if (path === 'jobs/by-key') return json(job);
-    if (path === `jobs/${jobRef}`) return json(job);
-    if (path === `jobs/${jobRef}/explain`) {
-      return json({
-        headline: 'The latest attempt failed in the invoice provider.',
-        activeWait: null,
-        lease: null,
-        lastExecutedBy: 'worker-42',
-        steps: [],
-        reason: 'Invoice provider timed out.',
-        nextActions: [{ kind: 'restart', description: 'Run the job again after checking the provider.' }]
-      });
-    }
-    if (path === `jobs/${jobRef}/lineage`) {
-      return json({ ancestors: [], job, steps: [], activeWait: null, children: [], childrenHasMore: false });
-    }
     if (path === `jobs/${jobRef}/events`) return json(paged([event]));
-    // The aggregate the detail page actually reads (JobDetailView, api.ts:392). Without it the
+    // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
     // rather than on what they were written to check.
     if (path === `jobs/${jobRef}/detail`) {
@@ -159,6 +144,17 @@ test('job investigation: overview to failed job explanation and events', async (
   await expect(page.getByText('Invoice provider timed out.').first()).toBeVisible();
 });
 
+test('details shows the request and the result under the status, and an old result link lands there', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing&tab=result`);
+
+  await expect(page.getByRole('region', { name: 'Job input' })).toContainText('invoiceId');
+  await expect(page.getByRole('region', { name: 'Job result' })).toContainText('No result yet');
+  await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Result', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Input', exact: true })).toHaveCount(0);
+});
+
 test('executions tab summarizes the attempt and deep-links expanded', async ({ page }) => {
   await mockDashboard(page, { controls: false });
   await page.goto(`/#/jobs/${jobRef}?ns=billing`);
@@ -166,7 +162,7 @@ test('executions tab summarizes the attempt and deep-links expanded', async ({ p
   await page.getByRole('button', { name: 'Executions' }).click();
   await expect(page.getByText('Showing 1 of 1 executions')).toBeVisible();
   await expect(page.getByText('125 ms')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'wrk_01kydka200fay8000000000002' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'wrk_019f9b3508007e4dbfd13d9d20bc81f4' })).toBeVisible();
 
   await page.goto(`/#/jobs/${jobRef}?ns=billing&tab=executions&execution=1`);
   const walk = page.getByRole('button', { name: 'Walk execution 1 in the timeline' });

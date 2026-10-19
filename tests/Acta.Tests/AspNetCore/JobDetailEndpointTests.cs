@@ -83,67 +83,6 @@ public sealed class JobDetailEndpointTests
     }
 
     [Fact]
-    public async Task Detail_resolves_the_snapshot_tenant_id_to_its_key()
-    {
-        // The snapshot itself carries the key ("cust-001" for id 1); the aggregate echoes it top-level.
-        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations { Jobs = { SnapshotTenantId = 1 } });
-        await using var host = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantName").GetString());
-    }
-
-    [Fact]
-    public async Task Detail_for_a_tenant_less_job_emits_no_tenant_name()
-    {
-        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
-        await using var host = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(doc.RootElement.TryGetProperty("tenantName", out _));
-    }
-
-    [Fact]
-    public async Task Detail_for_an_unresolvable_tenant_id_emits_no_tenant_name()
-    {
-        // A tenant id whose row is gone projects a null key, never an error, so the field is absent.
-        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations { Jobs = { SnapshotTenantId = 999 } });
-        await using var host = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(doc.RootElement.TryGetProperty("tenantName", out _));
-    }
-
-    [Fact]
-    public async Task Detail_with_an_unavailable_tenants_surface_still_carries_the_tenant_name()
-    {
-        // The key rides the snapshot projection, so a throwing tenants surface no longer affects it.
-        var fakes = new FakeOperations { Jobs = { SnapshotTenantId = 1 } };
-        fakes.Tenants.List = (_, _) => throw new InvalidOperationException("Tenants surface unavailable.");
-        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
-        await using var host = app;
-        var ct = TestContext.Current.CancellationToken;
-
-        var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct);
-        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("cust-001", doc.RootElement.GetProperty("tenantName").GetString());
-    }
-
-    [Fact]
     public async Task Detail_for_a_missing_job_is_404_and_for_a_malformed_ref_is_400()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

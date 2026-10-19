@@ -13,16 +13,13 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
         QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
-        var tenantName = string.IsNullOrWhiteSpace(query.TenantName)
-            ? null
-            : NameSyntax.Canonicalize(query.TenantName, nameof(query.TenantName), NameSyntax.ExtendedMaxLength);
+        var tenantName = QueryValidation.ValidateExtendedName(query.TenantName, nameof(query.TenantName));
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
         // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
         var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
         var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
-        var lane = string.IsNullOrWhiteSpace(query.Lane)
-            ? null
-            : NameSyntax.Canonicalize(query.Lane, nameof(query.Lane), NameSyntax.ExtendedMaxLength);
+        var lane = QueryValidation.ValidateExtendedName(query.Lane, nameof(query.Lane));
+        var correlationKey = QueryValidation.ValidateKey(query.CorrelationKey, nameof(query.CorrelationKey), NameSyntax.DefaultMaxLength);
 
         var paging = Paging.Start(
             "ListJobs",
@@ -37,7 +34,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 ("parent", query.ParentJobId?.ToString(CultureInfo.InvariantCulture)),
                 ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
                 ("tenantName", tenantName),
-                ("correlation", query.CorrelationKey),
+                ("correlation", correlationKey),
                 ("tags", tags),
                 ("terminal", terminalOnly is null ? null : "1"),
                 ("recurring", recurringOnly is null ? null : "1"),
@@ -56,7 +53,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, query.ParentJobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, query.TenantId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantNameFilter, tenantName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, query.CorrelationKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, correlationKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, terminalOnly));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RecurringOnlyFlag, recurringOnly));

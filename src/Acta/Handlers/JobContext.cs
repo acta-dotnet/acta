@@ -1,8 +1,3 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
-
 namespace Acta;
 
 /// <summary>

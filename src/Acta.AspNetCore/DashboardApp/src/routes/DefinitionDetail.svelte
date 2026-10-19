@@ -109,16 +109,12 @@
       const n = parseInt(s, 10);
       return Number.isNaN(n) ? null : n;
     }
-    if (kind === 'dec') {
-      const n = Number(s);
-      return Number.isNaN(n) ? null : n;
-    }
     return s; // enum (kebab wire name) or string
   }
 
   function displayPolicyValue(field, value) {
     if (value === null || value === undefined) return '·';
-    return (field.kind === 'int' || field.kind === 'dec') && typeof value === 'number' ? displayFormatter.number(value) : value;
+    return field.kind === 'int' && typeof value === 'number' ? displayFormatter.number(value) : value;
   }
 
   async function save() {

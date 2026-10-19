@@ -25,10 +25,10 @@ internal sealed class WorkerRuntime
     private readonly WorkerHeartbeat _heartbeat;
 
     /// <summary>
-    /// Cancelled by BeginDrainAsync to stop the claimer while the heartbeat and
+    /// Cancelled by BeginDrain to stop the claimer while the heartbeat and
     /// in-flight handlers run on under the host token. Lives for the runtime's lifetime so the
     /// drain signal is never lost to a startup race; a lightweight source with no timer and no
-    /// WaitHandle needs no disposal (see the CA1001 suppression above).
+    /// WaitHandle needs no disposal (the CA1001 ruling in .editorconfig).
     /// </summary>
     private readonly CancellationTokenSource _drainCts = new();
 
@@ -206,19 +206,10 @@ internal sealed class WorkerRuntime
     }
 
     /// <summary>
-    /// Begins a graceful drain: stops the claim loop from taking new work and stamps the worker Draining via
-    /// the heartbeat, while in-flight handlers run to completion under the host token. The host awaits
-    /// <see cref="DrainCompletion"/>, then <see cref="StopAsync"/> stamps Stopped. A no-op for an enqueue-only
-    /// runtime. Intake is stopped first - the must-not-fail step; the Draining stamp is observability and may
-    /// fail on a transient blip without breaking the drain.
+    /// Begins a graceful drain without I/O: stops the claim loop from taking new work while in-flight handlers run to
+    /// completion under the host token. The host awaits <see cref="DrainCompletion"/>, then <see cref="StopAsync"/>
+    /// stamps Stopped.
     /// </summary>
-    public Task BeginDrainAsync(CancellationToken ct)
-    {
-        BeginDrain();
-        return StampDrainingAsync(ct);
-    }
-
-    /// <summary>Stops intake and enters in-memory draining mode without performing I/O.</summary>
     public void BeginDrain()
     {
         _drainCts.Cancel();
@@ -250,12 +241,6 @@ internal sealed class WorkerRuntime
     /// array its claims bind.
     /// </summary>
     internal int[] UnsupportedDefinitionIdsSnapshot => _context.UnsupportedDefinitionIdsSnapshot;
-
-    /// <summary>
-    /// Drops a definition from the excluded set so this runtime claims it again. A test seam: a
-    /// production process that carries the handler is a different process.
-    /// </summary>
-    internal bool ForgetUnsupportedDefinition(int definitionId) => _context.ForgetUnsupportedDefinition(definitionId);
 
     /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete

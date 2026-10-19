@@ -12,21 +12,15 @@ internal static class QueryValidation
     /// input is null. Lookup-permissive: unlike the registration validators, this accepts the bare
     /// <c>sys</c> namespace (the seeded system namespace) so operators can filter to it.
     /// </summary>
-    public static string? ValidateNamespace(string? value, string paramName)
-    {
-        if (value is not null)
-        {
-            try
-            {
-                value = NameSyntax.Canonicalize(value, paramName);
-            }
-            catch (ArgumentException ex)
-            {
-                throw new InvalidQueryException(ex.Message);
-            }
-        }
-        return value;
-    }
+    public static string? ValidateNamespace(string? value, string paramName) =>
+        value is null ? null : Canonicalize(value, paramName, NameSyntax.DefaultMaxLength);
+
+    /// <summary>
+    /// Validates an optional name filter under the extended length cap, such as a tenant or lane, and returns it folded
+    /// to lowercase, or null when it is blank.
+    /// </summary>
+    public static string? ValidateExtendedName(string? value, string paramName) =>
+        string.IsNullOrWhiteSpace(value) ? null : Canonicalize(value, paramName, NameSyntax.ExtendedMaxLength);
 
     /// <summary>
     /// Validates an optional namespace name fragment against the kebab character set
@@ -107,14 +101,7 @@ internal static class QueryValidation
             throw new InvalidQueryException("JobName requires JobNamespace.");
         }
 
-        try
-        {
-            return NameSyntax.Canonicalize(value, paramName, NameSyntax.ExtendedMaxLength);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new InvalidQueryException(ex.Message);
-        }
+        return Canonicalize(value, paramName, NameSyntax.ExtendedMaxLength);
     }
 
     /// <summary>
@@ -135,6 +122,39 @@ internal static class QueryValidation
         if (value is < 1)
         {
             throw new InvalidQueryException($"{paramName} must be positive.");
+        }
+    }
+
+    /// <summary>
+    /// Validates an optional key filter, such as a correlation key, and returns its stored form, trimmed with its case
+    /// kept, or null when it is blank.
+    /// </summary>
+    public static string? ValidateKey(string? value, string paramName, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            return KeySyntax.Canonicalize(value, paramName, maxLength);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidQueryException(ex.Message);
+        }
+    }
+
+    private static string Canonicalize(string value, string paramName, int maxLength)
+    {
+        try
+        {
+            return NameSyntax.Canonicalize(value, paramName, maxLength);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidQueryException(ex.Message);
         }
     }
 }

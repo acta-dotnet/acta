@@ -1,4 +1,7 @@
 namespace Acta.AspNetCore;
 
-/// <summary>Body of <c>POST /jobs/{jobRef}/purge</c>: the operator's reason, optional like the body itself.</summary>
-internal sealed record PurgeJobRequest(string? ReasonMessage = null) : IControlRequest;
+/// <summary>Body of <c>POST /jobs/{jobRef}/purge</c>: an empty object, optional like the body itself. Purge records no reason.</summary>
+internal sealed record PurgeJobRequest : IControlRequest
+{
+    string? IControlRequest.ReasonMessage => null;
+}

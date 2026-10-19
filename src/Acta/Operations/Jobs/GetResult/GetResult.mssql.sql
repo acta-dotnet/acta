@@ -1,10 +1,8 @@
-SELECT TOP 1
-    execution_number,
+SELECT
     result_format_id,
-    result,
-    created_at_utc
-FROM {{schema}}.results
+    result
+FROM {{schema}}.runtimes
 WHERE
     job_id = @p_job_id
-    AND (@p_execution_number IS NULL OR execution_number = @p_execution_number)
-ORDER BY execution_number DESC;
+    AND result_format_id <> 0 /* JobPayloadFormat.None */
+    AND (@p_execution_number IS NULL OR execution_number = @p_execution_number);

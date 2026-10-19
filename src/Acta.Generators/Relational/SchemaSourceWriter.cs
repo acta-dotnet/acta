@@ -12,9 +12,6 @@ namespace Acta.Generators;
 /// <summary>Writes the <c>ActaSchema</c> table accessors, the entity manifest, and the ordinal entity binders.</summary>
 internal static class SchemaSourceWriter
 {
-    /// <summary>
-    /// -------- ActaSchema.Generated.cs --------
-    /// </summary>
     internal static string EmitActaSchema(ImmutableArray<EntityInfo> entities)
     {
         var sb = new StringBuilder();
@@ -115,11 +112,6 @@ internal static class SchemaSourceWriter
         // The DbEntitySpec literal: assembled in the constructor (after columns are bound).
         sb.AppendLine("        public DbEntitySpec Entity { get; }");
         sb.AppendLine();
-        sb.AppendLine("        /// <summary>");
-        sb.Append("        /// <c>").Append(e.TableName).AppendLine("</c>");
-        sb.AppendLine("        /// </summary>");
-        sb.AppendLine("        public string Table => Entity.TableName;");
-        sb.AppendLine();
 
         sb.Append("        public ").Append(Accessor(e)).AppendLine("Table()");
         sb.AppendLine("        {");
@@ -127,7 +119,7 @@ internal static class SchemaSourceWriter
         // Column literals
         foreach (var c in e.Columns)
         {
-            EmitColumnLiteral(sb, e, c);
+            EmitColumnLiteral(sb, c);
         }
         sb.AppendLine();
 
@@ -162,9 +154,18 @@ internal static class SchemaSourceWriter
             sb.Append('"').Append(e.PrimaryKeyColumns[i]).Append('"');
         }
         sb.Append(" }, ").Append(e.PrimaryKeyManual ? "true" : "false").Append(')');
+        var pkInits = new List<string>();
+        if (e.PrimaryKeyIdentity is not null)
+        {
+            pkInits.Add("Identity = " + StringLiteral(e.PrimaryKeyIdentity));
+        }
         if (e.PrimaryKeyOptimizeForSequentialKey)
         {
-            sb.Append(" { OptimizeForSequentialKey = true }");
+            pkInits.Add("OptimizeForSequentialKey = true");
+        }
+        if (pkInits.Count > 0)
+        {
+            sb.Append(" { ").Append(string.Join(", ", pkInits)).Append(" }");
         }
         sb.AppendLine(",");
         // Indexes
@@ -212,29 +213,24 @@ internal static class SchemaSourceWriter
         sb.AppendLine();
     }
 
-    internal static void EmitColumnLiteral(StringBuilder sb, EntityInfo e, ColumnInfo c)
+    internal static void EmitColumnLiteral(StringBuilder sb, ColumnInfo c)
     {
         sb.Append("            ").Append(c.AccessorName).Append(" = new DbColumnSpec<").Append(c.ClrPropertyTypeFqn).AppendLine(">(");
         sb.AppendLine("                new DbColumnSpec(");
         sb.Append("                    Name: \"").Append(c.ColumnName).AppendLine("\",");
         sb.Append("                    Kind: DbKind.").Append(c.KindName).AppendLine(",");
         sb.Append("                    Size: ").Append(c.Size?.ToString(CultureInfo.InvariantCulture) ?? "null").AppendLine(",");
-        sb.Append("                    Precision: ").Append(c.Precision?.ToString(CultureInfo.InvariantCulture) ?? "null").AppendLine(",");
-        sb.Append("                    Scale: ").Append(c.Scale?.ToString(CultureInfo.InvariantCulture) ?? "null").AppendLine(",");
         sb.Append("                    IsNullable: ").Append(c.IsNullable ? "true" : "false").AppendLine(",");
         sb.Append("                    Default: DbDefault.").Append(c.DefaultName).AppendLine(",");
         sb.Append("                    IsCoded: ").Append(c.IsCoded ? "true" : "false").AppendLine(",");
         sb.Append("                    IsPrimaryKey: ").Append(c.IsPrimaryKey ? "true" : "false").AppendLine(",");
-        sb.Append("                    IsSolePrimaryKey: ").Append(c.IsSolePrimaryKey ? "true" : "false").AppendLine(",");
-        sb.Append("                    IsManualPrimaryKey: ").Append(c.IsManualPrimaryKey ? "true" : "false").AppendLine(",");
+        sb.Append("                    IsIdentity: ").Append(c.IsIdentity ? "true" : "false").AppendLine(",");
         sb.Append("                    IsConcurrencyToken: ").Append(c.IsConcurrencyToken ? "true" : "false").AppendLine(",");
         sb.Append("                    EnumTypeName: ").Append(StringLiteral(c.EnumTypeName)).AppendLine(",");
         sb.Append("                    CodeKind: ").Append(StringLiteral(c.CodeKind)).AppendLine(",");
         sb.Append("                    ClrPropertyName: ").Append(StringLiteral(c.ClrPropertyName)).AppendLine(",");
         sb.Append("                    Generated: ").Append(StringLiteral(c.Generated)).AppendLine(",");
         sb.Append("                    CaseExact: ").Append(c.CaseExact ? "true" : "false").AppendLine("),");
-        sb.Append("                \"").Append(e.TableName).AppendLine("\",");
-        sb.Append("                \"").Append(c.ColumnName).AppendLine("\",");
         sb.Append("                \"p_").Append(c.ColumnName).AppendLine("\");");
     }
 
@@ -253,16 +249,10 @@ internal static class SchemaSourceWriter
             sb.Append('"').Append(ix.Columns[i]).Append('"');
         }
         sb.AppendLine(" },");
-        sb.Append("                        Includes: ").Append(StringArrayLiteralOrNull(ix.Includes)).AppendLine(",");
         sb.Append("                        Descending: ").Append(StringArrayLiteralOrNull(ix.Descending)).AppendLine(",");
         sb.Append("                        Filter: ").Append(StringLiteral(ix.Filter)).AppendLine(",");
         sb.Append("                        Usage: ").Append(StringLiteral(ix.Usage)).AppendLine(",");
-        sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").Append(')');
-        if (ix.OptimizeForSequentialKey)
-        {
-            sb.Append(" { OptimizeForSequentialKey = true }");
-        }
-        sb.AppendLine(",");
+        sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").AppendLine("),");
     }
 
     internal static string StringArrayLiteralOrNull(ImmutableArray<string> arr)
@@ -280,9 +270,6 @@ internal static class SchemaSourceWriter
         return s is null ? "null" : "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
-    /// <summary>
-    /// -------- EntityBinder.Generated.cs --------
-    /// </summary>
     internal static string EmitEntityBinder(ImmutableArray<EntityInfo> entities)
     {
         var sb = new StringBuilder();
@@ -362,19 +349,13 @@ internal static class SchemaSourceWriter
             "Int64" => "Convert.ToInt64(r.GetValue(" + ord + "))",
             "Guid" => "r.GetGuid(" + ord + ")",
             "UtcInstant" => "DbCellCoercion.GetDateTimeUtc(r, " + ord + ")",
-            "Decimal" => "Convert.ToDecimal(r.GetValue(" + ord + "))",
             "AsciiString" or "UnicodeString" => "r.GetString(" + ord + ")",
-            "Bytes" or "BinaryPayload" => "(byte[])r.GetValue(" + ord + ")",
+            "BinaryPayload" => "(byte[])r.GetValue(" + ord + ")",
             _ => "throw new InvalidOperationException(\"Unmapped DbKind." + c.KindName + " at ordinal " + ord + "\")",
         };
 
-        // Coded columns store their enum's underlying numeric width and decode through FromId, so an id
-        // from a newer Acta reads as the family's id-0 member.
-        if (c.DecoderFqn is not null)
-        {
-            return c.DecoderFqn + ".FromId(" + readExpr + ")";
-        }
-
-        return c.IsCoded ? "(" + c.NonNullableTypeFqn + ")" + readExpr : readExpr;
+        // Coded columns store a byte and decode through FromId, so an id from a newer Acta reads as the
+        // family's id-0 member.
+        return c.DecoderFqn is null ? readExpr : c.DecoderFqn + ".FromId(" + readExpr + ")";
     }
 }

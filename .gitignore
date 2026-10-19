@@ -493,7 +493,7 @@ src/Acta.AspNetCore/DashboardApp/dist/
 
 # Local benchmark baseline captures
 /.benchmarks/
-/anvil/Anvil.Bench/.benchmarks/
 
 # SDD orchestration scratch
 .superpowers/
+/anvil/Anvil.Bench/.benchmarks/

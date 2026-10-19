@@ -123,9 +123,8 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             ct
         );
 
-        var outcome = await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, ct);
+        await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, ct);
 
-        Assert.Equal(100, outcome.RepairedLanes);
         Assert.Equal(
             100,
             await Db.From<RuntimeEntity>()

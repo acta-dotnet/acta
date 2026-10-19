@@ -201,9 +201,10 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     private Task<DateTime> ReadCursorInstantAsync(long cursorOwnerJobId, CancellationToken ct) =>
         AlertTestOps.ReadAlertsCursorInstantAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, ct);
 
+    // A staged row names no worker, so (0, id) is its key.
     private async Task<DateTime> StampOfAsync(long eventId, CancellationToken ct) =>
         DateTime.SpecifyKind(
-            Assert.Single(await Db.From<EventEntity>().Where(e => e.Id == eventId).ToListAsync(ct)).CreatedAtUtc,
+            Assert.Single(await Db.From<EventEntity>().Where(e => e.WorkerId == 0 && e.Id == eventId).ToListAsync(ct)).CreatedAtUtc,
             DateTimeKind.Utc
         );
 
@@ -214,7 +215,9 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     private async Task BackdateToHorizonAsync(long eventId, CancellationToken ct)
     {
         var aged = await AlertTestOps.HorizonOfThisMomentAsync(Services, ct);
-        await Db.From<EventEntity>().Where(e => e.Id == eventId).UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
+        await Db.From<EventEntity>()
+            .Where(e => e.WorkerId == 0 && e.Id == eventId)
+            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
     }
 
     private sealed record AlertingSubject(int DefinitionId, long JobId);

@@ -16,7 +16,7 @@ internal sealed record ListEventsRow(
     long? JobId,
     long? LineageRootId,
     int? DefinitionId,
-    int? WorkerId,
+    int WorkerId,
     int? ExecutionNumber,
     ActorCode ActorCode,
     string? Actor,
@@ -49,10 +49,10 @@ internal sealed record ListEventsRow(
             LineageRootJobRef is { } rootRef ? new JobRef(rootRef) : null,
             DefinitionId,
             TenantId,
-            WorkerId,
+            WorkerId == 0 ? null : WorkerId,
             ExecutionNumber,
             ActorCode,
-            CanonicalActor(),
+            Actor,
             FromStatus,
             ToStatus,
             ExecutionStatus,
@@ -65,12 +65,4 @@ internal sealed record ListEventsRow(
             WorkerRef is { } workerRef ? new Acta.WorkerRef(workerRef) : null,
             TenantName
         );
-
-    /// <summary>
-    /// Worker-actor rows persist the acting worker's public ref as the raw uuid text the emitting
-    /// SQL cast it to. Render it in the same canonical wrk_ form operators see everywhere else,
-    /// leaving every other actor's key exactly as stored.
-    /// </summary>
-    private string? CanonicalActor() =>
-        ActorCode == ActorCode.Worker && Guid.TryParse(Actor, out var parsed) ? new Acta.WorkerRef(parsed).ToString() : Actor;
 }

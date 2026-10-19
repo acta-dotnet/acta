@@ -150,13 +150,6 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
         CancellationToken ct
     ) => inner.QueryAsync(stem, bind, read, ct);
 
-    public Task<T> QueryAsync<T>(
-        StoreCommand command,
-        Action<DbCommand> bind,
-        Func<DbDataReader, CancellationToken, Task<T>> read,
-        CancellationToken ct
-    ) => inner.QueryAsync(command, bind, read, ct);
-
     public async Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
@@ -198,11 +191,6 @@ internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialec
 
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         inner.RunWithRetryAsync(action, ct);
-
-    public Task<T> RunInOwnedTransactionAsync<T>(
-        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
-        CancellationToken ct
-    ) => inner.RunInOwnedTransactionAsync(work, ct);
 
     // The jobs a completion batch names, read by binding it onto a command the provider never opens or runs: SQL
     // Server streams table-valued records, PostgreSQL binds an array, and SQLite binds JSON text.

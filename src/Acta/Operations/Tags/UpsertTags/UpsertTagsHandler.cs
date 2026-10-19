@@ -15,7 +15,7 @@ internal sealed class UpsertTagsHandler(ResolveTagTargetHandler resolveTagTarget
         var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(command.Target), ct);
         if (target is null)
         {
-            return new UpsertTagsResponse(TagMutationAction.NotFound);
+            return new UpsertTagsResponse(ControlAction.NotFound);
         }
 
         try

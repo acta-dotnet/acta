@@ -121,7 +121,8 @@ internal sealed class JobsOperations(
         CancellationToken ct = default
     )
         where TInput : notnull
-        where TResult : notnull => JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, o => routing.FromInput(input, o), options, ct);
+        where TResult : notnull =>
+        JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, getResult, o => routing.FromInput(input, o), options, ct);
 
     public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
@@ -135,6 +136,7 @@ internal sealed class JobsOperations(
             this,
             wakeup,
             routing,
+            getResult,
             o => routing.FromContract((JobContract<TInput>)job, input, o, typeof(TResult)),
             options,
             ct
@@ -166,6 +168,10 @@ internal sealed class JobsOperations(
 
     public async ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
         await GetResultAsync(job, ct) is { } response ? routing.Decode<TResult>(response.Result) : default;
+
+    /// <summary>The result <paramref name="executionNumber"/> stored, or the latest execution's when null; null when there is none.</summary>
+    internal Task<GetResultRow?> ReadResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
+        getResult.ReadAsync(jobId, executionNumber, ct);
 
     public ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
         getCheckpoints.HandleAsync(new GetCheckpointsQuery(job), ct);

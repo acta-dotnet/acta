@@ -52,13 +52,6 @@ public class SqlIdentifierSyntaxBareIdentifierTests
         var boundary = new string('a', SqlIdentifierSyntax.BareIdentifierMaxLength);
         SqlIdentifierSyntax.ValidateBareIdentifier(boundary, nameof(boundary));
     }
-
-    [Fact]
-    public void CustomMaxLength_Enforced()
-    {
-        Assert.Throws<ArgumentException>(() => SqlIdentifierSyntax.ValidateBareIdentifier("abcde", "x", maxLength: 4));
-        SqlIdentifierSyntax.ValidateBareIdentifier("abcd", "x", maxLength: 4);
-    }
 }
 
 /// <summary>

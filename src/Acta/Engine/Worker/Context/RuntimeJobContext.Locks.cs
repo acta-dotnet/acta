@@ -35,7 +35,7 @@ internal sealed partial class RuntimeJobContext
 
     /// <summary>
     /// Concurrency-slot admission, taken by the runner after the start CAS and before the handler.
-    /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLock's
+    /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLockAsync's
     /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is
     /// exact, so two keys that differ only by case are two groups. A key derived from a definition name
     /// may be a system job's (sys.retention with a limit), which the key rule allows.
@@ -102,7 +102,7 @@ internal sealed partial class RuntimeJobContext
     }
 
     /// <summary>
-    /// RunWithLock key space: namespace-scoped {ns_id}.lock.{key}, or global.lock.{key}
+    /// RunWithLockAsync key space: namespace-scoped {ns_id}.lock.{key}, or global.lock.{key}
     /// cross-namespace, with the key part exact. The `global` sentinel cannot equal a numeric namespace
     /// id, so a global lock never collides with a namespace-scoped one.
     /// </summary>

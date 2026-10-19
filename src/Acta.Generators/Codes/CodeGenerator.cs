@@ -45,7 +45,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
             .SelectMany(static (pair, _) => GroupByContainingEnum(pair.Left, pair.Right));
 
         context.RegisterSourceOutput(grouped, static (spc, family) => Emit(spc, family));
-        context.RegisterSourceOutput(grouped.Collect(), static (spc, families) => EmitMarkdownReport(spc, families));
+        context.RegisterSourceOutput(grouped.Collect(), static (spc, families) => EmitCodeManifests(spc, families));
     }
 
     internal static FieldHit? TransformField(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
@@ -102,10 +102,12 @@ public sealed class CodeGenerator : IIncrementalGenerator
         }
         catch (OverflowException)
         {
-            return new FieldHit(enumType, field.Name, 0, code, description, lifecycle, OutOfRange: true);
+            // Only a member of a non-byte enum can overflow, and ACTA0201 rejects that family before
+            // its members are read.
+            id = 0;
         }
 
-        return new FieldHit(enumType, field.Name, id, code, description, lifecycle, OutOfRange: false);
+        return new FieldHit(enumType, field.Name, id, code, description, lifecycle);
     }
 
     internal static IEnumerable<FamilyModel> GroupByContainingEnum(
@@ -130,10 +132,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
             var codeKind = ReadCodeKind(enumType, diagnostics);
 
-            var underlying = enumType.EnumUnderlyingType?.SpecialType ?? SpecialType.None;
-            var storage = underlying == SpecialType.System_Byte ? StorageKind.Byte : StorageKind.Invalid;
-
-            if (storage == StorageKind.Invalid)
+            if (enumType.EnumUnderlyingType?.SpecialType != SpecialType.System_Byte)
             {
                 diagnostics.Add(
                     new DiagnosticRecord(
@@ -142,7 +141,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                         Fatal: true
                     )
                 );
-                yield return new FamilyModel(ns, enumType.Name, codeKind, StorageKind.Byte, [], diagnostics.ToImmutable());
+                yield return new FamilyModel(ns, enumType.Name, codeKind, [], diagnostics.ToImmutable());
                 continue;
             }
 
@@ -169,7 +168,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
             codes.Sort((a, b) => a.Id.CompareTo(b.Id));
 
-            yield return new FamilyModel(ns, enumType.Name, codeKind, storage, [.. codes], diagnostics.ToImmutable());
+            yield return new FamilyModel(ns, enumType.Name, codeKind, [.. codes], diagnostics.ToImmutable());
         }
     }
 
@@ -224,16 +223,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
         };
 
     /// <summary>
-    /// Byte is the only legal storage: ACTA0201 rejects any other underlying type, so Invalid exists
-    /// only to carry that rejection to the diagnostic and never reaches emission.
-    /// </summary>
-    internal enum StorageKind
-    {
-        Byte,
-        Invalid,
-    }
-
-    /// <summary>
     /// Fatal marks family-level breakage that suppresses emission for the whole family.
     /// </summary>
     internal sealed record DiagnosticRecord(string Id, string Message, bool Fatal = false);
@@ -244,15 +233,14 @@ public sealed class CodeGenerator : IIncrementalGenerator
         short Id,
         string Code,
         string Description,
-        string Lifecycle,
-        bool OutOfRange
+        string Lifecycle
     );
 
+    /// <summary>A persisted code family; ACTA0201 admits only byte-backed enums, so every family stores bytes.</summary>
     internal sealed record FamilyModel(
         string? ContainingNamespace,
         string StructName,
         string CodeKind,
-        StorageKind Storage,
         ImmutableArray<CodeModel> Codes,
         ImmutableArray<DiagnosticRecord> Diagnostics
     );

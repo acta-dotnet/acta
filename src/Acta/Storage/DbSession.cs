@@ -1,4 +1,3 @@
-using System.Data;
 using System.Data.Common;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
@@ -93,39 +92,6 @@ internal sealed class DbSession : IDbSession
             ct
         );
 
-    public Task<T> QueryAsync<T>(
-        StoreCommand command,
-        Action<DbCommand> bind,
-        Func<DbDataReader, CancellationToken, Task<T>> read,
-        CancellationToken ct
-    )
-    {
-        var kind = _sql.Resolve(command);
-        return Run(
-            async token =>
-            {
-                await using var conn = await OpenConnectionAsync(token);
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = _commandTimeoutSeconds;
-                if (kind == StoreExecutionKind.Routine)
-                {
-                    bind(cmd);
-                    _dialect.ConfigureRoutineCommand(cmd, Schema, command.RoutineName);
-                }
-                else
-                {
-                    cmd.CommandText = _sql.Load(command.Operation);
-                    bind(cmd);
-                    _dialect.PrepareInlineCommand(cmd);
-                }
-
-                await using var reader = await cmd.ExecuteReaderAsync(token);
-                return await read(reader, token);
-            },
-            ct
-        );
-    }
-
     public Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
@@ -147,7 +113,7 @@ internal sealed class DbSession : IDbSession
 
     /// <summary>
     /// Caller-transaction execute: joins the supplied transaction rather than owning one. No connection
-    /// open/dispose, no BeginWriteTransaction, no commit/rollback, and no DeadlockRetry - Acta never
+    /// open/dispose, no BeginOwnedWriteTransaction, no commit/rollback, and no DeadlockRetry - Acta never
     /// retries inside the caller's transaction; any failure requires the caller to roll it back.
     /// </summary>
     public Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
@@ -476,29 +442,6 @@ internal sealed class DbSession : IDbSession
     }
 
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) => Run(action, ct);
-
-    public Task<T> RunInOwnedTransactionAsync<T>(
-        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
-        CancellationToken ct
-    ) =>
-        Run(
-            async token =>
-            {
-                await using var conn = await OpenConnectionAsync(token);
-                // SQLite's owned write transaction is BEGIN IMMEDIATE. The servers name read committed
-                // explicitly, because SQL Server keeps a pooled connection's last isolation level.
-                await using var tx =
-                    _dialect.BeginOwnedWriteTransaction(conn) ?? await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, token);
-                var (result, commit) = await work(tx, token);
-                // A transaction left uncommitted rolls back when it is disposed.
-                if (commit)
-                {
-                    await tx.CommitAsync(token);
-                }
-                return result;
-            },
-            ct
-        );
 
     private Task<T> Run<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         UnwrapClientFailureAsync(() =>

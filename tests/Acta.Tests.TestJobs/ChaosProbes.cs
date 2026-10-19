@@ -34,6 +34,10 @@ public static class ChaosProbes
 
     public static void Release(long jobId) => Gates.GetOrAdd(jobId, static _ => new Gate()).Release.TrySetResult();
 
+    // Releases the gate by throwing out of the handler, so the attempt fails inside its retry budget.
+    public static void Fail(long jobId) =>
+        Gates.GetOrAdd(jobId, static _ => new Gate()).Release.TrySetException(new InvalidOperationException("Failed by the test."));
+
     [Job("chaos-counting", AuditLevel = DefinitionAuditLevelCode.Audit)]
     public static Task Counting(JobContext ctx, CancellationToken ct)
     {

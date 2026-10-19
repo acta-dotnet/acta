@@ -1,12 +1,12 @@
 namespace Acta;
 
 /// <summary>
-/// Worker registration and liveness row. One row per worker process; every
-/// <c>WorkerRuntime.InitializeAsync</c> call INSERTs a fresh row representing that runtime's
-/// lifetime, identified by the DB-assigned <see cref="Id"/>. A single host can produce many rows
-/// (multiple containers, multi-runtime processes, restarts), and rows are never reused. The
-/// retention sweep deletes terminal workers - <c>Stopped</c> and <c>Dead</c> alike - older than
-/// <c>JobsOptions.WorkerRetention</c> (default <c>P90D</c>).
+/// Worker registration and liveness row. One row per worker process; every <c>WorkerRuntime.InitializeAsync</c> call
+/// INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned <see cref="Id"/>. A single
+/// host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The
+/// retention sweep deletes terminal workers - <c>Stopped</c> and <c>Dead</c> alike - that lease no Executing job and
+/// whose last heartbeat and last write are older than the longer of <c>JobsOptions.WorkerRetention</c> and
+/// <c>JobsOptions.JobEventsRetention</c>.
 /// </summary>
 [DbTable("workers")]
 [DbPrimaryKey(Name = "pk_workers", Columns = ["id"])]
@@ -41,10 +41,9 @@ internal sealed class WorkerEntity : IEntity<int>
 
     /// <summary>
     /// Public stable reference exposed to dashboards, HTTP APIs, and event projections in place of the
-    /// numeric id; rendered externally as "wrk_" plus 26 lowercase Crockford Base32 characters.
+    /// numeric id; rendered externally as "wrk_" plus the Guid's 32 lowercase hex digits.
     /// Allocated in C# (a UUIDv7 via <see cref="Acta.WorkerRef.New"/>) and passed into the registering
-    /// routine, never defaulted by the database. The events timeline stores this value as its worker
-    /// actor, so an event stays attributable after the retention sweep deletes the worker row.
+    /// routine, never defaulted by the database.
     /// </summary>
     [DbColumn("worker_ref", DbKind.Guid)]
     public Guid WorkerRef { get; init; }

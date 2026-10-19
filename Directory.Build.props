@@ -38,9 +38,11 @@
     <!-- The specs name behaviour as Given_When_Then sentences on purpose, because the test name is the
          failure message a maintainer reads; CA1707's no-underscores rule conflicts with that. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1707</NoWarn>
-    <!-- xUnit and BenchmarkDotNet discover fixtures, theory data, and benchmark classes by reflection
-         and require them public; CA1515's internal-by-default guidance breaks that discovery. -->
-    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
+    <!-- xUnit discovers fixtures and theory data by reflection and requires them public, and
+         Acta.Bench.Tests reads Acta Bench's types with no InternalsVisibleTo grant; CA1515's
+         internal-by-default guidance breaks both. -->
+    <NoWarn
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/Acta.Bench`))' == 'true'"
       >$(NoWarn);CA1515</NoWarn>
     <!-- Suppressed for spec and harness code only, where these are Assert.Contains/StartsWith over test
          literals. NOT suppressed in src: an ASCII protocol token is a reason to be MORE explicit about
@@ -82,12 +84,12 @@
     <!-- The only Random use is retry backoff and claim-poll jitter, where spreading load is the point
          and unpredictability is not a security property; CA5394 reads it as a cryptographic concern. -->
     <NoWarn>$(NoWarn);CA5394</NoWarn>
-    <!-- Seven sites in three shapes. Three are not a nested type anyone wrote: they are the container
+    <!-- Six sites in three shapes. Two are not a nested type anyone wrote: they are the container
          Roslyn synthesizes for a C# extension block, which is why the diagnostic names no type at all
          - the message reads "Do not nest type ." with the name blank. Those blocks are the IsTerminal
-         / IsClaimable / GetBehavior members on ExecutionStatusCode, StepStatusCode and
-         JobStatusCode, and the flagged type has no name to rename, no accessibility to set and no
-         file to move to; the rule fires on the language feature itself, wherever it is used. Two are
+         / GetBehavior members on ExecutionStatusCode and JobStatusCode, and the flagged type has no
+         name to rename, no accessibility to set and no file to move to; the rule fires on the
+         language feature itself, wherever it is used. Two are
          AttemptIdentity and NoteDetail, the note payload of one [Job] handler each, nested in the
          TestJobs probe that writes them because TestJobs is a single flat namespace across 33 probe
          files, where a name that generic belongs to its handler rather than to all of them. The last
@@ -111,29 +113,26 @@
          columns in a tight loop; the method already has its one state machine either way. CA1849 is
          wrong here rather than tolerated. -->
     <NoWarn>$(NoWarn);CA1849</NoWarn>
-    <!-- Spec code only. xUnit, the DI container and BenchmarkDotNet construct fixtures, fakes, theory
-         data and registered implementations by reflection, and CA1812 counts a generic type argument as
+    <!-- Spec code only. xUnit and the DI container construct fixtures, fakes, theory data and
+         registered implementations by reflection, and CA1812 counts a generic type argument as
          an instantiation only when the type parameter carries a new() constraint - which
          ServiceDescriptor.Singleton<TService, TImplementation> does not. So a type that is registered
          and used still reads as uninstantiated. Enforced in src, where an unreferenced internal type
          really is dead. -->
-    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true'"
-      >$(NoWarn);CA1812</NoWarn>
-    <!-- Outside src only. A spec, a bench and a local-dev helper take their arguments from the code that
-         calls them one line above, so a null guard on each is ceremony rather than a contract. The five
-         src sites were judged individually: one gained a guard, four already validate through
-         NameSyntax or are owned by System.Text.Json, which never passes a null writer. Note the
-         trees: 75 sites are in tests, 45 in anvil and 2 in support/Acta.LocalHost, so a tests-and-anvil
-         scope would leave the last two firing. -->
+    <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1812</NoWarn>
+    <!-- Outside src only. A spec, Anvil, Acta Bench and a local-dev helper take their arguments from the
+         code that calls them one line above, so a null guard on each is ceremony rather than a contract.
+         The five src sites were judged individually: one gained a guard, four already validate through
+         NameSyntax or are owned by System.Text.Json, which never passes a null writer.
+         support/Acta.LocalHost has sites too, so a tests-and-anvil scope would leave them firing. -->
     <NoWarn
-      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/support/`))' == 'true'"
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/Acta.Bench`))' == 'true' or '$(_ActaTree.Contains(`/support/`))' == 'true'"
       >$(NoWarn);CA1062</NoWarn>
     <!-- Outside src only, and for the same reason it is kept in src: a catch-all belongs at a boundary
-         whose job is not to die. Out here those are bench harness loops, chaos injectors and the
-         Doctor's top-level Main handlers, where the alternative to a broad catch is a crashed harness
+         whose job is not to die. Out here those are Acta Bench's run loops, Anvil's chaos injectors and
+         the Doctor's top-level Main handlers, where the alternative to a broad catch is a crashed harness
          and no diagnostic. In src the 32 sites are ruled on per file in .editorconfig, each naming the
-         boundary and what would happen if the exception escaped. Trees: 6 in tests, 18 in anvil, 5 in
-         tools/Acta.Doctor. -->
+         boundary and what would happen if the exception escaped. -->
     <NoWarn
       Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/`))' == 'true'"
       >$(NoWarn);CA1031</NoWarn>

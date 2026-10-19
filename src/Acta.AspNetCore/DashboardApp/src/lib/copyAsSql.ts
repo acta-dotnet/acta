@@ -8,8 +8,6 @@
 // raw *_code columns are the undecoded numeric codes). Names (namespace, job name, tenant name, lane) are
 // stored lowercase and the API folds their filters, so the copy folds them the same way.
 
-import { refToUuid } from './entityRef.ts';
-
 const ROW_LIMIT = 100;
 
 // The SQL flavor the emitted statement targets. Provider and schema come from the /capabilities read;
@@ -83,8 +81,6 @@ export interface EventsSqlFilters {
   eventCode?: string;
   actorCode?: string;
   reasonCode?: string;
-  /** Public worker ref (`wrk_…`); emitted against the view's own `worker_ref` column, decoded to uuid text. */
-  workerRef?: string;
   createdFromUtc?: string;
   createdToUtc?: string;
 }
@@ -95,12 +91,6 @@ export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
   if (text(filters.actorCode)) predicates.push({ column: 'actor_kind', op: '=', value: text(filters.actorCode) });
   if (text(filters.reasonCode)) predicates.push({ column: 'reason', op: '=', value: text(filters.reasonCode) });
-  // The acting worker is addressed by its public ref. events_view already joins workers and exposes
-  // worker_ref, so this needs no subselect - but note the column stores the ref's canonical uuid text,
-  // which is also what events.actor holds for a worker actor: neither ever compares to a wrk_ string.
-  // A malformed or absent ref is dropped rather than emitted as a predicate that can never match.
-  const workerRef = refToUuid(filters.workerRef);
-  if (workerRef !== null) predicates.push({ column: 'worker_ref', op: '=', value: workerRef });
   if (text(filters.createdFromUtc))
     predicates.push({ column: 'created_at_utc', op: '>=', value: text(filters.createdFromUtc) });
   // Exclusive upper bound to match every provider's ListEvents.sql (`created_at_utc < to`); a `<=`

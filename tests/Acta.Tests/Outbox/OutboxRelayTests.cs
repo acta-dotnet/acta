@@ -13,8 +13,6 @@ namespace Acta.Tests.Outbox;
 /// </summary>
 public sealed class OutboxRelayTests
 {
-    private static readonly DateTime Now = new(2026, 7, 23, 12, 0, 0, DateTimeKind.Utc);
-
     private static OutboxRelayTickOptions Options(int threshold = 5) => new("orders", threshold, 180, 256 * 1024);
 
     // Each row stages after the one built before it, as a producer inserting them in turn would.
@@ -25,7 +23,6 @@ public sealed class OutboxRelayTests
         string ns = "orders",
         string job = "process",
         int failureCount = 0,
-        DateTime? created = null,
         Guid? id = null,
         byte[]? data = null,
         string? meta = null
@@ -45,7 +42,6 @@ public sealed class OutboxRelayTests
             null,
             null,
             meta,
-            created ?? Now,
             failureCount,
             Interlocked.Increment(ref _staged)
         );
@@ -53,8 +49,8 @@ public sealed class OutboxRelayTests
     [Fact]
     public async Task Duplicate_handoffs_coalesce_to_the_earliest_representative_and_delete_the_group()
     {
-        var early = Row("k1", created: Now, id: Guid.NewGuid());
-        var late = Row("k1", created: Now.AddSeconds(5), id: Guid.NewGuid());
+        var early = Row("k1", id: Guid.NewGuid());
+        var late = Row("k1", id: Guid.NewGuid());
         var store = new FakeStore(early, late);
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
@@ -76,9 +72,9 @@ public sealed class OutboxRelayTests
         // The namespace is a name and folds at the target, so "Orders" and "orders" with one key are the same
         // handoff: ONE group, one target entry, both rows delete. The key is exact, so "ORD-1" beside "ord-1" is
         // a second job, never coalesced into the first.
-        var upper = Row("ord-1", ns: "Orders", created: Now, id: Guid.NewGuid());
-        var lower = Row("ord-1", created: Now.AddSeconds(5), id: Guid.NewGuid());
-        var otherKey = Row("ORD-1", created: Now.AddSeconds(10), id: Guid.NewGuid());
+        var upper = Row("ord-1", ns: "Orders", id: Guid.NewGuid());
+        var lower = Row("ord-1", id: Guid.NewGuid());
+        var otherKey = Row("ORD-1", id: Guid.NewGuid());
         var store = new FakeStore(upper, lower, otherKey);
         var target = new FakeSubmission();
         var svc = new OutboxRelay(store.Source(), target.Jobs());
@@ -148,8 +144,7 @@ public sealed class OutboxRelayTests
             svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken)
         );
 
-        Assert.Equal("orders", ex.SourceName);
-        Assert.Equal(1, ex.QuarantinedCount);
+        Assert.StartsWith("Outbox source 'orders' quarantined 1 row(s)", ex.Message, StringComparison.Ordinal);
         Assert.Contains(bad.OutboxId, store.Quarantined);
         Assert.Empty(store.Rescheduled);
     }
@@ -166,6 +161,22 @@ public sealed class OutboxRelayTests
 
         Assert.Contains(row.OutboxId, store.Quarantined);
         Assert.Empty(target.Batches);
+    }
+
+    [Fact]
+    public async Task A_null_tag_entry_quarantines_its_row_while_its_batch_mates_deliver_in_the_same_tick()
+    {
+        var poison = Row("k1", meta: """{"tags":[null]}""");
+        var good = Row("k2");
+        var store = new FakeStore(poison, good);
+        var target = new FakeSubmission();
+        var svc = new OutboxRelay(store.Source(), target.Jobs());
+
+        await Assert.ThrowsAsync<OutboxQuarantineTickException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
+
+        Assert.Equal([poison.OutboxId], store.Quarantined);
+        Assert.Equal([good.OutboxId], store.Deleted);
+        Assert.Empty(store.Released);
     }
 
     [Fact]
@@ -200,8 +211,8 @@ public sealed class OutboxRelayTests
     public async Task A_group_rejection_increments_each_rows_own_count_and_only_over_threshold_rows_quarantine()
     {
         // One (namespace, dedup) group with two staged duplicates at different failure counts: 0 and 4.
-        var fresh = Row("k1", failureCount: 0, created: Now, id: Guid.NewGuid());
-        var aged = Row("k1", failureCount: 4, created: Now.AddSeconds(5), id: Guid.NewGuid());
+        var fresh = Row("k1", failureCount: 0, id: Guid.NewGuid());
+        var aged = Row("k1", failureCount: 4, id: Guid.NewGuid());
         var store = new FakeStore(fresh, aged);
         var target = new FakeSubmission { RejectWhen = _ => true };
         var svc = new OutboxRelay(store.Source(), target.Jobs());

@@ -137,6 +137,13 @@ internal sealed class WorkerExecutor(
             }
 
             entry.State = InFlightJobState.Executing;
+            // A retired definition's job never starts another attempt: the claim goes back unrun, and the finalizer
+            // lands that re-arm Cancelled. Checked first, so a retired definition no worker carries stops bouncing.
+            if (context.RetentionSecondsByRetiredDefinitionId.ContainsKey(job.DefinitionId))
+            {
+                return Finalizing(entry, HandBack($"Definition_id={job.DefinitionId} is retired; the handler did not run."));
+            }
+
             if (!context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
             {
                 // One warning per definition, not per bounce: the exclusion makes the first bounce the whole

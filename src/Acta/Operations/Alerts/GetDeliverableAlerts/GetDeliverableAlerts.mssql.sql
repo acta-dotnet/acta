@@ -1,6 +1,5 @@
 SELECT TOP (@p_alert_batch_size)
     a.id AS alert_id,
-    a.job_id,
     a.severity_code AS severity,
     a.kind_code AS kind,
     a.title,

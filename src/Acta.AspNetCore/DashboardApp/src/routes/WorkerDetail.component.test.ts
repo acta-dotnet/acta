@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import WorkerDetailHarness from '../test/WorkerDetailHarness.svelte';
 
 const worker = {
-  workerRef: 'wrk_01kydka200fay8000000000002',
+  workerRef: 'wrk_019f9b3508007e4dbfd13d9d20bc81f4',
   jobNamespace: 'billing',
   status: 'active',
   host: 'host-a',

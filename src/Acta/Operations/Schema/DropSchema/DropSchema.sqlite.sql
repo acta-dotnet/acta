@@ -19,7 +19,6 @@ DROP TABLE IF EXISTS {{schema}}.lanes;
 DROP TABLE IF EXISTS {{schema}}.locks;
 DROP TABLE IF EXISTS {{schema}}.migrations;
 DROP TABLE IF EXISTS {{schema}}.namespaces;
-DROP TABLE IF EXISTS {{schema}}.results;
 DROP TABLE IF EXISTS {{schema}}.runtimes;
 DROP TABLE IF EXISTS {{schema}}.schedules;
 DROP TABLE IF EXISTS {{schema}}.steps;

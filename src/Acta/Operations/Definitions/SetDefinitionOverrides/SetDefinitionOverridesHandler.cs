@@ -15,7 +15,7 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
             is not { DefinitionId: var definitionId }
         )
         {
-            return new SetDefinitionOverridesResponse(ControlAction.NotFound);
+            return new SetDefinitionOverridesResponse(ControlAction.NotFound, null);
         }
 
         var actor = JobControlActor.Operator(command.Actor);
@@ -23,7 +23,6 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
             new StoreCommand("SetDefinitionOverrides"),
             cmd =>
             {
-                // The routine takes its arguments by position, so the order here is its signature's.
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.PriorityCodeOverride, overrides.Priority));
@@ -54,7 +53,7 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
             ct
         );
 
-        return new SetDefinitionOverridesResponse(row.Action.ToControlAction());
+        return new SetDefinitionOverridesResponse(row.Action.ToControlAction(), row.Version);
     }
 
     /// <summary>

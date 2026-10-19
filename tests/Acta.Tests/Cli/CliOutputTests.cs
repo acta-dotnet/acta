@@ -670,7 +670,7 @@ public class CliOutputTests
                     WorkerId: SentinelWorkerId,
                     ExecutionNumber: 2,
                     ActorCode: ActorCode.Worker,
-                    Actor: SentinelWorkerRef.ToString(),
+                    Actor: null,
                     FromStatus: JobStatusCode.Executing,
                     ToStatus: JobStatusCode.Failed,
                     ExecutionStatus: null,

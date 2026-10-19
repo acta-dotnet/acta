@@ -10,9 +10,9 @@ internal static class CodeFamilyEmitter
 {
     private const string PayloadFormatName = "JobPayloadFormat";
 
-    internal static string EmitCodes(SchemaModel schema)
+    internal static string EmitCodes()
     {
-        var families = CodeFamilyDiscovery.DiscoverAll(schema);
+        var families = CodeFamilyDiscovery.DiscoverAll();
         var payload = PayloadFormatFamily.Discover();
 
         var sb = new StringBuilder();
@@ -73,18 +73,18 @@ internal static class CodeFamilyEmitter
     private static void EmitInventory(StringBuilder sb, IReadOnlyList<CodeFamilyModel> families)
     {
         var rows = families
-            .Select(family => new InventoryRow(family.Name, family.CodeKind, family.Storage, family.IsMeta))
-            .Append(new InventoryRow(PayloadFormatName, "payload-format", "byte", IsMeta: false))
+            .Select(family => (family.Name, family.CodeKind))
+            .Append((Name: PayloadFormatName, CodeKind: "payload-format"))
             .OrderBy(row => row.Name, StringComparer.Ordinal);
 
         sb.AppendLine("## Code-family inventory");
         sb.AppendLine();
         sb.AppendLine("| Family | Code kind | Backing |");
         sb.AppendLine("|---|---|---|");
-        foreach (var row in rows)
+        // ACTA0201 fails the build of any code family that is not byte-backed.
+        foreach (var (name, codeKind) in rows)
         {
-            var codeKind = row.IsMeta ? "_(meta-enum)_" : $"`{row.CodeKind}`";
-            sb.AppendLine(CultureInfo.InvariantCulture, $"| {Anchors.LinkCodeFamilyLocal(row.Name)} | {codeKind} | `{row.Storage}` |");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"| {Anchors.LinkCodeFamilyLocal(name)} | `{codeKind}` | `byte` |");
         }
         sb.AppendLine();
     }
@@ -108,11 +108,10 @@ internal static class CodeFamilyEmitter
 
     private static void EmitFamily(StringBuilder sb, CodeFamilyModel family)
     {
-        var kind = family.IsMeta ? "meta-enum" : family.CodeKind;
         sb.Append("### `")
             .Append(family.Name)
             .Append("` · `")
-            .Append(kind)
+            .Append(family.CodeKind)
             .Append("` ")
             .AppendLine(Anchors.Tag(Anchors.CodeFamily(family.Name)));
         sb.AppendLine();
@@ -178,8 +177,6 @@ internal static class CodeFamilyEmitter
         }
         sb.AppendLine();
     }
-
-    private sealed record InventoryRow(string Name, string? CodeKind, string Storage, bool IsMeta);
 }
 
 internal sealed record PayloadFormatFamily(IReadOnlyList<PayloadFormatEntry> Values)

@@ -278,8 +278,8 @@ BEGIN
             now(),
             0);
 
-        INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
-        SELECT 50 /* TagScopeCode.Job */, v_job_id, v_ns_id, t.name, t.value, t.value_search
+        INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
+        SELECT 50 /* TagScopeCode.Job */, v_job_id, t.name, t.value, t.value_search
         FROM unnest(p_t_name, p_t_value, p_t_value_search) AS t(name, value, value_search);
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;

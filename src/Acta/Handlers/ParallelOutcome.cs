@@ -5,13 +5,8 @@ namespace Acta;
 /// group waits for every branch and returns; it never throws because a branch failed. Call
 /// <see cref="ThrowIfAnyFailed"/> to opt into escalation.
 /// </summary>
-public sealed record ParallelOutcome(string GroupName, IReadOnlyDictionary<string, ChildJobOutcome> Branches)
+public sealed record ParallelOutcome(IReadOnlyDictionary<string, ChildJobOutcome> Branches)
 {
-    /// <summary>
-    /// The outcome of the named branch; throws <see cref="KeyNotFoundException"/> for an unknown name.
-    /// </summary>
-    public ChildJobOutcome this[string branchName] => Branches[branchName];
-
     /// <summary>
     /// True when the group deadline passed before at least one branch landed terminal. Always false
     /// for the unbounded overload, which waits until every branch lands.

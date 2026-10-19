@@ -9,7 +9,6 @@
   import { scope } from '../scope.ts';
   import type { TenantListItem } from '../api.ts';
   import ActiveFilters from '../components/ActiveFilters.svelte';
-  import { setScope } from '../scope.ts';
   import { createUrlFilters } from '../urlFilters.ts';
   import { parseTagTokens } from '../lib/tagTokens.ts';
   import { routes } from '../routes.ts';
@@ -21,7 +20,6 @@
 
   let activeChips = $derived(
     [
-      $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.search ? { label: 'Search', value: $filters.search, onRemove: () => filters.patch({ search: '' }) } : null,
       $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
       $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
@@ -65,7 +63,7 @@
         <input placeholder="env:prod team" value={$filters.tags} onchange={(event) => filters.patch({ tags: event.currentTarget.value.trim() })} />
       </label>
     </FilterBar>
-    <ActiveFilters chips={activeChips} onClearAll={() => { filters.clear(); setScope(''); }} />
+    <ActiveFilters chips={activeChips} onClearAll={() => filters.clear()} />
 
     {#snippet tenantCell(tenant: TenantListItem)}<a href={detailHref(tenant)} class="mono">{tenant.tenantName}</a>{/snippet}
     {#snippet statusCell(tenant: TenantListItem)}<StatusBadge status={tenant.status} />{/snippet}

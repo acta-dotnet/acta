@@ -2,9 +2,6 @@ using Microsoft.Extensions.Options;
 
 namespace Acta;
 
-/// <summary>What one recovery pass changed, for the caller that wants to assert on a single pass.</summary>
-internal readonly record struct RecoveryPassReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches, int RepairedLanes);
-
 /// <summary>
 /// One recovery pass, and the only implementation of one: the worker heartbeat that takes a pass and the test host's recovery
 /// drive both call it, so neither models recovery differently. Three steps in order: <c>mark_dead_workers</c> sweeps all
@@ -32,9 +29,13 @@ internal sealed class RecoveryPass(
     /// <paramref name="namespaceId"/>. A pass that reclaimed jobs or repaired a lane publishes a wakeup:
     /// the rows are claimable - Ready, or Suspended on a deadline already past for the one arm that
     /// re-arms a resolved wait uncharged - and nothing else will announce them, so a live worker should
-    /// pick them up without waiting out the safety poll.
+    /// pick them up without waiting out the safety poll. Answers what the pass changed, for the test host's recovery drive.
     /// </summary>
-    public async Task<RecoveryPassReport> RunAsync(int namespaceId, string namespaceName, CancellationToken ct)
+    public async Task<(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches)> RunAsync(
+        int namespaceId,
+        string namespaceName,
+        CancellationToken ct
+    )
     {
         var deadWorkers = (await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct)).Marked;
         var result = await execution.ReclaimStuckJobsAsync(namespaceId, ct);
@@ -47,7 +48,7 @@ internal sealed class RecoveryPass(
         var released = 0;
         foreach (var (childId, parentId) in result.FailedChildren)
         {
-            if (await RaiseChildLatch.Run(signals, childId, parentId, JobStatusCode.Failed, ct))
+            if (await RaiseChildLatch.Run(signals, childId, parentId, JobStatusCode.Failed, childExecutionNumber: null, ct))
             {
                 released++;
             }
@@ -57,7 +58,15 @@ internal sealed class RecoveryPass(
         // raise (and for latches re-armed after a state reset): re-raise the child's terminal status.
         foreach (var latch in (await execution.GetStaleChildLatchesAsync(namespaceId, ct)).Latches)
         {
-            if (await RaiseChildLatch.Run(signals, latch.ChildJobId, latch.ParentJobId, latch.ChildStatus ?? JobStatusCode.Failed, ct))
+            var raised = await RaiseChildLatch.Run(
+                signals,
+                latch.ChildJobId,
+                latch.ParentJobId,
+                latch.ChildStatus ?? JobStatusCode.Failed,
+                latch.ChildExecutionNumber,
+                ct
+            );
+            if (raised)
             {
                 released++;
             }
@@ -70,6 +79,6 @@ internal sealed class RecoveryPass(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return new RecoveryPassReport(deadWorkers, result.Reclaimed, released, result.RepairedLanes);
+        return (deadWorkers, result.Reclaimed, released);
     }
 }

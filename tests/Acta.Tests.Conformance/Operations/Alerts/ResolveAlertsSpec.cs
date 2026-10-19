@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     "resolve-job-alerts.on-success",
     "A success resolves its job's open automatic failure alerts once",
     Area = "Alerts",
-    Contract = "ResolveAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count."
+    Contract = "ResolveAlerts closes one job's open automatic failure alerts marked before the success event and stamps that event as the mark."
 )]
 public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -110,8 +110,16 @@ public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(raised.Version, row.Version);
     }
 
-    private async Task<int> ResolveAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        (await Services.GetRequiredService<AlertsOperations>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct)).Resolved;
+    // How many of the job's open alerts the resolve closed, read from the rows.
+    private async Task<int> ResolveAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct)
+    {
+        var open = await OpenAlertCountAsync(jobId, ct);
+        await Services.GetRequiredService<AlertsOperations>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct);
+        return open - await OpenAlertCountAsync(jobId, ct);
+    }
+
+    private Task<int> OpenAlertCountAsync(long jobId, CancellationToken ct) =>
+        Db.From<AlertEntity>().Where(a => a.JobId == jobId && a.ResolvedAtUtc == null).CountAsync(ct);
 
     /// <summary>
     /// A keyless raise, so every call is its own row. The source event id stands in for the failure event the

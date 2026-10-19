@@ -5,8 +5,8 @@ import {
   contrastRatio,
   MANAGED_ACCENT_TOKENS,
 } from './accents.ts';
-import { ACCENTS, THEMES } from './appearance.ts';
-import { THEME_METADATA } from './themes.ts';
+import { ACCENTS } from './appearance.ts';
+import { THEMES, THEME_METADATA } from './themes.ts';
 
 const neutralTokens = ['--bg', '--panel', '--ink', '--muted', '--line'];
 const statusTokens = [

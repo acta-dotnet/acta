@@ -16,7 +16,7 @@ SELECT
     121 /* EventCode.WorkerStopped */,
     @p_namespace_id,
     70 /* ActorCode.Worker */,
-    w.worker_ref,
+    NULL,
     NULL,
     NULL,
     NULL,

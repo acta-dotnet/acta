@@ -14,8 +14,8 @@
 -- present and leaves the data in place. Over a database a newer release upgraded, the script stops
 -- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
 -- release upgrades a 1.x database with
--- its own migrations, carried in its own copy of this script. A database provisioned by a
--- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one.
+-- its own migrations, carried in its own copy of this script. A database provisioned before
+-- 1.0.0 has no upgrade path: provision a new one.
 --
 -- Run it with a client that stops at the first error, which is what makes the transaction below a
 -- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the history
@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261017125154_init')
+    WHERE name NOT IN ('M20261018210615_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261017125154_init =====
+-- ===== BEGIN M20261018210615_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS main.checkpoints (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code NOT IN (10, 40) OR (status_code IS NULL AND due_at_utc IS NULL)) AND (kind_code NOT IN (20, 30, 50) OR status_code IS NOT NULL) AND (kind_code <> 30 OR due_at_utc IS NOT NULL))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_checkpoints_pending_latches ON checkpoints (job_id, name) WHERE kind_code = 50 AND status_code = 10;
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS main.events (
     lineage_root_id integer NULL,
     definition_id integer NULL,
     tenant_id integer NULL,
-    worker_id integer NULL,
+    worker_id integer DEFAULT 0 NOT NULL,
     from_status_code integer NULL,
     to_status_code integer NULL,
     execution_status_code integer NULL,
@@ -283,18 +283,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS main.ux_namespaces_name ON namespaces (name);
 INSERT OR IGNORE INTO main.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)
 VALUES (1, 'sys', 10, 'Reserved system namespace for cross-namespace audit events.', CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER), CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER));
 
--- results
-CREATE TABLE IF NOT EXISTS main.results (
-    job_id integer NOT NULL,
-    execution_number integer NOT NULL,
-    result_format_id integer NOT NULL,
-    result blob NOT NULL,
-    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
-    , CONSTRAINT pk_results PRIMARY KEY (job_id, execution_number)
-    , CONSTRAINT ck_results_format_not_none CHECK (result_format_id <> 0)
-    , CONSTRAINT ck_results_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
-) STRICT;
-
 -- runtimes
 CREATE TABLE IF NOT EXISTS main.runtimes (
     job_id integer NOT NULL,
@@ -309,6 +297,8 @@ CREATE TABLE IF NOT EXISTS main.runtimes (
     lease_expires_at_utc integer NULL,
     retention_until_utc integer NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    result_format_id integer DEFAULT 0 NOT NULL,
+    result blob NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_runtimes PRIMARY KEY (job_id)
     , CONSTRAINT ck_runtimes_blocked_lane CHECK (status_code <> 15 OR lane_id IS NOT NULL)
@@ -317,6 +307,9 @@ CREATE TABLE IF NOT EXISTS main.runtimes (
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code = 50 OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code <> 50 OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
+    , CONSTRAINT ck_runtimes_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
+    , CONSTRAINT ck_runtimes_result_idle CHECK (result_format_id = 0 OR status_code <> 50)
+    , CONSTRAINT ck_runtimes_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES lanes (id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
@@ -383,17 +376,13 @@ CREATE TABLE IF NOT EXISTS main.steps (
 CREATE TABLE IF NOT EXISTS main.tags (
     scope_code integer NOT NULL,
     scope_id integer NOT NULL,
-    namespace_id integer NULL,
     name text NOT NULL,
     value text NULL,
     value_search text NULL
     , CONSTRAINT pk_tags PRIMARY KEY (scope_code, scope_id, name)
     , CONSTRAINT ck_tags_scope_id CHECK (scope_id > 0)
-    , CONSTRAINT ck_tags_namespace_id CHECK (namespace_id IS NULL OR namespace_id > 0)
-    , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50) AND namespace_id IS NOT NULL))
     , CONSTRAINT ck_tags_value_search CHECK ((value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL))
 ) STRICT;
-CREATE INDEX IF NOT EXISTS main.ix_tags_namespace_name_value_search ON tags (namespace_id, name, value_search, scope_code, scope_id);
 
 -- tenants
 CREATE TABLE IF NOT EXISTS main.tenants (
@@ -635,16 +624,15 @@ SELECT
     END AS input_format,
     CASE WHEN j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(j.input AS TEXT) END
         AS input_text,
-    lr.execution_number AS last_result_execution_number,
-    CASE lr.result_format_id
+    CASE r.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE CASE WHEN lr.result_format_id IS NULL THEN NULL ELSE 'custom-' || CAST(lr.result_format_id AS TEXT) END
-    END AS last_result_format,
-    CASE WHEN lr.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(lr.result AS TEXT) END
-        AS last_result_text,
-    lr.created_at_utc AS last_result_created_at_utc,
+        ELSE 'custom-' || CAST(r.result_format_id AS TEXT)
+    END AS result_format,
+    CASE WHEN r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(r.result AS TEXT) END
+        AS result_text,
     r.next_run_at_utc,
     r.execution_number,
     r.failure_count,
@@ -663,14 +651,7 @@ JOIN main.definitions AS d ON d.id = j.definition_id
 LEFT JOIN main.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
 LEFT JOIN main.tenants AS t ON t.id = j.tenant_id
 LEFT JOIN main.workers AS w ON w.id = r.leased_by_worker_id
-LEFT JOIN main.lanes AS lane ON lane.id = r.lane_id
-LEFT JOIN main.results AS lr
-    ON
-        lr.job_id = j.id
-        AND lr.execution_number = (
-            SELECT MAX(rr.execution_number) FROM main.results AS rr
-            WHERE rr.job_id = j.id
-        );
+LEFT JOIN main.lanes AS lane ON lane.id = r.lane_id;
 
 DROP VIEW IF EXISTS main.schedules_view;
 CREATE VIEW main.schedules_view AS
@@ -746,13 +727,10 @@ SELECT
     CASE t.scope_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' END AS scope,
     t.scope_code,
     t.scope_id,
-    ns.name AS namespace,
-    t.namespace_id,
     t.name AS tag_name,
     t.value AS tag_value,
     t.value_search AS tag_value_search
-FROM main.tags AS t
-LEFT JOIN main.namespaces AS ns ON ns.id = t.namespace_id;
+FROM main.tags AS t;
 
 DROP VIEW IF EXISTS main.workers_view;
 CREATE VIEW main.workers_view AS
@@ -777,10 +755,10 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261017125154_init')
+VALUES ('M20261018210615_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261017125154_init =====
+-- ===== END M20261018210615_init =====
 
 COMMIT;
 

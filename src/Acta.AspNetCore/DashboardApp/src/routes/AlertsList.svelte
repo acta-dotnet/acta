@@ -91,7 +91,7 @@
     AlertControlResponse
   >({
     path: (vars) => `alerts/${vars.alertRef}/${vars.action}`,
-    notFound: (vars) => ({ alertRef: vars.alertRef, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
+    notFound: () => ({ action: 'notFound' }),
     invalidateKeys: () => [['alerts']] as const
   });
   let busy = $derived(mutation.isPending);

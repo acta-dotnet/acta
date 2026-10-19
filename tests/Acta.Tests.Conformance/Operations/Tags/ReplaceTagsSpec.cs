@@ -31,8 +31,8 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
         await Tags.ReplaceAsync(target, [new TagInput("dropped"), new TagInput("kept", "old")], ct: ct);
 
         TagInput[] next = [new TagInput("kept", "new"), new TagInput("added", "fresh")];
-        Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, next, ct: ct)).Action);
-        Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, next, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.ReplaceAsync(target, next, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.ReplaceAsync(target, next, ct: ct)).Action);
 
         var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
         Assert.Equal([new GetTagsItem("added", "fresh"), new GetTagsItem("kept", "new")], tags.Items);
@@ -45,10 +45,10 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
         var target = await TenantAsync("replace-bounds", ct);
 
         var full = Enumerable.Range(0, TagLimits.MaxTagsPerTarget).Select(i => new TagInput($"tag-{i}")).ToArray();
-        Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, full, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.ReplaceAsync(target, full, ct: ct)).Action);
         Assert.Equal(TagLimits.MaxTagsPerTarget, Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items.Count);
 
-        Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, [], ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Tags.ReplaceAsync(target, [], ct: ct)).Action);
         Assert.Empty(Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 

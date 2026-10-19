@@ -110,6 +110,36 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(before, (await StateAsync(foreign.JobId, ct), await StateAsync(terminal.JobId, ct)));
     }
 
+    [Fact(DisplayName = "A reclaimed attempt's late completion stores no result, and the attempt that replaced it stores its own")]
+    public async Task Reclaimed_attempts_late_completion_stores_no_result()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var workerId = await WorkerIdAsync(ct);
+        var stale = await ExecutingAsync(AddNumbers(), workerId, ct);
+        await ChaosSpecHelpers.ExpireLeaseAsync(Db, stale.JobId, ct);
+        Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, Runtime.RegisteredNamespaceIds[TestNamespace], ct));
+        await ChaosSpecHelpers.SetReadyAsync(Db, stale.JobId, ct);
+        var current = await ClaimExecutingAsync(stale.JobId, workerId, ct);
+
+        var late = await CompleteAsync(
+            workerId,
+            [Plain(stale) with { ResultFormatId = JobPayloadFormat.Json.Id, Result = "{\"sum\":1}"u8.ToArray() }],
+            ct
+        );
+
+        Assert.NotEqual(CompleteExecutionsAction.Completed, late[stale.JobId].Action);
+        Assert.Null(await Jobs.GetResultAsync(JobLookup.ById(stale.JobId), ct));
+
+        var landed = await CompleteAsync(
+            workerId,
+            [Plain(current) with { ResultFormatId = JobPayloadFormat.Json.Id, Result = "{\"sum\":3}"u8.ToArray() }],
+            ct
+        );
+
+        Assert.Equal(CompleteExecutionsAction.Completed, landed[current.JobId].Action);
+        Assert.Equal(3, (await Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ById(stale.JobId), ct))?.Sum);
+    }
+
     [Fact(DisplayName = "At the failures-only audit level a success writes a finished event only when it answers a recorded failure")]
     public async Task Failures_level_success_is_recorded_only_when_it_answers_a_failure()
     {
@@ -176,7 +206,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
     private async Task<object> LandedAsync(long jobId, CancellationToken ct)
     {
         var job = await ReadJobAsync(jobId, ct);
-        var result = await Db.From<ResultEntity>().Where(r => r.JobId == jobId).SingleOrDefaultAsync(ct);
+        var runtime = Assert.IsType<RuntimeEntity>(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct));
         var finished = await ReadSingleEventAsync(jobId, EventCode.JobExecutionFinished, ct);
         return (
             job.Status,
@@ -184,8 +214,8 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
             job.LeasedByWorkerId,
             job.LeaseExpiresAtUtc,
             job.RetentionUntilUtc is not null,
-            result?.ResultFormatId,
-            result is null ? null : Convert.ToBase64String(result.Result),
+            runtime.ResultFormatId,
+            runtime.Result is null ? null : Convert.ToBase64String(runtime.Result),
             (finished.ActorCode, finished.WorkerId, finished.FromStatus, finished.ToStatus, finished.ExecutionStatus),
             (finished.DurationMs, finished.ReasonCode, finished.ReasonMessage)
         );

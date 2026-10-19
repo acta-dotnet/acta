@@ -145,7 +145,6 @@ BEGIN TRY
                 actor_code, actor,
                 job_id, job_ref, execution_number,
                 lineage_root_id, definition_id, tenant_id,
-                worker_id,
                 from_status_code, to_status_code,
                 execution_status_code, duration_ms,
                 reason_code, reason_message
@@ -155,7 +154,6 @@ BEGIN TRY
                 @p_actor_code, @p_actor,
                 @p_id, @job_ref, @execution_number,
                 COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                NULL,
                 @from_status, 30 /* JobStatusCode.Paused */,
                 NULL, NULL,
                 @p_reason_code, @p_reason_message

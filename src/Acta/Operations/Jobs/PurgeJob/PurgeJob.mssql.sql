@@ -109,8 +109,6 @@ BEGIN TRY
     WHERE c.job_id = @p_id;
     DELETE t FROM {{schema}}.steps t WITH (FORCESEEK)
     WHERE t.job_id = @p_id;
-    DELETE x FROM {{schema}}.results x WITH (FORCESEEK)
-    WHERE x.job_id = @p_id;
     DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK)
     WHERE s.job_id = @p_id;
     DELETE FROM {{schema}}.jobs
@@ -123,7 +121,6 @@ BEGIN TRY
         actor_code, actor,
         job_id, job_ref, execution_number,
         lineage_root_id, definition_id, tenant_id,
-        worker_id,
         from_status_code, to_status_code,
         execution_status_code, duration_ms,
         reason_code, reason_message
@@ -133,10 +130,9 @@ BEGIN TRY
         @p_actor_code, @p_actor,
         NULL, NULL, NULL,
         NULL, @definition_id, @tenant_id,
-        NULL,
         @from_status, NULL,
         NULL, NULL,
-        @p_reason_code, CONCAT('purged ', LOWER(CONVERT(VARCHAR(36), @job_ref)), ' (', @job_name, ')')
+        @p_reason_code, CONCAT('purged job_', LOWER(REPLACE(CONVERT(VARCHAR(36), @job_ref), '-', '')), ' (', @job_name, ')')
     );
 
     SELECT

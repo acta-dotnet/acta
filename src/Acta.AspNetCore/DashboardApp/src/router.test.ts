@@ -3,8 +3,8 @@ import test from 'node:test';
 import { parseRouteHash } from './router.ts';
 import { routes } from './routes.ts';
 
-const WORKER_REF = 'wrk_01k2r8h0000080000000000042';
-const ALERT_REF = 'alr_01k2r8h0000080000000000043';
+const WORKER_REF = 'wrk_01a00839ac007d0897f301df388fb723';
+const ALERT_REF = 'alr_01a0083ad2c8768f88152ef8864d3a8c';
 
 test('worker detail route parses a worker ref', () => {
   assert.deepEqual(parseRouteHash(`#/workers/${WORKER_REF}?ns=billing`), { name: 'worker-detail', workerRef: WORKER_REF });

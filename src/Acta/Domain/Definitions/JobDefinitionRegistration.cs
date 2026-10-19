@@ -44,13 +44,25 @@ internal static class JobDefinitionRegistration
     public static bool IsBackoff(string value) => Backoff.TryParse(value, out _) && value.Length <= ActaTextLimits.DefinitionBackoff;
 
     /// <summary>A runbook URL that fits its ASCII column whole: printable ASCII, never truncated.</summary>
-    public static bool IsRunbookUrl(string value) =>
-        value.Length <= ActaTextLimits.DefinitionRunbookUrl && !value.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E);
+    public static bool IsRunbookUrl(string value) => IsPrintableAscii(value, ActaTextLimits.DefinitionRunbookUrl);
+
+    private static bool IsPrintableAscii(string value, int maxLength) =>
+        value.Length <= maxLength && !value.AsSpan().ContainsAnyExceptInRange((char)0x20, (char)0x7E);
+
+    /// <summary>
+    /// The name a contract type is stored and compared by: <see cref="Type.FullName"/>, with each generic argument
+    /// rendered the same way instead of assembly-qualified, so no assembly's version bump changes the name.
+    /// </summary>
+    public static string ContractTypeName(Type type) =>
+        type.IsArray ? $"{ContractTypeName(type.GetElementType()!)}[{new string(',', type.GetArrayRank() - 1)}]"
+        : type.IsConstructedGenericType
+            ? $"{type.GetGenericTypeDefinition().FullName}[{string.Join(",", type.GenericTypeArguments.Select(ContractTypeName))}]"
+        : type.FullName ?? type.Name;
 
     public static DefinitionContract ContractOf(JobDescriptor descriptor) =>
         new(
-            InputTypeName: descriptor.InputType.FullName ?? descriptor.InputType.Name,
-            OutputTypeName: descriptor.OutputType?.FullName,
+            InputTypeName: ContractTypeName(descriptor.InputType),
+            OutputTypeName: descriptor.OutputType is null ? null : ContractTypeName(descriptor.OutputType),
             InputFormatId: descriptor.InputPayloadFormat.Id,
             InputFormatName: descriptor.InputPayloadFormat.Name,
             OutputFormatId: descriptor.OutputPayloadFormat?.Id ?? (byte)0,
@@ -67,8 +79,9 @@ internal static class JobDefinitionRegistration
 
     /// <summary>
     /// Rejects a descriptor whose backoff, timeout, runbook URL, display name or description exceeds
-    /// the bounds the operator override gate enforces, so the two surfaces share one contract.
-    /// Declared text is rejected rather than truncated: the attribute is the developer's to fix.
+    /// the bounds the operator override gate enforces, so the two surfaces share one contract, or whose
+    /// contract type name does not fit its ASCII column. Declared text is rejected rather than
+    /// truncated: the attribute is the developer's to fix.
     /// </summary>
     public static void ValidateDescriptorShape(JobDescriptor descriptor, string namespaceLabel)
     {
@@ -129,6 +142,12 @@ internal static class JobDefinitionRegistration
                     + $"the ceiling is {MaxExecutionTimeoutSeconds} seconds."
             );
         }
+        var contract = ContractOf(descriptor);
+        RequireStorableTypeName("input", contract.InputTypeName);
+        if (contract.OutputTypeName is { } outputTypeName)
+        {
+            RequireStorableTypeName("output", outputTypeName);
+        }
         if (descriptor.RunbookUrl is { } runbookUrl && !IsRunbookUrl(runbookUrl))
         {
             throw new ArgumentException(
@@ -147,6 +166,19 @@ internal static class JobDefinitionRegistration
             throw new ArgumentException(
                 $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has a Description longer than {ActaTextLimits.DefinitionDescription} characters."
             );
+        }
+
+        // SQL Server stores the name in a VARCHAR column, which cannot keep a character outside its code page.
+        void RequireStorableTypeName(string side, string typeName)
+        {
+            if (!IsPrintableAscii(typeName, ActaTextLimits.DefinitionTypeName))
+            {
+                throw new ArgumentException(
+                    $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has the {side} type \"{typeName}\": a contract "
+                        + $"type name must be at most {ActaTextLimits.DefinitionTypeName} printable ASCII characters. Rename the type, "
+                        + "its namespace, or its generic arguments."
+                );
+            }
         }
     }
 }

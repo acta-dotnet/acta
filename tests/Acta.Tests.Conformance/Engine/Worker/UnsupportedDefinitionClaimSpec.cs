@@ -123,11 +123,9 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
 
         // What the bounce is for: the row is claimable again, and a process that carries the handler
         // runs it with no operator intervention and no retry spent. The re-arm delay is short enough
-        // that the by-id drive helper's claim retries outlast it. Restoring the descriptor without
-        // clearing the exclusion is not a state production reaches - the deployment that carries the
-        // handler is a different process, with an empty exclusion set - so the seam clears it here.
+        // that the by-id drive helper's claim retries outlast it, and a by-id claim never consults the
+        // exclusion the bounce recorded.
         Runtime.Descriptors[definitionId] = descriptor;
-        Assert.True(Runtime.ForgetUnsupportedDefinition(definitionId));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);

@@ -192,9 +192,12 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
                 },
                 ct
             );
+        // A staged row names no worker, so (0, id) is its key.
         Assert.Equal(
             1,
-            await Db.From<EventEntity>().Where(e => e.Id == id).UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = stampUtc }, ct)
+            await Db.From<EventEntity>()
+                .Where(e => e.WorkerId == 0 && e.Id == id)
+                .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = stampUtc }, ct)
         );
         return id;
     }

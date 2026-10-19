@@ -12,7 +12,7 @@ public sealed class CodeFamilyEmitterTests
     {
         var codes = Path.Combine(ResolveRepoRoot(), "src", "Acta", "Domain", "Codes");
         var misplaced = CodeFamilyDiscovery
-            .DiscoverAll(SchemaModel.Discover())
+            .DiscoverAll()
             .Select(family => family.Name)
             .Where(name => !File.Exists(Path.Combine(codes, name + ".cs")));
 
@@ -22,7 +22,7 @@ public sealed class CodeFamilyEmitterTests
     [Fact]
     public void Code_family_inventory_is_sorted_by_family_name()
     {
-        var markdown = CodeFamilyEmitter.EmitCodes(SchemaModel.Discover());
+        var markdown = CodeFamilyEmitter.EmitCodes();
         var lines = markdown.ReplaceLineEndings("\n").Split('\n');
         var inventoryStart = Array.IndexOf(lines, "## Code-family inventory");
         Assert.True(inventoryStart >= 0);
@@ -35,7 +35,7 @@ public sealed class CodeFamilyEmitterTests
     [Fact]
     public void Code_family_reference_contains_no_editorial_metadata()
     {
-        var markdown = CodeFamilyEmitter.EmitCodes(SchemaModel.Discover());
+        var markdown = CodeFamilyEmitter.EmitCodes();
 
         Assert.DoesNotContain("| Style |", markdown, StringComparison.Ordinal);
         Assert.DoesNotContain("| Set by |", markdown, StringComparison.Ordinal);

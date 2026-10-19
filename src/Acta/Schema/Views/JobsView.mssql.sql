@@ -27,19 +27,18 @@ SELECT
             j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
             THEN CAST(j.input AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS input_text,
-    lr.execution_number AS last_result_execution_number,
-    CASE lr.result_format_id
+    CASE r.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
         WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE CASE WHEN lr.result_format_id IS NULL THEN NULL ELSE CONCAT('custom-', lr.result_format_id) END
-    END AS last_result_format,
+        ELSE CONCAT('custom-', r.result_format_id)
+    END AS result_format,
     CASE
         WHEN
-            lr.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
-            THEN CAST(lr.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS last_result_text,
-    lr.created_at_utc AS last_result_created_at_utc,
+            r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            THEN CAST(r.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
     r.next_run_at_utc,
     r.execution_number,
     r.failure_count,
@@ -59,10 +58,3 @@ LEFT JOIN {{schema}}.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
 LEFT JOIN {{schema}}.tenants AS t ON t.id = j.tenant_id
 LEFT JOIN {{schema}}.workers AS w ON w.id = r.leased_by_worker_id
 LEFT JOIN {{schema}}.lanes AS lane ON lane.id = r.lane_id
-LEFT JOIN {{schema}}.results AS lr
-    ON
-        lr.job_id = j.id
-        AND lr.execution_number = (
-            SELECT MAX(rr.execution_number) FROM {{schema}}.results AS rr
-            WHERE rr.job_id = j.id
-        )

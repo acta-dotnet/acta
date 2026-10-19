@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -126,7 +128,6 @@ internal sealed class CatalogRegistrar(
         ValidateScheduleTimeZones(allDescriptors);
         ValidateTenantRequirements(allDescriptors);
         ValidateDeadlineRequirements(allDescriptors);
-        ValidateRecurringResultCaps(allDescriptors);
         foreach (var descriptor in allDescriptors)
         {
             JobDefinitionRegistration.ValidateDescriptorShape(descriptor, ns);
@@ -229,26 +230,6 @@ internal sealed class CatalogRegistrar(
                     $"Job '{descriptor.JobName}' declares Deadline together with [JobSchedule]. "
                         + "A deadline anchors to job creation, and a recurring slot is created once and lives "
                         + "forever, so the combination would cancel the slot instead of bounding an occurrence."
-                );
-            }
-        }
-    }
-
-    /// <summary>
-    /// Retention deletes terminal jobs and a live recurring slot is never terminal, so the cap is the only thing
-    /// bounding a slot's result history, and zero means keep everything. Refused here, at startup and by name, rather
-    /// than on the completion request, which is built after the handler has run and sits inside the write that is
-    /// never abandoned.
-    /// </summary>
-    internal static void ValidateRecurringResultCaps(ImmutableArray<JobDescriptor> descriptors)
-    {
-        foreach (var descriptor in descriptors)
-        {
-            if (!descriptor.Schedules.IsDefaultOrEmpty && descriptor.RecurringResultCap < 1)
-            {
-                throw new InvalidOperationException(
-                    $"Job '{descriptor.JobName}' declares [JobSchedule] with RecurringResultCap = {descriptor.RecurringResultCap}. "
-                        + "A recurring slot keeps at least one result; a cap below one would keep every result it ever produces."
                 );
             }
         }
@@ -422,4 +403,185 @@ internal sealed class CatalogRegistrar(
         var payload = descriptor.SerializeInput(serializer, descriptor.CreateDefaultInput());
         return (payload.Format.Id, payload.Data);
     }
+}
+
+/// <summary>
+/// Resolves the worker's manifest generation, the monotonic governor for definition promotion:
+/// the explicit <see cref="JobsOptions.ManifestGenerationUtc"/> if set, otherwise the entry
+/// assembly's file last-write-time, falling back to the running executable's last-write-time under
+/// single-file or AOT publish (where the entry assembly reports no file location). Never process
+/// start time. The result is normalized to UTC and truncated to millisecond precision so it survives
+/// a DB write/read round trip on both providers.
+/// </summary>
+internal static class ManifestGenerationResolver
+{
+    [UnconditionalSuppressMessage(
+        "SingleFile",
+        "IL3000",
+        Justification = "Assembly.Location is empty under single-file/AOT; that case falls back to the running executable below."
+    )]
+    public static DateTime Resolve(JobsOptions options, Assembly? entryAssembly, ILogger? log = null)
+    {
+        if (options.ManifestGenerationUtc is { } explicitGeneration)
+        {
+            return Normalize(DateTime.SpecifyKind(explicitGeneration, DateTimeKind.Utc));
+        }
+
+        // The entry assembly's file last-write-time, falling back to the running executable's publish
+        // stamp when Assembly.Location is empty (single-file / AOT publish). Both are file timestamps
+        // with the same monotonic-governor semantics, so a worker boots without an explicit generation.
+        var resolved = Normalize(
+            FileTimestamp(entryAssembly?.Location)
+                ?? FileTimestamp(Environment.ProcessPath)
+                ?? throw new InvalidOperationException(
+                    "Acta could not resolve a manifest generation from the entry assembly or the running "
+                        + "executable. Set JobsOptions.ManifestGenerationUtc explicitly."
+                )
+        );
+
+        log?.LogWarning(
+            "Acta manifest generation ({Detail}) was derived from the deployed file's last-write time; "
+                + "container image copies and artifact restores can skew it and misorder definition promotion. "
+                + "Set JobsOptions.ManifestGenerationUtc to a CI build stamp for deterministic ordering.",
+            resolved.ToString("O", CultureInfo.InvariantCulture)
+        );
+
+        return resolved;
+
+        static DateTime? FileTimestamp(string? path) =>
+            !string.IsNullOrEmpty(path) && File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
+    }
+
+    private static DateTime Normalize(DateTime utc) => new(utc.Ticks - (utc.Ticks % TimeSpan.TicksPerMillisecond), DateTimeKind.Utc);
+}
+
+/// <summary>
+/// Compares incoming descriptor contracts against the stored rows and reports eligible changes.
+/// Pure: callers decide whether to warn or fail based on <see cref="PayloadContractDriftMode"/>.
+/// </summary>
+internal static class ContractDriftDetector
+{
+    public static IReadOnlyList<ContractDrift> Detect(
+        DateTime incomingGenerationUtc,
+        ImmutableArray<JobDescriptor> descriptors,
+        IReadOnlyCollection<StoredDefinitionContract> stored
+    )
+    {
+        if (descriptors.IsDefaultOrEmpty || stored.Count == 0)
+        {
+            return [];
+        }
+
+        var storedByName = new Dictionary<string, StoredDefinitionContract>(stored.Count, StringComparer.Ordinal);
+        foreach (var s in stored)
+        {
+            storedByName[s.Name] = s;
+        }
+
+        var drifts = new List<ContractDrift>();
+        foreach (var descriptor in descriptors)
+        {
+            if (!storedByName.TryGetValue(descriptor.JobName, out var existing))
+            {
+                continue;
+            }
+
+            if (incomingGenerationUtc < existing.ManifestGenerationAtUtc)
+            {
+                continue;
+            }
+
+            var incoming = JobDefinitionRegistration.ContractOf(descriptor);
+            if (incoming != existing.Contract)
+            {
+                drifts.Add(new ContractDrift(descriptor.JobName, existing.Contract, incoming));
+            }
+        }
+
+        return drifts;
+    }
+}
+
+/// <summary>
+/// Applies <see cref="PayloadContractDriftMode"/> to detected contract drift: fails worker startup
+/// under Fail, logs a warning per drift under Warn. The warning is framed as live contract drift,
+/// not corruption of already-enqueued rows.
+/// </summary>
+internal static class ContractDriftPolicy
+{
+    public static void Apply(PayloadContractDriftMode mode, IReadOnlyList<ContractDrift> drifts, string ns, ILogger log)
+    {
+        if (drifts.Count == 0)
+        {
+            return;
+        }
+
+        if (mode == PayloadContractDriftMode.Fail)
+        {
+            var names = string.Join(", ", drifts.Select(d => d.JobName));
+            throw new PayloadContractDriftException(
+                $"Payload contract drift in namespace '{ns}' for: {names}. "
+                    + "Worker startup is blocked because PayloadContractDriftMode is Fail."
+            );
+        }
+
+        foreach (var drift in drifts)
+        {
+            log.LogWarning(
+                "Payload contract drift for job ({JobName}) in namespace ({Namespace}): ({Detail}). Enqueues made from now on use the new contract.",
+                drift.JobName,
+                ns,
+                $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "
+                    + $"input format {drift.Stored.InputFormatName} -> {drift.Incoming.InputFormatName}"
+            );
+        }
+    }
+}
+
+/// <summary>
+/// Which jobs of the generated <c>ActaJobs</c> framework manifest a worker namespace registers, and whether its worker
+/// runs crash recovery. <see cref="JobsOptions.RegisterSystemJobs"/> brings the maintenance set; an outbox relay brings
+/// <c>sys.outbox</c>, which is opt-in and registers only through <c>AddOutboxRelay</c>. Either one needs crash recovery
+/// and <c>sys.alerts</c>, so a relay brings them even when automatic registration is off, and never forces the
+/// unrelated <c>sys.retention</c>.
+/// </summary>
+internal static class SystemJobs
+{
+    public static IReadOnlySet<string> For(bool registerSystemJobs, bool hasRelay)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (registerSystemJobs || hasRelay)
+        {
+            names.Add("sys.alerts");
+        }
+
+        if (registerSystemJobs)
+        {
+            names.Add("sys.retention");
+        }
+
+        if (hasRelay)
+        {
+            names.Add("sys.outbox");
+        }
+
+        return names;
+    }
+
+    /// <summary>Whether the worker's heartbeat takes crash recovery passes, under the same rule as <c>sys.alerts</c>.</summary>
+    public static bool RunsRecovery(bool registerSystemJobs, bool hasRelay) => registerSystemJobs || hasRelay;
+}
+
+/// <summary>
+/// Environment gating for declared schedules. A <c>[JobSchedule]</c> whose <c>Environments</c> is empty
+/// is a wildcard active in every environment; otherwise it registers only when the worker's current
+/// environment (<see cref="JobsOptions.EnvironmentName"/>) matches one of its declared names,
+/// case-insensitively, mirroring .NET host-environment comparison. A scoped schedule is inactive when
+/// the current environment is unknown (null or empty), so an environment-scoped schedule never fires on
+/// a host that has not declared which environment it is.
+/// </summary>
+internal static class ScheduleEnvironment
+{
+    public static bool IsActiveIn(ImmutableArray<string> environments, string? currentEnvironment) =>
+        environments.IsDefaultOrEmpty || environments.Contains(currentEnvironment ?? string.Empty, StringComparer.OrdinalIgnoreCase);
 }

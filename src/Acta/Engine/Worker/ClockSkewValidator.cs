@@ -3,59 +3,6 @@ using Microsoft.Extensions.Logging;
 namespace Acta;
 
 /// <summary>
-/// The outcome of a worker-init clock-skew check.
-/// </summary>
-internal enum ClockSkewVerdict
-{
-    /// <summary>Measured skew is within the warn threshold.</summary>
-    WithinTolerance,
-
-    /// <summary>Measured skew exceeds the warn threshold but not the fail threshold; a warning was logged.</summary>
-    Warned,
-
-    /// <summary>Measured skew exceeds the fail threshold, but <c>AllowClockSkew</c> downgraded the failure to a warning.</summary>
-    ExceededButAllowed,
-}
-
-/// <summary>
-/// One clock-skew measurement: the estimated offset of the DB clock from the local clock, plus the round-trip it
-/// cost to read the DB clock. The DB instant is sampled at some unknown point inside the round-trip, so the local
-/// clock at that point is estimated as the midpoint of the two bracketing local reads; the estimate's uncertainty is
-/// bounded by half the round-trip, which is why the validator keeps the sample with the smallest round-trip.
-/// </summary>
-internal readonly record struct ClockSkewSample(TimeSpan Skew, TimeSpan RoundTrip)
-{
-    /// <summary>
-    /// Build a sample from a DB read bracketed by two local reads. <paramref name="dbNowUtc"/> minus the
-    /// local midpoint is the signed skew (positive when the DB clock leads the local clock).
-    /// </summary>
-    public static ClockSkewSample From(DateTime localBeforeUtc, DateTime dbNowUtc, DateTime localAfterUtc)
-    {
-        var roundTrip = localAfterUtc - localBeforeUtc;
-        var localMidpoint = localBeforeUtc + TimeSpan.FromTicks(roundTrip.Ticks / 2);
-        return new ClockSkewSample(dbNowUtc - localMidpoint, roundTrip);
-    }
-
-    /// <summary>
-    /// The most accurate sample: the one with the smallest round-trip, whose skew estimate has the
-    /// tightest uncertainty bound.
-    /// </summary>
-    public static ClockSkewSample Best(IReadOnlyList<ClockSkewSample> samples)
-    {
-        var best = samples[0];
-        for (var i = 1; i < samples.Count; i++)
-        {
-            if (samples[i].RoundTrip < best.RoundTrip)
-            {
-                best = samples[i];
-            }
-        }
-
-        return best;
-    }
-}
-
-/// <summary>
 /// Worker-init guard against host/DB clock skew: reads the DB server clock a few times, keeps the tightest measurement,
 /// and warns or fails when the offset from the local clock crosses the configured thresholds. A drifted host clock
 /// silently corrupts lease-expiry and schedule math, so catching it at startup turns a class of hard-to-diagnose
@@ -152,5 +99,43 @@ internal sealed class ClockSkewValidator(
         }
 
         return ClockSkewSample.Best(samples);
+    }
+}
+
+/// <summary>
+/// One clock-skew measurement: the estimated offset of the DB clock from the local clock, plus the round-trip it
+/// cost to read the DB clock. The DB instant is sampled at some unknown point inside the round-trip, so the local
+/// clock at that point is estimated as the midpoint of the two bracketing local reads; the estimate's uncertainty is
+/// bounded by half the round-trip, which is why the validator keeps the sample with the smallest round-trip.
+/// </summary>
+internal readonly record struct ClockSkewSample(TimeSpan Skew, TimeSpan RoundTrip)
+{
+    /// <summary>
+    /// Build a sample from a DB read bracketed by two local reads. <paramref name="dbNowUtc"/> minus the
+    /// local midpoint is the signed skew (positive when the DB clock leads the local clock).
+    /// </summary>
+    public static ClockSkewSample From(DateTime localBeforeUtc, DateTime dbNowUtc, DateTime localAfterUtc)
+    {
+        var roundTrip = localAfterUtc - localBeforeUtc;
+        var localMidpoint = localBeforeUtc + TimeSpan.FromTicks(roundTrip.Ticks / 2);
+        return new ClockSkewSample(dbNowUtc - localMidpoint, roundTrip);
+    }
+
+    /// <summary>
+    /// The most accurate sample: the one with the smallest round-trip, whose skew estimate has the
+    /// tightest uncertainty bound.
+    /// </summary>
+    public static ClockSkewSample Best(IReadOnlyList<ClockSkewSample> samples)
+    {
+        var best = samples[0];
+        for (var i = 1; i < samples.Count; i++)
+        {
+            if (samples[i].RoundTrip < best.RoundTrip)
+            {
+                best = samples[i];
+            }
+        }
+
+        return best;
     }
 }

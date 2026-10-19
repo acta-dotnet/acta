@@ -3,7 +3,7 @@ SET XACT_ABORT ON;
 
 DECLARE @entry_trancount INT = @@TRANCOUNT;
 DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-DECLARE @ns INT, @existing_version INT, @existing_status TINYINT, @retention_seconds INT, @action TINYINT;
+DECLARE @ns INT, @version INT, @existing_status TINYINT, @retention_seconds INT, @action TINYINT;
 DECLARE @parked TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
     job_ref UNIQUEIDENTIFIER NOT NULL,
@@ -61,7 +61,7 @@ BEGIN TRY
 
     SELECT
         @ns = jd.namespace_id,
-        @existing_version = jd.version,
+        @version = jd.version,
         @existing_status = jd.status_code,
         @retention_seconds = jd.retention_seconds_effective
     FROM {{schema}}.definitions jd WITH (UPDLOCK, ROWLOCK)
@@ -69,7 +69,7 @@ BEGIN TRY
 
     SET @action = CASE
         WHEN @ns IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
-        WHEN @existing_version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
+        WHEN @version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
         ELSE 1 /* DefinitionOverrideAction.Applied */
     END;
 
@@ -81,6 +81,7 @@ BEGIN TRY
             modified_at_utc = @now,
             version = version + 1
         WHERE id = @p_id;
+        SET @version = @version + 1;
 
         /* The parked set is materialized first so the runtimes update drives off a table variable and
            can seek pk_runtimes, per the SQL Server join-update rule in sql-execution-policy.md. */
@@ -141,7 +142,6 @@ BEGIN TRY
             lineage_root_id,
             definition_id,
             tenant_id,
-            worker_id,
             from_status_code,
             to_status_code,
             execution_status_code,
@@ -160,7 +160,6 @@ BEGIN TRY
             p.lineage_root_id,
             p.definition_id,
             p.tenant_id,
-            NULL,
             c.from_status_code,
             220 /* JobStatusCode.Cancelled */,
             NULL,
@@ -183,7 +182,6 @@ BEGIN TRY
             lineage_root_id,
             definition_id,
             tenant_id,
-            worker_id,
             from_status_code,
             to_status_code,
             execution_status_code,
@@ -201,7 +199,6 @@ BEGIN TRY
             NULL,
             NULL,
             @p_id,
-            NULL,
             NULL,
             NULL,
             NULL,
@@ -255,6 +252,7 @@ BEGIN TRY
 
     SELECT
         @action AS action,
+        @version AS version,
         c.job_id,
         p.parent_id,
         CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT) AS lane_promoted
@@ -263,6 +261,7 @@ BEGIN TRY
     UNION ALL
     SELECT
         @action AS action,
+        @version AS version,
         CAST(NULL AS BIGINT) AS job_id,
         CAST(NULL AS BIGINT) AS parent_id,
         CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT) AS lane_promoted

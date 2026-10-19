@@ -6,12 +6,15 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>Conformance for restart's status guard: Failed and Cancelled revive with a clean failure count, Executing is rejected.</summary>
+/// <summary>
+/// Conformance for restart's status guard: Failed and Cancelled revive with a clean failure count and no stored result,
+/// Executing is rejected.
+/// </summary>
 [ConformanceSpec(
     "restart-job.state-guard",
     "Restart revives Failed or Cancelled jobs and rejects an executing one",
     Area = "Control",
-    Contract = "Restart revives a Failed or Cancelled job with failure_count reset and retention cleared, and is Rejected from Executing."
+    Contract = "Restart revives a Failed or Cancelled job with failure_count reset, retention and the stored result cleared, and is Rejected from Executing."
 )]
 public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -71,6 +74,28 @@ public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(JobStatusCode.Ready, cancelledState.Status);
         Assert.Equal(0, cancelledState.FailureCount);
         Assert.Null(cancelledState.RetentionUntilUtc);
+    }
+
+    [Fact(DisplayName = "Restart clears the stored result, and the next success stores its own")]
+    public async Task Restart_clears_the_stored_result_until_the_next_success()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            ct
+        );
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(5, (await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct))?.Sum);
+
+        Assert.Equal(
+            ControlAction.Applied,
+            (await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), ct: ct)).Action
+        );
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
+        Assert.Null(await Jobs.GetResultAsync(enqueued, ct));
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(30, (await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct))?.Sum);
     }
 
     [Fact(DisplayName = "Restart from Executing is Rejected and leaves the status unchanged")]

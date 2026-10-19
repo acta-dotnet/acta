@@ -19,7 +19,7 @@ public enum DefinitionStatusCode : byte
 
     [Code(
         "retired",
-        "Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt."
+        "Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt, and a job that would run again lands Cancelled with the same reason."
     )]
     Retired = 240,
 }

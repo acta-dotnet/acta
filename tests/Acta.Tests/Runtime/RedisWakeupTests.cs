@@ -168,6 +168,26 @@ public sealed class RedisWakeupTests
     }
 
     [Fact]
+    public async Task A_remote_wake_after_a_zero_jitter_draw_is_still_delivered()
+    {
+        // Fail fast, so each wait's subscription attempt fails at once instead of queuing until a timeout.
+        var config = ConfigurationOptions.Parse(UnreachableConfiguration);
+        config.AbortOnConnectFail = false;
+        config.BacklogPolicy = BacklogPolicy.FailFast;
+        using var redis = await ConnectionMultiplexer.ConnectAsync(config);
+        var options = UniquePrefix();
+        await using var wakeup = new RedisWakeup(redis, Options.Create(options)) { JitterSource = new ZeroDraw() };
+        var channel = WorkerWakeupChannel.WorkerNamespace("billing");
+        var message = RedisChannel.Literal(options.ChannelPrefix + ":wake:" + channel.Name);
+
+        wakeup.OnRemoteWake(message, RedisValue.EmptyString);
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wakeup.WaitAsync(channel, WaitGenerously, None));
+
+        wakeup.OnRemoteWake(message, RedisValue.EmptyString);
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wakeup.WaitAsync(channel, WaitGenerously, None));
+    }
+
+    [Fact]
     public async Task A_wake_published_by_one_instance_reaches_waiters_on_another()
     {
         var configuration = Environment.GetEnvironmentVariable("ACTA_TEST_REDIS");
@@ -274,5 +294,10 @@ public sealed class RedisWakeupTests
 
         // And the wake still lands: coalescing drops duplicates, never the delivery they stand for.
         Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
+    }
+
+    private sealed class ZeroDraw : Random
+    {
+        public override long NextInt64(long maxValue) => 0;
     }
 }

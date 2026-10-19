@@ -97,9 +97,8 @@ public sealed class ParallelAsyncTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal("checkout", checkout.GroupName);
-        Assert.True(checkout["reserve-inventory"].Succeeded);
-        Assert.False(checkout["charge-card"].Succeeded);
+        Assert.True(checkout.Branches["reserve-inventory"].Succeeded);
+        Assert.False(checkout.Branches["charge-card"].Succeeded);
         Assert.False(checkout.Succeeded);
         Assert.Equal("charge-card", Assert.Single(checkout.Failed).Key);
     }

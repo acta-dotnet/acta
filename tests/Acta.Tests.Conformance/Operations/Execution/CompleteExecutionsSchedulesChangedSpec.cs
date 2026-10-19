@@ -229,15 +229,16 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
     private async Task<int> LeaseInFlightAsync(long jobId, CancellationToken ct)
     {
         // A real worker row, so the lease names an owner that exists and completion's owner check holds.
-        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == TestNamespaceId).FirstOrDefaultAsync(ct);
-        Assert.NotNull(worker);
+        var workers = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == TestNamespaceId).ToListAsync(ct);
+        Assert.NotEmpty(workers);
+        var worker = workers[0];
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.runtimes SET status_code = @p_status, execution_number = @p_attempt, leased_by_worker_id = @p_worker, "
                 + "lease_expires_at_utc = @p_expires WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Executing),
             ("@p_attempt", Attempt),
-            ("@p_worker", worker!.Id),
+            ("@p_worker", worker.Id),
             ("@p_expires", DateTime.UtcNow.AddMinutes(5)),
             ("@p_id", jobId)
         );
@@ -272,8 +273,6 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
                     ScheduleAdvances = advances,
                     FinalStatus = plannedStatus,
                     JobNextRunAtUtc = plannedNextRun,
-                    // The slot keeps one result, the attribute default: this fact is about cursors.
-                    RecurringResultCap = 1,
                 },
                 ct
             );
@@ -332,9 +331,6 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
             OutputPayloadFormat: null,
-            InvocationKind: default,
-            RequiresJobContextParameter: false,
-            RequiresCancellationToken: false,
             Priority: default,
             MaxAttempts: 1,
             AuditLevel: default,

@@ -66,7 +66,7 @@ internal sealed class AlertEntity : IEntity<long>
 
     /// <summary>
     /// Public stable reference exposed to dashboards, HTTP APIs, and alert transports in place of the
-    /// numeric id; rendered externally as "alr_" plus 26 lowercase Crockford Base32 characters.
+    /// numeric id; rendered externally as "alr_" plus the Guid's 32 lowercase hex digits.
     /// Allocated in C# (a UUIDv7 via <see cref="Acta.AlertRef.New"/>) and passed into the raising
     /// routine, never defaulted by the database. The upsert applies it on the INSERT arm only, so every
     /// repeat absorbed by an open incident keeps the ref that incident's first firing minted, and the

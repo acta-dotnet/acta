@@ -1,4 +1,3 @@
-using System.Globalization;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,42 +66,25 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(3, count);
     }
 
-    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker and actor equal to the worker ref")]
+    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker, a null actor, and its own worker id")]
     public async Task Each_worker_has_exactly_one_WorkerStarted_event_with_correct_actor_fields()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsName = Unique("sw-evt");
+        var (nsId, wId1) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host1", "v1", null, null, 1001, 4, ct);
+        var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct);
 
-        // The refs are minted here so the expected actor is known independently of the row read: the
-        // event carries the worker's public ref as canonical lowercase uuid text, never the numeric id.
-        var ref1 = WorkerRef.New();
-        var ref2 = WorkerRef.New();
-        var (nsId, wId1) = await WorkerTestOps.StartAsync(
-            Services,
-            nsName,
-            "test",
-            null,
-            "host1",
-            "v1",
-            null,
-            null,
-            1001,
-            4,
-            ct,
-            ref1.Value
-        );
-        var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct, ref2.Value);
-
+        // worker_id alone names the worker; the actor column stays null.
         var events1 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e1 = Assert.Single(events1);
         Assert.Equal(ActorCode.Worker, e1.ActorCode);
-        Assert.Equal(ref1.Value.ToString("D", CultureInfo.InvariantCulture), e1.Actor);
+        Assert.Null(e1.Actor);
         Assert.Equal(nsId, e1.NamespaceId);
 
         var events2 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e2 = Assert.Single(events2);
         Assert.Equal(ActorCode.Worker, e2.ActorCode);
-        Assert.Equal(ref2.Value.ToString("D", CultureInfo.InvariantCulture), e2.Actor);
+        Assert.Null(e2.Actor);
         Assert.Equal(nsId, e2.NamespaceId);
     }
 
@@ -131,7 +113,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
             WorkerTestOps.StartAsync(Services, "sys", "team-a", "desc", "host1", "v1", null, null, 1001, 4, ct)
         );
 
-        var names = await Services.GetRequiredService<INamespaces>().ListNamesAsync(new ListNamespaceNamesQuery(NameContains: "sys"), ct);
-        Assert.Contains("sys", names.Items);
+        var page = await Services.GetRequiredService<INamespaces>().ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        Assert.Contains(page.Items, item => item.JobNamespace == "sys");
     }
 }

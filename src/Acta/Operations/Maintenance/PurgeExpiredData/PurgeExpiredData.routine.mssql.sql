@@ -21,6 +21,7 @@ BEGIN
         DECLARE @rows INT = 0;
         DECLARE @next_job_id BIGINT = 0;
         DECLARE @del TABLE (id BIGINT NOT NULL);
+        DECLARE @event_del TABLE (worker_id INT NOT NULL, id BIGINT NOT NULL, PRIMARY KEY (worker_id, id));
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
         DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
         DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
@@ -95,7 +96,6 @@ BEGIN
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
                 DELETE r FROM {{schema}}.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
-                DELETE x FROM {{schema}}.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
                 DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
                 DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
@@ -104,17 +104,18 @@ BEGIN
 
         ELSE IF @p_section = 2
             BEGIN
-                DELETE @del;
+                DELETE @event_del;
 
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
+                -- Collected by the clustered key, so each delete is a direct seek on pk_events.
+                INSERT INTO @event_del (worker_id, id)
+                SELECT TOP (@p_batch_size) worker_id, id
                 FROM {{schema}}.events WITH (UPDLOCK, READPAST, FORCESEEK (ix_events_namespace_created (namespace_id)))
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
                 ORDER BY created_at_utc, id;
-                DELETE e FROM {{schema}}.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
+                DELETE e FROM {{schema}}.events e WITH (FORCESEEK) INNER JOIN @event_del d ON d.worker_id = e.worker_id AND d.id = e.id;
+                SET @rows = (SELECT COUNT(*) FROM @event_del);
 
             END;
 
@@ -238,14 +239,26 @@ BEGIN
             BEGIN
                 DELETE @del;
 
+                -- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so
+                -- the row goes once both are past the window and no Executing job it leases is left for recovery.
                 INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM {{schema}}.workers WITH (UPDLOCK, READPAST)
+                SELECT TOP (@p_batch_size) w.id
+                FROM {{schema}}.workers w WITH (UPDLOCK, READPAST)
                 WHERE
-                    namespace_id = @p_namespace_id
-                    AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-                    AND last_seen_at_utc <= @p_cutoff_utc
-                ORDER BY last_seen_at_utc, id;
+                    w.namespace_id = @p_namespace_id
+                    AND w.status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                    AND w.last_seen_at_utc <= @p_cutoff_utc
+                    AND w.modified_at_utc <= @p_cutoff_utc
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.runtimes r
+                        WHERE
+                            r.leased_by_worker_id = w.id
+                            -- ix_runtimes_worker_inflight's filter restated: a filtered index serves only a query that states it.
+                            AND r.leased_by_worker_id IS NOT NULL
+                            AND r.status_code = 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY w.last_seen_at_utc, w.id;
                 DELETE w FROM {{schema}}.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 

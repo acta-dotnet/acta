@@ -11,6 +11,9 @@ public sealed record ChildEchoResult(int Doubled);
 /// <summary>Input for the cross-namespace parent probe: where to start the child.</summary>
 public sealed record CrossNamespaceStart(string ChildNamespace);
 
+/// <summary>Input for the result-less child probe.</summary>
+public sealed record ResultlessChild(int Ignored);
+
 /// <summary>
 /// Child-job probe handlers. Parents start named children and join on their outcome latches;
 /// handlers restart from the top on every attempt, so each step is replay-safe by construction.
@@ -30,6 +33,22 @@ public static class ChildJobProbes
         var outcome = await ctx.ExecuteChildAsync<ChildEcho, ChildEchoResult>("echo", new ChildEcho(21), ct: ct);
         return outcome.ValueOrThrow();
     }
+
+    [Job("job-child-resultless")]
+    public static Task ChildResultless(ResultlessChild input, CancellationToken ct) => Task.CompletedTask;
+
+    /// <summary>Asks a result-less child for an int; one attempt, so the typed wait's throw fails the job.</summary>
+    [Job("job-parent-of-resultless-child", MaxAttempts = 1)]
+    public static async Task<int> ParentOfResultlessChild(JobContext ctx, CancellationToken ct) =>
+        (await ctx.ExecuteChildAsync<ResultlessChild, int>("resultless", new ResultlessChild(0), ct)).ValueOrThrow();
+
+    /// <summary>
+    /// Waits on a child that answers "old" from its first execution and drops an oversize result from any later one; one
+    /// attempt, so the typed wait's throw fails the job.
+    /// </summary>
+    [Job("job-parent-of-restarted-child", MaxAttempts = 1)]
+    public static async Task<string> ParentOfRestartedChild(JobContext ctx, CancellationToken ct) =>
+        (await ctx.ExecuteChildAsync<OldThenOversizeInput, string>("restarted", new OldThenOversizeInput(0), ct)).ValueOrThrow();
 
     [Job("job-parent-of-failing-child")]
     public static async Task<ChildJobOutcome> ParentOfFailingChild(JobContext ctx, CancellationToken ct)

@@ -166,7 +166,8 @@ internal sealed class WorkerClaimer(
 
     /// <summary>
     /// Where the next claim starts: a full claim's latest due instant less the margin. A short claim means the queue
-    /// is caught up, so the next claim seeks each band from its head and a late commit waits for nothing.
+    /// is caught up, so the next claim seeks each band from its head and a late commit waits for nothing. A latest
+    /// instant within the margin of DateTime.MinValue starts at the head too: no instant lies a margin before it.
     /// </summary>
     internal static DateTime? NextClaimFrom(IReadOnlyList<ClaimedJob> claimed, int asked)
     {
@@ -183,7 +184,7 @@ internal sealed class WorkerClaimer(
                 latest = due;
             }
         }
-        return latest - WatermarkMargin;
+        return latest?.Ticks >= WatermarkMargin.Ticks ? latest - WatermarkMargin : null;
     }
 
     /// <summary>

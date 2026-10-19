@@ -48,6 +48,9 @@ internal sealed class WorkerExecutorHarness(
 
     // The entry RunAsync runs, linked from the worker token as the claimer links it.
     private InFlightJob? _entry;
+
+    // The worker state the executor and finalizer read, held here so a fact can retire the definition mid-attempt.
+    private readonly WorkerContext _context = new(new WorkerRegistration("harness", null, null, [], []));
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
@@ -88,6 +91,12 @@ internal sealed class WorkerExecutorHarness(
     public void TimeOutAttempt() => _entry!.ArmTimeout(TimeSpan.Zero);
 
     /// <summary>
+    /// Records the claim's definition as retired, as the heartbeat does on reading the catalog. Call before a run, or
+    /// from inside a handler to retire it while the attempt is in flight.
+    /// </summary>
+    public void RetireDefinition() => _context.ReplaceRetiredDefinitions(new Dictionary<int, int> { [1] = 3600 });
+
+    /// <summary>
     /// Runs one attempt. The default handler invokes <c>ctx.RunStepAsync</c> once with a body that
     /// succeeds, so the scripted <c>complete_step</c> answer is what decides the outcome.
     /// </summary>
@@ -124,7 +133,7 @@ internal sealed class WorkerExecutorHarness(
     // The worker this runtime would be: registered for one namespace, with the descriptor the claim names, if any.
     private WorkerExecutor Executor(JobDescriptor? descriptor)
     {
-        var context = new WorkerContext(new WorkerRegistration("harness", null, null, [], []));
+        var context = _context;
         context.NamespaceIds["harness"] = 1;
         context.WorkerIdByNamespace["harness"] = WorkerId;
         if (descriptor is not null)
@@ -200,9 +209,6 @@ internal sealed class WorkerExecutorHarness(
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.None,
             OutputPayloadFormat: null,
-            InvocationKind: JobInvocationKind.Task,
-            RequiresJobContextParameter: true,
-            RequiresCancellationToken: true,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: maxAttempts,
             AuditLevel: DefinitionAuditLevelCode.Audit,

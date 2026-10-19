@@ -17,13 +17,6 @@ public sealed class WorkerProcessLauncher(
     string participant
 ) : IDisposable
 {
-    /// <summary>
-    /// Executor slots each spawned worker runs with, or null for the product default
-    /// (<see cref="JobsOptions.MaxConcurrentExecutors"/>, which the bench drain cells also run). A certification run
-    /// sets it so total concurrency is workers x this, sized against the database's connection ceiling.
-    /// </summary>
-    public int? ExecutorsPerWorker { get; set; }
-
     private const int ExitedWorkerRetention = 3;
 
     private readonly ConcurrentDictionary<int, ManagedWorker> _workers = new();
@@ -149,10 +142,6 @@ public sealed class WorkerProcessLauncher(
         AddArgument(start, "--schema", schema);
         AddArgument(start, "--provider", provider);
         AddArgument(start, "--namespace", namespaceName);
-        if (ExecutorsPerWorker is { } executors)
-        {
-            AddArgument(start, "--executors", executors.ToString(CultureInfo.InvariantCulture));
-        }
         AddArgument(start, "--outbox-source", outboxSourcePath);
         AddArgument(start, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         return start;

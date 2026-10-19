@@ -56,8 +56,6 @@ DELETE FROM {{schema}}.checkpoints
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.steps
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
-DELETE FROM {{schema}}.results
-WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.schedules
 WHERE job_id = @p_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.jobs
@@ -70,7 +68,7 @@ INSERT INTO {{schema}}.events (
     reason_code, reason_message)
 SELECT
     75 /* EventCode.JobPurged */, now(), s.namespace_id, @p_actor_code, @p_actor, s.definition_id, s.tenant_id,
-    s.from_status, @p_reason_code, 'purged ' || s.job_ref::text || ' (' || s.job_name || ')'
+    s.from_status, @p_reason_code, 'purged job_' || replace(s.job_ref::text, '-', '') || ' (' || s.job_name || ')'
 FROM _purge_job s
 WHERE EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 

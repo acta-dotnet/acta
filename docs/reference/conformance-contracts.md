@@ -218,7 +218,7 @@
   - Raising with a null jobId still inserts a job-less alert
 
 ### A success resolves its job's open automatic failure alerts once
-- **Contract:** ResolveAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count.
+- **Contract:** ResolveAlerts closes one job's open automatic failure alerts marked before the success event and stamps that event as the mark.
 - **Guarantees:**
   - Every open automatic failure kind on the job closes, manual alerts and other jobs stay open, and the count says how many
   - A success no newer than the alert's projection mark closes nothing, and the next newer one does
@@ -242,14 +242,18 @@
   - Clearing all overrides reverts each effective to its base value
 
 ### Retire flips a definition and cancels its parked jobs
-- **Contract:** Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue.
+- **Contract:** Retiring a definition cancels its parked jobs with reason JobDefinitionRetired, refuses enqueue, and lets a running attempt finish but never re-arms its job.
 - **Guarantees:**
   - Every parked job of the retired definition is cancelled with retention, no lease, and one audited event
-  - The retire writes one definition-scoped retired event and leaves the definition Retired
+  - The retire writes one definition-scoped retired event, leaves the definition Retired, and answers its new version
   - A running attempt keeps its lease through the retire and still completes
+  - A failing attempt in flight at the retire lands Cancelled instead of retrying, and nothing claims it again
+  - A job that recovery reclaims after the retire lands Cancelled without its handler running
+  - A worker that bounced a definition before its retire still claims the job recovery reclaims, and lands it Cancelled
+  - A recurring slot retired mid-occurrence lands Cancelled instead of rolling over
   - A Suspended parent waiting on a child of the retired definition is released without a recovery pass
   - Enqueue against a retired definition is rejected with DefinitionRetired
-  - An unknown name is NotFound and a stale version is Rejected, and neither writes
+  - An unknown name is NotFound and a stale version is VersionConflict with the current version, and neither writes
   - Retiring an already retired definition is applied and writes no further events
   - An equal manifest generation reactivates a retired definition and an older one cannot
 
@@ -303,7 +307,7 @@
   - Competing definition overrides with one version have one winner and one audit event
   - Setting an override recomputes effective and leaves the default + hash untouched
   - Clearing an override reverts effective to the default
-  - A stale version is rejected and changes nothing
+  - A stale version is VersionConflict with the current version and changes nothing
   - An invalid or over-long backoff override is rejected and writes nothing
   - An out-of-range numeric override is rejected before any write, through the guarded API
   - Boundary override values (MaxAttempts 1, DeadlineSeconds 0, JobRetentionSeconds 0) are applied
@@ -424,6 +428,8 @@
   - Reclaim exhausting a child's budget reports the pair whose latch raise releases the waiting parent
   - The maintenance sweep re-raises a stale latch lost to a crash and releases the parent
   - Concurrent cancel and child completions converge with the whole tree terminal and no error
+  - The typed child wait reads the result of the execution whose landing set the latch, so a restarted child that stored none throws rather than answering an earlier result
+  - The typed child wait throws on a child that stored no result rather than answering a value type's default
 
 ### A bounded child wait expires, cancels its subtree, and leaves the parent running
 - **Contract:** A bounded child wait resolves TimedOut once, cancels the awaited child and its descendants, and leaves the parent free to continue.
@@ -458,6 +464,7 @@
   - An excluded definition is skipped while the rest of the namespace claims in priority order, and an empty set claims it again
   - An empty claim's horizon skips excluded rows: a supported row bounds it, and an all-excluded namespace reports none
   - A claim from an instant skips rows due before it, and a claim from the head takes them
+  - A claim from the head takes a row due before 1970
   - The loop drains the whole backlog to Succeeded
 
 ### Claim returns only due rows, in claim order, past parked and delayed rows
@@ -637,9 +644,10 @@
   - Pause from Suspended is Applied and re-pause from Paused is also Applied
 
 ### Restart revives Failed or Cancelled jobs and rejects an executing one
-- **Contract:** Restart revives a Failed or Cancelled job with failure_count reset and retention cleared, and is Rejected from Executing.
+- **Contract:** Restart revives a Failed or Cancelled job with failure_count reset, retention and the stored result cleared, and is Rejected from Executing.
 - **Guarantees:**
   - Restart revives Failed and Cancelled jobs resetting failure_count to 0 and clearing retention
+  - Restart clears the stored result, and the next success stores its own
   - Restart from Executing is Rejected and leaves the status unchanged
 
 ### Resume pins an explicit next run and otherwise takes the database clock
@@ -752,6 +760,7 @@
   - A tenant ACME registers as acme and resolves in any case
   - A signal raised as GO releases the wait on go
   - Deduplication keys that differ only by case are two jobs, and a lookup by key is exact
+  - Correlation keys that differ only by case filter apart, and a filter is trimmed like a key
   - Concurrency keys that differ only by case do not share a lock
   - A batch keeps deduplication keys that differ only by case apart, from each other and from a stored key
   - Lock keys that differ only by case are two locks, and one heartbeat renews both
@@ -797,6 +806,7 @@
   - A handler returning a null result fails the job and stores no result
   - RunAndWaitAsync enqueues, waits for completion and returns the typed result
   - RunAndWaitAsync throws when a Succeeded job stored no typed result
+  - RunAndWaitAsync reads the result of the execution it saw succeed, never an earlier one
   - RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it
   - RunAndWaitAsync rejects non-positive wait options before enqueue
 
@@ -854,6 +864,7 @@
   - Two successes and an exhausted failure land the same rows written alone as written together
   - A child sets its latch on the parent and a lane head hands the lane on, in the same batch
   - A row another worker leases is NotOwner, a terminal row AlreadyTerminal, and neither is touched
+  - A reclaimed attempt's late completion stores no result, and the attempt that replaced it stores its own
   - At the failures-only audit level a success writes a finished event only when it answers a recorded failure
 
 ### A lease renewal never deadlocks with a child's completion
@@ -943,6 +954,7 @@
 - **Contract:** A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.
 - **Guarantees:**
   - In-budget failures re-arm to Ready bumping failure_count and an exhausted budget lands Failed with the failure reason preserved
+  - A one-shot that throws twice and then succeeds records both retried attempts as failed at the audit level
 
 ### Reset clears one job's substrate and emits an audit-gated state-reset event
 - **Contract:** Reset clears a job's substrate rows leaving siblings intact and emits one audit-gated state-reset event with no status transition.
@@ -1053,6 +1065,7 @@
 - **Contract:** A definition retire cancels its parked laned jobs in its own transaction and then promotes each lane's lowest Blocked member once, even if the caller is gone.
 - **Guarantees:**
   - A retire whose caller is cancelled after the commit still leaves no live laned job of the definition
+  - A running laned head of the retired definition lands Cancelled instead of retrying and hands its lane on
 
 ### Every settle of a lane head promotes the next member
 - **Contract:** A laned head settled by reclaim, retire, or completion hands its lane to the next member, and a promoting completion wakes the namespace.
@@ -1210,6 +1223,11 @@
 - **Guarantees:**
   - Sources compose from the slot job; the quarantine listing requires the local source
 
+### Outbox source counters come from the last successful tick
+- **Contract:** The source listing reads backlog and quarantine from the status a successful sys.outbox tick writes, and a failed tick leaves the previous status standing.
+- **Guarantees:**
+  - The source line reads the last successful tick's status, and a failed tick leaves it standing
+
 ### Quarantined rows list in keyset pages with their failure evidence
 - **Contract:** ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
 - **Guarantees:**
@@ -1293,7 +1311,7 @@
 - **Contract:** The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.
 - **Guarantees:**
   - The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet
-  - Malformed meta, an oversized payload, and an unsupported format id quarantine immediately without touching the target
+  - Malformed meta, an oversized payload, an unsupported format id, and text holding a NUL byte quarantine immediately without touching the target
 
 ### An unknown route reschedules quietly and delivers after the route is registered
 - **Contract:** A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered.
@@ -1469,6 +1487,12 @@
   - A job timeline pages newest first with only that job's events and a job-scoped TotalCount matching the walk
   - ListJobEvents returns the keyset page and the job-scoped total from one command
 
+### An event stores its worker's id, or 0 when no worker owned it
+- **Contract:** An event a worker wrote stores that worker's id and lists with its ref, and a worker-less event stores worker_id 0 and lists with no worker.
+- **Guarantees:**
+  - An operator cancel stores worker_id 0 and lists with no worker
+  - A worker's completion stores its worker id and lists with its ref
+
 ### ListSchedules filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListSchedules filters partition the schedule rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
@@ -1502,12 +1526,6 @@
   - ListJobs returns the keyset page and the filter-wide total from one command
   - The list projection exposes no payload column
 
-### ListNamespaceNames pages namespaces name-ascending with an opt-in total
-- **Contract:** ListNamespaceNames pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
-- **Guarantees:**
-  - Walking the cursor visits the registered TestNamespace once with no duplicates
-  - A name filter narrows to the matching namespaces and IncludeTotal counts them
-
 ### ListNamespaces pages namespaces with status, fields, and version
 - **Contract:** ListNamespaces pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.
 - **Guarantees:**
@@ -1536,7 +1554,7 @@
   - ListWorkers returns the keyset page and the filter-wide total from one command
 
 ### An event or alert code from a newer Acta reads back as unspecified
-- **Contract:** An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as "unspecified".
+- **Contract:** An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every API read path and serializes as "unspecified".
 - **Guarantees:**
   - An unassigned event and reason code read back as Unspecified and serialize as unspecified
   - An unassigned alert kind reads back as Unspecified from list and get and serializes as unspecified
@@ -1601,10 +1619,10 @@
   - Skip variables past the alert window are deleted while the projector cursor survives
   - A skip-named variable on another job is left alone whatever its age
 
-### A purged job's public ref still resolves to its surviving event timeline
-- **Contract:** After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline.
+### A purged job's events keep its public ref, which no longer resolves
+- **Contract:** After the job row is purged, its surviving events keep the denormalized job_ref and read back by job id, and the ref resolves to null.
 - **Guarantees:**
-  - After purge the job row is gone and GetAsync by ref is null, but ResolveJobIdByRef falls back to the surviving events that carry the denormalized job_ref
+  - After a retention purge the events keep job_ref and the timeline reads by job id, while the ref resolves to null
 
 ### Concurrent retention sweeps reap a shared lock backlog without a deadlock
 - **Contract:** Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.
@@ -1623,6 +1641,7 @@
   - Job retention deletes the job's tags with the job
   - A future-retention job stamped with the default window survives the purge
   - Expired events are deleted and recent events are kept
+  - The automatic sweep also deletes the sys namespace's expired tenant events and keeps its recent ones
   - Stopped and Dead workers are both reaped while an Active worker is kept
   - Alerts past the window are purged settled or not, counted apart, and none inside the window is
   - A resolve-suppressed alert past the window is counted once, by the settled sweep
@@ -1635,10 +1654,12 @@
   - Batching caps a single call at max iterations and a full run clears the rest
   - A stopped recurring job outlives its retention while its definition is live, and drains once retired
 
-### Events outlive a purged worker with a canonical actor
-- **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor, and the historical worker id still selecting them.
+### A worker's events keep resolving its ref through retention
+- **Contract:** Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves, and worker events carry a null actor.
 - **Guarantees:**
-  - After purge the worker row is gone while its events keep a canonical wrk_ actor, a null workerRef, and the historical worker id
+  - Aged completion and lifecycle events still resolve their stopped worker's ref after a sweep with the default windows
+  - A terminal worker aged past the window survives a sweep while it still leases an Executing job
+  - A worker whose last heartbeat is past the window keeps its row and ref through a sweep after recovery orphans its job in its name
 
 ## Runtime
 
@@ -1710,13 +1731,13 @@
   - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
 ### A recurring slot fires repeatedly on one stable id advancing cursors
-- **Contract:** A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events.
+- **Contract:** A recurring slot fires on one stable id, advancing cursors, keeping one result that each claim clears, applying the failure budget and emitting rollover events.
 - **Guarantees:**
   - One stable slot id fires repeatedly, returning to Ready and tracking execution_number
   - Schedule and slot cursors advance one period and the slot tracks the MIN
   - Handler sees the triggering schedule name in the due set
   - Audit level emits finished and rolled-over events
-  - Result ring buffer trims to the cap keeping the newest entries
+  - The slot keeps its last successful occurrence's result, none while the next one runs, and none after a failed one
   - In-budget failure re-arms Ready and a later success resets the failure count
   - Consecutive failures past MaxAttempts never terminalize a recurring slot
   - Handler cancel terminates the whole slot to Cancelled and stops the schedule
@@ -1781,10 +1802,10 @@
   - Resume reconciles the cursor by misfire: Skip advances past now and CatchUpOnce keeps the past instant
 
 ### Operator sets a CAS-guarded full-set schedule expression/time-zone override
-- **Contract:** A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state.
+- **Contract:** A matching version applies the override and moves the cursor to the new expression, while a stale version is a VersionConflict with current state.
 - **Guarantees:**
   - Setting an expression override moves the cursor to the new expression's next instant and audits the change
-  - A stale expected version is rejected with the schedule's current state and nothing changes
+  - A stale expected version is VersionConflict with the schedule's current state and nothing changes
   - Clearing both overrides returns the schedule to its defaults
   - An invalid expression is rejected in C# before any write
   - An interval override under one second is rejected in C# before any write
@@ -1876,8 +1897,8 @@
   - ck_alerts_job_ref_pair and ck_alerts_occurrence_count each reject their violating INSERT
   - ux_alerts_deduplication_key admits one unresolved row per (namespace_id, deduplication_key) and stops filtering once it is resolved
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
-  - ck_runtimes_inflight_leased and ck_runtimes_ready_due bind a status to the column it requires, on INSERT and on UPDATE
-  - A code column stores an id this build does not know
+  - ck_runtimes_inflight_leased, ck_runtimes_result_idle, and ck_runtimes_ready_due bind a status to its columns, and ck_runtimes_result_pair refuses half a result
+  - A code column stores an id this build does not know, and ck_checkpoints_kind_shape still binds the kinds it names
   - Consumer payload format 255 remains storable
   - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE
   - ck_steps_attempt_number rejects an INSERT with attempt_number zero
@@ -1885,7 +1906,7 @@
   - ck_steps_result_succeeded admits a stored result only on a Succeeded row
   - ck_steps_reason_pair rejects a reason message with no reason code, on INSERT and on UPDATE
   - ck_workers_max_concurrency rejects an INSERT with max_concurrency zero
-  - runtimes and tags agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart
+  - runtimes agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart
   - A recurring slot's schedule row agrees with its job on namespace_id and definition_id
 
 ### Bootstrap verifies migration history even when it applies nothing
@@ -2037,6 +2058,7 @@
   - The seeded sys namespace supports tag reads and mutations
   - Replace is atomic and clearable; upsert and remove are idempotent and reads are name ordered
   - Tenant, namespace, definition, and job lists use AND tag semantics
+  - A tag value filter matches the value trimmed and upper-cased, and otherwise exactly
   - A deduplicated enqueue preserves the existing job's tags
   - Manual purge removes the job's tags before deleting the job
   - Concurrent tag mutation and target deletion converge without orphan tags
@@ -2065,17 +2087,16 @@
   - UpdateOnlyAsync sets only the assigned columns for rows matching the predicate
   - UpdateOnlyAsync normalizes a non-UTC-kind DateTime to UTC on write and read
   - UpdateOnlyAsync with DbFn.UtcNow stamps the server clock
-  - DeleteAsync and UpdateOnlyAsync with no Where and no All() throw InvalidOperationException
+  - DeleteAsync and UpdateOnlyAsync with no Where throw InvalidOperationException
   - DeleteAsync removes only rows matching the predicate
 
 ## Testing
 
-### The fluent reader materializes projects and counts entities
-- **Contract:** The fluent reader materializes whole entities, prunes columns on projection, supports compound and IN predicates, and counts matching rows.
+### The fluent reader materializes and counts entities
+- **Contract:** The fluent reader materializes whole entities, supports compound and IN predicates, and counts matching rows.
 - **Guarantees:**
   - Whole-entity materialization returns the matching row
   - A compound predicate filters to the matching row
-  - Projection prunes to the declared columns
   - Count returns the matching row count
   - An IN predicate filters to the matching status set
 
@@ -2143,7 +2164,7 @@
 - **Guarantees:**
   - Namespace version is unchanged on same-metadata call and bumped on metadata change
   - Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace
-  - Each worker has exactly one WorkerStarted event with actor worker and actor equal to the worker ref
+  - Each worker has exactly one WorkerStarted event with actor worker, a null actor, and its own worker id
   - Same host and process_id on two calls yields two distinct worker ids and two rows (no dedup)
   - Registering a worker/namespace named 'sys' is rejected while the seeded sys namespace remains intact
 
@@ -2205,7 +2226,6 @@
 | `ListDefinitions` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
-| `ListNamespaceNames` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListQuarantinedOutbox` | yes | yes | yes |
 | `ListSchedules` | yes | yes | yes |

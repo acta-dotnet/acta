@@ -174,7 +174,7 @@
       <section id="build" aria-labelledby="build-title">
         <h2 id="build-title">What you are going to build</h2>
         <p>The project is a tiny report service called <code>Reports</code>. It exposes two endpoints: <code>POST /reports?month=2026-08</code> asks for a monthly sales report and returns immediately, and <code>GET /reports/{id}</code> tells you how that request is doing and, when it is done, where the finished report is. The sales figures come from small CSV files in the project, and the report is a plain text file written next to them, so everything you need to see is on your own disk. There are no accounts, API keys, or cloud services involved.</p>
-        <p>You need the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 SDK</a>, a terminal, a browser, and <code>curl</code>, which ships with Windows 10 and later, macOS, and most Linux distributions. You should be comfortable reading C# and have seen an ASP.NET Core minimal API before. You do not need to know anything about job queues, workers, or durable execution. The code targets Acta 1.0.0-rc.4 and uses its SQLite provider, so there is no database server to install.</p>
+        <p>You need the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 SDK</a>, a terminal, a browser, and <code>curl</code>, which ships with Windows 10 and later, macOS, and most Linux distributions. You should be comfortable reading C# and have seen an ASP.NET Core minimal API before. You do not need to know anything about job queues, workers, or durable execution. The code uses Acta's SQLite provider, so there is no database server to install.</p>
         <p>The app grows in three stages. First it generates a report. Then it copes with a report whose data has not arrived yet. Finally it records its progress so that a report interrupted by a crash picks up where the record says it left off. You will keep the same project and the same database the whole way through.</p>
       </section>
 
@@ -299,7 +299,7 @@ public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs
         </figure>
         <p><code>MonthlySalesReport</code> is the input. It is a plain record, and Acta stores it as JSON in the job's row, so it should hold what the work needs to know and nothing else: here, just the month. Because it is stored, it is also a small contract. A job enqueued today may run after tomorrow's deploy, so change input records the way you would change a public API.</p>
         <p>The <code>[Job("monthly-sales-report")]</code> attribute turns the method into a handler. The string is the job's <strong>durable name</strong>, the name that goes into the database, the dashboard, logs, and alerts. It must be kebab-case, and once jobs with that name exist you should treat it as permanent, because rows written under the old name will not follow a rename. The class and method names, by contrast, are yours to refactor.</p>
-        <p>The handler's parameters are the input, a <code>JobContext</code>, and a <code>CancellationToken</code>. The context tells the handler which job it is running. <code>ctx.JobRef</code> is the job's public identifier, a string like <code>job_01m3f3jf65ettsq0k29zbzjk0h</code> that is created when the job is enqueued and never changes. <code>ctx.ExecutionNumber</code> counts how many times this handler has been started for this job, starting at 1. We log both because they will tell the story when things go wrong.</p>
+        <p>The handler's parameters are the input, a <code>JobContext</code>, and a <code>CancellationToken</code>. The context tells the handler which job it is running. <code>ctx.JobRef</code> is the job's public identifier, a string like <code>job_01a0de393cc576b59b82624fd7f94c11</code> that is created when the job is enqueued and never changes. <code>ctx.ExecutionNumber</code> counts how many times this handler has been started for this job, starting at 1. We log both because they will tell the story when things go wrong.</p>
         <p>The report file is named after the job ref, not after the time or a random value. Whatever happens to this job, every attempt at it writes to the same file name. The handler returns a <code>ReportResult</code>, which Acta also stores, so the API can later answer "where is my report?" from the database. <code>SalesReportJobs</code> itself is an ordinary class: Acta creates it through dependency injection for each run, which is why it can ask for <code>SalesFiles</code> and a logger in its constructor.</p>
       </section>
 
@@ -388,19 +388,19 @@ app.Run();</code></pre>
           <figcaption><span class="note">Output from our test run (trimmed). Your job ref will differ.</span></figcaption>
           <pre><code>HTTP/1.1 202 Accepted
 Content-Type: application/json; charset=utf-8
-Location: /reports/job_01m3f3jf65ettsq0k29zbzjk0h
+Location: /reports/job_01a0de393cc576b59b82624fd7f94c11
 
-{"job":"job_01m3f3jf65ettsq0k29zbzjk0h"}</code></pre>
+{"job":"job_01a0de393cc576b59b82624fd7f94c11"}</code></pre>
         </figure>
         <p>The request came back at once with a job ref. Use your own ref to ask how it went:</p>
         <figure class="listing">
           <figcaption><span class="note">Terminal 2, with your job ref</span><button class="copy" type="button" aria-label="Copy the status request">Copy</button></figcaption>
-          <pre><code>curl http://localhost:5080/reports/job_01m3f3jf65ettsq0k29zbzjk0h</code></pre>
+          <pre><code>curl http://localhost:5080/reports/job_01a0de393cc576b59b82624fd7f94c11</code></pre>
         </figure>
         <figure class="listing output">
           <figcaption><span class="note">Output from our test run, formatted for reading</span></figcaption>
           <pre><code>{
-  "job": "job_01m3f3jf65ettsq0k29zbzjk0h",
+  "job": "job_01a0de393cc576b59b82624fd7f94c11",
   "status": "Succeeded",
   "executions": 1,
   "failures": 0,
@@ -408,13 +408,13 @@ Location: /reports/job_01m3f3jf65ettsq0k29zbzjk0h
     "month": "2026-08",
     "orders": 6,
     "total": 5426.50,
-    "file": "D:\\tmp\\acta-learn\\walk\\Reports\\reports\\sales-2026-08-job_01m3f3jf65ettsq0k29zbzjk0h.txt"
+    "file": "D:\\tmp\\acta-learn\\walk\\Reports\\reports\\sales-2026-08-job_01a0de393cc576b59b82624fd7f94c11.txt"
   }
 }</code></pre>
         </figure>
         <p>Open the file it names, in the new <code>reports</code> folder:</p>
         <figure class="listing output">
-          <figcaption><span class="file">reports/sales-2026-08-job_01m3f3jf65ettsq0k29zbzjk0h.txt</span></figcaption>
+          <figcaption><span class="file">reports/sales-2026-08-job_01a0de393cc576b59b82624fd7f94c11.txt</span></figcaption>
           <pre><code>Sales report for 2026-08
 Orders: 6
 Total:  5,426.50
@@ -434,7 +434,7 @@ Total:  5,426.50
           <figcaption>The Jobs page after the first report. The three System jobs are Acta's own housekeeping.</figcaption>
         </figure>
         <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
-        <p>Click your report's ref. The detail page shows the job's name, namespace, and status, an Attempts line reading "1 started, 0 consecutive failures", and a timeline with one event: the completion, tagged with the few milliseconds the handler took. The Input and Result tabs show the stored JSON. The Actions panel says "Job controls are disabled on this host", and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
+        <p>Click your report's ref. The detail page shows the job's name, namespace, and status, an Attempts line reading "1 started, 0 consecutive failures", and a timeline with one event: the completion, tagged with the few milliseconds the handler took. The Details view shows the stored input and result JSON beside the status. The Actions panel says "Job controls are disabled on this host", and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
         <aside class="callout" aria-label="Sidebar: the same facts from the terminal">
           <h3>The same facts, from the terminal</h3>
           <p>An application that uses Acta also answers a small set of <code>jobs</code> commands. Run the app a second time with <code>--no-build</code>, so the command does not try to rebuild files the running copy is using: <code>dotnet run --no-build -- jobs events &lt;job-ref&gt;</code> prints the timeline, and <code>jobs explain &lt;job-ref&gt;</code> describes the job's state in plain English. The command reads the database and exits without starting the web server or a worker. You will use it in a moment.</p>
@@ -462,16 +462,16 @@ Total:  5,426.50
         <p>This is the page to learn to read. Ready with a next-run time means "waiting for the next attempt", not "stuck". The reason is the stored exception message, and "4 started, 4 consecutive failures (fails permanently at 10)" says exactly how much patience is left. Further down, the timeline lists every attempt. The terminal tells the same story:</p>
         <figure class="listing">
           <figcaption><span class="note">Terminal 2, with your September job ref</span><button class="copy" type="button" aria-label="Copy the events command">Copy</button></figcaption>
-          <pre><code>dotnet run --no-build -- jobs events job_01m3f3kp47edm8t13hb0xyk6t0 --take 2</code></pre>
+          <pre><code>dotnet run --no-build -- jobs events job_01a0de39d88773688d0471583be99b40 --take 2</code></pre>
         </figure>
         <figure class="listing output">
           <figcaption><span class="note">Output from our test run (trimmed)</span></figcaption>
-          <pre><code>Events for job job_01m3f3kp47edm8t13hb0xyk6t0 (newest first)
+          <pre><code>Events for job job_01a0de39d88773688d0471583be99b40 (newest first)
 
-2026-09-26T14:59:28.3810000Z  job.rescheduled  executing -&gt; ready  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5
+2026-09-26T14:59:28.3810000Z  job.rescheduled  executing -&gt; ready  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
   reason: job.unhandled-exception
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
-2026-09-26T14:59:28.3810000Z  job.execution-finished  executing -&gt; ready  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5
+2026-09-26T14:59:28.3810000Z  job.execution-finished  executing -&gt; ready  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
   reason: job.unhandled-exception
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.</code></pre>
         </figure>
@@ -595,7 +595,7 @@ app.Run();</code></pre>
         <p>With a two-second heartbeat the lease lasts eight seconds, and a dead process's jobs become reclaimable almost immediately. <code>SalesFiles.cs</code> and the CSV files stay as they are. That is the complete program.</p>
         <aside class="callout" aria-label="Sidebar: step retries and job retries">
           <h3>Step retries are not job retries</h3>
-          <p>Steps change how failures are counted. If September's file were missing now, the exception would happen inside <code>load-sales</code>, and the step would retry on its own: the job goes back to Ready with the reason <code>job.step-retry-scheduled</code>, the execution number still goes up, but the job's failure count stays at zero. A step inherits <code>MaxAttempts</code> and <code>Backoff</code> from the <code>[Job]</code> attribute unless you pass it its own settings. If the step runs out of attempts, it is marked exhausted, and from then on each execution of the handler fails at that line, spending the job's budget until the job itself is Failed.</p>
+          <p>Steps change how failures are counted. If September's file were missing now, the exception would happen inside <code>load-sales</code>, and the step would retry on its own: the job goes back to Ready with the reason <code>job.step-retry-scheduled</code>, the execution number still goes up, but the job's failure count stays at zero. A step inherits <code>MaxAttempts</code> and <code>Backoff</code> from the <code>[Job]</code> attribute unless you pass it its own settings. If the step runs out of attempts, it is marked exhausted and throws <code>StepExhaustedException</code>. Uncaught, that fails the job at once and leaves its own retry budget untouched, since every retry would throw again. Restarting the job gives the step a fresh budget.</p>
         </aside>
       </section>
 
@@ -605,13 +605,13 @@ app.Run();</code></pre>
         <figure class="listing output">
           <figcaption><span class="note">Terminal 1 after Ctrl+C, from our test run (trimmed)</span></figcaption>
           <pre><code>info: Reports.SalesReportJobs[0]
-      job_01m3f3phvdfsma84tn5r1h1py8 execution 1: building the 2026-08 report
+      job_01a0de3b476d7e68a413552e0310dbc8 execution 1: building the 2026-08 report
 info: Reports.SalesReportJobs[0]
-      job_01m3f3phvdfsma84tn5r1h1py8 loading sales for 2026-08
+      job_01a0de3b476d7e68a413552e0310dbc8 loading sales for 2026-08
 info: Microsoft.Hosting.Lifetime[0]
       Application is shutting down...
 info: Reports.SalesReportJobs[0]
-      job_01m3f3phvdfsma84tn5r1h1py8 wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-08-job_01m3f3phvdfsma84tn5r1h1py8.txt</code></pre>
+      job_01a0de3b476d7e68a413552e0310dbc8 wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-08-job_01a0de3b476d7e68a413552e0310dbc8.txt</code></pre>
         </figure>
         <p>The application did not stop at once. Ctrl+C asks the .NET host to shut down gracefully, and Acta takes part: the worker stops claiming new jobs, keeps its leases alive, and waits for handlers already running to finish before the process exits. In our run the process lingered for about eleven seconds, the rest of the demo pause, and the report was written before it went. The wait is bounded by the host's shutdown timeout, 30 seconds unless you configure otherwise. A job still running when that runs out is cancelled and later reclaimed like one from a crashed process.</p>
         <p>This is the behaviour you want during a deploy, and it is also why Ctrl+C proves nothing about crashes. A crash does not ask.</p>
@@ -632,15 +632,15 @@ info: Reports.SalesReportJobs[0]
         <p>With the application down, ask the database what it thinks is going on. Use the job ref that <code>POST</code> returned:</p>
         <figure class="listing">
           <figcaption><span class="note">Terminal 2, with your job ref</span><button class="copy" type="button" aria-label="Copy the explain command">Copy</button></figcaption>
-          <pre><code>dotnet run --no-build -- jobs explain job_01m3f3qa4df1jr2fjdfn52g9qv</code></pre>
+          <pre><code>dotnet run --no-build -- jobs explain job_01a0de3ba88d7865813e4d7d4a2826fb</code></pre>
         </figure>
         <figure class="listing output">
           <figcaption><span class="note">Output from our test run, a few seconds after the kill</span></figcaption>
-          <pre><code>job_01m3f3qa4df1jr2fjdfn52g9qv  reports/monthly-sales-report
+          <pre><code>job_01a0de3ba88d7865813e4d7d4a2826fb  reports/monthly-sales-report
 Executing, but its lease expired 1s ago.
 
 Worker:
-- Worker 1.0.0 (wrk_01m3f3q9fneq0svyyy2j88dh22), lease expired at 2026-09-26T15:00:58.2790000Z.
+- Worker 1.0.0 (wrk_01a0de3ba5f575c19dfbde149086c442), lease expired at 2026-09-26T15:00:58.2790000Z.
 - Last heartbeat at 2026-09-26T15:00:50.2790000Z.
 - Recovery should return it to Ready on its next pass.
 
@@ -657,9 +657,9 @@ Next actions:
         <figure class="listing output">
           <figcaption><span class="note">Terminal 1 after the restart, from our test run (trimmed)</span></figcaption>
           <pre><code>info: Reports.SalesReportJobs[0]
-      job_01m3f3qa4df1jr2fjdfn52g9qv execution 2: building the 2026-09 report
+      job_01a0de3ba88d7865813e4d7d4a2826fb execution 2: building the 2026-09 report
 info: Reports.SalesReportJobs[0]
-      job_01m3f3qa4df1jr2fjdfn52g9qv wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-09-job_01m3f3qa4df1jr2fjdfn52g9qv.txt</code></pre>
+      job_01a0de3ba88d7865813e4d7d4a2826fb wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-09-job_01a0de3ba88d7865813e4d7d4a2826fb.txt</code></pre>
         </figure>
         <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. In our run the app came back a few seconds after 15:01 UTC, just missing that minute's recovery pass; the 15:02 pass reclaimed the job, and the report was written fifteen seconds later.</p>
         <figure class="shot">

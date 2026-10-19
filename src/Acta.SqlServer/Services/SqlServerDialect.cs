@@ -47,14 +47,6 @@ internal sealed class SqlServerDialect : ISqlDialect
         {
             parameter.Size = size;
         }
-        if (spec.Precision is { } precision)
-        {
-            parameter.Precision = (byte)precision;
-        }
-        if (spec.Scale is { } scale)
-        {
-            parameter.Scale = (byte)scale;
-        }
 
         parameter.Value = DbParams.Coerce(spec);
         return parameter;
@@ -77,10 +69,8 @@ internal sealed class SqlServerDialect : ISqlDialect
             DbKind.Int64 => SqlDbType.BigInt,
             DbKind.Guid => SqlDbType.UniqueIdentifier,
             DbKind.UtcInstant => SqlDbType.DateTime2,
-            DbKind.Decimal => SqlDbType.Decimal,
             DbKind.AsciiString => SqlDbType.VarChar,
             DbKind.UnicodeString => SqlDbType.NVarChar,
-            DbKind.Bytes => SqlDbType.VarBinary,
             DbKind.BinaryPayload => SqlDbType.VarBinary,
             _ => throw new InvalidOperationException($"Unmapped DbKind '{parameter.Kind}' for SqlServer parameter '{parameter.Name}'."),
         };

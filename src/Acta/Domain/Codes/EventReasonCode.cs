@@ -67,7 +67,7 @@ public enum EventReasonCode : byte
 
     [Code(
         "job.definition-retired",
-        "Job was cancelled because an operator retired its definition; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt."
+        "Job was cancelled because an operator retired its definition; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt and land Cancelled where the job would run again."
     )]
     JobDefinitionRetired = 42,
 

@@ -119,7 +119,7 @@
       return;
     }
     // Public job ref.
-    if (/^job_/i.test(value)) {
+    if (value.startsWith('job_')) {
       location.hash = routes.job(value, { namespace: get(scope) });
       return;
     }

@@ -19,10 +19,14 @@ internal sealed class FakeDefinitions : IDefinitions
                 throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.");
             }
 
-            return ValueTask.FromResult(new SetDefinitionOverridesResponse(Outcome(jobName, expectedVersion)));
+            var (action, version) = Outcome(jobName, expectedVersion);
+            return ValueTask.FromResult(new SetDefinitionOverridesResponse(action, version));
         };
         Retire = static (_, jobName, expectedVersion, _, _, _) =>
-            ValueTask.FromResult(new RetireDefinitionResponse(Outcome(jobName, expectedVersion)));
+        {
+            var (action, version) = Outcome(jobName, expectedVersion);
+            return ValueTask.FromResult(new RetireDefinitionResponse(action, version));
+        };
         Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
         List = static (query, _) =>
             ValueTask.FromResult(new ListDefinitionsResponse(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
@@ -69,10 +73,11 @@ internal sealed class FakeDefinitions : IDefinitions
 
     ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
 
-    private static ControlAction Outcome(string jobName, int expectedVersion) =>
-        jobName == "missing" ? ControlAction.NotFound
-        : expectedVersion == 999 ? ControlAction.Rejected
-        : ControlAction.Applied;
+    /// <summary>The outcome and the version after it: the definition's current version on a conflict, one past the expected on an apply.</summary>
+    private static (ControlAction Action, int? Version) Outcome(string jobName, int expectedVersion) =>
+        jobName == "missing" ? (ControlAction.NotFound, null)
+        : expectedVersion == 999 ? (ControlAction.VersionConflict, SendInvoice.Version)
+        : (ControlAction.Applied, expectedVersion + 1);
 
     /// <summary>
     /// Folds and validates the key before it resolves, as ResolveDefinitionId does, so a malformed key (a wildcard)

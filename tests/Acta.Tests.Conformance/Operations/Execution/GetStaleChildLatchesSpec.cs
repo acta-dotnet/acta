@@ -39,7 +39,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(1, affected);
 
         var stale = Assert.Single((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
-        Assert.Equal(new GetStaleChildLatchesItem(parent, child, JobStatusCode.Failed), stale);
+        Assert.Equal(new GetStaleChildLatchesItem(parent, child, JobStatusCode.Failed, 0), stale);
         Assert.DoesNotContain((await Execution.GetStaleChildLatchesAsync(int.MaxValue, ct)).Latches, l => l.ParentJobId == parent);
     }
 
@@ -52,7 +52,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(1, await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE id = @p_id", ct, ("@p_id", child)));
 
         var stale = Assert.Single((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
-        Assert.Equal(new GetStaleChildLatchesItem(parent, child, null), stale);
+        Assert.Equal(new GetStaleChildLatchesItem(parent, child, null, null), stale);
     }
 
     [Fact(DisplayName = "A latch the child set when it landed is not reported")]

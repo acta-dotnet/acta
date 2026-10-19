@@ -1,21 +1,6 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace Acta.Emit.Shared.Sql;
-
-/// <summary>One routine or operator view as a migration writes it: the installed name and the statement, without a batch separator.</summary>
-internal sealed record SqlObject(string Name, string Statement)
-{
-    /// <summary>The snapshot's diff key: SHA-256 of the statement as written, with line endings normalized so a checkout cannot move it.</summary>
-    internal string Hash => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Statement.ReplaceLineEndings("\n"))));
-}
-
-/// <summary>One dialect's routines and operator views, each set in name order, the order a migration carries them in.</summary>
-internal sealed record DialectObjects(IReadOnlyList<SqlObject> Routines, IReadOnlyList<SqlObject> Views)
-{
-    internal IEnumerable<SqlObject> All => Routines.Concat(Views);
-}
 
 /// <summary>
 /// Reads the routine and operator-view sources and renders each as a migration carries it: decode and <c>{{now}}</c>

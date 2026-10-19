@@ -17,6 +17,12 @@ public sealed record ChildJobOutcome(long ChildJobId, JobStatusCode Status)
     /// </summary>
     public bool TimedOut { get; internal init; }
 
+    /// <summary>
+    /// The child execution whose landing set the latch, read by the typed wait to fetch that execution's result. Null
+    /// when the latch does not say, as on a raise that knew only the status.
+    /// </summary>
+    internal int? ExecutionNumber { get; init; }
+
     /// <summary>True when the child landed <c>Succeeded</c>. False on a timed-out child.</summary>
     public bool Succeeded => !TimedOut && Status == JobStatusCode.Succeeded;
 

@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// </summary>
 /// <remarks>
 /// Drives the runtime directly: <see cref="WorkerRuntime.RunAsync"/> runs the claim loop and heartbeat,
-/// <see cref="WorkerRuntime.BeginDrainAsync"/> begins the drain, and a gate handler holds the job in-flight
+/// <see cref="WorkerRuntime.BeginDrain"/> begins the drain, and a gate handler holds the job in-flight
 /// until the test releases it so the Draining window is observable.
 /// </remarks>
 [ConformanceSpec(
@@ -67,7 +67,8 @@ public sealed class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(WorkerStatusCode.Active, (await ReadWorkerAsync(ns, ct)).Status);
 
         // Begin draining: stamp Draining and stop claiming, but the in-flight handler keeps running.
-        await Runtime.BeginDrainAsync(ct);
+        Runtime.BeginDrain();
+        await Runtime.StampDrainingAsync(ct);
 
         Assert.Equal(WorkerStatusCode.Draining, (await ReadWorkerAsync(ns, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enqueued.JobId, ct)).Status);

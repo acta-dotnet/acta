@@ -65,17 +65,28 @@ public sealed partial class TvpParityTests
         Assert.Equal(ExpectedKeys.OrderBy(p => p.Key, StringComparer.Ordinal), actual.OrderBy(p => p.Key, StringComparer.Ordinal));
     }
 
+    /// <summary>The runtime record shape the dialect binds for each TVP the baseline declares.</summary>
+    private static readonly Dictionary<string, SqlMetaData[]> TvpShapes = new(StringComparer.Ordinal)
+    {
+        ["enqueue_jobs_batch"] = SqlServerTableParameters.BatchColumns,
+        ["enqueue_tags_batch"] = SqlServerTableParameters.TagColumns,
+        ["complete_executions_batch"] = SqlServerTableParameters.CompleteExecutionsColumns,
+        ["register_definitions_batch"] = SqlServerTableParameters.DefinitionColumns,
+        ["register_slots_batch"] = SqlServerTableParameters.SlotColumns,
+        ["register_schedules_batch"] = SqlServerTableParameters.ScheduleUpsertColumns,
+    };
+
     [Fact]
     public void Baseline_tvp_types_match_the_runtime_record_shapes()
     {
         var declared = DeclaredColumns();
 
-        Assert.Equal(declared.Keys.Order(StringComparer.Ordinal), SqlServerTableParameters.TvpShapes.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(declared.Keys.Order(StringComparer.Ordinal), TvpShapes.Keys.Order(StringComparer.Ordinal));
 
         var failures = new List<string>();
         foreach (var (typeName, columns) in declared)
         {
-            var shape = SqlServerTableParameters.TvpShapes[typeName];
+            var shape = TvpShapes[typeName];
             var expected = columns.Select(c => $"{c.Name} {c.Type}").ToList();
             var actual = shape.Select(m => $"{m.Name} {Render(m)}").ToList();
             if (!expected.SequenceEqual(actual, StringComparer.Ordinal))

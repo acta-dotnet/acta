@@ -114,9 +114,18 @@ internal static class SchedulesEndpoints
         );
     }
 
-    private static ScheduleLookup Key(HttpContext http) =>
-        new(
-            JobLookup.ByDeduplicationKey(RouteKeys.Value(http, "jobNamespace"), RouteKeys.Value(http, "jobName")),
-            RouteKeys.Value(http, "scheduleName")
-        );
+    private static ScheduleLookup Key(HttpContext http)
+    {
+        try
+        {
+            return new(
+                JobLookup.ByDeduplicationKey(RouteKeys.Value(http, "jobNamespace"), RouteKeys.Value(http, "jobName")),
+                NameSyntax.Canonicalize(RouteKeys.Value(http, "scheduleName"), "scheduleName", NameSyntax.ExtendedMaxLength)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            throw new MalformedRouteKeyException(ex.Message);
+        }
+    }
 }

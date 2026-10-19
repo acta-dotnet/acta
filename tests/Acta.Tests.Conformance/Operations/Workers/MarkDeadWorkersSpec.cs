@@ -201,6 +201,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(nsA, eventA.NamespaceId);
         Assert.Equal(nsB, eventB.NamespaceId);
         Assert.Equal(ActorCode.Worker, eventA.ActorCode);
+        Assert.Null(eventA.Actor);
         Assert.Equal(EventReasonCode.WorkerHeartbeatStale, eventA.ReasonCode);
     }
 }

@@ -43,6 +43,7 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Null(stoppedEvent.JobId);
         Assert.Equal(ns, stoppedEvent.NamespaceId);
         Assert.Equal(ActorCode.Worker, stoppedEvent.ActorCode);
+        Assert.Null(stoppedEvent.Actor);
         Assert.Equal(EventReasonCode.WorkerCleanShutdown, stoppedEvent.ReasonCode);
     }
 

@@ -506,8 +506,8 @@ BEGIN
         RETURNING 1
     ),
     tag_insert AS (
-        INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
-        SELECT 50 /* TagScopeCode.Job */, e.id, e.namespace_id, t.name, t.value, t.value_search
+        INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
+        SELECT 50 /* TagScopeCode.Job */, e.id, t.name, t.value, t.value_search
         FROM unnest(p_t_ordinal, p_t_name, p_t_value, p_t_value_search) AS t(ordinal, name, value, value_search)
         INNER JOIN _enq_batch e ON e.ordinal = t.ordinal
         INNER JOIN inserted i ON i.id = e.id

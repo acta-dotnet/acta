@@ -56,3 +56,21 @@ public static class RedisActaBuilderExtensions
         return builder.UseRedisWakeup(o => o.Configuration = configuration);
     }
 }
+
+/// <summary>
+/// Validates <see cref="RedisWakeupOptions"/> at host startup (paired with <c>ValidateOnStart</c>).
+/// </summary>
+internal sealed class RedisWakeupOptionsValidator : IValidateOptions<RedisWakeupOptions>
+{
+    public ValidateOptionsResult Validate(string? name, RedisWakeupOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        // Bounded at both ends: a negative flips the random range, and an unbounded one overflows the
+        // tick arithmetic that picks the delay (TimeSpan.MaxValue.Ticks + 1) before Task.Delay ever
+        // sees it. Same 0..1s window as JobsOptions.ClaimIdleJitterMax.
+        return options.RemoteWakeJitter < TimeSpan.Zero || options.RemoteWakeJitter > RedisWakeupOptions.MaxRemoteWakeJitter
+            ? ValidateOptionsResult.Fail("RedisWakeupOptions.RemoteWakeJitter must be between 0 and 1s.")
+            : ValidateOptionsResult.Success;
+    }
+}

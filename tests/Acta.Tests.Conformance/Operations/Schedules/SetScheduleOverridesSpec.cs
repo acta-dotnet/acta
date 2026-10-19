@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
 /// Operator full-set override of a single named schedule's expression/time zone, CAS-guarded on
-/// <c>version</c>. A stale expected version is rejected carrying the schedule's current state; an
+/// <c>version</c>. A stale expected version is a VersionConflict carrying the schedule's current state; an
 /// applied write recomputes the schedule's own cursor under the new effective expression and the owning
 /// slot's MIN, and emits an audit-gated <c>schedule.overrides-updated</c> event. Invalid input (a bad
 /// expression or an unrecognized time zone) fails in C# before any write.
@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     "schedule.set-overrides",
     "Operator sets a CAS-guarded full-set schedule expression/time-zone override",
     Area = "Scheduling",
-    Contract = "A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state."
+    Contract = "A matching version applies the override and moves the cursor to the new expression, while a stale version is a VersionConflict with current state."
 )]
 public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -79,8 +79,8 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         Assert.Contains(DailyCron, changed.ReasonMessage);
     }
 
-    [Fact(DisplayName = "A stale expected version is rejected with the schedule's current state and nothing changes")]
-    public async Task A_stale_expected_version_is_rejected_with_current_state()
+    [Fact(DisplayName = "A stale expected version is VersionConflict with the schedule's current state and nothing changes")]
+    public async Task A_stale_expected_version_is_a_version_conflict_with_current_state()
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
@@ -92,7 +92,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var before = await ScheduleAsync(Db, jobName, "only", ct);
         var result = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), before.Version + 1, DailyCron, null, ct: ct);
 
-        Assert.Equal(ControlAction.Rejected, result.Action);
+        Assert.Equal(ControlAction.VersionConflict, result.Action);
         Assert.Equal(before.Version, result.Version); // current version, so the caller can re-read
 
         var after = await ScheduleAsync(Db, jobName, "only", ct);
@@ -329,9 +329,6 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
             OutputType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
             OutputPayloadFormat: null,
-            InvocationKind: default,
-            RequiresJobContextParameter: false,
-            RequiresCancellationToken: false,
             Priority: default,
             MaxAttempts: 1,
             AuditLevel: default,

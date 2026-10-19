@@ -17,13 +17,13 @@
   {:else}
     <DataTable>
       <caption class="sr-only">Job checkpoints</caption>
-      <thead><tr><th>Kind</th><th>Name</th><th>State</th><th>Due</th><th>Value</th></tr></thead>
+      <thead><tr><th>Kind</th><th>Name</th><th>Status</th><th>Due</th><th>Value</th></tr></thead>
       <tbody>
         {#each checkpoints as checkpoint (checkpoint.kind + '/' + checkpoint.name)}
           <tr>
             <td>{checkpoint.kind}</td>
             <td class="mono">{checkpoint.name}</td>
-            <td>{checkpoint.state ?? '·'}</td>
+            <td>{checkpoint.status ?? '·'}</td>
             <td><RelativeTime value={checkpoint.dueAtUtc} /></td>
             <td>
               {#if checkpoint.value}

@@ -33,7 +33,9 @@ internal sealed class CancelJobHandler(
         var row = await CancelAsync(jobId, JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion), ct);
         if (row.Action == ControlAction.Applied)
         {
-            var released = row.ParentId is { } parentId && await RaiseChildLatch.Run(signals, jobId, parentId, JobStatusCode.Cancelled, ct);
+            var released =
+                row.ParentId is { } parentId
+                && await RaiseChildLatch.Run(signals, jobId, parentId, JobStatusCode.Cancelled, childExecutionNumber: null, ct);
             await JobControl.WakeWorkersIfAsync(wakeup, released || row.LanePromoted, ct);
         }
 

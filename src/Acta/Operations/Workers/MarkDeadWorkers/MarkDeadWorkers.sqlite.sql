@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._dead_workers;
 
 CREATE TEMP TABLE _dead_workers AS
-SELECT id, namespace_id, worker_ref
+SELECT id, namespace_id
 FROM {{schema}}.workers
 WHERE
     -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as dead as
@@ -29,7 +29,7 @@ SELECT
     122 /* EventCode.WorkerDied */,
     d.namespace_id,
     70 /* ActorCode.Worker */,
-    d.worker_ref,
+    NULL,
     NULL,
     NULL,
     NULL,

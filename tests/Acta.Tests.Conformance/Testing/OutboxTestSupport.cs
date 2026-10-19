@@ -116,17 +116,6 @@ internal sealed class HookedSession(IDbSession inner, Func<string, Task> before)
         return await inner.QueryAsync(stem, bind, read, ct);
     }
 
-    public async Task<T> QueryAsync<T>(
-        StoreCommand command,
-        Action<DbCommand> bind,
-        Func<DbDataReader, CancellationToken, Task<T>> read,
-        CancellationToken ct
-    )
-    {
-        await before(command.Operation);
-        return await inner.QueryAsync(command, bind, read, ct);
-    }
-
     public async Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
@@ -170,9 +159,4 @@ internal sealed class HookedSession(IDbSession inner, Func<string, Task> before)
 
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         inner.RunWithRetryAsync(action, ct);
-
-    public Task<T> RunInOwnedTransactionAsync<T>(
-        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
-        CancellationToken ct
-    ) => inner.RunInOwnedTransactionAsync(work, ct);
 }

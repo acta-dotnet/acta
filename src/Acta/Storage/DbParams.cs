@@ -1,16 +1,8 @@
-using System.Data.Common;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
 namespace Acta;
-
-/// <summary>
-/// One bound parameter for a provider command. Production code binds through
-/// <c>dialect.CreateParameter(ActaSchema..., value)</c> so generated metadata owns name, kind,
-/// width, and scale; code that needs the spec itself (a parameter list) calls <c>DbParams.For</c>.
-/// </summary>
-internal sealed record DbParameterSpec(string Name, object? Value, DbKind Kind, int? Size = null, int? Precision = null, int? Scale = null);
 
 /// <summary>
 /// Parameter spec helpers: build a <see cref="DbParameterSpec"/> from generated column /
@@ -20,10 +12,10 @@ internal sealed record DbParameterSpec(string Name, object? Value, DbKind Kind, 
 internal static class DbParams
 {
     public static DbParameterSpec For<T>(DbColumnSpec<T> spec, object? value) =>
-        new(Name: spec.ParameterName, Value: value, Kind: spec.Kind, Size: spec.Size, Precision: spec.Precision, Scale: spec.Scale);
+        new(Name: spec.ParameterName, Value: value, Kind: spec.Kind, Size: spec.Size);
 
     public static DbParameterSpec For<T>(DbValueSpec<T> spec, T value) =>
-        new(Name: spec.ParameterName, Value: value, Kind: spec.Kind, Size: spec.Size, Precision: spec.Precision, Scale: spec.Scale);
+        new(Name: spec.ParameterName, Value: value, Kind: spec.Kind, Size: spec.Size);
 
     public static object Coerce(DbParameterSpec p)
     {
@@ -158,7 +150,6 @@ internal static class DbParams
             Field(text, "handler_status_code", c.HandlerStatusCode);
             Field(text, "final_status", (byte?)c.FinalStatus);
             Field(text, "job_next_run_at_utc", UnixMs(c.JobNextRunAtUtc));
-            Field(text, "recurring_result_cap", c.RecurringResultCap == 0 ? null : c.RecurringResultCap);
             text.Append('}');
         }
         return text.Append(']').ToString();
@@ -183,10 +174,6 @@ internal static class DbParams
     private static long? UnixMs(DateTime? value) =>
         value is { } instant ? new DateTimeOffset(ToUtc(instant)).ToUnixTimeMilliseconds() : null;
 
-    private static string JsonNumber(long? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "null";
-
-    private static string JsonText(string? value) => value is null ? "null" : $"\"{JsonEncodedText.Encode(value)}\"";
-
     public static void Validate(DbParameterSpec p)
     {
         if (string.IsNullOrWhiteSpace(p.Name))
@@ -194,44 +181,11 @@ internal static class DbParams
             throw new InvalidOperationException("SQL parameter name is required.");
         }
 
-        switch (p.Kind)
+        if (p.Kind is DbKind.AsciiString or DbKind.UnicodeString && p.Size is null)
         {
-            case DbKind.AsciiString:
-            case DbKind.UnicodeString:
-            case DbKind.Bytes:
-                if (p.Size is null)
-                {
-                    throw new InvalidOperationException(
-                        $"SQL parameter '{p.Name}' (DbKind.{p.Kind}) requires explicit Size: bind via DbParams.For(...) with generated metadata."
-                    );
-                }
-                break;
-
-            case DbKind.Decimal:
-                if (p.Precision is null || p.Scale is null)
-                {
-                    throw new InvalidOperationException(
-                        $"SQL decimal parameter '{p.Name}' requires Precision and Scale: bind via DbParams.For(...) so the column's precision/scale flow through."
-                    );
-                }
-                break;
+            throw new InvalidOperationException(
+                $"SQL parameter '{p.Name}' (DbKind.{p.Kind}) requires explicit Size: bind via DbParams.For(...) with generated metadata."
+            );
         }
     }
-}
-
-/// <summary>
-/// Binds generated column / value metadata straight to a provider parameter:
-/// <c>dialect.CreateParameter(ActaSchema.Schedule.Name, command.ScheduleName)</c>. Sugar over
-/// <see cref="DbParams.For{T}(DbColumnSpec{T}, object?)"/> plus the provider's single normalized
-/// <see cref="ISqlDialect.CreateParameter(DbParameterSpec)"/> seam, so the ordinary binding path
-/// never names the intermediate spec. Code that needs the spec itself (building a
-/// <see cref="DbParameterSpec"/> list) still calls <c>DbParams.For</c> directly.
-/// </summary>
-internal static class SqlDialectParameterExtensions
-{
-    public static DbParameter CreateParameter<T>(this ISqlDialect dialect, DbColumnSpec<T> spec, object? value) =>
-        dialect.CreateParameter(DbParams.For(spec, value));
-
-    public static DbParameter CreateParameter<T>(this ISqlDialect dialect, DbValueSpec<T> spec, T value) =>
-        dialect.CreateParameter(DbParams.For(spec, value));
 }

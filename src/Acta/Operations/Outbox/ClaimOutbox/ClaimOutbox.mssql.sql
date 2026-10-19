@@ -48,8 +48,7 @@ BEGIN TRY
     OUTPUT
         INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
         INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane, INSERTED.priority_code,
-        INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_name, INSERTED.meta, INSERTED.created_at_utc, INSERTED.failure_count,
-        INSERTED.id
+        INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_name, INSERTED.meta, INSERTED.failure_count, INSERTED.id
     FROM {{table_ref}} AS o
     INNER JOIN due ON due.id = o.id;
 

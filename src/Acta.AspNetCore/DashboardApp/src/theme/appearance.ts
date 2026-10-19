@@ -6,10 +6,6 @@ import {
 } from './accents.ts';
 import { THEMES, type ThemeId } from './themes.ts';
 
-export type { AccentId } from './accents.ts';
-export type { ThemeId } from './themes.ts';
-export { THEMES } from './themes.ts';
-
 /** The theme picker's entries: the OS-following choice first, then the concrete themes. */
 export const THEME_CHOICES: ReadonlyArray<{
   id: ThemeChoice;
@@ -88,11 +84,11 @@ function safeSet(key: string, value: string): void {
   }
 }
 
-export function isThemeId(value: unknown): value is ThemeId {
+function isThemeId(value: unknown): value is ThemeId {
   return value === 'acta' || value === 'light' || value === 'paper';
 }
 
-export function isThemeChoice(value: unknown): value is ThemeChoice {
+function isThemeChoice(value: unknown): value is ThemeChoice {
   return value === 'system' || isThemeId(value);
 }
 
@@ -102,11 +98,11 @@ export function resolveTheme(choice: ThemeChoice): ThemeId {
   return choice === 'system' ? (prefersDark?.matches !== false ? 'acta' : 'light') : choice;
 }
 
-export function isAccentId(value: unknown): value is AccentId {
+function isAccentId(value: unknown): value is AccentId {
   return ACCENTS.some((accent) => accent.id === value);
 }
 
-export function isTextSize(value: unknown): value is TextSize {
+function isTextSize(value: unknown): value is TextSize {
   return value === 'small' || value === 'default' || value === 'large';
 }
 

@@ -43,7 +43,7 @@ through durable slots.
 ### Three identities
 
 - `JobId`: the internal numeric id, for joins, logs, and SQL debugging; never in HTTP routes or dashboard JSON.
-- `JobRef`: the public handle, `job_` plus 26 characters of Crockford Base32 encoding a UUIDv7, so refs sort by creation time. Parsing is case-insensitive and also accepts the plain Guid, with or without the prefix. The ref is copied onto events and alerts, so it keeps resolving after the job row is purged.
+- `JobRef`: the public handle, `job_` plus the 32 hex digits of a UUIDv7, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, so a ref copies and searches as one word and refs sort by creation time. Parsing takes exactly that form, with the hex in any casing; a dashed or bare Guid does not parse. The ref is copied onto events and alerts, so they still name the job after its row is purged, but a lookup by the ref then finds nothing.
 - `DeduplicationKey`: the caller's key for a root job, unique within the namespace while the job holding it exists; retention frees it.
 
 `JobRequestBuilder.Deduplicate(businessKey)` composes `<job-name>:<business-key>`. The static `DeduplicationKey` helpers (`ForDefinition`, `PerHour`, `PerDay`, `PerTimeBucket`, `ForTenant`, `AcrossDefinitions`) compose a final key for `JobEnqueueOptionsBuilder.DeduplicationKey(key)`. Keys are case-exact, so `Order-1` and `order-1` are two keys, and namespace-scoped, never tenant-scoped: compose a tenant-relative key with `DeduplicationKey.ForTenant(tenantName, businessKey)`.
@@ -438,7 +438,7 @@ Same rules as input, applied to `TOut`.
 | `string`, primitive scalars, enums | `text`         |
 | records / classes / DTO structs    | `json`         |
 
-A parameterless data-less record as `TOut` carries no information; it collapses to no durable result (no `results` row), the same as a void return.
+A parameterless data-less record as `TOut` carries no information; it collapses to no durable result, the same as a void return.
 
 ### Result persistence
 
@@ -458,9 +458,11 @@ Task<TOut>
 ValueTask<TOut>
 ```
 
-A declared result type writes a `JobResult` row on successful completion. The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result row when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
+A job stores at most one result, on its `runtimes` row, written by a successful completion: a one-shot job's terminal success, or a recurring job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a recurring job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
 
-Failed, cancelled, or abandoned attempts do not write successful result rows (timeouts record failed with reason `job.execution-timeout`). The job's `runtimes` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TOut`.
+The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
+
+Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `job.execution-timeout`). The job's `runtimes` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TOut`.
 
 Nullable annotations do not change the descriptor. Both of these declare a durable result and must return non-null; returning `null` fails the attempt either way:
 
@@ -530,6 +532,8 @@ The handler honors the token; the framework records the cause and chooses the fi
 
 Instance handlers resolve from a DI scope created for each attempt, so no registration is required; handler methods and their types must not be private, and a handler method cannot be generic.
 
+A handler type registered in DI, such as a typed client from `AddHttpClient<WebhookJobs>()`, is resolved as registered and DI owns its lifetime. A Singleton registration is one instance shared by every concurrent attempt, so it must be thread-safe. An unregistered handler type is constructed from the attempt scope and disposed when the attempt ends, through `DisposeAsync` when it has one; a dispose that throws fails the attempt like a handler exception.
+
 ### Diagnostics
 
 The generator reports these at build time. All are errors unless noted, and an erroring job is left out of the manifest.
@@ -538,10 +542,10 @@ The generator reports these at build time. All are errors unless noted, and an e
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ACTA0101` | Duplicate `[Job]` name within the manifest.                                                                                                                                                                       |
 | `ACTA0102` | Invalid `[Job]` name; dotted kebab-case, at most 128 chars, `sys` and the `sys.` prefix reserved for system jobs.                                                                                          |
-| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, extra parameter, forbidden `TIn`, open generic, private method or type, `JobContext` pairing). |
+| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, extra parameter, forbidden `TIn`, open generic, private method or type, `JobContext` pairing, an input or output type whose name is not ASCII). |
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
-| `ACTA0106` | Job contract member names collide once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out of the contract. |
+| `ACTA0106` | A job's contract member name collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out of the contract. |
 | `ACTA0121` | Invalid `[JobSchedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                         |
 | `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of at least one second such as `5m`.                                                                                           |
 | `ACTA0123` | `[JobSchedule]` handler whose input has no accessible parameterless constructor.                                                                                                                                  |
@@ -635,7 +639,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
 | `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
 | `WorkerDeadAfter` | 315 s (derived) | read-only | `HeartbeatInterval` x7. No-heartbeat window before crash recovery marks a worker Dead. |
-| `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. Must be at least one day. |
+| `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. A row also stays until `JobEventsRetention` has passed, so events keep their worker. Must be at least one day. |
 | `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetention` | 90 | cluster data | Hard cap on alert rows, settled or not. |
 | `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts` and `sys.retention` and runs crash recovery. **Off disables crash recovery**, so a dead worker's jobs stay `Executing`; the runtime warns. |
@@ -1103,7 +1107,7 @@ The same two-tick pattern covers every re-arming primitive: `ctx.SleepAsync` / `
 
 ### Asserting results
 
-A handler that returns a value persists it; read it back typed:
+A handler that returns a value stores it on the job; read it back typed, before anything claims or restarts the job again:
 
 ```csharp
 var enqueued = await _host.Jobs.EnqueueAsync(new AddNumbers(2, 3));

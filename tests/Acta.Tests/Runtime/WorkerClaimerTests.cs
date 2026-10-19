@@ -112,6 +112,12 @@ public sealed class WorkerClaimerTests
         Assert.Null(WorkerClaimer.NextClaimFrom([], asked: 1));
     }
 
+    [Fact]
+    public void A_full_claim_due_within_the_margin_of_the_earliest_instant_starts_the_next_one_at_the_head()
+    {
+        Assert.Null(WorkerClaimer.NextClaimFrom([Claimed(DateTime.MinValue)], asked: 1));
+    }
+
     private static ClaimedJob Claimed(DateTime due) =>
         new(
             JobId: 1,

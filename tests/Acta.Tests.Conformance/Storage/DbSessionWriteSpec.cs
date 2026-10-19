@@ -112,8 +112,8 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.InRange(row.ModifiedAtUtc, before.AddSeconds(-1), after.AddSeconds(1));
     }
 
-    [Fact(DisplayName = "DeleteAsync and UpdateOnlyAsync with no Where and no All() throw InvalidOperationException")]
-    public async Task Unfiltered_write_with_no_All_throws()
+    [Fact(DisplayName = "DeleteAsync and UpdateOnlyAsync with no Where throw InvalidOperationException")]
+    public async Task Unfiltered_write_throws()
     {
         var ct = TestContext.Current.CancellationToken;
 

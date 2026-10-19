@@ -58,9 +58,6 @@ internal sealed class FakeNamespaces : INamespaces
         CancellationToken ct
     ) => Update(name, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
 
-    ValueTask<ListNamespaceNamesResponse> INamespaces.ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct) =>
-        throw new NotSupportedException();
-
     private ValueTask<T> Apply<T>(
         string verb,
         string name,

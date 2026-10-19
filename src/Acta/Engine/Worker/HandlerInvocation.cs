@@ -238,7 +238,7 @@ internal sealed class HandlerInvocation(
                 );
             case HandlerFailException fail:
                 // Deliberate terminal Failed: no retry, budget untouched. Distinct from an unhandled
-                // exception (UnhandledException reason); both land Failed but the reason tells them apart.
+                // exception (JobUnhandledException reason); both land Failed but the reason tells them apart.
                 return ExecutionCompletion.Terminal(
                     CompletionKind.Failed,
                     EventReasonCode.JobHandlerFailed,

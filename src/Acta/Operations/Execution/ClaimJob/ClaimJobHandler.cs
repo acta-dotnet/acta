@@ -12,7 +12,7 @@ internal sealed class ClaimJobHandler(ClaimJobsHandler claimJobs, IDbSession ses
         if (command.JobId is not { } jobId)
         {
             var scanned = await claimJobs.HandleAsync(new ClaimJobsCommand(options with { MaxBatch = 1 }, command.LeaseTtlSeconds), ct);
-            return new ClaimJobResponse(scanned.Jobs, scanned.Horizon);
+            return new ClaimJobResponse(scanned.Jobs);
         }
 
         var rows = await session.ExecuteAsync(
@@ -27,6 +27,6 @@ internal sealed class ClaimJobHandler(ClaimJobsHandler claimJobs, IDbSession ses
             DbProjectionResolver.Resolve<ClaimJobRow>(),
             ct
         );
-        return rows.Count == 0 ? ClaimJobResponse.Empty : new ClaimJobResponse(rows.Select(ClaimedJob.From).ToList(), null);
+        return rows.Count == 0 ? ClaimJobResponse.Empty : new ClaimJobResponse(rows.Select(ClaimedJob.From).ToList());
     }
 }

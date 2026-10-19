@@ -1,22 +1,5 @@
 namespace Acta;
 
-internal enum AlertChannelVerdictKind : byte
-{
-    Send = 1,
-    Failed = 2,
-    Suppressed = 3,
-}
-
-internal enum AlertChannelVerdictReason : byte
-{
-    Deliver = 1,
-    MissingChannel = 2,
-    DisabledChannel = 3,
-    DeprecatedChannel = 4,
-    BelowMinSeverity = 5,
-    MissingTransport = 6,
-}
-
 internal readonly record struct AlertChannelVerdict(AlertChannelVerdictKind Kind, AlertChannelVerdictReason Reason)
 {
     public static AlertChannelVerdict Decide(DeliverableAlert alert, AlertChannelDeclaration? channel, IAlertTransport? transport)

@@ -76,8 +76,8 @@ internal sealed class DefinitionEntity : IEntity<int>
     // ---------- Code-fixed type contract + formats (synced from [Job]; NO override) ----------
 
     /// <summary>
-    /// CLR full type name of the <c>[Job]</c> handler's input contract; the type-driven dispatch key for
-    /// <c>IJobs.EnqueueAsync&lt;TIn&gt;</c>.
+    /// CLR full type name of the <c>[Job]</c> handler's input contract, generic arguments without assembly
+    /// versions; the type-driven dispatch key for <c>IJobs.EnqueueAsync&lt;TIn&gt;</c>.
     /// </summary>
     [DbColumn("input_type_name", DbKind.AsciiString, Size = 512)]
     public string InputTypeName { get; internal set; } = default!;
@@ -97,14 +97,15 @@ internal sealed class DefinitionEntity : IEntity<int>
     public string InputFormatName { get; internal set; } = default!;
 
     /// <summary>
-    /// CLR full type name of the handler's output contract; null for void handlers.
+    /// CLR full type name of the handler's output contract, generic arguments without assembly versions;
+    /// null for void handlers.
     /// </summary>
     [DbColumn("output_type_name", DbKind.AsciiString, Size = 512)]
     public string? OutputTypeName { get; internal set; }
 
     /// <summary>
-    /// Default payload format id for execution results; stamped into <c>results.result_format_id</c>
-    /// on terminal success.
+    /// Default payload format id for execution results; stamped into <c>runtimes.result_format_id</c>
+    /// on success.
     /// </summary>
     [DbColumn("output_format_id", DbKind.Byte)]
     public byte OutputFormatId { get; internal set; }
@@ -288,7 +289,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     public int JobRetentionSecondsEffective { get; internal set; }
 
     /// <summary>
-    /// Controls <c>JobEvent</c> emission (<c>Off</c> / <c>Failures</c> / <c>Audit</c>) on hot-path state
+    /// Controls <c>events</c> emission (<c>Off</c> / <c>Failures</c> / <c>Audit</c>) on hot-path state
     /// mutations. Does not gate alert MERGE; alerts and audit are independent.
     /// </summary>
     [DbColumn("audit_level_code")]

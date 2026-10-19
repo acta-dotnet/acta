@@ -38,7 +38,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             .SyntaxProvider.ForAttributeWithMetadataName(
                 DbProjectionAttr,
                 predicate: static (node, _) => node is TypeDeclarationSyntax,
-                transform: static (ctx, ct) => Transform(ctx, ct)
+                transform: static (ctx, _) => Transform(ctx)
             )
             .Where(static p => p is not null)
             .Select(static (p, _) => p!.Value);
@@ -86,16 +86,10 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             return;
         }
 
-        foreach (var group in emittable.Where(static p => p.Containers.IsDefaultOrEmpty).GroupBy(static p => p.NamespaceName))
+        foreach (var group in emittable.GroupBy(static p => p.NamespaceName))
         {
             var ordered = group.OrderBy(static p => p.MethodName, StringComparer.Ordinal).ToImmutableArray();
             spc.AddSource($"{HintPart(group.Key)}.DbProjectionBinder.g.cs", EmitNamespaceBinder(group.Key, ordered));
-        }
-
-        foreach (var group in emittable.Where(static p => !p.Containers.IsDefaultOrEmpty).GroupBy(static p => p.ContainerKey))
-        {
-            var ordered = group.OrderBy(static p => p.MethodName, StringComparer.Ordinal).ToImmutableArray();
-            spc.AddSource($"{HintPart(group.Key)}.DbProjectionBinder.g.cs", EmitNestedBinder(ordered));
         }
 
         spc.AddSource("Acta.DbProjectionResolver.g.cs", EmitResolver([.. emittable]));
@@ -107,26 +101,12 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         string TypeFqn,
         string MethodName,
         bool ByName,
-        ImmutableArray<ContainingTypeInfo> Containers,
         ImmutableArray<ProjectionMemberInfo> Members,
         ImmutableArray<DiagnosticInfo> Diagnostics
     )
     {
         public string ColumnsName => TypeName + "Columns";
-
-        public string ContainerKey => NamespaceName + "." + string.Join(".", Containers.Select(static c => c.Name));
-
-        public string ContainerFqn
-        {
-            get
-            {
-                var prefix = string.IsNullOrEmpty(NamespaceName) ? "global::" : "global::" + NamespaceName + ".";
-                return prefix + string.Join(".", Containers.Select(static c => c.Name));
-            }
-        }
     }
-
-    internal readonly record struct ContainingTypeInfo(string Accessibility, string Kind, string Name, bool IsStatic);
 
     internal readonly record struct ProjectionMemberInfo(
         string Name,
@@ -137,12 +117,8 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         string? RefTypeFqn
     )
     {
-        /// <summary>
-        /// The columns the member reads: its name in snake_case, and for a payload the format id before it
-        /// (<c>input_format_id</c>, <c>input</c>).
-        /// </summary>
-        public string[] Columns =>
-            Kind == ProjectionMemberKind.Payload ? [SnakeCase(Name) + "_format_id", SnakeCase(Name)] : [SnakeCase(Name)];
+        /// <summary>The column the member reads: its name in snake_case.</summary>
+        public string Column => SnakeCase(Name);
 
         internal static string SnakeCase(string name)
         {
@@ -173,18 +149,10 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             {
                 enumTypeFqn = enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 decoderFqn = CodeFamilyNames.DecoderFqn(enumType);
-                kind = enumType.EnumUnderlyingType?.SpecialType switch
-                {
-                    SpecialType.System_Byte => ProjectionMemberKind.Byte,
-                    SpecialType.System_SByte => ProjectionMemberKind.SByte,
-                    SpecialType.System_Int16 => ProjectionMemberKind.Int16,
-                    SpecialType.System_UInt16 => ProjectionMemberKind.UInt16,
-                    SpecialType.System_Int32 => ProjectionMemberKind.Int32,
-                    SpecialType.System_UInt32 => ProjectionMemberKind.UInt32,
-                    SpecialType.System_Int64 => ProjectionMemberKind.Int64,
-                    SpecialType.System_UInt64 => ProjectionMemberKind.UInt64,
-                    _ => ProjectionMemberKind.Unsupported,
-                };
+                kind =
+                    enumType.EnumUnderlyingType?.SpecialType == SpecialType.System_Byte
+                        ? ProjectionMemberKind.Byte
+                        : ProjectionMemberKind.Unsupported;
             }
 
             if (kind == ProjectionMemberKind.Unsupported)
@@ -229,37 +197,13 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             {
                 return ProjectionMemberKind.Byte;
             }
-            if (type.SpecialType == SpecialType.System_SByte)
-            {
-                return ProjectionMemberKind.SByte;
-            }
-            if (type.SpecialType == SpecialType.System_Int16)
-            {
-                return ProjectionMemberKind.Int16;
-            }
-            if (type.SpecialType == SpecialType.System_UInt16)
-            {
-                return ProjectionMemberKind.UInt16;
-            }
             if (type.SpecialType == SpecialType.System_Int32)
             {
                 return ProjectionMemberKind.Int32;
             }
-            if (type.SpecialType == SpecialType.System_UInt32)
-            {
-                return ProjectionMemberKind.UInt32;
-            }
             if (type.SpecialType == SpecialType.System_Int64)
             {
                 return ProjectionMemberKind.Int64;
-            }
-            if (type.SpecialType == SpecialType.System_UInt64)
-            {
-                return ProjectionMemberKind.UInt64;
-            }
-            if (type.SpecialType == SpecialType.System_Decimal)
-            {
-                return ProjectionMemberKind.Decimal;
             }
             if (type.SpecialType == SpecialType.System_String)
             {
@@ -273,10 +217,6 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             {
                 return ProjectionMemberKind.UtcInstant;
             }
-            if (type.ToDisplayString() == "Acta.JobPayload")
-            {
-                return ProjectionMemberKind.Payload;
-            }
             if (IsRef(type))
             {
                 return ProjectionMemberKind.Ref;
@@ -285,12 +225,8 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             {
                 return ProjectionMemberKind.Bytes;
             }
-            if (IsNamedGeneric(type, "System.ReadOnlyMemory<T>") && IsByteType(((INamedTypeSymbol)type).TypeArguments[0]))
-            {
-                return ProjectionMemberKind.ReadOnlyMemoryBytes;
-            }
-            return IsNamedGeneric(type, "System.Memory<T>") && IsByteType(((INamedTypeSymbol)type).TypeArguments[0])
-                ? ProjectionMemberKind.MemoryBytes
+            return IsNamedGeneric(type, "System.ReadOnlyMemory<T>") && IsByteType(((INamedTypeSymbol)type).TypeArguments[0])
+                ? ProjectionMemberKind.ReadOnlyMemoryBytes
                 : ProjectionMemberKind.Unsupported;
         }
 
@@ -316,22 +252,14 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         Unsupported,
         Boolean,
         Byte,
-        SByte,
-        Int16,
-        UInt16,
         Int32,
-        UInt32,
         Int64,
-        UInt64,
         Guid,
         Ref,
-        Payload,
         UtcInstant,
-        Decimal,
         String,
         Bytes,
         ReadOnlyMemoryBytes,
-        MemoryBytes,
     }
 
     internal readonly record struct DiagnosticInfo(string DescriptorId, LocationInfo Location, string Message)

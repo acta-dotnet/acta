@@ -2,8 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Service-owned execution boundary. One deployable service owns one <see cref="NamespaceEntity"/>; replicas
-/// of that service share it (on a catalog-hash match the upsert is a no-op). Cross-service collisions fail
-/// at startup with <c>JobNamespaceConflictException</c>.
+/// of that service share it (on a catalog-hash match the upsert is a no-op).
 /// </summary>
 [DbTable("namespaces")]
 [DbPrimaryKey(Name = "pk_namespaces", Columns = ["id"])]

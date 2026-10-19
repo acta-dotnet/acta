@@ -77,7 +77,7 @@ w AS (
         now(),
         0
     FROM ns
-    RETURNING id, namespace_id, worker_ref
+    RETURNING id, namespace_id
 ),
 evt AS (
     INSERT INTO {{schema}}.events (
@@ -102,7 +102,7 @@ evt AS (
         now(),
         w.namespace_id,
         70 /* ActorCode.Worker */,
-        w.worker_ref::TEXT,
+        NULL,
         NULL,
         NULL,
         NULL,

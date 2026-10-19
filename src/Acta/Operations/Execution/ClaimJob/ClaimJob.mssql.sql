@@ -52,6 +52,8 @@ BEGIN TRY
         execution_number = r.execution_number + 1,
         leased_by_worker_id = @p_leased_by_worker_id,
         lease_expires_at_utc = @lease_expires,
+        result_format_id = 0 /* JobPayloadFormat.None */,
+        result = NULL,
         modified_at_utc = @now,
         version = r.version + 1
     OUTPUT
@@ -87,8 +89,6 @@ BEGIN TRY
         failure_count,
         job_ref,
         tenant_id,
-        CAST(NULL AS DATETIME2(7)) AS db_now,
-        CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
         lane_id,
         parent_id
     FROM @claimed;

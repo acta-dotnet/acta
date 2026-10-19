@@ -11,7 +11,7 @@ public enum DefinitionAuditLevelCode : byte
 
     [Code(
         "failures",
-        "Emit job.execution-finished for a failed attempt and for the success that answers one; suppress other audit-filtered per-job events."
+        "Emit job.execution-finished for a failure and for the success that answers one, but not for a one-off job's failed attempt that retries within budget, so its failures show only when terminal (a lost lease always shows); suppress other audit-filtered per-job events."
     )]
     Failures = 10,
 

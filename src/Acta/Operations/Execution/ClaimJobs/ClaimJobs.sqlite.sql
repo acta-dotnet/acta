@@ -29,8 +29,9 @@ WHERE
     AND r.next_run_at_utc IS NOT NULL
     AND r.next_run_at_utc <= {{now}}
     /* The worker's watermark, as on the server providers (docs/sql-execution-policy.md, "Claim
-       watermark"); SQLite frees a deleted index entry at once, so it only keeps the claim alike here. */
-    AND r.next_run_at_utc >= COALESCE(@p_claim_from_utc, 0)
+       watermark"); SQLite frees a deleted index entry at once, so it only keeps the claim alike here.
+       Without one the scan starts at DateTime.MinValue in epoch milliseconds, so a row due before 1970 is reached. */
+    AND r.next_run_at_utc >= COALESCE(@p_claim_from_utc, -62135596800000)
     /* The definitions this worker already bounced for want of a handler, as JSON array text. NULL on a
        healthy fleet, and the NULL test settles the term before the jobs lookup. */
     AND (
@@ -53,6 +54,8 @@ SET
     execution_number = execution_number + 1,
     leased_by_worker_id = @p_leased_by_worker_id,
     lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000,
+    result_format_id = 0 /* JobPayloadFormat.None */,
+    result = NULL,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE

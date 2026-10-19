@@ -242,9 +242,9 @@ Persisted-code changes are family-scoped: annotated byte-backed enums are author
 perform a blind numeric replacement, reuse retired/reserved identities, assign `255` in a closed
 family, or derive behavior from numeric ordering. Update symbolic SQL literals
 (`/* Type.Member */`), regenerate docs/schema artifacts, and run all provider code-policy tests.
-Adding a value needs no migration, because no column constrains its codes and an unknown id decodes
-as the family's id-0 member; a value that changes engine behaviour ships readers first and writers a
-release later.
+Adding a value needs no table change, because no CHECK limits a column to the codes it knows (a shape
+CHECK binds only the codes it names) and an unknown id decodes as the family's id-0 member, but it does
+ship a migration: the operator views decode every code by name. A value that changes engine behaviour ships readers first and writers a release later.
 
 ## Generated files
 
@@ -412,14 +412,14 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
 
 ### Identifier suffixes
 
-- **`_ref`** is a rendered public handle: prefix + Crockford32, resolvable through the API
+- **`_ref`** is a rendered public handle: prefix + the uuid's 32 hex digits, resolvable through the API
   (`job_ref`). A plain uuid is never a `_ref`, so the staging table's `outbox_id` keeps its name.
 - **`_id`** is a numeric identity or a plain uuid.
 - **`_name`** is a name: Acta's vocabulary, ASCII `dotted.kebab-case`, trimmed and lowercased on input, so it compares
   equal under any collation (`tenant_name`, `rate_name`, `lanes.name`, `definitions.name`).
 - **`_key`** is a key: the caller's identity, printable ASCII without whitespace, kept exactly as given and compared
-  bytewise (`deduplication_key`, `concurrency_key`, `lock_key`); `correlation_key` is a key Acta carries without
-  comparing. Only a deduplication key reserves `sys.`, because the system jobs' keys share its index.
+  bytewise (`deduplication_key`, `concurrency_key`, `lock_key`, `correlation_key`). Only a deduplication key
+  reserves `sys.`, because the system jobs' keys share its index.
 - **`display_name`, `value`, `message`, `actor`** are display text: any Unicode within a cap, never compared.
 - **`_token`** is opaque claim evidence (`claim_token`), proof of ownership rather than identity.
 
@@ -483,10 +483,12 @@ the boundary. Ledger positions and counters are not caught by this rule - `jobEv
 `executionNumber`, `occurrenceCount`, `failureCount`, `version` are *values*, and a value is allowed to
 be a number.
 
-A ref is `prefix + 26 lowercase Crockford Base32 characters` encoding a UUIDv7's canonical big-endian
-bytes. **The prefix is exactly three letters plus an underscore** - `job_`, `alr_`, `wrk_` - so a
-pasted handle names its own entity and a ref for the wrong one fails to parse rather than resolving.
-Parsing folds case and the Crockford `o`/`i`/`l` aliases; emission is always canonical lowercase. Refs
+A ref is the prefix plus the UUIDv7's 32 lowercase hex digits, its `N` format:
+`job_01a14f4e954e7bf68ac609f3fcad8e3d`. It copies with a double-click and searches as one word, and it
+reads in creation order. **The prefix is exactly three letters plus an underscore** - `job_`, `alr_`,
+`wrk_` - so a pasted handle names its own entity and a ref for the wrong one fails to parse rather
+than resolving. Parsing takes the prefix exactly and the hex in any casing, and nothing else: no dashed
+or bare Guid. Emission is always lowercase. Refs
 are minted in C# and passed into the write, never defaulted by the database, so a deduplicated repeat
 keeps the ref its first firing minted.
 
@@ -585,10 +587,11 @@ Where code lives in `src/`, and the tests that hold it there.
 ### Projects
 
 - `src/Acta` is the SDK and the engine, in one namespace, `Acta`: the facade interfaces and the models they return, configuration, the handler API, the operations, the engine, database access, the schema, hosting, and the operator CLI. Its public types are the consumer contract, pinned by `PublicApiContractTests`; everything else is internal.
-- In `src/Acta`, `Operations/` holds the operations as vertical slices, `Domain/` what Acta is made of, and `Engine/` runs jobs; the rest sits by capability, in [the other folders](#the-other-folders).
+- In `src/Acta`, `UseActa` sits at the project root, where a consumer looks for the entry point, as `Use{Provider}` and `MapActa` do in theirs; `Operations/` holds the operations as vertical slices, `Domain/` what Acta is made of, and `Engine/` runs jobs; the rest sits by capability, in [the other folders](#the-other-folders).
 - `src/Acta.Postgres`, `src/Acta.SqlServer`, and `src/Acta.Sqlite` each hold the `Use{Provider}` registration and outbox staging at the project root, the dialect and the migrator (which is also the startup bootstrap) under `Services/`, and its migrations under `Migrations/`, named `M{yyyyMMddHHmmss}_{name}.sql`.
 - `src/Acta.AspNetCore` holds `MapActa`, the routes in `Operations/<Group>/`, the `Http/` helpers (route shapes, binding, validation, the JSON context, headers), and the dashboard. It references only `Acta`, and sees only its public types.
 - `src/Acta.Redis` is the Redis wakeup, `src/Acta.Testing` the test host and runners, and `src/Acta.Generators` the source generators.
+- A file holds one top-level type and is named for it, with the generic arities of one name together and a partial type's other files named `Type.Part.cs`; a type that exactly one other type references, tests aside, sits below that type in its file instead, unless a layout rule gives it a file of its own, or the two files differ in namespace, analyzer rulings, or test allowlist entries.
 
 ### Operations
 
@@ -634,11 +637,11 @@ src/Acta/Operations/Ledger/ListJobs/
 - A write operation has an `XCommand`, an `XHandler`, and an `XResponse`, public when a facade returns it, or none when it answers nothing. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`; a `GetX` returns its `GetXResponse`, null when nothing is found, and a list `ListX` its `ListXResponse : IPagedResponse<ListXItem>`. The suffixes are in [naming conventions](#naming-conventions).
 - An operation's public and internal types share its folder: its query, response, and response element (`ListXItem`, `GetXItem`) sit beside its command, handler, row, and SQL, and a response's parts beside it as `<Operation><Part>` (`GetJobExplanationWait`). A type several operations share sits in the `Shared/` folder of the nearest folder holding them all, `Operations/<Group>/Shared/` within a group and `Operations/Shared/` across groups, and only that folder's parent and what lies below it may name it, so it is internal. A type that code outside `Operations/` names, or that is public, sits in `Domain/<Group>/`. `Acta` has one namespace, so moving a type never changes its name.
 - A group's root holds its operations class and the interfaces that class implements, nothing else. The class implements the group's public interface when there is one (`JobsOperations : IJobs`), and the engine's extra calls are `internal` methods on it. It is hand-written, one line per operation and never `async`: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator, no partial class, and no internal interface beside it; the clock's interfaces are the one internal seam, because tests replace the clock.
-- A group's handlers and its operations class are registered together in `AddActa`: the class once, with the public interface mapped to that instance.
+- A group's handlers and its operations class are registered together in `UseActa`: the class once, with the public interface mapped to that instance.
 - Code outside `Operations/` calls a group's operations class, or its public interface, and never names a handler or a `Shared/` type. Inside, an operation that needs another calls that operation's handler, across groups too, and operations classes never call each other, which keeps the constructor graph free of cycles. A helper that calls a handler is an operation of its own.
 - Every operation has its own input and its own response. Related responses share an interface; operations share no classes.
 - An operation's SQL sits beside its handler under `Operations/`, the schema bootstrap's included, one file per dialect, loaded by the dialect token. Inline SQL is `X.pg.sql` and is embedded in `Acta`; a routine is `X.routine.pg.sql`, is not embedded, and reaches a database inside a migration under the installed name `snake_case(stem)`. The operator views sit under `Schema/Views/`, also not embedded, and the migrations with each provider, in `Migrations/`.
-- Most routes have one of five shapes (paged list, detail, command verb, PATCH update, tags) and are one line in the group's `<Group>Endpoints.cs`, in `src/Acta.AspNetCore/Operations/<Group>/`. A route's JSON body is its own `XRequest` in `Operations/<Group>/X/` there, and it answers with the SDK's `XResponse`. A route that fits none of the shapes has its own `XEndpoint.cs` in that folder, and a route that renders or composes what the facades answer is an operation of its own, with its own `XResponse` and parts beside it:
+- Most routes have one of five shapes (paged list, detail, command verb, PATCH update, tags) and are one line in the group's `<Group>Endpoints.cs`, in `src/Acta.AspNetCore/Operations/<Group>/`, under the group whose route table maps them even when the SDK operation belongs to another group. A route's JSON body is its own `XRequest` in `Operations/<Group>/X/` there, and it answers with the SDK's `XResponse`. A route that fits none of the shapes has its own `XEndpoint.cs` in that folder, and a route that renders or composes what the facades answer is an operation of its own, with its own `XResponse` and parts beside it:
 
 ```text
 src/Acta.AspNetCore/Operations/Jobs/
@@ -659,7 +662,7 @@ src/Acta.AspNetCore/Operations/Jobs/
 
 `src/Acta/Engine/` is everything between the Store and the handler. It calls each group through its operations class, never a handler, and it is one folder per box, each named for its capability (singular: `Worker` holds one worker's runtime, `Alerting` is the process; an `Operations/` group is the plural aggregate, `Workers`, `Alerts`):
 
-- `Catalog/`: what a deployment declares, written at startup: `CatalogRegistrar` collects and validates the descriptors, registers the definitions, overlays each with its effective policy, and reconciles the definition-sourced schedules; contract drift, the overlay, manifest generation, the meter check, and `SystemJobs` sit beside it.
+- `Catalog/`: what a deployment declares, written at startup: `CatalogRegistrar` collects and validates the descriptors, registers the definitions, overlays each with its effective policy, and reconciles the definition-sourced schedules; manifest generation, contract drift detection and policy, and `SystemJobs` sit below it in its file, and the drift record, the overlay, and the meter check beside it.
 - `Worker/`: one worker's runtime: `WorkerRuntime`, its host and startup, `WorkerRuntimeInitializer` (the worker row, clock skew, the Stopped stamp), the `WorkerContext` the hot path reads, and the worker's agents with what they share: `WorkerClaimer`, `WorkerExecutor`, `WorkerFinalizer`, `WorkerHeartbeat`, and the `InFlightJobRegistry` that holds each claim from its claim to its written completion. `Worker/Context/` is what a handler talks to: `RuntimeJobContext`, the checkpoint slot, and the signals a step throws.
 - `Recovery/`, `Retention/`, `Alerting/`, `Outbox/`: the recovery pass the heartbeat runs, and the three system jobs (`sys.retention`, `sys.alerts`, `sys.outbox`) and what they run; `Outbox/` also holds the staging core the provider packages share.
 - `Wakeup/`: the wake transport and publisher.
@@ -674,10 +677,10 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 - `Configuration/`: `JobsOptions`, `SqlProviderOptions`, and the options validator.
 - `Payloads/`: `JobPayload`, the payload formats, and the serializers and their registry.
 - `Primitives/`: name, key, duration, and ref syntax, text limits, and message truncation.
-- `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
-- `Storage/`: database access beside `Schema/`: the session, `ISqlDialect`, SQL identifier syntax, value coercion, deadlock retry, the SQL resource catalog, and paging.
+- `Querying/`: `IPagedResponse`, paging and its cursors, query limits, and query validation.
+- `Storage/`: database access beside `Schema/`: the session, `ISqlDialect`, SQL identifier syntax, value coercion, deadlock retry, and the SQL resource catalog.
 - `Schema/`: the schema model, the migration runner, and the operator view sources in `Schema/Views/`.
-- `Hosting/`: `ActaBuilder`, `AddActa`, the builder interfaces and plug-in seams, provider registration, option validators, and what registration builds and operations read: `CatalogDeclaration`, the catalog registries (`JobContractRegistry`, `JobDescriptorRegistry`, `JobTypeRegistry`), and `OutboxRelayRegistry`. They stay here rather than in `Engine/` because operations name them.
+- `Hosting/`: `ActaBuilder`, the builder interfaces and plug-in seams, provider registration, option validators, and what registration builds and operations read: `CatalogDeclaration`, the catalog registries (`JobContractRegistry`, `JobDescriptorRegistry`, `JobTypeRegistry`), and `OutboxRelayRegistry`. They stay here rather than in `Engine/` because operations name them.
 - `Cli/`: the operator CLI, a presenter over the public facades.
 
 ### Enforced by
@@ -691,6 +694,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `RouteBodyTests` | a route's body is its own `XRequest`, on no other route, and it answers an `XResponse`, the SDK's or its own; every request and response in `Acta.AspNetCore` sits in the folder named for it |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
 | `FileLengthTests` | at most 700 lines per source file; the 150-line method cap is MA0051's, in the build |
+| `FileNameTests` | every file in `src/Acta` named for its first top-level type, a partial type's other files `Type.Part.cs` |
 | `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
 | `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta` |
 
@@ -703,10 +707,10 @@ dashboard visibility, and benchmark runs:
 
 ```bash
 dotnet run --project anvil/Anvil                                        # loopback UI + embedded dashboard at /acta
-dotnet run --project anvil/Anvil.Bench -- quick --db pg                 # short comparable benchmark capture
+dotnet run -c Release --project tools/Acta.Bench -- --quick --db sqlite # quick benchmark and conformance check
 ```
 
-Anvil defaults to SQLite for a quick dashboard look. Anvil.Bench asks for the target database in the interactive menu, or accepts `quick|release|full --db sqlite|pg|mssql|all [--scenario <name>]... [--seed-history <n>]` for scripted runs. Prefer PostgreSQL or SQL Server when you want server-database throughput numbers; SQLite is still useful for zero-setup local checks. Every run replaces `docs/reference/benchmark.md`; commit it only for a release round.
+Anvil defaults to SQLite for a quick dashboard look. [Acta Bench](tools/Acta.Bench/README.md) is the headless benchmark and conformance standard: `--quick` checks a change, and `--standard` and `--full` are the longer campaigns. Each run writes an evidence bundle under `artifacts/bench/` and never touches tracked documentation.
 
 ## Releasing
 
@@ -729,35 +733,28 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 
 - The certified commit, A, is the last commit that touches code, schema, routines, tests, tools, anvil, project files, or a generated artifact. Every suite, the benchmark round, and the certification run against exactly A.
 - The tag commit, B, adds only documentation after A: the benchmark report, the release notes' evidence paragraph, and the release-notes header flip. `A..B` touches only `docs/`, `site/`, `README.md`, and `llms.txt`.
-- A defect found by any of A's runs abandons A: the fix makes a new candidate, and every piece of evidence is re-run against it. A fix that touches only `tests/` keeps the evidence, since the certification and the benchmark round measured the same binaries: the fix becomes A without a re-run, and the release notes say what it changed.
+- A defect found by any of A's runs abandons A: the fix makes a new candidate, and every piece of evidence is re-run against it. A fix that touches only `tests/` keeps the evidence, since the certification and the benchmark round measured the same binaries: the fix becomes A without a re-run, and the release notes say what it changed. A fix that touches only `tools/Acta.Bench` keeps the engine evidence the same way: the cases it affects are rerun with the fixed bench against the same engine, and the evidence paragraph names those reruns.
 
-### Certification
+### Benchmark and conformance evidence
 
-Run locally, never in CI: shared runners cannot host multi-process kill testing.
+The evidence is one [Acta Bench](tools/Acta.Bench/README.md) run against A, on all three databases:
 
-- One run per provider, PostgreSQL first: `dotnet run --project anvil/Anvil -- --provider <db> --certify-jobs <n>`, or an ensemble with `--run`, `--seed`, `--participant`, and `--port`.
-- Run it in two waves: the three standard gates and the ensemble side by side (10,000 jobs, 5 steps of 1 s, 7 minutes of chaos), then both million-job runs (24 workers of 64 executors, 5 steps of 250 ms, 12 minutes of chaos).
-- A run passes when Anvil exits 0 after printing PASS. 1 is FAIL or an aborted run, and 2 is INCONCLUSIVE: no reclaim was observed, so the chaos window was too short. In an ensemble the seeder's exit is the verdict.
-- Read `chaos-by-shape` as well: a zero there means that shape's checks ran with no kill in flight.
-- Nothing is filed: the release notes' evidence paragraph records each run's shape and verdict.
-- A release may skip certification when the execution model did not change; the release notes say so, and the benchmark round is the gate.
+```bash
+dotnet run -c Release --project tools/Acta.Bench -- --standard --db all --output artifacts/bench
+```
 
-### Benchmark round
-
-- Measure from a clean `git worktree` of A; the report marks a dirty tree `(dirty)`.
-- Run `dotnet run --project anvil/Anvil.Bench -- release --db all`. It replaces `docs/reference/benchmark.md`, and that file is the round.
-- Leave PostgreSQL autovacuum on, run one round at a time, and check the disk the databases live on first: a QLC drive folded by sustained writes halves the server cells.
-- Compare with the previous tag's report from the same machine: drain, enqueue, latency, and the list query reproduce within a few percent.
-- Rerun a cell that looks like a finding on both trees, back to back, twice, with `--scenario`, and report only a gap that survives.
-- Never compare versions on the `throughput` cells at 1 and 8 executors, which are bimodal on every tree measured, and report `--seed-history` as informational.
-- Each cell drops its schema once recorded; an interrupted round can leave some behind, and the harness names them.
+- Run it from a clean worktree of A on an idle box: no builds, other load tests, or disk-heavy work alongside, and the disk the databases live on checked first, since a QLC drive folded by sustained writes halves the server cells. Leave PostgreSQL autovacuum on.
+- `dotnet run` gives the managed build, which covers SQL Server; a native publish covers only PostgreSQL and SQLite.
+- The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and F09 is the certification run under the shipped lease timings. A `--quick` or `--standard` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and F09) and reports capacity as information; `--full` also gates on measurement.
+- A release that changes the execution model runs `--full`; any other release may run `--standard`. The release notes' evidence paragraph names the profile and the scope that ran.
+- Compare with the previous tag's bundle from the same machine: `acta-bench compare <previous> <candidate>`. Rerun a cell that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
+- Publish the report in B with `acta-bench publish <run-directory> --to docs/reference/benchmark.md`, then remove the run's leftovers with `acta-bench cleanup --yes`.
 
 ### Release notes and docs
 
 - `docs/release-notes.md` has a section for the version, leading with what a consumer must change.
 - Flip its header from "(unreleased)" to "Tagged <date>" in B, before tagging: the tag captures the header forever.
 - Review the README, the guides, and known limitations against the release, including the stability statement.
-- Install commands (README, `docs/quickstart.md`, `llms.txt` and its `site/` copy, the site pages) carry `--prerelease` while nuget.org holds no stable Acta; drop it in the 1.0.0 release commit.
 
 ### After publishing
 
@@ -774,9 +771,9 @@ tests/      unit, dashboard, conformance, and provider-specific tests
 concepts/   runnable single-concept tutorial rungs (one idea each), built by their own concepts/Concepts.slnx
 demos/      larger multi-project apps (production shapes); consume the published Acta packages,
             so they are not in Acta.slnx and build independently of src/
-anvil/      Acta Anvil (interactive proof/dashboard harness), Anvil.Bench (benchmark/load rig and the alert burst run)
+anvil/      Acta Anvil (interactive proof/dashboard harness)
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
-tools/      Acta.Emit CLI (generated docs, SQL migrations), Acta.Doctor (environment preflight + concept smoke)
+tools/      Acta.Bench (headless evidence suite), Acta.Emit (generated references), Acta.Doctor (preflight)
 ```
 
 ## Reading the source
@@ -787,7 +784,7 @@ The shortest paths to the design-review-worthy parts:
 * **One handler per operation across three engines.** Each operation's handler in `Acta` builds its command and maps its rows once; PostgreSQL, SQL Server, and SQLite each own only a dialect and the operation's executable SQL, held to the same behavior by the conformance suite.
 * **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql` (a routine body is `<Operation>.routine.{pg,mssql}.sql`), beside its public types and handler, the schema bootstrap's in `Operations/Schema/`, with the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
-* **A deliberately small, symmetric data model.** Sixteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/design.md`](./docs/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
+* **A deliberately small, symmetric data model.** Fifteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/design.md`](./docs/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
 
 | Area | Where to look |
 |---|---|

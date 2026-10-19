@@ -2,10 +2,9 @@ namespace Acta;
 
 /// <summary>
 /// One row in <c>acta.jobs</c>, Acta's only work unit: the append-mostly identity/input record.
-/// Hot mutable state (status, next run, counters, retention) lives on the 1:1 <c>runtimes</c> row,
-/// which also carries execution ownership/TTL (<c>locks</c> holds named locks only); result
-/// history lives in <c>results</c>, keyed by the composite <c>(job_id, execution_number)</c>
-/// clustered PK. Recurring Jobs are a single reusable row whose runtime <c>next_run_at_utc</c>
+/// Hot mutable state (status, next run, counters, retention, the one stored result) lives on the 1:1
+/// <c>runtimes</c> row, which also carries execution ownership/TTL (<c>locks</c> holds named locks only).
+/// Recurring Jobs are a single reusable row whose runtime <c>next_run_at_utc</c>
 /// rolls forward on terminal completion (no per-firing row inflation).
 /// </summary>
 [DbTable("jobs", DisableLockEscalation = true)]
@@ -45,7 +44,7 @@ internal sealed class JobEntity : IEntity<long>
     public long Id { get; init; }
 
     /// <summary>
-    /// The public reference clients see in place of the numeric id ("job_" plus 26 Crockford Base32 characters),
+    /// The public reference clients see in place of the numeric id ("job_" plus the Guid's 32 hex digits),
     /// minted in C# as a UUIDv7 (<see cref="Acta.JobRef.New"/>) and never defaulted by the database. It is copied onto
     /// events and alerts so it survives a purge, and never used for joins, claim order, or keyset paging.
     /// </summary>
@@ -103,9 +102,9 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// Opaque correlation key threading related jobs across systems: a W3C trace id or a caller's own
-    /// custom value. At most 64 chars; null = uncorrelated.
+    /// custom value, a case-sensitive key like the deduplication key. At most 64 chars; null = uncorrelated.
     /// </summary>
-    [DbColumn("correlation_key", DbKind.AsciiString, Size = 64)]
+    [DbColumn("correlation_key", DbKind.AsciiString, Size = 64, CaseExact = true)]
     public string? CorrelationKey { get; init; }
 
     /// <summary>
@@ -139,7 +138,7 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// Per-job snapshot of the definition's audit level, copied from <c>definitions</c> at
-    /// enqueue. Gates audit-filtered per-job <c>JobEvent</c> emission on the hot path
+    /// enqueue. Gates audit-filtered per-job <c>events</c> emission on the hot path
     /// (claim / start / complete / control) without a join: <c>Off</c> suppresses them,
     /// <c>Failures</c> emits only failed <c>job.execution-finished</c>, <c>Audit</c> emits all.
     /// Always-on system / catalog events ignore this column.

@@ -35,7 +35,7 @@ internal static class JobsEndpoints
                         static query => (Namespace: query.Text("jobNamespace"), Key: query.Text("deduplicationKey"))
                     )
                         is { Namespace: { } jobNamespace, Key: { } key }
-                        ? call.Jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, key), call.Ct)
+                        ? call.Jobs.GetAsync(ByDeduplicationKey(jobNamespace, key), call.Ct)
                         : throw new InvalidQueryException("jobNamespace and deduplicationKey are required.")
             )
             .WithQueryParameters([
@@ -132,9 +132,6 @@ internal static class JobsEndpoints
             RouteKeys.JobByRef,
             static (call, job) => call.Jobs.CancelAsync(job, call.ReasonMessage, call.Actor, call.Body?.ExpectedVersion, call.Ct)
         );
-
-        // Purge takes no reason and no version token: its body passes the same confirmation and shape checks as the
-        // other verbs, but the reason is never forwarded.
         controls.MapCommand(
             "/jobs/{jobRef}/purge",
             "Delete the job's record from the ledger.",
@@ -178,5 +175,17 @@ internal static class JobsEndpoints
                 call.Jobs.ReprioritizeAsync(job, call.Body!.Priority, call.ReasonMessage, call.Actor, call.Body.ExpectedVersion, call.Ct),
             bodyRequired: true
         );
+    }
+
+    private static JobLookup ByDeduplicationKey(string jobNamespace, string deduplicationKey)
+    {
+        try
+        {
+            return JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidQueryException(ex.Message);
+        }
     }
 }

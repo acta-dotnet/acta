@@ -21,12 +21,15 @@ public enum ActorCode : byte
     )]
     Operator = 20,
 
-    [Code("job", "ctx.* throw-to-transition inside a user handler. Actor = \"{jobId}\".")]
+    [Code(
+        "job",
+        "An in-handler ctx call recorded as its own event: a ctx.NoteAsync note (Actor is null) or a ctx.ResetStateAsync state reset (Actor is the job id)."
+    )]
     Job = 50,
 
     [Code(
         "worker",
-        "Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). Actor stores the acting worker's public ref as canonical lowercase uuid text; read projections render it as wrk_...."
+        "Worker-process lifecycle (worker.started, worker.stopped, worker.died) and the events an attempt's completion writes, including a transition the handler asked for through ctx (reschedule, sleep or signal wait, fail, cancel, pause), whose job.handler-* reason names the handler as the decider. Actor is null; the worker is named by worker_id, and its row is kept as long as events can name it."
     )]
     Worker = 70,
 }

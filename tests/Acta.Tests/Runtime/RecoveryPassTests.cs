@@ -31,7 +31,7 @@ public sealed class RecoveryPassTests
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassReport(0, 0, 0, 0), outcome);
+        Assert.Equal((0, 0, 0), outcome);
         Assert.Empty(wakeups.Channels);
     }
 
@@ -46,13 +46,16 @@ public sealed class RecoveryPassTests
                 new ReclaimStuckJobsRow(JobId: 7, JobStatusCode.Failed, ParentId: 8, LaneRepaired: false),
                 new ReclaimStuckJobsRow(JobId: 11, JobStatusCode.Ready, ParentId: null, LaneRepaired: false),
             ],
-            staleLatches: [new GetStaleChildLatchesItem(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
+            staleLatches:
+            [
+                new GetStaleChildLatchesItem(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled, ChildExecutionNumber: 1),
+            ]
         );
         var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassReport(3, 2, 2, 0), outcome);
+        Assert.Equal((3, 2, 2), outcome);
         Assert.Equal(
             [WorkerWakeupChannelKind.WorkerNamespace, WorkerWakeupChannelKind.AllWorkerNamespaces],
             wakeups.Channels.Select(c => c.Kind)
@@ -70,7 +73,7 @@ public sealed class RecoveryPassTests
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassReport(0, 0, 0, 1), outcome);
+        Assert.Equal((0, 0, 0), outcome);
         Assert.Equal([WorkerWakeupChannelKind.WorkerNamespace], wakeups.Channels.Select(c => c.Kind));
     }
 

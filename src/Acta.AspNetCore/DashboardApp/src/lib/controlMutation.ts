@@ -10,10 +10,10 @@ export interface ControlMutationOptions<TVars extends object, TResult extends { 
   method?: 'POST' | 'PATCH';
   /** Builds the request body; `reasonMessage` is merged in automatically from `vars.reason`. */
   body?: (vars: TVars) => Record<string, unknown>;
-  /** Escape hatch for endpoints where the request body IS the caller's own JSON, verbatim - not a
-   *  reason-merged object (e.g. signal-raise, where a request with zero body bytes has its own
-   *  meaning: a presence-only signal). When set, this replaces `body`/the reason merge entirely;
-   *  return undefined to send no request body at all. */
+  /** Escape hatch for endpoints whose request body is not always a reason-merged object: the
+   *  caller's own JSON, verbatim (e.g. signal-raise, where a request with zero body bytes has its own
+   *  meaning: a presence-only signal), or a verb that takes no reason (job purge). When set, this
+   *  replaces `body`/the reason merge entirely; return undefined to send no request body at all. */
   rawBody?: (vars: TVars) => unknown;
   /** Result to return when the server responds 404 with no typed body. Every control family types
    *  its 404, so this is the guard for a proxy or a gateway answering in the server's place. */
@@ -23,7 +23,7 @@ export interface ControlMutationOptions<TVars extends object, TResult extends { 
   versionConflict?: (vars: TVars) => TResult;
   /** Query keys to invalidate once the request resolves without throwing (applied, rejected, and
    *  not-found all count - only a genuine fetch/parse failure skips invalidation). */
-  invalidateKeys: (vars: TVars, result: TResult) => readonly (readonly unknown[])[];
+  invalidateKeys: () => readonly (readonly unknown[])[];
 }
 
 // Merges the caller's reason into the request body.

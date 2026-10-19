@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import JobExecutionsPanelHarness from '../../test/JobExecutionsPanelHarness.svelte';
 import type { JobDetail, JobEvent } from './types.ts';
 
-const workerRef = 'wrk_01kydka200fay8000000000002';
+const workerRef = 'wrk_019f9b3508007e4dbfd13d9d20bc81f4';
 
 function executingJob(executionNumber: number): JobDetail {
   return {
-    jobRef: 'job_00000000000000000000000042',
+    jobRef: 'job_019f9b3509487d1b911f2020158384a3',
     jobNamespace: 'billing',
     jobName: 'send-invoice',
     lineageRootJobRef: null,
@@ -39,7 +39,7 @@ function failed(executionNumber: number): JobEvent {
     eventCode: 'job.execution-finished',
     createdAtUtc: '2026-07-14T07:58:00Z',
     jobNamespace: 'billing',
-    jobRef: 'job_00000000000000000000000042',
+    jobRef: 'job_019f9b3509487d1b911f2020158384a3',
     workerRef,
     executionNumber,
     fromStatus: 'executing',

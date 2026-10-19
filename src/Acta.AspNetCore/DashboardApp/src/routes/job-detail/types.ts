@@ -24,7 +24,6 @@ export interface JobDetail {
   retentionUntilUtc: string | null;
   createdAtUtc: string;
   modifiedAtUtc: string;
-  // Optimistic-concurrency counter of the runtime row, sent back as a control verb's expectedVersion.
   version: number;
 }
 

@@ -283,8 +283,20 @@ internal sealed partial class RuntimeJobContext(
     private protected override async Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
         await Jobs().EnqueueAsync(request, ct);
 
-    private protected override async Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
-        where TResult : default => await Jobs().GetResultAsync<TResult>(JobLookup.ById(childJobId), ct);
+    private protected override async Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
+        long childJobId,
+        int? executionNumber,
+        CancellationToken ct
+    )
+        where TResult : default
+    {
+        if (await _jobOperations.ReadResultAsync(childJobId, executionNumber, ct) is not { } row)
+        {
+            return (false, default);
+        }
+        var serializer = _serializers.Resolve(row.FormatId);
+        return (true, serializer.Deserialize<TResult>(JobPayload.FromBytes(serializer.Format, row.Data.ToArray())));
+    }
 
     private IJobs Jobs() =>
         _jobs ?? throw new InvalidOperationException("Child job operations need the IJobs facade; this context was built without one.");
@@ -388,14 +400,99 @@ internal sealed partial class RuntimeJobContext(
 }
 
 /// <summary>
-/// The parent Job's resolved retry policy, supplied to <see cref="RuntimeJobContext"/> so an inline
-/// step can resolve its effective policy live each attempt (parent defaults + per-step
-/// <c>configure</c> overrides). Never persisted; re-resolved on every replay.
+/// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
+/// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
+/// <see cref="AccessCheckpointAction"/> through <see cref="ExecutionOperations.AccessCheckpointAsync"/>. Checkpoint
+/// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
+/// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
+/// and typed serialization; this op owns the durable row shape.
 /// </summary>
-internal readonly record struct StepRetryDefaults(
-    int MaxAttempts,
-    int BackoffInitialDelaySeconds,
-    int BackoffMaxDelaySeconds,
-    decimal BackoffMultiplier,
-    decimal BackoffJitter
-);
+internal static class CheckpointSlot
+{
+    public static Task SetAsync(
+        ExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        JobPayload payload,
+        CancellationToken ct
+    )
+    {
+        EnsureWritable(payload);
+        return Run(store, AccessCheckpointAction.Set, jobId, kind, name, payload, ct);
+    }
+
+    public static async Task<CheckpointValue?> GetAsync(
+        ExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct
+    )
+    {
+        var row = await Run(store, AccessCheckpointAction.Get, jobId, kind, name, null, ct);
+        return row.Found == 0 ? null : ToValue(row);
+    }
+
+    public static async Task<CheckpointValue> GetOrSetAsync(
+        ExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        JobPayload payload,
+        CancellationToken ct
+    )
+    {
+        EnsureWritable(payload);
+        var row = await Run(store, AccessCheckpointAction.GetOrSet, jobId, kind, name, payload, ct);
+        return row.Found == 0
+            ? throw new InvalidOperationException("access_checkpoint get-or-set returned no stored value.")
+            : ToValue(row);
+    }
+
+    public static async Task<bool> ExistsAsync(
+        ExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct
+    ) => (await Run(store, AccessCheckpointAction.Exists, jobId, kind, name, null, ct)).Found != 0;
+
+    public static async Task<bool> DeleteAsync(
+        ExecutionOperations store,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        CancellationToken ct
+    ) => (await Run(store, AccessCheckpointAction.Delete, jobId, kind, name, null, ct)).Found != 0;
+
+    // A variable value must carry a real payload: a non-None format with a non-zero id.
+    private static void EnsureWritable(JobPayload payload)
+    {
+        if (payload.IsNone || payload.Format.Id == 0)
+        {
+            throw new ArgumentException("Variable payload cannot be None.", nameof(payload));
+        }
+    }
+
+    private static Task<AccessCheckpointResponse> Run(
+        ExecutionOperations store,
+        AccessCheckpointAction action,
+        long jobId,
+        CheckpointKindCode kind,
+        string name,
+        JobPayload? payload,
+        CancellationToken ct
+    ) =>
+        store.AccessCheckpointAsync(
+            new AccessCheckpointCommand(action, jobId, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
+            ct
+        );
+
+    private static CheckpointValue ToValue(AccessCheckpointResponse row)
+    {
+        return row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version
+            ? throw new InvalidOperationException("access_checkpoint returned a found slot with NULL value columns.")
+            : new CheckpointValue(format, value, version);
+    }
+}

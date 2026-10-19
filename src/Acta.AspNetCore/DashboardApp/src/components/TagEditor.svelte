@@ -11,7 +11,7 @@
 
   // `path` is the entity's tag subresource, e.g. `jobs/${jobRef}/tags`. The editor GETs it, and
   // POST/DELETE against the same path add and remove individual tags.
-  let { path, title = 'Tags' }: { path: string; title?: string } = $props();
+  let { path }: { path: string } = $props();
 
   const client = useQueryClient();
   const tags = createQuery(() => ({
@@ -79,7 +79,7 @@
 
 {#if !collapsed}
   <section class="detail-panel" aria-labelledby="tag-editor-heading">
-    <h2 id="tag-editor-heading">{title}</h2>
+    <h2 id="tag-editor-heading">Tags</h2>
     {#if tags.isPending}
       <p class="detail-help">Loading tags...</p>
     {:else if tags.error}

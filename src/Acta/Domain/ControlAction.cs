@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings.
+/// Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces.
 /// </summary>
 public enum ControlAction : byte
 {

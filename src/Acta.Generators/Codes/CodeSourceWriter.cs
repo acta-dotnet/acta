@@ -28,7 +28,7 @@ internal static class CodeSourceWriter
 
     internal static void EmitExtensions(SourceProductionContext spc, FamilyModel family)
     {
-        var storageName = StorageKeyword(family.Storage);
+        const string storageName = "byte";
         var typeName = family.StructName;
         var extName = $"{typeName}Extensions";
 
@@ -169,12 +169,7 @@ internal static class CodeSourceWriter
         spc.AddSource($"{extName}.g.cs", sb.ToString());
     }
 
-    /// <summary>
-    /// Canonical strings only, both ways: the wire form of a code is its kebab Code string, and the
-    /// numeric id is a storage detail that never crosses JSON. Reading a number or a numeric string
-    /// would be compatibility shaping for a producer that does not exist.
-    /// </summary>
-    // A switch's last arm: the fallback expression when the family has one, else a throw naming the input.
+    /// <summary>A switch's last arm: the fallback expression when the family has one, else a throw naming the input.</summary>
     internal static void AppendDefaultArm(StringBuilder sb, string typeName, string input, string? fallback)
     {
         if (fallback is not null)
@@ -194,6 +189,11 @@ internal static class CodeSourceWriter
             .AppendLine(".\"),");
     }
 
+    /// <summary>
+    /// Canonical strings only, both ways: the wire form of a code is its kebab Code string, and the
+    /// numeric id is a storage detail that never crosses JSON. Reading a number or a numeric string
+    /// would be compatibility shaping for a producer that does not exist.
+    /// </summary>
     internal static void AppendJsonConverter(StringBuilder sb, FamilyModel family, string typeName)
     {
         sb.AppendLine();
@@ -240,7 +240,7 @@ internal static class CodeSourceWriter
         sb.AppendLine("}");
     }
 
-    internal static void EmitMarkdownReport(SourceProductionContext spc, ImmutableArray<FamilyModel> families)
+    internal static void EmitCodeManifests(SourceProductionContext spc, ImmutableArray<FamilyModel> families)
     {
         var validFamilies = families
             .Where(f => !f.Diagnostics.Any(d => d.Fatal))
@@ -249,38 +249,6 @@ internal static class CodeSourceWriter
         if (validFamilies.Length == 0)
         {
             return;
-        }
-
-        var md = new StringBuilder();
-        md.AppendLine("# 98 · Codes (mechanical reference)");
-        md.AppendLine();
-        md.AppendLine("Auto-generated from `[Code]` decorations on each source-generated code family in `Acta` domain folders.");
-        md.AppendLine("Edit the attributes, not this file. Regenerate via `dotnet run --project tools/Acta.Emit -- docs`.");
-        md.AppendLine();
-        md.AppendLine($"Total families: **{validFamilies.Length}**. Total codes: **{validFamilies.Sum(f => f.Codes.Length)}**.");
-        md.AppendLine();
-
-        foreach (var f in validFamilies)
-        {
-            var storageName = StorageKeyword(f.Storage);
-            md.Append("## `")
-                .Append(f.StructName)
-                .Append("` · `")
-                .Append(f.CodeKind)
-                .Append("` (")
-                .Append(storageName)
-                .AppendLine("-backed)");
-            md.AppendLine();
-            md.AppendLine("| Id  | Code | Description | Lifecycle |");
-            md.AppendLine("|----:|------|-------------|-----------|");
-            foreach (var c in f.Codes.OrderBy(c => c.Id))
-            {
-                md.Append("| ").Append(c.Id);
-                md.Append(" | `").Append(EscapeMd(c.Code)).Append('`');
-                md.Append(" | ").Append(EscapeMd(c.Description));
-                md.Append(" | ").Append(c.Lifecycle).AppendLine(" |");
-            }
-            md.AppendLine();
         }
 
         var src = new StringBuilder();
@@ -315,42 +283,14 @@ internal static class CodeSourceWriter
         src.AppendLine();
         src.AppendLine("    /// <summary>Mechanical manifest entries for every generated code family.</summary>");
         src.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<global::Acta.CodeManifestEntry> All => _all;");
-        src.AppendLine();
-        src.AppendLine(
-            "    /// <summary>Mechanical markdown reference for every code family, generated from `[Code]` decorations.</summary>"
-        );
-        src.AppendLine("    public const string MarkdownReport = ");
-
-        var lines = md.ToString().Replace("\r\n", "\n").Split('\n');
-        for (var i = 0; i < lines.Length; i++)
-        {
-            src.Append("        ").Append(EscapeStringLiteral(lines[i]));
-            if (i < lines.Length - 1)
-            {
-                src.AppendLine(" + \"\\n\" +");
-            }
-            else
-            {
-                src.AppendLine(";");
-            }
-        }
         src.AppendLine("}");
 
-        spc.AddSource("CodeManifests.MarkdownReport.g.cs", src.ToString());
+        spc.AddSource("CodeManifests.g.cs", src.ToString());
     }
-
-    internal static string EscapeMd(string s) => s.Replace("|", "\\|");
 
     internal static string EscapeStringLiteral(string s)
     {
         var escaped = s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         return "\"" + escaped + "\"";
     }
-
-    internal static string StorageKeyword(StorageKind storage) =>
-        storage switch
-        {
-            StorageKind.Byte => "byte",
-            _ => throw new InvalidOperationException($"Cannot render StorageKind.{storage} as a C# keyword."),
-        };
 }

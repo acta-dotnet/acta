@@ -34,9 +34,6 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                 OutputType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
                 OutputPayloadFormat: null,
-                InvocationKind: JobInvocationKind.Task,
-                RequiresJobContextParameter: true,
-                RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
                 AuditLevel: DefinitionAuditLevelCode.Audit,
@@ -75,7 +72,6 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                 ],
                 CreateDefaultInput = static () => new NoInput(),
                 SerializeInput = null,
-                RecurringResultCap = 3,
             },
         ]);
 }

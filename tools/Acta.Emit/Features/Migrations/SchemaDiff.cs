@@ -1,10 +1,5 @@
 namespace Acta.Emit.Features.Migrations;
 
-internal readonly record struct TableMember(string Table, string Name);
-
-/// <summary>One dialect's routines and views whose body is new or changed, and those gone from the source SQL.</summary>
-internal sealed record ObjectChanges(IReadOnlyList<string> Changed, IReadOnlyList<string> Removed);
-
 /// <summary>
 /// Additive structural delta between two <see cref="SchemaSnapshot"/>s. Added tables and members are drafted
 /// as DDL, and a new or changed routine or view as its whole body; everything non-additive (removals,
@@ -153,3 +148,5 @@ internal sealed record SchemaDiff(
         }
     }
 }
+
+internal readonly record struct TableMember(string Table, string Name);

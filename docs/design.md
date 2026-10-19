@@ -118,7 +118,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Boundaries
 
-- **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + Crockford Base32 over a C#-allocated UUIDv7), `DeduplicationKey` caller-defined; `events`/`alerts` denormalize `job_ref` at INSERT so it resolves past purge. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers.
+- **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + the 32 hex digits of a C#-allocated UUIDv7, one word to copy and search), `DeduplicationKey` caller-defined; `events`/`alerts` denormalize `job_ref` at INSERT so they still name the job past purge; the ref resolves only through the job row. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers.
 - **`JobNamespace` is the service-owned execution boundary.** One deployable service owns one namespace; replicas share it. *Reason:* namespace identity = deployment unit, not tenant marker.
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
 - **One `WorkerRuntime` per `Run(...)`; enqueue-only hosts register nothing.** A process running several `Run(...)` calls fans out one claimer, executor set, finalizer, and heartbeat per namespace. `Reference(...)` and enqueue-only frontends create no worker registration and write no catalog rows; typed enqueue resolves `(namespace, jobName)` to ids via SQL JOIN at INSERT time. *Reason:* routing lives in the database, so worker-hosted and enqueue-only deployments share one enqueue code path and a frontend can enqueue for a namespace it never claims.

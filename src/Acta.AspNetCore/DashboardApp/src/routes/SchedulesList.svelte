@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { get } from 'svelte/store';
   import { createQuery } from '@tanstack/svelte-query';
   import { capabilitiesQuery } from '../query.ts';
   import Icon from '../components/Icon.svelte';

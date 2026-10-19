@@ -22,7 +22,7 @@ internal sealed class RetireDefinitionHandler(
             is not { DefinitionId: var definitionId }
         )
         {
-            return new RetireDefinitionResponse(ControlAction.NotFound);
+            return new RetireDefinitionResponse(ControlAction.NotFound, null);
         }
 
         var rows = await session.ExecuteAsync(
@@ -42,10 +42,10 @@ internal sealed class RetireDefinitionHandler(
             throw new InvalidOperationException("RetireDefinition returned no row; its SQL must answer at least one.");
         }
 
-        var action = rows[0].Action.ToControlAction();
-        if (action != ControlAction.Applied)
+        var response = new RetireDefinitionResponse(rows[0].Action.ToControlAction(), rows[0].Version);
+        if (response.Action != ControlAction.Applied)
         {
-            return new RetireDefinitionResponse(action);
+            return response;
         }
 
         // The cancelled jobs are the rows that carry a job id.
@@ -58,7 +58,10 @@ internal sealed class RetireDefinitionHandler(
             }
 
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
-            if (row.ParentId is { } parent && await RaiseChildLatch.Run(signals, jobId, parent, JobStatusCode.Cancelled, ct))
+            if (
+                row.ParentId is { } parent
+                && await RaiseChildLatch.Run(signals, jobId, parent, JobStatusCode.Cancelled, childExecutionNumber: null, ct)
+            )
             {
                 released = true;
             }
@@ -70,6 +73,6 @@ internal sealed class RetireDefinitionHandler(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return new RetireDefinitionResponse(action);
+        return response;
     }
 }

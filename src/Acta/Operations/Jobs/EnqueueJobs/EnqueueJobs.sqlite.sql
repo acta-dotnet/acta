@@ -240,11 +240,10 @@ WHERE NOT EXISTS (
     WHERE x.job_id = j.id
 );
 
-INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
+INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
 SELECT
     50 /* TagScopeCode.Job */,
     j.id,
-    j.namespace_id,
     JSON_EXTRACT(t.value, '$.name'),
     JSON_EXTRACT(t.value, '$.value'),
     JSON_EXTRACT(t.value, '$.value_search')

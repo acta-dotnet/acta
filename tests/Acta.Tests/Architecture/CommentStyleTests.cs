@@ -8,14 +8,8 @@ namespace Acta.Tests.Architecture;
 /// Mechanical enforcement of the production comment-style policy over the runtime core and the three
 /// durable SQL providers. Five checks: no stale-marker tokens, ASCII-only comment text (bans emoji,
 /// arrows, em dashes and other decorative symbols), XML doc blocks within eight lines, no comment that
-/// narrates history, and no <c>&lt;remarks&gt;</c> on internal types outside the allowlist.
+/// narrates history, and no <c>&lt;remarks&gt;</c> on internal types. Every check holds with no exception.
 /// </summary>
-/// <remarks>
-/// Each check carries an allowlist of cleared exceptions so the policy can tighten over time:
-/// a net-new violation in any file outside the allowlist fails the test, and clearing a file
-/// from the allowlist after a scrub ratchets the policy. <c>docs/ideas/**</c> and
-/// <c>tests/**</c> are outside the scanned roots by construction.
-/// </remarks>
 public sealed partial class CommentStyleTests
 {
     /// <summary>
@@ -27,65 +21,25 @@ public sealed partial class CommentStyleTests
 
     private const int MaxXmlDocBlockLines = 8;
 
-    private sealed record StaleMarker(string Name, Regex Match, HashSet<string> Allowlist)
+    private sealed record StaleMarker(string Name, Regex Match)
     {
         public IEnumerable<string> Violations(IEnumerable<string> files, string repoRoot) =>
-            files
-                .Where(f => !Allowlist.Contains(RelativeTo(repoRoot, f)))
-                .Where(f => Match.IsMatch(File.ReadAllText(f)))
-                .Select(f => RelativeTo(repoRoot, f));
+            files.Where(f => Match.IsMatch(File.ReadAllText(f))).Select(f => RelativeTo(repoRoot, f));
     }
 
     private static readonly StaleMarker[] StaleMarkers =
     [
-        new("stub", MyRegex(), Allow()),
-        new("placeholder", new Regex(@"\bplaceholder\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("future", new Regex(@"\bfuture\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("later", new Regex(@"\blater\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("TODO", new Regex(@"\bTODO\b", RegexOptions.Compiled), Allow()),
-        new("not yet", new Regex(@"\bnot\s+yet\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("design only", new Regex(@"\bdesign\s+only\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("deferred no-op", new Regex(@"\bdeferred\s+no-op\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("deferred surface", new Regex(@"\bdeferred\s+surface\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
-        new("pre-implementation", new Regex(@"\bpre-implementation\b", RegexOptions.Compiled | RegexOptions.IgnoreCase), Allow()),
+        new("stub", MyRegex()),
+        new("placeholder", new Regex(@"\bplaceholder\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("future", new Regex(@"\bfuture\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("later", new Regex(@"\blater\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("TODO", new Regex(@"\bTODO\b", RegexOptions.Compiled)),
+        new("not yet", new Regex(@"\bnot\s+yet\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("design only", new Regex(@"\bdesign\s+only\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("deferred no-op", new Regex(@"\bdeferred\s+no-op\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("deferred surface", new Regex(@"\bdeferred\s+surface\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+        new("pre-implementation", new Regex(@"\bpre-implementation\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
     ];
-
-    // Comment text must be plain ASCII: bans emoji, arrows, em/en dashes, unicode math, smart
-    // quotes and any other decorative symbol in one rule, without false positives on string
-    // literals (only full-line comments are scanned).
-    private static readonly HashSet<string> NonAsciiAllowlist = Allow();
-
-    // <remarks> on an internal type is reserved for concurrency / CAS / provider-difference
-    // contracts; each entry here is a cleared exception of that kind. Clearing a file after a
-    // scrub tightens the policy; never add a file for plain narration.
-    private static readonly HashSet<string> InternalRemarksAllowlist = Allow(
-        "src/Acta/Domain/Entities/StepEntity.cs",
-        "src/Acta/Domain/Entities/LockEntity.cs",
-        "src/Acta/Domain/Entities/ResultEntity.cs",
-        "src/Acta/Domain/Entities/CheckpointEntity.cs",
-        "src/Acta/Engine/Worker/Context/StepOwnershipLostException.cs",
-        "src/Acta/Engine/Worker/Context/StepRetrySignal.cs",
-        "src/Acta/Engine/Worker/Context/SignalSuspendSignal.cs",
-        "src/Acta/Engine/Worker/Context/SuspendSignal.cs",
-        "src/Acta/Engine/Alerting/AlertsJob.cs",
-        "src/Acta/Engine/Recovery/RecoveryPass.cs",
-        "src/Acta/Engine/Retention/RetentionJob.cs",
-        "src/Acta/Domain/Jobs/JobEnqueueValues.cs",
-        "src/Acta/Domain/Definitions/CatalogHash.cs",
-        "src/Acta/Engine/Worker/ClockSkewValidator.cs",
-        "src/Acta/Engine/Worker/JobBehaviorPipeline.cs",
-        "src/Acta/Engine/Worker/JobLogScope.cs",
-        "src/Acta/Engine/Telemetry/ActaMetrics.cs",
-        "src/Acta/Hosting/JobTypeRegistry.cs",
-        "src/Acta/Engine/Worker/WorkerContext.cs",
-        "src/Acta/Engine/Worker/WorkerHeartbeat.cs",
-        "src/Acta/Engine/Worker/WorkerRuntime.cs",
-        "src/Acta/Engine/Worker/WorkerRuntimeHost.cs",
-        "src/Acta/Engine/Worker/WorkerRuntimeInitializer.cs",
-        "src/Acta/Engine/Wakeup/WorkerWakeup.cs",
-        "src/Acta/Schema/SchemaModel.cs",
-        "src/Acta/Schema/SchemaColumnTypes.cs"
-    );
 
     [Fact]
     public void Production_source_contains_no_stale_markers()
@@ -119,10 +73,6 @@ public sealed partial class CommentStyleTests
         foreach (var path in EnumerateProductionFiles(repoRoot))
         {
             var relative = RelativeTo(repoRoot, path);
-            if (NonAsciiAllowlist.Contains(relative))
-            {
-                continue;
-            }
             foreach (var (lineNumber, text) in CommentLines(path))
             {
                 var offending = text.FirstOrDefault(c => c > 0x7F);
@@ -190,7 +140,7 @@ public sealed partial class CommentStyleTests
     }
 
     [Fact]
-    public void Internal_types_carry_no_remarks_outside_allowlist()
+    public void Internal_types_carry_no_remarks()
     {
         var repoRoot = ResolveRepoRoot();
         var failures = new List<string>();
@@ -198,10 +148,6 @@ public sealed partial class CommentStyleTests
         foreach (var path in EnumerateProductionFiles(repoRoot))
         {
             var relative = RelativeTo(repoRoot, path);
-            if (InternalRemarksAllowlist.Contains(relative))
-            {
-                continue;
-            }
             var lines = File.ReadAllLines(path);
             for (var i = 0; i < lines.Length; i++)
             {
@@ -220,40 +166,7 @@ public sealed partial class CommentStyleTests
             }
         }
 
-        AssertClean(
-            failures,
-            "<remarks> on internal types is reserved for concurrency / CAS / "
-                + "provider-difference contracts cleared via the allowlist. Fold the text into the "
-                + "summary or delete it."
-        );
-    }
-
-    [Fact]
-    public void Allowlists_reference_only_existing_files()
-    {
-        // Stale-entry detection: every allowlisted path must resolve to a file under the scanned roots. A rename, move, or delete leaves a dead entry that silently
-        // exempts nothing; flagging it keeps the ratchet accurate. Existence is the reliable signal - a
-        // "does the file still trip the check" test would false-positive on the scanners' parsing limits
-        // (e.g. a multi-line attribute between the doc block and an internal type declaration).
-        var repoRoot = ResolveRepoRoot();
-        var present = EnumerateProductionFiles(repoRoot).Select(f => RelativeTo(repoRoot, f)).ToHashSet(StringComparer.Ordinal);
-
-        var allowlisted = StaleMarkers
-            .SelectMany(m => m.Allowlist.Select(e => ($"stale-marker:{m.Name}", e)))
-            .Concat(NonAsciiAllowlist.Select(e => ("non-ASCII", e)))
-            .Concat(InternalRemarksAllowlist.Select(e => ("internal-remarks", e)));
-
-        var stale = allowlisted
-            .Where(x => !present.Contains(x.e))
-            .Select(x => $"{x.Item1}: '{x.e}'")
-            .OrderBy(x => x, StringComparer.Ordinal)
-            .ToList();
-
-        AssertClean(
-            stale,
-            "comment-style allowlist has stale entries: a listed file was moved, renamed, or deleted. "
-                + "Update or remove the entry so the ratchet keeps tightening."
-        );
+        AssertClean(failures, "an internal type carries <remarks>. Fold the text into the summary or delete it.");
     }
 
     private static void AssertClean(List<string> failures, string message)
@@ -305,8 +218,6 @@ public sealed partial class CommentStyleTests
             || declaration.Contains(" record ")
             || declaration.Contains(" enum ")
         );
-
-    private static HashSet<string> Allow(params string[] files) => new(files.Select(Normalize), StringComparer.Ordinal);
 
     private static string Normalize(string path) => path.Replace('\\', '/');
 

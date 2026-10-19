@@ -7,8 +7,8 @@ using Xunit;
 namespace Acta.Tests.Conformance.Postgres.Features.Execution;
 
 /// <summary>
-/// The plans reclaim_stuck_jobs runs, captured by auto_explain from inside the routine: both reads of the stuck
-/// in-flight rows go through ix_runtimes_worker_inflight, never a scan of runtimes. A partial index serves only a
+/// The plans reclaim_stuck_jobs runs, captured by auto_explain from inside the routine: every read of the stuck
+/// in-flight rows goes through ix_runtimes_worker_inflight, never a scan of runtimes. A partial index serves only a
 /// query that states its filter, so the reads restate it; sequential scans are disabled for the capture, which
 /// makes the planner take the index whenever the query can use it, however small the shared table is.
 /// </summary>
@@ -53,7 +53,7 @@ public sealed class PgReclaimPlanTests : ClaimSkewTestBase
         var reads = plans
             .Where(p => Text(p, "Query Text").Contains("r.leased_by_worker_id IS NOT NULL", StringComparison.Ordinal))
             .ToList();
-        Assert.Equal(2, reads.Count);
+        Assert.Equal(3, reads.Count);
         Assert.All(
             reads,
             read =>

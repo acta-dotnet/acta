@@ -73,7 +73,7 @@ public enum EventCode : byte
 
     [Code(
         "job.rescheduled",
-        "The job re-armed Ready with a new NextRunAtUtc: a handler reschedule or an operator RescheduleAsync; actor and reason distinguish."
+        "The job re-armed Ready with a new NextRunAtUtc: a handler reschedule, a failed attempt's retry within budget, or an operator RescheduleAsync; actor and reason distinguish."
     )]
     JobRescheduled = 61,
 
@@ -109,7 +109,7 @@ public enum EventCode : byte
 
     [Code(
         "job.state-reset",
-        "Handler called ctx.ResetStateAsync; the job's checkpoints, steps, and results rows were cleared so the next execution starts as new."
+        "Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new."
     )]
     JobStateReset = 81,
 
@@ -120,7 +120,7 @@ public enum EventCode : byte
     JobNoteRecorded = 90,
 
     /// <summary>
-    /// Every schedule.* event is emitted against the slot job_id (JobEvent has no schedule_id);
+    /// Every schedule.* event is emitted against the slot job_id (events has no schedule_id);
     /// the schedule name rides reason_message.
     /// </summary>
     [Code("schedule.paused", "A recurring schedule was paused; ReasonMessage carries the schedule name.")]

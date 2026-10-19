@@ -167,9 +167,9 @@ internal static class QueryBinding
     /// service, which maps invalid names to a 400 through the endpoint's
     /// <see cref="InvalidQueryException"/> guard.
     /// </summary>
-    public static IReadOnlyList<Acta.TagFilter>? Tags(IQueryCollection query, string name = "tag")
+    public static IReadOnlyList<Acta.TagFilter>? Tags(IQueryCollection query)
     {
-        var raw = query[name];
+        var raw = query["tag"];
         if (raw.Count == 0)
         {
             return null;

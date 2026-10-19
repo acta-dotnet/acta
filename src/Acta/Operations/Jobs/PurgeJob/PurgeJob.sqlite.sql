@@ -48,11 +48,6 @@ WHERE
     job_id = @p_id
     AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
-DELETE FROM {{schema}}.results
-WHERE
-    job_id = @p_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
-
 DELETE FROM {{schema}}.schedules
 WHERE
     job_id = @p_id
@@ -80,7 +75,6 @@ INSERT INTO {{schema}}.events (
     lineage_root_id,
     definition_id,
     tenant_id,
-    worker_id,
     from_status_code,
     to_status_code,
     execution_status_code,
@@ -99,13 +93,12 @@ SELECT
     NULL,
     s.definition_id,
     s.tenant_id,
-    NULL,
     s.from_status,
     NULL,
     NULL,
     NULL,
     @p_reason_code,
-    'purged ' || s.job_ref || ' (' || s.job_name || ')'
+    'purged job_' || lower(replace(s.job_ref, '-', '')) || ' (' || s.job_name || ')'
 FROM temp._purge_job s
 WHERE
     s.id = @p_id

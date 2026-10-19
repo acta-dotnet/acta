@@ -82,9 +82,7 @@ async function request<T>(options: RequestOptions): Promise<{ response: Response
 
   const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   const serializedBody = options.body === undefined ? undefined : JSON.stringify(options.body);
-  if (serializedBody !== undefined && !Object.keys(headers).some((key) => key.toLowerCase() === 'content-type')) {
-    headers['Content-Type'] = 'application/json';
-  }
+  if (serializedBody !== undefined) headers['Content-Type'] = 'application/json';
 
   let response: Response;
   try {
@@ -125,7 +123,6 @@ export interface Paged<T> {
   items: T[];
   nextCursor: string | null;
   hasMore: boolean;
-  pageSize: number;
   totalCount: number | null;
 }
 
@@ -151,7 +148,6 @@ function controlHeaders(): Record<string, string> {
 
 export interface Capabilities {
   controlsEnabled: boolean;
-  version: string;
   provider: string;
   schema: string;
   confirmationHeader: string;
@@ -178,13 +174,12 @@ export async function controlRequest<TResult extends { action: string }>(
     acceptedStatuses: [404, 409]
   });
 
-  if (response.ok || response.status === 404 || response.status === 409) {
-    if (parsed && typeof parsed === 'object' && 'action' in (parsed as object)) {
-      return parsed as TResult;
-    }
-    if (response.status === 404) return notFound;
-    if (response.status === 409 && versionConflict) return versionConflict;
+  // request() has already thrown on every status but a success, 404, and 409.
+  if (parsed && typeof parsed === 'object' && 'action' in (parsed as object)) {
+    return parsed as TResult;
   }
+  if (response.status === 404) return notFound;
+  if (response.status === 409 && versionConflict) return versionConflict;
 
   throw new ApiError(
     response.status,
@@ -203,17 +198,13 @@ export type ControlAction = 'applied' | 'notFound' | 'rejected' | 'versionConfli
 export interface JobControlResponse {
   action: ControlAction;
   status: string | null;
-  version: number | null;
 }
 
 // Alert-control POST response (acknowledge/resolve, at alerts/{alertRef}/{action}). AlertsList and
 // AlertDetail drive both through useControlMutation. Unlike JobControlResponse's action, this action
 // is only ever 'applied' or 'notFound' - acknowledge/resolve are idempotent, so the backend never rejects.
 export interface AlertControlResponse {
-  alertRef: string;
   action: ControlAction;
-  acknowledgedAtUtc: string | null;
-  resolvedAtUtc: string | null;
 }
 
 // GET /alerts/{alertRef}: the single-alert read behind the alert detail screen. Same fields the list
@@ -249,7 +240,7 @@ export interface TenantListItem {
 }
 
 // Admin controls use a distinct action set from job controls and can return optimistic conflicts.
-// #6: materially different from ControlAction. No message field (the frontend synthesizes its
+// No message field (the frontend synthesizes its
 // own operator-facing text from `action`); `alreadyInState` is a successful idempotent no-op, not
 // a rejection. All four come back from the server as this body: applied and alreadyInState at 200,
 // notFound at 404, versionConflict at 409 carrying the row's current `version`, so a retry needs no
@@ -311,7 +302,7 @@ export interface DefinitionControlResponse {
 
 // PATCH a definition's operator overrides, addressed by its natural key. The body carries the
 // expectedVersion CAS token, the full override set (null/absent field = clear), and a note. Applied
-// (200), rejected/version-conflict (409), and not-found (404) all return a DefinitionControlResponse;
+// (200), versionConflict (409), and not-found (404) all return a DefinitionControlResponse;
 // anything else throws.
 export async function setDefinitionOverrides(
   jobNamespace: string,
@@ -320,34 +311,17 @@ export async function setDefinitionOverrides(
   overrides: Record<string, unknown>,
   note?: string
 ): Promise<DefinitionControlResponse> {
-  const { response, body } = await request<unknown>({
-    path: `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`,
-    method: 'PATCH',
-    headers: controlHeaders(),
-    body: { expectedVersion, overrides, reasonMessage: note?.trim() || null },
-    acceptedStatuses: [404, 409]
-  });
-
-  if (response.ok || response.status === 404 || response.status === 409) {
-    if (body && typeof body === 'object' && 'action' in (body as object)) {
-      return body as DefinitionControlResponse;
-    }
-    if (response.status === 404) {
-      return { action: 'notFound' };
-    }
-  }
-
-  throw new ApiError(
-    response.status,
-    problemValue(body, 'title'),
-    problemValue(body, 'detail'),
-    problemValue(body, 'traceId')
+  return controlRequest<DefinitionControlResponse>(
+    `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`,
+    { expectedVersion, overrides, reasonMessage: note?.trim() || null },
+    { action: 'notFound' },
+    'PATCH'
   );
 }
 
 // POST a definition retire, addressed by its natural key. The body carries the expectedVersion CAS
 // token and a note; the verb cancels the definition's parked jobs server-side. Applied (200),
-// rejected/version-conflict (409), and not-found (404) all return a DefinitionControlResponse.
+// versionConflict (409), and not-found (404) all return a DefinitionControlResponse.
 export async function retireDefinition(
   jobNamespace: string,
   jobName: string,
@@ -363,10 +337,6 @@ export async function retireDefinition(
 
 export interface ScheduleControlResponse {
   action: ControlAction;
-  status: string | null;
-  pausedUntilUtc: string | null;
-  nextRunAtUtc: string | null;
-  version: number | null;
 }
 
 // Schedule pause/resume/trigger/overrides live at schedules/{ns}/{job}/{schedule}/{action} and return
@@ -384,10 +354,9 @@ export interface SchedulePreview {
 export async function previewSchedule(
   jobNamespace: string,
   jobName: string,
-  scheduleName: string,
-  count = 10
+  scheduleName: string
 ): Promise<SchedulePreview> {
-  return api<SchedulePreview>(`schedules/${jobNamespace}/${jobName}/${scheduleName}/preview`, { limit: count });
+  return api<SchedulePreview>(`schedules/${jobNamespace}/${jobName}/${scheduleName}/preview`, { limit: 10 });
 }
 
 // Format-dispatched payload projection served by the input/result/checkpoint reads (part of the
@@ -435,7 +404,6 @@ export interface JobDetailView {
   schedules: JobScheduleView[];
   // Filter-wide counts: above the array length means this is the first page, not the whole set.
   schedulesTotal: number | null;
-  tenantName?: string;
   // Effective retry budget from the definition; absent when the definition row is gone.
   maxAttemptsEffective?: number;
   workers: JobWorker[] | null;
@@ -447,19 +415,15 @@ export interface JobDetailView {
 export interface JobCheckpoint {
   kind: string;
   name: string;
-  state?: string;
+  status?: string;
   dueAtUtc?: string;
   value?: JobPayloadView;
-  createdAtUtc: string;
-  modifiedAtUtc: string;
 }
 
 // GET /jobs/input-template: the compile-time shape of a job's input. `templateJson` is the skeleton as
 // JSON text, null when the input is not json-formatted. A job this host has no descriptor for is a
 // 404, which inputTemplate() below answers as null.
 export interface JobInputTemplate {
-  jobNamespace: string;
-  jobName: string;
   inputTypeName: string;
   inputFormatName: string;
   templateJson: string | null;
@@ -497,7 +461,6 @@ export interface EnqueueJobRequest {
   tenantName?: string | null;
   priority?: string | null;
   delaySeconds?: number | null;
-  nextRunAtUtc?: string | null;
 }
 
 // Enqueue a job through POST /jobs. A 201 returns the ref + action; validation (400), an enqueue
@@ -518,8 +481,7 @@ export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueRes
       correlationKey: spec.correlationKey?.trim() || null,
       tenantName: spec.tenantName?.trim() || null,
       priority: spec.priority || null,
-      delaySeconds: spec.delaySeconds ?? null,
-      nextRunAtUtc: spec.nextRunAtUtc || null
+      delaySeconds: spec.delaySeconds ?? null
     }
   });
 

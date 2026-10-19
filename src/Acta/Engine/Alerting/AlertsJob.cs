@@ -394,3 +394,24 @@ internal sealed class AlertsJob(
         };
     }
 }
+
+/// <summary>
+/// The bounds one <c>sys.alerts</c> generate pass drains within: how many events one batch reads
+/// (<c>BatchSize</c>), how many batches the pass may complete (<c>MaxBatches</c>), and the elapsed
+/// budget it spends (<c>TimeBudget</c>). The time budget is cooperative - read between batches, never
+/// inside one - so the batch in flight always finishes and always checkpoints its cursor. The first
+/// bound reached ends the pass.
+/// </summary>
+internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);
+
+/// <summary>
+/// The alert projector's poison classification: raised only for the two proven malformed-ledger
+/// shapes it deliberately skips past (the subject job no longer exists, or a stored field fails
+/// canonicalization). Any other exception fails the <c>sys.alerts</c> pass, so the shared event
+/// cursor never advances over an event that hit an unexpected error.
+/// </summary>
+internal sealed class AlertProjectionDataException(string reason, string message, Exception inner) : Exception(message, inner)
+{
+    /// <summary>Skip classification recorded on the durable outcome: "unknown-job" or "invalid-event".</summary>
+    public string Reason { get; } = reason;
+}

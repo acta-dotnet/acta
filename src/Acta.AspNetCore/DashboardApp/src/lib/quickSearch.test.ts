@@ -25,14 +25,21 @@ test('blank input recognizes nothing', () => {
 });
 
 test('a pasted job ref folds and jumps', () => {
-  assert.deepEqual(parseQuery(' JOB_01K2ZK03VF6FH0AEDS62DSCDVB '), {
+  assert.deepEqual(parseQuery(' job_01A14F4E954E7BF68AC609F3FCAD8E3D '), {
     kind: 'jobRef',
-    ref: 'job_01k2zk03vf6fh0aeds62dscdvb',
+    ref: 'job_01a14f4e954e7bf68ac609f3fcad8e3d',
   });
 });
 
 test('a malformed ref falls through to text', () => {
-  assert.equal(parseQuery('job_notaulid')!.kind, 'text');
+  assert.equal(parseQuery('job_notahexref')!.kind, 'text');
+  assert.equal(parseQuery('job_01k2zk03vf6fh0aeds62dscdvb')!.kind, 'text');
+  assert.equal(parseQuery('JOB_01a14f4e954e7bf68ac609f3fcad8e3d')!.kind, 'text');
+});
+
+test('worker and alert refs route to their own screens', () => {
+  assert.deepEqual(parseQuery('wrk_019f9b3508007e4dbfd13d9d20bc81f4'), { kind: 'workerRef', ref: 'wrk_019f9b3508007e4dbfd13d9d20bc81f4' });
+  assert.deepEqual(parseQuery('alr_01a0083ad2c8768f88152ef8864d3a8c'), { kind: 'alertRef', ref: 'alr_01a0083ad2c8768f88152ef8864d3a8c' });
 });
 
 test('internal ids accept both spellings', () => {

@@ -116,21 +116,4 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
 
         await SchemaMigrations.ResetSchemaAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
-
-    /// <summary>
-    /// Drops Acta's views and tables, applying nothing after, and leaves any other table in the database
-    /// alone. The drop half of <see cref="ResetSchemaAsync"/>; a caller that owns the file usually
-    /// deletes it instead.
-    /// </summary>
-    public static async Task DropSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(connection);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync(ct);
-        }
-
-        await SchemaMigrations.DropSchemaAsync(connection, schemaName, DialectToken, ct);
-    }
 }
