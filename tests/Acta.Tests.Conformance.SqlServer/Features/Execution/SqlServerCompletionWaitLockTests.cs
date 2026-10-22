@@ -1,0 +1,110 @@
+using System.Data.Common;
+using Acta.Tests.Conformance.SqlServer.Testing;
+using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using TestJobs;
+using Xunit;
+
+namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
+
+/// <summary>
+/// SQL Server <c>complete_executions</c> takes a waiting job's awaited slot lock, with every other slot lock it needs,
+/// before it reads any slot, as every writer of a slot does: it holds no gap of <c>pk_checkpoints</c>, and a raise that
+/// creates the awaited slot still waits for the landing and then wakes the job.
+/// </summary>
+public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
+{
+    private SignalsOperations Slots => Services.GetRequiredService<SignalsOperations>();
+
+    [Fact(DisplayName = "A wait landing held open leaves the key gap after its awaited slot free for another slot's insert")]
+    public async Task Held_wait_landing_does_not_lock_the_gap_after_the_awaited_slot()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (workerId, claimed) = await ClaimAsync(ct);
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitAsync(claimed.JobId, CheckpointKindCode.Signal, "go", ct)).Outcome);
+
+        await using var holder = await Db.OpenConnectionAsync(ct);
+        await using var hold = await holder.BeginTransactionAsync(ct);
+        await LandWaitingAsync(hold, workerId, claimed, ct);
+
+        // ('gp') sorts right after the awaited name under the latch kind, inside the gap a range lock would hold.
+        var insert = WaitAsync(claimed.JobId, CheckpointKindCode.ChildLatch, "gp", ct);
+        var first = await Task.WhenAny(insert, Task.Delay(TimeSpan.FromSeconds(5), ct));
+        await hold.RollbackAsync(ct);
+
+        Assert.True(first == insert, "the slot insert waited on the open landing");
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await insert).Outcome);
+    }
+
+    [Fact(DisplayName = "A raise that creates a missing awaited slot waits for the wait landing, then wakes the job")]
+    public async Task Raise_creating_the_awaited_slot_waits_for_the_landing_and_wakes_the_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (workerId, claimed) = await ClaimAsync(ct);
+
+        await using var holder = await Db.OpenConnectionAsync(ct);
+        await using var hold = await holder.BeginTransactionAsync(ct);
+        await LandWaitingAsync(hold, workerId, claimed, ct);
+
+        var input = new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), EventReasonCode.JobControlManual, null);
+        var raise = Slots.RaiseSignalAsync(new RaiseSignalSlot(claimed.JobId, CheckpointKindCode.Signal, "go", 0, null, input), ct);
+        var first = await Task.WhenAny(raise, Task.Delay(TimeSpan.FromSeconds(1), ct));
+        await hold.CommitAsync(ct);
+
+        Assert.True(first != raise, "the raise did not wait for the open landing");
+        Assert.Equal(JobStatusCode.Ready, (await raise).Status);
+    }
+
+    private async Task<(int WorkerId, ClaimedJob Claimed)> ClaimAsync(CancellationToken ct)
+    {
+        var (_, workerId) = await WorkerTestOps.StartAsync(
+            Services,
+            TestNamespace,
+            "test",
+            null,
+            "wait-lock-host",
+            "v1",
+            null,
+            null,
+            4244,
+            4,
+            ct
+        );
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var claimed = Assert.Single(
+            (
+                await Services
+                    .GetRequiredService<ExecutionOperations>()
+                    .ClaimJobAsync(
+                        new ClaimOptions(Runtime.RegisteredNamespaceIds[TestNamespace], workerId, MaxBatch: 1),
+                        30,
+                        enqueued.JobId,
+                        ct
+                    )
+            ).Jobs
+        );
+        return (workerId, claimed);
+    }
+
+    private Task<WaitSignalResponse> WaitAsync(long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
+        Slots.WaitSignalAsync(jobId, kind, name, null, ct);
+
+    /// <summary>Lands <paramref name="claimed"/> waiting on the signal "go" inside <paramref name="transaction"/>, left open.</summary>
+    private async Task LandWaitingAsync(DbTransaction transaction, int workerId, ClaimedJob claimed, CancellationToken ct)
+    {
+        var dialect = Services.GetRequiredService<ISqlDialect>();
+        var command = new CompleteExecutionsCommand(workerId, [CompletionTestOps.Landing(claimed) with { WaitSignalName = "go" }]);
+        var rows = await Db.ExecuteInTransactionAsync(
+            transaction,
+            new StoreCommand("CompleteExecutions"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, workerId));
+                dialect.BindCompleteExecutions(cmd, command, Db.Schema);
+            },
+            DbProjectionResolver.Resolve<CompleteExecutionsRow>(),
+            ct
+        );
+        Assert.Equal(CompleteExecutionsAction.Completed, Assert.Single(rows).Action);
+    }
+}

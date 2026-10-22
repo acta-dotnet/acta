@@ -70,6 +70,10 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - A Redis wake whose jitter draw was zero no longer disables remote wakes for its channel until the process restarts.
 - A metric listener that throws no longer stops a worker's recovery passes for good.
 - Application types in the root namespace named like the types generated code uses, such as `JobContext` or `ValueTask`, no longer break the build: the generated manifest names every type with `global::`.
+- On SQL Server, rate-limited jobs no longer deadlock in `reserve_rate`. A call on a meter whose bucket was not yet stored took a range lock over the gap that holds the meter's reservations and the next meters, and a chaos run with three meters recorded 150 to 190 deadlocks, each retried after the deadlock monitor picked a victim. Calls on one meter now serialize on the meter's own lock.
+- On SQL Server, a completion batch no longer deadlocks with a wait or a raise on the same job's slots. The batch probed an awaited slot under `HOLDLOCK`, locking the gap after it, and only later asked for a parent latch's lock that a waiting raise held. It now takes every slot lock in one name-ordered pass before it touches a slot row.
+- A note written with `ctx.NoteAsync` records the worker whose attempt wrote it. It stored worker 0, so on SQL Server every worker's notes appended at one point of the events key.
+- On SQL Server, a binary parameter bound without a size is declared `varbinary(max)`, so a statement keeps one cached plan instead of one per payload length.
 
 ### Evidence
 

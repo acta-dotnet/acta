@@ -36,8 +36,8 @@ BEGIN
         );
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           reads no lane or parent and skips them all. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
-           each in key order (docs/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
+           reads no lane or parent and skips them all. Locks: lanes, slot locks, awaited slots, own runtimes, schedules, parent latches
+           and runtimes, each in key order (docs/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
         -- Every join from the batch into jobs or runtimes seeks (same policy, "Locking reads seek").
         IF @p_plain = 1
             INSERT INTO @rows (job_id, execution_number)
@@ -77,13 +77,40 @@ BEGIN
                     OPTION (FORCE ORDER, LOOP JOIN);
                 END
 
-            -- The awaited slot is the only place a wait's deadline lives; the lock lets a raise that won the race land the job Ready.
+            /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
+               name order and before any slot row or runtime row (docs/sql-execution-policy.md, "Slot locks"): each awaited slot
+               under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
+            IF @waits = 1 OR @children = 1
+                BEGIN
+                    DECLARE @slot_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+                    INSERT INTO @slot_locks (name)
+                    SELECT CONCAT(N'{{schema}}.slot:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
+                    FROM @p_batch c
+                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
+                    WHERE c.wait_signal_name IS NOT NULL
+                    UNION
+                    SELECT CONCAT(N'{{schema}}.slot:', x.parent_id, N':50:sys.child.', x.job_id)
+                    FROM @rows x
+                    WHERE x.parent_id IS NOT NULL;
+                    DECLARE @slot_lock NVARCHAR(255) = (SELECT MIN(name) FROM @slot_locks), @slot_lock_result INT;
+                    WHILE @slot_lock IS NOT NULL
+                        BEGIN
+                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                            EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+                            IF @slot_lock_result < 0
+                                THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+                            SET @slot_lock = (SELECT MIN(name) FROM @slot_locks WHERE name > @slot_lock);
+                        END;
+                END
+
+            -- The awaited slot is the only place a wait's deadline lives; its lock lets a raise that won the race land the job
+            -- Ready, and makes a raise that creates a missing slot wait for this landing and then wake the job.
             IF @waits = 1
                 UPDATE x
                 SET sig_state = s.status_code, sig_due = s.due_at_utc
                 FROM @rows x
                 INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                INNER JOIN {{schema}}.checkpoints s WITH (UPDLOCK, HOLDLOCK, FORCESEEK)
+                INNER JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
                         AND s.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
@@ -396,21 +423,6 @@ BEGIN
                     WHERE
                         d.parent_id IS NOT NULL
                         AND d.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                    -- Each latch slot's own lock, as wait_signal names it, in name order so two batches never deadlock on
-                    -- them (docs/sql-execution-policy.md, "Slot locks").
-                    DECLARE @latch_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                    INSERT INTO @latch_locks (name)
-                    SELECT DISTINCT CONCAT(N'{{schema}}.slot:', p.parent_id, N':50:', p.latch_name) FROM #parents p;
-                    DECLARE @latch_lock NVARCHAR(255) = (SELECT MIN(name) FROM @latch_locks), @latch_lock_result INT;
-                    WHILE @latch_lock IS NOT NULL
-                        BEGIN
-                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                            EXEC @latch_lock_result = sp_getapplock @latch_lock, 'Exclusive', 'Transaction', -1;
-                            IF @latch_lock_result < 0
-                                THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @latch_lock = (SELECT MIN(name) FROM @latch_locks WHERE name > @latch_lock);
-                        END;
 
                     UPDATE p
                     SET latch_state = s.status_code

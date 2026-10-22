@@ -26,6 +26,15 @@ internal sealed class OwnedProvider : IAsyncDisposable
     private string? _administrationConnection;
     public bool OwnsDatabaseProcess => _ownsContainer;
 
+    /// <summary>Whether the database lives on an acta-dev Compose server rather than in an owned container.</summary>
+    public bool UsesComposeServer { get; private set; }
+
+    /// <summary>
+    /// The Docker VM, the container, and the server settings read back after provisioning, keyed for the run's
+    /// environment record; server keys carry the provider as a prefix.
+    /// </summary>
+    public Dictionary<string, string> ServerSpecs { get; } = new(StringComparer.Ordinal);
+
     /// <summary>The slowest canonical L04 drain this provider measured in the run, in jobs a second; trials inherit it.</summary>
     public double? DrainRate { get; set; }
 
@@ -38,7 +47,12 @@ internal sealed class OwnedProvider : IAsyncDisposable
         _stateDirectory = stateDirectory;
     }
 
-    public async Task ProvisionAsync(CancellationToken ct, bool useExistingDocker = true)
+    /// <summary>
+    /// Creates the provider's database: a SQLite file, or a fresh database in an owned container sized and configured by
+    /// the protocol, or on the acta-dev Compose server when <paramref name="useComposeServer"/> is set. A server whose
+    /// settings read back other than requested throws <see cref="ServerSetupException"/>.
+    /// </summary>
+    public async Task ProvisionAsync(RunPlan plan, bool useComposeServer, CancellationToken ct)
     {
         Directory.CreateDirectory(_stateDirectory);
         if (Provider == "mssql" && !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
@@ -59,12 +73,56 @@ internal sealed class OwnedProvider : IAsyncDisposable
             await CaptureSettingsAsync(ct);
             return;
         }
-        if (useExistingDocker && await TryUseExistingDockerAsync(ct))
+        var vm = (await DockerAsync(["info", "--format", "{{.MemTotal}} {{.NCPU}}"], null, ct)).Trim().Split(' ');
+        var vmMemoryBytes = long.Parse(vm[0], CultureInfo.InvariantCulture);
+        ServerSpecs["docker_vm_memory_bytes"] = vm[0];
+        ServerSpecs["docker_vm_cpus"] = vm[1];
+        UsesComposeServer = useComposeServer;
+        ServerSpecs[$"{Provider}_server_mode"] = useComposeServer ? "compose_server" : "owned_container";
+        Dictionary<string, string> requested;
+        if (useComposeServer)
         {
-            await CreateDatabaseAsync(ct);
-            await CaptureSettingsAsync(ct);
-            return;
+            var service = Provider == "pg" ? "postgres" : "sqlserver";
+            (ContainerId, ConnectionString) =
+                await FindDevServerAsync(Provider, ct)
+                ?? throw new ServerSetupException(
+                    $"--use-compose-servers needs the single running acta-dev {service} service; none was found."
+                );
+            Console.WriteLine($"  Using the acta-dev Compose {service}; creating isolated database {Schema}.");
+            requested = new(StringComparer.Ordinal);
         }
+        else
+        {
+            requested = await StartContainerAsync(plan, ServerTuning.MemoryCapMb(plan, vmMemoryBytes), ct);
+        }
+        await CreateDatabaseAsync(plan, ct);
+        if (Provider == "mssql")
+        {
+            foreach (var (name, value) in ServerTuning.SqlServerDatabaseFiles(plan))
+            {
+                requested[name] = value;
+            }
+        }
+        var readback = await ReadBackAsync(plan, ct);
+        foreach (var (name, value) in readback)
+        {
+            ServerSpecs[$"{Provider}_{name}"] = value;
+        }
+        if (ServerTuning.Mismatches(requested, readback) is { Length: > 0 } mismatches)
+        {
+            throw new ServerSetupException(
+                $"The {Provider} server read back settings other than requested: {string.Join("; ", mismatches)}."
+            );
+        }
+        await CaptureSettingsAsync(ct);
+    }
+
+    /// <summary>
+    /// Starts an owned container capped at <paramref name="capMb"/> and configures its server, returning the settings
+    /// requested of it as its readback names them.
+    /// </summary>
+    private async Task<Dictionary<string, string>> StartContainerAsync(RunPlan plan, int capMb, CancellationToken ct)
+    {
         var password = "B!" + Guid.NewGuid().ToString("N") + "9z";
         var image = Provider == "pg" ? "postgres:18" : "mcr.microsoft.com/mssql/server:2022-latest";
         var port = Provider == "pg" ? 5432 : 1433;
@@ -75,20 +133,56 @@ internal sealed class OwnedProvider : IAsyncDisposable
                 {
                     ["MSSQL_SA_PASSWORD"] = password,
                     ["ACCEPT_EULA"] = "Y",
-                    ["MSSQL_MEMORY_LIMIT_MB"] = "8192",
+                    ["MSSQL_MEMORY_LIMIT_MB"] = capMb.ToString(CultureInfo.InvariantCulture),
                 };
+        var requested = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["container_memory_mb"] = capMb.ToString(CultureInfo.InvariantCulture),
+        };
         using var reservation = new TcpListener(IPAddress.Loopback, 0);
         reservation.Start();
         var hostPort = ((IPEndPoint)reservation.LocalEndpoint).Port;
         reservation.Stop();
         // An automatically assigned Docker port can change on restart. Pin the owned
         // endpoint so the unchanged worker processes reconnect to the same address.
-        List<string> arguments = ["create", "--label", $"acta.bench.owner={Ownership}", "-p", $"127.0.0.1:{hostPort}:{port}"];
+        List<string> arguments =
+        [
+            "create",
+            "--label",
+            $"acta.bench.owner={Ownership}",
+            "-p",
+            $"127.0.0.1:{hostPort}:{port}",
+            "--memory",
+            $"{capMb}m",
+        ];
+        if (Provider == "pg")
+        {
+            // Parallel plans allocate dynamic shared memory in /dev/shm; Docker's 64 MB default fails them.
+            var shmMb = ServerTuning.ShmSizeMb(plan, capMb);
+            arguments.AddRange(["--shm-size", $"{shmMb}m"]);
+            requested["container_shm_mb"] = shmMb.ToString(CultureInfo.InvariantCulture);
+        }
         foreach (var key in environment.Keys)
         {
             arguments.AddRange(["-e", key]);
         }
         arguments.AddRange(["--mount", $"type=volume,destination={(Provider == "pg" ? "/var/lib/postgresql" : "/var/opt/mssql")}", image]);
+        if (Provider == "pg")
+        {
+            arguments.Add("postgres");
+            foreach (var (name, value) in ServerTuning.PostgresFlags(plan, capMb))
+            {
+                arguments.AddRange(["-c", $"{name}={value}"]);
+                requested[name] = value;
+            }
+            requested["autovacuum"] = "on";
+        }
+        else
+        {
+            // -T3979 drops the Linux-only forced flush, an extra fsync per log write; commits still flush through
+            // writethrough, as on Windows SQL Server. The repository's Compose file starts SQL Server the same way.
+            arguments.AddRange(["/opt/mssql/bin/sqlservr", $"-T{(int)ServerTuning.Term(plan, "sqlserver", "trace_flag")}"]);
+        }
         ContainerId = (await DockerAsync(arguments, environment, ct)).Trim();
         if (ContainerId.Length != 64 || !ContainerId.All(Uri.IsHexDigit))
         {
@@ -123,34 +217,248 @@ internal sealed class OwnedProvider : IAsyncDisposable
                     ConnectTimeout = 2,
                     Pooling = true,
                 }.ToString();
+        await WaitUntilAcceptingAsync(ct);
+        if (Provider == "mssql")
+        {
+            await ConfigureSqlServerAsync(plan, capMb, requested, ct);
+        }
+        return requested;
+    }
+
+    /// <summary>
+    /// Applies the protocol's SQL Server settings and tempdb files, then restarts the container once, since
+    /// memory-optimized tempdb metadata takes effect only at startup.
+    /// </summary>
+    private async Task ConfigureSqlServerAsync(RunPlan plan, int capMb, Dictionary<string, string> requested, CancellationToken ct)
+    {
+        int cpus;
+        await using (var c = await OpenAsync(ct, pooling: false))
+        {
+            await using (var read = c.CreateCommand())
+            {
+                read.CommandText = "SELECT cpu_count FROM sys.dm_os_sys_info;";
+                cpus = Convert.ToInt32(await read.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
+            }
+            var settings = ServerTuning.SqlServerSettings(plan, capMb, cpus);
+            foreach (var (name, value) in settings)
+            {
+                requested[name] = value;
+            }
+            var tempdbMetadata = settings["memory_optimized_tempdb_metadata"] == "1" ? "ON" : "OFF";
+            await using (var configure = c.CreateCommand())
+            {
+                configure.CommandText = $"""
+                    EXEC sys.sp_configure N'show advanced options', 1; RECONFIGURE;
+                    EXEC sys.sp_configure N'max server memory (MB)', {settings["max_server_memory_mb"]};
+                    EXEC sys.sp_configure N'max degree of parallelism', {settings["max_degree_of_parallelism"]};
+                    EXEC sys.sp_configure N'cost threshold for parallelism', {settings["cost_threshold_for_parallelism"]};
+                    EXEC sys.sp_configure N'optimize for ad hoc workloads', {settings["optimize_for_ad_hoc_workloads"]};
+                    RECONFIGURE;
+                    ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = {tempdbMetadata};
+                    """;
+                await configure.ExecuteNonQueryAsync(ct);
+            }
+        }
+        // A first start accepts connections before its setup has added every tempdb file, so the layout is sized,
+        // applied by a restart and read again until it holds; a file setup added late shows up after the restart.
+        for (var attempt = 1; ; attempt++)
+        {
+            await using (var c = await OpenAsync(ct, pooling: false))
+            {
+                await SizeFilesAsync(
+                    c,
+                    "tempdb",
+                    ServerTuning.TempdbDataFiles(plan, cpus),
+                    (Term("tempdb_data_file_mb"), Term("tempdb_data_growth_mb")),
+                    (Term("tempdb_log_mb"), Term("tempdb_log_growth_mb")),
+                    ct
+                );
+            }
+            await VerifyOwnershipAsync(ct);
+            Console.WriteLine($"  Restarting owned {Provider} database container to apply its settings.");
+            await DockerAsync(["restart", "--time", "60", ContainerId!], null, ct);
+            await WaitUntilAcceptingAsync(ct);
+            await using var check = await OpenAsync(ct, pooling: false);
+            var (data, log) = await FileLayoutAsync(check, "tempdb", ct);
+            if (attempt == 3 || (data == requested["tempdb_data_files"] && log == requested["tempdb_log_files"]))
+            {
+                return;
+            }
+        }
+
+        int Term(string name) => (int)ServerTuning.Term(plan, "sqlserver", name);
+    }
+
+    /// <summary>A database's live data and log files as <see cref="ServerTuning.Files"/> describes them.</summary>
+    private static async Task<(string Data, string Log)> FileLayoutAsync(DbConnection c, string database, CancellationToken ct)
+    {
+        List<(long, long, bool)> data = [];
+        List<(long, long, bool)> log = [];
+        await using var read = c.CreateCommand();
+        read.CommandText =
+            $"SELECT type_desc, CAST(size AS bigint) / 128, CAST(growth AS bigint), is_percent_growth FROM [{database}].sys.database_files;";
+        await using var reader = await read.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var percent = reader.GetBoolean(3);
+            (reader.GetString(0) == "LOG" ? log : data).Add(
+                (reader.GetInt64(1), percent ? reader.GetInt64(2) : reader.GetInt64(2) / 128, percent)
+            );
+        }
+        return (ServerTuning.Files(data), ServerTuning.Files(log));
+    }
+
+    /// <summary>
+    /// Gives <paramref name="database"/> <paramref name="dataFiles"/> data files and its log file the sizes and fixed MB
+    /// growths named, adding data files beside its first one and removing any beyond the count. A file already larger keeps its size.
+    /// </summary>
+    private static async Task SizeFilesAsync(
+        DbConnection c,
+        string database,
+        int dataFiles,
+        (int Mb, int GrowthMb) data,
+        (int Mb, int GrowthMb) log,
+        CancellationToken ct
+    )
+    {
+        List<(string Name, bool Log, long Mb, string Path)> files = [];
+        await using (var read = c.CreateCommand())
+        {
+            // sys.master_files holds the files a database starts with. A first start of SQL Server on Linux runs with one
+            // tempdb data file while the files its setup configured wait there for the next start.
+            read.CommandText =
+                $"SELECT name, type_desc, CAST(size AS bigint) / 128, physical_name FROM sys.master_files WHERE database_id = DB_ID(N'{database}') ORDER BY file_id;";
+            await using var reader = await read.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                files.Add((reader.GetString(0), reader.GetString(1) == "LOG", reader.GetInt64(2), reader.GetString(3)));
+            }
+        }
+        var rows = files.Where(f => !f.Log).ToArray();
+        List<string> statements = [];
+        foreach (var file in rows.Take(dataFiles).Concat(files.Where(f => f.Log)))
+        {
+            var (mb, growthMb) = file.Log ? log : data;
+            statements.Add(
+                $"ALTER DATABASE [{database}] MODIFY FILE (NAME = N'{file.Name}'{(file.Mb < mb ? $", SIZE = {mb}MB" : "")}, FILEGROWTH = {growthMb}MB);"
+            );
+        }
+        var directory = rows[0].Path[..(rows[0].Path.LastIndexOfAny(['/', '\\']) + 1)];
+        for (var n = rows.Length + 1; n <= dataFiles; n++)
+        {
+            statements.Add(
+                $"ALTER DATABASE [{database}] ADD FILE (NAME = N'acta_bench_data{n}', FILENAME = N'{directory}acta_bench_data{n}.ndf', SIZE = {data.Mb}MB, FILEGROWTH = {data.GrowthMb}MB);"
+            );
+        }
+        // A data file beyond the count is emptied and removed; one SQL Server has not opened yet only needs removing.
+        foreach (var file in rows.Skip(dataFiles))
+        {
+            statements.Add(
+                $"IF EXISTS (SELECT 1 FROM [{database}].sys.database_files WHERE name = N'{file.Name}') EXEC (N'USE [{database}]; DBCC SHRINKFILE (N''{file.Name}'', EMPTYFILE) WITH NO_INFOMSGS;');"
+            );
+            statements.Add($"ALTER DATABASE [{database}] REMOVE FILE [{file.Name}];");
+        }
+        await using var size = c.CreateCommand();
+        size.CommandText = string.Join("\n", statements);
+        size.CommandTimeout = 600;
+        await size.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Reads back the container's memory limits and the server settings the protocol sets, as
+    /// <see cref="ServerTuning"/> names them, plus the server's visible CPUs and memory for the record.
+    /// </summary>
+    private async Task<Dictionary<string, string>> ReadBackAsync(RunPlan plan, CancellationToken ct)
+    {
+        var readback = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["container_image_digest"] = (await DockerAsync(["inspect", "--format", "{{.Image}}", ContainerId!], null, ct)).Trim(),
+        };
+        var limits = (await DockerAsync(["inspect", "--format", "{{.HostConfig.Memory}} {{.HostConfig.ShmSize}}", ContainerId!], null, ct))
+            .Trim()
+            .Split(' ');
+        var memoryBytes = long.Parse(limits[0], CultureInfo.InvariantCulture);
+        readback["container_memory_mb"] = memoryBytes == 0 ? "unlimited" : (memoryBytes / 1048576).ToString(CultureInfo.InvariantCulture);
+        await using var c = await OpenAsync(ct);
+        if (Provider == "pg")
+        {
+            readback["container_shm_mb"] = (long.Parse(limits[1], CultureInfo.InvariantCulture) / 1048576).ToString(
+                CultureInfo.InvariantCulture
+            );
+            foreach (var name in ServerTuning.PostgresFlags(plan, 0).Keys.Append("autovacuum"))
+            {
+                await using var show = c.CreateCommand();
+                // Sizes read back in MB, the unit the flags are set in; SHOW would print 8GB for 8192MB.
+                show.CommandText = name is "max_connections" or "autovacuum"
+                    ? $"SHOW {name};"
+                    : $"SELECT (pg_size_bytes(current_setting('{name}')) / 1048576)::text || 'MB';";
+                readback[name] = Convert.ToString(await show.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture)!;
+            }
+            return readback;
+        }
+        var flag = (int)ServerTuning.Term(plan, "sqlserver", "trace_flag");
+        foreach (
+            var (name, query) in new[]
+            {
+                ("max_server_memory_mb", "SELECT value_in_use FROM sys.configurations WHERE name = N'max server memory (MB)';"),
+                ("max_degree_of_parallelism", "SELECT value_in_use FROM sys.configurations WHERE name = N'max degree of parallelism';"),
+                (
+                    "cost_threshold_for_parallelism",
+                    "SELECT value_in_use FROM sys.configurations WHERE name = N'cost threshold for parallelism';"
+                ),
+                (
+                    "optimize_for_ad_hoc_workloads",
+                    "SELECT value_in_use FROM sys.configurations WHERE name = N'optimize for ad hoc workloads';"
+                ),
+                ("memory_optimized_tempdb_metadata", "SELECT SERVERPROPERTY('IsTempDbMetadataMemoryOptimized');"),
+                ("cpu_count", "SELECT cpu_count FROM sys.dm_os_sys_info;"),
+                ("physical_memory_mb", "SELECT physical_memory_kb / 1024 FROM sys.dm_os_sys_info;"),
+            }
+        )
+        {
+            await using var read = c.CreateCommand();
+            read.CommandText = query;
+            readback[name] = Convert.ToString(await read.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture)!;
+        }
+        await using (var trace = c.CreateCommand())
+        {
+            trace.CommandText = $"DBCC TRACESTATUS({flag}) WITH NO_INFOMSGS;";
+            await using var reader = await trace.ExecuteReaderAsync(ct);
+            readback[$"trace_flag_{flag}"] =
+                await reader.ReadAsync(ct) && Convert.ToInt32(reader["Global"], CultureInfo.InvariantCulture) == 1 ? "on" : "off";
+        }
+        foreach (var (prefix, database) in new[] { ("tempdb", "tempdb"), ("database", Schema) })
+        {
+            (readback[$"{prefix}_data_files"], readback[$"{prefix}_log_files"]) = await FileLayoutAsync(c, database, ct);
+        }
+        return readback;
+    }
+
+    /// <summary>Waits until the database accepts a fresh connection, for at most 90 seconds.</summary>
+    private async Task WaitUntilAcceptingAsync(CancellationToken ct)
+    {
         var deadline = Stopwatch.StartNew();
+        var nextProgress = 5.0;
         while (true)
         {
             try
             {
-                await using var c = await OpenAsync(ct);
-                break;
+                await using var connection = await OpenAsync(ct, pooling: false);
+                await using var probe = connection.CreateCommand();
+                probe.CommandText = "SELECT 1";
+                await probe.ExecuteScalarAsync(ct);
+                return;
             }
             catch (DbException) when (deadline.Elapsed < TimeSpan.FromSeconds(90))
             {
+                if (deadline.Elapsed.TotalSeconds >= nextProgress)
+                {
+                    Console.WriteLine($"  Waiting for owned {Provider} database | {deadline.Elapsed.TotalSeconds:F0}s");
+                    nextProgress += 5;
+                }
                 await Task.Delay(500, ct);
             }
         }
-        await CreateDatabaseAsync(ct);
-        await CaptureSettingsAsync(ct);
-    }
-
-    private async Task<bool> TryUseExistingDockerAsync(CancellationToken ct)
-    {
-        if (await FindDevServerAsync(Provider, ct) is not { } server)
-        {
-            return false;
-        }
-        (ContainerId, ConnectionString) = server;
-        Console.WriteLine(
-            $"  Using existing Acta Docker {(Provider == "pg" ? "postgres" : "sqlserver")}; creating isolated database {Schema}."
-        );
-        return true;
     }
 
     /// <summary>The single running acta-dev compose server for a provider, with an administration connection string.</summary>
@@ -226,13 +534,25 @@ internal sealed class OwnedProvider : IAsyncDisposable
         );
     }
 
-    private async Task CreateDatabaseAsync(CancellationToken ct)
+    /// <summary>Creates the run's database carrying the ownership marker; on SQL Server its files are presized with fixed growth.</summary>
+    private async Task CreateDatabaseAsync(RunPlan plan, CancellationToken ct)
     {
         _administrationConnection = ConnectionString;
         await using var c = await OpenAsync(ct);
         await using var command = c.CreateCommand();
         command.CommandText = Provider == "pg" ? $"CREATE DATABASE \"{Schema}\";" : $"CREATE DATABASE [{Schema}];";
         await command.ExecuteNonQueryAsync(ct);
+        if (Provider == "mssql")
+        {
+            await SizeFilesAsync(
+                c,
+                Schema,
+                1,
+                ((int)ServerTuning.Database(plan, "data_mb"), (int)ServerTuning.Database(plan, "data_growth_mb")),
+                ((int)ServerTuning.Database(plan, "log_mb"), (int)ServerTuning.Database(plan, "log_growth_mb")),
+                ct
+            );
+        }
         ConnectionString =
             Provider == "pg"
                 ? new NpgsqlConnectionStringBuilder(ConnectionString) { Database = Schema }.ToString()
@@ -296,8 +616,8 @@ internal sealed class OwnedProvider : IAsyncDisposable
         };
         settings["provisioning"] =
             ContainerId is null ? "owned_sqlite_file"
-            : _ownsContainer ? "owned_container_and_database"
-            : "existing_acta_docker_owned_database";
+            : UsesComposeServer ? "existing_acta_docker_owned_database"
+            : "owned_container_and_database";
         settings["owned_database"] =
             _ownsDatabase ? Schema
             : Provider == "sqlite" ? "main"
@@ -375,6 +695,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
                     : ConnectionString,
             SettingsVerified = SettingsVerified,
             DrainRate = DrainRate,
+            UsesComposeServer = UsesComposeServer,
         };
         _trials.Add(trial);
         return trial;
@@ -413,28 +734,10 @@ internal sealed class OwnedProvider : IAsyncDisposable
         await VerifyOwnershipAsync(ct);
         await DockerAsync(["kill", ContainerId!], null, ct);
         await DockerAsync(["start", ContainerId!], null, ct);
-        var deadline = Stopwatch.StartNew();
-        var nextProgress = 5.0;
-        while (true)
-        {
-            try
-            {
-                await using var connection = await OpenAsync(ct, pooling: false);
-                await using var probe = connection.CreateCommand();
-                probe.CommandText = "SELECT 1";
-                await probe.ExecuteScalarAsync(ct);
-                break;
-            }
-            catch (DbException) when (deadline.Elapsed < TimeSpan.FromSeconds(90))
-            {
-                if (deadline.Elapsed.TotalSeconds >= nextProgress)
-                {
-                    Console.WriteLine($"  Waiting for owned {Provider} database recovery | {deadline.Elapsed.TotalSeconds:F0}s");
-                    nextProgress += 5;
-                }
-                await Task.Delay(500, ct);
-            }
-        }
+        await WaitUntilAcceptingAsync(ct);
+        // The crash cut every pooled connection, and the cases after it in this process share the server.
+        NpgsqlConnection.ClearAllPools();
+        SqlConnection.ClearAllPools();
     }
 
     private async Task VerifyOwnershipAsync(CancellationToken ct)

@@ -15,6 +15,7 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all
 
 - Choose a profile explicitly; running with no arguments prints help.
 - `--db` takes `sqlite`, `pg`, `mssql`, or `all` (the default).
+- `--use-compose-servers` runs PostgreSQL and SQL Server on the `acta-dev` Compose services instead of owned containers.
 - `--case ID` and `--cell NAME` narrow a run. A quick run or a selected-case run establishes only its own scope.
 
 | Profile | Measured trials | Soak | F09 certification |
@@ -61,11 +62,13 @@ acta-bench list
 
 - **SQLite:** each trial gets a fresh file.
 - **PostgreSQL and SQL Server:**
-  - A run reuses the `acta-dev` Docker Compose services when they run, creating a fresh `b_` database carrying an ownership marker.
-  - Without those services, it starts its own loopback-bound container with random credentials and an ownership label.
+  - A run starts its own loopback-bound container with random credentials and an ownership label, one at a time, and creates a fresh `b_` database in it.
+  - The container's memory cap is 2/3 of the Docker VM's memory, at most 32 GB; a run refuses to start below 8 GB. `Protocol/full.v1.json` (`provisioning.owned_server`) holds the server settings sized from it.
+  - After setup the run reads the effective server settings back; any difference from what it requested is a harness error before any case runs. `environment.json` and the report record the Docker VM, the cap, and the readback.
+  - `--use-compose-servers` runs on the `acta-dev` Docker Compose services instead, creating a fresh `b_` database carrying an ownership marker.
   - Database-crash cases always use their own container.
 - **Never touched:** existing databases are never reset, and shared containers are never stopped or restarted.
-- **After a run:** a provider whose cases all pass drops its database. Any other outcome keeps it for investigation, and `cleanup` removes it later.
+- **After a run:** a provider whose cases all pass removes its container, or drops its database on the Compose services. Any other outcome keeps it for investigation, and `cleanup` removes it later.
 - **SQL Server licence:** its containers set `ACCEPT_EULA=Y`, as the repository's Compose file does.
 - **Builds:**
   - `dotnet run` and `dotnet build` produce a managed build.
@@ -85,7 +88,7 @@ acta-bench list
 
 ## Protocol
 
-- `Protocol/full.v1.json` holds every number the runner uses: the profiles, the measurement policy, the liveness and fault terms, and the capacity limits.
+- `Protocol/full.v1.json` holds every number the runner uses: the profiles, the measurement policy, the liveness and fault terms, the capacity limits, and the owned database servers' sizing.
 - `Protocol/scenario-catalog.v1.json` holds the cases.
 - `Protocol/result.schema.v1.json` holds the result format.
 - A plan's hash covers all three, and a plan must equal what this build would resolve.

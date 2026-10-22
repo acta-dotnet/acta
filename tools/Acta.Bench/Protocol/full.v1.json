@@ -91,15 +91,52 @@
     "run_sequentially": true,
     "unsupported_topology": "NOT_APPLICABLE_only_if_predeclared",
     "license_acceptance": "maintainer_authorized_repository_default_ACCEPT_EULA_Y",
-    "reuse_local_docker": "acta-dev_compose_services_with_fresh_owned_database",
+    "reuse_local_docker": "acta-dev_compose_services_with_fresh_owned_database_only_with_use_compose_servers",
     "database_process_faults": "separate_owned_container_only"
   },
   "provisioning": {
-    "mode": "fresh_owned_database_existing_local_docker_or_owned_container",
+    "mode": "fresh_owned_database_in_one_owned_container_at_a_time_unless_the_run_uses_the_compose_servers",
     "auto_use_application_connection_strings": false,
     "automatic_remote_faults": false,
     "automatic_upload": false,
-    "preserve_artifacts_on_failure": true
+    "preserve_artifacts_on_failure": true,
+    "readback": "effective_server_settings_read_back_after_setup_any_difference_is_a_harness_error_before_any_case",
+    "owned_server": {
+      "memory_cap_fraction_of_docker_vm": 0.6667,
+      "memory_cap_max_mb": 32768,
+      "memory_cap_min_mb": 8192,
+      "postgres": {
+        "shared_buffers_fraction_of_cap": 0.25,
+        "effective_cache_size_fraction_of_cap": 0.75,
+        "maintenance_work_mem_mb": 1024,
+        "max_wal_size_mb": 8192,
+        "max_connections": 500,
+        "shm_size_fraction_of_cap": 0.25,
+        "shm_size_max_mb": 8192
+      },
+      "sqlserver": {
+        "max_server_memory_fraction_of_cap": 0.85,
+        "trace_flag": 3979,
+        "max_degree_of_parallelism": 8,
+        "cost_threshold_for_parallelism": 50,
+        "optimize_for_ad_hoc_workloads": 1,
+        "memory_optimized_tempdb_metadata": 1,
+        "tempdb_data_files_min": 4,
+        "tempdb_data_files_max": 8,
+        "tempdb_data_file_mb": 1024,
+        "tempdb_data_growth_mb": 256,
+        "tempdb_log_mb": 1024,
+        "tempdb_log_growth_mb": 256
+      }
+    },
+    "bench_database": {
+      "sqlserver": {
+        "data_mb": 4096,
+        "data_growth_mb": 512,
+        "log_mb": 2048,
+        "log_growth_mb": 512
+      }
+    }
   },
   "durability": {
     "track": "single_node_durable",

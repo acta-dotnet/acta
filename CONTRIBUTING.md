@@ -744,6 +744,7 @@ dotnet run -c Release --project tools/Acta.Bench -- --standard --db all --output
 ```
 
 - Run it from a clean worktree of A on an idle box: no builds, other load tests, or disk-heavy work alongside, and the disk the databases live on checked first, since a QLC drive folded by sustained writes halves the server cells. Leave PostgreSQL autovacuum on.
+- The run starts its own PostgreSQL and SQL Server containers, one at a time, sized from the Docker VM and tuned for capacity, and records the VM, the limits, and the settings each server reads back in the bundle. The Compose servers stay sized for CI and serve the test suites; `--use-compose-servers` runs on them instead, and no release evidence does.
 - `dotnet run` gives the managed build, which covers SQL Server; a native publish covers only PostgreSQL and SQLite.
 - The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and F09 is the certification run under the shipped lease timings. A `--quick` or `--standard` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and F09) and reports capacity as information; `--full` also gates on measurement.
 - A release that changes the execution model runs `--full`; any other release may run `--standard`. The release notes' evidence paragraph names the profile and the scope that ran.

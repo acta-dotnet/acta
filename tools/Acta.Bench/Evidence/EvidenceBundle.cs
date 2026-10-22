@@ -216,6 +216,16 @@ public sealed class EvidenceBundle
                     markdown.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"{key}: {Cell(value)}  ");
                 }
             }
+            foreach (
+                var (key, value) in environment.Where(e =>
+                    e.Key.StartsWith("docker_vm_", StringComparison.Ordinal)
+                    || e.Key.StartsWith("pg_", StringComparison.Ordinal)
+                    || e.Key.StartsWith("mssql_", StringComparison.Ordinal)
+                )
+            )
+            {
+                markdown.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"{key}: {Cell(value)}  ");
+            }
             markdown.AppendLine();
         }
         markdown.AppendLine(

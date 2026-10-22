@@ -158,6 +158,9 @@ public sealed record RunPlan(
     public int ChaosSeed { get; init; }
     public int ChaosJobs { get; init; }
     public IReadOnlyDictionary<string, double> LatencySloMs { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>Whether PostgreSQL and SQL Server run on the acta-dev Compose servers instead of owned containers.</summary>
+    public bool UseComposeServers { get; init; }
 }
 
 public sealed record Metric(double? Value, string Unit, string Status = "MEASURED", string? Reason = null)

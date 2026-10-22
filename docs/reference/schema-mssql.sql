@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261018210615_init')
+    WHERE name NOT IN ('M20261019142549_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261018210615_init =====
+-- ===== BEGIN M20261019142549_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1192,8 +1192,8 @@ BEGIN
         );
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
-           reads no lane or parent and skips them all. Locks: lanes, awaited slots, own runtimes, schedules, parent latches and runtimes,
-           each in key order (docs/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
+           reads no lane or parent and skips them all. Locks: lanes, slot locks, awaited slots, own runtimes, schedules, parent latches
+           and runtimes, each in key order (docs/sql-execution-policy.md, "Lane lock order"); lane_id and parent_id never change. */
         -- Every join from the batch into jobs or runtimes seeks (same policy, "Locking reads seek").
         IF @p_plain = 1
             INSERT INTO @rows (job_id, execution_number)
@@ -1233,13 +1233,40 @@ BEGIN
                     OPTION (FORCE ORDER, LOOP JOIN);
                 END
 
-            -- The awaited slot is the only place a wait's deadline lives; the lock lets a raise that won the race land the job Ready.
+            /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
+               name order and before any slot row or runtime row (docs/sql-execution-policy.md, "Slot locks"): each awaited slot
+               under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
+            IF @waits = 1 OR @children = 1
+                BEGIN
+                    DECLARE @slot_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+                    INSERT INTO @slot_locks (name)
+                    SELECT CONCAT(N'acta.slot:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
+                    FROM @p_batch c
+                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
+                    WHERE c.wait_signal_name IS NOT NULL
+                    UNION
+                    SELECT CONCAT(N'acta.slot:', x.parent_id, N':50:sys.child.', x.job_id)
+                    FROM @rows x
+                    WHERE x.parent_id IS NOT NULL;
+                    DECLARE @slot_lock NVARCHAR(255) = (SELECT MIN(name) FROM @slot_locks), @slot_lock_result INT;
+                    WHILE @slot_lock IS NOT NULL
+                        BEGIN
+                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                            EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+                            IF @slot_lock_result < 0
+                                THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+                            SET @slot_lock = (SELECT MIN(name) FROM @slot_locks WHERE name > @slot_lock);
+                        END;
+                END
+
+            -- The awaited slot is the only place a wait's deadline lives; its lock lets a raise that won the race land the job
+            -- Ready, and makes a raise that creates a missing slot wait for this landing and then wake the job.
             IF @waits = 1
                 UPDATE x
                 SET sig_state = s.status_code, sig_due = s.due_at_utc
                 FROM @rows x
                 INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
-                INNER JOIN acta.checkpoints s WITH (UPDLOCK, HOLDLOCK, FORCESEEK)
+                INNER JOIN acta.checkpoints s WITH (UPDLOCK, FORCESEEK)
                     ON
                         s.job_id = x.job_id
                         AND s.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
@@ -1552,21 +1579,6 @@ BEGIN
                     WHERE
                         d.parent_id IS NOT NULL
                         AND d.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
-
-                    -- Each latch slot's own lock, as wait_signal names it, in name order so two batches never deadlock on
-                    -- them (docs/sql-execution-policy.md, "Slot locks").
-                    DECLARE @latch_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
-                    INSERT INTO @latch_locks (name)
-                    SELECT DISTINCT CONCAT(N'acta.slot:', p.parent_id, N':50:', p.latch_name) FROM #parents p;
-                    DECLARE @latch_lock NVARCHAR(255) = (SELECT MIN(name) FROM @latch_locks), @latch_lock_result INT;
-                    WHILE @latch_lock IS NOT NULL
-                        BEGIN
-                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                            EXEC @latch_lock_result = sp_getapplock @latch_lock, 'Exclusive', 'Transaction', -1;
-                            IF @latch_lock_result < 0
-                                THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
-                            SET @latch_lock = (SELECT MIN(name) FROM @latch_locks WHERE name > @latch_lock);
-                        END;
 
                     UPDATE p
                     SET latch_state = s.status_code
@@ -3880,9 +3892,12 @@ GO
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
--- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
--- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
--- is always persisted before it admits anything.
+-- The meter's own lock serializes the calls on one meter to commit (docs/sql-execution-policy.md,
+-- "Slot locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
+-- next meters fall in.
+
+-- The bucket row stays locked to commit once read or inserted, so the sweep's READPAST delete skips it
+-- rather than races it, and the charge this call books is always persisted before it admits anything.
 
 -- The clock is read once the bucket row is locked, not when the call began: judged against a stale
 -- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
@@ -3920,17 +3935,27 @@ BEGIN
         DECLARE @due DATETIME2(3);
         DECLARE @turn DATETIME2(3);
 
-        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
-        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
-        IF NOT EXISTS (SELECT 1 FROM acta.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @p_lock_key)
-            INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-            VALUES (@p_lock_key, @p_job_id, SYSUTCDATETIME(), @p_hold_token);
-
         -- Held for the rest of the call, so consume, hand back and allocate all decide against one
         -- serialized meter and no instant is ever handed to two jobs.
+        DECLARE @meter_lock NVARCHAR(255) = CONCAT(N'acta.rate:', @p_lock_key);
+        DECLARE @meter_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @meter_lock_result = sp_getapplock @meter_lock, 'Exclusive', 'Transaction', -1;
+        IF @meter_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
+
         SELECT @stored = b.expires_at_utc
-        FROM acta.locks AS b WITH (UPDLOCK, HOLDLOCK)
+        FROM acta.locks AS b WITH (UPDLOCK)
         WHERE b.lock_key = @p_lock_key;
+
+        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
+        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
+        IF @@ROWCOUNT = 0
+            BEGIN
+                SET @stored = SYSUTCDATETIME();
+                INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+                VALUES (@p_lock_key, @p_job_id, @stored, @p_hold_token);
+            END;
 
         SET @now = SYSUTCDATETIME();
 
@@ -4632,11 +4657,11 @@ JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261018210615_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261019142549_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261018210615_init');
+VALUES ('M20261019142549_init');
 GO
--- ===== END M20261018210615_init =====
+-- ===== END M20261019142549_init =====
 GO
 COMMIT TRANSACTION;
 GO

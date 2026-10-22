@@ -119,7 +119,8 @@ public static class Protocol
 
     /// <summary>
     /// Accepts a plan only when it equals what this executable plans for its profile, providers, seed and cases. A
-    /// replay may differ only in its run id, its requested diagnostic cells, and a chaos cohort at least the profile's.
+    /// replay may differ only in its run id, its requested diagnostic cells, a chaos cohort at least the profile's, and
+    /// its database servers.
     /// </summary>
     public static void Validate(RunPlan plan)
     {
@@ -130,6 +131,7 @@ public static class Protocol
             RunId = expected.RunId,
             RequestedDiagnosticCells = expected.RequestedDiagnosticCells,
             ChaosJobs = expected.ChaosJobs,
+            UseComposeServers = expected.UseComposeServers,
         };
         if (
             plan.ChaosJobs < expected.ChaosJobs

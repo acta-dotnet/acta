@@ -944,10 +944,11 @@
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 
 ### A handler writes application-authored notes onto the job's own timeline
-- **Contract:** ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt that authored it.
+- **Contract:** ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt and worker that authored it.
 - **Guarantees:**
   - A note for an unknown job throws the stable marker before committing
   - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
+  - A note stores the id of the worker whose attempt wrote it
   - A note is filed under the attempt that wrote it, not the attempt its runtime row has reached
 
 ### A failed one-shot retries to Ready until MaxAttempts then Fails

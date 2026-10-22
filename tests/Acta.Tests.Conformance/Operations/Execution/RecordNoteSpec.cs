@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     "jobs.note",
     "A handler writes application-authored notes onto the job's own timeline",
     Area = "Execution",
-    Contract = "ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt that authored it."
+    Contract = "ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt and worker that authored it."
 )]
 public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -20,7 +20,7 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Services
                 .GetRequiredService<ExecutionOperations>()
-                .RecordNoteAsync(-1, 1, "unknown", null, TestContext.Current.CancellationToken)
+                .RecordNoteAsync(-1, 1, 0, "unknown", null, TestContext.Current.CancellationToken)
         );
         Assert.Contains("ACTA:NOTE_UNKNOWN_JOB:", error.Message);
     }
@@ -52,6 +52,23 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Contains("gather", detailed.DetailText!);
     }
 
+    [Fact(DisplayName = "A note stores the id of the worker whose attempt wrote it")]
+    public async Task Note_stores_its_worker_id()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-note", ct);
+
+        await Runtime.RunOnceAsync(enqueued, ct);
+
+        var jobRef = enqueued.JobRef.Value;
+        var stored = await Db.From<EventEntity>().Where(e => e.JobRef == jobRef).ToListAsync(ct);
+        var finished = Assert.Single(stored, e => e.EventCode == EventCode.JobExecutionFinished);
+        Assert.NotEqual(0, finished.WorkerId);
+        var notes = stored.Where(e => e.EventCode == EventCode.JobNoteRecorded).ToList();
+        Assert.Equal(2, notes.Count);
+        Assert.All(notes, note => Assert.Equal(finished.WorkerId, note.WorkerId));
+    }
+
     [Fact(DisplayName = "A note is filed under the attempt that wrote it, not the attempt its runtime row has reached")]
     public async Task Note_is_filed_under_the_authoring_attempt()
     {
@@ -70,7 +87,7 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             )
         );
 
-        await Services.GetRequiredService<ExecutionOperations>().RecordNoteAsync(enqueued.JobId, 7, "late note", null, ct);
+        await Services.GetRequiredService<ExecutionOperations>().RecordNoteAsync(enqueued.JobId, 7, 0, "late note", null, ct);
 
         var events = await Operations.Ledger.ListEventsAsync(
             new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),

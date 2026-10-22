@@ -47,6 +47,12 @@ internal sealed class SqlServerDialect : ISqlDialect
         {
             parameter.Size = size;
         }
+        else if (spec.Kind == DbKind.BinaryPayload)
+        {
+            // Unsized, SqlClient declares varbinary at each value's own length, so an inline statement
+            // compiles one plan per payload length; max gives every call one declaration.
+            parameter.Size = -1;
+        }
 
         parameter.Value = DbParams.Coerce(spec);
         return parameter;

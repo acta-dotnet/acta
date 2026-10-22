@@ -27,10 +27,15 @@ internal static class FaultCaseRunner
                 environment.Provider,
                 bundle.Resolve($"repro/state/{environment.Provider}-F05-owned-{repetition}")
             );
-            await crashDatabase.ProvisionAsync(ct, useExistingDocker: false);
+            await crashDatabase.ProvisionAsync(plan, useComposeServer: false, ct);
+            var settings = await crashDatabase.CaptureSettingsAsync(ct);
+            foreach (var (key, value) in crashDatabase.ServerSpecs)
+            {
+                settings[key] = value;
+            }
             bundle.Write(
                 $"histories/{environment.Provider}-F05-owned-{repetition}-settings.json",
-                await crashDatabase.CaptureSettingsAsync(ct),
+                settings,
                 BenchJson.Default.DictionaryStringString
             );
             var result = await LedgerValidation.ApplyAsync(

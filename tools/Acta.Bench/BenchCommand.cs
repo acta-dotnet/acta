@@ -115,7 +115,7 @@ public static class BenchCommand
         if (args is [] or ["--help"] or ["-h"])
         {
             Console.WriteLine(
-                "Acta Bench\n  acta-bench --standard|--full|--quick [--db sqlite|pg|mssql|all] [--seed N] [--output DIR] [--case ID] [--cell NAME] [--chaos-jobs N]\n  --quick: small smoke suite; --standard: all cases, short trials; --full: extended repeated campaign\n  acta-bench replay PLAN [--output DIR]\n  acta-bench report RUN_DIRECTORY\n  acta-bench compare BASELINE_DIRECTORY CANDIDATE_DIRECTORY\n  acta-bench publish RUN_DIRECTORY --to FILE\n  acta-bench list\n  acta-bench cleanup [--yes]: list owned containers and marked b_ databases with sizes; --yes removes them unless another run is active"
+                "Acta Bench\n  acta-bench --standard|--full|--quick [--db sqlite|pg|mssql|all] [--seed N] [--output DIR] [--case ID] [--cell NAME] [--chaos-jobs N] [--use-compose-servers]\n  --quick: small smoke suite; --standard: all cases, short trials; --full: extended repeated campaign\n  --use-compose-servers: run PostgreSQL and SQL Server on the acta-dev Compose services instead of owned containers\n  acta-bench replay PLAN [--output DIR]\n  acta-bench report RUN_DIRECTORY\n  acta-bench compare BASELINE_DIRECTORY CANDIDATE_DIRECTORY\n  acta-bench publish RUN_DIRECTORY --to FILE\n  acta-bench list\n  acta-bench cleanup [--yes]: list owned containers and marked b_ databases with sizes; --yes removes them unless another run is active"
             );
             return 0;
         }
@@ -155,6 +155,7 @@ public static class BenchCommand
         string output = Path.Combine("artifacts", "bench");
         int seed = 1729;
         int? chaosJobs = null;
+        var useComposeServers = false;
         List<string> cases = [];
         List<string> requestedCells = [];
         RunPlan? replay = null;
@@ -205,6 +206,9 @@ public static class BenchCommand
                 case "--case":
                     cases.Add(Value(args, ref i));
                     break;
+                case "--use-compose-servers":
+                    useComposeServers = true;
+                    break;
                 default:
                     throw new ArgumentException("Unknown option: " + args[i]);
             }
@@ -241,6 +245,7 @@ public static class BenchCommand
         {
             RequestedDiagnosticCells = replay?.RequestedDiagnosticCells ?? requestedCells,
             ChaosJobs = chaosJobs ?? plan.ChaosJobs,
+            UseComposeServers = replay?.UseComposeServers ?? useComposeServers,
         };
         Protocol.Validate(plan);
         return await SuiteRunner.RunAsync(plan, output, ct);

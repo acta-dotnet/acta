@@ -10,6 +10,7 @@ internal sealed class RecordNoteHandler(IDbSession session, ISqlDialect dialect)
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.JobId, command.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ExecutionNumber, command.ExecutionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.WorkerId, command.WorkerId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.Message));
                 // Format id 0 with a NULL body is the "no detail" encoding ck_events_detail_pair expects.
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DetailFormatId, command.Detail?.Format.Id ?? (byte)0));

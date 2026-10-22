@@ -18,6 +18,7 @@ BEGIN TRY
         lineage_root_id,
         definition_id,
         tenant_id,
+        worker_id,
         detail_format_id,
         detail,
         reason_message)
@@ -32,6 +33,7 @@ BEGIN TRY
         COALESCE(j.lineage_root_id, j.id),
         j.definition_id,
         j.tenant_id,
+        @p_worker_id,
         @p_detail_format_id,
         @p_detail,
         @p_reason_message

@@ -224,7 +224,8 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 - `start_step` locks `<schema>.step:<job id>:<name>`.
 - `access_checkpoint` (Set and GetOrSet), `wait_signal`, `raise_signal`, and `ParkOutboxSignal` lock
   `<schema>.slot:<job id>:<kind>:<name>`.
-- `complete_executions` locks the same name for each child-latch slot it may insert, in name order.
+- `complete_executions` locks the same name for each awaited slot, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any slot or runtime row, so no path holds a slot row while it waits for a slot lock.
+- `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
 The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `runtimes` row first.
 

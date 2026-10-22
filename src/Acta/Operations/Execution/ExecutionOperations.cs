@@ -83,12 +83,12 @@ internal sealed class ExecutionOperations(
     /// <summary>
     /// Appends one application-authored <c>job.note-recorded</c> event. Every other event rides inside the transition it
     /// describes, so none claims a transition that did not commit; a note claims nothing but itself. The caller supplies
-    /// the attempt: a lapsed lease can be reclaimed as the next attempt while the handler still runs (cancellation
-    /// reaches it asynchronously, and a handler that ignores its token never sees it), so reading the runtime row would
-    /// file the note under the attempt that replaced its author.
+    /// the attempt and its own worker: a lapsed lease can be reclaimed as the next attempt while the handler still runs
+    /// (cancellation reaches it asynchronously, and a handler that ignores its token never sees it), so reading the
+    /// runtime row would file the note under the attempt, and the worker, that replaced its author.
     /// </summary>
-    public Task RecordNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-        recordNote.HandleAsync(new RecordNoteCommand(jobId, executionNumber, message, detail), ct);
+    public Task RecordNoteAsync(long jobId, int executionNumber, int workerId, string message, JobPayload? detail, CancellationToken ct) =>
+        recordNote.HandleAsync(new RecordNoteCommand(jobId, executionNumber, workerId, message, detail), ct);
 
     /// <summary>
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the

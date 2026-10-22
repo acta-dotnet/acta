@@ -2,9 +2,12 @@
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
--- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
--- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
--- is always persisted before it admits anything.
+-- The meter's own lock serializes the calls on one meter to commit (docs/sql-execution-policy.md,
+-- "Slot locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
+-- next meters fall in.
+
+-- The bucket row stays locked to commit once read or inserted, so the sweep's READPAST delete skips it
+-- rather than races it, and the charge this call books is always persisted before it admits anything.
 
 -- The clock is read once the bucket row is locked, not when the call began: judged against a stale
 -- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
@@ -42,17 +45,27 @@ BEGIN
         DECLARE @due DATETIME2(3);
         DECLARE @turn DATETIME2(3);
 
-        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
-        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
-        IF NOT EXISTS (SELECT 1 FROM {{schema}}.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @p_lock_key)
-            INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
-            VALUES (@p_lock_key, @p_job_id, SYSUTCDATETIME(), @p_hold_token);
-
         -- Held for the rest of the call, so consume, hand back and allocate all decide against one
         -- serialized meter and no instant is ever handed to two jobs.
+        DECLARE @meter_lock NVARCHAR(255) = CONCAT(N'{{schema}}.rate:', @p_lock_key);
+        DECLARE @meter_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @meter_lock_result = sp_getapplock @meter_lock, 'Exclusive', 'Transaction', -1;
+        IF @meter_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
+
         SELECT @stored = b.expires_at_utc
-        FROM {{schema}}.locks AS b WITH (UPDLOCK, HOLDLOCK)
+        FROM {{schema}}.locks AS b WITH (UPDLOCK)
         WHERE b.lock_key = @p_lock_key;
+
+        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
+        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
+        IF @@ROWCOUNT = 0
+            BEGIN
+                SET @stored = SYSUTCDATETIME();
+                INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
+                VALUES (@p_lock_key, @p_job_id, @stored, @p_hold_token);
+            END;
 
         SET @now = SYSUTCDATETIME();
 

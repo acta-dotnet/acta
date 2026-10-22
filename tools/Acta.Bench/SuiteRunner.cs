@@ -83,7 +83,14 @@ internal static class SuiteRunner
                 try
                 {
                     Console.WriteLine($"Preflight/provision {provider}");
-                    await environment.ProvisionAsync(ct);
+                    try
+                    {
+                        await environment.ProvisionAsync(plan, plan.UseComposeServers, ct);
+                    }
+                    finally
+                    {
+                        RecordServer(bundle, environment.ServerSpecs);
+                    }
                     var settings = await environment.CaptureSettingsAsync(ct);
                     settingsVerified &= environment.SettingsVerified;
                     bundle.Write($"histories/{provider}-settings.json", settings, BenchJson.Default.DictionaryStringString);
@@ -102,7 +109,7 @@ internal static class SuiteRunner
                 {
                     throw;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not ServerSetupException)
                 {
                     settingsVerified = false;
                     Console.WriteLine($"{provider}: incomplete ({ex.GetType().Name}: {ex.Message}); retained evidence.");
@@ -223,6 +230,24 @@ internal static class SuiteRunner
             }
             Console.WriteLine($"  {result.Id} {result.Provider} {result.Phase} #{result.Repetition}: {result.Status}");
         }
+    }
+
+    /// <summary>Adds a provisioned server's Docker VM, container and readback settings to the run's environment record.</summary>
+    private static void RecordServer(EvidenceBundle bundle, Dictionary<string, string> specs)
+    {
+        if (specs.Count == 0)
+        {
+            return;
+        }
+        var environment = JsonSerializer.Deserialize(
+            File.ReadAllText(bundle.Resolve("environment.json")),
+            BenchJson.Default.DictionaryStringString
+        )!;
+        foreach (var (key, value) in specs)
+        {
+            environment[key] = value;
+        }
+        bundle.Write("environment.json", environment, BenchJson.Default.DictionaryStringString);
     }
 
     private static async Task<Provenance> CaptureAsync(RunPlan plan, EvidenceBundle bundle, CancellationToken ct)
