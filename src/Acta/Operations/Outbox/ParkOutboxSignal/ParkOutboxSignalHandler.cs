@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// The single-statement park admission. It never blocks on the applying tick; the version bump on a
-/// supersede is what makes a concurrent consume of the old command miss its CAS.
+/// The single-statement park admission. It never blocks on the applying tick; every park stores a fresh
+/// command id, so a concurrent consume of the old command no longer matches the stored value.
 /// </summary>
 internal sealed class ParkOutboxSignalHandler(
     IDbSession session,

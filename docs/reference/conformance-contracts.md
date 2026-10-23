@@ -1175,11 +1175,12 @@
 
 ## Outbox
 
-### Consume deletes an applied command only at the version the tick read
-- **Contract:** ConsumeOutboxSignal deletes one job's signal row under a name only at the expected version and answers whether it did, so a repeat changes nothing.
+### Consume deletes an applied command only while it is the command the tick read
+- **Contract:** ConsumeOutboxSignal deletes a signal row only while it holds the value the tick read, so a repeat misses and any other command under the name survives.
 - **Guarantees:**
-  - A consume at the version read deletes the row and answers true, and a repeat answers false
-  - A consume at a superseded version answers false and the newer command survives
+  - A consume of the command read deletes the row and answers true, and a repeat answers false
+  - A consume of a superseded command answers false and the newer command survives
+  - A late consume of a command another pass consumed misses the command parked after it at the same version
   - A consume of an empty slot answers false
   - A consume deletes only the named command of that job
 
@@ -1308,10 +1309,15 @@
 - **Guarantees:**
   - The evidence event lands on the slot job with the operator actor and reason intact
 
-### Park admission and version-CAS consume bound the operator inbox
-- **Contract:** Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete.
+### Park admission and consume of the command read bound the operator inbox
+- **Contract:** Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one, and consume deletes only the command read.
 - **Guarantees:**
-  - Free and stale slots admit, a pending slot rejects with its age, and consume is version-CAS
+  - Free and stale slots admit, a pending slot rejects with its age, and consume takes only the command read
+
+### A stale relay pass never consumes a command parked after the one it read
+- **Contract:** A pass that read a command another pass already consumed leaves a command parked since then in place, and the next pass applies that command once.
+- **Guarantees:**
+  - A command parked while a stale pass is mid-apply survives that pass and the next pass applies it once
 
 ### The source store round-trips with no Acta ledger configured
 - **Contract:** The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session.

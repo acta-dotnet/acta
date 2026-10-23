@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -84,6 +85,55 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
 
     private protected async Task<int> CountLedgerJobsAsync(int namespaceId, string dedup, CancellationToken ct) =>
         await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
+
+    // A ledger job stands in for the sys.outbox slot (these specs drive the relay composition directly);
+    // the jobs_state row backs the evidence event join.
+    private protected async Task<long> SeedSlotJobAsync(CancellationToken ct)
+    {
+        var (slotJobId, _) = await new ActaTestSeeder(Db).SeedJobAsync(NamespaceId, ct: ct);
+        await Db.From<JobStateEntity>()
+            .InsertAsync<long>(
+                new JobStateEntity
+                {
+                    Id = slotJobId,
+                    NamespaceId = NamespaceId,
+                    Status = JobStatusCode.Ready,
+                    Priority = JobPriorityCode.Critical,
+                    // Ready carries its due instant the way register_schedules writes the real
+                    // slot row; ck_jobs_state_ready_due rejects the pair otherwise.
+                    NextRunAtUtc = DateTime.UtcNow,
+                    ExecutionNumber = 1,
+                },
+                ct
+            );
+        return slotJobId;
+    }
+
+    // Parks one operator command by marko on the slot with a fresh command id, as IOutbox parks it, and
+    // answers the admission's ControlAction id.
+    private protected async Task<byte> ParkAsync(
+        long slotJobId,
+        string name,
+        string reasonMessage,
+        IReadOnlyList<Guid> outboxIds,
+        CancellationToken ct
+    )
+    {
+        var payload = new OutboxSignalPayload(Guid.NewGuid(), "marko", reasonMessage, outboxIds);
+        var admitted = await Services
+            .GetRequiredService<ParkOutboxSignalHandler>()
+            .HandleAsync(
+                new ParkOutboxSignalCommand(
+                    slotJobId,
+                    name,
+                    ValueFormatId: 1,
+                    JsonSerializer.SerializeToUtf8Bytes(payload, OutboxSignalJsonContext.Default.OutboxSignalPayload),
+                    StaleBeforeUtc: DateTime.UtcNow.AddHours(-1)
+                ),
+                ct
+            );
+        return admitted.Action;
+    }
 
     // A second Acta runtime against the same ledger that registers TestJobsManifest under another
     // namespace, so a route unknown at first can become resolvable after a later registration.

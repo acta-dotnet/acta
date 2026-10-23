@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,44 +24,13 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
     {
         var ct = TestContext.Current.CancellationToken;
         var signals = Services.GetRequiredService<OutboxOperations>();
-        var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var dedup = Unique("sig-apply");
 
         var row = EchoRow(dedup, status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
 
-        // A ledger job stands in for the sys.outbox slot (this harness drives the relay composition
-        // directly, like the crash-window specs); the jobs_state row backs the evidence event join.
-        var seeder = new ActaTestSeeder(Db);
-        var (slotJobId, _) = await seeder.SeedJobAsync(NamespaceId, ct: ct);
-        await Db.From<JobStateEntity>()
-            .InsertAsync<long>(
-                new JobStateEntity
-                {
-                    Id = slotJobId,
-                    NamespaceId = NamespaceId,
-                    Status = JobStatusCode.Ready,
-                    Priority = JobPriorityCode.Critical,
-                    // Ready carries its due instant the way register_schedules writes the real
-                    // slot row; ck_jobs_state_ready_due rejects the pair otherwise.
-                    NextRunAtUtc = DateTime.UtcNow,
-                    ExecutionNumber = 1,
-                },
-                ct
-            );
-
-        var payload = new OutboxSignalPayload(Guid.NewGuid(), "marko", "fixed the target route", [row.OutboxId]);
-        var admitted = await park.HandleAsync(
-            new ParkOutboxSignalCommand(
-                slotJobId,
-                OutboxSignalNames.Requeue,
-                ValueFormatId: 1,
-                JsonSerializer.SerializeToUtf8Bytes(payload, OutboxSignalJsonContext.Default.OutboxSignalPayload),
-                StaleBeforeUtc: DateTime.UtcNow.AddHours(-1)
-            ),
-            ct
-        );
-        Assert.Equal(1, admitted.Action);
+        var slotJobId = await SeedSlotJobAsync(ct);
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "fixed the target route", [row.OutboxId], ct));
 
         var relay = Relay(SourceStore, OwnedSubmission);
         var (requeued, discarded) = await relay.ApplyOperatorSignalsAsync(slotJobId, signals, ct);

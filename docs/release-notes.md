@@ -84,6 +84,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - Two job names that differ only in `.` and `-`, such as `send.mail` and `send-mail`, compile and warn ACTA0106, as do names matching a member the manifest class declares or a type it uses; they failed the build with duplicate members.
 - The dashboard's schedule editor saves with the version its draft was opened at, so another operator's change made while the editor was open is refused instead of silently reverted.
 - An outbox row whose tags hold a null entry, or that fails reconstruction any other way, is quarantined alone; it stalled its whole claimed batch on every relay tick.
+- A stale relay pass no longer deletes an outbox requeue or discard it never applied. A command parked after another pass consumed the previous one starts at the same version, and the stale pass's consume matched it by version; a pass now consumes only the command it read.
 - A job of a retired definition that recovery returns to Ready is claimed and landed Cancelled, even by a worker that had stopped claiming the definition for want of its handler; it stayed Ready forever.
 - On SQLite, a job due before 1970 is claimed; the claim never reached it, and the worker retried every poll floor.
 - A Redis wake whose jitter draw was zero no longer disables remote wakes for its channel until the process restarts.

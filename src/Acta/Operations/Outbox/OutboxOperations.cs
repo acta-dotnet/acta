@@ -44,11 +44,12 @@ internal sealed class OutboxOperations(
         getOutboxSignal.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct);
 
     /// <summary>
-    /// Version-CAS delete of an applied command row. A command superseded while it was being applied is not
-    /// consumed; the newer command simply applies on the next tick.
+    /// Deletes an applied command row whose stored value is still the <paramref name="value"/> the tick read. The
+    /// value carries the command id minted per park, so a command that superseded it, or was parked after another
+    /// pass consumed it, is not consumed and applies on the next tick.
     /// </summary>
-    internal Task<ConsumeOutboxSignalResponse> ConsumeOutboxSignalAsync(long slotJobId, string name, int version, CancellationToken ct) =>
-        consumeOutboxSignal.HandleAsync(new ConsumeOutboxSignalCommand(slotJobId, name, version), ct);
+    internal Task<ConsumeOutboxSignalResponse> ConsumeOutboxSignalAsync(long slotJobId, string name, byte[] value, CancellationToken ct) =>
+        consumeOutboxSignal.HandleAsync(new ConsumeOutboxSignalCommand(slotJobId, name, value), ct);
 
     /// <summary>Appends the applied-command evidence event against the slot job; it is always audited.</summary>
     internal Task RecordOutboxEventAsync(RecordOutboxEventCommand command, CancellationToken ct) =>

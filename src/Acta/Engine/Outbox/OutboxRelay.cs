@@ -37,9 +37,9 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     /// <summary>
     /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the
     /// same tick, then discard. Per command: apply against the source, write the evidence event, then
-    /// version-CAS consume. Crash-safe in that order - a reapplied command finds nothing left to touch
-    /// (both verbs only match Quarantined rows), and a consume miss means a newer command superseded
-    /// this one mid-apply and simply applies next tick.
+    /// consume the command read. Crash-safe in that order - a reapplied command finds nothing left to touch
+    /// (both verbs only match Quarantined rows), and a consume miss means another command now stands under
+    /// the name, which applies next tick.
     /// </summary>
     public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(
         long slotJobId,
@@ -77,7 +77,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                 new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), null, "Malformed operator command discarded unapplied."),
                 ct
             );
-            await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Version, ct);
+            await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Value, ct);
             return 0;
         }
 
@@ -90,7 +90,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.Actor, Evidence(payload.ReasonMessage, affected)),
             ct
         );
-        await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Version, ct);
+        await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Value, ct);
         return affected.Count;
     }
 

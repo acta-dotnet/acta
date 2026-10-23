@@ -44,8 +44,8 @@ internal static class OutboxFixtureExtensions
 }
 
 /// <summary>
-/// The real provider source over a session that can inject a failure at a chosen source call (the crash
-/// windows the brief proves) while every call still runs against the real provider database.
+/// The real provider source over a session that can inject a failure or a stall at a chosen source call (the
+/// crash and overlap windows the specs prove) while every call still runs against the real provider database.
 /// </summary>
 internal sealed class HookedOutboxStore
 {
@@ -55,13 +55,22 @@ internal sealed class HookedOutboxStore
             {
                 Session = new HookedSession(
                     inner.Session,
-                    stem => stem == "DeleteClaimedOutbox" && BeforeDelete is { } hook ? hook() : Task.CompletedTask
+                    stem =>
+                        stem switch
+                        {
+                            "DeleteClaimedOutbox" when BeforeDelete is { } hook => hook(),
+                            "RequeueQuarantinedOutbox" when BeforeRequeue is { } hook => hook(),
+                            _ => Task.CompletedTask,
+                        }
                 ),
             }
         );
 
     /// <summary>When set, awaited just before the real delete runs (models a crash after the target commit).</summary>
     public Func<Task>? BeforeDelete { get; set; }
+
+    /// <summary>When set, awaited just before an operator requeue runs (holds a relay pass after it read its command).</summary>
+    public Func<Task>? BeforeRequeue { get; set; }
 
     public OutboxOperations.Source Source { get; }
 }

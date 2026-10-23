@@ -5,12 +5,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Outbox;
 
-/// <summary>Conformance for the version compare-and-swap delete that closes an applied operator command on a <c>sys.outbox</c> slot.</summary>
+/// <summary>Conformance for the delete that closes an applied operator command on a <c>sys.outbox</c> slot.</summary>
 [ConformanceSpec(
-    "consume-outbox-signal.version-cas",
-    "Consume deletes an applied command only at the version the tick read",
+    "consume-outbox-signal.command-identity",
+    "Consume deletes an applied command only while it is the command the tick read",
     Area = "Outbox",
-    Contract = "ConsumeOutboxSignal deletes one job's signal row under a name only at the expected version and answers whether it did, so a repeat changes nothing."
+    Contract = "ConsumeOutboxSignal deletes a signal row only while it holds the value the tick read, so a repeat misses and any other command under the name survives."
 )]
 public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -25,21 +25,21 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         DefId = await Seeder.SeedJobDefinitionAsync(TestNamespaceId, "outbox-slot-def", ct: TestContext.Current.CancellationToken);
     }
 
-    [Fact(DisplayName = "A consume at the version read deletes the row and answers true, and a repeat answers false")]
-    public async Task Consume_at_the_read_version_deletes_once()
+    [Fact(DisplayName = "A consume of the command read deletes the row and answers true, and a repeat answers false")]
+    public async Task Consume_of_the_command_read_deletes_once()
     {
         var ct = TestContext.Current.CancellationToken;
         var jobId = await SeedSlotJobAsync(ct);
         await ParkAsync(jobId, OutboxSignalNames.Requeue, [1], NothingIsStale, ct);
 
-        Assert.True(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct));
+        Assert.True(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, [1], ct));
         Assert.Equal(0, await CountAsync(jobId, OutboxSignalNames.Requeue, ct));
 
-        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct));
+        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, [1], ct));
     }
 
-    [Fact(DisplayName = "A consume at a superseded version answers false and the newer command survives")]
-    public async Task Consume_at_a_superseded_version_misses()
+    [Fact(DisplayName = "A consume of a superseded command answers false and the newer command survives")]
+    public async Task Consume_of_a_superseded_command_misses()
     {
         var ct = TestContext.Current.CancellationToken;
         var jobId = await SeedSlotJobAsync(ct);
@@ -47,11 +47,29 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         await ParkAsync(jobId, OutboxSignalNames.Discard, [1], NothingIsStale, ct);
         await ParkAsync(jobId, OutboxSignalNames.Discard, newer, EverythingIsStale, ct);
 
-        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Discard, version: 0, ct));
+        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Discard, [1], ct));
 
         var survivor = Assert.Single(await RowsAsync(jobId, OutboxSignalNames.Discard, ct));
         Assert.Equal(newer, survivor.Value);
         Assert.Equal(1, survivor.Version);
+    }
+
+    [Fact(DisplayName = "A late consume of a command another pass consumed misses the command parked after it at the same version")]
+    public async Task Late_consume_misses_a_command_parked_at_the_same_version()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await SeedSlotJobAsync(ct);
+        byte[] first = [1];
+        byte[] parkedAfter = [2];
+        await ParkAsync(jobId, OutboxSignalNames.Requeue, first, NothingIsStale, ct);
+        Assert.True(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, first, ct));
+
+        Assert.Equal(1, (await ParkAsync(jobId, OutboxSignalNames.Requeue, parkedAfter, NothingIsStale, ct)).Action);
+        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, first, ct));
+
+        var survivor = Assert.Single(await RowsAsync(jobId, OutboxSignalNames.Requeue, ct));
+        Assert.Equal(parkedAfter, survivor.Value);
+        Assert.Equal(0, survivor.Version);
     }
 
     [Fact(DisplayName = "A consume of an empty slot answers false")]
@@ -60,7 +78,7 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         var ct = TestContext.Current.CancellationToken;
         var jobId = await SeedSlotJobAsync(ct);
 
-        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct));
+        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, [1], ct));
     }
 
     [Fact(DisplayName = "A consume deletes only the named command of that job")]
@@ -70,21 +88,21 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         var jobId = await SeedSlotJobAsync(ct);
         var otherJobId = await SeedSlotJobAsync(ct);
         await ParkAsync(jobId, OutboxSignalNames.Requeue, [1], NothingIsStale, ct);
-        await ParkAsync(jobId, OutboxSignalNames.Discard, [2], NothingIsStale, ct);
-        await ParkAsync(otherJobId, OutboxSignalNames.Requeue, [3], NothingIsStale, ct);
+        await ParkAsync(jobId, OutboxSignalNames.Discard, [1], NothingIsStale, ct);
+        await ParkAsync(otherJobId, OutboxSignalNames.Requeue, [1], NothingIsStale, ct);
 
-        Assert.True(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct));
+        Assert.True(await ConsumeAsync(jobId, OutboxSignalNames.Requeue, [1], ct));
 
         Assert.Equal(0, await CountAsync(jobId, OutboxSignalNames.Requeue, ct));
         Assert.Equal(1, await CountAsync(jobId, OutboxSignalNames.Discard, ct));
         Assert.Equal(1, await CountAsync(otherJobId, OutboxSignalNames.Requeue, ct));
     }
 
-    private async Task<bool> ConsumeAsync(long jobId, string name, int version, CancellationToken ct) =>
+    private async Task<bool> ConsumeAsync(long jobId, string name, byte[] value, CancellationToken ct) =>
         (
             await Services
                 .GetRequiredService<ConsumeOutboxSignalHandler>()
-                .HandleAsync(new ConsumeOutboxSignalCommand(jobId, name, version), ct)
+                .HandleAsync(new ConsumeOutboxSignalCommand(jobId, name, value), ct)
         ).Consumed;
 
     private Task<ParkOutboxSignalResponse> ParkAsync(

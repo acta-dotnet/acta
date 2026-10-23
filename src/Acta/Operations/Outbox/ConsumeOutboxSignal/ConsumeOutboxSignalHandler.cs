@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="OutboxOperations.ConsumeOutboxSignalAsync"/>: one version-CAS delete.</summary>
+/// <summary><see cref="OutboxOperations.ConsumeOutboxSignalAsync"/>: one delete matched by the command's stored value.</summary>
 internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ConsumeOutboxSignalResponse> HandleAsync(ConsumeOutboxSignalCommand command, CancellationToken ct)
@@ -11,7 +11,7 @@ internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, command.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointName, command.Name));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.Version));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, command.Value));
             },
             DbProjectionResolver.Resolve<ConsumeOutboxSignalRow>(),
             ct

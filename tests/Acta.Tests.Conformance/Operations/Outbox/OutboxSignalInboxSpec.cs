@@ -8,18 +8,18 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 /// <summary>
 /// Conformance for the sys.outbox operator-command inbox: park admission (insert when free, reject
 /// while a younger command pends, supersede once the pending one has outlived the worker-dead
-/// window) and the version-CAS consume that closes the loop. The version bump on supersede is what
-/// makes a consume racing an overwrite miss instead of deleting the newer command.
+/// window) and the consume that closes the loop. Consume matches the command the tick read, so a
+/// consume racing an overwrite misses instead of deleting the newer command.
 /// </summary>
 [ConformanceSpec(
     "outbox-signal.inbox",
-    "Park admission and version-CAS consume bound the operator inbox",
+    "Park admission and consume of the command read bound the operator inbox",
     Area = "Outbox",
-    Contract = "Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete."
+    Contract = "Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one, and consume deletes only the command read."
 )]
 public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    [Fact(DisplayName = "Free and stale slots admit, a pending slot rejects with its age, and consume is version-CAS")]
+    [Fact(DisplayName = "Free and stale slots admit, a pending slot rejects with its age, and consume takes only the command read")]
     public async Task Park_admission_and_consume_follow_the_inbox_contract()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -49,8 +49,8 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.Equal(first, pending!.Value);
         Assert.Equal(0, pending.Version);
 
-        // Once the pending command has outlived the worker-dead window, a new one supersedes it and
-        // the version bump invalidates the old command's consume.
+        // Once the pending command has outlived the worker-dead window, a new one supersedes it, and a
+        // consume of the old command no longer matches.
         var everythingIsStale = DateTime.UtcNow.AddHours(1);
         byte[] superseding = [3, 3, 3];
         var superseded = await park.HandleAsync(
@@ -60,15 +60,15 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.Equal(1, superseded.Action);
 
         Assert.False(
-            (await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, version: 0, ct)).Consumed,
-            "a superseded version must miss"
+            (await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, first, ct)).Consumed,
+            "a superseded command must miss"
         );
         var current = (await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct))?.Signal;
         Assert.NotNull(current);
         Assert.Equal(superseding, current!.Value);
         Assert.Equal(1, current.Version);
 
-        Assert.True((await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, version: 1, ct)).Consumed);
+        Assert.True((await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, superseding, ct)).Consumed);
         Assert.Null(await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct));
 
         // The two fixed names are independent slots: the discard slot was never touched.
