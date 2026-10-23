@@ -4270,9 +4270,11 @@ BEGIN
             END
         ELSE
             BEGIN
+                -- The next attempt spends the retry instant, as SQLite's start_step does.
                 UPDATE {{schema}}.steps
                 SET
                     attempt_number = attempt_number + 1,
+                    next_retry_at_utc = NULL,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND step_name = @p_step_name;
@@ -4782,7 +4784,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261023210310_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261023211737_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261023210310_init');
+VALUES ('M20261023211737_init');
 GO

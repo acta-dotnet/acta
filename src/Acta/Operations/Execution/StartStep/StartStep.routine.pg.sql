@@ -144,9 +144,11 @@ BEGIN
         RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSE
+        -- The next attempt spends the retry instant, as SQLite's start_step does.
         UPDATE {{schema}}.steps a
         SET
             attempt_number = a.attempt_number + 1,
+            next_retry_at_utc = NULL,
             modified_at_utc = v_now,
             version = a.version + 1
         WHERE

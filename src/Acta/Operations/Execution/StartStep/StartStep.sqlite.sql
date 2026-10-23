@@ -17,7 +17,7 @@ UPDATE {{schema}}.steps
 SET
     step_status_code = CASE WHEN @p_at_most_once THEN 230 /* StepStatusCode.Interrupted */ ELSE step_status_code END,
     attempt_number = attempt_number + CASE WHEN @p_at_most_once THEN 0 ELSE 1 END,
-    next_retry_at_utc = CASE WHEN @p_at_most_once THEN NULL ELSE next_retry_at_utc END,
+    next_retry_at_utc = NULL,
     failure_code = CASE WHEN @p_at_most_once THEN 20 /* StepFailureCode.Interrupted */ ELSE failure_code END,
     failure_message
     = CASE WHEN @p_at_most_once THEN 'At-most-once step re-entered before completion; outcome unknown.' ELSE failure_message END,
@@ -46,23 +46,20 @@ WHERE NOT EXISTS (
     WHERE a.job_id = @p_job_id AND a.step_name = @p_step_name
 );
 
+-- The UPDATE spends a due retry instant, so a Pending row still carrying one is a retry not yet due. The answer reads
+-- that from the row, never the clock again: each statement reads its own instant, and a second reading that found the
+-- retry due would answer Invoke for an attempt the UPDATE never counted.
 SELECT
     CASE
         WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */ THEN 3 /* StartStepOutcomeCode.ReplaySuccess */
         WHEN a.step_status_code = 200 /* StepStatusCode.Exhausted */ THEN 4 /* StartStepOutcomeCode.Exhausted */
         WHEN a.step_status_code = 230 /* StepStatusCode.Interrupted */ THEN 5 /* StartStepOutcomeCode.Interrupted */
-        WHEN a.next_retry_at_utc IS NOT NULL AND a.next_retry_at_utc > {{now}} THEN 2 /* StartStepOutcomeCode.Suspend */
+        WHEN a.next_retry_at_utc IS NOT NULL THEN 2 /* StartStepOutcomeCode.Suspend */
         ELSE 1 /* StartStepOutcomeCode.Invoke */
     END AS outcome_code,
     a.attempt_number AS attempt_number,
     a.version AS version,
-    CASE
-        WHEN
-            a.next_retry_at_utc IS NOT NULL AND a.next_retry_at_utc > {{now}}
-            AND a.step_status_code = 10 /* StepStatusCode.Pending */
-            THEN a.next_retry_at_utc
-        ELSE NULL
-    END AS next_retry_at_utc,
+    CASE WHEN a.step_status_code = 10 /* StepStatusCode.Pending */ THEN a.next_retry_at_utc ELSE NULL END AS next_retry_at_utc,
     CASE
         WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */
             THEN a.result_format_id

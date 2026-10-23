@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261023210310_init')
+        WHERE name NOT IN ('M20261023211737_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261023210310_init =====
+-- ===== BEGIN M20261023211737_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -3718,9 +3718,11 @@ BEGIN
         RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSE
+        -- The next attempt spends the retry instant, as SQLite's start_step does.
         UPDATE acta.steps a
         SET
             attempt_number = a.attempt_number + 1,
+            next_retry_at_utc = NULL,
             modified_at_utc = v_now,
             version = a.version + 1
         WHERE
@@ -4202,10 +4204,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023210310_init')
+VALUES ('M20261023211737_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261023210310_init =====
+-- ===== END M20261023211737_init =====
 
 COMMIT;
 

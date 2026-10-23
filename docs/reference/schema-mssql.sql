@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261023210310_init')
+    WHERE name NOT IN ('M20261023211737_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261023210310_init =====
+-- ===== BEGIN M20261023211737_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -4344,9 +4344,11 @@ BEGIN
             END
         ELSE
             BEGIN
+                -- The next attempt spends the retry instant, as SQLite's start_step does.
                 UPDATE acta.steps
                 SET
                     attempt_number = attempt_number + 1,
+                    next_retry_at_utc = NULL,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND step_name = @p_step_name;
@@ -4856,11 +4858,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023210310_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023211737_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023210310_init');
+VALUES ('M20261023211737_init');
 GO
--- ===== END M20261023210310_init =====
+-- ===== END M20261023211737_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -139,9 +139,11 @@ BEGIN
             END
         ELSE
             BEGIN
+                -- The next attempt spends the retry instant, as SQLite's start_step does.
                 UPDATE {{schema}}.steps
                 SET
                     attempt_number = attempt_number + 1,
+                    next_retry_at_utc = NULL,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND step_name = @p_step_name;
