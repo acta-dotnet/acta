@@ -90,19 +90,20 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
         }
         else
         {
-            // Reflection-off (Native AOT): an app-supplied resolver (via UseJsonPayloads) covers payload
-            // types. Always chain the framework's own system-job scalar context after it (e.g. sys.alerts
-            // persists a long cursor variable) so a system job never fails for a type the consuming app
-            // had no reason to register; app-registered types still take precedence. A resolver-less default
-            // still gets a real resolver so MakeReadOnly never installs the reflection resolver (which throws
-            // under reflection-off); a stray unlisted type surfaces a clear "no metadata" error.
-            options.TypeInfoResolver = resolver is null
-                ? ActaSystemJobJsonContext.Default
-                : JsonTypeInfoResolver.Combine(resolver, ActaSystemJobJsonContext.Default);
+            options.TypeInfoResolver = ReflectionFreeResolver(resolver);
         }
         options.MakeReadOnly();
         return options;
     }
+
+    /// <summary>
+    /// The resolver a reflection-off (Native AOT) build reads metadata from: the app-supplied resolver first, then
+    /// <see cref="ActaSystemJobJsonContext"/>, so a value Acta persists itself never depends on the app registering
+    /// its type. Without an app resolver the framework context stands alone, so MakeReadOnly never installs the
+    /// reflection resolver, which throws under reflection-off, and an unlisted type fails with a "no metadata" error.
+    /// </summary>
+    internal static IJsonTypeInfoResolver ReflectionFreeResolver(IJsonTypeInfoResolver? resolver) =>
+        resolver is null ? ActaSystemJobJsonContext.Default : JsonTypeInfoResolver.Combine(resolver, ActaSystemJobJsonContext.Default);
 
     public JobPayloadFormat Format => JobPayloadFormat.Json;
 
@@ -134,11 +135,12 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
 }
 
 /// <summary>
-/// Source-generated metadata for the types Acta's own system jobs serialize through the job payload
-/// serializer, currently the <c>sys.alerts</c> cursor (<c>alerts-cursor</c>). Chained after the
-/// app-supplied resolver in <see cref="JsonJobPayloadSerializer"/> so, under reflection-off Native
-/// AOT, a system job never fails for a type the consuming app had no reason to register.
-/// App-registered types take precedence; this only backfills the framework's own.
+/// Source-generated metadata for every value Acta persists itself through the job payload serializer: the
+/// <c>sys.alerts</c> cursor and its poison records (a string), and the <c>sys.retention</c> jobs cursor and a bounded
+/// group wait's deadline (each a long). A reflection-off build chains it after the app's resolver
+/// (<see cref="JsonJobPayloadSerializer.ReflectionFreeResolver"/>).
 /// </summary>
 [JsonSerializable(typeof(AlertsCursor))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(long))]
 internal sealed partial class ActaSystemJobJsonContext : JsonSerializerContext;

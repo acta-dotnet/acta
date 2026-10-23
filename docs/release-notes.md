@@ -93,6 +93,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - On SQL Server, a completion batch no longer deadlocks with a wait or a raise on the same job's slots. The batch probed an awaited slot under `HOLDLOCK`, locking the gap after it, and only later asked for a parent latch's lock that a waiting raise held. It now takes every slot lock in one name-ordered pass before it touches a slot row.
 - A note written with `ctx.NoteAsync` records the worker whose attempt wrote it. It stored worker 0, so on SQL Server every worker's notes appended at one point of the events key.
 - On SQL Server, a binary parameter bound without a size is declared `varbinary(max)`, so a statement keeps one cached plan instead of one per payload length.
+- Under reflection-off Native AOT, `sys.alerts` writes and reads its poison-event records when the application's JSON resolver has no `string` metadata: Acta's own context now covers every value Acta persists, `string` and `long` included. The write failed, and since it lands before the cursor moves, the projector could not get past that event.
 
 ### Evidence
 

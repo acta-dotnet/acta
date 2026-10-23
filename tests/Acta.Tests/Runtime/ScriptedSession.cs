@@ -27,11 +27,18 @@ internal sealed class ScriptedSession : DbSessionStub
 
     public List<BoundCall> Calls { get; } = [];
 
-    /// <summary>The graph <c>UseActa</c> builds over SQLite, with this session in place of the database.</summary>
-    public ServiceProvider Services()
+    /// <summary>
+    /// The graph <c>UseActa</c> builds over SQLite, with this session in place of the database; <paramref name="configure"/>
+    /// adds to the registration as an application's own <c>UseActa</c> callback would.
+    /// </summary>
+    public ServiceProvider Services(Action<IActaBuilder>? configure = null)
     {
         var services = new ServiceCollection();
-        services.UseActa(static acta => acta.UseSqlite(static options => options.ConnectionString = "Data Source=:memory:"));
+        services.UseActa(acta =>
+        {
+            acta.UseSqlite(static options => options.ConnectionString = "Data Source=:memory:");
+            configure?.Invoke(acta);
+        });
         services.Replace(ServiceDescriptor.Singleton<IDbSession>(this));
         return services.BuildServiceProvider();
     }
