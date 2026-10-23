@@ -1,4 +1,5 @@
--- Appends one application-authored job.note-recorded event, written by ctx.NoteAsync.
+-- Appends one application-authored job.note-recorded event, written by ctx.NoteAsync, only while the attempt holds the
+-- job's row (docs/sql-internals.md, "Execution fence").
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -28,7 +29,12 @@ SELECT
     @p_event_message,
     @p_details_format_id,
     @p_details
-FROM {{schema}}.jobs j
-WHERE j.job_id = @p_job_id;
+FROM {{schema}}.jobs_state r
+JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+WHERE
+    r.job_id = @p_job_id
+    AND r.job_status_code = 50 /* JobStatusCode.Executing */
+    AND r.execution_number = @p_execution_number
+    AND r.leased_by_worker_id = @p_worker_id;
 
 SELECT CHANGES() AS inserted;

@@ -21,19 +21,35 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
     {
         var ct = TestContext.Current.CancellationToken;
         var (workerId, claimed) = await ClaimAsync(ct);
-        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitAsync(claimed.JobId, CheckpointKindCode.Signal, "go", ct)).Outcome);
+        var wait = await Slots.WaitSignalAsync(
+            new ExecutionFence(claimed.JobId, claimed.ExecutionNumber, workerId),
+            CheckpointKindCode.Signal,
+            "go",
+            null,
+            ct
+        );
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, wait.Outcome);
 
         await using var holder = await Db.OpenConnectionAsync(ct);
         await using var hold = await holder.BeginTransactionAsync(ct);
         await LandWaitingAsync(hold, workerId, claimed, ct);
 
-        // ('gp') sorts right after the awaited name under the latch kind, inside the gap a range lock would hold.
-        var insert = WaitAsync(claimed.JobId, CheckpointKindCode.ChildLatch, "gp", ct);
+        // ('gp') sorts right after the awaited name under the latch kind, inside the gap a range lock would hold. The
+        // insert is a bare one: a handler's own wait would rightly wait out the landing on the job's row.
+        var insert = Db.ExecuteRawAsync(
+            "INSERT INTO {schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id)"
+                + " VALUES (@p_job_id, @p_kind, @p_name, @p_status, 0)",
+            ct,
+            ("@p_job_id", claimed.JobId),
+            ("@p_kind", (byte)CheckpointKindCode.ChildLatch),
+            ("@p_name", "gp"),
+            ("@p_status", (byte)CheckpointStatusCode.Pending)
+        );
         var first = await Task.WhenAny(insert, Task.Delay(TimeSpan.FromSeconds(5), ct));
         await hold.RollbackAsync(ct);
 
         Assert.True(first == insert, "the slot insert waited on the open landing");
-        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await insert).Outcome);
+        Assert.Equal(1, await insert);
     }
 
     [Fact(DisplayName = "A raise that creates a missing awaited slot waits for the wait landing, then wakes the job")]
@@ -85,9 +101,6 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
         );
         return (workerId, claimed);
     }
-
-    private Task<WaitSignalResponse> WaitAsync(long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
-        Slots.WaitSignalAsync(jobId, kind, name, null, ct);
 
     /// <summary>Lands <paramref name="claimed"/> waiting on the signal "go" inside <paramref name="transaction"/>, left open.</summary>
     private async Task LandWaitingAsync(DbTransaction transaction, int workerId, ClaimedJob claimed, CancellationToken ct)

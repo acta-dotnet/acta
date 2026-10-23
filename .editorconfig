@@ -689,7 +689,8 @@ dotnet_diagnostic.CA1031.severity = none
 # Failed settlement with JobUnhandledException (or the non-retryable reason for NotImplemented /
 # NotSupported) for the completion write to land under the retry budget. Handlers can throw
 # anything, so the catch cannot be narrowed. Escaping would tear down the worker loop and leave the row
-# Executing until its lease expired - a durable job silently turned into a recovery case.
+# Executing until its lease expired - a durable job silently turned into a recovery case. The catch ahead of it
+# takes whatever a handler whose write was fenced out ends with, since that attempt writes no completion at all.
 [src/Acta/Engine/Worker/HandlerInvocation.cs]
 dotnet_diagnostic.CA1031.severity = none
 

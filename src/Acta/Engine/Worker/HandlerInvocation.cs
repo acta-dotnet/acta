@@ -16,8 +16,8 @@ internal sealed class HandlerInvocation(
 )
 {
     /// <summary>
-    /// The attempt's completion, or null when worker shutdown interrupted the handler and the row stays Executing
-    /// for recovery.
+    /// The attempt's completion, or null when nothing is to be written: worker shutdown interrupted the handler and the
+    /// row stays Executing for recovery, or a write found the row held by another execution, which owns it now.
     /// </summary>
     public async Task<ExecutionCompletion?> InvokeAsync(
         IServiceProvider attemptServices,
@@ -39,6 +39,12 @@ internal sealed class HandlerInvocation(
             var requestObject = DeserializeInput(descriptor, job);
             inputDeserialized = true;
             completion = Succeeded(descriptor, job, await InvokeHandlerAsync(attemptServices, descriptor, requestObject, jobContext));
+        }
+        catch (Exception) when (jobContext.Fenced)
+        {
+            // However the refusal surfaced, rethrown, swallowed and followed by another error, or turned into a control
+            // verb, the attempt ends as a lost lease does.
+            return FencedOut(job);
         }
         catch (JobControlException control)
         {
@@ -102,10 +108,30 @@ internal sealed class HandlerInvocation(
             completion = Faulted(ex, inputDeserialized, descriptor, job);
         }
 
+        if (jobContext.Fenced)
+        {
+            // The handler swallowed the refusal and ended normally.
+            return FencedOut(job);
+        }
+
         return completion with
         {
             DurationMs = (int)Math.Min((long)Stopwatch.GetElapsedTime(started).TotalMilliseconds, int.MaxValue),
         };
+    }
+
+    /// <summary>
+    /// A fenced write proved another execution holds the row (docs/sql-internals.md, "Execution fence"), so no
+    /// completion of this attempt could apply: none is written and no retry is charged.
+    /// </summary>
+    private ExecutionCompletion? FencedOut(ClaimedJob job)
+    {
+        log.LogInformation(
+            "WorkerRuntime: job {JobId} attempt {Attempt} lost the job to another execution; a write was fenced out and the attempt stopped without a completion.",
+            job.JobId,
+            job.ExecutionNumber
+        );
+        return null;
     }
 
     private ValueTask<JobHandlerOutput> InvokeHandlerAsync(

@@ -105,6 +105,22 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     }
 
     [Fact]
+    public async Task A_skipped_row_is_asked_for_again_within_the_beat_and_re_armed_once_renewed()
+    {
+        using var entry = Held(Entry(1, leaseRunway: ShortLease));
+        var calls = 0;
+        var session = new ScriptedSession(_ => Lease(1, renewed: Interlocked.Increment(ref calls) > 1));
+
+        await Heartbeat(session.Services().GetRequiredService<WorkersOperations>()).TickAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(ShortLease * 2, TestContext.Current.CancellationToken);
+
+        // A handler write held the row through the first ask; the second ask, for that row alone, renewed it.
+        Assert.Equal(2, session.Calls.Count);
+        Assert.Equal("""[{"job_id":1,"execution_number":0}]""", session.Calls[1].Parameters["p_executions"]);
+        Assert.False(entry.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
     public async Task A_refresh_that_throws_moves_nothing_so_an_outage_cancels_by_the_deadline_alone()
     {
         using var entry = Held(Entry(1, leaseRunway: ShortLease));

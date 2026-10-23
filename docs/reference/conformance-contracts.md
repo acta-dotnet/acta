@@ -910,6 +910,24 @@
   - A reclaimed attempt's late completion stores no result, and the attempt that replaced it stores its own
   - At the failures level a failed attempt is recorded, and a success only when it recovers from counted failures
 
+### A handler write from an attempt that no longer holds its job changes nothing
+- **Contract:** A write from a superseded attempt, on any worker, changes nothing, while the current attempt's writes and completion land and the stale one stops uncharged.
+- **Guarantees:**
+  - A superseded variable write leaves the current attempt's receipt as it wrote it
+  - A superseded get-or-set stores nothing, so the current attempt's first value is its own
+  - A superseded delete leaves the current attempt's variable in place
+  - A superseded progress report leaves the current attempt's progress
+  - A superseded at-most-once step start leaves the current attempt's step running, never Interrupted
+  - A superseded step completion at the step's current version still changes nothing
+  - A superseded sleep arms no timer, so the current attempt arms its own
+  - A superseded signal wait arms no slot, so the current attempt arms its own
+  - A superseded child wait arms no latch, so the current attempt arms its own
+  - A superseded child start creates no child, so the current attempt's child is its own
+  - A superseded note records nothing on the job's timeline
+  - A superseded state reset clears none of the current attempt's state
+  - A worker's superseded attempt stops at its fenced write with no completion, and its next attempt lands
+  - A worker's superseded attempt stops at its fenced write while another worker's attempt holds the job and lands
+
 ### A lease renewal never deadlocks with a child's completion
 - **Contract:** A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child.
 - **Guarantees:**
@@ -987,12 +1005,12 @@
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 
 ### A handler writes application-authored notes onto the job's own timeline
-- **Contract:** ctx.NoteAsync appends a job.note-recorded event on the job carrying the message, the optional JSON details, and the attempt and worker that wrote it.
+- **Contract:** ctx.NoteAsync appends a job.note-recorded event with the message, optional JSON details, and the writing attempt and worker, while that attempt holds the job.
 - **Guarantees:**
-  - A note for an unknown job throws the stable marker before committing
+  - A note for an unknown job is refused like one from an attempt that no longer holds its job
   - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
   - A note stores the id of the worker whose attempt wrote it
-  - A note is filed under the attempt that wrote it, not the attempt its jobs_state row has reached
+  - A note from an attempt the row has moved past is refused, and the current attempt's note is filed under it
 
 ### A failed one-shot retries to Ready until MaxAttempts then Fails
 - **Contract:** A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.
@@ -1006,6 +1024,7 @@
   - Target job substrate is cleared while sibling jobs are left untouched
   - One JobStateReset event is emitted with the job as its actor and no reason
   - Reset below Audit recording clears the rows but emits no event
+  - A reset from an attempt that no longer holds the job is refused and clears nothing
 
 ### The worker pipeline drains a backlog exactly once
 - **Contract:** The claimer and its executors drain a backlog exactly once, claiming Ready to Executing in one round-trip.
@@ -1652,7 +1671,7 @@
   - Reclaim saturates the failure count at 32,767: a recurring slot keeps re-arming and the count stops climbing
   - Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped
   - Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event
-  - A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone
+  - A stale worker's sleep-timer consume is refused and leaves the reclaimed row and its timer alone
 
 ### Reclaiming a crashed timeout resolution costs the job no retry budget
 - **Contract:** An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident.

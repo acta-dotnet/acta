@@ -30,8 +30,9 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var first = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
         Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, (await FailAsync(job, first.Version, maxAttempts: 3, null, ct)).Outcome);
         var due = DateTime.UtcNow.AddMinutes(-1);
+        var jobId = job.JobId;
         await Db.From<StepEntity>()
-            .Where(s => s.JobId == job && s.StepName == StepName)
+            .Where(s => s.JobId == jobId && s.StepName == StepName)
             .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due }, ct);
         var second = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
         Assert.Equal(2, second.AttemptNumber);
@@ -136,13 +137,24 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Null(after.NextRetryAtUtc);
     }
 
-    private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
+    // A job staged Executing, as a claim leaves it, so the step writes pass the execution fence.
+    private async Task<ExecutionFence> EnqueueAsync(CancellationToken ct) =>
+        await ExecutionFenceStaging.ExecutingAsync(
+            Db,
+            (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId,
+            ct
+        );
 
-    private Task<CompleteStepResponse> FailAsync(long jobId, int version, int maxAttempts, int? retryWindowSeconds, CancellationToken ct) =>
+    private Task<CompleteStepResponse> FailAsync(
+        ExecutionFence job,
+        int version,
+        int maxAttempts,
+        int? retryWindowSeconds,
+        CancellationToken ct
+    ) =>
         Execution.CompleteStepAsync(
             new CompleteStepCommand(
-                jobId,
+                job,
                 StepName,
                 Succeeded: false,
                 ResultFormatId: 0,
@@ -157,6 +169,9 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
             ct
         );
 
-    private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.StepName == StepName).ToListAsync(ct));
+    private async Task<StepEntity> ReadStepAsync(ExecutionFence job, CancellationToken ct)
+    {
+        var jobId = job.JobId;
+        return Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.StepName == StepName).ToListAsync(ct));
+    }
 }

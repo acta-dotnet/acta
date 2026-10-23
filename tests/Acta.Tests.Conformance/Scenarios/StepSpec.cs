@@ -140,18 +140,15 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A real job row to own the step slot (enqueue only; never run).
+        // A real job row to own the step slot (enqueue only, staged Executing as a claim leaves it; never run).
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
+        var job = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 
         // First start hands out the version a handler would carry; a second start advances the slot,
-        // modelling a concurrent execution of the same job that re-entered the step.
-        var first = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .StartStepAsync(enqueued.JobId, "compute", atMostOnce: false, ct);
+        // modelling a re-entry of the step that the version check alone has to catch.
+        var first = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, "compute", atMostOnce: false, ct);
         Assert.Equal(StartStepOutcomeCode.Invoke, first.Outcome);
-        var second = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .StartStepAsync(enqueued.JobId, "compute", atMostOnce: false, ct);
+        var second = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, "compute", atMostOnce: false, ct);
         Assert.Equal(StartStepOutcomeCode.Invoke, second.Outcome);
         Assert.NotEqual(first.Version, second.Version);
 
@@ -160,7 +157,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
             .GetRequiredService<ExecutionOperations>()
             .CompleteStepAsync(
                 new CompleteStepCommand(
-                    enqueued.JobId,
+                    job,
                     "compute",
                     Succeeded: true,
                     ResultFormatId: 0,
@@ -193,12 +190,13 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         // A completion arriving for an absent slot must report StaleVersion, not throw - the routine
         // always yields one decision row regardless of whether a matching slot exists.
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
+        var job = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 
         var outcome = await Services
             .GetRequiredService<ExecutionOperations>()
             .CompleteStepAsync(
                 new CompleteStepCommand(
-                    enqueued.JobId,
+                    job,
                     "compute",
                     Succeeded: true,
                     ResultFormatId: 0,

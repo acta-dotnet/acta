@@ -270,6 +270,26 @@ internal sealed class JobsOperations(
     internal Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
         cancelJob.CancelTreeAsync(rootJobId, input, ct);
 
-    /// <summary>Clears a job's durable step and checkpoint state ahead of a fresh attempt, behind <c>ctx.ResetStateAsync</c>.</summary>
-    internal Task ResetJobStateAsync(long jobId, CancellationToken ct) => resetJobState.HandleAsync(new ResetJobStateCommand(jobId), ct);
+    /// <summary>
+    /// Clears a job's durable step and checkpoint state ahead of a fresh attempt, behind <c>ctx.ResetStateAsync</c>, while
+    /// <paramref name="fence"/> holds the job.
+    /// </summary>
+    internal Task ResetJobStateAsync(ExecutionFence fence, CancellationToken ct) =>
+        resetJobState.HandleAsync(new ResetJobStateCommand(fence), ct);
+
+    /// <summary>
+    /// Enqueues a child from its parent's running handler, and only while <paramref name="parent"/> holds the parent, so
+    /// an attempt that lost the parent starts no child.
+    /// </summary>
+    internal ValueTask<EnqueueJobResponse> EnqueueChildAsync<TInput>(
+        TInput input,
+        JobEnqueueOptions options,
+        ExecutionFence parent,
+        CancellationToken ct
+    )
+        where TInput : notnull => EnqueueChildAsync(routing.FromInput(input, options), parent, ct);
+
+    /// <summary>A child enqueue of an explicit route, under its parent's fence like the typed one.</summary>
+    internal ValueTask<EnqueueJobResponse> EnqueueChildAsync(EnqueueJobRequest request, ExecutionFence parent, CancellationToken ct) =>
+        enqueueJob.HandleAsync(new EnqueueJobCommand(request, ParentFence: parent), ct);
 }

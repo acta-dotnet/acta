@@ -517,7 +517,7 @@ Child names are deterministic: `{group}-{branch}` for Parallel and `{group}-{key
 
 ### CancellationToken semantics
 
-The token passed to a handler is the current attempt token, not a logical-job token. It can cancel due to external cancellation, timeout, worker shutdown, or lease loss.
+The token passed to a handler is the current attempt token, not a logical-job token. It can cancel due to external cancellation, timeout, worker shutdown, lease loss, or a `ctx` write refused because another execution now holds the job.
 
 | Cancellation cause   | Final/retry behavior                 |
 | -------------------- | ------------------------------------ |
@@ -525,6 +525,7 @@ The token passed to a handler is the current attempt token, not a logical-job to
 | execution timeout    | retry or fail per policy             |
 | worker shutdown      | retry / reclaim                      |
 | lease lost / revoked | retry (`job.attempt-aborted`), or reclaim (`job.lease-expired`) once the lease lapses |
+| write refused        | nothing for this attempt: the write changed nothing, and the execution that holds the job decides |
 
 The handler honors the token; the framework records the cause and chooses the final transition.
 

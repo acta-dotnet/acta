@@ -32,7 +32,7 @@ internal static class EnqueueTestOps
 
         if (canonical.Length == 1)
         {
-            var one = await services.GetRequiredService<EnqueueJobHandler>().InsertAsync(canonical[0], refs[0], null, ct);
+            var one = await services.GetRequiredService<EnqueueJobHandler>().InsertAsync(canonical[0], refs[0], null, null, ct);
             return new EnqueueJobsResponse([new EnqueueJobResponse(one[0].JobId, new JobRef(one[0].JobRef), one[0].Action)]);
         }
 

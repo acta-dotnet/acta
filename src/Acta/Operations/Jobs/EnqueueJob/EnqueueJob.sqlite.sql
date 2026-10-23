@@ -26,6 +26,22 @@ WHERE EXISTS (
         AND jd.definition_status_code <> 10 /* DefinitionStatusCode.Active */
 );
 
+-- begin child-only: a child its parent's handler starts lands only while that attempt holds the parent's row
+-- (docs/sql-internals.md, "Execution fence"); a job with no parent carries no parent fence.
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:enqueue_job: the parent job is no longer executing this attempt.')
+WHERE
+    @p_parent_execution_number IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs_state fr
+        WHERE
+            fr.job_id = @p_parent_job_id
+            AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+            AND fr.execution_number = @p_parent_execution_number
+            AND fr.leased_by_worker_id = @p_parent_worker_id
+    );
+-- end child-only
+
 SELECT ACTA_ERROR('Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
 WHERE
     @p_parent_job_id IS NOT NULL

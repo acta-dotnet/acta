@@ -19,7 +19,9 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_tag_name VARCHAR [] DEFAULT NULL,
     p_tag_value VARCHAR [] DEFAULT NULL,
     p_tag_value_search VARCHAR [] DEFAULT NULL,
-    p_lane_name VARCHAR DEFAULT NULL
+    p_lane_name VARCHAR DEFAULT NULL,
+    p_parent_execution_number INT DEFAULT NULL,
+    p_parent_worker_id INT DEFAULT NULL
 )
 RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)
 LANGUAGE plpgsql
@@ -123,6 +125,25 @@ BEGIN
             pj.job_id = p_parent_job_id
             AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         FOR UPDATE OF pj;
+
+        -- A child its parent's handler starts lands only while that attempt holds the parent's row, share-locked to
+        -- commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
+        IF p_parent_execution_number IS NOT NULL THEN
+            PERFORM 1
+            FROM {{schema}}.jobs_state pr
+            WHERE
+                pr.job_id = p_parent_job_id
+                AND pr.job_status_code = 50 /* JobStatusCode.Executing */
+                AND pr.execution_number = p_parent_execution_number
+                AND pr.leased_by_worker_id IS NOT DISTINCT FROM p_parent_worker_id
+            FOR SHARE;
+
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:enqueue_job: parent job % is no longer executing attempt %.',
+                    p_parent_job_id, p_parent_execution_number
+                    USING ERRCODE = 'P0001';
+            END IF;
+        END IF;
 
         IF v_lineage IS NULL THEN
             RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'

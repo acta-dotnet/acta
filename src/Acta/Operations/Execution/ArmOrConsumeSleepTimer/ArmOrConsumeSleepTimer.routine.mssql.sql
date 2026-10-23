@@ -1,5 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.arm_or_consume_sleep_timer
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_checkpoint_name VARCHAR(128),
     @p_delay_seconds INT = NULL,
     @p_resume_at_utc DATETIME2(3) = NULL
@@ -21,9 +23,18 @@ BEGIN
         DECLARE @existing_due DATETIME2(3);
         DECLARE @lock_id BIGINT;
 
+        -- The job's row is the timer's job-level mutex, and the execution fence: the timer changes only while this
+        -- attempt holds it (docs/sql-internals.md, "Execution fence").
         SELECT @lock_id = job_id
-        FROM {{schema}}.jobs_state WITH (UPDLOCK)
-        WHERE job_id = @p_job_id;
+        FROM {{schema}}.jobs_state WITH (UPDLOCK, ROWLOCK)
+        WHERE
+            job_id = @p_job_id
+            AND job_status_code = 50 /* JobStatusCode.Executing */
+            AND execution_number = @p_execution_number
+            AND leased_by_worker_id = @p_leased_by_worker_id;
+
+        IF @lock_id IS NULL
+            THROW 50012, 'ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: the job is no longer executing this attempt.', 1;
 
         SELECT
             @existing_state = checkpoint_status_code,

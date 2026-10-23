@@ -8,6 +8,8 @@
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_signal(
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
     p_timeout_seconds INT DEFAULT NULL
@@ -32,6 +34,23 @@ BEGIN
     FROM {{schema}}.checkpoints js
     WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
     FOR UPDATE;
+
+    /* The wait changes the slot only while this attempt holds the job's row, share-locked to commit after a stored
+       slot's row lock and before an absent slot's insert, the order raise_signal and a child's landing take them in
+       (docs/sql-internals.md, "Execution fence"). */
+    PERFORM 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = p_execution_number
+        AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+    FOR SHARE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:wait_signal: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            USING ERRCODE = 'P0001';
+    END IF;
 
     IF v_state IS NULL THEN
         INSERT INTO {{schema}}.checkpoints (

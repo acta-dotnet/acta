@@ -9,7 +9,8 @@ namespace Acta;
 
 /// <summary>
 /// Per-attempt <see cref="JobContext"/> supplied to handlers. Inspection fields come from the
-/// claimed row; progress, variable, and sleep operations delegate to the per-routine slice handlers.
+/// claimed row; progress, variable, and sleep operations delegate to the per-routine slice handlers. Every durable
+/// write a handler makes through it carries the attempt's <see cref="ExecutionFence"/>.
 /// </summary>
 internal sealed partial class RuntimeJobContext(
     ClaimedJob job,
@@ -31,7 +32,6 @@ internal sealed partial class RuntimeJobContext(
     StepRetryDefaults stepRetryDefaults = default,
     ILogger? log = null,
     ActaMetrics? metrics = null,
-    IJobs? jobs = null,
     string? tenantName = null,
     int workerId = 0,
     Acta.IActaClock? clock = null
@@ -52,14 +52,52 @@ internal sealed partial class RuntimeJobContext(
     private readonly StepRetryDefaults _stepRetryDefaults = stepRetryDefaults;
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ActaMetrics? _metrics = metrics;
-    private readonly IJobs? _jobs = jobs;
     private readonly Acta.IActaClock? _clock = clock;
+    private int _fenced;
 
     /// <summary>
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
     /// cancel, read by <see cref="HandlerInvocation"/> to record the timeout reason, which the retry budget then applies to.
     /// </summary>
     internal bool AttemptTimedOut => _inFlightJob?.TimedOut ?? false;
+
+    /// <summary>
+    /// Whether a write found the job no longer held by this attempt. It never clears, and the executor writes no
+    /// completion for a fenced attempt, however its handler ended.
+    /// </summary>
+    internal bool Fenced => Volatile.Read(ref _fenced) == 1;
+
+    private ExecutionFence Fence => new(JobId, ExecutionNumber, WorkerId);
+
+    /// <summary>
+    /// Sends one handler-originated write, which carries <see cref="Fence"/>. A refusal marks the attempt fenced and
+    /// cancels its token, and every write after it is refused here without reaching the database.
+    /// </summary>
+    private async Task<T> FencedAsync<T>(Func<Task<T>> write)
+    {
+        if (Fenced)
+        {
+            throw new ExecutionFencedException($"Job {JobId} attempt {ExecutionNumber} was already fenced out; the write was not sent.");
+        }
+
+        try
+        {
+            return await write();
+        }
+        catch (ExecutionFencedException)
+        {
+            Interlocked.Exchange(ref _fenced, 1);
+            _inFlightJob?.Cancel();
+            throw;
+        }
+    }
+
+    private async Task FencedAsync(Func<Task> write) =>
+        await FencedAsync(async () =>
+        {
+            await write();
+            return true;
+        });
 
     public override long JobId { get; } = job.JobId;
     public override string JobNamespace { get; } = namespaceName;
@@ -79,7 +117,9 @@ internal sealed partial class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize("progress", payload);
-        return CheckpointSlot.SetAsync(_executionStore, JobId, CheckpointKindCode.Progress, ProgressVariableName, payload, ct);
+        return FencedAsync(() =>
+            CheckpointSlot.SetAsync(_executionStore, Fence, CheckpointKindCode.Progress, ProgressVariableName, payload, ct)
+        );
     }
 
     private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
@@ -87,7 +127,7 @@ internal sealed partial class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        return CheckpointSlot.SetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, payload, ct);
+        return FencedAsync(() => CheckpointSlot.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
     }
 
     private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct)
@@ -95,13 +135,13 @@ internal sealed partial class RuntimeJobContext(
         ValidatePayloadFormat(payload);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        return CheckpointSlot.SetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, payload, ct);
+        return FencedAsync(() => CheckpointSlot.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
     }
 
     private protected override async Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
         where T : default
     {
-        var value = await CheckpointSlot.GetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
+        var value = await CheckpointSlot.GetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
         return value is null ? (false, default) : (true, Deserialize<T>(value));
     }
 
@@ -111,7 +151,7 @@ internal sealed partial class RuntimeJobContext(
         CancellationToken ct
     )
     {
-        var existing = await CheckpointSlot.GetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
+        var existing = await CheckpointSlot.GetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
         if (existing is not null)
         {
             return Deserialize<T>(existing);
@@ -123,7 +163,9 @@ internal sealed partial class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        var stored = await CheckpointSlot.GetOrSetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, payload, ct);
+        var stored = await FencedAsync(() =>
+            CheckpointSlot.GetOrSetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct)
+        );
         return Deserialize<T>(stored);
     }
 
@@ -143,13 +185,15 @@ internal sealed partial class RuntimeJobContext(
         // reading does not - including the checkpoint write below.
         var nowUtc = await Clock().GetUtcNowAsync(ct);
         var anchor = Stopwatch.GetTimestamp();
-        var stored = await CheckpointSlot.GetOrSetAsync(
-            _executionStore,
-            JobId,
-            CheckpointKindCode.Variable,
-            name,
-            JsonSerializer().Serialize((nowUtc + timeout).Ticks),
-            ct
+        var stored = await FencedAsync(() =>
+            CheckpointSlot.GetOrSetAsync(
+                _executionStore,
+                Fence,
+                CheckpointKindCode.Variable,
+                name,
+                JsonSerializer().Serialize((nowUtc + timeout).Ticks),
+                ct
+            )
         );
         return new WaitDeadline(new DateTime(Deserialize<long>(stored), DateTimeKind.Utc), nowUtc, anchor);
     }
@@ -158,12 +202,13 @@ internal sealed partial class RuntimeJobContext(
         _clock ?? throw new InvalidOperationException("Bounded group waits need the Acta clock; this context was built without one.");
 
     private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
-        CheckpointSlot.ExistsAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
+        CheckpointSlot.ExistsAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
 
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
-        CheckpointSlot.DeleteAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
+        FencedAsync(() => CheckpointSlot.DeleteAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct));
 
-    private protected override Task ResetStateCoreAsync(CancellationToken ct) => _jobOperations.ResetJobStateAsync(JobId, ct);
+    private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
+        FencedAsync(() => _jobOperations.ResetJobStateAsync(Fence, ct));
 
     private protected override async Task SleepCoreAsync(
         string name,
@@ -174,9 +219,8 @@ internal sealed partial class RuntimeJobContext(
     )
     {
         var delaySeconds = delay is { } d ? (int)d.TotalSeconds : (int?)null;
-        var decision = await _executionStore.ArmOrConsumeSleepTimerAsync(
-            new Acta.ArmOrConsumeSleepTimerCommand(JobId, name, delaySeconds, resumeAtUtc),
-            ct
+        var decision = await FencedAsync(() =>
+            _executionStore.ArmOrConsumeSleepTimerAsync(new Acta.ArmOrConsumeSleepTimerCommand(Fence, name, delaySeconds, resumeAtUtc), ct)
         );
         switch (decision.Outcome)
         {
@@ -210,7 +254,7 @@ internal sealed partial class RuntimeJobContext(
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? CheckpointKindCode.ChildLatch
             : CheckpointKindCode.Signal;
-        var decision = await _signals.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
+        var decision = await FencedAsync(() => _signals.WaitSignalAsync(Fence, kind, name, timeoutSeconds, ct));
         return decision.Outcome switch
         {
             WaitSignalOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
@@ -270,14 +314,14 @@ internal sealed partial class RuntimeJobContext(
         return serializer.Deserialize<T>(payload);
     }
 
-    private protected override async Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
+    private protected override Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
-    ) => await Jobs().EnqueueAsync(input, options, ct);
+    ) => FencedAsync(() => _jobOperations.EnqueueChildAsync(input, options, Fence, ct).AsTask());
 
-    private protected override async Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
-        await Jobs().EnqueueAsync(request, ct);
+    private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
+        FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct).AsTask());
 
     private protected override async Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
         long childJobId,
@@ -294,9 +338,6 @@ internal sealed partial class RuntimeJobContext(
         return (true, serializer.Deserialize<TResult>(JobPayload.FromBytes(serializer.Format, row.Data.ToArray())));
     }
 
-    private IJobs Jobs() =>
-        _jobs ?? throw new InvalidOperationException("Child job operations need the IJobs facade; this context was built without one.");
-
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default
     {
@@ -311,14 +352,7 @@ internal sealed partial class RuntimeJobContext(
         // Truncated rather than rejected: the message is prose for a human reading the timeline, and
         // failing a handler's note because its sentence ran long would be a poor trade. The detail
         // payload is the part that hard-throws.
-        return _executionStore.RecordNoteAsync(
-            JobId,
-            ExecutionNumber,
-            WorkerId,
-            message.Truncate(ActaTextLimits.EventMessage)!,
-            payload,
-            ct
-        );
+        return FencedAsync(() => _executionStore.RecordNoteAsync(Fence, message.Truncate(ActaTextLimits.EventMessage)!, payload, ct));
     }
 
     private protected override async Task RaiseAlertCoreAsync(
@@ -408,13 +442,13 @@ internal sealed partial class RuntimeJobContext(
 /// <see cref="AccessCheckpointAction"/> through <see cref="ExecutionOperations.AccessCheckpointAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
 /// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
-/// and typed serialization; this op owns the durable row shape.
+/// and typed serialization; this op owns the durable row shape. Set, get-or-set, and delete land only under the fence.
 /// </summary>
 internal static class CheckpointSlot
 {
     public static Task SetAsync(
         ExecutionOperations store,
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         JobPayload payload,
@@ -422,24 +456,24 @@ internal static class CheckpointSlot
     )
     {
         EnsureWritable(payload);
-        return Run(store, AccessCheckpointAction.Set, jobId, kind, name, payload, ct);
+        return Run(store, AccessCheckpointAction.Set, fence, kind, name, payload, ct);
     }
 
     public static async Task<CheckpointValue?> GetAsync(
         ExecutionOperations store,
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         CancellationToken ct
     )
     {
-        var row = await Run(store, AccessCheckpointAction.Get, jobId, kind, name, null, ct);
+        var row = await Run(store, AccessCheckpointAction.Get, fence, kind, name, null, ct);
         return row.Found == 0 ? null : ToValue(row);
     }
 
     public static async Task<CheckpointValue> GetOrSetAsync(
         ExecutionOperations store,
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         JobPayload payload,
@@ -447,7 +481,7 @@ internal static class CheckpointSlot
     )
     {
         EnsureWritable(payload);
-        var row = await Run(store, AccessCheckpointAction.GetOrSet, jobId, kind, name, payload, ct);
+        var row = await Run(store, AccessCheckpointAction.GetOrSet, fence, kind, name, payload, ct);
         return row.Found == 0
             ? throw new InvalidOperationException("access_checkpoint get-or-set returned no stored value.")
             : ToValue(row);
@@ -455,19 +489,19 @@ internal static class CheckpointSlot
 
     public static async Task<bool> ExistsAsync(
         ExecutionOperations store,
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         CancellationToken ct
-    ) => (await Run(store, AccessCheckpointAction.Exists, jobId, kind, name, null, ct)).Found != 0;
+    ) => (await Run(store, AccessCheckpointAction.Exists, fence, kind, name, null, ct)).Found != 0;
 
     public static async Task<bool> DeleteAsync(
         ExecutionOperations store,
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         CancellationToken ct
-    ) => (await Run(store, AccessCheckpointAction.Delete, jobId, kind, name, null, ct)).Found != 0;
+    ) => (await Run(store, AccessCheckpointAction.Delete, fence, kind, name, null, ct)).Found != 0;
 
     // A variable value must carry a real payload: a non-None format with a non-zero id.
     private static void EnsureWritable(JobPayload payload)
@@ -481,14 +515,14 @@ internal static class CheckpointSlot
     private static Task<AccessCheckpointResponse> Run(
         ExecutionOperations store,
         AccessCheckpointAction action,
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         JobPayload? payload,
         CancellationToken ct
     ) =>
         store.AccessCheckpointAsync(
-            new AccessCheckpointCommand(action, jobId, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
+            new AccessCheckpointCommand(action, fence, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
             ct
         );
 

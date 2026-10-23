@@ -129,9 +129,9 @@ internal static class JobEnqueue
     }
 
     /// <summary>
-    /// Runs the routine, turning a guard's ACTA:ENQ_* rejection into <see cref="EnqueueRejectedException"/>. SQLite
-    /// RAISE carries only text, so the token lives in the message, matched anywhere because provider wrappers
-    /// prepend context such as "SQLite Error N:".
+    /// Runs the routine, turning a guard's ACTA:ENQ_* rejection into <see cref="EnqueueRejectedException"/> and a parent
+    /// fence's refusal into <see cref="ExecutionFencedException"/>. SQLite RAISE carries only text, so the token lives in
+    /// the message, matched anywhere because provider wrappers prepend context such as "SQLite Error N:".
     /// </summary>
     public static async Task<IReadOnlyList<TRow>> ExecuteAsync<TRow>(Func<Task<IReadOnlyList<TRow>>> execute)
     {
@@ -142,6 +142,10 @@ internal static class JobEnqueue
         catch (DbException ex) when (Rejection(ex) is { } rejected)
         {
             throw rejected;
+        }
+        catch (DbException ex) when (ExecutionFencedException.From(ex) is { } fenced)
+        {
+            throw fenced;
         }
     }
 

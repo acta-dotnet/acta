@@ -190,6 +190,7 @@ internal sealed class WorkerHeartbeat(
                             renewed.Add((lease.JobId, lease.ExecutionNumber));
                         }
                     }
+                    await RenewSkippedAsync(workerId, answer.Leases, renewed, ct);
                 }
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
@@ -211,6 +212,48 @@ internal sealed class WorkerHeartbeat(
         finally
         {
             _tickGate.Release();
+        }
+    }
+
+    /// <summary>How many times one beat asks again for held rows another transaction had locked.</summary>
+    internal const int SkippedRenewalRetries = 8;
+
+    /// <summary>The pause before each ask again: longer than a fenced handler write holds its job's row.</summary>
+    internal static readonly TimeSpan SkippedRenewalPause = TimeSpan.FromMilliseconds(25);
+
+    /// <summary>
+    /// Asks again, a few times within this beat, for the held rows the renewal skipped. Every handler write holds its
+    /// job's row until it commits (docs/sql-internals.md, "Execution fence"), so a handler that writes in a tight loop
+    /// would otherwise lose beat after beat until its lease deadline stopped it. Each ask skips locked rows like the
+    /// first and never waits on one; a fault is the tick's, which then moves nothing.
+    /// </summary>
+    private async Task RenewSkippedAsync(
+        int workerId,
+        IReadOnlyList<ExtendWorkerLeasesLease> leases,
+        HashSet<(long JobId, int ExecutionNumber)> renewed,
+        CancellationToken ct
+    )
+    {
+        List<(long JobId, int ExecutionNumber)> skipped = [.. leases.Where(l => !l.Renewed).Select(l => (l.JobId, l.ExecutionNumber))];
+        for (var retry = 0; retry < SkippedRenewalRetries && skipped.Count > 0; retry++)
+        {
+            await Task.Delay(SkippedRenewalPause, ct);
+            var again = await _workers.ExtendWorkerLeasesAsync(
+                new ExtendWorkerLeasesCommand(workerId, _leaseTtlSeconds, _draining, skipped, []),
+                ct
+            );
+            skipped.Clear();
+            foreach (var lease in again.Leases)
+            {
+                if (lease.Renewed)
+                {
+                    renewed.Add((lease.JobId, lease.ExecutionNumber));
+                }
+                else
+                {
+                    skipped.Add((lease.JobId, lease.ExecutionNumber));
+                }
+            }
         }
     }
 

@@ -16,13 +16,14 @@ internal sealed class SignalsOperations(RaiseSignalHandler raiseSignal, WaitSign
     /// Reads or arms the slot under a row lock: Set continues with the stored payload, an overdue or Expired
     /// slot resolves TimedOut, otherwise a Pending row exists and the job must suspend.
     /// <paramref name="timeoutSeconds"/> is the wait in database-clock seconds, stored as an absolute expiry
-    /// only when the slot is first armed; null arms an unbounded wait. Never changes the job's status.
+    /// only when the slot is first armed; null arms an unbounded wait. Never changes the job's status, and changes the
+    /// slot only while <paramref name="fence"/> holds the job.
     /// </summary>
     public Task<WaitSignalResponse> WaitSignalAsync(
-        long jobId,
+        ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         int? timeoutSeconds,
         CancellationToken ct
-    ) => waitSignal.HandleAsync(new WaitSignalCommand(jobId, kind, name, timeoutSeconds), ct);
+    ) => waitSignal.HandleAsync(new WaitSignalCommand(fence, kind, name, timeoutSeconds), ct);
 }

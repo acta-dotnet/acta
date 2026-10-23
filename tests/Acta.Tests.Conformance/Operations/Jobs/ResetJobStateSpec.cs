@@ -33,8 +33,8 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(target), ct);
 
-        await AssertSubstrateCountsAsync(Db, target, 0, ct);
-        await AssertSubstrateCountsAsync(Db, sibling, 1, ct);
+        await AssertSubstrateCountsAsync(Db, target.JobId, 0, ct);
+        await AssertSubstrateCountsAsync(Db, sibling.JobId, 1, ct);
     }
 
     [Fact(DisplayName = "One JobStateReset event is emitted with the job as its actor and no reason")]
@@ -42,13 +42,13 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var jobId = await EnqueueAsync(ct);
-        await SeedSubstrateAsync(Db, jobId, ct);
+        var job = await EnqueueAsync(ct);
+        await SeedSubstrateAsync(Db, job, ct);
 
-        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
+        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct);
 
-        var ev = await ReadSingleEventAsync(jobId, EventCode.JobStateReset, ct);
-        Assert.Equal(jobId.ToString(CultureInfo.InvariantCulture), EventDetail(ev, "actor"));
+        var ev = await ReadSingleEventAsync(job.JobId, EventCode.JobStateReset, ct);
+        Assert.Equal(job.JobId.ToString(CultureInfo.InvariantCulture), EventDetail(ev, "actor"));
         Assert.Null(EventDetail(ev, "reason"));
         Assert.Equal(0, ev.WorkerId);
     }
@@ -58,37 +58,56 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var jobId = await EnqueueAsync(ct);
-        await SeedSubstrateAsync(Db, jobId, ct);
-        await SetEventRecordingAsync(Db, jobId, eventRecording: 0, ct);
+        var job = await EnqueueAsync(ct);
+        await SeedSubstrateAsync(Db, job, ct);
+        await SetEventRecordingAsync(Db, job.JobId, eventRecording: 0, ct);
 
-        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
+        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct);
 
-        await AssertSubstrateCountsAsync(Db, jobId, 0, ct);
+        await AssertSubstrateCountsAsync(Db, job.JobId, 0, ct);
 
-        Assert.Equal(0, await CountEventsAsync(jobId, EventCode.JobStateReset, ct));
+        Assert.Equal(0, await CountEventsAsync(job.JobId, EventCode.JobStateReset, ct));
     }
 
-    private async Task<long> EnqueueAsync(CancellationToken ct)
+    [Fact(DisplayName = "A reset from an attempt that no longer holds the job is refused and clears nothing")]
+    public async Task Reset_from_a_superseded_attempt_clears_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var job = await EnqueueAsync(ct);
+        await SeedSubstrateAsync(Db, job, ct);
+        var next = await ExecutionFenceStaging.ExecutingAsync(Db, job.JobId, ct, executionNumber: job.ExecutionNumber + 1);
+
+        await Assert.ThrowsAsync<ExecutionFencedException>(() =>
+            Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct)
+        );
+
+        await AssertSubstrateCountsAsync(Db, job.JobId, 1, ct);
+        Assert.Equal(0, await CountEventsAsync(job.JobId, EventCode.JobStateReset, ct));
+        Assert.Equal(next.ExecutionNumber, (await ReadJobAsync(job.JobId, ct)).ExecutionNumber);
+    }
+
+    // A job staged Executing, as a claim leaves it, so its handler-only writes pass the execution fence.
+    private async Task<ExecutionFence> EnqueueAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
-        return enqueued.JobId;
+        return await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
     }
 
     // Populates every substrate table for one job: variable/timer/signal via their operations,
     // step via a direct insert (no op surface creates one mid-handler).
-    private async Task SeedSubstrateAsync(IDbSession db, long jobId, CancellationToken ct)
+    private async Task SeedSubstrateAsync(IDbSession db, ExecutionFence job, CancellationToken ct)
     {
         var execution = Services.GetRequiredService<ExecutionOperations>();
-        await CheckpointSlot.SetAsync(execution, jobId, CheckpointKindCode.Variable, "v.test", JobPayload.Text("x"), ct);
-        await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(jobId, "t.test", 60, null), ct);
+        await CheckpointSlot.SetAsync(execution, job, CheckpointKindCode.Variable, "v.test", JobPayload.Text("x"), ct);
+        await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(job, "t.test", 60, null), ct);
         await Services
             .GetRequiredService<SignalsOperations>()
             .RaiseSignalAsync(
-                new RaiseSignalSlot(jobId, CheckpointKindCode.Signal, "s.test", 0, null, new JobControlInput("op", null, "seed")),
+                new RaiseSignalSlot(job.JobId, CheckpointKindCode.Signal, "s.test", 0, null, new JobControlInput("op", null, "seed")),
                 ct
             );
 
@@ -96,7 +115,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
             "INSERT INTO {schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id)"
                 + " VALUES (@p_job_id, @p_name, @p_state, 1, 0)",
             ct,
-            ("@p_job_id", jobId),
+            ("@p_job_id", job.JobId),
             ("@p_name", "a.test"),
             ("@p_state", (byte)StepStatusCode.Succeeded)
         );

@@ -25,9 +25,10 @@ public sealed class JobRefContextSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
+        // A read checks no fence, so any execution of the job reads its slot.
         var seen = await CheckpointSlot.GetAsync(
             Services.GetRequiredService<ExecutionOperations>(),
-            enqueued.JobId,
+            new ExecutionFence(enqueued.JobId, 0, 0),
             CheckpointKindCode.Variable,
             "seen-ref",
             ct

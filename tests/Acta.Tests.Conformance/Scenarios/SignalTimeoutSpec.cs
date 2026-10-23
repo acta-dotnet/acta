@@ -354,9 +354,11 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
 
+        // The bounded arrival is the next execution's, so the job stands executing it.
+        var next = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct, executionNumber: 2);
         var decision = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: 900, ct);
+            .WaitSignalAsync(next, CheckpointKindCode.Signal, "go", timeoutSeconds: 900, ct);
 
         // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so
         // the job the next suspend caches it on can be claimed back at that instant.

@@ -3,6 +3,20 @@ WHERE
     @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
     AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL);
 
+-- A write lands only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:access_checkpoint: the job is no longer executing this attempt.')
+WHERE
+    @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */)
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs_state r
+        WHERE
+            r.job_id = @p_job_id
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */
+            AND r.execution_number = @p_execution_number
+            AND r.leased_by_worker_id = @p_leased_by_worker_id
+    );
+
 INSERT INTO {{schema}}.checkpoints (
     job_id, checkpoint_kind_code, checkpoint_name,
     value_format_id, value

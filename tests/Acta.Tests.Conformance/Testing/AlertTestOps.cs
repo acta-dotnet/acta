@@ -92,7 +92,12 @@ internal static class AlertTestOps
             Drain = drain ?? AlertsJob.DefaultDrain,
         };
 
-        await alertsJob.Handle(BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId), ct);
+        await AsExecutionAsync(
+            services,
+            cursorOwnerJobId,
+            fence => alertsJob.Handle(BuildAlertsContext(services, jobNamespace, namespaceId, fence), ct),
+            ct
+        );
     }
 
     /// <summary>
@@ -161,7 +166,8 @@ internal static class AlertTestOps
         long cursorOwnerJobId,
         CancellationToken ct
     ) =>
-        BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
+        // A read checks no fence, so the stand-in reads the slot without standing executing.
+        BuildAlertsContext(services, jobNamespace, namespaceId, new ExecutionFence(cursorOwnerJobId, 0, 0))
             .GetVariableOrDefaultAsync(AlertsJob.CursorVariableName, new AlertsCursor(0L, 0L), ct);
 
     /// <summary>
@@ -182,8 +188,14 @@ internal static class AlertTestOps
     {
         var row = await services.GetRequiredService<IDbSession>().From<EventEntity>().Where(e => e.Id == cursorEventId).ToListAsync(ct);
         var ticks = row.Count == 1 ? DateTime.SpecifyKind(row[0].CreatedAtUtc, DateTimeKind.Utc).Ticks : 0L;
-        await BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
-            .SetVariableAsync(AlertsJob.CursorVariableName, new AlertsCursor(ticks, cursorEventId), ct);
+        await AsExecutionAsync(
+            services,
+            cursorOwnerJobId,
+            fence =>
+                BuildAlertsContext(services, jobNamespace, namespaceId, fence)
+                    .SetVariableAsync(AlertsJob.CursorVariableName, new AlertsCursor(ticks, cursorEventId), ct),
+            ct
+        );
     }
 
     /// <summary>
@@ -201,12 +213,23 @@ internal static class AlertTestOps
         long jobId = 0,
         long ticks = 0
     ) =>
-        BuildAlertsContext(services, jobNamespace, namespaceId, slotJobId)
-            .SetVariableAsync(
-                SkipVariableName(eventId),
-                new PoisonAlertEvent(eventId, jobId, ticks).Record(jobNamespace, "unknown-job", nameof(ArgumentException), "staged"),
-                ct
-            );
+        AsExecutionAsync(
+            services,
+            slotJobId,
+            fence =>
+                BuildAlertsContext(services, jobNamespace, namespaceId, fence)
+                    .SetVariableAsync(
+                        SkipVariableName(eventId),
+                        new PoisonAlertEvent(eventId, jobId, ticks).Record(
+                            jobNamespace,
+                            "unknown-job",
+                            nameof(ArgumentException),
+                            "staged"
+                        ),
+                        ct
+                    ),
+            ct
+        );
 
     /// <summary>The projector's variable name for one skipped event, from the projector's own prefix.</summary>
     public static string SkipVariableName(long eventId) =>
@@ -269,20 +292,20 @@ internal static class AlertTestOps
     }
 
     // A JobContext standing in for the sys.alerts slot: the projector reads ctx.NamespaceId / JobNamespace
-    // and stores the cursor variable as a checkpoints row keyed by the supplied (real) job's id.
+    // and stores the cursor variable as a checkpoints row keyed by the supplied (real) job's id, under its fence.
     private static RuntimeJobContext BuildAlertsContext(
         IServiceProvider services,
         string jobNamespace,
         int namespaceId,
-        long cursorOwnerJobId
+        ExecutionFence owner
     )
     {
         var slot = new ClaimedJob(
-            JobId: cursorOwnerJobId,
+            JobId: owner.JobId,
             JobRef: Guid.Empty,
             DefinitionId: 1,
             TenantId: null,
-            ExecutionNumber: 1,
+            ExecutionNumber: owner.ExecutionNumber,
             DeduplicationKey: null,
             CorrelationKey: null,
             ConcurrencyKey: null,
@@ -307,8 +330,66 @@ internal static class AlertTestOps
             locks: services.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
-            deadlineAtUtc: null
+            deadlineAtUtc: null,
+            workerId: owner.WorkerId
         );
+    }
+
+    // The projector writes its checkpoints as the sys.alerts slot's own attempt does, under the execution fence, so a
+    // stand-in pass runs with the owner job standing executing a stand-in attempt, and its row goes back as it was
+    // found: restored, or removed when a seeded owner had none. No alert operation reads jobs_state, so the pass
+    // projects what it would have.
+    private static async Task AsExecutionAsync(
+        IServiceProvider services,
+        long ownerJobId,
+        Func<ExecutionFence, Task> pass,
+        CancellationToken ct
+    )
+    {
+        var db = services.GetRequiredService<IDbSession>();
+        var found = await db.From<JobStateEntity>().Where(r => r.Id == ownerJobId).SingleOrDefaultAsync(ct);
+        if (found is null)
+        {
+            try
+            {
+                await pass(await ExecutionFenceStaging.ExecutingAsync(db, ownerJobId, ct));
+            }
+            finally
+            {
+                await db.From<JobStateEntity>().Where(r => r.Id == ownerJobId).DeleteAsync(ct);
+            }
+            return;
+        }
+
+        var (status, worker, leaseExpires, resultFormat, result) = (
+            found.Status,
+            found.LeasedByWorkerId,
+            found.LeaseExpiresAtUtc,
+            found.ResultFormatId,
+            found.Result
+        );
+        var fence = await ExecutionFenceStaging.ExecutingAsync(db, ownerJobId, ct, executionNumber: found.ExecutionNumber);
+        try
+        {
+            await pass(fence);
+        }
+        finally
+        {
+            await db.From<JobStateEntity>()
+                .Where(r => r.Id == ownerJobId)
+                .UpdateOnlyAsync(
+                    () =>
+                        new JobStateEntity
+                        {
+                            Status = status,
+                            LeasedByWorkerId = worker,
+                            LeaseExpiresAtUtc = leaseExpires,
+                            ResultFormatId = resultFormat,
+                            Result = result,
+                        },
+                    ct
+                );
+        }
     }
 
     /// <summary>

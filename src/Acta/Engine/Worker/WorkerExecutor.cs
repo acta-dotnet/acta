@@ -118,7 +118,8 @@ internal sealed class WorkerExecutor(
     /// <summary>
     /// Runs one held entry up to its completion: true once the entry carries its completion and is Finalizing, for the
     /// finalizer to write; false after removing an entry that completes nothing here, because its row is gone, its
-    /// start was refused, or the worker stopped mid-handler, which leaves the row Executing for recovery. A claim
+    /// start was refused, a handler write found the row held by another execution, or the worker stopped mid-handler,
+    /// which leaves the row Executing for recovery. A claim
     /// whose definition this deployment carries no descriptor for completes as a hand-back, because claims are by
     /// namespace and a worker is therefore free to claim work it cannot run.
     /// </summary>
@@ -329,7 +330,6 @@ internal sealed class WorkerExecutor(
             ),
             _log,
             metrics,
-            attemptServices.GetService<IJobs>(),
             tenantName,
             workerId,
             clock

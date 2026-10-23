@@ -1,6 +1,8 @@
 CREATE OR REPLACE FUNCTION {{schema}}.access_checkpoint(
     p_action SMALLINT,
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
     p_value_format_id SMALLINT,
@@ -15,6 +17,24 @@ BEGIN
     IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
        AND (p_value_format_id = 0 /* JobPayloadFormat.None */ OR p_value IS NULL) THEN
         RAISE EXCEPTION 'Variable payload must use a non-zero format id and non-NULL value.';
+    END IF;
+
+    -- A write lands only while this attempt holds the job's row, which stays share-locked to commit
+    -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
+    IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */) THEN
+        PERFORM 1
+        FROM {{schema}}.jobs_state r
+        WHERE
+            r.job_id = p_job_id
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */
+            AND r.execution_number = p_execution_number
+            AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+        FOR SHARE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:access_checkpoint: job % is no longer executing attempt %.', p_job_id, p_execution_number
+                USING ERRCODE = 'P0001';
+        END IF;
     END IF;
 
     IF p_action = 10 /* AccessCheckpointAction.Set */ THEN

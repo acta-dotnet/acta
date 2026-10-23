@@ -75,6 +75,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 
 ### Fixes
 
+- A handler write from an attempt that no longer holds its job changes nothing. Checkpoints of every kind, waits, timers, steps, notes, a state reset, and a child start each check the job is still executing that attempt on that worker, under a lock on its `jobs_state` row held to commit. Before, an attempt cancelled, restarted, or reclaimed under a running handler could overwrite the next execution's variables or mark its at-most-once step Interrupted until the next heartbeat stopped it. A refused attempt now stops as a lost lease does, with no completion and no retry charged, and a note from it is no longer recorded.
 - Typed `RunAndWaitAsync` reads the result of the execution it saw succeed. After a restart whose second result was too large to store, it returned the first execution's result; now it throws.
 - Typed `ExecuteChildAsync` reads the result of the child execution that released the parent, and throws when that execution stored none. It returned an older execution's result after a restart, and a value-type default such as 0 for a child that stored no result.
 - On SQLite, the recovery pass's lane repair seeks the lanes primary key instead of scanning and sorting every lane inside the write transaction.

@@ -146,27 +146,35 @@ public sealed class AccessCheckpointSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Empty(await SlotsAsync(job, ct));
     }
 
-    private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
+    // A job staged Executing, as a claim leaves it, so the slot writes pass the execution fence.
+    private async Task<ExecutionFence> EnqueueAsync(CancellationToken ct) =>
+        await ExecutionFenceStaging.ExecutingAsync(
+            Db,
+            (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId,
+            ct
+        );
 
     private static byte[] Value(string text) => Encoding.UTF8.GetBytes($"\"{text}\"");
 
     private static AccessCheckpointCommand Command(
         AccessCheckpointAction action,
-        long jobId,
+        ExecutionFence job,
         string name,
         byte[]? value,
         CheckpointKindCode kind = CheckpointKindCode.Variable
-    ) => new(action, jobId, kind, name, value is null ? (byte)0 : Json, value);
+    ) => new(action, job, kind, name, value is null ? (byte)0 : Json, value);
 
     private Task<AccessCheckpointResponse> SlotAsync(
         AccessCheckpointAction action,
-        long jobId,
+        ExecutionFence job,
         string name,
         byte[]? value,
         CancellationToken ct
-    ) => Execution.AccessCheckpointAsync(Command(action, jobId, name, value), ct);
+    ) => Execution.AccessCheckpointAsync(Command(action, job, name, value), ct);
 
-    private Task<IReadOnlyList<CheckpointEntity>> SlotsAsync(long jobId, CancellationToken ct) =>
-        Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct);
+    private Task<IReadOnlyList<CheckpointEntity>> SlotsAsync(ExecutionFence job, CancellationToken ct)
+    {
+        var jobId = job.JobId;
+        return Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct);
+    }
 }

@@ -1,3 +1,15 @@
+-- The step changes only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:complete_step: the job is no longer executing this attempt.')
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = @p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = @p_execution_number
+        AND r.leased_by_worker_id = @p_leased_by_worker_id
+);
+
 UPDATE {{schema}}.steps
 SET
     step_status_code = CASE

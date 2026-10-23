@@ -1,4 +1,4 @@
 namespace Acta;
 
-/// <summary>The job whose durable step and checkpoint state to clear.</summary>
-internal sealed record ResetJobStateCommand(long JobId);
+/// <summary>The attempt whose job's durable step and checkpoint state to clear, under that attempt's fence.</summary>
+internal sealed record ResetJobStateCommand(ExecutionFence Fence);

@@ -1,6 +1,8 @@
 CREATE OR ALTER PROCEDURE {{schema}}.access_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
     @p_value_format_id TINYINT,
@@ -30,6 +32,22 @@ BEGIN
                 EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
                 IF @slot_lock_result < 0
                     THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+            END
+
+        -- A write lands only while this attempt holds the job's row, update-locked to commit after the slot lock
+        -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
+        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */)
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+                    WHERE
+                        r.job_id = @p_job_id
+                        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                        AND r.execution_number = @p_execution_number
+                        AND r.leased_by_worker_id = @p_leased_by_worker_id
+                )
+                    THROW 50012, 'ACTA:EXECUTION_FENCED:access_checkpoint: the job is no longer executing this attempt.', 1;
             END
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();

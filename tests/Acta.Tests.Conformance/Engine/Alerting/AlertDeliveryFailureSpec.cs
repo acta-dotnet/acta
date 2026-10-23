@@ -537,9 +537,15 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     // long-lived one a retention pass can have purged it.
     private long? _slotJobId;
 
+    // The stand-in slot stands executing its first attempt, so the projector's checkpoint writes pass the execution fence.
     private async Task<RuntimeJobContext> BuildAlertsCtxAsync(CancellationToken ct)
     {
-        _slotJobId ??= (await Seeder.SeedJobAsync(TestNamespaceId, ct: ct)).JobId;
+        if (_slotJobId is null)
+        {
+            _slotJobId = (await Seeder.SeedJobAsync(TestNamespaceId, ct: ct)).JobId;
+            await ExecutionFenceStaging.ExecutingAsync(Db, _slotJobId.Value, ct);
+        }
+
         var slot = new ClaimedJob(
             JobId: _slotJobId.Value,
             JobRef: Guid.Empty,
@@ -569,7 +575,8 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             locks: Services.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
-            deadlineAtUtc: null
+            deadlineAtUtc: null,
+            workerId: JobStateStaging.StagedWorkerId
         );
     }
 

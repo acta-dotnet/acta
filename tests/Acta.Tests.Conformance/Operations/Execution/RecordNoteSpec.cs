@@ -10,19 +10,18 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     "jobs.note",
     "A handler writes application-authored notes onto the job's own timeline",
     Area = "Execution",
-    Contract = "ctx.NoteAsync appends a job.note-recorded event on the job carrying the message, the optional JSON details, and the attempt and worker that wrote it."
+    Contract = "ctx.NoteAsync appends a job.note-recorded event with the message, optional JSON details, and the writing attempt and worker, while that attempt holds the job."
 )]
 public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "A note for an unknown job throws the stable marker before committing")]
-    public async Task Unknown_job_is_rejected()
+    [Fact(DisplayName = "A note for an unknown job is refused like one from an attempt that no longer holds its job")]
+    public async Task Unknown_job_is_refused()
     {
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<ExecutionFencedException>(() =>
             Services
                 .GetRequiredService<ExecutionOperations>()
-                .RecordNoteAsync(-1, 1, 0, "unknown", null, TestContext.Current.CancellationToken)
+                .RecordNoteAsync(new ExecutionFence(-1, 1, 0), "unknown", null, TestContext.Current.CancellationToken)
         );
-        Assert.Contains("ACTA:NOTE_UNKNOWN_JOB:", error.Message);
     }
 
     [Fact(DisplayName = "NoteAsync appends job.note-recorded events carrying the message and the optional detail payload")]
@@ -69,36 +68,29 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.All(notes, note => Assert.Equal(finished.WorkerId, note.WorkerId));
     }
 
-    [Fact(DisplayName = "A note is filed under the attempt that wrote it, not the attempt its jobs_state row has reached")]
-    public async Task Note_is_filed_under_the_authoring_attempt()
+    [Fact(DisplayName = "A note from an attempt the row has moved past is refused, and the current attempt's note is filed under it")]
+    public async Task Note_from_a_superseded_attempt_is_refused()
     {
         var ct = TestContext.Current.CancellationToken;
+        var execution = Services.GetRequiredService<ExecutionOperations>();
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-note", ct);
 
-        // The row moves on underneath a running handler: a lapsed lease is reclaimed as the next
-        // attempt, and cancellation reaches a handler that ignores its token late or never. Standing
-        // the row at 8 while attempt 7 writes is that race with the timing taken out of it.
-        Assert.Equal(
-            1,
-            await Db.ExecuteRawAsync(
-                "UPDATE {schema}.jobs_state SET execution_number = 8 WHERE job_id = @p_id",
-                ct,
-                ("@p_id", enqueued.JobId)
-            )
-        );
+        // The row moves on underneath a running handler: a lapsed lease is reclaimed as the next attempt, and
+        // cancellation reaches a handler that ignores its token late or never. Standing the row at 8 while attempt 7
+        // writes is that race with the timing taken out of it.
+        var current = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct, executionNumber: 8);
 
-        await Services.GetRequiredService<ExecutionOperations>().RecordNoteAsync(enqueued.JobId, 7, 0, "late note", null, ct);
+        await Assert.ThrowsAsync<ExecutionFencedException>(() =>
+            execution.RecordNoteAsync(current with { ExecutionNumber = 7 }, "late note", null, ct)
+        );
+        await execution.RecordNoteAsync(current, "current note", null, ct);
 
         var events = await Operations.Ledger.ListEventsAsync(
             new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
             ct
         );
-
         var note = Assert.Single(events.Items);
-        Assert.Equal("late note", note.Message);
-        Assert.Equal(7, note.ExecutionNumber);
-
-        var runtime = Assert.Single(await Db.From<JobStateEntity>().Where(r => r.Id == enqueued.JobId).ToListAsync(ct));
-        Assert.Equal(8, runtime.ExecutionNumber);
+        Assert.Equal("current note", note.Message);
+        Assert.Equal(8, note.ExecutionNumber);
     }
 }

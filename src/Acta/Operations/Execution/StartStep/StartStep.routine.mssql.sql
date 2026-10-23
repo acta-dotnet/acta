@@ -1,5 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.start_step
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_step_name VARCHAR(128),
     @p_at_most_once BIT
 AS
@@ -33,6 +35,19 @@ BEGIN
         EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
         IF @step_lock_result < 0
             THROW 51205, 'ACTA:SLOT_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit after the step lock
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:start_step: the job is no longer executing this attempt.', 1;
 
         SELECT
             @state = step_status_code,

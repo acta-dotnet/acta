@@ -1,5 +1,7 @@
 CREATE OR ALTER PROCEDURE {{schema}}.complete_step
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_step_name VARCHAR(128),
     @p_succeeded BIT,
     @p_result_format_id TINYINT,
@@ -25,6 +27,19 @@ BEGIN
         DECLARE @created DATETIME2(3);
         DECLARE @next DATETIME2(3);
         DECLARE @outcome SMALLINT;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit before the step row
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:complete_step: the job is no longer executing this attempt.', 1;
 
         SELECT
             @attempt = attempt_number,

@@ -42,13 +42,15 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
 
         await Operations.Tags.UpsertAsync(TagTarget.ForJob(JobLookup.ById(jobId)), new TagInput("retention", "job"), ct: ct);
-        // A step and a checkpoint: no key cascades them, so the delete has to name each table.
+        // A step and a checkpoint: no key cascades them, so the delete has to name each table. They are written as a
+        // handler writes them, under the execution fence of an attempt the job stands executing, then it is finished again.
         var execution = Services.GetRequiredService<ExecutionOperations>();
-        await execution.StartStepAsync(jobId, "seed-step", atMostOnce: false, ct);
+        var fence = await ExecutionFenceStaging.ExecutingAsync(Db, jobId, ct);
+        await execution.StartStepAsync(fence, "seed-step", atMostOnce: false, ct);
         await execution.AccessCheckpointAsync(
             new AccessCheckpointCommand(
                 AccessCheckpointAction.Set,
-                jobId,
+                fence,
                 CheckpointKindCode.Variable,
                 "seed-variable",
                 JobPayloadFormat.Json.Id,
@@ -56,6 +58,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             ),
             ct
         );
+        await JobStateStaging.SetStatusAsync(Db, jobId, JobStatusCode.Succeeded, ct);
 
         // Drain rather than assert a single call deletes it: one sweep can pass an eligible row over
         // (contended under READPAST, or stamped a rounded fraction of a millisecond into the future).

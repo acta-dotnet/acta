@@ -17,16 +17,30 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 {
     private SignalsOperations Slots => Services.GetRequiredService<SignalsOperations>();
 
+    // The wait of the execution EnqueueAsync stages.
     private Task<WaitSignalResponse> WaitAsync(long jobId, string name, int? timeoutSeconds, CancellationToken ct) =>
-        Slots.WaitSignalAsync(jobId, CheckpointKindCode.Signal, name, timeoutSeconds, ct);
+        Slots.WaitSignalAsync(
+            new ExecutionFence(jobId, 1, JobStateStaging.StagedWorkerId),
+            CheckpointKindCode.Signal,
+            name,
+            timeoutSeconds,
+            ct
+        );
 
     private async Task<CheckpointEntity> ReadSlotAsync(long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
         Assert.Single(
             await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == kind && c.CheckpointName == name).ToListAsync(ct)
         );
 
+    // A job staged Executing, as a claim leaves it, so the wait passes the execution fence.
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct)).JobId;
+        (
+            await ExecutionFenceStaging.ExecutingAsync(
+                Db,
+                (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct)).JobId,
+                ct
+            )
+        ).JobId;
 
     [Fact(DisplayName = "A first wait arms a Pending slot and answers SuspendPending without touching the job")]
     public async Task First_wait_arms_a_pending_slot()

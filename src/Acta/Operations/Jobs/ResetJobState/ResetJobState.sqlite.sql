@@ -1,3 +1,15 @@
+-- The reset clears nothing unless the attempt still holds the job's row (docs/sql-internals.md, "Execution fence").
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:reset_job_state: the job is no longer executing this attempt.')
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = @p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = @p_execution_number
+        AND r.leased_by_worker_id = @p_leased_by_worker_id
+);
+
 -- The job's own handler asked for the reset, so the job id is the actor; digits need no JSON escaping.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
@@ -28,3 +40,5 @@ DELETE FROM {{schema}}.checkpoints
 WHERE job_id = @p_job_id;
 DELETE FROM {{schema}}.steps
 WHERE job_id = @p_job_id;
+
+SELECT 1 AS applied;

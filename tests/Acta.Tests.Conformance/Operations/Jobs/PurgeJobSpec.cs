@@ -47,13 +47,15 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         );
         Assert.NotEmpty(await JobEventsAsync(completed.JobId, ct));
         Assert.NotEmpty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
-        // A step and a checkpoint: no key cascades them, so the delete has to name each table.
+        // A step and a checkpoint: no key cascades them, so the delete has to name each table. They are written as a
+        // handler writes them, under the execution fence of an attempt the job stands executing, then it is finished again.
         var execution = Services.GetRequiredService<ExecutionOperations>();
-        await execution.StartStepAsync(completed.JobId, "seed-step", atMostOnce: false, ct);
+        var fence = await ExecutionFenceStaging.ExecutingAsync(Db, completed.JobId, ct);
+        await execution.StartStepAsync(fence, "seed-step", atMostOnce: false, ct);
         await execution.AccessCheckpointAsync(
             new AccessCheckpointCommand(
                 AccessCheckpointAction.Set,
-                completed.JobId,
+                fence,
                 CheckpointKindCode.Variable,
                 "seed-variable",
                 JobPayloadFormat.Json.Id,
@@ -61,6 +63,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             ),
             ct
         );
+        await JobStateStaging.SetStatusAsync(Db, completed.JobId, JobStatusCode.Succeeded, ct);
 
         var result = await Jobs.PurgeAsync(completed, "spec-actor", ct);
 

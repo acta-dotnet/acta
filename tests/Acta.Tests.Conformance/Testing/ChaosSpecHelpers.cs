@@ -29,8 +29,9 @@ internal static class ChaosSpecHelpers
     /// <summary>
     /// Leaves the job as a worker that died mid-handler leaves it: claimed straight to Executing under a
     /// lease already lapsed. Recovery charges this attempt; a claim that never started is reclaimed uncharged.
+    /// Answers the fence the lost attempt's writes carried.
     /// </summary>
-    public static async Task StrandExecutingAsync(
+    public static async Task<ExecutionFence> StrandExecutingAsync(
         IServiceProvider services,
         int namespaceId,
         int workerId,
@@ -41,7 +42,9 @@ internal static class ChaosSpecHelpers
         var claim = await services
             .GetRequiredService<ExecutionOperations>()
             .ClaimJobAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), leaseTtlSeconds: -5, jobId, ct);
-        Assert.Equal(jobId, Assert.Single(claim.Jobs).JobId);
+        var claimed = Assert.Single(claim.Jobs);
+        Assert.Equal(jobId, claimed.JobId);
+        return new ExecutionFence(jobId, claimed.ExecutionNumber, workerId);
     }
 
     public static async Task SetReadyAsync(IDbSession db, long jobId, CancellationToken ct)

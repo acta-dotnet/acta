@@ -8,6 +8,18 @@
    final SELECT reports it settled. */
 /* A wait this call armed suspends once, even with an already-elapsed deadline: the flip runs before
    the arm, so only a wait armed by an earlier call can expire. Pg and mssql state the same rule. */
+-- The wait changes the slot only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:wait_signal: the job is no longer executing this attempt.')
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = @p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = @p_execution_number
+        AND r.leased_by_worker_id = @p_leased_by_worker_id
+);
+
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,

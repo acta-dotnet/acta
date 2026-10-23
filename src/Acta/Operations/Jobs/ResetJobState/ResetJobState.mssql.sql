@@ -21,8 +21,14 @@ BEGIN TRY
         @event_recording = j.event_recording_code
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
-    WHERE r.job_id = @p_job_id;
+    WHERE
+        r.job_id = @p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = @p_execution_number
+        AND r.leased_by_worker_id = @p_leased_by_worker_id;
 
+    -- The reset clears nothing unless the attempt still holds the row, update-locked to commit (docs/sql-internals.md,
+    -- "Execution fence"); the answer says which.
     IF @status IS NULL
         BEGIN
 
@@ -55,6 +61,8 @@ BEGIN TRY
         END
 
 Finish:
+
+    SELECT CASE WHEN @status IS NULL THEN 0 ELSE 1 END AS applied;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

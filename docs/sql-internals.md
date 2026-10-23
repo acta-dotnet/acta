@@ -115,8 +115,9 @@ LOCKED` on PostgreSQL) and answers each pair it still finds leased by the worker
 with a flag saying whether it was renewed. A child's completion locks its own `jobs_state` row and then
 its parent's, the reverse of `job_id` order, so a renewal that waited on either would deadlock with it
 when one worker runs both. The caller cancels an attempt only when its pair is not answered, and
-moves its lease deadline only when the row was renewed; a skipped row is renewed on the next beat,
-well inside the lease window. The lock holds renew first and without skipping, then the `jobs_state` rows with
+moves its lease deadline only when the row was renewed. A handler write holds its job's row to commit
+("Execution fence"), so the worker asks again for a skipped row a few times within the beat, each ask skipping like
+the first; a row still skipped is renewed on the next beat, well inside the lease window. The lock holds renew first and without skipping, then the `jobs_state` rows with
 skipping, so the routine never waits on a `jobs_state` row while it holds a `locks` row. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
@@ -132,7 +133,8 @@ exception, taking the
 signal raise on the same job acquires the two in opposite orders. No deadlock graph has ever shown
 that pair, and it is not reachable while both hold row locks on different slots, so the mutex stays
 until a run demonstrates otherwise; removing it would drop the serialization that two different timer
-names on one job rely on.
+names on one job rely on. A handler's own writes lock the job's row in the orders "Execution fence" gives, which keep
+to these on every slot another writer touches.
 
 ### Foreign keys in set-based writes
 
@@ -246,6 +248,34 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
 The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `jobs_state` row first.
+
+### Execution fence
+
+A write a handler makes through its context lands only while its attempt holds the job. The context carries the
+attempt's fence, the job id, execution number, and worker, into every such write, and the write checks that the job's
+`jobs_state` row is `Executing` under that execution and worker, under a lock held to commit, in the transaction that
+writes. A cancel, restart, reclaim, completion, or claim that moves the row waits for the write, and a write that waits
+for one of them reads the row it left and is refused. Execution numbers only grow, so a worker's next execution fences
+out its last one as any other worker's would.
+
+- PostgreSQL locks the row `FOR SHARE`, and `FOR UPDATE` in `arm_or_consume_sleep_timer`, whose job-level mutex it
+  already was. SQL Server locks it `UPDLOCK, ROWLOCK` by primary key, a lock on the existing key and never a range.
+  SQLite checks it in the first statement of its one writer transaction.
+- On SQL Server the lock comes after the slot or step lock above and before the slot or step row. On PostgreSQL
+  `wait_signal` locks a stored slot row and then the job row, and the job row before it inserts an absent slot: the
+  orders `raise_signal` and a child's landing take. The variable, progress, and step writes lock the job row first, as
+  `ResetJobState`, `PurgeJob`, `RestartJob`, and retention's job sweep do before they delete such rows, and no other
+  path writes them. A child's enqueue locks its parent's row after the lanes and the parent's `jobs` row.
+- Fenced: `access_checkpoint` Set, GetOrSet, and Delete (variables, progress, a group wait's deadline),
+  `arm_or_consume_sleep_timer`, `wait_signal` (signals and child latches), `start_step`, `complete_step`,
+  `RecordNote`, `ResetJobState`, and `enqueue_job` for a child its parent's handler starts. Not fenced: reads; a
+  handler's alerts, which tell an operator what the handler saw; lock and concurrency-slot holds and rate turns, which
+  are leases on their own keys; and a timed-out child's cancel, which only a fenced wait leads to. Operator verbs are
+  another authority and take no fence.
+- A refused routine raises `ACTA:EXECUTION_FENCED:`, and `RecordNote` and `ResetJobState` answer that they wrote
+  nothing. The context then marks the attempt fenced, cancels its token, and refuses its later writes without a round
+  trip, and the executor ends the attempt as it ends a lost lease: no completion and no retry charged.
+  `complete_step`'s version check stays as a second guard.
 
 ### Claim watermark
 

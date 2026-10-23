@@ -56,6 +56,15 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<int> WorkerId = new("p_worker_id", DbKind.Int32);
 
         /// <summary>
+        /// enqueue_job's parent fence: the execution number and worker of the parent attempt starting the child, both
+        /// NULL for an enqueue no handler makes. Set, they hold the insert to that attempt (docs/sql-internals.md,
+        /// "Execution fence").
+        /// </summary>
+        public static readonly DbValueSpec<int?> ParentExecutionNumber = new("p_parent_execution_number", DbKind.Int32);
+
+        public static readonly DbValueSpec<int?> ParentWorkerId = new("p_parent_worker_id", DbKind.Int32);
+
+        /// <summary>
         /// extend_worker_leases drain flag: true flips an Active worker to Draining as the heartbeat
         /// refreshes its leases, so a graceful stop surfaces the draining phase without a dedicated routine.
         /// </summary>

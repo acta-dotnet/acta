@@ -1,3 +1,15 @@
+-- The timer changes only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: the job is no longer executing this attempt.')
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = @p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = @p_execution_number
+        AND r.leased_by_worker_id = @p_leased_by_worker_id
+);
+
 DROP TABLE IF EXISTS temp._due_timer;
 
 CREATE TEMP TABLE _due_timer AS

@@ -42,10 +42,10 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         // The claim the deadline earned, and then the last thing the lost worker durably did: the same
         // routine its replayed handler calls, flipping the overdue slot to Expired. Everything after
         // that - the throw, the completion - died with the process.
-        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
+        var lost = await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
+            .WaitSignalAsync(lost, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
@@ -196,10 +196,10 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
-        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
+        var lost = await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
+            .WaitSignalAsync(lost, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);

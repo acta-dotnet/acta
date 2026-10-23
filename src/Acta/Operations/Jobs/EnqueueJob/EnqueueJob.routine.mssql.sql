@@ -17,7 +17,9 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
     @p_tenant_name VARCHAR(128) = NULL,
     @p_tenant_override BIT = 0,
     @p_tags {{schema}}.enqueue_tags READONLY,
-    @p_lane_name VARCHAR(128) = NULL
+    @p_lane_name VARCHAR(128) = NULL,
+    @p_parent_execution_number INT = NULL,
+    @p_parent_worker_id INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -193,6 +195,22 @@ BEGIN
                 WHERE
                     pj.job_id = @p_parent_job_id
                     AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+                -- A child its parent's handler starts lands only while that attempt holds the parent's row, update-locked
+                -- to commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
+                IF @p_parent_execution_number IS NOT NULL
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.jobs_state fr WITH (UPDLOCK, ROWLOCK)
+                            WHERE
+                                fr.job_id = @p_parent_job_id
+                                AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+                                AND fr.execution_number = @p_parent_execution_number
+                                AND fr.leased_by_worker_id = @p_parent_worker_id
+                        )
+                            THROW 50012, 'ACTA:EXECUTION_FENCED:enqueue_job: the parent job is no longer executing this attempt.', 1;
+                    END;
 
                 IF @lineage IS NULL
                     BEGIN

@@ -57,12 +57,12 @@ internal sealed class ExecutionOperations(
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
 
     /// <summary>
-    /// Reads or inserts the <c>(job_id, name)</c> step slot under a job-row lock and decides
+    /// Reads or inserts the <c>(job_id, name)</c> step slot under the attempt's fence and decides
     /// invoke / replay / suspend / exhausted / interrupted, incrementing <c>attempt_number</c> before a
     /// retry invoke. Never mutates job status.
     /// </summary>
-    public Task<StartStepResponse> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
-        startStep.HandleAsync(new StartStepCommand(jobId, name, atMostOnce), ct);
+    public Task<StartStepResponse> StartStepAsync(ExecutionFence fence, string name, bool atMostOnce, CancellationToken ct) =>
+        startStep.HandleAsync(new StartStepCommand(fence, name, atMostOnce), ct);
 
     /// <summary>
     /// Records one invoked step attempt's outcome (store result + mark Succeeded, or decide
@@ -81,14 +81,12 @@ internal sealed class ExecutionOperations(
         accessCheckpoint.HandleAsync(command, ct);
 
     /// <summary>
-    /// Appends one application-authored <c>job.note-recorded</c> event. Every other event rides inside the transition it
-    /// describes, so none claims a transition that did not commit; a note claims nothing but itself. The caller supplies
-    /// the attempt and its own worker: a lapsed lease can be reclaimed as the next attempt while the handler still runs
-    /// (cancellation reaches it asynchronously, and a handler that ignores its token never sees it), so reading the
-    /// <c>jobs_state</c> row would file the note under the attempt, and the worker, that replaced its author.
+    /// Appends one application-authored <c>job.note-recorded</c> event under the attempt and worker of
+    /// <paramref name="fence"/>, and only while that attempt still holds the job. Every other event rides inside the
+    /// transition it describes, so none claims a transition that did not commit; a note claims nothing but itself.
     /// </summary>
-    public Task RecordNoteAsync(long jobId, int executionNumber, int workerId, string message, JobPayload? detail, CancellationToken ct) =>
-        recordNote.HandleAsync(new RecordNoteCommand(jobId, executionNumber, workerId, message, detail), ct);
+    public Task RecordNoteAsync(ExecutionFence fence, string message, JobPayload? detail, CancellationToken ct) =>
+        recordNote.HandleAsync(new RecordNoteCommand(fence, message, detail), ct);
 
     /// <summary>
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the

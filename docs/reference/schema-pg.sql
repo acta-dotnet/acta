@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261023181239_init')
+        WHERE name NOT IN ('M20261023210310_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261023181239_init =====
+-- ===== BEGIN M20261023210310_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -432,6 +432,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_workers_ref ON acta.workers (worker_ref);
 CREATE OR REPLACE FUNCTION acta.access_checkpoint(
     p_action SMALLINT,
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
     p_value_format_id SMALLINT,
@@ -446,6 +448,24 @@ BEGIN
     IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
        AND (p_value_format_id = 0 /* JobPayloadFormat.None */ OR p_value IS NULL) THEN
         RAISE EXCEPTION 'Variable payload must use a non-zero format id and non-NULL value.';
+    END IF;
+
+    -- A write lands only while this attempt holds the job's row, which stays share-locked to commit
+    -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
+    IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */) THEN
+        PERFORM 1
+        FROM acta.jobs_state r
+        WHERE
+            r.job_id = p_job_id
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */
+            AND r.execution_number = p_execution_number
+            AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+        FOR SHARE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:access_checkpoint: job % is no longer executing attempt %.', p_job_id, p_execution_number
+                USING ERRCODE = 'P0001';
+        END IF;
     END IF;
 
     IF p_action = 10 /* AccessCheckpointAction.Set */ THEN
@@ -553,6 +573,8 @@ $$;
 
 CREATE OR REPLACE FUNCTION acta.arm_or_consume_sleep_timer(
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_checkpoint_name VARCHAR,
     p_delay_seconds INT DEFAULT NULL,
     p_resume_at_utc TIMESTAMPTZ DEFAULT NULL
@@ -569,8 +591,21 @@ DECLARE
     v_state SMALLINT;
     v_existing_due TIMESTAMPTZ;
 BEGIN
+    -- The job's row is the timer's job-level mutex, and the execution fence: the timer changes only while this attempt
+    -- holds it (docs/sql-internals.md, "Execution fence").
+    PERFORM 1
+    FROM acta.jobs_state r0
+    WHERE
+        r0.job_id = p_job_id
+        AND r0.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r0.execution_number = p_execution_number
+        AND r0.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+    FOR UPDATE;
 
-    PERFORM 1 FROM acta.jobs_state r0 WHERE r0.job_id = p_job_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            USING ERRCODE = 'P0001';
+    END IF;
 
     SELECT jt.checkpoint_status_code, jt.due_at_utc INTO v_state, v_existing_due
     FROM acta.checkpoints jt
@@ -1546,6 +1581,8 @@ $$;
 
 CREATE OR REPLACE FUNCTION acta.complete_step(
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_step_name VARCHAR,
     p_succeeded BOOLEAN,
     p_result_format_id SMALLINT,
@@ -1571,6 +1608,21 @@ DECLARE
     v_exhaust BOOLEAN;
     v_rows INT;
 BEGIN
+    -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
+    -- (docs/sql-internals.md, "Execution fence").
+    PERFORM 1
+    FROM acta.jobs_state r
+    WHERE
+        r.job_id = p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = p_execution_number
+        AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+    FOR SHARE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:complete_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            USING ERRCODE = 'P0001';
+    END IF;
 
     SELECT a.attempt_number, a.created_at_utc INTO v_attempt, v_created
     FROM acta.steps a
@@ -1658,7 +1710,9 @@ CREATE OR REPLACE FUNCTION acta.enqueue_job(
     p_tag_name VARCHAR [] DEFAULT NULL,
     p_tag_value VARCHAR [] DEFAULT NULL,
     p_tag_value_search VARCHAR [] DEFAULT NULL,
-    p_lane_name VARCHAR DEFAULT NULL
+    p_lane_name VARCHAR DEFAULT NULL,
+    p_parent_execution_number INT DEFAULT NULL,
+    p_parent_worker_id INT DEFAULT NULL
 )
 RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)
 LANGUAGE plpgsql
@@ -1762,6 +1816,25 @@ BEGIN
             pj.job_id = p_parent_job_id
             AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         FOR UPDATE OF pj;
+
+        -- A child its parent's handler starts lands only while that attempt holds the parent's row, share-locked to
+        -- commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
+        IF p_parent_execution_number IS NOT NULL THEN
+            PERFORM 1
+            FROM acta.jobs_state pr
+            WHERE
+                pr.job_id = p_parent_job_id
+                AND pr.job_status_code = 50 /* JobStatusCode.Executing */
+                AND pr.execution_number = p_parent_execution_number
+                AND pr.leased_by_worker_id IS NOT DISTINCT FROM p_parent_worker_id
+            FOR SHARE;
+
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:enqueue_job: parent job % is no longer executing attempt %.',
+                    p_parent_job_id, p_parent_execution_number
+                    USING ERRCODE = 'P0001';
+            END IF;
+        END IF;
 
         IF v_lineage IS NULL THEN
             RAISE EXCEPTION 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.'
@@ -3501,6 +3574,8 @@ $$;
 
 CREATE OR REPLACE FUNCTION acta.start_step(
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_step_name VARCHAR,
     p_at_most_once BOOLEAN
 )
@@ -3527,6 +3602,21 @@ DECLARE
     v_rcode SMALLINT;
     v_rmsg VARCHAR;
 BEGIN
+    -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
+    -- (docs/sql-internals.md, "Execution fence").
+    PERFORM 1
+    FROM acta.jobs_state r
+    WHERE
+        r.job_id = p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = p_execution_number
+        AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+    FOR SHARE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:start_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            USING ERRCODE = 'P0001';
+    END IF;
 
     SELECT
         a.step_status_code,
@@ -3654,6 +3744,8 @@ $$;
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION acta.wait_signal(
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
     p_timeout_seconds INT DEFAULT NULL
@@ -3678,6 +3770,23 @@ BEGIN
     FROM acta.checkpoints js
     WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
     FOR UPDATE;
+
+    /* The wait changes the slot only while this attempt holds the job's row, share-locked to commit after a stored
+       slot's row lock and before an absent slot's insert, the order raise_signal and a child's landing take them in
+       (docs/sql-internals.md, "Execution fence"). */
+    PERFORM 1
+    FROM acta.jobs_state r
+    WHERE
+        r.job_id = p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = p_execution_number
+        AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+    FOR SHARE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:wait_signal: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            USING ERRCODE = 'P0001';
+    END IF;
 
     IF v_state IS NULL THEN
         INSERT INTO acta.checkpoints (
@@ -4093,10 +4202,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023181239_init')
+VALUES ('M20261023210310_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261023181239_init =====
+-- ===== END M20261023210310_init =====
 
 COMMIT;
 

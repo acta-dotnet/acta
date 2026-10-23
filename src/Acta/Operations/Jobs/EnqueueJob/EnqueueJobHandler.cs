@@ -23,7 +23,7 @@ internal sealed class EnqueueJobHandler(
         (request, var row) = JobEnqueue.Prepare(request, nameof(request), 0, _maxInlinePayloadBytes);
         var jobRef = JobRef.New().Value;
 
-        var rows = await JobEnqueue.ExecuteAsync(() => InsertAsync(row, jobRef, command.Transaction, ct));
+        var rows = await JobEnqueue.ExecuteAsync(() => InsertAsync(row, jobRef, command.Transaction, command.ParentFence, ct));
         if (rows.Count != 1)
         {
             throw new InvalidOperationException(
@@ -40,11 +40,15 @@ internal sealed class EnqueueJobHandler(
         return outcome;
     }
 
-    /// <summary>One <c>enqueue_job</c> call with the allocated ref, through <paramref name="transaction"/> when it is set.</summary>
+    /// <summary>
+    /// One <c>enqueue_job</c> call with the allocated ref, through <paramref name="transaction"/> when it is set, under
+    /// <paramref name="parentFence"/> when a running handler starts the job as its child.
+    /// </summary>
     internal Task<IReadOnlyList<EnqueueJobRow>> InsertAsync(
         JobEnqueueValues row,
         Guid jobRef,
         DbTransaction? transaction,
+        ExecutionFence? parentFence,
         CancellationToken ct
     )
     {
@@ -54,6 +58,12 @@ internal sealed class EnqueueJobHandler(
             ? session.ExecuteAsync(command, Bind, map, ct)
             : session.ExecuteInTransactionAsync(transaction, command, Bind, map, ct);
 
-        void Bind(DbCommand cmd) => dialect.BindEnqueueJob(cmd, row, jobRef, session.Schema);
+        // Bound after the dialect's row, as the routine's two last arguments.
+        void Bind(DbCommand cmd)
+        {
+            dialect.BindEnqueueJob(cmd, row, jobRef, session.Schema);
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentExecutionNumber, parentFence?.ExecutionNumber));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentWorkerId, parentFence?.WorkerId));
+        }
     }
 }

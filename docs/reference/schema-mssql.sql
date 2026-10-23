@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261023181239_init')
+    WHERE name NOT IN ('M20261023210310_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261023181239_init =====
+-- ===== BEGIN M20261023210310_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -650,6 +650,8 @@ GO
 CREATE OR ALTER PROCEDURE acta.access_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
     @p_value_format_id TINYINT,
@@ -679,6 +681,22 @@ BEGIN
                 EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
                 IF @slot_lock_result < 0
                     THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+            END
+
+        -- A write lands only while this attempt holds the job's row, update-locked to commit after the slot lock
+        -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
+        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */)
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+                    WHERE
+                        r.job_id = @p_job_id
+                        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                        AND r.execution_number = @p_execution_number
+                        AND r.leased_by_worker_id = @p_leased_by_worker_id
+                )
+                    THROW 50012, 'ACTA:EXECUTION_FENCED:access_checkpoint: the job is no longer executing this attempt.', 1;
             END
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
@@ -824,6 +842,8 @@ GO
 
 CREATE OR ALTER PROCEDURE acta.arm_or_consume_sleep_timer
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_checkpoint_name VARCHAR(128),
     @p_delay_seconds INT = NULL,
     @p_resume_at_utc DATETIME2(3) = NULL
@@ -845,9 +865,18 @@ BEGIN
         DECLARE @existing_due DATETIME2(3);
         DECLARE @lock_id BIGINT;
 
+        -- The job's row is the timer's job-level mutex, and the execution fence: the timer changes only while this
+        -- attempt holds it (docs/sql-internals.md, "Execution fence").
         SELECT @lock_id = job_id
-        FROM acta.jobs_state WITH (UPDLOCK)
-        WHERE job_id = @p_job_id;
+        FROM acta.jobs_state WITH (UPDLOCK, ROWLOCK)
+        WHERE
+            job_id = @p_job_id
+            AND job_status_code = 50 /* JobStatusCode.Executing */
+            AND execution_number = @p_execution_number
+            AND leased_by_worker_id = @p_leased_by_worker_id;
+
+        IF @lock_id IS NULL
+            THROW 50012, 'ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: the job is no longer executing this attempt.', 1;
 
         SELECT
             @existing_state = checkpoint_status_code,
@@ -1880,6 +1909,8 @@ GO
 
 CREATE OR ALTER PROCEDURE acta.complete_step
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_step_name VARCHAR(128),
     @p_succeeded BIT,
     @p_result_format_id TINYINT,
@@ -1905,6 +1936,19 @@ BEGIN
         DECLARE @created DATETIME2(3);
         DECLARE @next DATETIME2(3);
         DECLARE @outcome SMALLINT;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit before the step row
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:complete_step: the job is no longer executing this attempt.', 1;
 
         SELECT
             @attempt = attempt_number,
@@ -2016,7 +2060,9 @@ CREATE OR ALTER PROCEDURE acta.enqueue_job
     @p_tenant_name VARCHAR(128) = NULL,
     @p_tenant_override BIT = 0,
     @p_tags acta.enqueue_tags READONLY,
-    @p_lane_name VARCHAR(128) = NULL
+    @p_lane_name VARCHAR(128) = NULL,
+    @p_parent_execution_number INT = NULL,
+    @p_parent_worker_id INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2192,6 +2238,22 @@ BEGIN
                 WHERE
                     pj.job_id = @p_parent_job_id
                     AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+                -- A child its parent's handler starts lands only while that attempt holds the parent's row, update-locked
+                -- to commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
+                IF @p_parent_execution_number IS NOT NULL
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM acta.jobs_state fr WITH (UPDLOCK, ROWLOCK)
+                            WHERE
+                                fr.job_id = @p_parent_job_id
+                                AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+                                AND fr.execution_number = @p_parent_execution_number
+                                AND fr.leased_by_worker_id = @p_parent_worker_id
+                        )
+                            THROW 50012, 'ACTA:EXECUTION_FENCED:enqueue_job: the parent job is no longer executing this attempt.', 1;
+                    END;
 
                 IF @lineage IS NULL
                     BEGIN
@@ -4143,6 +4205,8 @@ GO
 
 CREATE OR ALTER PROCEDURE acta.start_step
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_step_name VARCHAR(128),
     @p_at_most_once BIT
 AS
@@ -4176,6 +4240,19 @@ BEGIN
         EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
         IF @step_lock_result < 0
             THROW 51205, 'ACTA:SLOT_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit after the step lock
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:start_step: the job is no longer executing this attempt.', 1;
 
         SELECT
             @state = step_status_code,
@@ -4317,6 +4394,8 @@ GO
    act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
     @p_timeout_seconds INT = NULL
@@ -4342,6 +4421,19 @@ BEGIN
         EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
         IF @slot_lock_result < 0
             THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The wait changes the slot only while this attempt holds the job's row, update-locked to commit after the
+        -- slot lock (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM acta.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_signal: the job is no longer executing this attempt.', 1;
 
         SELECT
             @state = checkpoint_status_code,
@@ -4764,11 +4856,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023181239_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023210310_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023181239_init');
+VALUES ('M20261023210310_init');
 GO
--- ===== END M20261023181239_init =====
+-- ===== END M20261023210310_init =====
 GO
 COMMIT TRANSACTION;
 GO

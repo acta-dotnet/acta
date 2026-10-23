@@ -1,5 +1,7 @@
 CREATE OR REPLACE FUNCTION {{schema}}.complete_step(
     p_job_id BIGINT,
+    p_execution_number INT,
+    p_leased_by_worker_id INT,
     p_step_name VARCHAR,
     p_succeeded BOOLEAN,
     p_result_format_id SMALLINT,
@@ -25,6 +27,21 @@ DECLARE
     v_exhaust BOOLEAN;
     v_rows INT;
 BEGIN
+    -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
+    -- (docs/sql-internals.md, "Execution fence").
+    PERFORM 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = p_execution_number
+        AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
+    FOR SHARE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:complete_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            USING ERRCODE = 'P0001';
+    END IF;
 
     SELECT a.attempt_number, a.created_at_utc INTO v_attempt, v_created
     FROM {{schema}}.steps a

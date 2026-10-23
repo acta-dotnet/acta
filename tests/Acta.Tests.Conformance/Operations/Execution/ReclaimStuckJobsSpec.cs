@@ -171,7 +171,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.LeaseExpired, ct));
     }
 
-    [Fact(DisplayName = "A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone")]
+    [Fact(DisplayName = "A stale worker's sleep-timer consume is refused and leaves the reclaimed row and its timer alone")]
     public async Task Sleep_timer_consume_does_not_clear_a_reclaimed_rows_next_run()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -187,11 +187,9 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         const int LiveLeaseTtl = 30;
         const string TimerName = "t.stale-worker";
         var claimed = Assert.Single(await execution.ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
+        var fence = new ExecutionFence(enqueued.JobId, claimed.ExecutionNumber, workerId);
 
-        var armed = await execution.ArmOrConsumeSleepTimerAsync(
-            new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),
-            ct
-        );
+        var armed = await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(fence, TimerName, 600, null), ct);
         Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Suspend, armed.Outcome);
 
         // Back-dating the arm's due instant is what puts the next call on the consume arm, which is the
@@ -216,17 +214,20 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.NotNull(reclaimed.NextRunAtUtc);
 
-        // The reclaim owns the instant now. The stale worker's call still retires its own checkpoint,
-        // but writing NULL over a Ready row would hide it from the claim's index order for good.
-        var consumed = await execution.ArmOrConsumeSleepTimerAsync(
-            new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),
-            ct
+        // The reclaim owns the row now, so the stale worker's call is fenced out: writing NULL over a Ready row's
+        // instant would hide it from the claim's index order for good, and consuming the timer would skip the sleep
+        // the next attempt still owes.
+        await Assert.ThrowsAsync<ExecutionFencedException>(() =>
+            execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(fence, TimerName, 600, null), ct)
         );
-        Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Continue, consumed.Outcome);
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);
         Assert.Equal(reclaimed.NextRunAtUtc, after.NextRunAtUtc);
+        var timer = Assert.Single(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == enqueued.JobId && c.Kind == CheckpointKindCode.Timer).ToListAsync(ct)
+        );
+        Assert.Equal(CheckpointStatusCode.Pending, timer.Status);
     }
 
     private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)

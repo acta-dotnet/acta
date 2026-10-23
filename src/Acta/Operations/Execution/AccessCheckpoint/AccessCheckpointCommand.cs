@@ -1,9 +1,12 @@
 namespace Acta;
 
-/// <summary>One validated <c>access_checkpoint</c> call; a write action carries the payload columns.</summary>
+/// <summary>
+/// One validated <c>access_checkpoint</c> call; a write action carries the payload columns. Every action binds the fence,
+/// and the write actions check it.
+/// </summary>
 internal sealed record AccessCheckpointCommand(
     AccessCheckpointAction Action,
-    long JobId,
+    ExecutionFence Fence,
     CheckpointKindCode Kind,
     string Name,
     byte ValueFormatId,

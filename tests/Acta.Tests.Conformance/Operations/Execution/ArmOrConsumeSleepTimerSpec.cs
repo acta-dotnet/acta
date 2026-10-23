@@ -23,10 +23,10 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     public async Task First_sleep_arms_a_pending_timer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await EnqueueAsync(ct);
+        var job = await StagedAsync(ct);
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-        var armed = await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
+        var armed = await SleepAsync(job, TimerName, delaySeconds: 600, ct);
 
         Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Suspend, armed.Outcome);
         var due = Assert.NotNull(armed.DueAtUtc);
@@ -42,12 +42,12 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     public async Task Re_entry_before_the_instant_keeps_the_stored_instant()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await EnqueueAsync(ct);
-        var armed = await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
+        var job = await StagedAsync(ct);
+        var armed = await SleepAsync(job, TimerName, delaySeconds: 600, ct);
 
-        var replayedDelay = await SleepAsync(job.JobId, TimerName, delaySeconds: 1200, ct);
+        var replayedDelay = await SleepAsync(job, TimerName, delaySeconds: 1200, ct);
         var replayedInstant = await Execution.ArmOrConsumeSleepTimerAsync(
-            new ArmOrConsumeSleepTimerCommand(job.JobId, TimerName, null, DateTime.UtcNow.AddDays(1)),
+            new ArmOrConsumeSleepTimerCommand(job, TimerName, null, DateTime.UtcNow.AddDays(1)),
             ct
         );
 
@@ -62,13 +62,12 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     public async Task Re_entry_after_the_instant_consumes_the_timer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await EnqueueAsync(ct);
-        await StartExecutingAsync(job, ct);
-        await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
+        var job = await StartExecutingAsync(await EnqueueAsync(ct), ct);
+        await SleepAsync(job, TimerName, delaySeconds: 600, ct);
         await MakeDueAsync(job.JobId, ct);
         var before = await ReadJobAsync(job.JobId, ct);
 
-        var consumed = await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
+        var consumed = await SleepAsync(job, TimerName, delaySeconds: 600, ct);
 
         Assert.Equal(new ArmOrConsumeSleepTimerResponse(ArmOrConsumeSleepTimerOutcomeCode.Continue, null), consumed);
         var timer = Assert.Single(await TimersAsync(job.JobId, ct));
@@ -85,15 +84,15 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     public async Task Consumed_timer_continues_without_writing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await EnqueueAsync(ct);
-        await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
+        var job = await StagedAsync(ct);
+        await SleepAsync(job, TimerName, delaySeconds: 600, ct);
         await MakeDueAsync(job.JobId, ct);
-        Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Continue, (await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)).Outcome);
+        Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Continue, (await SleepAsync(job, TimerName, delaySeconds: 600, ct)).Outcome);
         var consumed = Assert.Single(await TimersAsync(job.JobId, ct));
 
         Assert.Equal(
             new ArmOrConsumeSleepTimerResponse(ArmOrConsumeSleepTimerOutcomeCode.Continue, null),
-            await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)
+            await SleepAsync(job, TimerName, delaySeconds: 600, ct)
         );
 
         var after = Assert.Single(await TimersAsync(job.JobId, ct));
@@ -105,11 +104,11 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     public async Task Sleep_that_is_already_due_arms_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await EnqueueAsync(ct);
+        var job = await StagedAsync(ct);
 
-        var zero = await SleepAsync(job.JobId, "t.zero", delaySeconds: 0, ct);
+        var zero = await SleepAsync(job, "t.zero", delaySeconds: 0, ct);
         var past = await Execution.ArmOrConsumeSleepTimerAsync(
-            new ArmOrConsumeSleepTimerCommand(job.JobId, "t.past", null, DateTime.UtcNow.AddMinutes(-1)),
+            new ArmOrConsumeSleepTimerCommand(job, "t.past", null, DateTime.UtcNow.AddMinutes(-1)),
             ct
         );
 
@@ -122,10 +121,10 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     public async Task Second_pending_sleep_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await EnqueueAsync(ct);
-        Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Suspend, (await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)).Outcome);
+        var job = await StagedAsync(ct);
+        Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Suspend, (await SleepAsync(job, TimerName, delaySeconds: 600, ct)).Outcome);
 
-        var rival = await SleepAsync(job.JobId, "t.rival", delaySeconds: 600, ct);
+        var rival = await SleepAsync(job, "t.rival", delaySeconds: 600, ct);
 
         Assert.Equal(new ArmOrConsumeSleepTimerResponse(ArmOrConsumeSleepTimerOutcomeCode.Reject, null), rival);
         Assert.Equal(TimerName, Assert.Single(await TimersAsync(job.JobId, ct)).CheckpointName);
@@ -134,16 +133,21 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     private async Task<EnqueueJobResponse> EnqueueAsync(CancellationToken ct) =>
         await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
-    private Task<ArmOrConsumeSleepTimerResponse> SleepAsync(long jobId, string name, int delaySeconds, CancellationToken ct) =>
-        Execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(jobId, name, delaySeconds, null), ct);
+    // A job staged Executing, as a claim leaves it, so the timer writes pass the execution fence.
+    private async Task<ExecutionFence> StagedAsync(CancellationToken ct) =>
+        await ExecutionFenceStaging.ExecutingAsync(Db, (await EnqueueAsync(ct)).JobId, ct);
 
-    private async Task StartExecutingAsync(EnqueueJobResponse job, CancellationToken ct)
+    private Task<ArmOrConsumeSleepTimerResponse> SleepAsync(ExecutionFence job, string name, int delaySeconds, CancellationToken ct) =>
+        Execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(job, name, delaySeconds, null), ct);
+
+    private async Task<ExecutionFence> StartExecutingAsync(EnqueueJobResponse job, CancellationToken ct)
     {
         const int leaseTtlSeconds = 30;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         var claimed = Assert.Single(await Execution.ClaimJobAsync(ns, worker!.Id, leaseTtlSeconds, job, ct));
+        return new ExecutionFence(claimed.JobId, claimed.ExecutionNumber, worker.Id);
     }
 
     private async Task MakeDueAsync(long jobId, CancellationToken ct)
