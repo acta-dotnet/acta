@@ -103,10 +103,22 @@ internal static class StorageCases
             var observedDue = rows.Where(r => r.Key.StartsWith("root-", StringComparison.Ordinal))
                 .Select(r => new ObservedOutcome(r.Key, DurableReader.Status(r.Status), r.Output, JobNamespace: r.JobNamespace))
                 .ToArray();
-            checks.AddRange(OutcomeOracle.Reconcile(WorkloadModel.Expected(due), observedDue));
-            checks.AddRange(await CheckBackgroundAsync(state, scenario.Id, population, ct));
-            bundle.Write($"histories/{tag}-rows.json", rows.ToArray(), TrialJson.Default.DurableRowArray);
-            evidence.Add($"histories/{tag}-rows.json");
+            Check[] populationChecks =
+            [
+                .. OutcomeOracle.Reconcile(WorkloadModel.Expected(due), observedDue),
+                .. await CheckBackgroundAsync(state, scenario.Id, population, ct),
+            ];
+            checks.AddRange(populationChecks);
+            var failing = populationChecks.Where(c => !c.Passed).Select(c => c.Identity).ToHashSet(StringComparer.Ordinal);
+            if (failing.Count > 0)
+            {
+                bundle.Write(
+                    $"histories/{tag}-rows.json",
+                    rows.Where(r => failing.Contains(r.Key)).ToArray(),
+                    TrialJson.Default.DurableRowArray
+                );
+                evidence.Add($"histories/{tag}-rows.json");
+            }
         }
     }
 
@@ -122,33 +134,39 @@ internal static class StorageCases
     {
         var size = population ?? BackgroundRoots(plan, scenario.Id);
         var future = DateTime.UtcNow.AddDays(1);
-        for (var first = 0; first < size; first += 1000)
-        {
-            if (resources.BudgetExceeded)
+        // The population is seeded before any measurement, so its batches go in concurrently.
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, (size + 999) / 1000),
+            new ParallelOptions { MaxDegreeOfParallelism = (int)plan.Policy("measurement", "preload_producers"), CancellationToken = ct },
+            async (index, token) =>
             {
-                throw new ResourceBudgetException("Background population exceeded its memory/disk budget.");
-            }
-            var batch = Enumerable
-                .Range(first, Math.Min(1000, size - first))
-                .Select(i =>
+                if (resources.BudgetExceeded)
                 {
-                    var work = new BenchWork($"history-{i}", Signal: scenario.Id == "S02" ? "park" : null);
-                    return new EnqueueJobRequest(
-                        "bench",
-                        "work",
-                        JobPayload.Json(work, WorkJson.Default.BenchWork),
-                        DeduplicationKey: work.Key,
-                        Priority: scenario.Id == "S03" ? JobPriorityCode.High : JobPriorityCode.Normal,
-                        NextRunAtUtc: scenario.Id == "S03" ? future : null
-                    );
-                })
-                .ToArray();
-            await jobs.EnqueueBatchAsync(batch, ct);
-            if (first % 10000 == 0)
-            {
-                Console.WriteLine($"  {state.Provider} {scenario.Id}: background {first + batch.Length}/{size}");
+                    throw new ResourceBudgetException("Background population exceeded its memory/disk budget.");
+                }
+                var first = index * 1000;
+                var batch = Enumerable
+                    .Range(first, Math.Min(1000, size - first))
+                    .Select(i =>
+                    {
+                        var work = new BenchWork($"history-{i}", Signal: scenario.Id == "S02" ? "park" : null);
+                        return new EnqueueJobRequest(
+                            "bench",
+                            "work",
+                            JobPayload.Json(work, WorkJson.Default.BenchWork),
+                            DeduplicationKey: work.Key,
+                            Priority: scenario.Id == "S03" ? JobPriorityCode.High : JobPriorityCode.Normal,
+                            NextRunAtUtc: scenario.Id == "S03" ? future : null
+                        );
+                    })
+                    .ToArray();
+                await jobs.EnqueueBatchAsync(batch, token);
+                if (first % 10000 == 0)
+                {
+                    Console.WriteLine($"  {state.Provider} {scenario.Id}: background batch {index + 1}/{(size + 999) / 1000}");
+                }
             }
-        }
+        );
         await plan.DrainAsync(
             async () => size - await PopulationCountAsync(state, ExpectedStatus(scenario.Id), ct),
             plan.Deadline(size, 0, state.DrainRate),
@@ -159,7 +177,7 @@ internal static class StorageCases
 
     internal static async Task<Check[]> CheckBackgroundAsync(OwnedProvider state, string scenario, int population, CancellationToken ct)
     {
-        var rows = (await new DurableReader(state).ReadAsync(null, ct))
+        var rows = (await new DurableReader(state).ReadAllAsync(0, ct))
             .Where(r => r.Key.StartsWith("history-", StringComparison.Ordinal))
             .ToArray();
         var seen = new BitArray(population);
@@ -326,8 +344,11 @@ internal static class StorageCases
             )
         );
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-before.json", before.ToArray(), TrialJson.Default.DurableRowArray);
         var passed = checks.All(c => c.Passed);
+        if (!passed)
+        {
+            bundle.Write($"histories/{tag}-before.json", before.ToArray(), TrialJson.Default.DurableRowArray);
+        }
         return new(
             scenario.Id,
             environment.Provider,
@@ -340,7 +361,7 @@ internal static class StorageCases
             "COMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-before.json"]
+            [$"histories/{tag}-checks.json", .. passed ? Array.Empty<string>() : [$"histories/{tag}-before.json"]]
         );
     }
 

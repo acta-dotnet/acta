@@ -57,7 +57,8 @@ internal static class TransactionCases
             );
         }
         var actual = await reader.OutcomesAsync(ct);
-        var checks = OutcomeOracle.Reconcile(scenario.Id == "I01" ? WorkloadModel.Expected([new("root")]) : [], actual).ToList();
+        ExpectedOutcome[] expected = scenario.Id == "I01" ? WorkloadModel.Expected([new("root")]) : [];
+        var checks = OutcomeOracle.Reconcile(expected, actual).ToList();
         await using (var connection = await state.OpenAsync(ct))
         {
             await using var read = connection.CreateCommand();
@@ -78,7 +79,6 @@ internal static class TransactionCases
             );
         }
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var passed = checks.All(c => c.Passed);
         return new(
             scenario.Id,
@@ -92,7 +92,7 @@ internal static class TransactionCases
             "COMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json"]
+            [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, expected, actual)]
         );
     }
 }

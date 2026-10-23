@@ -35,6 +35,8 @@ internal static class TrialRunner
             .. plan.FullPolicy.GetProperty("measurement").GetProperty("batch_size_sweep").EnumerateArray().Select(e => e.GetInt32()),
         ];
         string NamespaceAt(int index) => index % namespaceCount == 0 ? "bench" : "bench-2";
+        var trialStarted = Stopwatch.GetTimestamp();
+        var writeSecondsAtStart = bundle.WriteSeconds;
         Console.WriteLine($"  START {tag}");
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var oracle = scenario.Requirements.Contains("external_oracle", StringComparer.Ordinal)
@@ -97,7 +99,6 @@ internal static class TrialRunner
                 .ToDictionary(p => p.Key, p => p.Namespace, StringComparer.Ordinal)
         );
         var expectedRoots = expected.Where(e => e.Parent is null).ToDictionary(e => e.Key, StringComparer.Ordinal);
-        bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
         using var workers = new OwnedWorkerPool();
         var delayWorkers = scenario.Id is "L02" or "L03" or "L04" or "T02";
         if (!delayWorkers)
@@ -109,43 +110,54 @@ internal static class TrialRunner
         {
             resources.AddProcess(oracle.ProcessId, "external_oracle");
         }
+        var seeding = Stopwatch.GetTimestamp();
         var backgroundPopulation = scenario.Id is "S02" or "S03"
             ? await StorageCases.PrepareBackgroundAsync(plan, scenario, state, jobs, resources, ct)
             : 0;
-        using var telemetryProcess = Process.GetCurrentProcess();
+        var backgroundTicks = Stopwatch.GetTimestamp() - seeding;
+        // Completions are timed by the database's own stamps, and the trial's jobs are those above the floor.
+        var clock = await reader.ClockAsync(ct);
+        var floor = await reader.LastJobIdAsync(ct);
         var streamStart = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 10;
         var start = streamStart + warmupSeconds * Stopwatch.Frequency;
         var end = seconds == 0 ? long.MaxValue : start + seconds * Stopwatch.Frequency;
         var admissions = new ConcurrentDictionary<string, Admission>(StringComparer.Ordinal);
-        var observations = new ConcurrentDictionary<string, Observation>(StringComparer.Ordinal);
-        Dictionary<long, Observation> childObservations = [];
-        Dictionary<(long Job, string Name), StepObservation> stepObservations = [];
+        Dictionary<string, Observation> observations = new(StringComparer.Ordinal);
         List<Check> boundaryChecks = [];
-        var observeChildren = expected.Any(e => e.Parent is not null);
-        var observeSteps = expected.Any(e => e.Steps is { Count: > 0 });
         HashSet<long> signalled = [];
         var failedSignals = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
-        List<TrialTelemetry> telemetry = [];
-        List<BacklogSample> backlogSamples = [];
+        List<DrainSample> drainSamples = [];
+        var drainPath = scenario.Id == "L04";
+        long acknowledged = 0,
+            firstId = 0,
+            lastId = 0,
+            landed = 0,
+            drainEnded = 0;
         var arrivals = Channel.CreateBounded<int>(
             new BoundedChannelOptions(plan.BufferCapacity) { SingleWriter = true, FullMode = BoundedChannelFullMode.Wait }
         );
-        using var admissionJournal = new TrialJournal(bundle.Resolve($"histories/{tag}-admissions.jsonl"));
-        using var observationJournal = new TrialJournal(bundle.Resolve($"histories/{tag}-observations.jsonl"));
         using var producerCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var producerToken = producerCancellation.Token;
         var producing = true;
         var workerStartupMs = 0.0;
-        var observerMaxCycle = 0.0;
-        var observerMaxGap = 0.0;
         var queryLatency = new LatencyHistogram();
         using var observationCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var observer = ObserveAsync();
         // Idle producers wait on the channel, so submissions in flight follow offered rate x enqueue latency up to
-        // the protocol's limit. A small fixed pool would cap admission at pool size / enqueue latency.
-        var producers = scenario.Id is "L03" or "L04"
-            ? new[] { SubmitBatchesAsync() }
+        // the protocol's limit. A small fixed pool would cap admission at pool size / enqueue latency. The L04 preload
+        // is outside the measurement, so its batches go in concurrently.
+        var producers =
+            scenario.Id == "L03" ? new[] { SubmitBatchesAsync() }
+            : scenario.Id == "L04"
+                ? Enumerable.Range(0, (int)plan.Policy("measurement", "preload_producers")).Select(_ => SubmitBatchesAsync()).ToArray()
             : Enumerable.Range(0, plan.ProducerConcurrency).Select(_ => SubmitAsync()).ToArray();
+        var finished = false;
+        var drain = Task.CompletedTask;
+        List<DurableRow> rows = [];
+        StepObservation[] steps = [];
+        Check[] storedChecks = [];
+        var submittedKeys = new HashSet<string>(StringComparer.Ordinal);
+        var arrivalsStarted = Stopwatch.GetTimestamp();
         try
         {
             for (var i = 0; i < count; i++)
@@ -197,12 +209,24 @@ internal static class TrialRunner
                     }
                 }
             }
-            Volatile.Write(ref producing, false);
-            if (scenario.Id == "L04")
+            long[] ids = [.. admissions.Values.Where(a => a.JobId is not null).Select(a => a.JobId!.Value)];
+            acknowledged = ids.Length;
+            if (drainPath)
             {
+                (firstId, lastId) = (ids.DefaultIfEmpty().Min(), ids.DefaultIfEmpty().Max());
+                // The drain counts by job-id range, so the range must hold the cohort's roots and no other row. Concurrent
+                // batches may leave unused ids in it, so the rows are counted rather than the ids.
+                if (ids.Length > 0 && await reader.RangeCountAsync(firstId, lastId, ct) is var inRange && inRange != ids.Length)
+                {
+                    throw new InvalidOperationException(
+                        $"The job-id range {firstId}..{lastId} of the {ids.Length} acknowledged roots holds {inRange} jobs; a count over it would include other rows."
+                    );
+                }
                 start = Stopwatch.GetTimestamp();
                 end = seconds == 0 ? long.MaxValue : start + seconds * Stopwatch.Frequency;
             }
+            Volatile.Write(ref producing, false);
+            drain = DrainAsync(observationCancellation.Token);
             if (delayWorkers)
             {
                 var startup = Stopwatch.GetTimestamp();
@@ -213,41 +237,30 @@ internal static class TrialRunner
                     resources.AddProcess(pid, "worker");
                 }
             }
-            var outstandingRoots = admissions.Values.Count(a => a.JobId is not null) - observations.Count;
-            var deadline = plan.Deadline(outstandingRoots * (long)expected.Length / Math.Max(1, count), 0, state.DrainRate);
-            var drainStart = Stopwatch.GetTimestamp();
-            var lastCompletion = drainStart;
-            var completions = observations.Count;
-            // A cohort serialized on one key can drain slower than the deadline's progress rate, so a drain still
-            // landing completions keeps waiting past the deadline.
-            while (
-                !observer.IsCompleted
-                && observations.Count < admissions.Values.Count(a => a.JobId is not null)
-                && !plan.DrainOverdue(
-                    Ms(Stopwatch.GetTimestamp() - drainStart) / 1000,
-                    Ms(Stopwatch.GetTimestamp() - lastCompletion) / 1000,
-                    deadline
-                )
-            )
-            {
-                await Task.Delay(25, ct);
-                if (observations.Count > completions)
-                {
-                    completions = observations.Count;
-                    lastCompletion = Stopwatch.GetTimestamp();
-                }
-            }
-            if (!observer.IsCompleted && observations.Count == admissions.Values.Count(a => a.JobId is not null))
-            {
-                // A final cycle slower than this is cancelled below; it does not fail the trial.
-                await Task.WhenAny(observer, Task.Delay(TimeSpan.FromSeconds(5), ct));
-            }
+            await drain;
+            drainEnded = Stopwatch.GetTimestamp();
             await observationCancellation.CancelAsync();
             try
             {
                 await observer;
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+            // One paged read verifies every job and times every completion by its database stamp. The verification
+            // reads stay inside the trial, so a trial whose verification fails still writes its rows.
+            rows = await reader.ReadAllAsync(floor, ct);
+            steps = await reader.StepsAsync(null, ct, floor);
+            submittedKeys.UnionWith(admissions.Values.Where(a => a.Outcome != "missed").Select(a => a.Key));
+            storedChecks =
+            [
+                .. backgroundPopulation > 0 ? await StorageCases.CheckBackgroundAsync(state, scenario.Id, backgroundPopulation, ct) : [],
+                .. oracle is null
+                    ? []
+                    : await oracle.CheckIdempotentKeysAsync(
+                        input.Where(i => i.EffectMode == "idempotent" && submittedKeys.Contains(i.Key)).Select(i => i.Key),
+                        ct
+                    ),
+            ];
+            finished = true;
         }
         finally
         {
@@ -256,20 +269,30 @@ internal static class TrialRunner
             await observationCancellation.CancelAsync();
             try
             {
-                await Task.WhenAll(producers.Append(observer));
+                await Task.WhenAll(producers.Append(observer).Append(drain));
             }
             catch (OperationCanceledException) when (producerCancellation.IsCancellationRequested) { }
-            // A faulted observer means the try block already threw; that exception stands and the histories are still written.
-            catch (Exception) when (observer.IsFaulted) { }
-            bundle.Write(
-                $"histories/{tag}-admissions.json",
-                admissions.Values.OrderBy(a => a.ScheduledTicks).ToArray(),
-                TrialJson.Default.AdmissionArray
-            );
-            bundle.Write($"histories/{tag}-observations.json", observations.Values.ToArray(), TrialJson.Default.ObservationArray);
-            bundle.Write($"histories/{tag}-children.json", childObservations.Values.ToArray(), TrialJson.Default.ObservationArray);
-            bundle.Write($"histories/{tag}-steps.json", stepObservations.Values.ToArray(), TrialJson.Default.StepObservationArray);
-            bundle.Write($"histories/{tag}-backlog.json", backlogSamples.ToArray(), TrialJson.Default.BacklogSampleArray);
+            // A faulted observer or drain means the try block already threw; that exception stands and the histories are
+            // still written.
+            catch (Exception) when (observer.IsFaulted || drain.IsFaulted) { }
+            if (!finished)
+            {
+                WriteRows(_ => true, []);
+            }
+            if (drainPath)
+            {
+                File.WriteAllLines(
+                    bundle.Resolve($"histories/{tag}-progress.csv"),
+                    drainSamples
+                        .Select(s =>
+                            string.Create(
+                                CultureInfo.InvariantCulture,
+                                $"{Ms(s.Timestamp - start) / 1000:R},{s.Completed},{Ms(s.QueryTicks) / 1000:R}"
+                            )
+                        )
+                        .Prepend("elapsed_seconds,completed,query_seconds")
+                );
+            }
             bundle.Write(
                 $"histories/{tag}-window.json",
                 new Dictionary<string, string>
@@ -278,7 +301,12 @@ internal static class TrialRunner
                     ["start_ticks"] = start.ToString(CultureInfo.InvariantCulture),
                     ["end_ticks"] = end.ToString(CultureInfo.InvariantCulture),
                     ["clock_frequency"] = Stopwatch.Frequency.ToString(CultureInfo.InvariantCulture),
-                    ["latency_origin"] = "Each root's original scheduled admission; preload time is retained for L04.",
+                    ["database_clock_ticks"] = clock.Ticks.ToString(CultureInfo.InvariantCulture),
+                    ["database_clock_database_ticks"] = clock.DatabaseTicks.ToString(CultureInfo.InvariantCulture),
+                    ["database_clock_round_trip_ticks"] = clock.RoundTripTicks.ToString(CultureInfo.InvariantCulture),
+                    ["floor_job_id"] = floor.ToString(CultureInfo.InvariantCulture),
+                    ["latency_origin"] =
+                        "Each root's original scheduled admission to its database completion stamp; preload time is retained for L04.",
                     ["throughput_boundary"] =
                         scenario.Id == "L04"
                             ? "Cohort drain after preload, including worker startup."
@@ -287,42 +315,106 @@ internal static class TrialRunner
                 BenchJson.Default.DictionaryStringString
             );
         }
-        var observed = await reader.OutcomesAsync(ct, backgroundPopulation > 0 ? "history-" : null);
-        var submittedKeys = admissions.Values.Where(a => a.Outcome != "missed").Select(a => a.Key).ToHashSet(StringComparer.Ordinal);
-        var checks = OutcomeOracle.Reconcile(expected.Where(e => submittedKeys.Contains(e.Key.Split('/')[0])), observed);
-        checks = [.. checks, .. boundaryChecks];
-        if (backgroundPopulation > 0)
+        var observed = DurableReader.Outcomes(rows, steps);
+        var byId = rows.ToDictionary(r => r.JobId);
+        foreach (var duplicate in admissions.Values.Where(a => a.JobId is not null).GroupBy(a => a.JobId).SelectMany(g => g.Skip(1)))
         {
-            checks = [.. checks, .. await StorageCases.CheckBackgroundAsync(state, scenario.Id, backgroundPopulation, ct)];
-        }
-        bundle.Write(
-            $"histories/{tag}-admissions.json",
-            admissions.Values.OrderBy(a => a.ScheduledTicks).ToArray(),
-            TrialJson.Default.AdmissionArray
-        );
-        bundle.Write($"histories/{tag}-observations.json", observations.Values.ToArray(), TrialJson.Default.ObservationArray);
-        if (oracle is not null)
-        {
-            var sinkChecks = await oracle.CheckIdempotentKeysAsync(
-                input.Where(i => i.EffectMode == "idempotent" && submittedKeys.Contains(i.Key)).Select(i => i.Key),
-                ct
+            boundaryChecks.Add(
+                new("acknowledged-identity", duplicate.Key, false, "Two logical roots were acknowledged with the same database identity.")
             );
-            checks = [.. checks, .. sinkChecks];
-            bundle.Write($"histories/{tag}-external-checks.json", sinkChecks, BenchJson.Default.CheckArray);
         }
-        bundle.Write($"histories/{tag}-observed.json", observed, BenchJson.Default.ObservedOutcomeArray);
+        foreach (var admission in admissions.Values)
+        {
+            if (admission.JobId is not { } id || !byId.TryGetValue(id, out var row))
+            {
+                continue;
+            }
+            var wanted = expectedRoots[admission.Key];
+            if (row.Key != admission.Key || row.ParentJobId is not null || row.JobNamespace != wanted.JobNamespace)
+            {
+                boundaryChecks.Add(
+                    new(
+                        "acknowledged-identity",
+                        admission.Key,
+                        false,
+                        "The acknowledged database ID did not identify the expected root and namespace. Its observation cannot support a capacity claim."
+                    )
+                );
+            }
+            if (row.Status is 100 or 200 or 220)
+            {
+                observations[admission.Key] = new(admission.Key, id, clock.ToStopwatch(row.Modified), row.Status, row.Output);
+                if (DurableReader.Status(row.Status) != wanted.Status || row.Output != wanted.Output)
+                {
+                    boundaryChecks.Add(
+                        new(
+                            "observed-terminal-outcome",
+                            admission.Key,
+                            false,
+                            "The terminal row did not contain the expected logical result and status."
+                        )
+                    );
+                }
+            }
+        }
+        foreach (var descendant in rows.Where(r => r.ParentJobId is not null && r.Status is not (100 or 200 or 220)))
+        {
+            if (descendant.LineageRootJobId is { } rootId && byId.TryGetValue(rootId, out var root) && root.Status is 100 or 200 or 220)
+            {
+                boundaryChecks.Add(
+                    new(
+                        "terminal-parent-live-child",
+                        descendant.Key,
+                        false,
+                        "A root reached a terminal outcome before its required child was terminal."
+                    )
+                );
+            }
+        }
+        var drainedAt = drainPath && acknowledged > 0 ? DrainCurve.Reached(drainSamples, acknowledged) : null;
+        long[] completions = [.. rows.Where(r => r.ParentJobId is null && r.Status is 100 or 200 or 220).Select(r => r.Modified).Order()];
+        long[] completionClock =
+            drainedAt is null || completions.Length != acknowledged
+                ? []
+                :
+                [
+                    completions[0],
+                    completions[DrainCurve.PercentileRank(acknowledged, 20)],
+                    completions[DrainCurve.PercentileRank(acknowledged, 80)],
+                    completions[^1],
+                ];
+        Check[] checks =
+        [
+            .. OutcomeOracle.Reconcile(expected.Where(e => submittedKeys.Contains(e.Key.Split('/')[0])), observed),
+            .. boundaryChecks,
+            .. storedChecks,
+        ];
         bundle.Write($"histories/{tag}-checks.json", checks, BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-telemetry.json", telemetry.ToArray(), TrialJson.Default.TrialTelemetryArray);
+        var backlogSamples = BacklogTrend.Reconstruct(
+            admissions
+                .Values.Where(a => a.AcknowledgedTicks is not null)
+                .Select(a => (a.AcknowledgedTicks!.Value, observations.TryGetValue(a.Key, out var o) ? o.CompletedTicks : long.MaxValue)),
+            streamStart,
+            drainEnded,
+            (long)plan.Policy("measurement", "progress_count_ms") * Stopwatch.Frequency / 1000
+        );
+        File.WriteAllLines(
+            bundle.Resolve($"histories/{tag}-backlog.csv"),
+            backlogSamples
+                .Select(s => string.Create(CultureInfo.InvariantCulture, $"{Ms(s.Timestamp - streamStart) / 1000:R},{s.Backlog}"))
+                .Prepend("elapsed_seconds,backlog")
+        );
         var scheduledLatency = new LatencyHistogram();
         var actualLatency = new LatencyHistogram();
         foreach (var o in observations.Values)
         {
             if (admissions.TryGetValue(o.Key, out var a) && Measured(a))
             {
-                scheduledLatency.Record(Ms(o.ObservedTicks - a.ScheduledTicks));
+                // A completion stamp mapped across the clocks can land a fraction of the pairing's round trip early.
+                scheduledLatency.Record(Math.Max(0, Ms(o.CompletedTicks - a.ScheduledTicks)));
                 if (a.SubmittedTicks is { } submitted)
                 {
-                    actualLatency.Record(Ms(o.ObservedTicks - submitted));
+                    actualLatency.Record(Math.Max(0, Ms(o.CompletedTicks - submitted)));
                 }
             }
         }
@@ -377,27 +469,17 @@ internal static class TrialRunner
             .Select(e => e.Key)
             .ToHashSet(StringComparer.Ordinal);
         var windowCompleted = observations.Values.Count(o =>
-            validRootKeys.Contains(o.Key) && Verdicts.InWindow(o.ObservedTicks, start, end)
+            validRootKeys.Contains(o.Key) && Verdicts.InWindow(o.CompletedTicks, start, end)
         );
         var p99 = scheduledLatency.Percentile(0.99);
-        var completedInWindow = observations.Values.Where(o => o.ObservedTicks < end).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
+        var completedInWindow = observations.Values.Where(o => o.CompletedTicks < end).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
         var backlog = admissions.Values.Count(a => a.AcknowledgedTicks < end && !completedInWindow.Contains(a.Key));
         var measuredBacklog = backlogSamples.Where(t => t.Timestamp >= start && t.Timestamp < end).ToArray();
         var backlogSlope = BacklogTrend.Slope(measuredBacklog, Stopwatch.Frequency);
         var admissionPath = scenario.Id is "L02" or "L03";
-        var drainPath = scenario.Id == "L04";
         var censored = admissions.Values.Count(a => a.Outcome != "missed" && !observations.ContainsKey(a.Key));
-        var observerStall = plan.Policy("measurement", "runtime", "observer_stall_tolerance_ms");
         var observerLimited =
-            (
-                !admissionPath
-                && (
-                    !drainPath && (observerMaxCycle > observerStall || observerMaxGap > observerStall + plan.ObserverCadenceMs)
-                    || censored > 0
-                )
-            )
-            || scheduledLatency.Snapshot().Overflow > 0
-            || admissionLatency.Snapshot().Overflow > 0;
+            !admissionPath && censored > 0 || scheduledLatency.Snapshot().Overflow > 0 || admissionLatency.Snapshot().Overflow > 0;
         var liveWorkers = workers.LiveCount;
         var workerExit = liveWorkers != workerCount;
         var measurement =
@@ -445,15 +527,43 @@ internal static class TrialRunner
         {
             metrics[name] = metric;
         }
+        // The trial's own phases; the ledger checks that follow it add ledger_seconds.
+        var windowStart = drainPath ? start : streamStart;
+        metrics["setup_seconds"] = new(
+            Ms(streamStart - trialStarted - backgroundTicks) / 1000,
+            "seconds",
+            Reason: "Schema, host, workers and clock pairing."
+        );
+        metrics["seed_seconds"] = new(
+            Ms(backgroundTicks + (drainPath ? start - arrivalsStarted : 0)) / 1000,
+            "seconds",
+            Reason: "Background population and the L04 preload."
+        );
+        metrics["window_seconds"] = new(Ms(drainEnded - windowStart) / 1000, "seconds", Reason: "The arrival stream and its drain.");
+        metrics["verify_seconds"] = new(
+            Ms(Stopwatch.GetTimestamp() - drainEnded) / 1000,
+            "seconds",
+            Reason: "The paged read, the identity and outcome checks, and the metrics."
+        );
+        metrics["evidence_seconds"] = new(bundle.WriteSeconds - writeSecondsAtStart, "seconds", Reason: "Evidence files the trial wrote.");
+        var status =
+            failures.Length > 0 || livenessFailed ? "FAIL"
+            : unresolved > 0 || !state.SettingsVerified || overloadGates || workerExit || !exercised || !failedSignals.IsEmpty
+                ? "INCONCLUSIVE"
+            : "PASS";
+        var failing = checks
+            .Where(c => !c.Passed)
+            .Select(c => c.Identity.Split('/')[0])
+            .Concat(unresolvedKeys)
+            .Concat(failedSignals.Keys)
+            .ToHashSet(StringComparer.Ordinal);
+        string[] rowEvidence = status == "PASS" ? [] : WriteRows(failing.Contains, observed);
         return new(
             scenario.Id,
             environment.Provider,
             phase,
             repetition,
-            failures.Length > 0 || livenessFailed ? "FAIL"
-                : unresolved > 0 || !state.SettingsVerified || overloadGates || workerExit || !exercised || !failedSignals.IsEmpty
-                    ? "INCONCLUSIVE"
-                : "PASS",
+            status,
             failures.Length > 0 ? $"{failures.Length} failed identity/output checks; exact identities retained."
                 : !failedSignals.IsEmpty
                     ? $"{failedSignals.Count} signal calls failed after their admissions were acknowledged; those admissions stay in the safety checks."
@@ -474,10 +584,10 @@ internal static class TrialRunner
             metrics,
             [
                 $"histories/{tag}-checks.json",
-                $"histories/{tag}-admissions.json",
-                $"histories/{tag}-observed.json",
-                $"histories/{tag}-backlog.json",
+                $"histories/{tag}-backlog.csv",
                 $"histories/{tag}-window.json",
+                .. drainPath ? [$"histories/{tag}-progress.csv"] : Array.Empty<string>(),
+                .. rowEvidence,
             ],
             "Acta native jobs/checkpoints/children; independent committed-state SQL observer",
             DiagnosticCellName: cell?.Name
@@ -485,11 +595,34 @@ internal static class TrialRunner
 
         bool Measured(Admission admission) => warmupSeconds == 0 || admission.ScheduledTicks >= start;
 
-        void RecordAdmission(Admission value)
+        // A trial that does not pass keeps the controller's rows for the identities it could not verify, or for every
+        // identity when it stopped before verification; the durable rows stay in its retained database.
+        string[] WriteRows(Func<string, bool> keep, ObservedOutcome[] outcomes)
         {
-            admissions[value.Key] = value;
-            admissionJournal.Append(value, TrialJson.Default.Admission);
+            bundle.Write(
+                $"histories/{tag}-admissions.json",
+                admissions.Values.Where(a => keep(a.Key)).OrderBy(a => a.ScheduledTicks).ToArray(),
+                TrialJson.Default.AdmissionArray
+            );
+            bundle.Write(
+                $"histories/{tag}-observations.json",
+                observations.Values.Where(o => keep(o.Key)).ToArray(),
+                TrialJson.Default.ObservationArray
+            );
+            return
+            [
+                $"histories/{tag}-admissions.json",
+                $"histories/{tag}-observations.json",
+                .. bundle.WriteRows(
+                    tag,
+                    false,
+                    expected.Where(e => keep(e.Key.Split('/')[0])),
+                    outcomes.Where(o => keep(o.Key.Split('/')[0]))
+                ),
+            ];
         }
+
+        void RecordAdmission(Admission value) => admissions[value.Key] = value;
 
         async Task SubmitAsync()
         {
@@ -547,6 +680,11 @@ internal static class TrialRunner
                         batch.Add(index);
                     }
                 }
+                // A concurrent producer can take the last arrivals between the wait and the read.
+                if (batch.Count == 0)
+                {
+                    continue;
+                }
                 var submitted = Stopwatch.GetTimestamp();
                 foreach (var i in batch)
                 {
@@ -585,80 +723,39 @@ internal static class TrialRunner
         {
             var token = observationCancellation.Token;
             var nextMetric = Stopwatch.GetTimestamp();
-            var previousCycle = nextMetric;
             var nextProgress = nextMetric + 5 * Stopwatch.Frequency;
+            var nextLive = nextMetric;
+            var children = expected.Any(e => e.Parent is not null);
+            HashSet<long> live = [];
             while (!token.IsCancellationRequested)
             {
                 var cycle = Stopwatch.GetTimestamp();
-                observerMaxGap = Math.Max(observerMaxGap, Ms(cycle - previousCycle));
-                previousCycle = cycle;
-                var pending = admissions.Values.Where(a => a.JobId is not null && !observations.ContainsKey(a.Key)).ToArray();
-                backlogSamples.Add(new(cycle, pending.Length));
-                foreach (var chunk in pending.Chunk(256))
+                // A root waits for its descendants, so a terminal root with one still ready, timed or executing is a
+                // violation the verification read misses once that descendant finishes too.
+                if (children && cycle >= nextLive)
                 {
-                    Dictionary<long, Admission> byId = [];
-                    foreach (var admission in chunk)
+                    foreach (var (root, rootKey, descendant) in await reader.LiveDescendantsAsync(floor, token))
                     {
-                        if (!byId.TryAdd(admission.JobId!.Value, admission))
+                        if (live.Add(descendant))
                         {
                             boundaryChecks.Add(
                                 new(
-                                    "acknowledged-identity",
-                                    admission.Key,
+                                    "terminal-parent-live-child",
+                                    rootKey,
                                     false,
-                                    "Two logical roots were acknowledged with the same database identity."
+                                    $"Root job {root} reached a terminal outcome while its descendant job {descendant} was not terminal."
                                 )
                             );
                         }
                     }
-                    List<long> terminalRoots = [];
-                    foreach (var row in await reader.ReadAsync(byId.Keys.ToArray(), token))
+                    nextLive = cycle + (long)plan.Policy("measurement", "progress_count_ms") * Stopwatch.Frequency / 1000;
+                }
+                // T04 and T06 roots wait on a signal only the controller raises: the one per-job read during a trial.
+                if (scenario.Id is "T04" or "T06")
+                {
+                    foreach (var row in await reader.ReadAsync(null, token, floor))
                     {
-                        if (row.Status is 100 or 200 or 220)
-                        {
-                            var observation = new Observation(
-                                byId[row.JobId].Key,
-                                row.JobId,
-                                Stopwatch.GetTimestamp(),
-                                row.Status,
-                                Output: row.Output,
-                                JobNamespace: row.JobNamespace,
-                                DurableKey: row.Key
-                            );
-                            if (observations.TryAdd(observation.Key, observation))
-                            {
-                                if (
-                                    row.Key != observation.Key
-                                    || row.ParentJobId is not null
-                                    || row.JobNamespace != expectedRoots[observation.Key].JobNamespace
-                                )
-                                {
-                                    boundaryChecks.Add(
-                                        new(
-                                            "acknowledged-identity",
-                                            observation.Key,
-                                            false,
-                                            "The acknowledged database ID did not identify the expected root and namespace. Its observation cannot support a capacity claim."
-                                        )
-                                    );
-                                }
-                                var wanted = expectedRoots[observation.Key];
-                                if (DurableReader.Status(row.Status) != wanted.Status || row.Output != wanted.Output)
-                                {
-                                    boundaryChecks.Add(
-                                        new(
-                                            "observed-terminal-outcome",
-                                            observation.Key,
-                                            false,
-                                            "The first committed terminal observation did not contain the expected logical result and status."
-                                        )
-                                    );
-                                }
-                                observationJournal.Append(observation, TrialJson.Default.Observation);
-                                terminalRoots.Add(row.JobId);
-                            }
-                        }
-                        else if (row.Status == 20 && scenario.Id is "T04" or "T06" && signalled.Add(row.JobId))
+                        if (row.Status == 20 && signalled.Add(row.JobId))
                         {
                             await jobs.RaiseSignalAsync(JobLookup.ById(row.JobId), "go", default(JobPayload), ct: token);
                             if (scenario.Id == "T06")
@@ -667,80 +764,22 @@ internal static class TrialRunner
                             }
                         }
                     }
-                    var observedIds = new List<long>(terminalRoots);
-                    if (observeChildren && terminalRoots.Count > 0)
-                    {
-                        foreach (var child in await reader.ReadAsync(terminalRoots, token, lineage: true))
-                        {
-                            if (child.ParentJobId is null)
-                            {
-                                continue;
-                            }
-                            observedIds.Add(child.JobId);
-                            if (child.Status is not (100 or 200 or 220))
-                            {
-                                boundaryChecks.Add(
-                                    new(
-                                        "terminal-parent-live-child",
-                                        child.Key,
-                                        false,
-                                        "A root reached a terminal outcome before its required child was terminal."
-                                    )
-                                );
-                            }
-                            else
-                            {
-                                childObservations.TryAdd(
-                                    child.JobId,
-                                    new(
-                                        child.Key,
-                                        child.JobId,
-                                        Stopwatch.GetTimestamp(),
-                                        child.Status,
-                                        child.ParentJobId,
-                                        child.Output,
-                                        child.JobNamespace,
-                                        child.Key
-                                    )
-                                );
-                            }
-                        }
-                    }
-                    if (observeSteps && observedIds.Count > 0)
-                    {
-                        foreach (var ids in observedIds.Chunk(256))
-                        {
-                            foreach (var step in await reader.StepsAsync(ids, token))
-                            {
-                                stepObservations.TryAdd((step.JobId, step.Name), step);
-                            }
-                        }
-                    }
                 }
-                var cycleMs = Ms(Stopwatch.GetTimestamp() - cycle);
-                observerMaxCycle = Math.Max(observerMaxCycle, cycleMs);
-                if (cycle >= nextMetric)
+                if (scenario.Id == "E02" && cycle >= nextMetric)
                 {
-                    telemetryProcess.Refresh();
-                    telemetry.Add(
-                        new(cycle, telemetryProcess.TotalProcessorTime.TotalSeconds, telemetryProcess.WorkingSet64, pending.Length, cycleMs)
-                    );
+                    var operations = host.Services.GetRequiredService<IActaOperations>();
+                    await operations.Ledger.ListJobsAsync(new(JobNamespace: "bench", PageSize: 20), token);
+                    await operations.Ledger.ListEventsAsync(new(JobNamespace: "bench", PageSize: 20), token);
+                    queryLatency.Record(Ms(Stopwatch.GetTimestamp() - cycle));
                     nextMetric += Stopwatch.Frequency;
-                    if (scenario.Id == "E02")
-                    {
-                        var queryStart = Stopwatch.GetTimestamp();
-                        var operations = host.Services.GetRequiredService<IActaOperations>();
-                        await operations.Ledger.ListJobsAsync(new(JobNamespace: "bench", PageSize: 20), token);
-                        await operations.Ledger.ListEventsAsync(new(JobNamespace: "bench", PageSize: 20), token);
-                        queryLatency.Record(Ms(Stopwatch.GetTimestamp() - queryStart));
-                    }
                 }
                 if (cycle >= nextProgress)
                 {
                     var elapsed = Math.Max(0, (cycle - start) / (double)Stopwatch.Frequency);
                     var accepted = admissions.Values.Count(a => a.Outcome == "acknowledged");
                     var message =
-                        $"  {environment.Provider} {scenario.Id} {phase} trial {repetition} | {elapsed:F0}s | scheduled {admissions.Count}/{count} | acknowledged {accepted} | terminal observed {observations.Count} | backlog {pending.Length}";
+                        $"  {environment.Provider} {scenario.Id} {phase} trial {repetition} | {elapsed:F0}s | scheduled {admissions.Count}/{count} | acknowledged {accepted}"
+                        + (Volatile.Read(ref producing) ? "" : $" | terminal {Volatile.Read(ref landed)}");
                     if (Console.IsOutputRedirected)
                     {
                         Console.WriteLine(message);
@@ -751,11 +790,48 @@ internal static class TrialRunner
                     }
                     nextProgress = cycle + 5 * Stopwatch.Frequency;
                 }
-                if (!Volatile.Read(ref producing) && observations.Count >= admissions.Values.Count(a => a.JobId is not null))
+                await Task.Delay(plan.ObserverCadenceMs, token);
+            }
+        }
+
+        // The drain counts what remains with one aggregate query a sample: an L04 cohort through the claim and in-flight
+        // indexes over its id range, any other trial over its roots above the floor, from the lowest one a count left
+        // unfinished. An L04 root is never blocked, paused, or waiting without a timer, so those two indexes hold every
+        // unfinished one.
+        async Task DrainAsync(CancellationToken token)
+        {
+            var interval = (int)plan.Policy("measurement", "progress_count_ms");
+            var drainStart = Stopwatch.GetTimestamp();
+            var lastCompletion = drainStart;
+            var lowest = floor + 1;
+            int? deadline = null;
+            while (true)
+            {
+                var queried = Stopwatch.GetTimestamp();
+                long left;
+                if (drainPath)
+                {
+                    left = await reader.RemainingCountAsync(firstId, lastId, token);
+                }
+                else
+                {
+                    (left, lowest) = await reader.UnfinishedRootsAsync(lowest, token);
+                }
+                var counted = Stopwatch.GetTimestamp();
+                if (drainSamples.Count > 0 && acknowledged - left > drainSamples[^1].Completed)
+                {
+                    lastCompletion = counted;
+                }
+                drainSamples.Add(new(counted, acknowledged - left, counted - queried));
+                Volatile.Write(ref landed, acknowledged - left);
+                // A cohort serialized on one key can drain slower than the deadline's progress rate, so a drain still
+                // landing completions keeps waiting past the deadline.
+                deadline ??= plan.Deadline(left * expected.Length / Math.Max(1, count), 0, state.DrainRate);
+                if (left == 0 || plan.DrainOverdue(Ms(counted - drainStart) / 1000, Ms(counted - lastCompletion) / 1000, deadline.Value))
                 {
                     return;
                 }
-                await Task.Delay(plan.ObserverCadenceMs, token);
+                await Task.Delay(interval, token);
             }
         }
 
@@ -818,6 +894,9 @@ internal static class TrialRunner
                 ["generator_lag_p99"] = generatorLatency.Percentile(0.99) is { } generatorP99
                     ? new(generatorP99, "milliseconds")
                     : Metric.Missing("milliseconds", "No submissions."),
+                ["admission_p50"] = admissionLatency.Percentile(0.5) is { } admissionP50
+                    ? new(admissionP50, "milliseconds")
+                    : Metric.Missing("milliseconds", "No acknowledged admissions."),
                 ["admission_p99"] = admissionLatency.Percentile(0.99) is { } admissionP99
                     ? new(admissionP99, "milliseconds")
                     : Metric.Missing("milliseconds", "No acknowledged admissions."),
@@ -840,19 +919,20 @@ internal static class TrialRunner
                     seconds == 0
                         ? Metric.Missing("children/second", "Untimed verification.")
                         : new(
-                            childObservations.Values.Count(o => o.Status == 100 && Verdicts.InWindow(o.ObservedTicks, start, end))
-                                / (double)seconds,
+                            rows.Count(r =>
+                                r.ParentJobId is not null && r.Status == 100 && Verdicts.InWindow(clock.ToStopwatch(r.Modified), start, end)
+                            ) / (double)seconds,
                             "children/second",
-                            Reason: "Committed descendants observed after root termination; observation delay is included."
+                            Reason: "Committed descendants by their database completion stamp."
                         ),
                 ["window_checkpoint_rate"] =
                     seconds == 0
                         ? Metric.Missing("checkpoints/second", "Untimed verification.")
                         : new(
-                            stepObservations.Values.Count(s => s.Status == 100 && Verdicts.InWindow(s.ObservedTicks, start, end))
+                            steps.Count(s => s.Status == 100 && Verdicts.InWindow(clock.ToStopwatch(s.ModifiedTicks), start, end))
                                 / (double)seconds,
                             "checkpoints/second",
-                            Reason: "Committed checkpoints observed after root termination; observation delay is included."
+                            Reason: "Committed checkpoints by their database completion stamp."
                         ),
                 ["primary_latency_p99"] = (admissionPath ? admissionLatency.Percentile(0.99) : p99) is { } primaryP99
                     ? new(
@@ -864,12 +944,10 @@ internal static class TrialRunner
                             : null
                     )
                     : Metric.Missing("milliseconds", "No primary latency samples."),
-                ["observer_cadence"] = new(plan.ObserverCadenceMs, "milliseconds"),
-                ["observer_max_cycle"] = new(observerMaxCycle, "milliseconds"),
-                ["observer_max_gap"] = new(
-                    observerMaxGap,
+                ["clock_round_trip"] = new(
+                    Ms(clock.RoundTripTicks),
                     "milliseconds",
-                    Reason: "Maximum interval between observer cycle starts, including scheduling and console-output delays."
+                    Reason: "Round trip of the read that paired the database clock with the stopwatch; completion instants are exact to half of it."
                 ),
                 ["offered_rate"] =
                     drainPath
@@ -892,7 +970,7 @@ internal static class TrialRunner
                     ? new(
                         slope,
                         "roots/second",
-                        Reason: "OLS of one-second block means from every observer cycle; incomplete blocks are excluded."
+                        Reason: "OLS of one-second block means of the backlog rebuilt from acknowledgements and database completion stamps; incomplete blocks are excluded."
                     )
                     : Metric.Missing("roots/second", "Fewer than two sufficiently observed one-second backlog blocks."),
                 ["backlog_samples"] = new(measuredBacklog.Length, "samples"),
@@ -927,15 +1005,40 @@ internal static class TrialRunner
                         ? new(admitted.Length / admissionDuration, "admissions/second")
                         : Metric.Missing("admissions/second", "No acknowledged admission interval.");
             }
-            if (scenario.Id == "L04" && !observations.IsEmpty)
+            if (drainedAt is { } drainEnd && completionClock is [var firstAt, var lowerAt, var upperAt, var lastAt])
             {
-                var drainDuration = Ms(observations.Values.Max(o => o.ObservedTicks) - start) / 1000;
+                var drainDuration = Ms(drainEnd - start) / 1000;
                 result["backlog_drain_rate"] = new(validRootKeys.Count / drainDuration, "roots/second");
                 result["primary_rate"] = new(
                     validRootKeys.Count / drainDuration,
                     "backlog_roots/second",
                     Reason: "Cohort denominator includes drain and worker startup; this is not sustained open-arrival capacity."
                 );
+                result["steady_drain_rate"] = DrainCurve.SteadyRate(drainSamples, acknowledged, Stopwatch.Frequency) is { } steady
+                    ? new(steady, "roots/second", Reason: "20% to 80% of the cohort, each crossing interpolated between terminal counts.")
+                    : Metric.Missing("roots/second", "No terminal count before the 20% crossing to interpolate from.");
+                result["db_steady_drain_rate"] =
+                    upperAt > lowerAt
+                        ? new(
+                            0.6 * acknowledged * TimeSpan.TicksPerSecond / (upperAt - lowerAt),
+                            "roots/second",
+                            Reason: "20th to 80th percentile completion instant on the database clock."
+                        )
+                        : Metric.Missing("roots/second", "The 20th and 80th percentile completions share one database instant.");
+                result["db_drain_seconds"] = new(
+                    (lastAt - firstAt) / (double)TimeSpan.TicksPerSecond,
+                    "seconds",
+                    Reason: "First to last completion on the database clock."
+                );
+                result["first_completion_seconds"] = new(
+                    Ms(DrainCurve.Reached(drainSamples, 1)!.Value - start) / 1000,
+                    "seconds",
+                    Reason: "Drain start to the first terminal count above zero, including worker startup."
+                );
+            }
+            else if (drainPath)
+            {
+                result["primary_rate"] = Metric.Missing("backlog_roots/second", "The terminal count never reached the cohort.");
             }
             if (scenario.Id == "E02")
             {

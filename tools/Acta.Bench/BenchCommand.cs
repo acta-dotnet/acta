@@ -115,7 +115,7 @@ public static class BenchCommand
         if (args is [] or ["--help"] or ["-h"])
         {
             Console.WriteLine(
-                "Acta Bench\n  acta-bench --standard|--full|--quick [--db sqlite|pg|mssql|all] [--seed N] [--output DIR] [--case ID] [--cell NAME] [--chaos-jobs N] [--use-compose-servers]\n  --quick: small smoke suite; --standard: all cases, short trials; --full: extended repeated campaign\n  --use-compose-servers: run PostgreSQL and SQL Server on the acta-dev Compose services instead of owned containers\n  acta-bench replay PLAN [--output DIR]\n  acta-bench report RUN_DIRECTORY\n  acta-bench compare BASELINE_DIRECTORY CANDIDATE_DIRECTORY\n  acta-bench publish RUN_DIRECTORY --to FILE\n  acta-bench list\n  acta-bench cleanup [--yes]: list owned containers and marked b_ databases with sizes; --yes removes them unless another run is active"
+                "Acta Bench\n  acta-bench --standard|--full|--quick [--db sqlite|pg|mssql|all] [--seed N] [--output DIR] [--case ID] [--cell NAME] [--chaos-jobs N] [--repetitions N] [--preload N] [--use-compose-servers]\n  --quick: small smoke suite; --standard: all cases, short trials; --full: extended repeated campaign\n  --cell: run only the named diagnostic cells of their cases; --repetitions: independent trials per cell; --preload: L04 preloaded roots per provider\n  --use-compose-servers: run PostgreSQL and SQL Server on the acta-dev Compose services instead of owned containers\n  acta-bench replay PLAN [--output DIR]\n  acta-bench report RUN_DIRECTORY\n  acta-bench compare BASELINE_DIRECTORY CANDIDATE_DIRECTORY\n  acta-bench publish RUN_DIRECTORY --to FILE\n  acta-bench list\n  acta-bench cleanup [--yes]: list owned containers and marked b_ databases with sizes; --yes removes them unless another run is active"
             );
             return 0;
         }
@@ -155,6 +155,8 @@ public static class BenchCommand
         string output = Path.Combine("artifacts", "bench");
         int seed = 1729;
         int? chaosJobs = null;
+        int? repetitions = null;
+        int? preload = null;
         var useComposeServers = false;
         List<string> cases = [];
         List<string> requestedCells = [];
@@ -197,6 +199,12 @@ public static class BenchCommand
                 case "--chaos-jobs":
                     chaosJobs = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
                     break;
+                case "--repetitions":
+                    repetitions = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
+                    break;
+                case "--preload":
+                    preload = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
+                    break;
                 case "--output":
                     output = Value(args, ref i);
                     break;
@@ -237,15 +245,19 @@ public static class BenchCommand
             {
                 RunId = $"{DateTime.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}",
             };
-        if (chaosJobs is < 1)
+        if (chaosJobs is < 1 || repetitions is < 1 || preload is < 1)
         {
-            throw new ArgumentException("--chaos-jobs must be a positive count.");
+            throw new ArgumentException("--chaos-jobs, --repetitions and --preload must be positive counts.");
         }
         plan = plan with
         {
             RequestedDiagnosticCells = replay?.RequestedDiagnosticCells ?? requestedCells,
             ChaosJobs = chaosJobs ?? plan.ChaosJobs,
             UseComposeServers = replay?.UseComposeServers ?? useComposeServers,
+            Repetitions = repetitions ?? plan.Repetitions,
+            PreloadedBacklogRoots = preload is { } roots
+                ? plan.PreloadedBacklogRoots.ToDictionary(p => p.Key, _ => roots, StringComparer.Ordinal)
+                : plan.PreloadedBacklogRoots,
         };
         Protocol.Validate(plan);
         return await SuiteRunner.RunAsync(plan, output, ct);

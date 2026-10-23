@@ -119,8 +119,8 @@ public static class Protocol
 
     /// <summary>
     /// Accepts a plan only when it equals what this executable plans for its profile, providers, seed and cases. A
-    /// replay may differ only in its run id, its requested diagnostic cells, a chaos cohort at least the profile's, and
-    /// its database servers.
+    /// replay may differ only in its run id, its requested diagnostic cells, a chaos cohort at least the profile's, its
+    /// repetitions and preloaded backlog, and its database servers.
     /// </summary>
     public static void Validate(RunPlan plan)
     {
@@ -132,9 +132,13 @@ public static class Protocol
             RequestedDiagnosticCells = expected.RequestedDiagnosticCells,
             ChaosJobs = expected.ChaosJobs,
             UseComposeServers = expected.UseComposeServers,
+            Repetitions = expected.Repetitions,
+            PreloadedBacklogRoots = expected.PreloadedBacklogRoots,
         };
         if (
             plan.ChaosJobs < expected.ChaosJobs
+            || plan.Repetitions < 1
+            || plan.PreloadedBacklogRoots.Values.Any(roots => roots < 1)
             || !JsonElement.DeepEquals(
                 JsonSerializer.SerializeToElement(comparable, BenchJson.Default.RunPlan),
                 JsonSerializer.SerializeToElement(expected, BenchJson.Default.RunPlan)
@@ -143,12 +147,9 @@ public static class Protocol
         {
             throw new ArgumentException("Plan differs from what this executable plans for its profile, providers, seed and cases.");
         }
-        if (
-            plan.RequestedDiagnosticCells.Any(n => !plan.DiagnosticCells.Any(c => c.Name == n))
-            || plan.IsExtended && plan.RequestedDiagnosticCells.Count != 0
-        )
+        if (plan.RequestedDiagnosticCells.Any(n => !plan.DiagnosticCells.Any(c => c.Name == n)))
         {
-            throw new ArgumentException("Plan requests diagnostic cells its profile does not offer as optional.");
+            throw new ArgumentException("Plan requests diagnostic cells the protocol does not declare.");
         }
     }
 }

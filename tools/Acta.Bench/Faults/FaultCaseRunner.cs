@@ -78,7 +78,6 @@ internal static class FaultCaseRunner
                 .Select(e => e.Parent is null ? e with { Status = "Cancelled", Output = null } : e with { Status = "CancelledOrSucceeded" })
                 .ToArray();
         }
-        bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
         List<OwnedWorker> workers = [];
         List<Check> checks = [];
         FaultEvidence? fault = null;
@@ -284,11 +283,7 @@ internal static class FaultCaseRunner
             }
             if (sideInputs.Length > 0)
             {
-                await plan.DrainAsync(
-                    async () => (await RecoveryReadAsync(() => reader.ReadAsync(null, ct))).Count(r => r.Status is not (100 or 200 or 220)),
-                    bound,
-                    ct
-                );
+                await plan.DrainAsync(async () => (await RecoveryReadAsync(() => reader.UnfinishedRootsAsync(0, ct))).Count, bound, ct);
             }
             if (scenario.Id == "C03")
             {
@@ -349,7 +344,6 @@ internal static class FaultCaseRunner
                     )
                 );
             }
-            bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
             bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
             fault = fault! with
             {
@@ -386,7 +380,11 @@ internal static class FaultCaseRunner
                     ["external_applications"] = new(effects.Applications, "applications"),
                     ["controller_recovery_read_retries"] = new(transientReadRetries, "retries"),
                 },
-                [$"histories/{tag}-checks.json", $"histories/{tag}-fault.json", $"histories/{tag}-observed.json"],
+                [
+                    $"histories/{tag}-checks.json",
+                    $"histories/{tag}-fault.json",
+                    .. bundle.WriteRows(tag, passed && covered, expected, actual),
+                ],
                 Instrumented: true
             );
         }
@@ -428,7 +426,7 @@ internal static class FaultCaseRunner
             );
             fault = fault with { Provider = environment.Provider, CaseId = scenario.Id, Repetition = repetition };
             bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-            bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
+            var rows = bundle.WriteRows(tag, false, expected, actual);
             bundle.Write($"histories/{tag}-fault.json", fault, BenchJson.Default.FaultEvidence);
             bundle.Append("faults.jsonl", fault, BenchJson.Default.FaultEvidence);
             return new(
@@ -443,7 +441,7 @@ internal static class FaultCaseRunner
                 "INCOMPLETE",
                 "NOT_MEASURED",
                 new() { ["recovery_bound"] = new(bound, "seconds") },
-                [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json", $"histories/{tag}-fault.json"],
+                [$"histories/{tag}-checks.json", $"histories/{tag}-fault.json", .. rows],
                 Instrumented: true
             );
         }

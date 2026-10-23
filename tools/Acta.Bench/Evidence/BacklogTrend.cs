@@ -4,7 +4,35 @@ public readonly record struct BacklogSample(long Timestamp, int Backlog);
 
 public static class BacklogTrend
 {
-    // Sample every observer cycle, then average one-second blocks. Sampling only once
+    /// <summary>
+    /// The backlog every <paramref name="step"/> ticks from <paramref name="from"/> to <paramref name="to"/>: the roots
+    /// acknowledged and not yet completed at each instant. A root completed before its acknowledgement returned never
+    /// counts, and one never completed stays counted.
+    /// </summary>
+    public static BacklogSample[] Reconstruct(IEnumerable<(long Acknowledged, long Completed)> roots, long from, long to, long step)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(step);
+        var all = roots.ToArray();
+        var opened = all.Select(r => r.Acknowledged).Order().ToArray();
+        var closed = all.Select(r => Math.Max(r.Acknowledged, r.Completed)).Order().ToArray();
+        List<BacklogSample> samples = [];
+        var (open, close) = (0, 0);
+        for (var t = from; t <= to; t += step)
+        {
+            while (open < opened.Length && opened[open] <= t)
+            {
+                open++;
+            }
+            while (close < closed.Length && closed[close] <= t)
+            {
+                close++;
+            }
+            samples.Add(new(t, open - close));
+        }
+        return [.. samples];
+    }
+
+    // Sample several times a second, then average one-second blocks. Sampling only once
     // per second aliases the worker's one-second safety poll into a false queue trend.
     public static double? Slope(IReadOnlyList<BacklogSample> samples, long clockFrequency)
     {

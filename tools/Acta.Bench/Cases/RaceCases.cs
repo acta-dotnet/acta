@@ -61,7 +61,6 @@ internal static class RaceCases
             {
                 expected[0] = expected[0] with { Output = ordering == "before" ? "signalled" : "expired" };
             }
-            bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
             var root = await jobs.EnqueueAsync(
                 new EnqueueJobRequest("bench", "work", JobPayload.Json(input, WorkJson.Default.BenchWork), DeduplicationKey: input.Key),
                 ct
@@ -154,8 +153,7 @@ internal static class RaceCases
             );
             var actual = await reader.OutcomesAsync(ct);
             checks.AddRange(OutcomeOracle.Reconcile(expected, actual));
-            bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
-            evidence.Add($"histories/{tag}-observed.json");
+            evidence.AddRange(bundle.WriteRows(tag, checks.All(c => c.Passed), expected, actual));
         }
     }
 }

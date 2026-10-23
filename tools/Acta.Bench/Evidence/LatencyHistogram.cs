@@ -55,5 +55,7 @@ public sealed class LatencyHistogram
         return _maximum;
     }
 
-    public HistogramSnapshot Snapshot() => new([.. _bins], _count, _overflow, _maximum);
+    /// <summary>The bins up to the highest occupied one; every bin past it is empty.</summary>
+    public HistogramSnapshot Snapshot() =>
+        new([.. _bins.AsSpan(0, Array.FindLastIndex(_bins, b => b > 0) + 1)], _count, _overflow, _maximum);
 }

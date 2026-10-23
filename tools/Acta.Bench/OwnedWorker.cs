@@ -26,13 +26,22 @@ internal sealed class OwnedWorker : IDisposable
     /// </summary>
     public const int FaultHeartbeatSeconds = 1;
 
+    private static readonly JsonNode Runtime = JsonNode.Parse(Protocol.Read("full.v1.json"))!["measurement"]!["runtime"]!;
+
     /// <summary>
     /// How long a started process may take to report ready, the protocol's <c>measurement.runtime.worker_ready_seconds</c>.
     /// A start queued behind a busy database is slow, not a harness failure.
     /// </summary>
-    private static readonly TimeSpan ReadyTimeout = TimeSpan.FromSeconds(
-        JsonNode.Parse(Protocol.Read("full.v1.json"))!["measurement"]!["runtime"]!["worker_ready_seconds"]!.GetValue<double>()
-    );
+    private static readonly TimeSpan ReadyTimeout = TimeSpan.FromSeconds(Runtime["worker_ready_seconds"]!.GetValue<double>());
+
+    /// <summary>
+    /// The logical processors every owned worker runs on: a hybrid CPU's performance cores when the protocol's
+    /// <c>measurement.runtime.pin_workers_to_performance_cores</c> asks for it, else null and the scheduler places them.
+    /// Left to it, Windows runs whole worker processes on efficiency cores, so the same trial lands in a slow or a fast mode.
+    /// </summary>
+    public static readonly ulong? Affinity = Runtime["pin_workers_to_performance_cores"]!.GetValue<bool>()
+        ? HardwareDescription.PerformanceMask()
+        : null;
 
     public int Id => _process.Id;
     public bool IsRunning => !_process.HasExited;
@@ -150,7 +159,12 @@ internal sealed class OwnedWorker : IDisposable
             info.Environment["ACTA_BENCH_INJECT_JOB_ID"] =
                 injection.JobId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
         }
-        return new OwnedWorker(Process.Start(info) ?? throw new InvalidOperationException("Could not start owned worker."));
+        var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start owned worker.");
+        if (Affinity is { } mask && OperatingSystem.IsWindows())
+        {
+            process.ProcessorAffinity = (nint)mask;
+        }
+        return new OwnedWorker(process);
     }
 
     public static OwnedWorker Oracle(EffectService oracle)

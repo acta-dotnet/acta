@@ -66,6 +66,27 @@ public sealed class PolicyTests
     }
 
     [Fact]
+    public void A_full_run_may_narrow_its_cells_and_override_its_repetitions_and_preload()
+    {
+        var plan = Protocol.Plan("full", ["pg"], 1729, ["L04"]) with
+        {
+            RequestedDiagnosticCells = ["drain-workers-8"],
+            Repetitions = 3,
+            PreloadedBacklogRoots = new Dictionary<string, int>
+            {
+                ["sqlite"] = 1_000_000,
+                ["pg"] = 1_000_000,
+                ["mssql"] = 1_000_000,
+            },
+        };
+        Protocol.Validate(plan);
+        Assert.Equal("drain-workers-8", Assert.Single(CoveragePolicy.RequiredCells(plan, "pg", "L04")).Name);
+        // The canonical L04 trial is the one-worker drain, so the cells start at four workers.
+        Assert.Equal(3, CoveragePolicy.RequiredCells(plan with { RequestedDiagnosticCells = [] }, "pg", "L04").Count());
+        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { Repetitions = 0 }));
+    }
+
+    [Fact]
     public void Latency_qualified_calibration_does_not_claim_validated_capacity()
     {
         var candidate = Row("discover", 0, 1600, "UNSTABLE");
@@ -236,7 +257,6 @@ public sealed class PolicyTests
         var plan = Protocol.Plan("full", ["pg"], 1729);
         Protocol.Validate(plan);
         Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { MeasurementSeconds = 3 }));
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { Repetitions = 1 }));
         Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { DiagnosticCells = [] }));
     }
 

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -45,6 +46,7 @@ internal static partial class LedgerValidation
         List<string> violated = [];
         var landed = false;
         string? unavailable = null;
+        var watch = Stopwatch.StartNew();
         foreach (var trial in trials)
         {
             TrialLedger ledger;
@@ -68,7 +70,7 @@ internal static partial class LedgerValidation
                 metrics[name] = new((metrics.GetValueOrDefault(name)?.Value ?? 0) + count, "count");
             }
             Console.WriteLine(
-                $"  ledger {trial.Name}: {ledger.Checks.Select(c => c.Code).Distinct(StringComparer.Ordinal).Count()} checks"
+                $"  ledger {trial.Name}: {ledger.Checks.Select(c => c.Code).Distinct(StringComparer.Ordinal).Count()} checks in {watch.Elapsed.TotalSeconds:F1}s"
                     + (ledger.Violated.Count == 0 ? ", no violation" : $", violated: {string.Join(", ", ledger.Violated)}")
             );
             if (ledger.Violated.Count > 0 || faultMustLand)
@@ -79,6 +81,11 @@ internal static partial class LedgerValidation
                 }
             }
         }
+        metrics["ledger_seconds"] = new(
+            watch.Elapsed.TotalSeconds,
+            "seconds",
+            Reason: "Every certify.sql check, each one set-based query over the trial's schema, and the rate contract."
+        );
         result = result with { Metrics = metrics, Evidence = evidence };
         if (violated.Count > 0)
         {

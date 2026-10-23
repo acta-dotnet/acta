@@ -92,17 +92,25 @@ internal sealed class EffectService : IDisposable
             }
         }
         List<Check> checks = [];
-        foreach (var key in wanted)
+        foreach (var key in wanted.Where(k => applications.GetValueOrDefault(k) != 1 || requests.GetValueOrDefault(k) < 1))
         {
             checks.Add(
                 new(
                     "sink-business-application",
                     key,
-                    applications.GetValueOrDefault(key) == 1 && requests.GetValueOrDefault(key) >= 1,
+                    false,
                     $"{requests.GetValueOrDefault(key)} requests; {applications.GetValueOrDefault(key)} business applications. Deduplication is provided by the external sink."
                 )
             );
         }
+        checks.Add(
+            new(
+                "verified-sink-business-application",
+                "cohort",
+                true,
+                $"Verified {wanted.Count - checks.Count} keys applied once by the external sink; failures are retained individually."
+            )
+        );
         foreach (var key in requests.Keys.Concat(applications.Keys).Distinct(StringComparer.Ordinal).Except(wanted, StringComparer.Ordinal))
         {
             checks.Add(new("unexpected-sink-key", key, false, "External effect identity was not in the frozen workload."));

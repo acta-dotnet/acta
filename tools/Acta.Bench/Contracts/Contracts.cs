@@ -248,7 +248,7 @@ public sealed record RunResult(
     bool HarnessError = false
 );
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, WriteIndented = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(ScenarioCatalog))]
 [JsonSerializable(typeof(RunPlan))]
 [JsonSerializable(typeof(RunResult))]

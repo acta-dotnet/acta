@@ -18,7 +18,6 @@ internal static class OutboxCase
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         var source = new SqliteConnectionStringBuilder { DataSource = bundle.Resolve($"repro/state/{tag}/producer.db") }.ToString();
         var input = Enumerable.Range(0, 12).Select(i => new BenchWork($"root-{i}")).ToArray();
-        bundle.Write($"histories/{tag}-expected.json", WorkloadModel.Expected(input), BenchJson.Default.ExpectedOutcomeArray);
         await using (var connection = new SqliteConnection(source))
         {
             await connection.OpenAsync(ct);
@@ -93,7 +92,6 @@ internal static class OutboxCase
             )
         );
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var passed = checks.All(c => c.Passed);
         return new(
             "I03",
@@ -107,7 +105,7 @@ internal static class OutboxCase
             "COMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json"],
+            [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, WorkloadModel.Expected(input), actual)],
             Instrumented: true
         );
     }

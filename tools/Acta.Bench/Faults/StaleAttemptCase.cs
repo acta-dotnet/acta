@@ -22,7 +22,6 @@ internal static class StaleAttemptCase
         using var original = OwnedWorker.Start(state, oracle);
         await original.ReadyAsync(ct);
         var input = new BenchWork("root", Boundary: "claim");
-        bundle.Write($"histories/{tag}-expected.json", WorkloadModel.Expected([input]), BenchJson.Default.ExpectedOutcomeArray);
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest("bench", "work", JobPayload.Json(input, WorkJson.Default.BenchWork), DeduplicationKey: input.Key),
             ct
@@ -73,7 +72,6 @@ internal static class StaleAttemptCase
             )
         );
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var passed = checks.All(c => c.Passed);
         return new(
             "F03",
@@ -87,7 +85,7 @@ internal static class StaleAttemptCase
             "COMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json"],
+            [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, WorkloadModel.Expected([input]), actual)],
             Instrumented: true
         );
     }

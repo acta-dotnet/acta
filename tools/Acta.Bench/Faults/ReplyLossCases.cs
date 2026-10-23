@@ -32,7 +32,6 @@ internal static class ReplyLossCases
         var jobs = host.Services.GetRequiredService<IJobs>();
         var input = new BenchWork("root");
         var expected = WorkloadModel.Expected([input]);
-        bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
         var request = new EnqueueJobRequest(
             "bench",
             "work",
@@ -46,7 +45,6 @@ internal static class ReplyLossCases
         var boundary = await oracle.WaitBarrierAsync("committed-reply", TimeSpan.FromSeconds(30), ct);
         var reader = new DurableReader(state);
         var before = await reader.ReadAsync(null, ct);
-        bundle.Write($"histories/{tag}-before-reply.json", before.ToArray(), TrialJson.Default.DurableRowArray);
         List<Check> checks =
         [
             new(
@@ -103,9 +101,12 @@ internal static class ReplyLossCases
         );
         checks.AddRange(OutcomeOracle.Reconcile(expected, actual));
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var complete = boundary is not null;
         var passed = checks.All(c => c.Passed);
+        if (!(complete && passed))
+        {
+            bundle.Write($"histories/{tag}-before-reply.json", before.ToArray(), TrialJson.Default.DurableRowArray);
+        }
         return new(
             scenario.Id,
             environment.Provider,
@@ -124,7 +125,11 @@ internal static class ReplyLossCases
             complete ? "COMPLETE" : "INCOMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json", $"histories/{tag}-before-reply.json"],
+            [
+                $"histories/{tag}-checks.json",
+                .. bundle.WriteRows(tag, complete && passed, expected, actual),
+                .. complete && passed ? Array.Empty<string>() : [$"histories/{tag}-before-reply.json"],
+            ],
             Instrumented: true
         );
     }

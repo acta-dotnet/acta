@@ -245,6 +245,8 @@
     "additional_repetitions_for_predeclared_instability": 5,
     "canonical_admission_batch_size": 100,
     "preloaded_backlog_admission_batch_size": 1000,
+    "progress_count_ms": 250,
+    "preload_producers": 8,
     "retain_all_trials": true,
     "randomize_or_balance_comparison_order": true,
     "publication_p99_sample_policy": {
@@ -285,16 +287,16 @@
     ],
     "sweep_policy": "one_factor_and_selected_pairwise_not_full_cartesian",
     "sqlite_topology": "one_worker_process_for_clean_measurements_multiple_owned_processes_for_recovery_only",
-    "completion_boundary": "durable_terminal_observed_then_identity_reconciled",
-    "primary_latency": "controller_scheduled_arrival_to_durable_completion_observed",
-    "publish_observer_lag": true,
+    "completion_boundary": "database_completion_stamp_read_after_the_trial_then_identity_reconciled",
+    "primary_latency": "controller_scheduled_arrival_to_database_completion_stamp_on_the_controller_clock",
+    "completion_clock": "database_clock_paired_with_the_controller_stopwatch_by_the_shortest_round_trip_of_nine_reads",
     "incomplete_latency_observations": "censored_or_failure_never_silently_dropped",
     "runtime": {
       "trial_worker_settings": "product_defaults_recorded_per_trial_diagnostic_cells_override_only_the_setting_they_name",
       "fault_case_worker_settings": "product_defaults_with_a_compressed_heartbeat_so_lease_expiry_fits_the_recovery_bound_except_F09_which_runs_the_profile_chaos_heartbeat",
       "worker_ready_seconds": 120,
       "observer_poll_ms": 25,
-      "observer_stall_tolerance_ms": 1000,
+      "pin_workers_to_performance_cores": true,
       "generator_lag_tolerance_ms": 100,
       "producer_concurrency_limit": 64,
       "arrival_buffer_capacity": 1024
@@ -349,12 +351,6 @@
         "name": "workers-16-single-namespace",
         "case_id": "L01",
         "workers": 16
-      },
-      {
-        "name": "drain-workers-1",
-        "case_id": "L04",
-        "workers": 1,
-        "namespaces": 1
       },
       {
         "name": "drain-workers-4",
@@ -491,6 +487,7 @@
       "repro",
       "checksums"
     ],
+    "passing_bundle_budget_mb": 50,
     "overwrite_checked_in_benchmark": false
   },
   "exit_codes": {

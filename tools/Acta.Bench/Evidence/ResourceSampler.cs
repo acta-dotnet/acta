@@ -12,8 +12,8 @@ internal sealed record ResourceSample(
     string Name,
     double? Value,
     string Unit,
-    string? Reason,
-    bool CounterReset = false
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Reason,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool CounterReset = false
 );
 
 [JsonSerializable(typeof(ResourceSample))]
@@ -29,6 +29,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
     private readonly Dictionary<string, double> _previous = new(StringComparer.Ordinal);
     private readonly object _summaryLock = new();
     private readonly Dictionary<string, (double First, double Last)> _cpu = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _explained = new(StringComparer.Ordinal);
     private long _peakWorkingSet;
     private double? _containerCpuFirst;
     private double? _containerCpuLast;
@@ -103,6 +104,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
         while (!_stop.IsCancellationRequested)
         {
             long memory = 0;
+            Dictionary<string, (double Cpu, long Memory)> roles = new(StringComparer.Ordinal);
             foreach (var (pid, target) in _processes)
             {
                 var component =
@@ -125,9 +127,14 @@ internal sealed class ResourceSampler : IAsyncDisposable
                         );
                         continue;
                     }
+                    var cpu = process.TotalProcessorTime.TotalSeconds;
                     memory += process.WorkingSet64;
-                    Write(component, "cpu_seconds", process.TotalProcessorTime.TotalSeconds, "seconds");
-                    Write(component, "working_set", process.WorkingSet64, "bytes");
+                    lock (_summaryLock)
+                    {
+                        _cpu[component] = _cpu.TryGetValue(component, out var prior) ? (prior.First, cpu) : (cpu, cpu);
+                    }
+                    var role = roles.GetValueOrDefault(target.Name);
+                    roles[target.Name] = (role.Cpu + cpu, role.Memory + process.WorkingSet64);
                 }
                 catch (ArgumentException)
                 {
@@ -137,6 +144,12 @@ internal sealed class ResourceSampler : IAsyncDisposable
                 {
                     Write(component, "working_set", null, "bytes", "Owned process exited during collection.");
                 }
+            }
+            // One sample per role, not per process, keeps the journal proportionate to the run rather than to the fleet.
+            foreach (var (role, total) in roles)
+            {
+                Write(role, "cpu_seconds", total.Cpu, "seconds", "Sum over the role's live owned processes.");
+                Write(role, "working_set", total.Memory, "bytes", "Sum over the role's live owned processes.");
             }
             UpdatePeakMemory(memory);
             Write("controller_generator_observer", "managed_allocated", GC.GetTotalAllocatedBytes(), "bytes");
@@ -388,12 +401,10 @@ internal sealed class ResourceSampler : IAsyncDisposable
 
     private void Write(string component, string name, double? value, string unit, string? reason = null, bool reset = false)
     {
-        if (name == "cpu_seconds" && component != "database_container" && value is { } cpu)
+        // A series' reason does not change, so only its first sample carries it; a missing value always explains itself.
+        if (value is not null && reason is not null && !_explained.Add(component + "/" + name))
         {
-            lock (_summaryLock)
-            {
-                _cpu[component] = _cpu.TryGetValue(component, out var prior) ? (prior.First, cpu) : (cpu, cpu);
-            }
+            reason = null;
         }
         var sample = new ResourceSample(Stopwatch.GetTimestamp(), $"{_tag}/{component}", name, value, unit, reason, reset);
         File.AppendAllText(_bundle.Resolve("metrics.jsonl"), JsonSerializer.Serialize(sample, ResourceJson.Default.ResourceSample) + "\n");

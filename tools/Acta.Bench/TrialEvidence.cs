@@ -12,18 +12,11 @@ internal sealed record Admission(
     int BatchSize = 1
 );
 
-internal sealed record Observation(
-    string Key,
-    long JobId,
-    long ObservedTicks,
-    int Status,
-    long? ParentId = null,
-    string? Output = null,
-    string? JobNamespace = null,
-    string? DurableKey = null
-);
+/// <summary>An acknowledged root's terminal row, completed at its database completion stamp on the stopwatch.</summary>
+internal sealed record Observation(string Key, long JobId, long CompletedTicks, int Status, string? Output);
 
-internal sealed record StepObservation(long JobId, string Name, int Status, string Result, long ObservedTicks);
+/// <summary>A step's row; <c>ModifiedTicks</c> is its last state change in database ticks.</summary>
+internal sealed record StepObservation(long JobId, string Name, int Status, string Result, long ModifiedTicks);
 
 /// <summary>The settings a worker process resolved after applying the bench's overrides to the product defaults.</summary>
 internal sealed record WorkerSettings(
@@ -34,21 +27,8 @@ internal sealed record WorkerSettings(
     double DeadAfterSeconds
 );
 
-internal sealed record TrialTelemetry(
-    long Timestamp,
-    double ControllerCpuSeconds,
-    long ControllerWorkingSetBytes,
-    int Backlog,
-    double ObserverCycleMs
-);
-
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, WriteIndented = true)]
-[JsonSerializable(typeof(Admission))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(Admission[]))]
-[JsonSerializable(typeof(Observation))]
 [JsonSerializable(typeof(Observation[]))]
-[JsonSerializable(typeof(StepObservation[]))]
-[JsonSerializable(typeof(TrialTelemetry[]))]
-[JsonSerializable(typeof(BacklogSample[]))]
 [JsonSerializable(typeof(DurableRow[]))]
 internal sealed partial class TrialJson : JsonSerializerContext;

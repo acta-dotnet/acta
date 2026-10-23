@@ -3,7 +3,7 @@ using System.Runtime.Versioning;
 
 namespace Acta.Bench;
 
-internal static partial class HardwareDescription
+public static partial class HardwareDescription
 {
     public static string CpuModel()
     {
@@ -36,10 +36,35 @@ internal static partial class HardwareDescription
         return Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? RuntimeInformation.ProcessArchitecture.ToString();
     }
 
-    public static int? PhysicalCores() => OperatingSystem.IsWindows() ? WindowsPhysicalCores() : null;
+    public static int? PhysicalCores() => OperatingSystem.IsWindows() ? WindowsCores()?.Count : null;
 
+    /// <summary>
+    /// This machine's performance cores as an affinity mask over its logical processors; null when every core shares one
+    /// efficiency class, or when the topology is unknown or spans more than the one processor group a mask covers.
+    /// </summary>
+    public static ulong? PerformanceMask() =>
+        OperatingSystem.IsWindows() && WindowsCores() is { } cores && cores.All(c => c.Group == 0)
+            ? PerformanceMask([.. cores.Select(c => (c.EfficiencyClass, c.Mask))])
+            : null;
+
+    /// <summary>
+    /// The logical processors of the cores in the highest efficiency class; null when every core shares one class, so the
+    /// CPU is not hybrid.
+    /// </summary>
+    public static ulong? PerformanceMask(IReadOnlyCollection<(byte EfficiencyClass, ulong Mask)> cores)
+    {
+        ArgumentNullException.ThrowIfNull(cores);
+        if (cores.Select(c => c.EfficiencyClass).Distinct().Count() < 2)
+        {
+            return null;
+        }
+        var performance = cores.Max(c => c.EfficiencyClass);
+        return cores.Where(c => c.EfficiencyClass == performance).Aggregate(0UL, (mask, c) => mask | c.Mask);
+    }
+
+    /// <summary>Each physical core's efficiency class, processor group and logical-processor mask; null when unreadable.</summary>
     [SupportedOSPlatform("windows")]
-    private static int? WindowsPhysicalCores()
+    private static List<(byte EfficiencyClass, ushort Group, ulong Mask)>? WindowsCores()
     {
         uint size = 0;
         _ = GetLogicalProcessorInformationEx(0, 0, ref size);
@@ -54,18 +79,21 @@ internal static partial class HardwareDescription
             {
                 return null;
             }
-            var count = 0;
+            List<(byte, ushort, ulong)> cores = [];
             for (var offset = 0; offset < size; )
             {
-                var bytes = Marshal.ReadInt32(buffer + offset, 4);
-                if (bytes < 8 || offset + bytes > size)
+                var record = buffer + offset;
+                var bytes = Marshal.ReadInt32(record, 4);
+                if (bytes < 48 || offset + bytes > size)
                 {
                     return null;
                 }
-                count++;
+                // A RelationProcessorCore record: EfficiencyClass at byte 9, then its one GROUP_AFFINITY at 32, the
+                // mask first and the group after it.
+                cores.Add((Marshal.ReadByte(record, 9), (ushort)Marshal.ReadInt16(record, 40), (ulong)Marshal.ReadInt64(record, 32)));
                 offset += bytes;
             }
-            return count;
+            return cores;
         }
         finally
         {

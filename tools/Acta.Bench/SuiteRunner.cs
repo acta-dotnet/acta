@@ -9,6 +9,7 @@ internal static class SuiteRunner
 {
     public static async Task<int> RunAsync(RunPlan plan, string output, CancellationToken ct)
     {
+        var wall = Stopwatch.StartNew();
         var bundle = new EvidenceBundle(output, plan.RunId);
         using var runLease = new FileStream(bundle.Resolve("run.lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
         bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
@@ -89,7 +90,7 @@ internal static class SuiteRunner
                     }
                     finally
                     {
-                        RecordServer(bundle, environment.ServerSpecs);
+                        RecordEnvironment(bundle, environment.ServerSpecs);
                     }
                     var settings = await environment.CaptureSettingsAsync(ct);
                     settingsVerified &= environment.SettingsVerified;
@@ -179,6 +180,18 @@ internal static class SuiteRunner
             Record(CaseResult.Incomplete(control.Id, "harness", "self_test", "Required harness check did not finish."));
         }
         var status = Verdicts.Overall(results, aborted, settingsVerified);
+        // A passing run whose evidence outgrew its budget wrote per-job data it should not have; heavy writes also
+        // degrade the drives that later runs measure on.
+        var evidenceBytes = EvidenceBundle.Bytes(bundle.DirectoryPath);
+        var budgetBytes = (long)(plan.Policy("output", "passing_bundle_budget_mb") * 1048576);
+        if (status == "PASS" && evidenceBytes > budgetBytes)
+        {
+            harnessError = true;
+            var message =
+                $"EVIDENCE BUDGET EXCEEDED: the passing bundle holds {evidenceBytes / 1048576.0:F1} MB, over its {budgetBytes / 1048576} MB budget.";
+            Console.WriteLine(message);
+            File.WriteAllText(bundle.Resolve("logs/evidence-budget.txt"), message);
+        }
         if (harnessError && status == "PASS")
         {
             status = "INCONCLUSIVE";
@@ -202,7 +215,12 @@ internal static class SuiteRunner
             [],
             harnessError
         );
-        bundle.Finish(report);
+        RecordEnvironment(
+            bundle,
+            new() { ["run_wall_seconds"] = wall.Elapsed.TotalSeconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) }
+        );
+        report = bundle.Finish(report);
+        Console.WriteLine(Report.Lead(bundle.DirectoryPath, report));
         Console.WriteLine($"{status}: {bundle.Resolve("report.html")}");
         return Verdicts.ExitCode(status, harnessError);
 
@@ -232,8 +250,11 @@ internal static class SuiteRunner
         }
     }
 
-    /// <summary>Adds a provisioned server's Docker VM, container and readback settings to the run's environment record.</summary>
-    private static void RecordServer(EvidenceBundle bundle, Dictionary<string, string> specs)
+    /// <summary>
+    /// Adds entries to the run's environment record: a provisioned server's Docker VM, container and readback settings,
+    /// or the run's wall time.
+    /// </summary>
+    private static void RecordEnvironment(EvidenceBundle bundle, Dictionary<string, string> specs)
     {
         if (specs.Count == 0)
         {
@@ -252,8 +273,14 @@ internal static class SuiteRunner
 
     private static async Task<Provenance> CaptureAsync(RunPlan plan, EvidenceBundle bundle, CancellationToken ct)
     {
+        var performance = HardwareDescription.PerformanceMask();
         var environment = new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            ["hybrid_cpu"] = (performance is not null).ToString(),
+            ["performance_logical_processors"] = performance is { } mask
+                ? string.Join(",", Enumerable.Range(0, 64).Where(i => (mask >> i & 1) == 1))
+                : "none: every core shares one efficiency class, or the topology is unknown",
+            ["workers_pinned_to_performance_cores"] = (OwnedWorker.Affinity is not null).ToString(),
             ["os"] = RuntimeInformation.OSDescription,
             ["machine_name"] = Environment.MachineName,
             ["architecture"] = RuntimeInformation.ProcessArchitecture.ToString(),
@@ -273,7 +300,10 @@ internal static class SuiteRunner
             ["gc_server"] = System.Runtime.GCSettings.IsServerGC.ToString(),
             ["compilation_mode"] = BuildMode.Current(),
             ["worker_compilation_mode"] = BuildMode.Current(),
-            ["observer"] = "Independent committed-state SQL reads; completion times are observed upper bounds.",
+            ["observer"] =
+                "Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.",
+            ["repetitions"] = plan.Repetitions.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["preloaded_backlog_roots"] = string.Join(",", plan.PreloadedBacklogRoots.Select(p => $"{p.Key}={p.Value}")),
             ["monotonic_clock_frequency"] = Stopwatch.Frequency.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["build_configuration"] =
                 typeof(BenchCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "unknown",

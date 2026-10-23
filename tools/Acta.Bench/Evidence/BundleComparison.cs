@@ -58,6 +58,8 @@ internal static class BundleComparison
             && pa.ReferenceSloMs == pb.ReferenceSloMs
             && pa.LatencySloMs.OrderBy(p => p.Key, StringComparer.Ordinal)
                 .SequenceEqual(pb.LatencySloMs.OrderBy(p => p.Key, StringComparer.Ordinal))
+            && pa.PreloadedBacklogRoots.OrderBy(p => p.Key, StringComparer.Ordinal)
+                .SequenceEqual(pb.PreloadedBacklogRoots.OrderBy(p => p.Key, StringComparer.Ordinal))
             && pa.Providers.Order(StringComparer.Ordinal).SequenceEqual(pb.Providers.Order(StringComparer.Ordinal))
             && pa.Cases.Select(c => c.Id)
                 .Order(StringComparer.Ordinal)

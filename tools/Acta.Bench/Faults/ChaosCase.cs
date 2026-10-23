@@ -204,7 +204,6 @@ internal static class ChaosCase
                 .Expected(cohort.Select(s => s.Work).Concat(producerCounts.Keys.Select(k => new BenchWork(k))))
                 .Select(e => e.Key.StartsWith("charge-", StringComparison.Ordinal) ? e with { Status = "FailedOrSucceeded" } : e)
                 .ToArray();
-            bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
             var observed = await new DurableReader(state).OutcomesAsync(ct);
             var delivered = observed.Count(o => o.Key.StartsWith("outbox-", StringComparison.Ordinal));
             List<Check> checks = [.. OutcomeOracle.Reconcile(expected, observed)];
@@ -228,7 +227,6 @@ internal static class ChaosCase
             var reclaimed = victims.Count(v => rows.TryGetValue(v.Id, out var row) && row.ExecutionNumber > v.Execution);
             var recoveredHits = hits.Count(hit => hit.Any(v => rows.TryGetValue(v.Id, out var row) && row.ExecutionNumber > v.Execution));
             bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-            bundle.Write($"histories/{tag}-observed.json", observed, BenchJson.Default.ObservedOutcomeArray);
             var unresolved = observed
                 .Where(o => o.Status is not ("Succeeded" or "Failed" or "Cancelled"))
                 .Select(o => o.Key)
@@ -286,7 +284,11 @@ internal static class ChaosCase
                     ["interrupted_attempts"] = new(victims.Count, "attempts"),
                     ["reclaimed_attempts"] = new(reclaimed, "attempts"),
                 },
-                [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json", $"histories/{tag}-model.json"]
+                [
+                    $"histories/{tag}-checks.json",
+                    $"histories/{tag}-model.json",
+                    .. bundle.WriteRows(tag, safe && live && covered, expected, observed),
+                ]
             );
         }
         finally

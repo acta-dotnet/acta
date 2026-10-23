@@ -44,7 +44,6 @@ internal static class RegistrationCases
                 Steps: ["value={\"value\":7}"]
             ),
         ];
-        bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
         using var first = OwnedWorker.Start(state, fixture: "v1");
         await first.ReadyAsync(ct);
         var root = await jobs.EnqueueAsync(
@@ -100,7 +99,6 @@ internal static class RegistrationCases
             );
         }
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var passed = checks.All(c => c.Passed);
         return new(
             scenario.Id,
@@ -116,7 +114,7 @@ internal static class RegistrationCases
             "COMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json"]
+            [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, expected, actual)]
         );
     }
 }

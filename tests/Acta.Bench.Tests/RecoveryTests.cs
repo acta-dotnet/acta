@@ -116,6 +116,44 @@ public sealed class RecoveryTests : IDisposable
     }
 
     [Fact]
+    public void Report_leads_with_each_measured_cell_and_names_the_trials_the_instability_rule_added()
+    {
+        var plan = Protocol.Plan("full", ["pg"], 1729, ["L04"]) with { Repetitions = 1 };
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
+        Finish(
+            bundle,
+            "INCONCLUSIVE",
+            [
+                Trial("L04", 1, "VALID", new() { ["primary_rate"] = new(19_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
+                Trial("L04", 2, "VALID", new() { ["primary_rate"] = new(11_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
+                Trial(
+                    "L02",
+                    1,
+                    "UNSTABLE",
+                    new()
+                    {
+                        ["admission_p50"] = new(5, "ms"),
+                        ["admission_p99"] = new(9, "ms"),
+                        ["latency_p50"] = new(7861, "ms"),
+                    }
+                ),
+            ]
+        );
+        var report = File.ReadAllText(bundle.Resolve("report.md"));
+        Assert.Contains("| 2 VALID; 1 added by the instability rule |", report, StringComparison.Ordinal);
+        Assert.Contains("15,000 (11,000-19,000)", report, StringComparison.Ordinal);
+        // Admission cases report admission latency, both percentiles from the same distribution.
+        Assert.Contains("Admission p50 ms", report, StringComparison.Ordinal);
+        Assert.Contains("| 1 UNSTABLE |", report, StringComparison.Ordinal);
+        Assert.Contains("| 5 | 9 |", report, StringComparison.Ordinal);
+        Assert.True(report.IndexOf("## L04", StringComparison.Ordinal) < report.IndexOf("## Environment", StringComparison.Ordinal));
+
+        static CaseResult Trial(string id, int repetition, string measurement, Dictionary<string, Metric> metrics) =>
+            new(id, "pg", "measure", repetition, "PASS", null, "PASS", "PASS", "COMPLETE", measurement, metrics, []);
+    }
+
+    [Fact]
     public async Task Report_returns_the_exit_code_the_run_returned_for_a_harness_error()
     {
         var bundle = Create();
@@ -132,11 +170,19 @@ public sealed class RecoveryTests : IDisposable
         Assert.Equal(1, await BenchCommand.RunAsync(["compare", baseline, Measured((50, "VALID", 900), (100, "UNSTABLE", 1000))], ct));
         Assert.Equal(1, await BenchCommand.RunAsync(["compare", baseline, Measured((50, "VALID", 900), (100, "VALID", 1500))], ct));
         Assert.Equal(1, await BenchCommand.RunAsync(["compare", baseline, Measured((50, "UNSTABLE", 900))], ct));
+        // A different preload is a different workload, so the bundles are not comparable.
+        Assert.Equal(2, await BenchCommand.RunAsync(["compare", baseline, Measured(1_000_000, (50, "VALID", 900))], ct));
     }
 
-    private string Measured(params (double Rate, string Measurement, double P99)[] trials)
+    private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(null, trials);
+
+    private string Measured(int? preload, params (double Rate, string Measurement, double P99)[] trials)
     {
         var plan = Protocol.Plan("quick", ["pg"], 1729, ["C01"]);
+        if (preload is { } roots)
+        {
+            plan = plan with { PreloadedBacklogRoots = plan.PreloadedBacklogRoots.ToDictionary(p => p.Key, _ => roots) };
+        }
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
         bundle.Write("environment.json", MachineKeys.ToDictionary(k => k, _ => "test"), BenchJson.Default.DictionaryStringString);

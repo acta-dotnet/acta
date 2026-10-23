@@ -89,12 +89,19 @@ public static class CoveragePolicy
             );
     }
 
-    /// <summary>The diagnostic cells the runner executes for a case, and so exactly the cells coverage requires.</summary>
+    /// <summary>
+    /// The diagnostic cells the runner executes for a case, and so exactly the cells coverage requires: the requested
+    /// cells, or every cell in the full profile when none is requested.
+    /// </summary>
     public static IEnumerable<TrialCell> RequiredCells(RunPlan plan, string provider, string id) =>
         plan.DiagnosticCells.Where(c =>
             c.CaseId == id
             && (provider != "sqlite" || c.Workers == 1)
-            && (plan.IsExtended || plan.RequestedDiagnosticCells.Contains(c.Name, StringComparer.Ordinal))
+            && (
+                plan.RequestedDiagnosticCells.Count > 0
+                    ? plan.RequestedDiagnosticCells.Contains(c.Name, StringComparer.Ordinal)
+                    : plan.IsExtended
+            )
         );
 
     public static CaseResult[] Missing(RunPlan plan, string provider, IEnumerable<CaseResult> results)

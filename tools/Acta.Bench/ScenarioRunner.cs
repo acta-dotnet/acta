@@ -41,6 +41,7 @@ internal static class ScenarioRunner
     )
     {
         List<CaseResult> completed = [];
+        var lastRecorded = System.Diagnostics.Stopwatch.GetTimestamp();
         foreach (var descriptor in plan.Cases.Where(c => c.Family != "harness"))
         {
             ct.ThrowIfCancellationRequested();
@@ -401,6 +402,14 @@ internal static class ScenarioRunner
         async Task<CaseResult> RecordAsync(CaseResult result)
         {
             result = await LedgerValidation.ApplyAsync(result, environment.TakeTrials(), bundle, ct);
+            // Results are recorded one after another, so the time since the previous one is the time this one took.
+            var recorded = System.Diagnostics.Stopwatch.GetTimestamp();
+            result.Metrics["wall_seconds"] = new(
+                (recorded - lastRecorded) / (double)System.Diagnostics.Stopwatch.Frequency,
+                "seconds",
+                Reason: "Time from the previous recorded result to this one, its setup, trial and ledger checks included."
+            );
+            lastRecorded = recorded;
             if (
                 result is { Id: "L04", Phase: "measure", DiagnosticCellName: null, Status: "PASS" }
                 && result.Metrics.GetValueOrDefault("backlog_drain_rate")?.Value is { } drain

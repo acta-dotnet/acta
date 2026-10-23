@@ -16,7 +16,8 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all
 - Choose a profile explicitly; running with no arguments prints help.
 - `--db` takes `sqlite`, `pg`, `mssql`, or `all` (the default).
 - `--use-compose-servers` runs PostgreSQL and SQL Server on the `acta-dev` Compose services instead of owned containers.
-- `--case ID` and `--cell NAME` narrow a run. A quick run or a selected-case run establishes only its own scope.
+- `--case ID` and `--cell NAME` narrow a run, in any profile. A quick run or a selected-case run establishes only its own scope.
+- `--repetitions N` sets the independent trials per cell, and `--preload N` sets the L04 preloaded roots on every provider. The resolved plan and `environment.json` record the values that ran.
 
 | Profile | Measured trials | Soak | F09 certification |
 |---|---|---|---|
@@ -39,11 +40,24 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all
 - **Liveness:** a wait fails only past a deadline that grows with the outstanding jobs, the lease a kill leaves to lapse, and a slow measured drain. A trial's drain, and a case's wait on job completions, keep waiting past it while completions keep landing, and fail once none lands for the stall window or the ceiling passes. Any other wait fails at the deadline.
 - **Latency:** the no-op p99 target is 2 seconds, which includes the 1-second safety poll between processes. It is benchmark policy, not a product guarantee.
 
+## Measurement standard
+
+Every case follows these rules.
+
+1. **Time on the database clock.** A completion is the instant the database stamped when the job turned terminal (`jobs_state.modified_at_utc`, or `steps.modified_at_utc` for a step), never when a poll noticed the row. The stamp is mapped onto the controller's stopwatch by the shortest round trip of nine clock reads at trial start.
+2. **Progress by one aggregate query per cycle.** During a trial the controller counts what remains with one query every `measurement.progress_count_ms`, never reading jobs one by one. A case that needs one job's state mid-run, such as a fault case waiting for its in-flight root, reads only that job.
+3. **Verify once after the trial.** One read in job-id pages (`LIMIT` or `TOP`, never `IN` lists) returns every job of the trial with its completion stamp, and the identity, outcome and latency figures come from it.
+4. **Seed outside the window, fast.** Preloaded and background populations go in through the enqueue API with `measurement.preload_producers` concurrent batch producers, before any measurement starts.
+5. **Wait on conditions, never fixed sleeps.** A trial's drain ends when its count reaches zero or its liveness deadline passes.
+6. **Evidence is compact.** Every trial writes aggregates: checks, histograms, backlog, window, progress, ledger verdicts and settings. Per-job rows are written only for a trial that did not pass, and only for the identities it could not verify.
+7. **Workers run on the performance cores.** On a hybrid CPU under Windows, owned worker processes are pinned to the logical processors of the highest efficiency class (`measurement.runtime.pin_workers_to_performance_cores`), because the scheduler otherwise places whole workers on efficiency cores and the same trial lands in a slow or a fast mode. `environment.json` records the topology and whether the pin applied.
+
 ## Commands
 
 ```powershell
 acta-bench --standard --db all --seed 1729 --output ./artifacts/bench
 acta-bench --quick --db sqlite --case C03 --case C05
+acta-bench --full --db pg --case L04 --repetitions 3 --preload 1000000
 acta-bench replay ./artifacts/bench/<run-id>/resolved-plan.json
 acta-bench report ./artifacts/bench/<run-id>
 acta-bench compare ./artifacts/bench/<baseline> ./artifacts/bench/<candidate>
@@ -77,7 +91,9 @@ acta-bench list
 
 ## Evidence and exit codes
 
-- **The bundle:** each run writes `artifacts/bench/<run-id>/`. It holds `result.json`, offline HTML and Markdown reports, the frozen plan, the environment, the checks, the fault and resource journals, the histograms, the identity histories, and `checksums.sha256`. Raw database state under `repro/state/` is outside the checksums.
+- **The bundle:** each run writes `artifacts/bench/<run-id>/`. It holds `result.json`, offline HTML and Markdown reports, the frozen plan, the environment, the checks, the fault and resource journals, the histograms, the per-trial aggregates, the per-job rows of any trial that did not pass, and `checksums.sha256`. Raw database state under `repro/state/` is outside the checksums.
+- **The report:** `report.md`, and `report.html` rendered from it, lead with a table per measured case (a row per cell, with its medians and the trials the instability rule added) and the run's overhead: wall time, bundle size, and the median setup, seeding, window, verification, ledger and evidence-writing time per trial. Results that did not pass are listed individually, and the environment closes the report. The console prints the same lead at the end of a run.
+- **The evidence budget:** a passing run's bundle, everything outside `repro/state/`, stays under `output.passing_bundle_budget_mb`. A passing run over it prints the overrun, writes `logs/evidence-budget.txt`, and ends INCONCLUSIVE with a harness error.
 - **The external effect service:** it runs outside the workers with its own SQLite store, so idempotent effects are attributed to it, not to the engine.
 - **Exit codes:**
   - 1: a contract failure. It outranks every other outcome.

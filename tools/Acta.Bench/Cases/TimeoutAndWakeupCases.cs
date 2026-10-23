@@ -27,7 +27,6 @@ internal static class TimeoutAndWakeupCases
         {
             expected[0] = expected[0] with { Status = "Failed", Output = null };
         }
-        bundle.Write($"histories/{tag}-expected.json", expected, BenchJson.Default.ExpectedOutcomeArray);
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest(
                 "bench",
@@ -70,7 +69,6 @@ internal static class TimeoutAndWakeupCases
             );
         }
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var passed = checks.All(c => c.Passed);
         var covered = scenario.Id != "F08" || worker.DroppedWakeups > 0;
         return new(
@@ -90,7 +88,7 @@ internal static class TimeoutAndWakeupCases
             covered ? "COMPLETE" : "INCOMPLETE",
             "NOT_MEASURED",
             scenario.Id == "F08" ? new() { ["dropped_wakeups"] = new(worker.DroppedWakeups, "signals") } : [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json"],
+            [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, expected, actual)],
             Instrumented: true
         );
     }

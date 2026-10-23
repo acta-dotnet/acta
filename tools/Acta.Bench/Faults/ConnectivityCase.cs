@@ -37,7 +37,6 @@ internal static class ConnectivityCase
         await worker.ReadyAsync(ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
         var input = Enumerable.Range(0, 20).Select(i => new BenchWork($"root-{i}", WorkMs: i == 0 ? 2000 : 10)).ToArray();
-        bundle.Write($"histories/{tag}-expected.json", WorkloadModel.Expected(input), BenchJson.Default.ExpectedOutcomeArray);
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest("bench", "work", JobPayload.Json(input[0], WorkJson.Default.BenchWork), DeduplicationKey: input[0].Key),
             ct
@@ -64,7 +63,7 @@ internal static class ConnectivityCase
         proxy.Restore();
         var reader = new DurableReader(state);
         await plan.DrainAsync(
-            async () => input.Length - (await reader.ReadAsync(null, ct)).Count(r => r.Status == 100),
+            async () => (await reader.UnfinishedRootsAsync(0, ct)).Count,
             plan.Deadline(input.Length, worker.Settings!.LeaseSeconds, state.DrainRate),
             ct
         );
@@ -79,7 +78,6 @@ internal static class ConnectivityCase
             )
         );
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var covered = proxy.DroppedConnections > 0;
         var passed = checks.Where(c => c.Code != "live-connection-cut").All(c => c.Passed);
         return new(
@@ -96,7 +94,7 @@ internal static class ConnectivityCase
             covered ? "COMPLETE" : "INCOMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-checks.json", $"histories/{tag}-observed.json"]
+            [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed && covered, WorkloadModel.Expected(input), actual)]
         );
     }
 }

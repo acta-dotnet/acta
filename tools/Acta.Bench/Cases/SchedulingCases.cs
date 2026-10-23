@@ -43,7 +43,6 @@ internal static class SchedulingCases
                 Witness: true
             ))
             .ToArray();
-        bundle.Write($"histories/{tag}-expected.json", WorkloadModel.Expected(input), BenchJson.Default.ExpectedOutcomeArray);
         var admitted = new List<(BenchWork Work, EnqueueJobResponse Job, string? Lane)>();
         for (var i = 0; i < input.Length; i++)
         {
@@ -70,11 +69,7 @@ internal static class SchedulingCases
         using var workers = new OwnedWorkerPool();
         await workers.StartAsync(state, null, scenario.Id == "O05" ? 2 : 1, scenario.Id == "O04" ? 1 : null, ct);
         var reader = new DurableReader(state);
-        await plan.DrainAsync(
-            async () => count - (await reader.ReadAsync(null, ct)).Count(r => r.Status == 100),
-            plan.Deadline(count, 0, state.DrainRate),
-            ct
-        );
+        await plan.DrainAsync(async () => (await reader.UnfinishedRootsAsync(0, ct)).Count, plan.Deadline(count, 0, state.DrainRate), ct);
         var actual = await reader.OutcomesAsync(ct);
         var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected(input), actual).ToList();
         var notes = await NotesAsync(operations, ct);
@@ -174,10 +169,12 @@ internal static class SchedulingCases
                 );
             }
         }
-        bundle.Write($"histories/{tag}-notes.json", notes, WorkJson.Default.ListEventsItemArray);
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
-        bundle.Write($"histories/{tag}-observed.json", actual, BenchJson.Default.ObservedOutcomeArray);
         var passed = checks.All(c => c.Passed);
+        if (!passed)
+        {
+            bundle.Write($"histories/{tag}-notes.json", notes, WorkJson.Default.ListEventsItemArray);
+        }
         return new(
             scenario.Id,
             environment.Provider,
@@ -190,7 +187,11 @@ internal static class SchedulingCases
             "COMPLETE",
             "NOT_MEASURED",
             [],
-            [$"histories/{tag}-notes.json", $"histories/{tag}-checks.json"],
+            [
+                $"histories/{tag}-checks.json",
+                .. bundle.WriteRows(tag, passed, WorkloadModel.Expected(input), actual),
+                .. passed ? Array.Empty<string>() : [$"histories/{tag}-notes.json"],
+            ],
             Instrumented: true
         );
     }
