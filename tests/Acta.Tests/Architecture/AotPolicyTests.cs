@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Mechanical enforcement of <c>docs/design.md</c>, "AOT and SQL parameter metadata".
+/// Mechanical enforcement of <c>docs/architecture-decisions.md</c>, "AOT and SQL parameter metadata".
 /// Scans the AOT-compiled customer runtime (the runtime core and all three durable SQL providers) for
 /// the forbidden reflection / parameter-binding APIs.
 /// </summary>
@@ -171,7 +171,7 @@ public sealed partial class AotPolicyTests
         {
             Assert.Fail(
                 "AOT policy violation: runtime source uses parameter-binding APIs the policy bans "
-                    + "(see docs/design.md, AOT and SQL parameter metadata).\n\n"
+                    + "(see docs/architecture-decisions.md, AOT and SQL parameter metadata).\n\n"
                     + string.Join("\n", failures)
             );
         }

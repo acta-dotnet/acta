@@ -28,7 +28,7 @@ WHERE
     AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
     AND r.next_run_at_utc IS NOT NULL
     AND r.next_run_at_utc <= {{now}}
-    /* The worker's watermark, as on the server providers (docs/sql-execution-policy.md, "Claim
+    /* The worker's watermark, as on the server providers (docs/sql-internals.md, "Claim
        watermark"); SQLite frees a deleted index entry at once, so it only keeps the claim alike here.
        Without one the scan starts at DateTime.MinValue in epoch milliseconds, so a row due before 1970 is reached. */
     AND r.next_run_at_utc >= COALESCE(@p_claim_from_utc, -62135596800000)

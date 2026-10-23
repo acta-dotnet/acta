@@ -50,7 +50,7 @@ BEGIN
                     ) s
                 );
 
-                -- A locking read seeks (docs/sql-execution-policy.md, "Locking reads seek").
+                -- A locking read seeks (docs/sql-internals.md, "Locking reads seek").
                 INSERT INTO @job_del (job_id)
                 SELECT TOP (@p_batch_size) j.job_id
                 FROM {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK)
@@ -114,7 +114,7 @@ BEGIN
 
                 -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
-                -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
+                -- (docs/sql-internals.md, "Foreign keys in set-based writes").
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
                 DELETE r FROM {{schema}}.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
@@ -177,7 +177,7 @@ BEGIN
 
                 -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
                 -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/sql-execution-policy.md, "Alert lock order").
+                -- (docs/sql-internals.md, "Alert lock order").
                 INSERT INTO @alert_locked (alert_id)
                 SELECT a.alert_id
                 FROM @alert_del d
@@ -226,7 +226,7 @@ BEGIN
 
                 -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
                 -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/sql-execution-policy.md, "Alert lock order").
+                -- (docs/sql-internals.md, "Alert lock order").
                 INSERT INTO @alert_locked (alert_id)
                 SELECT a.alert_id
                 FROM @alert_del d
@@ -306,7 +306,7 @@ BEGIN
         ELSE IF @p_section = 7
             BEGIN
             -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
-            -- holds, then re-checked under the lock (docs/sql-execution-policy.md, "Lane lock order").
+            -- holds, then re-checked under the lock (docs/sql-internals.md, "Lane lock order").
                 DELETE @lane_del;
                 INSERT INTO @lane_del (lane_id)
                 SELECT l.lane_id

@@ -551,7 +551,7 @@
         <div class="build">
           <h3>Can real-database tests take milliseconds and run in parallel?</h3>
           <p><code>Acta.Testing</code> drives the real runtime one tick at a time, each test in its own schema, in tens of milliseconds.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#testing-custom-jobs"><b>docs/guide.md</b></a></span>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#testing-custom-jobs"><b>docs/developer-guide.md</b></a></span>
         </div>
         <div class="build">
           <h3>Can SQL replace a job queue, without a leader?</h3>
@@ -586,7 +586,7 @@
         <div class="build">
           <h3 id="data-model">Can the data model stay this small?</h3>
           <p>Codes are small integers, the hot row stays narrow, and the model is frozen at 1.0: only additive migrations from here.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/design.md"><b>docs/design.md</b></a></span>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/architecture-decisions.md"><b>docs/architecture-decisions.md</b></a></span>
         </div>
       </div>
     </section>
@@ -669,7 +669,7 @@
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
-        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#at-most-once-steps">At-most-once steps</a></li>
+        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a></li>
         <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
       </ul>
     </section>
@@ -677,7 +677,7 @@
     <section class="wrap" id="inventory">
       <p class="record">Capabilities · quick reference</p>
       <h2>Everything Acta includes, at a glance.</h2>
-      <p class="lede">The one-line version of everything Acta does. Each is explained, with the API behind it, in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md">the guide</a>.</p>
+      <p class="lede">The one-line version of everything Acta does. Each is explained, with the API behind it, in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md">the developer guide</a>.</p>
       <div class="fgrid">
         <div class="fcol">
           <h3>Jobs &amp; scheduling</h3>
@@ -766,7 +766,7 @@ Hello, World!</span>
       Apache-2.0 · built in the open
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Support</a>
       <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>

@@ -321,6 +321,7 @@
   - Older generation does not change policy or version
   - Equal generation with a real difference is applied
   - Unchanged restart writes nothing
+  - A newer unchanged build stores only its generation, so an older build registering after it changes nothing
   - A definition absent from the manifest stays Active with its jobs
   - Older generation cannot reactivate or rewrite a newer retired definition
   - Fail-mode contract drift blocks before any registration write

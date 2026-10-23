@@ -24,7 +24,7 @@ BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock").
     SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(jd.namespace_id AS NVARCHAR(12))
     FROM {{schema}}.definitions jd
     WHERE jd.definition_id = @p_definition_id;
@@ -37,7 +37,7 @@ BEGIN TRY
         END
 
     -- The lanes of the definition's parked laned jobs, locked one row at a time in id order before any
-    -- job row (docs/sql-execution-policy.md, "Lane lock order").
+    -- job row (docs/sql-internals.md, "Lane lock order").
     INSERT INTO @lanes (lane_id)
     SELECT DISTINCT r.lane_id
     FROM {{schema}}.jobs_state r
@@ -95,7 +95,7 @@ BEGIN TRY
         SET @version = @version + 1;
 
         /* The parked set is materialized first so the jobs_state update drives off a table variable and
-           can seek pk_jobs_state, per the SQL Server join-update rule in sql-execution-policy.md. */
+           can seek pk_jobs_state, per the SQL Server join-update rule in sql-internals.md. */
         INSERT INTO @parked (
             job_id,
             parent_job_id,

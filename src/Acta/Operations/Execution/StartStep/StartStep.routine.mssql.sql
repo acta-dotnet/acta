@@ -24,7 +24,7 @@ BEGIN
         DECLARE @state TINYINT;
         DECLARE @existing_next DATETIME2(3);
 
-        -- The step's own lock serializes starts of one step to commit (docs/sql-execution-policy.md,
+        -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
         -- "Slot locks"); a range lock on a step not yet stored would hold the gap every running job's next step
         -- falls in.
         DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_step_name);

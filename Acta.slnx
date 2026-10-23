@@ -31,18 +31,19 @@
   </Folder>
   <Folder Name="/docs/">
     <File Path="docs/README.md" />
+    <File Path="docs/architecture-decisions.md" />
+    <File Path="docs/benchmark.md" />
     <File Path="docs/choosing-acta.md" />
-    <File Path="docs/design.md" />
+    <File Path="docs/compatibility-and-support.md" />
+    <File Path="docs/developer-guide.md" />
     <File Path="docs/engineering-labs.md" />
-    <File Path="docs/guide.md" />
     <File Path="docs/known-limitations.md" />
     <File Path="docs/operator-guide.md" />
     <File Path="docs/quickstart.md" />
     <File Path="docs/release-notes.md" />
-    <File Path="docs/support.md" />
+    <File Path="docs/sql-internals.md" />
   </Folder>
   <Folder Name="/docs/reference/">
-    <File Path="docs/reference/benchmark.md" />
     <File Path="docs/reference/code-families.md" />
     <File Path="docs/reference/conformance-contracts.md" />
     <File Path="docs/reference/data-model.md" />

@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction. The job row first, then its alerts
--- (docs/sql-execution-policy.md, "Alert lock order"): purge_job holds the row FOR UPDATE while it
+-- (docs/sql-internals.md, "Alert lock order"): purge_job holds the row FOR UPDATE while it
 -- deletes the job's alerts in id order. FOR SHARE, not FOR KEY SHARE: see that section.
 DROP TABLE IF EXISTS pg_temp._resolve_alerts_job;
 CREATE TEMP TABLE _resolve_alerts_job (job_id BIGINT NOT NULL) ON COMMIT DROP;

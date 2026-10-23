@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: the lane, then the
--- job's rows (docs/sql-execution-policy.md, "Lane lock order"); lane_id never changes, so the
+-- job's rows (docs/sql-internals.md, "Lane lock order"); lane_id never changes, so the
 -- unlocked read that finds it is safe.
 DROP TABLE IF EXISTS pg_temp._reprioritize_job_lane;
 DROP TABLE IF EXISTS pg_temp._reprioritize_job;

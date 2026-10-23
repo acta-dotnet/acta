@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The job row is locked before any of
--- its alert rows, the order purge_job takes with FOR UPDATE (docs/sql-execution-policy.md, "Alert lock
+-- its alert rows, the order purge_job takes with FOR UPDATE (docs/sql-internals.md, "Alert lock
 -- order"), so a raise waits out a purge of its job. FOR SHARE, not FOR KEY SHARE: see that section.
 DROP TABLE IF EXISTS pg_temp._raise_alert_job;
 DROP TABLE IF EXISTS pg_temp._raise_alert_check;

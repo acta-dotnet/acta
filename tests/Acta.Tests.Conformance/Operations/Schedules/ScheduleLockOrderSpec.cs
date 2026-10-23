@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// Schedule writers serialize on their namespace's schedule lock (docs/sql-execution-policy.md, "Schedule lock"):
+/// Schedule writers serialize on their namespace's schedule lock (docs/sql-internals.md, "Schedule lock"):
 /// registration and retire hold it exclusive, a slot fire's completion and the schedule verbs hold it shared. A gate
 /// connection stands in for a registration by holding the lock exclusive in an open transaction, with its uncommitted
 /// edits, or for a fire by holding it shared. Deadlock retry is off, so a lock-order inversion fails the races instead

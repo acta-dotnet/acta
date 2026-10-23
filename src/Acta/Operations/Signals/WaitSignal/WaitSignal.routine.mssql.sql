@@ -4,7 +4,7 @@
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
 /* The read below needs no re-read after a lost insert the way pg's does: the slot's own lock, taken
-   first (docs/sql-execution-policy.md, "Slot locks"), makes a concurrent first arrival wait
+   first (docs/sql-internals.md, "Slot locks"), makes a concurrent first arrival wait
    here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
 /* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
    act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */

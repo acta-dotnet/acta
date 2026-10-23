@@ -61,7 +61,7 @@ acta-bench --full --db pg --case L04 --repetitions 3 --preload 1000000
 acta-bench replay ./artifacts/bench/<run-id>/resolved-plan.json
 acta-bench report ./artifacts/bench/<run-id>
 acta-bench compare ./artifacts/bench/<baseline> ./artifacts/bench/<candidate>
-acta-bench publish ./artifacts/bench/<run-id> --to docs/reference/benchmark.md
+acta-bench publish ./artifacts/bench/<run-id> --to docs/benchmark.md
 acta-bench cleanup [--yes]
 acta-bench list
 ```

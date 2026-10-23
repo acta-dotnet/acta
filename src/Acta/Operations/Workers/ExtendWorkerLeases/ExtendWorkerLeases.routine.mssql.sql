@@ -66,7 +66,7 @@ BEGIN
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
            version bump: a lease refresh is not a claim-generation change. */
         -- Read the matched ids first so the update locks base rows only, never an index key;
-        -- complete_executions locks in the other order. See docs/sql-execution-policy.md.
+        -- complete_executions locks in the other order. See docs/sql-internals.md.
         DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
         INSERT INTO @matched (job_id, execution_number)
         SELECT r.job_id, r.execution_number
@@ -77,7 +77,7 @@ BEGIN
             AND r.job_status_code = 50 /* JobStatusCode.Executing */;
 
         -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-        -- (docs/sql-execution-policy.md, "Explicit exceptions and maintenance").
+        -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
         DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         UPDATE r
         SET lease_expires_at_utc = @new_expiry

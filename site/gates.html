@@ -92,7 +92,7 @@
           <figcaption class="walk-caption" aria-live="polite" aria-atomic="true"><span id="admission-step">Lane · 1 / 5 · Enqueue</span><strong id="admission-heading">Only the head of each lane is Ready.</strong><p id="admission-description">A1 and B1 are claimable. A2, A3 and B2 are Blocked, outside the claim scan, so a deep lane costs the claim nothing. Enqueue order is commit order: two producers cannot interleave a lane.</p></figcaption>
           <div class="walk-navigation" hidden><button type="button" class="button" id="admission-back" disabled>Previous</button><button type="button" class="button primary" id="admission-next">Next →</button><button type="button" class="button" id="admission-play" aria-pressed="false">Play</button><span>Step at your own pace</span></div>
         </div>
-        <p class="walk-footnote">Execution is at-least-once on every path, so handlers with external effects stay idempotent. A lane head still passes the key and rate gates it carries, and the jobs behind it stay Blocked while they re-arm it. Semantics in full: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#lanes">Lanes</a> · <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#ordering-and-exclusion">Ordering and exclusion</a> · runnable: <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key">209-concurrency-key</a></p>
+        <p class="walk-footnote">Execution is at-least-once on every path, so handlers with external effects stay idempotent. A lane head still passes the key and rate gates it carries, and the jobs behind it stay Blocked while they re-arm it. Semantics in full: <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#lanes">Lanes</a> · <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#ordering-and-exclusion">Ordering and exclusion</a> · runnable: <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key">209-concurrency-key</a></p>
       </figure>
 
       <table class="admission-choose">
@@ -123,7 +123,7 @@
       Apache-2.0 · built in the open
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Support</a>
       <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>

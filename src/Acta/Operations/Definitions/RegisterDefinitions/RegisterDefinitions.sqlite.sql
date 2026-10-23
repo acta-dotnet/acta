@@ -88,13 +88,21 @@ ON CONFLICT (namespace_id, definition_name) DO UPDATE SET
     description = excluded.description,
     definition_hash = excluded.definition_hash,
     manifest_generation_at_utc = excluded.manifest_generation_at_utc,
-    modified_at_utc = {{now}},
-    version = {{schema}}.definitions.version + 1
+    -- An unchanged Active row from a newer manifest takes only the generation, because an equal hash means the columns
+    -- above already hold these values; version and modified_at_utc stay, so no operator CAS fails and no worker reloads.
+    modified_at_utc = CASE WHEN {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+        OR {{schema}}.definitions.definition_hash IS NOT excluded.definition_hash
+        THEN {{now}} ELSE {{schema}}.definitions.modified_at_utc END,
+    version = CASE WHEN {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+        OR {{schema}}.definitions.definition_hash IS NOT excluded.definition_hash
+        THEN {{schema}}.definitions.version + 1 ELSE {{schema}}.definitions.version END
 WHERE
     excluded.manifest_generation_at_utc >= {{schema}}.definitions.manifest_generation_at_utc
     AND (
         {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
         OR {{schema}}.definitions.definition_hash IS NOT excluded.definition_hash
+        -- An unchanged row still takes a newer generation, so an older build that registers after it is refused.
+        OR excluded.manifest_generation_at_utc > {{schema}}.definitions.manifest_generation_at_utc
     );
 
 -- CROSS JOIN keeps the batch the outer loop, one index seek per name: a plain join lets the planner walk the

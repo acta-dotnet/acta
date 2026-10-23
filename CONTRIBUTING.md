@@ -161,7 +161,7 @@ dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
 dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
 ```
 
-See [Testing custom jobs](./docs/guide.md#testing-custom-jobs) for the test taxonomy and
+See [Testing custom jobs](./docs/developer-guide.md#testing-custom-jobs) for the test taxonomy and
 [Schema migrations](#schema-migrations) for the migration workflow.
 
 ## Dashboard development
@@ -248,8 +248,8 @@ ship a migration: the operator views decode every code by name. A value that cha
 
 ## Generated files
 
-Generated files are drift-checked and never hand-edited. A stale contract test names its own
-regeneration command:
+Generated files are drift-checked and never hand-edited, and `docs/reference/` holds nothing else: a
+hand-written page goes in `docs/`. A stale contract test names its own regeneration command:
 
 | File | Regenerate |
 | --- | --- |
@@ -260,7 +260,6 @@ regeneration command:
 | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | `tests/Acta.Tests/Contracts/PublicApiSurface.approved.txt` | `ACTA_EMIT_API=1 dotnet test tests/Acta.Tests --filter PublicApiContractTests` |
 | The persisted-code hash in `PersistedCodeContractTests` | re-pin by hand |
-| `docs/reference/benchmark.md` | a release benchmark round, see [Releasing](#releasing) |
 
 `dotnet run --project tools/Acta.Emit -- check` verifies the Emit-owned files. A regenerated baseline
 looks like a deliberate one once committed, so read each moved baseline and confirm the move was
@@ -353,7 +352,7 @@ restates code loses nothing - the code still says it. The homes, in order of pre
    never appears inside a body, with one structural exception: a comment on one attribute inside an
    attribute list, or on one parameter inside a positional-record parameter list, stays `//`,
    because `///` has no valid target there (CS1587).
-4. **A doc file.** Anything needing paragraphs goes to this file or `docs/design.md` (contributors) or
+4. **A doc file.** Anything needing paragraphs goes to this file or `docs/architecture-decisions.md` (contributors) or
    `llms.txt` (consumers).
 
 Never, anywhere: restating what adjacent code visibly does, section banner comments, naming
@@ -549,7 +548,7 @@ operator's index maps a log field, so both outlive the release that introduced t
   (`acta.lock.release.failures`, `acta.alert.projection.skips`).
 - **The unit lives in the instrument, not in the name.** `acta.duration` declares `ms` as its unit
   argument; a name never restates what the unit already carries.
-- **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason_code`, `result`, `state`. Job id
+- **Tags stay low-cardinality** - `namespace`, `job_name`, `outcome`, `reason`, `result`, `state`. Job id
   and execution number are deliberately absent from metrics and live on the log scope and traces
   instead. `ActaMetricsTests` pins instrument names, tag keys, and tag values.
 
@@ -592,7 +591,7 @@ Where code lives in `src/`, and the tests that hold it there.
 - `src/Acta.Postgres`, `src/Acta.SqlServer`, and `src/Acta.Sqlite` each hold the `Use{Provider}` registration and outbox staging at the project root, the dialect and the migrator (which is also the startup bootstrap) under `Services/`, and its migrations under `Migrations/`, named `M{yyyyMMddHHmmss}_{name}.sql`.
 - `src/Acta.AspNetCore` holds `MapActa`, the routes in `Operations/<Group>/`, the `Http/` helpers (route shapes, binding, validation, the JSON context, headers), and the dashboard. It references only `Acta`, and sees only its public types.
 - `src/Acta.Redis` is the Redis wakeup, `src/Acta.Testing` the test host and runners, and `src/Acta.Generators` the source generators.
-- A file holds one top-level type and is named for it, with the generic arities of one name together and a partial type's other files named `Type.Part.cs`; a type that exactly one other type references, tests aside, sits below that type in its file instead, unless a layout rule gives it a file of its own, or the two files differ in namespace, analyzer rulings, or test allowlist entries.
+- A file holds one top-level type and is named for it, with the generic arities of one name together and a partial type's other files named `Type.Part.cs`; a type that exactly one other type references, tests aside, sits below that type in its file instead, and a reference from an interface's implementation counts as the interface's, so a type that only an interface and its implementations reference sits below the interface, unless a layout rule gives it a file of its own, or the two files differ in namespace, analyzer rulings, or test allowlist entries.
 
 ### Operations
 
@@ -750,7 +749,7 @@ dotnet run -c Release --project tools/Acta.Bench -- --standard --db all --output
 - The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and F09 is the certification run under the shipped lease timings. A `--quick` or `--standard` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and F09) and reports capacity as information; `--full` also gates on measurement.
 - A release that changes the execution model runs `--full`; any other release may run `--standard`. The release notes' evidence paragraph names the profile and the scope that ran.
 - Compare with the previous tag's bundle from the same machine: `acta-bench compare <previous> <candidate>`. Rerun a cell that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
-- Publish the report in B with `acta-bench publish <run-directory> --to docs/reference/benchmark.md`, then remove the run's leftovers with `acta-bench cleanup --yes`.
+- Publish the report in B with `acta-bench publish <run-directory> --to docs/benchmark.md`, then remove the run's leftovers with `acta-bench cleanup --yes`.
 
 ### Release notes and docs
 
@@ -767,7 +766,7 @@ dotnet run -c Release --project tools/Acta.Bench -- --standard --db all --output
 ## Repository layout
 
 ```text
-docs/       hand-written guides + generated references (index: docs/README.md)
+docs/       hand-written guides; docs/reference/ holds only generated references (index: docs/README.md)
 src/        production packages and source generators
 tests/      unit, dashboard, conformance, and provider-specific tests
 concepts/   runnable single-concept tutorial rungs (one idea each), built by their own concepts/Concepts.slnx
@@ -786,16 +785,16 @@ The shortest paths to the design-review-worthy parts:
 * **One handler per operation across three engines.** Each operation's handler in `Acta` builds its command and maps its rows once; PostgreSQL, SQL Server, and SQLite each own only a dialect and the operation's executable SQL, held to the same behavior by the conformance suite.
 * **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql` (a routine body is `<Operation>.routine.{pg,mssql}.sql`), beside its public types and handler, the schema bootstrap's in `Operations/Schema/`, with the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
-* **A deliberately small, symmetric data model.** Fifteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/design.md`](./docs/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
+* **A deliberately small, symmetric data model.** Fifteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/architecture-decisions.md`](./docs/architecture-decisions.md) § substrate generality), which keeps migrations short and upgrades reviewable.
 
 | Area | Where to look |
 |---|---|
 | Public-API design | `src/Acta/Operations/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
-| Durable execution model | [Concepts](./docs/guide.md#concepts-and-glossary), [handler contract](./docs/guide.md#handler-contract) |
+| Durable execution model | [Concepts](./docs/developer-guide.md#concepts-and-glossary), [handler contract](./docs/developer-guide.md#handler-contract) |
 | Persistence architecture | `src/Acta/Operations/` (one folder per operation: its public types, handler, and SQL), `src/Acta/{Schema,Storage}/`, the dialect class in each of `src/Acta.{Postgres,SqlServer,Sqlite}/` |
 | Provider conformance | `tests/Acta.Tests.Conformance` (specs and test infrastructure); each of `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}` compiles the specs against its own `ConformanceFixture` alias, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |
 | CI, packaging, smoke checks | `.github/workflows/ci.yml`, `tests/PackageSmoke/` |
 
-Settled design decisions live in [`docs/design.md`](./docs/design.md).
+Settled design decisions live in [`docs/architecture-decisions.md`](./docs/architecture-decisions.md).

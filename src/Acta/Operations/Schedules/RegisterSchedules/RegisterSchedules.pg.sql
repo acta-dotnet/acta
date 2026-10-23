@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows.
--- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+-- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock").
 DROP TABLE IF EXISTS pg_temp._reg_lock;
 CREATE TEMP TABLE _reg_lock ON COMMIT DROP AS
 SELECT 1 AS granted FROM (SELECT pg_advisory_xact_lock(hashtext('{{schema}}.schedules'), @p_namespace_id)) AS l;

@@ -1075,9 +1075,9 @@ interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.ListJobsResponse> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.INamespaces
     System.Threading.Tasks.ValueTask<Acta.ListNamespacesResponse> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String name, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String name, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.UpdateNamespaceResponse> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String namespaceName, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String namespaceName, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.UpdateNamespaceResponse> UpdateAsync(System.String namespaceName, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.IOutbox
     System.Threading.Tasks.ValueTask<Acta.DiscardOutboxResponse> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = null, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListOutboxQuarantinedResponse> ListQuarantinedAsync(Acta.ListOutboxQuarantinedQuery query, System.Threading.CancellationToken ct = default)

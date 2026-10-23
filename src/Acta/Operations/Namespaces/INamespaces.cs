@@ -11,7 +11,7 @@ public interface INamespaces
 
     /// <summary>Suspend a namespace by name (status-only, idempotent). Emits namespace.suspended.</summary>
     ValueTask<SuspendNamespaceResponse> SuspendAsync(
-        string name,
+        string namespaceName,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -19,7 +19,7 @@ public interface INamespaces
 
     /// <summary>Resume a suspended namespace by name (status-only, idempotent). Emits namespace.resumed.</summary>
     ValueTask<ResumeNamespaceResponse> ResumeAsync(
-        string name,
+        string namespaceName,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -30,7 +30,7 @@ public interface INamespaces
     /// Emits namespace.updated.
     /// </summary>
     ValueTask<UpdateNamespaceResponse> UpdateAsync(
-        string name,
+        string namespaceName,
         int expectedVersion,
         string? ownerTeam,
         string? description,

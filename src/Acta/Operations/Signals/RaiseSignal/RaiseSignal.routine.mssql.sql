@@ -25,7 +25,7 @@ BEGIN
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
             @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
 
-        -- The slot's own lock, as wait_signal names it (docs/sql-execution-policy.md, "Slot locks").
+        -- The slot's own lock, as wait_signal names it (docs/sql-internals.md, "Slot locks").
         DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
         DECLARE @slot_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).

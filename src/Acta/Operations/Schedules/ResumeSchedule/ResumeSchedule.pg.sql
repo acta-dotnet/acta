@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The namespace's schedule lock, shared, comes
--- before any row lock (docs/sql-execution-policy.md, "Schedule lock"), so the reads after it see a committed retire or
+-- before any row lock (docs/sql-internals.md, "Schedule lock"), so the reads after it see a committed retire or
 -- registration; the slot's jobs_state row then locks before its schedules row, the order a fire's completion takes.
 DROP TABLE IF EXISTS pg_temp._resume_schedule_lock;
 DROP TABLE IF EXISTS pg_temp._resume_schedule_slot;

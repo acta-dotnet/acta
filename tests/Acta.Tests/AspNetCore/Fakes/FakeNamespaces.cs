@@ -21,16 +21,23 @@ internal sealed class FakeNamespaces : INamespaces
                     null
                 )
             );
-        Suspend = (name, reason, actor, _) =>
-            Apply("suspend", name, reason, actor, static (action, version) => new SuspendNamespaceResponse(action, version));
-        Resume = (name, reason, actor, _) =>
-            Apply("resume", name, reason, actor, static (action, version) => new ResumeNamespaceResponse(action, version));
-        Update = (name, expectedVersion, _, _, reason, actor, _) =>
-            Apply("patch", name, reason, actor, static (action, version) => new UpdateNamespaceResponse(action, version), expectedVersion);
+        Suspend = (namespaceName, reason, actor, _) =>
+            Apply("suspend", namespaceName, reason, actor, static (action, version) => new SuspendNamespaceResponse(action, version));
+        Resume = (namespaceName, reason, actor, _) =>
+            Apply("resume", namespaceName, reason, actor, static (action, version) => new ResumeNamespaceResponse(action, version));
+        Update = (namespaceName, expectedVersion, _, _, reason, actor, _) =>
+            Apply(
+                "patch",
+                namespaceName,
+                reason,
+                actor,
+                static (action, version) => new UpdateNamespaceResponse(action, version),
+                expectedVersion
+            );
     }
 
     /// <summary>Applied admin verbs, named suspend, resume, or patch.</summary>
-    public List<(string Verb, string Name, string? ReasonMessage, string? Actor)> AdminCalls { get; } = [];
+    public List<(string Verb, string NamespaceName, string? ReasonMessage, string? Actor)> AdminCalls { get; } = [];
 
     public Func<ListNamespacesQuery, CancellationToken, ValueTask<ListNamespacesResponse>> List { get; set; }
 
@@ -42,37 +49,45 @@ internal sealed class FakeNamespaces : INamespaces
 
     ValueTask<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(string name, string? reasonMessage, string? actor, CancellationToken ct) =>
-        Suspend(name, reasonMessage, actor, ct);
+    ValueTask<SuspendNamespaceResponse> INamespaces.SuspendAsync(
+        string namespaceName,
+        string? reasonMessage,
+        string? actor,
+        CancellationToken ct
+    ) => Suspend(namespaceName, reasonMessage, actor, ct);
 
-    ValueTask<ResumeNamespaceResponse> INamespaces.ResumeAsync(string name, string? reasonMessage, string? actor, CancellationToken ct) =>
-        Resume(name, reasonMessage, actor, ct);
+    ValueTask<ResumeNamespaceResponse> INamespaces.ResumeAsync(
+        string namespaceName,
+        string? reasonMessage,
+        string? actor,
+        CancellationToken ct
+    ) => Resume(namespaceName, reasonMessage, actor, ct);
 
     ValueTask<UpdateNamespaceResponse> INamespaces.UpdateAsync(
-        string name,
+        string namespaceName,
         int expectedVersion,
         string? ownerTeam,
         string? description,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Update(name, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
+    ) => Update(namespaceName, expectedVersion, ownerTeam, description, reasonMessage, actor, ct);
 
     private ValueTask<T> Apply<T>(
         string verb,
-        string name,
+        string namespaceName,
         string? reasonMessage,
         string? actor,
         Func<ControlAction, int?, T> response,
         int? expectedVersion = null
     )
     {
-        if (name is "sys" or "bad key")
+        if (namespaceName is "sys" or "bad key")
         {
-            throw new ArgumentException("The system namespace sys cannot be suspended or edited.", nameof(name));
+            throw new ArgumentException("The system namespace sys cannot be suspended or edited.", nameof(namespaceName));
         }
 
-        if (name == "missing")
+        if (namespaceName == "missing")
         {
             return ValueTask.FromResult(response(ControlAction.NotFound, null));
         }
@@ -82,7 +97,7 @@ internal sealed class FakeNamespaces : INamespaces
             return ValueTask.FromResult(response(ControlAction.VersionConflict, 5));
         }
 
-        AdminCalls.Add((verb, name, reasonMessage, actor));
+        AdminCalls.Add((verb, namespaceName, reasonMessage, actor));
         return ValueTask.FromResult(response(ControlAction.Applied, 2));
     }
 }

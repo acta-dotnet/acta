@@ -38,7 +38,7 @@ BEGIN
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
            reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, slot locks, awaited slots, own jobs_state
-           rows, schedules, parent latches and rows, in key order (docs/sql-execution-policy.md, "Lane lock order"); lane and parent ids never change. */
+           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
         -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
         IF @p_plain = 1
             INSERT INTO @rows (job_id, execution_number)
@@ -107,7 +107,7 @@ BEGIN
                 END
 
             /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
-               name order and before any slot row or jobs_state row (docs/sql-execution-policy.md, "Slot locks"): each awaited slot
+               name order and before any slot row or jobs_state row (docs/sql-internals.md, "Slot locks"): each awaited slot
                under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
             IF @waits = 1 OR @children = 1
                 BEGIN

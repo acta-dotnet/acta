@@ -1,4 +1,4 @@
--- Lock order: the batch's lanes in id order, then the parent rows (docs/sql-execution-policy.md,
+-- Lock order: the batch's lanes in id order, then the parent rows (docs/sql-internals.md,
 -- "Lane lock order").
 CREATE OR REPLACE FUNCTION {{schema}}.enqueue_jobs(
     p_b_ordinal INT [],
@@ -86,7 +86,7 @@ BEGIN
     END IF;
 
     -- Missing lanes are inserted in name order, then the whole set is locked in id order
-    -- (docs/sql-execution-policy.md, "Lane lock order"). An unlaned batch skips all of it, the
+    -- (docs/sql-internals.md, "Lane lock order"). An unlaned batch skips all of it, the
     -- lane table's per-call temp-table create included.
     lane_count := 0;
     IF laned_count > 0 THEN

@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
 /// Alert writers race the deletes of the jobs they name. For every job at once, a raiser repeats an
 /// automatic-shaped incident, a resolver closes it, and an operator purges the job, while retention sweeps
 /// the namespace's alerts. Every path takes the job row before that job's alert rows
-/// (docs/sql-execution-policy.md, "Alert lock order"), so none deadlocks, and a raise that loses
+/// (docs/sql-internals.md, "Alert lock order"), so none deadlocks, and a raise that loses
 /// to the purge is refused rather than landing an alert on a deleted job. Deadlock retry is off, so a
 /// deadlock fails the test instead of being absorbed by a retry.
 /// </summary>

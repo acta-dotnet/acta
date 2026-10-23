@@ -405,7 +405,7 @@ internal sealed partial class WorkerFinalizer(
                     }
                 }
 
-                // reason_code is the attempt's EventReason kebab (null on a plain success).
+                // The reason tag is the attempt's EventReason kebab (null on a plain success).
                 if (landed && entry.Descriptor is { } descriptor)
                 {
                     metrics?.RecordExecution(

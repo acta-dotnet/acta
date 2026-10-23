@@ -8,6 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
+    <!-- Source generators name their files after their own namespaces and ours (MessagePack's run past 180
+         characters), so a rung writes them only when asked, and then to obj\g instead of
+         obj\<configuration>\<framework>\generated, which keeps every path under Windows' 260-character limit. -->
+    <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(MSBuildProjectDirectory)\obj\g</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference

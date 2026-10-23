@@ -8,8 +8,9 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Conformance for <c>GetJob</c>: a point-read that returns the <c>GetJobResponse</c> projection for a
-/// known job id, and <c>null</c> for an unknown id. Exercises the column mapping (id, namespace,
-/// name, status, failure_count, reason_code) and the absent-row sentinel.
+/// known job id, and <c>null</c> for an unknown id. Exercises the column mapping (id, status,
+/// deduplication key, namespace, name, definition, priority, execution number, parent, next run,
+/// input format, tenant) and the absent-row sentinel.
 /// </summary>
 [ConformanceSpec(
     "get-job.point-read",

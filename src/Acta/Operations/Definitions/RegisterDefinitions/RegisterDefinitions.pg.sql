@@ -115,13 +115,21 @@ upserted AS (
         description = EXCLUDED.description,
         definition_hash = EXCLUDED.definition_hash,
         manifest_generation_at_utc = EXCLUDED.manifest_generation_at_utc,
-        modified_at_utc = now(),
-        version = {{schema}}.definitions.version + 1
+        -- An unchanged Active row from a newer manifest takes only the generation, because an equal hash means the columns
+        -- above already hold these values; version and modified_at_utc stay, so no operator CAS fails and no worker reloads.
+        modified_at_utc = CASE WHEN {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+            OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
+            THEN now() ELSE {{schema}}.definitions.modified_at_utc END,
+        version = CASE WHEN {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+            OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
+            THEN {{schema}}.definitions.version + 1 ELSE {{schema}}.definitions.version END
     WHERE
         EXCLUDED.manifest_generation_at_utc >= {{schema}}.definitions.manifest_generation_at_utc
         AND (
             {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
             OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
+            -- An unchanged row still takes a newer generation, so an older build that registers after it is refused.
+            OR EXCLUDED.manifest_generation_at_utc > {{schema}}.definitions.manifest_generation_at_utc
         )
     RETURNING definitions.definition_name, definitions.definition_id
 )

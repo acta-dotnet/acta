@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Class-level enforced foreign key. Acta declares enforced FKs only where the child's lifetime
 /// is bounded by the parent's; audit/audit-adjacent tables carry none (see
-/// <c>docs/design.md</c>, "Storage and naming").
+/// <c>docs/architecture-decisions.md</c>, "Storage and naming").
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
 internal sealed class DbForeignKeyAttribute : Attribute

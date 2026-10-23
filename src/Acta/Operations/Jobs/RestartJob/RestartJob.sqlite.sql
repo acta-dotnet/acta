@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._restart_job;
 
 -- A laned job restarts Ready unless another member runs, or it was not running and an older member is
--- unfinished (docs/sql-execution-policy.md, "Lane lock order").
+-- unfinished (docs/sql-internals.md, "Lane lock order").
 CREATE TEMP TABLE _restart_job AS
 SELECT
     j.job_id,
@@ -43,7 +43,7 @@ JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id;
 
 -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane, the
--- state the enqueue ancestor guard refuses (docs/sql-execution-policy.md, "Lane lock order").
+-- state the enqueue ancestor guard refuses (docs/sql-internals.md, "Lane lock order").
 UPDATE temp._restart_job
 SET rejected = 1
 WHERE

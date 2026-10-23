@@ -29,7 +29,7 @@ BEGIN
             );
 
         /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
-           most 100 stranded ones in visiting order (docs/sql-execution-policy.md, "Lane lock order").
+           most 100 stranded ones in visiting order (docs/sql-internals.md, "Lane lock order").
            Each head is sought through ix_jobs_state_lane, named because a small jobs_state table tempts a scan. */
         DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, lane_id BIGINT NOT NULL);
         DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
@@ -300,7 +300,7 @@ BEGIN
                 definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
-        -- see docs/sql-execution-policy.md.
+        -- see docs/sql-internals.md.
         FROM {{schema}}.jobs_state r WITH (FORCESEEK)
         INNER JOIN stuck s ON s.job_id = r.job_id
         INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id;

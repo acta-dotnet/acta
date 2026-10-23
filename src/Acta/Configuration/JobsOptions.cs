@@ -34,7 +34,8 @@ public sealed class JobsOptions
     public TimeSpan WorkerRetention { get; set; } = TimeSpan.FromDays(90);
 
     /// <summary>
-    /// Per-process maximum number of concurrent in-flight executions per worker runtime. Default
+    /// Maximum number of concurrent in-flight executions per worker. Each <c>Run(...)</c> in a process is its own
+    /// worker with this many executors, so a process running two workers runs up to twice as many. Default
     /// <c>clamp(ProcessorCount * 4, 8, 64)</c>: IO-bound oversubscription with a small-container floor
     /// and an ADO.NET-pool-friendly ceiling. Fixed at startup; not autoscaled.
     /// </summary>

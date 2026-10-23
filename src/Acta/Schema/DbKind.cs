@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Physical storage-kind vocabulary used by <see cref="DbColumnAttribute"/>; provider DDL is derived
-/// per-provider from this value (docs/design.md, "Storage and naming"). Describes
+/// per-provider from this value (docs/architecture-decisions.md, "Storage and naming"). Describes
 /// physical storage only; a code column is inferred from the CLR property being a <c>[CodeKind]</c>
 /// enum, not encoded here, and stores <see cref="Byte"/>.
 /// </summary>

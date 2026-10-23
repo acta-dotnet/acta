@@ -8,7 +8,7 @@ namespace Acta;
 /// completion in <see cref="Acta.WorkerFinalizer"/>, one claim measurement per claim attempt in
 /// <see cref="Acta.WorkerClaimer"/>, and the live in-flight count. Counters are additive, so no running totals
 /// are kept in process. Tag keys and values are the operator-facing metric surface, pinned by <c>ActaMetricsTests</c>
-/// and kept low-cardinality (namespace, job_name, outcome, reason_code, result, state); the unbounded job id and
+/// and kept low-cardinality (namespace, job_name, outcome, reason, result, state); the unbounded job id and
 /// execution number stay off metrics and live on the logging scope and traces instead.
 /// </summary>
 internal sealed class ActaMetrics : IDisposable
@@ -99,7 +99,7 @@ internal sealed class ActaMetrics : IDisposable
         );
     }
 
-    public void RecordExecution(string @namespace, string jobName, string outcome, string? reasonCode, double durationMs)
+    public void RecordExecution(string @namespace, string jobName, string outcome, string? reason, double durationMs)
     {
         var tags = new TagList
         {
@@ -108,13 +108,13 @@ internal sealed class ActaMetrics : IDisposable
             { "outcome", outcome },
         };
 
-        // Duration excludes reason_code (a histogram bucket per reason multiplies series for no
+        // Duration excludes reason (a histogram bucket per reason multiplies series for no
         // operator value); the executions counter carries it so failures are sliceable by cause.
         _executionDurationMs.Record(durationMs, tags);
 
-        if (reasonCode is not null)
+        if (reason is not null)
         {
-            tags.Add("reason_code", reasonCode);
+            tags.Add("reason", reason);
         }
 
         _executions.Add(1, tags);

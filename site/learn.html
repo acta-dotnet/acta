@@ -681,7 +681,7 @@ info: Reports.SalesReportJobs[0]
           <li><strong>The dashboard.</strong> It stays local-only and read-only until you change it. To reach it from other machines, turn off <code>LocalOnly</code> and put it behind your own authentication and authorization; enable controls only there. The guide's section on <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#dashboard-exposure-and-auth">dashboard exposure</a> shows how.</li>
           <li><strong>The database.</strong> SQLite is an embedded, single-machine store. When the application runs on more than one server, switch to <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UsePostgres</code> or <code>UseSqlServer</code>; the jobs themselves do not change.</li>
           <li><strong>Where results go.</strong> Our reports land on the local disk, which is fine for one machine. Across several servers, write them to shared storage and keep only a reference in the job's result.</li>
-          <li><strong>Duplicate requests.</strong> Two clicks on the button create two jobs. If one report per month is the rule, give the enqueue a deduplication key; the <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#concepts-and-glossary">concepts guide</a> explains how, and why a key prevents a second row but not a second side effect.</li>
+          <li><strong>Duplicate requests.</strong> Two clicks on the button create two jobs. If one report per month is the rule, give the enqueue a deduplication key; the <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#concepts-and-glossary">concepts guide</a> explains how, and why a key prevents a second row but not a second side effect.</li>
         </ul>
       </section>
 
@@ -689,7 +689,7 @@ info: Reports.SalesReportJobs[0]
         <h2 id="next-title">Further reading</h2>
         <p>Next:</p>
         <ul class="next-links">
-          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide.md#handler-contract">The handler contract</a></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">The handler contract</a></li>
           <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#what-happens-if">What happens if…</a></li>
           <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#production-guide">The production guide</a></li>
         </ul>
@@ -701,7 +701,7 @@ info: Reports.SalesReportJobs[0]
       Apache-2.0 · built in the open
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Support</a>
       <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>

@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The namespace's schedule lock, shared, comes before
--- any row lock (docs/sql-execution-policy.md, "Schedule lock"), then the slot's jobs_state row before its schedules row, the
+-- any row lock (docs/sql-internals.md, "Schedule lock"), then the slot's jobs_state row before its schedules row, the
 -- order a fire's completion takes; the schedules row is guard-only, since a manual trigger moves only the slot's cursor.
 DROP TABLE IF EXISTS pg_temp._trigger_schedule_now_lock;
 DROP TABLE IF EXISTS pg_temp._trigger_schedule_now_slot;

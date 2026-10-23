@@ -1,7 +1,7 @@
 # Operator guide
 
 Running Acta: day-2 operations first, then the production guide, alerting, failure modes,
-troubleshooting, and SQL recipes. Writing jobs is the [guide](./guide.md).
+troubleshooting, and SQL recipes. Writing jobs is the [developer guide](./developer-guide.md).
 
 Day-2 operations. The operator surface is three things: the `IJobs` facade for per-job controls and
 read-only list APIs (optionally surfaced by the embedded dashboard package), and plain SQL against
@@ -207,7 +207,7 @@ await operations.Schedules.ResumeAsync(nightly, reasonMessage: "maintenance comp
 ```
 
 Trigger now, misfire catch-up, normal cursor movement, and historical backfill are deliberately
-different operations. Use [Schedule operations](./guide.md#schedule-operations) before choosing a control.
+different operations. Use [Schedule operations](./developer-guide.md#schedule-operations) before choosing a control.
 
 ### What each verb does from each status
 
@@ -446,8 +446,8 @@ for production deployments, not for an evaluation.
   deterministic definition promotion across packaged or single-file deployments.
 - Keep `HeartbeatInterval` identical across replicas of a namespace; the lease and dead-worker windows
   derive from it.
-- Size total handler concurrency as `worker process count * MaxConcurrentExecutors`, then validate
-  against database capacity and downstream systems.
+- Size total handler concurrency as `processes * workers per process * MaxConcurrentExecutors` (one
+  worker per `Run(...)`), then validate against database capacity and downstream systems.
 - Keep inline payloads small. Store large or sensitive bodies externally and enqueue references.
 - Expose the dashboard/API remotely only behind host authentication and authorization.
 - Enable HTTP controls only for authorized operators.
@@ -517,9 +517,9 @@ version is running uncertified, and the conformance suite is what certifies a ne
 
 ### Worker count and executor count
 
-Each `Run<TManifest>(...)` registers one worker namespace in a process. You can run several
-replicas of the same namespace for horizontal capacity; every worker is a peer and claims work
-competitively from SQL.
+Each `Run<TManifest>(...)` starts one worker in a process, and that worker owns exactly one namespace;
+a process can run several. You can run several replicas of the same namespace for horizontal capacity;
+every worker is a peer and claims work competitively from SQL.
 
 Keep a namespace at 16 workers or fewer. Its workers all claim from one head of the claim index, which
 leads with the namespace, so past that each worker added makes claims queue on the head and
@@ -528,12 +528,14 @@ at 24 and 32. Size a namespace by its work (peak jobs per second times average h
 divided by executors per worker) plus a spare for a crash or a deploy, and when it needs more than 16
 workers, split its work across a second namespace, which has a claim head of its own.
 
-`MaxConcurrentExecutors` is per process. If you run 6 replicas with 16 executors each, the namespace
-can have up to 96 handlers in flight before downstream throttles or job-level limits apply.
+`MaxConcurrentExecutors` is per worker, and every `Run(...)` in a process is its own worker: a process
+running two workers at 32 executors has up to 64 executions in flight. If you run 6 replicas of a
+namespace with 16 executors each, the namespace can have up to 96 handlers in flight before downstream
+throttles or job-level limits apply.
 
 Tune together:
 
-- `MaxConcurrentExecutors`: handler concurrency per process, and the most rows one claim takes.
+- `MaxConcurrentExecutors`: handler concurrency per worker, and the most rows one claim takes.
 - Database connection pool size.
 - Downstream rate limits and idempotency guarantees.
 
@@ -813,13 +815,13 @@ A recurring job follows the same rule. A deploy that drops every schedule of one
 no next run, and a deploy that brings a schedule back makes it `Ready`. A deploy that adds a
 `[JobSchedule]` refuses to start, naming the recurring job, while an ordinary job of the namespace
 holds the slot's deduplication key (the job name): let that job finish and purge it, or enqueue its
-work under another key. See [Schedule operations](./guide.md#schedule-operations).
+work under another key. See [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### …a checkpoint name changes during a deployment?
 
 The new name is a different durable slot. A step can repeat, a variable can appear absent, or a
 signal can wait on a name that old producers never raise. Follow
-[Durable slot evolution](./guide.md#durable-slot-evolution) and treat the change as a data
+[Durable slot evolution](./developer-guide.md#durable-slot-evolution) and treat the change as a data
 migration, not a refactor.
 
 ### …the service is down across scheduled occurrences?
@@ -828,7 +830,7 @@ The schedule's misfire policy decides the cursor when the schedule reloads or re
 past missed occurrences; `CatchUpOnce` produces one coalesced catch-up execution. Neither policy
 creates one historical job per missed period. A worker start counts an occurrence less than a minute
 overdue as due rather than missed, and leaves a slot with an attempt in flight, or parked part-way
-through an occurrence, to the running fleet. See [Schedule operations](./guide.md#schedule-operations).
+through an occurrence, to the running fleet. See [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### …an operator restarts a failed or cancelled job?
 
@@ -948,7 +950,7 @@ from pausing the job itself.
 
 A recurring job whose schedules are all paused, exhausted, or removed by a deploy is Paused with no next
 run. A job resume answers 409 until a schedule offers a run, and the job goes back to Ready by itself
-once one does. See [Schedule operations](./guide.md#schedule-operations).
+once one does. See [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### A Job Keeps Retrying Or Failed
 
@@ -1000,7 +1002,7 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
 - Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.GetJobIdAsync`; a null
   result means the request has not been relayed yet, not that it was lost.
 
-Background: [Transactional enqueue and the external outbox](./guide.md#transactional-enqueue-and-the-external-outbox).
+Background: [Transactional enqueue and the external outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox).
 
 ### An Enqueue Throws About An Ambient TransactionScope
 
@@ -1017,7 +1019,7 @@ paths: pass the open transaction to the transactional `IJobs` enqueue overload (
 through `AddToActaOutboxAsync` on your provider transaction (different database). If you deliberately want
 an independent Acta commit inside a scope, wrap the call in `TransactionScope(TransactionScopeOption.Suppress)`.
 The caller-transaction overloads and the staging primitives are unaffected: their transaction is supplied
-explicitly. See [Transactional enqueue and the external outbox](./guide.md#the-external-outbox).
+explicitly. See [Transactional enqueue and the external outbox](./developer-guide.md#the-external-outbox).
 
 ### The Dashboard Or API Is Not Reachable Remotely
 
@@ -1326,7 +1328,7 @@ delete rows the relay has quarantined (`status_code = 90`); leave Pending and Cl
 Prefer the audited verbs, `IActaOperations.Outbox.RequeueAsync` and `DiscardAsync` or
 `POST /outbox/{jobNamespace}/requeue` and `/discard`, which write `outbox.requeued` and
 `outbox.discarded` events; these statements leave no audit trail.
-Background: [transactional enqueue and the external outbox](./guide.md#relay-behaviour).
+Background: [transactional enqueue and the external outbox](./developer-guide.md#relay-behaviour).
 
 Inspect quarantined rows:
 

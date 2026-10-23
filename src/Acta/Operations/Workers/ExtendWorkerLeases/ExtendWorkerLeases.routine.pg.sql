@@ -52,14 +52,14 @@ BEGIN
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
        version bump: a lease refresh is not a claim-generation change. */
     -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-    -- (docs/sql-execution-policy.md, "Explicit exceptions and maintenance").
+    -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
     RETURN QUERY
     WITH held AS (
         SELECT h.job_id, h.execution_number
         FROM unnest(p_job_ids, p_execution_numbers) AS h (job_id, execution_number)
     ),
     -- Both reads find the held rows by pk_jobs_state probes: "=" in the worker test would imply ix_jobs_state_worker_inflight's
-    -- filter and let a generic plan walk the worker's range of it (docs/sql-execution-policy.md, "Locking reads seek").
+    -- filter and let a generic plan walk the worker's range of it (docs/sql-internals.md, "Locking reads seek").
     matched AS (
         SELECT r0.job_id, r0.execution_number
         FROM {{schema}}.jobs_state r0

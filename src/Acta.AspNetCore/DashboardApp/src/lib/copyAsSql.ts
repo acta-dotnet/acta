@@ -32,6 +32,16 @@ function sqlLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+// A public job ref is `job_` and the uuid's 32 hex digits in any casing, but jobs_view.job_ref is the stored
+// uuid: PostgreSQL's uuid and SQL Server's uniqueidentifier read the dashed 8-4-4-4-12 form, and SQLite
+// stores that form as lowercase text. Anything that is not a ref stays as typed.
+function storedJobRef(ref: string): string {
+  const hex = /^job_([0-9a-fA-F]{32})$/.exec(ref)?.[1].toLowerCase();
+  return hex === undefined
+    ? ref
+    : `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 function select(dialect: SqlDialect, view: string, predicates: Predicate[], orderBy: string): string {
   const where =
     predicates.length === 0
@@ -95,7 +105,7 @@ export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {
   // events_view stores no job ref: a job's events are the job subject's, its id looked up by ref.
   if (text(filters.jobRef)) {
     predicates.push({
-      raw: `entity_kind = 'job' AND entity_id = (SELECT job_id FROM ${schema}.jobs_view WHERE job_ref = ${sqlLiteral(text(filters.jobRef))})`
+      raw: `entity_kind = 'job' AND entity_id = (SELECT job_id FROM ${schema}.jobs_view WHERE job_ref = ${sqlLiteral(storedJobRef(text(filters.jobRef)))})`
     });
   }
   if (text(filters.tenantName)) predicates.push({ column: 'tenant_name', op: '=', value: name(filters.tenantName) });

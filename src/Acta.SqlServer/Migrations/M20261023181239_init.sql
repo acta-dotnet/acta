@@ -595,7 +595,7 @@ BEGIN
             AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
             THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
 
-        -- The slot's own lock serializes the writers of one slot to commit (docs/sql-execution-policy.md,
+        -- The slot's own lock serializes the writers of one slot to commit (docs/sql-internals.md,
         -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
         IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
             BEGIN
@@ -948,7 +948,7 @@ BEGIN
                     AND r.next_run_at_utc IS NOT NULL
                     AND r.next_run_at_utc <= @due_now
                     /* The worker's watermark starts the seek past the ghost records earlier claims left at the band's
-                       head (docs/sql-execution-policy.md, "Claim watermark"); NULL seeks from the head. */
+                       head (docs/sql-internals.md, "Claim watermark"); NULL seeks from the head. */
                     AND r.next_run_at_utc >= ISNULL(@p_claim_from_utc, CAST('0001-01-01' AS DATETIME2(3)))
                     /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
                        the seek above stays as it was. */
@@ -1003,7 +1003,7 @@ BEGIN
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state. The seek above holds
         -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
-        -- order (docs/sql-execution-policy.md); a skipped candidate is simply not claimed.
+        -- order (docs/sql-internals.md); a skipped candidate is simply not claimed.
         FROM {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN @candidates c ON c.job_id = r.job_id
         INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id;
@@ -1129,7 +1129,7 @@ BEGIN
 
         /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
            reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, slot locks, awaited slots, own jobs_state
-           rows, schedules, parent latches and rows, in key order (docs/sql-execution-policy.md, "Lane lock order"); lane and parent ids never change. */
+           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
         -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
         IF @p_plain = 1
             INSERT INTO @rows (job_id, execution_number)
@@ -1198,7 +1198,7 @@ BEGIN
                 END
 
             /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
-               name order and before any slot row or jobs_state row (docs/sql-execution-policy.md, "Slot locks"): each awaited slot
+               name order and before any slot row or jobs_state row (docs/sql-internals.md, "Slot locks"): each awaited slot
                under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
             IF @waits = 1 OR @children = 1
                 BEGIN
@@ -2025,7 +2025,7 @@ BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
 
-        -- The lane row is the lane's mutex, held to commit (docs/sql-execution-policy.md, "Lane
+        -- The lane row is the lane's mutex, held to commit (docs/sql-internals.md, "Lane
         -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
         -- Ready versus Blocked is read after the lane lock, which a SNAPSHOT transaction (level 5) never sees.
         IF @lane IS NOT NULL
@@ -2065,7 +2065,7 @@ BEGIN
 
         IF @p_deduplication_key IS NOT NULL
             BEGIN
-                -- The key's own lock serializes enqueues of one key to commit (docs/sql-execution-policy.md,
+                -- The key's own lock serializes enqueues of one key to commit (docs/sql-internals.md,
                 -- "Deduplication lock"); the same name in enqueue_jobs.
                 DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
                     N'{{schema}}.dedup:',
@@ -2261,7 +2261,7 @@ BEGIN
 END;
 GO
 
--- Lock order: the batch's lanes in id order, then job rows (docs/sql-execution-policy.md,
+-- Lock order: the batch's lanes in id order, then job rows (docs/sql-internals.md,
 -- "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_jobs
     @p_batch {{schema}}.enqueue_jobs READONLY,
@@ -2381,7 +2381,7 @@ BEGIN
             END;
 
         -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
-        -- at a time in id order (docs/sql-execution-policy.md, "Lane lock order").
+        -- at a time in id order (docs/sql-internals.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
             lane_name VARCHAR(128) NOT NULL,
@@ -2479,7 +2479,7 @@ BEGIN
             )
             BEGIN
                 -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
-                -- never deadlock (docs/sql-execution-policy.md, "Deduplication lock").
+                -- never deadlock (docs/sql-internals.md, "Deduplication lock").
                 DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
                 INSERT INTO @dedup_locks (name)
                 SELECT DISTINCT
@@ -2675,7 +2675,7 @@ BEGIN
 
         -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
         -- Both jobs_state inserts force nested loops so the foreign-key checks seek their parent rows
-        -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
+        -- (docs/sql-internals.md, "Foreign keys in set-based writes").
         IF @laned = 0
             BEGIN
                 INSERT INTO {{schema}}.jobs (
@@ -2925,7 +2925,7 @@ BEGIN
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
            version bump: a lease refresh is not a claim-generation change. */
         -- Read the matched ids first so the update locks base rows only, never an index key;
-        -- complete_executions locks in the other order. See docs/sql-execution-policy.md.
+        -- complete_executions locks in the other order. See docs/sql-internals.md.
         DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
         INSERT INTO @matched (job_id, execution_number)
         SELECT r.job_id, r.execution_number
@@ -2936,7 +2936,7 @@ BEGIN
             AND r.job_status_code = 50 /* JobStatusCode.Executing */;
 
         -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-        -- (docs/sql-execution-policy.md, "Explicit exceptions and maintenance").
+        -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
         DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         UPDATE r
         SET lease_expires_at_utc = @new_expiry
@@ -3052,7 +3052,7 @@ BEGIN
                     ) s
                 );
 
-                -- A locking read seeks (docs/sql-execution-policy.md, "Locking reads seek").
+                -- A locking read seeks (docs/sql-internals.md, "Locking reads seek").
                 INSERT INTO @job_del (job_id)
                 SELECT TOP (@p_batch_size) j.job_id
                 FROM {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK)
@@ -3116,7 +3116,7 @@ BEGIN
 
                 -- Each delete below seeks its rows by job id: an unhinted plan can scan
                 -- the whole child table under update locks
-                -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
+                -- (docs/sql-internals.md, "Foreign keys in set-based writes").
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
                 DELETE r FROM {{schema}}.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
@@ -3179,7 +3179,7 @@ BEGIN
 
                 -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
                 -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/sql-execution-policy.md, "Alert lock order").
+                -- (docs/sql-internals.md, "Alert lock order").
                 INSERT INTO @alert_locked (alert_id)
                 SELECT a.alert_id
                 FROM @alert_del d
@@ -3228,7 +3228,7 @@ BEGIN
 
                 -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
                 -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/sql-execution-policy.md, "Alert lock order").
+                -- (docs/sql-internals.md, "Alert lock order").
                 INSERT INTO @alert_locked (alert_id)
                 SELECT a.alert_id
                 FROM @alert_del d
@@ -3308,7 +3308,7 @@ BEGIN
         ELSE IF @p_section = 7
             BEGIN
             -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
-            -- holds, then re-checked under the lock (docs/sql-execution-policy.md, "Lane lock order").
+            -- holds, then re-checked under the lock (docs/sql-internals.md, "Lane lock order").
                 DELETE @lane_del;
                 INSERT INTO @lane_del (lane_id)
                 SELECT l.lane_id
@@ -3369,7 +3369,7 @@ BEGIN
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
             @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
 
-        -- The slot's own lock, as wait_signal names it (docs/sql-execution-policy.md, "Slot locks").
+        -- The slot's own lock, as wait_signal names it (docs/sql-internals.md, "Slot locks").
         DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
         DECLARE @slot_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
@@ -3540,7 +3540,7 @@ BEGIN
             );
 
         /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
-           most 100 stranded ones in visiting order (docs/sql-execution-policy.md, "Lane lock order").
+           most 100 stranded ones in visiting order (docs/sql-internals.md, "Lane lock order").
            Each head is sought through ix_jobs_state_lane, named because a small jobs_state table tempts a scan. */
         DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, lane_id BIGINT NOT NULL);
         DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
@@ -3811,7 +3811,7 @@ BEGIN
                 definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
-        -- see docs/sql-execution-policy.md.
+        -- see docs/sql-internals.md.
         FROM {{schema}}.jobs_state r WITH (FORCESEEK)
         INNER JOIN stuck s ON s.job_id = r.job_id
         INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id;
@@ -3930,7 +3930,7 @@ GO
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
--- The meter's own lock serializes the calls on one meter to commit (docs/sql-execution-policy.md,
+-- The meter's own lock serializes the calls on one meter to commit (docs/sql-internals.md,
 -- "Slot locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
 -- next meters fall in.
 
@@ -4093,7 +4093,7 @@ BEGIN
         DECLARE @state TINYINT;
         DECLARE @existing_next DATETIME2(3);
 
-        -- The step's own lock serializes starts of one step to commit (docs/sql-execution-policy.md,
+        -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
         -- "Slot locks"); a range lock on a step not yet stored would hold the gap every running job's next step
         -- falls in.
         DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_step_name);
@@ -4237,7 +4237,7 @@ GO
    redeployed with a bound can un-strand a wait suspended without one; a stored due is never
    overwritten, never extended, and never cleared by a subsequent unbounded call. */
 /* The read below needs no re-read after a lost insert the way pg's does: the slot's own lock, taken
-   first (docs/sql-execution-policy.md, "Slot locks"), makes a concurrent first arrival wait
+   first (docs/sql-internals.md, "Slot locks"), makes a concurrent first arrival wait
    here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
 /* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
    act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
@@ -4690,7 +4690,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261023161112_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261023181239_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261023161112_init');
+VALUES ('M20261023181239_init');
 GO

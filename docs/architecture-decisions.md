@@ -1,10 +1,10 @@
-# Design: principles and settled decisions
+# Architecture decisions
 
 The non-negotiable identity of Acta and the rationale behind it: the "why" manifesto. Every other
 document defers to this one. Reopening anything here is a category-reshaping change, not a refinement.
 
 The vocabulary itself (Job, Execution, Attempt, Status, namespace, durable slot, provider, the three
-identities, the substrate tables) is defined once in [concepts](./guide.md#concepts-and-glossary). This
+identities, the substrate tables) is defined once in [concepts](./developer-guide.md#concepts-and-glossary). This
 document explains why the model is shaped that way; it does not re-teach the mechanics. Where the code
 lives is in [source layout](../CONTRIBUTING.md#source-layout). Whether Acta fits a problem is
 [`choosing-acta.md`](./choosing-acta.md).
@@ -45,7 +45,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 **Everything externally scheduled, claimed, retried, paused, cancelled, and audited as work is a
 Job; Job-internal state lives in the `checkpoints` and `steps` substrate tables, not as Jobs.** The mechanics
 (which slot writes which checkpoint kind, the `(JobId, Kind, Name)` keying, how a purge removes them) are in
-[concepts](./guide.md#concepts-and-glossary).
+[concepts](./developer-guide.md#concepts-and-glossary).
 
 The reason is the two-tier model: it keeps heavy machinery (claim queue, lease, audit, alerting) at
 the unit-of-work tier and lightweight per-Job substrate at the Job-internal tier, so one
@@ -92,7 +92,7 @@ handler run that processes it (1:1 in steady state; misfire policy decides misse
 ## Settled decisions ledger
 
 Every load-bearing decision, one line each, the call plus its reason. Vocabulary is defined in
-[concepts](./guide.md#concepts-and-glossary); the rationale behind the model is the principles above.
+[concepts](./developer-guide.md#concepts-and-glossary); the rationale behind the model is the principles above.
 Reopening an entry means writing a proposal, not editing this file.
 
 ### Identity
@@ -105,7 +105,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Substrate
 
-- **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](./sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
+- **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](./sql-internals.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
 - **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, `operations.md`, `conformance-contracts.md`, the provisioning scripts, and each provider's baseline migration are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
 - **Every operation is one handler over `IDbSession` and `ISqlDialect`, written once, with its SQL beside it per dialect.** Providers own executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
 - **`JobEvent` is the execution ledger AND the audit timeline.** One outcome event per `(JobId, ExecutionNumber)` carries per-attempt history; no per-attempt table. Every event names its subject by the generic `(entity_code, entity_id)` pair, shared with tags. *Reason:* one append-only substrate, one retention sweep.
@@ -121,7 +121,7 @@ Reopening an entry means writing a proposal, not editing this file.
 ### Boundaries
 
 - **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + the 32 hex digits of a C#-allocated UUIDv7, one word to copy and search), `DeduplicationKey` caller-defined; `alerts` denormalize `job_ref` at INSERT (low-volume retained incidents), while events carry only the numeric entity pair — an explicit purge leaves one `job.purged` tombstone whose details snapshot the ref and correlation once. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers; a GUID on every execution event is width the ledger never reads back.
-- **`JobNamespace` is the service-owned execution boundary.** One deployable service owns one namespace; replicas share it. *Reason:* namespace identity = deployment unit, not tenant marker.
+- **`JobNamespace` is the service-owned execution boundary.** Each worker owns exactly one namespace; a host can run several workers, one per `Run(namespaceName, ...)`, each on a distinct namespace, and the replicas of a service run the same namespace names. *Reason:* namespace identity = deployment unit, not tenant marker.
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
 - **One `WorkerRuntime` per `Run(...)`; enqueue-only hosts register nothing.** A process running several `Run(...)` calls fans out one claimer, executor set, finalizer, and heartbeat per namespace. `Reference(...)` and enqueue-only frontends create no worker registration and write no catalog rows; typed enqueue resolves `(namespace, jobName)` to ids via SQL JOIN at INSERT time. *Reason:* routing lives in the database, so worker-hosted and enqueue-only deployments share one enqueue code path and a frontend can enqueue for a namespace it never claims.
 - **Tenant is validated identity, not an isolation primitive.** The catalog is global per store; enqueue validates and stamps it, children inherit it, and suspension is admission control only. No tenant-aware claim fairness, per-tenant limits, data security, or failure domain; that isolation = application enforcement + separate deployments. *Reason:* an audit/query scope is a cheap nullable column; fairness would widen every hot index.
@@ -202,12 +202,13 @@ The terms for internal structure; where each piece lives is [source layout](../C
 ### Handler contract
 
 - **Two handler attributes and two invocation modes.** `[Job]` and `[JobSchedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` (fire-and-forget durable) or `RunAndWaitAsync` (durable enqueue + await). *Reason:* the declarative surface stays small.
-- **The handler-contract specification lives in [the handler contract](./guide.md#handler-contract)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
+- **The handler-contract specification lives in [the handler contract](./developer-guide.md#handler-contract)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
 
 ### Tooling
 
 - **Two source-gen surfaces.** `Acta.Generators` (Roslyn, compile-time dispatch + persistence) and `tools/Acta.Emit` (CLI, committed artifacts), split by output kind. *Reason:* Roslyn can't emit committed files; the CLI can't emit C# the compilation depends on.
 - **Generated artifacts are committed**, drift-gated by `Acta.Emit check` in CI. *Reason:* reviewers see the schema delta alongside the source change.
+- **`tools/Acta.Bench` is the release evidence suite.** One headless command creates disposable databases, runs the versioned case catalogue on every provider, checks each trial's ledger against `certify.sql`, and writes an evidence bundle; a release publishes its report as [`benchmark.md`](./benchmark.md). *Reason:* a release's safety, liveness, and capacity claims come from one reproducible run against the certified commit, and `acta-bench compare` holds each release to the previous one's bundle.
 - **Satellite DI entry points are named for the type they extend**: `{Provider}ActaExtensions`, `ActaEndpointRouteBuilderExtensions`, `ActaServiceCollectionExtensions`. *Reason:* the filename names the extension surface, so a `ServiceCollectionExtensions` suffix on an `ActaBuilder` extension would mislead.
 
 ### AOT and SQL parameter metadata

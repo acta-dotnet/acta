@@ -100,7 +100,7 @@ where the two live:
 | You want a single universal exactly-once guarantee | Neither. Execution is at-least-once; handlers own idempotency for external side effects |
 
 Full walkthrough, including the canonical table, cadence, and quarantine policy:
-[Transactional enqueue and the external outbox](./guide.md#transactional-enqueue-and-the-external-outbox).
+[Transactional enqueue and the external outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox).
 
 ## If you already use Hangfire, Quartz, or TickerQ
 
@@ -251,7 +251,7 @@ are the same primitive either way.
 
 When a step is physically consequential, a repeated step is a physical event: a second machine
 command, a second label. For those steps, see
-[At-most-once steps](./guide.md#at-most-once-steps).
+[At-most-once steps](./developer-guide.md#at-most-once-steps).
 
 ## The smallest scheduled job
 
@@ -276,7 +276,7 @@ expressions, the `Cron` constants read better: `Cron.Every5Minutes`, `Cron.Daily
 For a runnable first pass, start with [Quickstart](./quickstart.md). For the unusual implementation
 ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence
 stands behind the reliability claims, and what does not exist yet, is in
-[Support, evidence behind the claims](./support.md#evidence-behind-the-claims).
+[Compatibility and support, evidence behind the claims](./compatibility-and-support.md#evidence-behind-the-claims).
 
 ## Rule of thumb
 

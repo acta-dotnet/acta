@@ -127,7 +127,7 @@ from acta.jobs_view
 where status = 'executing';
 ```
 
-More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [SQL recipes](./docs/operator-guide.md#sql-recipes); the numeric codes decode via [`docs/reference/code-families.md`](./docs/reference/code-families.md). Because state is rows, a job that failed a month ago is still there to inspect, and to restart with its original input.
+More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in the operator guide's [SQL recipes](./docs/operator-guide.md#sql-recipes); the numeric codes decode via [`docs/reference/code-families.md`](./docs/reference/code-families.md). Because state is rows, a job that failed a month ago is still there to inspect, and to restart with its original input.
 
 ## Capabilities and boundaries
 
@@ -147,20 +147,20 @@ The execution model is **checkpoints, not replay**: a handler may re-enter from 
 
 ## Documentation
 
-Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart, the Acta Engineering Labs field guide, scheduler migration, concepts and vocabulary, the handler contract, production guide, contract evolution, and the operator guide. The generated references (data model, code families, conformance contracts) sit behind them for lookup, drift-checked against source in CI.
+Start at [`docs/README.md`](./docs/README.md), which orders every page by the question it answers. The main pages: [Choosing Acta](./docs/choosing-acta.md) and its section on [moving from another scheduler](./docs/choosing-acta.md#moving-from-another-scheduler); the [Quickstart](./docs/quickstart.md); the [Engineering Labs](./docs/engineering-labs.md) field guide; the [developer guide](./docs/developer-guide.md), with its sections on [concepts and vocabulary](./docs/developer-guide.md#concepts-and-glossary), the [handler contract](./docs/developer-guide.md#handler-contract), and [contract evolution](./docs/developer-guide.md#contract-evolution); and the [operator guide](./docs/operator-guide.md), with its [production guide](./docs/operator-guide.md#production-guide) section. The generated references in [`docs/reference/`](./docs/reference/) (data model, code families, conformance contracts) sit behind them for lookup, drift-checked against source in CI.
 
 ## Packages
 
 **NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API, SDK, and engine; a transitive dependency of the providers), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
-**Repository tooling** (not published to NuGet): `Acta.Emit` (doc/migration emitter) and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
+**Repository tooling** (not published to NuGet): `Acta.Bench` (benchmark and release evidence suite), `Acta.Emit` (doc/migration emitter), and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
 
 ## Status
 
-- The migration history is frozen: schema changes ship only as additive migrations, and the baseline is never re-cut. A database a release candidate provisioned has no upgrade path: drop it and provision a new one.
-- Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [dashboard exposure and auth](./docs/operator-guide.md#dashboard-exposure-and-auth) before exposing anything.
+- From 1.0.0 the migration history is frozen: schema changes ship only as additive migrations, and the baseline is never re-cut. Until then a release candidate may re-cut the baseline, and a database an earlier candidate provisioned has no upgrade path: drop it and provision a new one.
+- Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see the operator guide's [dashboard exposure and auth](./docs/operator-guide.md#dashboard-exposure-and-auth) before exposing anything.
 - Known limitations are tracked in [`docs/known-limitations.md`](./docs/known-limitations.md).
-- The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).
+- The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/compatibility-and-support.md`](./docs/compatibility-and-support.md).
 
 ## How this was built
 

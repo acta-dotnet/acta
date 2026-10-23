@@ -10,13 +10,13 @@ BEGIN TRY
     DECLARE @lock_result INT;
     DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.schedules.' + CAST(@p_namespace_id AS NVARCHAR(12));
 
-    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock").
     EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
     IF @lock_result < 0
         THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
     -- Each slot's key lock, named as enqueue_job names it, so an enqueue of a slot's key and this insert wait for
-    -- each other (docs/sql-execution-policy.md, "Deduplication lock").
+    -- each other (docs/sql-internals.md, "Deduplication lock").
     DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
     INSERT INTO @dedup_locks (name)
     SELECT DISTINCT CONCAT(N'{{schema}}.dedup:n', @p_namespace_id, N':', d.deduplication_key)
@@ -151,7 +151,7 @@ BEGIN TRY
     -- The slot this call inserted, or one that already owns schedules.
     WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.job_id);
 
-    -- The schedule writes seek by key (docs/sql-execution-policy.md, "Locking reads seek").
+    -- The schedule writes seek by key (docs/sql-internals.md, "Locking reads seek").
     UPDATE tgt
     SET
         expression = src.expression,

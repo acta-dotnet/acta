@@ -641,7 +641,7 @@ AS $$
             AND r.next_run_at_utc IS NOT NULL
             AND r.next_run_at_utc <= now()
             /* The worker's watermark starts each band's scan past the dead entries earlier claims left at its head
-               (docs/sql-execution-policy.md, "Claim watermark"); NULL scans from the head. */
+               (docs/sql-internals.md, "Claim watermark"); NULL scans from the head. */
             AND r.next_run_at_utc >= COALESCE(p_claim_from_utc, '-infinity'::timestamptz)
             /* Rolling-deploy exclusion: definitions this worker already bounced for want of a handler.
                Empty on a healthy fleet, and the cardinality test is evaluated first, so a healthy claim
@@ -828,7 +828,7 @@ BEGIN
             FROM {{schema}}.jobs_state r
             INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
             -- The rows lock by pk_jobs_state probes: "=" would imply ix_jobs_state_worker_inflight's filter and let a generic plan
-            -- walk the worker's range of it, dead entries included (docs/sql-execution-policy.md, "Locking reads seek").
+            -- walk the worker's range of it, dead entries included (docs/sql-internals.md, "Locking reads seek").
             WHERE
                 r.job_status_code = 50 /* JobStatusCode.Executing */
                 AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
@@ -911,7 +911,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Each fired slot's namespace schedule lock, shared, before any other lock (docs/sql-execution-policy.md, "Schedule lock").
+    -- Each fired slot's namespace schedule lock, shared, before any other lock (docs/sql-internals.md, "Schedule lock").
     IF cardinality(array_remove(p_final_job_status_codes, NULL)) > 0 THEN
         PERFORM pg_advisory_xact_lock_shared(hashtext('{{schema}}.schedules'), n.namespace_id)
         FROM (
@@ -1887,7 +1887,7 @@ BEGIN
 END;
 $$;
 
--- Lock order: the batch's lanes in id order, then the parent rows (docs/sql-execution-policy.md,
+-- Lock order: the batch's lanes in id order, then the parent rows (docs/sql-internals.md,
 -- "Lane lock order").
 CREATE OR REPLACE FUNCTION {{schema}}.enqueue_jobs(
     p_b_ordinal INT [],
@@ -1975,7 +1975,7 @@ BEGIN
     END IF;
 
     -- Missing lanes are inserted in name order, then the whole set is locked in id order
-    -- (docs/sql-execution-policy.md, "Lane lock order"). An unlaned batch skips all of it, the
+    -- (docs/sql-internals.md, "Lane lock order"). An unlaned batch skips all of it, the
     -- lane table's per-call temp-table create included.
     lane_count := 0;
     IF laned_count > 0 THEN
@@ -2489,14 +2489,14 @@ BEGIN
        process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
        version bump: a lease refresh is not a claim-generation change. */
     -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-    -- (docs/sql-execution-policy.md, "Explicit exceptions and maintenance").
+    -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
     RETURN QUERY
     WITH held AS (
         SELECT h.job_id, h.execution_number
         FROM unnest(p_job_ids, p_execution_numbers) AS h (job_id, execution_number)
     ),
     -- Both reads find the held rows by pk_jobs_state probes: "=" in the worker test would imply ix_jobs_state_worker_inflight's
-    -- filter and let a generic plan walk the worker's range of it (docs/sql-execution-policy.md, "Locking reads seek").
+    -- filter and let a generic plan walk the worker's range of it (docs/sql-internals.md, "Locking reads seek").
     matched AS (
         SELECT r0.job_id, r0.execution_number
         FROM {{schema}}.jobs_state r0
@@ -2755,7 +2755,7 @@ BEGIN
 
     WHEN 7 THEN
         -- Unreferenced lanes, locked in id order skipping a lane an enqueue or settle holds, then
-        -- re-checked under the lock (docs/sql-execution-policy.md, "Lane lock order").
+        -- re-checked under the lock (docs/sql-internals.md, "Lane lock order").
         SELECT array_agg(q.lane_id) INTO v_ids FROM (
             SELECT l.lane_id FROM {{schema}}.lanes l
             WHERE
@@ -3023,7 +3023,7 @@ BEGIN
     END IF;
 
     -- Lock order: the stuck rows' lanes and the stranded lanes in id order, then the jobs_state rows
-    -- (docs/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds is
+    -- (docs/sql-internals.md, "Lane lock order"). A lane another transaction holds is
     -- skipped, and its stuck rows and repair wait for a later pass.
     v_candidates := v_stranded || ARRAY(
         SELECT r.lane_id
@@ -4042,5 +4042,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261023161112_init')
+VALUES ('M20261023181239_init')
 ON CONFLICT (name) DO NOTHING;

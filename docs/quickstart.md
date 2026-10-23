@@ -207,7 +207,7 @@ The events view holds the append-only timeline per job: every transition, with a
 ## Where to go next
 
 - Idempotent enqueue with deduplication keys, durable steps, signals, sleeps, and child jobs:
-  [Concepts](./guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
-- Namespace naming, policy defaults, and production wiring: [Configuration](./guide.md#configuration-and-options)
+  [Concepts](./developer-guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
+- Namespace naming, policy defaults, and production wiring: [Configuration](./developer-guide.md#configuration-and-options)
   and the [Production guide](./operator-guide.md#production-guide).
-- The full handler surface: [Handler contract](./guide.md#handler-contract).
+- The full handler surface: [Handler contract](./developer-guide.md#handler-contract).

@@ -12,7 +12,7 @@ BEGIN TRY
     DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @event_recording TINYINT;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
-    /* The namespace's schedule lock, shared, before any row lock (docs/sql-execution-policy.md, "Schedule lock"), so
+    /* The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock"), so
        the reads below see a retire or registration that committed. */
     SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(j.namespace_id AS NVARCHAR(12))
     FROM {{schema}}.jobs j

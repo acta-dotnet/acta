@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="DefinitionsOperations.RegisterDefinitionsAsync"/>: resolves descriptors to rows, then skips the upsert
-/// entirely when nothing is new or changed.
+/// entirely when every definition is stored unchanged, Active, and at this manifest generation or a newer one.
 /// </summary>
 internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect)
 {
@@ -39,9 +39,15 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             {
                 anyChange = true; // new
             }
-            else if (s.DefinitionHash != row.DefinitionHash || s.Status != DefinitionStatusCode.Active)
+            else if (
+                s.DefinitionHash != row.DefinitionHash
+                || s.Status != DefinitionStatusCode.Active
+                || s.ManifestGenerationAtUtc < command.ManifestGenerationUtc
+            )
             {
-                anyChange = true; // changed or needs reactivation
+                // A newer generation is written even for an unchanged definition, so an older build that registers
+                // after this one is refused.
+                anyChange = true;
             }
         }
 

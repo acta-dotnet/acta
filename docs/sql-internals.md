@@ -1,10 +1,10 @@
-# SQL execution policy
+# SQL internals
 
 PostgreSQL and SQL Server execute the hot ledger mutations through installed atomic routines and
 everything else through embedded SQL and installed views; SQLite runs every mutation as embedded SQL
 inside a transaction the session owns.
 
-This is the execution policy referenced by [the design decisions](design.md). The server providers
+This is the execution policy referenced by [the architecture decisions](./architecture-decisions.md). The server providers
 each install fourteen routines: enqueue, claim, complete (one batch call for every completion shape), the step
 writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention. Every other
 operation, registration, alerts, locks and slots, the outbox inbox, and control verbs included, is embedded SQL

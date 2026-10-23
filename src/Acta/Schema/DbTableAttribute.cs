@@ -2,7 +2,7 @@ namespace Acta;
 
 // Schema attribute family. All names declared on these attributes are explicit
 // lower_snake_case and schema-relative (the schema component is the install-time provider option).
-// See docs/design.md, "Storage and naming", for the full ledger.
+// See docs/architecture-decisions.md, "Storage and naming", for the full ledger.
 
 /// <summary>
 /// Required on every <see cref="IEntity"/> implementation.

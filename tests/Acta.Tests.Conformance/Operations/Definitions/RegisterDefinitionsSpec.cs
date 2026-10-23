@@ -21,6 +21,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
 {
     private static readonly DateTime Gen1 = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Gen2 = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime Gen3 = new(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private static JobDescriptor Def(string name, int maxAttempts, Type inputType) =>
         new(
@@ -115,6 +116,31 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
         var second = await ReadAsync(name, ct);
 
         Assert.Equal(first.Version, second.Version);
+    }
+
+    [Fact(DisplayName = "A newer unchanged build stores only its generation, so an older build registering after it changes nothing")]
+    public async Task A_newer_unchanged_build_stores_its_generation_so_an_older_build_after_it_changes_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = Unique("three-builds");
+
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 3, typeof(int))], ct);
+        var first = await ReadAsync(name, ct);
+
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen3, [Def(name, 3, typeof(int))], ct);
+        var newest = await ReadAsync(name, ct);
+        Assert.Equal(Gen3, newest.ManifestGenerationAtUtc);
+        Assert.Equal(first.DefinitionHash, newest.DefinitionHash);
+        Assert.Equal(first.Version, newest.Version);
+        Assert.Equal(first.ModifiedAtUtc, newest.ModifiedAtUtc);
+
+        // The build between the two declares another policy and registers last.
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(name, 9, typeof(int))], ct);
+        var after = await ReadAsync(name, ct);
+        Assert.Equal(3, after.MaxAttempts);
+        Assert.Equal(first.DefinitionHash, after.DefinitionHash);
+        Assert.Equal(Gen3, after.ManifestGenerationAtUtc);
+        Assert.Equal(first.Version, after.Version);
     }
 
     [Fact(DisplayName = "A definition absent from the manifest stays Active with its jobs")]

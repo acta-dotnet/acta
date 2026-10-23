@@ -6,7 +6,7 @@ namespace Acta.Tests.Runtime;
 /// <summary>
 /// The <c>Acta</c> meter contract: instrument names, tag keys, and tag values are the
 /// operator-facing metric surface a dashboard query binds to. Tags stay low-cardinality
-/// (namespace / job_name / outcome / reason_code / result); job id and execution number are
+/// (namespace / job_name / outcome / reason / result); job id and execution number are
 /// deliberately absent (they live on the logging scope and traces, not metric tags).
 /// </summary>
 public sealed class ActaMetricsTests
@@ -20,7 +20,7 @@ public sealed class ActaMetricsTests
             Collect<long>(
                 metrics,
                 "acta.executions",
-                () => metrics.RecordExecution("billing", "send-receipt", "succeeded", reasonCode: null, durationMs: 12)
+                () => metrics.RecordExecution("billing", "send-receipt", "succeeded", reason: null, durationMs: 12)
             )
         );
 
@@ -31,7 +31,7 @@ public sealed class ActaMetricsTests
     }
 
     [Fact]
-    public void RecordExecution_records_duration_histogram_without_reason_code_tag()
+    public void RecordExecution_records_duration_histogram_without_reason_tag()
     {
         using var metrics = new ActaMetrics();
 
@@ -39,18 +39,18 @@ public sealed class ActaMetricsTests
             Collect<double>(
                 metrics,
                 "acta.duration",
-                () => metrics.RecordExecution("billing", "send-receipt", "failed", reasonCode: "unhandled-exception", durationMs: 42)
+                () => metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 42)
             )
         );
 
         Assert.Equal(42, Value);
         Assert.Equal("billing", Tags["namespace"]);
         Assert.Equal("failed", Tags["outcome"]);
-        Assert.DoesNotContain("reason_code", Tags.Keys);
+        Assert.DoesNotContain("reason", Tags.Keys);
     }
 
     [Fact]
-    public void RecordExecution_adds_reason_code_tag_to_executions_when_present()
+    public void RecordExecution_adds_reason_tag_to_executions_when_present()
     {
         using var metrics = new ActaMetrics();
 
@@ -58,15 +58,15 @@ public sealed class ActaMetricsTests
             Collect<long>(
                 metrics,
                 "acta.executions",
-                () => metrics.RecordExecution("billing", "send-receipt", "failed", reasonCode: "unhandled-exception", durationMs: 1)
+                () => metrics.RecordExecution("billing", "send-receipt", "failed", reason: "unhandled-exception", durationMs: 1)
             )
         );
 
-        Assert.Equal("unhandled-exception", Tags["reason_code"]);
+        Assert.Equal("unhandled-exception", Tags["reason"]);
     }
 
     [Fact]
-    public void RecordExecution_omits_reason_code_tag_on_executions_when_absent()
+    public void RecordExecution_omits_reason_tag_on_executions_when_absent()
     {
         using var metrics = new ActaMetrics();
 
@@ -74,11 +74,11 @@ public sealed class ActaMetricsTests
             Collect<long>(
                 metrics,
                 "acta.executions",
-                () => metrics.RecordExecution("billing", "send-receipt", "succeeded", reasonCode: null, durationMs: 1)
+                () => metrics.RecordExecution("billing", "send-receipt", "succeeded", reason: null, durationMs: 1)
             )
         );
 
-        Assert.DoesNotContain("reason_code", Tags.Keys);
+        Assert.DoesNotContain("reason", Tags.Keys);
     }
 
     [Fact]

@@ -6,7 +6,7 @@ CREATE TEMP TABLE IF NOT EXISTS _retire_cancelled (job_id BIGINT NOT NULL, paren
 CREATE TEMP TABLE IF NOT EXISTS _retire_promoted (promoted INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE IF NOT EXISTS _retire_lock (granted INT NOT NULL) ON COMMIT DROP;
 
--- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+-- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock").
 INSERT INTO _retire_lock (granted)
 SELECT 1
 FROM (
@@ -16,7 +16,7 @@ FROM (
 ) l;
 
 -- The lanes of the definition's parked laned jobs, locked in id order before any job row
--- (docs/sql-execution-policy.md, "Lane lock order").
+-- (docs/sql-internals.md, "Lane lock order").
 INSERT INTO _retire_lanes (lane_id)
 SELECT l.lane_id
 FROM {{schema}}.lanes l

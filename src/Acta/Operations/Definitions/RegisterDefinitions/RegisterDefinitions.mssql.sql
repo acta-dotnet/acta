@@ -36,8 +36,14 @@ BEGIN TRY
         description = src.description,
         definition_hash = src.definition_hash,
         manifest_generation_at_utc = @p_manifest_generation,
-        modified_at_utc = @now,
-        version = jd.version + 1
+        -- An unchanged Active row from a newer manifest takes only the generation, because an equal hash means the columns
+        -- above already hold these values; version and modified_at_utc stay, so no operator CAS fails and no worker reloads.
+        modified_at_utc = CASE WHEN jd.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+            OR jd.definition_hash <> src.definition_hash
+            THEN @now ELSE jd.modified_at_utc END,
+        version = CASE WHEN jd.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+            OR jd.definition_hash <> src.definition_hash
+            THEN jd.version + 1 ELSE jd.version END
     FROM {{schema}}.definitions jd
     INNER JOIN @p_definitions src
         ON jd.namespace_id = @p_namespace_id AND jd.definition_name = src.definition_name
@@ -46,6 +52,8 @@ BEGIN TRY
         AND (
             jd.definition_status_code <> 10 /* DefinitionStatusCode.Active */
             OR jd.definition_hash <> src.definition_hash
+            -- An unchanged row still takes a newer generation, so an older build that registers after it is refused.
+            OR @p_manifest_generation > jd.manifest_generation_at_utc
         );
 
     INSERT INTO {{schema}}.definitions (

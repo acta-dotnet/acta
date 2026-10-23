@@ -2,7 +2,7 @@
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
--- The meter's own lock serializes the calls on one meter to commit (docs/sql-execution-policy.md,
+-- The meter's own lock serializes the calls on one meter to commit (docs/sql-internals.md,
 -- "Slot locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
 -- next meters fall in.
 

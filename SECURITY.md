@@ -12,7 +12,7 @@ Until 1.0.0 ships, that is the latest release candidate; from 1.0.0 on, nothing 
 
 The schema, persisted codes, and public API are frozen from 1.0, and a
 supported-versions window is stated properly. The support matrix, supported .NET target, and the
-patch policy that takes effect at 1.0 are stated in [docs/support.md](./docs/support.md).
+patch policy that takes effect at 1.0 are stated in [docs/compatibility-and-support.md](./docs/compatibility-and-support.md).
 
 ## Reporting a vulnerability
 
@@ -51,6 +51,6 @@ Things that are **not** vulnerabilities, because they are documented design boun
   idempotency or reconciliation. See `docs/known-limitations.md`.
 - **The tenant field is not a security boundary.** Acta validates, persists, and propagates tenant
   identity; it does not authorize callers or filter application data. Separate residency or blast
-  radius takes separate stores or deployments. See `docs/guide.md`.
+  radius takes separate stores or deployments. See `docs/developer-guide.md`.
 - **Job payloads are stored as supplied.** Acta does not encrypt them; a payload containing secrets
   is readable by anyone with database access.

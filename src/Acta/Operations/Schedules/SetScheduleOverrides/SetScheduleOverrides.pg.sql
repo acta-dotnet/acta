@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The namespace's schedule lock, shared, comes before
--- any row lock (docs/sql-execution-policy.md, "Schedule lock"), then the slot's jobs_state row before its schedules row, the
+-- any row lock (docs/sql-internals.md, "Schedule lock"), then the slot's jobs_state row before its schedules row, the
 -- order a fire's completion takes; the reads see a committed retire. A stale version is a VersionConflict and changes nothing.
 DROP TABLE IF EXISTS pg_temp._set_schedule_overrides_lock;
 DROP TABLE IF EXISTS pg_temp._set_schedule_overrides_slot;

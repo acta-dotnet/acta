@@ -95,7 +95,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 
 ### Evidence
 
-The engine was certified on `fc5fbf1a` with the Acta Bench standard profile: all 61 engine cases on SQLite, PostgreSQL, and SQL Server, reported in [`docs/reference/benchmark.md`](./reference/benchmark.md).
+The engine was certified on `fc5fbf1a` with the Acta Bench standard profile: all 61 engine cases on SQLite, PostgreSQL, and SQL Server, reported in [`docs/benchmark.md`](./benchmark.md).
 - **Result.** No case failed safety or liveness, every trial's ledger passed the certification checks, and all 60 fault-case instances ran.
 - **Two bench defects.** They left three instances unfinished, and the fixes touch only `tools/Acta.Bench`:
   - F09 on SQLite started 8 workers of 64 executors on one database file and timed out waiting for them to report ready. F09 now runs 3 workers on SQLite and keeps 8 on the servers.
@@ -213,8 +213,8 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 
 ### Documentation
 
-- The guides are [`docs/guide.md`](./guide.md) for writing jobs and [`docs/operator-guide.md`](./operator-guide.md) for running them; contributor pages moved into `CONTRIBUTING.md`.
-- The latest benchmark round is [`docs/reference/benchmark.md`](./reference/benchmark.md); the release notes record each certification verdict.
+- The guides are [`docs/developer-guide.md`](./developer-guide.md) for writing jobs and [`docs/operator-guide.md`](./operator-guide.md) for running them; contributor pages moved into `CONTRIBUTING.md`.
+- The latest benchmark round is [`docs/benchmark.md`](./benchmark.md); the release notes record each certification verdict.
 
 ### Evidence
 

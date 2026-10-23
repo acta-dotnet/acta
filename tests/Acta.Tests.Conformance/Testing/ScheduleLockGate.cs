@@ -4,7 +4,7 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Takes a namespace's schedule lock on a gate's open transaction, the way <c>register_schedules</c> and a retire take it
-/// exclusive and a slot fire's completion and the schedule verbs take it shared (docs/sql-execution-policy.md, "Schedule
+/// exclusive and a slot fire's completion and the schedule verbs take it shared (docs/sql-internals.md, "Schedule
 /// lock"), so the lock stays held until the gate ends. SQLite runs one writer at a time and takes no such lock.
 /// </summary>
 internal static class ScheduleLockGate

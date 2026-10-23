@@ -74,11 +74,21 @@ test('eventsListSql filters code families through the decoded columns and a time
   );
 });
 
-test('eventsListSql finds a job\'s events through jobs_view, in the configured schema, escaping the ref', () => {
+test('eventsListSql finds a job\'s events through jobs_view by the stored uuid, in the configured schema', () => {
   assert.equal(
     eventsListSql({ jobRef: 'job_019f9b3509487d1b911f2020158384a3' }, { provider: 'pg', schema: 'ops' }),
-    "SELECT * FROM ops.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM ops.jobs_view WHERE job_ref = 'job_019f9b3509487d1b911f2020158384a3') ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM ops.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM ops.jobs_view WHERE job_ref = '019f9b35-0948-7d1b-911f-2020158384a3') ORDER BY created_at_utc DESC LIMIT 100;"
   );
+});
+
+test('eventsListSql lowercases an uppercase-hex job ref into the dashed uuid', () => {
+  assert.equal(
+    eventsListSql({ jobRef: 'job_019F9B3509487D1B911F2020158384A3' }, { provider: 'mssql', schema: 'acta' }),
+    "SELECT TOP 100 * FROM acta.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = '019f9b35-0948-7d1b-911f-2020158384a3') ORDER BY created_at_utc DESC;"
+  );
+});
+
+test('eventsListSql keeps anything that is not a job ref as an escaped literal', () => {
   assert.equal(
     eventsListSql({ jobRef: "x' OR '1'='1" }),
     "SELECT * FROM acta.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = 'x'' OR ''1''=''1') ORDER BY created_at_utc DESC LIMIT 100;"

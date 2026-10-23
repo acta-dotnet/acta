@@ -1,4 +1,4 @@
-# Support
+# Compatibility and support
 
 What is supported, on what, and how fixes ship.
 
@@ -33,7 +33,7 @@ Published on [nuget.org](https://www.nuget.org/packages?q=Acta):
 - `Acta.Testing`: test host.
 
 Source-generated dispatch (`Acta.Generators`) ships bundled inside these packages; there is no
-separate reference. Repository tooling (`Acta.Emit`, `Acta.Doctor`) is not published to NuGet.
+separate reference. Repository tooling (`Acta.Bench`, `Acta.Emit`, `Acta.Doctor`) is not published to NuGet.
 
 ## Patch policy
 
@@ -56,7 +56,7 @@ produced by the project, on the project's machine, and published in this reposit
   SQL; each release's notes record the scale that ran and the verdicts
   ([release notes](./release-notes.md)).
 - The benchmark round: an [Acta Bench](../tools/Acta.Bench/README.md) run on one machine, the latest
-  kept in [benchmark.md](./reference/benchmark.md).
+  kept in [benchmark.md](./benchmark.md).
 
 There is no independent evidence yet: no third-party audit, no published production case study, no
 benchmark someone else ran. If you run Acta in production, an issue describing the workload and what

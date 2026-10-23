@@ -64,7 +64,7 @@ BEGIN
             FROM {{schema}}.jobs_state r
             INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
             -- The rows lock by pk_jobs_state probes: "=" would imply ix_jobs_state_worker_inflight's filter and let a generic plan
-            -- walk the worker's range of it, dead entries included (docs/sql-execution-policy.md, "Locking reads seek").
+            -- walk the worker's range of it, dead entries included (docs/sql-internals.md, "Locking reads seek").
             WHERE
                 r.job_status_code = 50 /* JobStatusCode.Executing */
                 AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
@@ -147,7 +147,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Each fired slot's namespace schedule lock, shared, before any other lock (docs/sql-execution-policy.md, "Schedule lock").
+    -- Each fired slot's namespace schedule lock, shared, before any other lock (docs/sql-internals.md, "Schedule lock").
     IF cardinality(array_remove(p_final_job_status_codes, NULL)) > 0 THEN
         PERFORM pg_advisory_xact_lock_shared(hashtext('{{schema}}.schedules'), n.namespace_id)
         FROM (

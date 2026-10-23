@@ -12,26 +12,30 @@ internal sealed class NamespacesOperations(
         listNamespaces.HandleAsync(query, ct);
 
     public ValueTask<SuspendNamespaceResponse> SuspendAsync(
-        string name,
+        string namespaceName,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => suspendNamespace.HandleAsync(new SuspendNamespaceCommand(name, reasonMessage, actor), ct);
+    ) => suspendNamespace.HandleAsync(new SuspendNamespaceCommand(namespaceName, reasonMessage, actor), ct);
 
     public ValueTask<ResumeNamespaceResponse> ResumeAsync(
-        string name,
+        string namespaceName,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => resumeNamespace.HandleAsync(new ResumeNamespaceCommand(name, reasonMessage, actor), ct);
+    ) => resumeNamespace.HandleAsync(new ResumeNamespaceCommand(namespaceName, reasonMessage, actor), ct);
 
     public ValueTask<UpdateNamespaceResponse> UpdateAsync(
-        string name,
+        string namespaceName,
         int expectedVersion,
         string? ownerTeam,
         string? description,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => updateNamespace.HandleAsync(new UpdateNamespaceCommand(name, expectedVersion, ownerTeam, description, reasonMessage, actor), ct);
+    ) =>
+        updateNamespace.HandleAsync(
+            new UpdateNamespaceCommand(namespaceName, expectedVersion, ownerTeam, description, reasonMessage, actor),
+            ct
+        );
 }

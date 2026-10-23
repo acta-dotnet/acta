@@ -97,7 +97,7 @@ internal sealed class WorkerEntity : IEntity<int>
     public int? ProcessId { get; init; }
 
     /// <summary>
-    /// Effective per-process executor cap (<c>JobsOptions.MaxConcurrentExecutors</c>) recorded at
+    /// This worker's executor cap (<c>JobsOptions.MaxConcurrentExecutors</c>) recorded at
     /// registration.
     /// </summary>
     [DbColumn("max_concurrent_executors", DbKind.Int32)]

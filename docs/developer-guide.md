@@ -1,4 +1,4 @@
-# Guide
+# Developer guide
 
 How to write, configure, and test Acta jobs: the model and its vocabulary, the handler contract,
 configuration, transactional enqueue and the outbox, schedules, contract evolution, and testing.
@@ -17,7 +17,7 @@ contract, operator guide, or generated references. It is descriptive. The source
 `src/Acta` are authoritative for exact signatures and contracts.
 
 For the rationale behind these choices (why one table, why leaderless, why checkpoints over replay),
-see [design](./design.md).
+see [architecture decisions](./architecture-decisions.md).
 
 ### Glossary
 
@@ -634,7 +634,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 
 | Option | Default | Scope | Notes |
 | --- | --- | --- | --- |
-| `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per process | Maximum in-flight handler executions per worker runtime. A claim takes one row for every free executor. |
+| `MaxConcurrentExecutors` | `clamp(ProcessorCount * 4, 8, 64)` | per worker | Maximum in-flight handler executions per worker; each `Run(...)` in a process is its own worker with this many. A claim takes one row for every free executor. |
 | `SafetyPollInterval` | 1 second | per process | Idle polling ceiling when no wakeup is received. Must be at least 1 second. |
 | `HeartbeatInterval` | 45 seconds | coordination invariant | Worker heartbeat cadence, and the only timing value you set. Must be 6 hours or less. |
 | `LeaseTtlSeconds` | 180 (derived) | read-only | `HeartbeatInterval` x4. Lease window refreshed while handlers run. |
