@@ -259,7 +259,7 @@ internal static class SqlServerTableParameters
                 record.SetGuid(1, slotRefs[i]);
                 record.SetString(2, definition.JobName);
                 record.SetByte(3, definition.InputFormatId);
-                SetBytesOrNull(record, 4, definition.Input, !definition.Input.IsEmpty);
+                SetBytesOrNull(record, 4, definition.Input, definition.InputFormatId != JobPayloadFormat.None.Id);
                 record.SetByte(5, (byte)definition.EventRecording);
                 record.SetByte(6, (byte)definition.SlotStatus);
                 SetNullableDateTime(record, 7, definition.SlotMinNextRunAtUtc);

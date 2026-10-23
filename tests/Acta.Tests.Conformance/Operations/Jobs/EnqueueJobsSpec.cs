@@ -16,7 +16,9 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 ///   * batch=1000 lands 1000 jobs in one round-trip, with per-ordinal outcomes aligned
 ///     to the input list;
 ///   * a shorter payload following a longer payload is persisted byte-for-byte (SQL Server streams
-///     one reused TVP record, so replacing the whole binary field is required to truncate it).
+///     one reused TVP record, so replacing the whole binary field is required to truncate it);
+///   * a payload with a format and no bytes is stored zero-length, since the input pair check refuses a format
+///     with NULL bytes.
 /// Identical assertions run against SqlServer and Postgres via the provider one-liners under
 /// <c>Acta.Tests.Conformance.SqlServer</c> / <c>Acta.Tests.Conformance.Postgres</c>.
 /// </summary>
@@ -149,5 +151,36 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.NotNull(second);
         Assert.Equal(longBytes, first.Input);
         Assert.Equal(shortBytes, second.Input);
+    }
+
+    [Fact(DisplayName = "A payload with a format and no bytes lands as a zero-length input, not NULL, alone and in a batch")]
+    public async Task Enqueue_stores_an_empty_payload_with_a_format_as_a_zero_length_input()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        JobPayload[] payloads =
+        [
+            JobPayload.Bytes([]),
+            JobPayload.Text(string.Empty),
+            JobPayload.FromBytes(JobPayloadFormat.Custom(200, "empty-custom"), []),
+        ];
+        JobEnqueueValues[] rows = [.. payloads.Select(payload => new JobEnqueueValues(TestNamespace, "add-numbers", payload))];
+
+        // One row goes through enqueue_job and a longer batch through enqueue_jobs.
+        List<EnqueueJobResponse> outcomes = [];
+        foreach (var row in rows)
+        {
+            outcomes.Add(await EnqueueTestOps.EnqueueJobAsync(Services, row, ct));
+        }
+        outcomes.AddRange((await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs);
+
+        for (var i = 0; i < outcomes.Count; i++)
+        {
+            var jobId = outcomes[i].JobId;
+            var job = await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
+            Assert.NotNull(job);
+            Assert.Equal(payloads[i % payloads.Length].Format.Id, job.InputFormatId);
+            Assert.NotNull(job.Input);
+            Assert.Empty(job.Input);
+        }
     }
 }

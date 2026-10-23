@@ -356,7 +356,7 @@ internal sealed class PostgresDialect : ISqlDialect
             definitionIds[i] = definition.DefinitionId;
             deduplicationKeys[i] = definition.JobName;
             inputFormatIds[i] = definition.InputFormatId;
-            inputs[i] = definition.Input.IsEmpty ? null : definition.Input.ToArray();
+            inputs[i] = definition.InputFormatId == JobPayloadFormat.None.Id ? null : definition.Input.ToArray();
             eventRecordings[i] = (short)definition.EventRecording;
             slotStatuses[i] = (short)definition.SlotStatus;
             slotNextRuns[i] = definition.SlotMinNextRunAtUtc;

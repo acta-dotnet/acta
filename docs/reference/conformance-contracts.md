@@ -705,6 +705,7 @@
   - A single enqueue lands one Ready job with its tags and writes no events
   - A 1000-row batch lands 1000 Ready jobs with positionally-aligned outcomes and unique JobIds
   - A shorter payload after a longer payload is persisted without retaining trailing bytes
+  - A payload with a format and no bytes lands as a zero-length input, not NULL, alone and in a batch
 
 ### Same-batch duplicate deduplication keys or malformed rows reject the batch
 - **Contract:** A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted.
@@ -1902,6 +1903,7 @@
   - A start never puts back to sleep a waiting slot that a signal woke after the start read it
   - A start that edits a catch-up schedule whose occurrence is in flight moves its cursor past that occurrence
   - Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule
+  - A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL
 
 ### Preview resolves a sys. schedule through the lookup-permissive canonicalizer
 - **Contract:** Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one.

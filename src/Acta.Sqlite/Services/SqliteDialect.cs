@@ -109,6 +109,8 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     private static void InstallFunctions(SqliteConnection connection)
     {
+        // An empty array reaches SQL as NULL, not as a zero-length blob, so SQL that stores a payload with a format and
+        // no bytes coalesces the result to X''.
         connection.CreateFunction<string?, byte[]?>(
             "acta_blob",
             static text => text is null ? null : Convert.FromBase64String(text),
@@ -429,7 +431,11 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteString("job_ref", slotRefs[index].ToString());
                 writer.WriteString("deduplication_key", definition.JobName);
                 writer.WriteNumber("input_format_id", definition.InputFormatId);
-                WriteBase64OrNull(writer, "input", definition.Input.IsEmpty ? (ReadOnlyMemory<byte>?)null : definition.Input);
+                WriteBase64OrNull(
+                    writer,
+                    "input",
+                    definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
+                );
                 writer.WriteNumber("event_recording_code", (short)definition.EventRecording);
                 writer.WriteNumber("slot_status_code", (short)definition.SlotStatus);
                 WriteUtcOrNull(writer, "slot_next_run_at_utc", definition.SlotMinNextRunAtUtc);

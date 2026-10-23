@@ -19,7 +19,10 @@ SELECT
     @p_namespace_id,
     json_extract(d.value, '$.definition_id'),
     json_extract(d.value, '$.input_format_id'),
-    acta_blob(json_extract(d.value, '$.input')),
+    CASE
+        WHEN json_extract(d.value, '$.input_format_id') <> 0 /* JobPayloadFormat.None */
+            THEN COALESCE(acta_blob(json_extract(d.value, '$.input')), X'')
+    END,
     NULL,
     json_extract(d.value, '$.event_recording_code')
 FROM json_each(@p_definitions) d

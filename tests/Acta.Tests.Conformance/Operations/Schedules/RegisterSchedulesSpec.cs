@@ -298,6 +298,48 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Null(Assert.Single(await ScheduleTestOps.ReadAsync(Db, retiredSlot, ct)).NextOccurrenceAtUtc);
     }
 
+    [Fact(DisplayName = "A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL")]
+    public async Task A_slot_input_with_a_format_and_no_bytes_registers_as_a_zero_length_input()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
+        var serializer = Services.GetRequiredService<IJobPayloadSerializerRegistry>().Resolve(JobPayloadFormat.Bytes.Id);
+
+        // The default input of a handler that takes ReadOnlyMemory<byte>, and a custom format whose encoding is empty.
+        JobPayload[] inputs =
+        [
+            serializer.Serialize(default(ReadOnlyMemory<byte>)),
+            JobPayload.FromBytes(JobPayloadFormat.Custom(200, "empty-custom"), []),
+        ];
+        foreach (var input in inputs)
+        {
+            var jobName = $"register-empty-input-{Guid.NewGuid():N}";
+            var defId = await CreateDefinitionAsync(jobName, ct);
+            var definition = new DefinitionSchedules(
+                NamespaceId: TestNamespaceId,
+                DefinitionId: defId,
+                JobName: jobName,
+                InputFormatId: input.Format.Id,
+                Input: input.Data,
+                EventRecording: EventRecordingCode.Audit,
+                SlotStatus: JobStatusCode.Ready,
+                SlotMinNextRunAtUtc: cursor,
+                Schedules: [Slot("only", cursor)]
+            );
+
+            // The first start inserts the slot and every later start updates it in place.
+            await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
+            await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
+
+            var slotId = await SlotIdAsync(jobName, ct);
+            var slot = await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);
+            Assert.NotNull(slot);
+            Assert.Equal(input.Format.Id, slot.InputFormatId);
+            Assert.NotNull(slot.Input);
+            Assert.Empty(slot.Input);
+        }
+    }
+
     /// <summary>Puts the slot in flight with a lease, as a claim on another host would leave it.</summary>
     private static Task LeaseInFlightAsync(IDbSession db, long jobId, DateTime leaseExpiresAtUtc, CancellationToken ct) =>
         db.ExecuteRawAsync(
