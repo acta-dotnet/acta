@@ -21,6 +21,12 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
     /// </summary>
     internal const int CertifiedDriverMajor = 10;
 
+    /// <summary>
+    /// The oldest SQLite engine this provider runs on: CompleteExecutions expands its batch with <c>jsonb_each</c>, which
+    /// SQLite added in 3.51.0. Apply and preflight refuse an older engine before they read or write the schema.
+    /// </summary>
+    internal static readonly Version MinimumEngineVersion = new(3, 51, 0);
+
     private const string DialectToken = "sqlite";
     private static readonly Assembly ProviderAssembly = typeof(SqliteSchemaMigrator).Assembly;
 
@@ -43,6 +49,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
             await connection.OpenAsync(ct);
         }
 
+        EnsureSupportedEngine(await ReadEngineVersionAsync(connection, ct));
         await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
@@ -95,7 +102,32 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
 
         await using var conn = new SqliteConnection(connectionString);
         await conn.OpenAsync(ct);
+        EnsureSupportedEngine(await ReadEngineVersionAsync(conn, ct));
         await SchemaMigrations.PreflightAsync(conn, schemaName, DialectToken, ProviderAssembly, ct);
+    }
+
+    /// <summary>The native engine's version as <c>sqlite_version()</c> reports it, such as <c>3.53.3</c>.</summary>
+    internal static async Task<string> ReadEngineVersionAsync(SqliteConnection connection, CancellationToken ct)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT sqlite_version();";
+        return (string)(await command.ExecuteScalarAsync(ct))!;
+    }
+
+    internal static bool IsSupportedEngine(string engineVersion) =>
+        Version.TryParse(engineVersion, out var parsed) && parsed >= MinimumEngineVersion;
+
+    internal static void EnsureSupportedEngine(string engineVersion)
+    {
+        if (!IsSupportedEngine(engineVersion))
+        {
+            throw new InvalidOperationException(
+                $"Acta's SQLite provider requires SQLite {MinimumEngineVersion} or newer, but the native SQLite library loaded "
+                    + $"in this process reports version '{engineVersion}'. The engine that Microsoft.Data.Sqlite bundles, Acta's "
+                    + "default, satisfies it; an older one means the host replaced that engine with another native library, "
+                    + "such as a system SQLite, winsqlite3, or another SQLitePCLRaw bundle."
+            );
+        }
     }
 
     private static bool IsPlainFileSource(SqliteConnectionStringBuilder builder) =>

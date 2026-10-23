@@ -71,6 +71,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - The dashboard's job view shows the input and the result beside the status; the Input and Result tabs are gone.
 - On SQL Server, events are clustered by worker, then id, so each worker appends to its own end of the table instead of every worker contending for one last page; PostgreSQL keys events the same way. A purge deletes events by that pair.
 - A generic input or output type is stored without assembly versions (``System.Collections.Generic.List`1[MyApp.Line]``), so an application version bump no longer reports contract drift for it.
+- The SQLite floor is 3.51.0, up from the documented 3.42: batch completion uses `jsonb_each`, which SQLite added in 3.51.0, so an older engine started but could not complete a job. Startup now reads `sqlite_version()` and refuses an older engine with an error naming both versions; the engine `Microsoft.Data.Sqlite` bundles clears the floor.
 
 ### Fixes
 

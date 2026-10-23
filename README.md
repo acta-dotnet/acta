@@ -96,7 +96,7 @@ SQLite state is one file (`acta-local*.db`); delete it to reset. Docker is neede
 
 ## Use Acta when
 
-- You already run SQL Server 2019+, PostgreSQL 18, or SQLite 3.42+. PostgreSQL 18 is the major Acta is tested and certified on; the SQL Server and SQLite floors come from features the schema uses (`OPTIMIZE_FOR_SEQUENTIAL_KEY`, and `STRICT` tables with sub-second `unixepoch`), and the SQLite engine bundled by `Microsoft.Data.Sqlite` clears that floor.
+- You already run SQL Server 2019+, PostgreSQL 18, or SQLite 3.51+. PostgreSQL 18 is the major Acta is tested and certified on; the SQL Server and SQLite floors come from features Acta's SQL uses (`OPTIMIZE_FOR_SEQUENTIAL_KEY` in the schema, and `jsonb_each` in batch completion). The SQLite provider checks its floor at startup, and the SQLite engine bundled by `Microsoft.Data.Sqlite` clears it.
 - You want durable background jobs without adding a broker.
 - You want job state inspectable with SQL.
 - You need retries, delays, schedules, and operator controls.
