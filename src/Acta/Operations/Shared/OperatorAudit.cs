@@ -2,18 +2,25 @@ using System.Data.Common;
 
 namespace Acta;
 
-/// <summary>The audit every operator verb writes onto its event: the operator, their name, and the reason.</summary>
+/// <summary>What an operation binds for the event it writes: the human message and the details payload.</summary>
 internal static class OperatorAudit
 {
     /// <summary>
-    /// Binds the actor code, actor, and reason message in that order, the actor and reason cut to their
-    /// columns. A public verb never takes an actor from the caller, so the actor is always the operator.
+    /// Binds the operator's event: the reason message cut to its column as <c>event_message</c>, and the principal as
+    /// <c>details.actor</c>. A public verb never takes an actor kind from the caller, so the actor is always the operator.
     /// </summary>
-    public static void AddOperatorAudit(this DbCommand cmd, ISqlDialect dialect, string? actor, string? reasonMessage)
+    public static void AddOperatorAudit(this DbCommand cmd, ISqlDialect dialect, string? actor, string? reasonMessage) =>
+        cmd.AddEventFields(
+            dialect,
+            reasonMessage.Truncate(ActaTextLimits.EventMessage),
+            EventDetails.Write(("actor", JobControlActor.Operator(actor)))
+        );
+
+    /// <summary>Binds <c>event_message</c> and the <c>details</c> pair, the format id following the payload.</summary>
+    public static void AddEventFields(this DbCommand cmd, ISqlDialect dialect, string? message, byte[]? details)
     {
-        var stamped = JobControlActor.Operator(actor);
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, stamped.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, stamped.Actor));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, reasonMessage.Truncate(ActaTextLimits.ReasonMessage)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventMessage, message));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DetailsFormatId, EventDetails.FormatId(details)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Details, details));
     }
 }

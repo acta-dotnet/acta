@@ -3,30 +3,30 @@ namespace Acta;
 /// <summary>
 /// One row in <c>acta.jobs</c>, Acta's only work unit: the append-mostly identity/input record.
 /// Hot mutable state (status, next run, counters, retention, the one stored result) lives on the 1:1
-/// <c>runtimes</c> row, which also carries execution ownership/TTL (<c>locks</c> holds named locks only).
+/// <c>jobs_state</c> row, which also carries execution ownership/TTL (<c>locks</c> holds named locks only).
 /// Recurring Jobs are a single reusable row whose runtime <c>next_run_at_utc</c>
 /// rolls forward on terminal completion (no per-firing row inflation).
 /// </summary>
 [DbTable("jobs", DisableLockEscalation = true)]
-[DbPrimaryKey(Name = "pk_jobs", Columns = ["id"], OptimizeForSequentialKey = true)]
+[DbPrimaryKey(Name = "pk_jobs", Columns = ["job_id"], OptimizeForSequentialKey = true)]
 [DbUniqueIndex(Name = "ux_jobs_ref", Columns = ["job_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(
     Name = "ux_jobs_deduplication_key_root",
     Columns = ["namespace_id", "deduplication_key"],
-    Filter = "deduplication_key IS NOT NULL AND parent_id IS NULL",
+    Filter = "deduplication_key IS NOT NULL AND parent_job_id IS NULL",
     Usage = "uniqueness"
 )]
 [DbUniqueIndex(
     Name = "ux_jobs_deduplication_key_child",
-    Columns = ["parent_id", "deduplication_key"],
-    Filter = "deduplication_key IS NOT NULL AND parent_id IS NOT NULL",
+    Columns = ["parent_job_id", "deduplication_key"],
+    Filter = "deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL",
     Usage = "uniqueness"
 )]
-[DbIndex(Name = "ix_jobs_parent", Columns = ["parent_id"], Filter = "parent_id IS NOT NULL", Usage = "child_fanout")]
+[DbIndex(Name = "ix_jobs_parent", Columns = ["parent_job_id"], Filter = "parent_job_id IS NOT NULL", Usage = "child_fanout")]
 [DbIndex(
     Name = "ix_jobs_namespace_created",
-    Columns = ["namespace_id", "created_at_utc", "id"],
-    Descending = ["created_at_utc", "id"],
+    Columns = ["namespace_id", "created_at_utc", "job_id"],
+    Descending = ["created_at_utc", "job_id"],
     Usage = "dashboard_grid"
 )]
 [DbCheck(Name = "ck_jobs_input_pair", Sql = "(input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL)")]
@@ -40,7 +40,7 @@ internal sealed class JobEntity : IEntity<long>
     /// at INSERT, and <c>enqueue_jobs</c> correlates the <c>RETURNING</c>/<c>OUTPUT</c> rows back to
     /// their input via the caller-supplied <see cref="JobRef"/> (insertion order is not guaranteed).
     /// </summary>
-    [DbColumn("id", DbKind.Int64)]
+    [DbColumn("job_id", DbKind.Int64)]
     public long Id { get; init; }
 
     /// <summary>
@@ -67,18 +67,18 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// Identifies the lineage tree this Job belongs to. <c>NULL</c> for root jobs (the root is its own
-    /// <see cref="Id"/>); children carry <c>parent.LineageRootId</c>. Set at INSERT, never mutated.
-    /// Event-emitting routines resolve the effective root as <c>COALESCE(lineage_root_id, id)</c> so a
+    /// <see cref="Id"/>); children carry <c>parent.LineageRootJobId</c>. Set at INSERT, never mutated.
+    /// Event-emitting routines resolve the effective root as <c>COALESCE(lineage_root_job_id, job_id)</c> so a
     /// root's own events still land on the <c>events</c> lineage timeline index.
     /// </summary>
-    [DbColumn("lineage_root_id", DbKind.Int64)]
-    public long? LineageRootId { get; init; }
+    [DbColumn("lineage_root_job_id", DbKind.Int64)]
+    public long? LineageRootJobId { get; init; }
 
     /// <summary>
     /// Causal parent for child jobs; null for root jobs. No FK; SP write-time validation.
     /// </summary>
-    [DbColumn("parent_id", DbKind.Int64)]
-    public long? ParentId { get; init; }
+    [DbColumn("parent_job_id", DbKind.Int64)]
+    public long? ParentJobId { get; init; }
 
     /// <summary>
     /// Optional customer / business entity this Job is <em>about</em>, resolved from the enqueue
@@ -134,17 +134,17 @@ internal sealed class JobEntity : IEntity<long>
     [DbColumn("input", DbKind.BinaryPayload)]
     public byte[]? Input { get; init; }
 
-    // ---------- Audit emission ----------
+    // ---------- Event recording ----------
 
     /// <summary>
-    /// Per-job snapshot of the definition's audit level, copied from <c>definitions</c> at
-    /// enqueue. Gates audit-filtered per-job <c>events</c> emission on the hot path
-    /// (claim / start / complete / control) without a join: <c>Off</c> suppresses them,
-    /// <c>Failures</c> emits only failed <c>job.execution-finished</c>, <c>Audit</c> emits all.
-    /// Always-on system / catalog events ignore this column.
+    /// Per-job snapshot of the definition's event recording policy, copied from <c>definitions</c> at
+    /// enqueue. Gates recording-filtered per-job <c>events</c> emission on the hot path
+    /// (claim / start / complete / control) without a join: <c>Off</c> suppresses them, <c>Failures</c> emits the
+    /// failed, orphaned, and terminal attempts and a recovery, <c>Audit</c> emits all. Always-on system / catalog events
+    /// ignore this column, and an enabled alert profile records the attempts its alerts read at any level.
     /// </summary>
-    [DbColumn("audit_level_code")]
-    public DefinitionAuditLevelCode AuditLevel { get; init; }
+    [DbColumn("event_recording_code")]
+    public EventRecordingCode EventRecording { get; init; }
 
     // ---------- Audit ----------
 

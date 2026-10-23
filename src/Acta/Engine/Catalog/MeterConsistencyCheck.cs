@@ -22,7 +22,7 @@ internal static class MeterConsistencyCheck
                 continue;
             }
 
-            var meter = JobDefinitionRegistration.EffectiveRateName(definition.Effective.RateName, definition.Name);
+            var meter = JobDefinitionRegistration.EffectiveRateName(definition.Effective.RateName, definition.DefinitionName);
             if (!byMeter.TryGetValue(meter, out var participants))
             {
                 participants = [];
@@ -38,7 +38,7 @@ internal static class MeterConsistencyCheck
                 continue;
             }
 
-            var detail = $"{meter}: {string.Join(", ", participants.Select(p => $"{p.Name}={p.Effective.RateLimit}"))}";
+            var detail = $"{meter}: {string.Join(", ", participants.Select(p => $"{p.DefinitionName}={p.Effective.RateLimit}"))}";
             log.LogWarning(
                 "Acta rate limiting: meter ({Detail}) has participants at different effective rates in namespace "
                     + "({Namespace}); a meter whose participants disagree is retuned by overriding any participant.",

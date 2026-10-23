@@ -10,8 +10,8 @@
    act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
 CREATE OR ALTER PROCEDURE {{schema}}.wait_signal
     @p_job_id BIGINT,
-    @p_kind_code TINYINT,
-    @p_name VARCHAR(128),
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
     @p_timeout_seconds INT = NULL
 AS
 BEGIN
@@ -29,7 +29,7 @@ BEGIN
         DECLARE @due DATETIME2(3) = NULL;
         DECLARE @outcome SMALLINT;
 
-        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_kind_code, N':', @p_name);
+        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
         DECLARE @slot_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
         EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
@@ -37,12 +37,12 @@ BEGIN
             THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
 
         SELECT
-            @state = status_code,
+            @state = checkpoint_status_code,
             @fmt = value_format_id,
             @val = value,
             @due = due_at_utc
         FROM {{schema}}.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
         IF @state = 20 /* CheckpointStatusCode.Set */
             BEGIN
@@ -58,10 +58,10 @@ BEGIN
             BEGIN
                 UPDATE {{schema}}.checkpoints
                 SET
-                    status_code = 30 /* CheckpointStatusCode.Expired */,
+                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+                WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
                 SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
@@ -72,11 +72,11 @@ BEGIN
                 IF @state IS NULL
                     BEGIN
                         INSERT INTO {{schema}}.checkpoints (
-                            job_id, kind_code, name, status_code, due_at_utc, value_format_id, value,
+                            job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id, value,
                             created_at_utc, modified_at_utc, version
                         )
                         VALUES (
-                            @p_job_id, @p_kind_code, @p_name, 10 /* CheckpointStatusCode.Pending */,
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 10 /* CheckpointStatusCode.Pending */,
                             CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
@@ -89,8 +89,8 @@ BEGIN
                             modified_at_utc = @now,
                             version = version + 1
                         WHERE
-                            job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-                            AND status_code = 10 /* CheckpointStatusCode.Pending */
+                            job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
+                            AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                     END
                 SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;

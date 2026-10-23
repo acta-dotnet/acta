@@ -1,13 +1,13 @@
 SELECT
     c.job_id,
     j.job_ref,
-    ns.name AS namespace,
-    d.name AS job_name,
-    c.name AS checkpoint_name,
-    {{decode:job-checkpoint-kind:c.kind_code}} AS kind,
-    c.kind_code,
-    {{decode:job-checkpoint-status:c.status_code}} AS status,
-    c.status_code,
+    ns.namespace_name AS namespace,
+    d.definition_name AS job_name,
+    c.checkpoint_name,
+    {{decode:job-checkpoint-kind:c.checkpoint_kind_code}} AS kind,
+    c.checkpoint_kind_code,
+    {{decode:job-checkpoint-status:c.checkpoint_status_code}} AS status,
+    c.checkpoint_status_code,
     c.due_at_utc,
     CASE c.value_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -22,6 +22,6 @@ SELECT
     c.modified_at_utc,
     c.version
 FROM {{schema}}.checkpoints AS c
-JOIN {{schema}}.jobs AS j ON j.id = c.job_id
-JOIN {{schema}}.namespaces AS ns ON ns.id = j.namespace_id
-JOIN {{schema}}.definitions AS d ON d.id = j.definition_id
+JOIN {{schema}}.jobs AS j ON j.job_id = c.job_id
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id

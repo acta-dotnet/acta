@@ -49,7 +49,11 @@ public sealed class PersistedCodeContractTests
         EventCode.NamespaceUpdated=22|namespace.updated
         EventCode.JobDefinitionOverridesUpdated=30|definition.overrides-updated
         EventCode.JobDefinitionRetired=31|definition.retired
-        EventCode.JobExecutionFinished=41|job.execution-finished
+        EventCode.JobExecutionSucceeded=40|job.execution-succeeded
+        EventCode.JobExecutionFailed=41|job.execution-failed
+        EventCode.JobExecutionOrphaned=42|job.execution-orphaned
+        EventCode.JobExecutionYielded=43|job.execution-yielded
+        EventCode.JobFailed=44|job.failed
         EventCode.JobRecurringRolledOver=50|job.recurring-rolled-over
         EventCode.JobSuspended=60|job.suspended
         EventCode.JobRescheduled=61|job.rescheduled
@@ -75,41 +79,6 @@ public sealed class PersistedCodeContractTests
         EventCode.AlertResolved=141|alert.resolved
         EventCode.OutboxRequeued=180|outbox.requeued
         EventCode.OutboxDiscarded=181|outbox.discarded
-        EventReasonCode.Unspecified=0|unspecified
-        EventReasonCode.Unclassified=10|job.unclassified
-        EventReasonCode.JobUnhandledException=20|job.unhandled-exception
-        EventReasonCode.JobLeaseExpired=21|job.lease-expired
-        EventReasonCode.JobExecutionTimeout=22|job.execution-timeout
-        EventReasonCode.JobNonRetryableException=23|job.non-retryable-exception
-        EventReasonCode.JobDeadlineExceeded=24|job.deadline-exceeded
-        EventReasonCode.JobAttemptAborted=25|job.attempt-aborted
-        EventReasonCode.JobSchedulesExhausted=30|job.schedules-exhausted
-        EventReasonCode.JobControlManual=40|job.control-manual
-        EventReasonCode.JobParentCancelled=41|job.parent-cancelled
-        EventReasonCode.JobDefinitionRetired=42|job.definition-retired
-        EventReasonCode.JobHandlerRescheduled=50|job.handler-rescheduled
-        EventReasonCode.JobHandlerSuspended=51|job.handler-suspended
-        EventReasonCode.JobHandlerFailed=52|job.handler-failed
-        EventReasonCode.JobHandlerCancelled=53|job.handler-cancelled
-        EventReasonCode.JobHandlerPaused=54|job.handler-paused
-        EventReasonCode.JobSignalReleased=60|job.signal-released
-        EventReasonCode.JobStepRetryScheduled=61|job.step-retry-scheduled
-        EventReasonCode.JobConcurrencyKeyHeld=62|job.concurrency-key-held
-        EventReasonCode.JobStepInterrupted=63|job.step-interrupted
-        EventReasonCode.JobResultOversized=64|job.result-oversized
-        EventReasonCode.JobWaitTimedOut=65|job.wait-timed-out
-        EventReasonCode.JobRateLimited=66|job.rate-limited
-        EventReasonCode.JobLaneRepaired=67|job.lane-repaired
-        EventReasonCode.WorkerCleanShutdown=100|worker.clean-shutdown
-        EventReasonCode.WorkerHeartbeatStale=101|worker.heartbeat-stale
-        ExecutionStatusCode.Unspecified=0|unspecified
-        ExecutionStatusCode.Succeeded=100|succeeded
-        ExecutionStatusCode.Rescheduled=150|rescheduled
-        ExecutionStatusCode.Suspended=151|suspended
-        ExecutionStatusCode.Paused=152|paused
-        ExecutionStatusCode.Failed=200|failed
-        ExecutionStatusCode.Cancelled=220|cancelled
-        ExecutionStatusCode.Orphaned=230|orphaned
         CheckpointKindCode.Unspecified=0|unspecified
         CheckpointKindCode.Variable=10|variable
         CheckpointKindCode.Signal=20|signal
@@ -126,17 +95,15 @@ public sealed class PersistedCodeContractTests
         StepStatusCode.Succeeded=100|succeeded
         StepStatusCode.Exhausted=200|exhausted
         StepStatusCode.Interrupted=230|interrupted
+        StepFailureCode.Unspecified=0|unspecified
+        StepFailureCode.UnhandledException=10|unhandled-exception
+        StepFailureCode.Interrupted=20|interrupted
         DeadlineBehaviorCode.Unspecified=0|unspecified
         DeadlineBehaviorCode.Strict=10|strict
         DeadlineBehaviorCode.Advisory=20|advisory
-        ActorCode.Unspecified=0|unspecified
-        ActorCode.Sys=10|sys
-        ActorCode.Operator=20|operator
-        ActorCode.Job=50|job
-        ActorCode.Worker=70|worker
-        DefinitionAuditLevelCode.Off=0|off
-        DefinitionAuditLevelCode.Failures=10|failures
-        DefinitionAuditLevelCode.Audit=20|audit
+        EventRecordingCode.Off=0|off
+        EventRecordingCode.Failures=10|failures
+        EventRecordingCode.Audit=20|audit
         JobPriorityCode.Bulk=0|bulk
         JobPriorityCode.Normal=50|normal
         JobPriorityCode.High=70|high
@@ -174,11 +141,20 @@ public sealed class PersistedCodeContractTests
         ScheduleStatusCode.Active=10|active
         ScheduleStatusCode.Paused=30|paused
         ScheduleStatusCode.Orphaned=230|orphaned
-        TagScopeCode.Unspecified=0|unspecified
-        TagScopeCode.Tenant=20|tenant
-        TagScopeCode.Namespace=30|namespace
-        TagScopeCode.Definition=40|definition
-        TagScopeCode.Job=50|job
+        EntityCode.Unspecified=0|unspecified
+        EntityCode.Alert=10|alert
+        EntityCode.Checkpoint=20|checkpoint
+        EntityCode.Definition=30|definition
+        EntityCode.Event=40|event
+        EntityCode.Job=50|job
+        EntityCode.Lane=60|lane
+        EntityCode.Lock=70|lock
+        EntityCode.Namespace=80|namespace
+        EntityCode.Schedule=90|schedule
+        EntityCode.Step=100|step
+        EntityCode.Tag=110|tag
+        EntityCode.Tenant=120|tenant
+        EntityCode.Worker=130|worker
         TenantStatusCode.Unspecified=0|unspecified
         TenantStatusCode.Active=10|active
         TenantStatusCode.Suspended=20|suspended
@@ -189,10 +165,10 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "EE247E0229B54F2354EE2CB4B8C7F4010BCD6C069A0FBC7BF6CAAF807806ED39";
+    private const string ExpectedDescriptionHash = "1AEF0C9B0717720F91A4622CCCDD52FD82EE3BA4D37D3FEBB2D0C84CF68EA5CA";
 
     [Fact]
-    public void Frozen_contract_covers_all_28_families_and_178_values()
+    public void Frozen_contract_covers_all_26_families_and_154_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -201,8 +177,8 @@ public sealed class PersistedCodeContractTests
         var families = CodeFamilies();
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
-        Assert.Equal(28, families.Length);
-        Assert.Equal(178, expected.Count);
+        Assert.Equal(26, families.Length);
+        Assert.Equal(154, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -213,18 +189,16 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(178, CodeManifests.All.Count);
-        Assert.Equal(35, Enum.GetValues<EventCode>().Length);
-        Assert.Equal(27, Enum.GetValues<EventReasonCode>().Length);
+        Assert.Equal(154, CodeManifests.All.Count);
+        Assert.Equal(39, Enum.GetValues<EventCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
-        Assert.Equal((byte)200, (byte)ExecutionStatusCode.Failed);
         Assert.Equal((byte)200, (byte)StepStatusCode.Exhausted);
         Assert.Equal((byte)200, (byte)AlertDeliveryStatusCode.Failed);
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes, JobPayloadFormat.Text };
-        Assert.Equal(182, actual.Count + payloads.Length);
+        Assert.Equal(158, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2, 3], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
@@ -286,7 +260,7 @@ public sealed class PersistedCodeContractTests
         // by its id-0 member instead of throwing.
         Assert.Equal("unspecified", ((EventCode)200).Code);
         Assert.Equal("unspecified", ((JobStatusCode)250).Code);
-        Assert.Equal("off", ((DefinitionAuditLevelCode)250).Code);
+        Assert.Equal("off", ((EventRecordingCode)250).Code);
 
         foreach (var family in CodeFamilies())
         {
@@ -302,8 +276,7 @@ public sealed class PersistedCodeContractTests
     {
         // The two widest families are the ones whose headroom is worth pinning: their assigned ids
         // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
-        Assert.Equal(35, EventCode.Manifest.Count);
-        Assert.Equal(27, EventReasonCode.Manifest.Count);
+        Assert.Equal(39, EventCode.Manifest.Count);
         Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
         Assert.All(
             CodeFamilies(),
@@ -321,7 +294,6 @@ public sealed class PersistedCodeContractTests
     {
         // An old worker reads a newer build's status as Unspecified; it must not treat it as finished.
         Assert.False(JobStatusCode.Unspecified.IsTerminal);
-        Assert.False(ExecutionStatusCode.Unspecified.IsTerminal);
     }
 
     [Fact]
@@ -330,20 +302,6 @@ public sealed class PersistedCodeContractTests
         Assert.False(JobStatusCode.Ready.IsTerminal);
         Assert.False(JobStatusCode.Blocked.IsTerminal);
         Assert.All([JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled], status => Assert.True(status.IsTerminal));
-
-        var expected = new Dictionary<ExecutionStatusCode, ExecutionBehavior>
-        {
-            [ExecutionStatusCode.Succeeded] = ExecutionBehavior.Succeeded,
-            [ExecutionStatusCode.Rescheduled] = ExecutionBehavior.Controlled,
-            [ExecutionStatusCode.Suspended] = ExecutionBehavior.Controlled,
-            [ExecutionStatusCode.Paused] = ExecutionBehavior.Controlled,
-            [ExecutionStatusCode.Failed] = ExecutionBehavior.Failed,
-            [ExecutionStatusCode.Cancelled] = ExecutionBehavior.Cancelled,
-            [ExecutionStatusCode.Orphaned] = ExecutionBehavior.Indeterminate,
-            [ExecutionStatusCode.Unspecified] = ExecutionBehavior.Indeterminate,
-        };
-        Assert.Equal(Enum.GetValues<ExecutionStatusCode>().Length, expected.Count);
-        Assert.All(expected, pair => Assert.Equal(pair.Value, pair.Key.GetBehavior()));
     }
 
     private static Type[] CodeFamilies() =>

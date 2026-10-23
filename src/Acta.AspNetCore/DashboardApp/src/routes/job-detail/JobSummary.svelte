@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { displayFormatter, TERMINAL_STATUSES } from '../../format.ts';
+  import type { EventItem } from '../../api.ts';
+  import { displayFormatter, failureCountText, TERMINAL_STATUSES } from '../../format.ts';
+  import { eventFacts } from '../../lib/eventFacts.ts';
   import CopyButton from '../../components/CopyButton.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StatusBadge from '../../components/StatusBadge.svelte';
   import { payloadFormatLabel } from './jobDetailState.ts';
-  import type { JobEvent, JobDetail } from './types.ts';
+  import type { JobDetail } from './types.ts';
   import { routes } from '../../routes.ts';
   import JobRef from '../../components/JobRef.svelte';
 
-  let { job, lastEvent = null, maxAttempts = null }: { job: JobDetail; lastEvent?: JobEvent | null; maxAttempts?: number | null } = $props();
+  let { job, lastEvent = null, maxAttempts = null }: { job: JobDetail; lastEvent?: EventItem | null; maxAttempts?: number | null } = $props();
 
   let tenant = $derived(job.tenantName ?? null);
 </script>
@@ -33,10 +35,11 @@
     {#if !TERMINAL_STATUSES.includes(job.status)}
       <dt>Next run</dt><dd><RelativeTime value={job.nextRunAtUtc} /></dd>
     {/if}
-    <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {displayFormatter.number(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
+    <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
     <dt>Last event</dt><dd>
       {#if lastEvent}
-        {lastEvent.eventCode}{#if lastEvent.reasonCode} <span class="dim">· {lastEvent.reasonCode}</span>{/if}{#if lastEvent.reasonMessage} · “{lastEvent.reasonMessage}”{/if}
+        {@const reason = eventFacts(lastEvent.detailsText).reason}
+        {lastEvent.eventCode}{#if reason} <span class="dim">· {reason}</span>{/if}{#if lastEvent.message} · “{lastEvent.message}”{/if}
         <RelativeTime value={lastEvent.createdAtUtc} />
       {:else}-{/if}
     </dd>

@@ -50,12 +50,12 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         } while (cursor is not null);
 
         Assert.NotEmpty(seen);
-        Assert.All(seen, e => Assert.Equal(jobId, e.JobId));
+        Assert.All(seen, e => Assert.Equal((EntityCode.Job, jobId), (e.EntityKind, e.EntityId)));
         for (var i = 1; i < seen.Count; i++)
         {
             var ordered =
                 seen[i].CreatedAtUtc < seen[i - 1].CreatedAtUtc
-                || (seen[i].CreatedAtUtc == seen[i - 1].CreatedAtUtc && seen[i].JobEventId < seen[i - 1].JobEventId);
+                || (seen[i].CreatedAtUtc == seen[i - 1].CreatedAtUtc && seen[i].EventId < seen[i - 1].EventId);
             Assert.True(ordered, "rows are not in created_at DESC, id DESC order");
         }
 
@@ -92,13 +92,13 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.NotEmpty(rows);
         Assert.True(rows.Count <= 2);
-        Assert.All(rows, row => Assert.Equal(jobId, row.JobId));
+        Assert.All(rows, row => Assert.Equal((EntityCode.Job, jobId), (row.EntityKind, row.EntityId)));
         Assert.Equal(expectedTotal, total);
         for (var i = 1; i < rows.Count; i++)
         {
             var ordered =
                 rows[i].CreatedAtUtc < rows[i - 1].CreatedAtUtc
-                || (rows[i].CreatedAtUtc == rows[i - 1].CreatedAtUtc && rows[i].JobEventId < rows[i - 1].JobEventId);
+                || (rows[i].CreatedAtUtc == rows[i - 1].CreatedAtUtc && rows[i].EventId < rows[i - 1].EventId);
             Assert.True(ordered, "combined page rows are not in created_at DESC, id DESC order");
         }
     }

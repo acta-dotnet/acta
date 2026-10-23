@@ -136,7 +136,7 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
         await Assert.ThrowsAnyAsync<Exception>(() => enqueueJobs.InsertAsync(rows, [taken.JobRef.Value, JobRef.New().Value], null, ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(t => t.Name == "probe").ToListAsync(ct));
+        Assert.Empty(await Db.From<TagEntity>().Where(t => t.TagName == "probe").ToListAsync(ct));
     }
 
     private JobEnqueueValues Row(string? deduplicationKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)

@@ -15,7 +15,7 @@ public static class PolicyProbeHandler
         Backoff = "30s..2h x3 ±25%",
         ExecutionTimeout = "45s",
         JobRetention = "7d",
-        AuditLevel = DefinitionAuditLevelCode.Off,
+        EventRecording = EventRecordingCode.Off,
         AlertChannelName = "ops",
         RunbookUrl = "https://runbook.example/policy-probe",
         DisplayName = "Policy Probe",

@@ -8,14 +8,14 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
     DECLARE
-        @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
+        @namespace_id INT, @alert_id BIGINT, @job_id BIGINT,
         @ack DATETIME2(7), @resolved DATETIME2(7),
-        @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
+        @definition_id INT, @tenant_id INT, @lineage_root_job_id BIGINT;
 
     SELECT
         @namespace_id = a.namespace_id,
+        @alert_id = a.alert_id,
         @job_id = a.job_id,
-        @job_ref = a.job_ref,
         @ack = a.acknowledged_at_utc,
         @resolved = a.resolved_at_utc
     FROM {{schema}}.alerts a WITH (UPDLOCK, ROWLOCK)
@@ -43,12 +43,10 @@ BEGIN TRY
 
     SELECT
         @definition_id = j.definition_id,
-        @lineage_root_id = j.lineage_root_id
+        @tenant_id = j.tenant_id,
+        @lineage_root_job_id = j.lineage_root_job_id
     FROM {{schema}}.jobs j
-    WHERE j.id = @job_id;
-    SELECT @execution_number = r.execution_number
-    FROM {{schema}}.runtimes r
-    WHERE r.job_id = @job_id;
+    WHERE j.job_id = @job_id;
 
     SET @ack = @now;
 
@@ -61,21 +59,15 @@ BEGIN TRY
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
-        actor_code, actor,
-        job_id, job_ref, execution_number,
-        lineage_root_id, definition_id,
-        from_status_code, to_status_code,
-        execution_status_code, duration_ms,
-        reason_code, reason_message
+        entity_code, entity_id,
+        definition_id, tenant_id, lineage_root_job_id,
+        event_message, details_format_id, details
     )
     VALUES (
         140 /* EventCode.AlertAcknowledged */, @now, @namespace_id,
-        @p_actor_code, @p_actor,
-        @job_id, @job_ref, @execution_number,
-        COALESCE(@lineage_root_id, @job_id), @definition_id,
-        NULL, NULL,
-        NULL, NULL,
-        NULL, @p_reason_message
+        10 /* EntityCode.Alert */, @alert_id,
+        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @job_id),
+        @p_event_message, @p_details_format_id, @p_details
     );
 
     SELECT

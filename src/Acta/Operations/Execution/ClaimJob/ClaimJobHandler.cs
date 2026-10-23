@@ -22,7 +22,7 @@ internal sealed class ClaimJobHandler(ClaimJobsHandler claimJobs, IDbSession ses
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, options.NamespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, options.WorkerId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
             },
             DbProjectionResolver.Resolve<ClaimJobRow>(),
             ct

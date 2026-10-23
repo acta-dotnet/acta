@@ -329,8 +329,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
             Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
             Assert.Equal(
-                EventReasonCode.JobRateLimited,
-                (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct)).ReasonCode
+                EventReason.RateLimited,
+                EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct), "reason")
             );
 
             // Each waiting job books its turn on the shared meter, under the shared key.
@@ -511,7 +511,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal(EventReasonCode.JobRateLimited, bounce.ReasonCode);
+        Assert.Equal(EventReason.RateLimited, EventDetail(bounce, "reason"));
         Assert.Equal(0, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
         Assert.NotNull(await ReadLockAsync($"{bucket}.{enqueued.JobId}", ct));
 
@@ -552,8 +552,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                 $"the turn was re-armed with {950 - clock.Elapsed.TotalMilliseconds:0}ms of its validity left"
             );
             Assert.Equal(
-                EventReasonCode.JobRateLimited,
-                (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct)).ReasonCode
+                EventReason.RateLimited,
+                EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct), "reason")
             );
             Assert.Empty(RateLimitProbes.AdmittedAt(TestNamespace));
         }
@@ -608,13 +608,13 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Db.From<Acta.LockEntity>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
 
     // Counted on job.rescheduled alone: one bounce also stamps the reason onto its
-    // job.execution-finished row, so an unfiltered count of the reason doubles every re-arm.
+    // job.execution-yielded row, so an unfiltered count of the reason doubles every re-arm.
     private async Task<int> CountRateLimitedAsync(long jobId, CancellationToken ct) =>
         (
             await Db.From<EventEntity>()
-                .Where(e => e.JobId == jobId && e.EventCode == EventCode.JobRescheduled && e.ReasonCode == EventReasonCode.JobRateLimited)
+                .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId && e.EventCode == EventCode.JobRescheduled)
                 .ToListAsync(ct)
-        ).Count;
+        ).Count(e => EventDetail(e, "reason") == EventReason.RateLimited);
 
     private static JobDescriptor Descriptor(string name, string rateLimit) =>
         new(
@@ -627,7 +627,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             OutputPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 3,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: static (_, _, _, _) => ValueTask.FromResult(new JobHandlerOutput(false, null)),
             DeserializeInput: static (_, _) => string.Empty,

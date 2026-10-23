@@ -15,67 +15,66 @@ BEGIN
         DECLARE
             @reclaimed TABLE
             (
-                id BIGINT NOT NULL PRIMARY KEY,
-                job_ref UNIQUEIDENTIFIER NOT NULL,
+                job_id BIGINT NOT NULL PRIMARY KEY,
                 namespace_id INT NOT NULL,
                 execution_number INT NOT NULL,
-                lineage_root_id BIGINT NULL,
+                lineage_root_job_id BIGINT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
                 worker_id INT NOT NULL,
-                from_status_code TINYINT NOT NULL,
                 to_status_code TINYINT NOT NULL,
-                audit_level_code TINYINT NOT NULL,
-                parent_id BIGINT NULL
+                event_recording_code TINYINT NOT NULL,
+                alert_profile_code TINYINT NOT NULL,
+                parent_job_id BIGINT NULL
             );
 
         /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
            most 100 stranded ones in visiting order (docs/sql-execution-policy.md, "Lane lock order").
-           Each head is sought through ix_runtimes_lane, named because a small runtimes table tempts a scan. */
-        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, id BIGINT NOT NULL);
-        DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
+           Each head is sought through ix_jobs_state_lane, named because a small jobs_state table tempts a scan. */
+        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, lane_id BIGINT NOT NULL);
+        DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
-        SELECT @min_lane = MIN(l.id), @max_lane = MAX(l.id) FROM {{schema}}.lanes l;
+        SELECT @min_lane = MIN(l.lane_id), @max_lane = MAX(l.lane_id) FROM {{schema}}.lanes l;
         IF @max_lane IS NOT NULL
             BEGIN
                 SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
-                INSERT INTO @window (id)
-                SELECT TOP (1000) l.id
+                INSERT INTO @window (lane_id)
+                SELECT TOP (1000) l.lane_id
                 FROM {{schema}}.lanes l
-                WHERE l.namespace_id = @p_namespace_id AND l.id >= @start_lane
-                ORDER BY l.id;
+                WHERE l.namespace_id = @p_namespace_id AND l.lane_id >= @start_lane
+                ORDER BY l.lane_id;
                 SET @window_count = @@ROWCOUNT;
-                INSERT INTO @window (id)
-                SELECT TOP (1000 - @window_count) l.id
+                INSERT INTO @window (lane_id)
+                SELECT TOP (1000 - @window_count) l.lane_id
                 FROM {{schema}}.lanes l
-                WHERE l.namespace_id = @p_namespace_id AND l.id < @start_lane
-                ORDER BY l.id;
+                WHERE l.namespace_id = @p_namespace_id AND l.lane_id < @start_lane
+                ORDER BY l.lane_id;
 
-                INSERT INTO @stranded (id)
-                SELECT TOP (100) w.id
+                INSERT INTO @stranded (lane_id)
+                SELECT TOP (100) w.lane_id
                 FROM @window w
                 CROSS APPLY (
-                    SELECT TOP (1) m.status_code
-                    FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                    SELECT TOP (1) m.job_status_code
+                    FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                     WHERE
-                        m.lane_id = w.id
+                        m.lane_id = w.lane_id
                         AND m.lane_id IS NOT NULL
-                        AND m.status_code IN (
+                        AND m.job_status_code IN (
                             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                             30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                         )
                     ORDER BY m.job_id
                 ) h
                 WHERE
-                    h.status_code = 15 /* JobStatusCode.Blocked */
+                    h.job_status_code = 15 /* JobStatusCode.Blocked */
                     AND NOT EXISTS (
                         SELECT 1
-                        FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                        FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                         WHERE
-                            o.lane_id = w.id
+                            o.lane_id = w.lane_id
                             AND o.lane_id IS NOT NULL
-                            AND o.status_code IN (
+                            AND o.job_status_code IN (
                                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                                 50 /* JobStatusCode.Executing */
                             )
@@ -83,56 +82,56 @@ BEGIN
                 ORDER BY w.ord;
             END;
 
-        /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
+        /* Stuck candidates are read through the filtered ix_jobs_state_worker_inflight without holding locks,
            and only those rows are locked below, by primary key: the index is shared by every namespace, so
            holding its keys would make another namespace's sweep skip its own rows under READPAST. */
-        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
-        INSERT INTO @stuck (id, lane_id, worker_id)
+        DECLARE @stuck TABLE (job_id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
+        INSERT INTO @stuck (job_id, lane_id, worker_id)
         SELECT r.job_id, r.lane_id, r.leased_by_worker_id
-        FROM {{schema}}.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
+        FROM {{schema}}.jobs_state r WITH (INDEX (ix_jobs_state_worker_inflight), READPAST)
         WHERE
-            r.status_code = 50 /* JobStatusCode.Executing */
+            r.job_status_code = 50 /* JobStatusCode.Executing */
             AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < @now
             AND r.namespace_id = @p_namespace_id;
 
         /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
            whose stuck rows and repair wait for a later pass. */
-        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @candidates (id)
+        DECLARE @candidates TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (lane_id)
         SELECT k.lane_id
         FROM @stuck k
         WHERE k.lane_id IS NOT NULL
         UNION
-        SELECT s.id
+        SELECT s.lane_id
         FROM @stranded s;
 
-        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
         WHILE 1 = 1
             BEGIN
                 SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = c.id
+                SELECT TOP (1) @lane_next = c.lane_id
                 FROM @candidates c
-                WHERE c.id > @lane_cursor
-                ORDER BY c.id;
+                WHERE c.lane_id > @lane_cursor
+                ORDER BY c.lane_id;
 
                 IF @lane_next IS NULL
                     BREAK;
 
                 SET @lane_locked = NULL;
-                SELECT @lane_locked = l.id
+                SELECT @lane_locked = l.lane_id
                 FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE l.id = @lane_next;
+                WHERE l.lane_id = @lane_next;
 
                 IF @lane_locked IS NOT NULL
-                    INSERT INTO @lanes (id) VALUES (@lane_locked);
+                    INSERT INTO @lanes (lane_id) VALUES (@lane_locked);
 
                 SET @lane_cursor = @lane_next;
             END;
 
         /* Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it
-           while that event lasts. Workers lock before any runtime, the order the heartbeat takes them. */
+           while that event lasts. Workers lock before any jobs_state row, the order the heartbeat takes them. */
         UPDATE w
         SET
             modified_at_utc = @now,
@@ -143,87 +142,88 @@ BEGIN
             FROM @stuck k
             WHERE
                 k.lane_id IS NULL
-                OR k.lane_id IN (SELECT e.id FROM @lanes e)
-        ) s ON s.worker_id = w.id;
+                OR k.lane_id IN (SELECT e.lane_id FROM @lanes e)
+        ) s ON s.worker_id = w.worker_id;
 
         /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
            only while it is still Blocked and no member runs. */
         UPDATE r
         SET
-            status_code = 10 /* JobStatusCode.Ready */,
+            job_status_code = 10 /* JobStatusCode.Ready */,
             next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
             modified_at_utc = @now,
             version = r.version + 1
-        OUTPUT INSERTED.job_id INTO @repaired (id)
+        OUTPUT INSERTED.job_id INTO @repaired (job_id)
         FROM @stranded s
-        INNER JOIN @lanes e ON e.id = s.id
+        INNER JOIN @lanes e ON e.lane_id = s.lane_id
         CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.status_code
-            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
             WHERE
-                m.lane_id = s.id
+                m.lane_id = s.lane_id
                 AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
+                AND m.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                     30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
             ORDER BY m.job_id
         ) h
-        INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
         WHERE
-            h.status_code = 15 /* JobStatusCode.Blocked */
-            AND r.status_code = 15 /* JobStatusCode.Blocked */
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
             AND NOT EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                 WHERE
-                    o.lane_id = s.id
+                    o.lane_id = s.lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
+                    AND o.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                         50 /* JobStatusCode.Executing */
                     )
             );
 
         INSERT INTO {{schema}}.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id, tenant_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
+            event_code,
+            created_at_utc,
+            namespace_id,
+            entity_code,
+            entity_id,
+            definition_id,
+            tenant_id,
+            lineage_root_job_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details
         )
         SELECT
             72 /* EventCode.JobResumed */,
             @now,
             j.namespace_id,
-            10 /* ActorCode.Sys */,
-            NULL,
-            j.id,
-            j.job_ref,
-            r.execution_number,
-            COALESCE(j.lineage_root_id, j.id),
+            50 /* EntityCode.Job */,
+            j.job_id,
             j.definition_id,
             j.tenant_id,
-            15 /* JobStatusCode.Blocked */,
-            10 /* JobStatusCode.Ready */,
-            NULL,
-            NULL,
-            67 /* EventReasonCode.JobLaneRepaired */,
-            N'Lane had no live head; crash recovery released its lowest Blocked member.'
+            COALESCE(j.lineage_root_job_id, j.job_id),
+            r.execution_number,
+            N'Lane had no live head; crash recovery released its lowest Blocked member.',
+            1 /* JobPayloadFormat.Json */,
+            CAST('{"reason":"lane-repaired"}' AS VARBINARY(MAX))
         FROM @repaired x
-        INNER JOIN {{schema}}.jobs j ON j.id = x.id
-        INNER JOIN {{schema}}.runtimes r ON r.job_id = x.id
-        WHERE j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
+        INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
+        INNER JOIN {{schema}}.jobs_state r ON r.job_id = x.job_id
+        WHERE j.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */);
 
         WITH stuck AS (
             SELECT
-                r.job_id AS id,
-                r.status_code AS from_status,
-                r.failure_count + 1 AS new_failure_count,
+                r.job_id,
+                -- Saturates at 32767, the ceiling WorkerFinalizer.FailureCountCeiling names; registration caps MaxAttempts there.
+                CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
+                jd.alert_profile_code_effective AS alert_profile_code,
                 /* The job was parked on THIS slot: the suspend copied the slot's due into
                    next_run_at_utc, so the equality names the wait this attempt woke for, and an
                    unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
@@ -232,8 +232,8 @@ BEGIN
                     FROM {{schema}}.checkpoints c
                     WHERE
                         c.job_id = r.job_id
-                        AND c.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-                        AND c.status_code = 30 /* CheckpointStatusCode.Expired */
+                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
                 /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
@@ -245,15 +245,15 @@ BEGIN
                     WHERE sc.job_id = r.job_id
                 ) THEN 1 ELSE 0 END AS is_recurring
             FROM @stuck k
-            INNER JOIN {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.id
-            INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
-            INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
+            INNER JOIN {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
+            INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+            INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
             WHERE
-                r.status_code = 50 /* JobStatusCode.Executing */
+                r.job_status_code = 50 /* JobStatusCode.Executing */
                 AND r.leased_by_worker_id IS NOT NULL
                 AND r.lease_expires_at_utc < @now
                 AND r.namespace_id = @p_namespace_id
-                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.id FROM @lanes e))
+                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.lane_id FROM @lanes e))
         )
 
         /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
@@ -261,7 +261,7 @@ BEGIN
            and the replay lands whatever outcome the waiting overload chooses. */
         UPDATE r
         SET
-            status_code = CASE
+            job_status_code = CASE
                 WHEN s.wait_resolved = 1
                     THEN 20 /* JobStatusCode.Suspended */
                 WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
@@ -290,106 +290,117 @@ BEGIN
             modified_at_utc = @now,
             version = r.version + 1
         OUTPUT
-            INSERTED.job_id, j.job_ref, j.namespace_id, INSERTED.execution_number,
-            j.lineage_root_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
-            DELETED.status_code, INSERTED.status_code, j.audit_level_code,
-            j.parent_id
+            INSERTED.job_id, j.namespace_id, INSERTED.execution_number,
+            j.lineage_root_job_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
+            INSERTED.job_status_code, j.event_recording_code, s.alert_profile_code,
+            j.parent_job_id
         INTO
             @reclaimed (
-                id, job_ref, namespace_id, execution_number, lineage_root_id,
-                definition_id, tenant_id, worker_id, from_status_code, to_status_code, audit_level_code, parent_id
+                job_id, namespace_id, execution_number, lineage_root_job_id,
+                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id
             )
-        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
         -- see docs/sql-execution-policy.md.
-        FROM {{schema}}.runtimes r WITH (FORCESEEK)
-        INNER JOIN stuck s ON s.id = r.job_id
-        INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
+        FROM {{schema}}.jobs_state r WITH (FORCESEEK)
+        INNER JOIN stuck s ON s.job_id = r.job_id
+        INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id;
 
+        /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
+           wait. Failures and Audit record it, and so does an enabled alert profile at any level, in this transaction,
+           so the projector meets every lease-loss transition it alerts on. */
         INSERT INTO {{schema}}.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id, tenant_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        SELECT
-            41 /* EventCode.JobExecutionFinished */,
-            @now,
+            event_code,
+            created_at_utc,
             namespace_id,
-            10 /* ActorCode.Sys */,
-            NULL,
-            id,
-            job_ref,
-            execution_number,
-            COALESCE(lineage_root_id, id),
+            entity_code,
+            entity_id,
             definition_id,
             tenant_id,
+            lineage_root_job_id,
             worker_id,
-            from_status_code,
-            to_status_code,
-            230 /* ExecutionStatusCode.Orphaned */,
-            NULL,
-            21 /* EventReasonCode.JobLeaseExpired */,
+            execution_number,
+            event_message,
+            details_format_id,
+            details
+        )
+        SELECT
+            CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
+            @now,
+            namespace_id,
+            50 /* EntityCode.Job */,
+            job_id,
+            definition_id,
+            tenant_id,
+            COALESCE(lineage_root_job_id, job_id),
+            worker_id,
+            execution_number,
             /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
                what tells the two messages apart. */
             CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
                 THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
                 ELSE N'Worker lease expired; reclaimed by crash recovery.'
-            END
+            END,
+            1 /* JobPayloadFormat.Json */,
+            CAST(
+                CASE to_status_code
+                    WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
+                    ELSE '{"reason":"lease-expired","to":"ready"}'
+                END AS VARBINARY(MAX)
+            )
         FROM @reclaimed
-        WHERE audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
+        WHERE
+            event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
+            OR alert_profile_code <> 0 /* AlertProfileCode.None */;
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
            under the lane locks and re-reads each head rather than trusting the walk. */
         UPDATE r
         SET
-            status_code = 10 /* JobStatusCode.Ready */,
+            job_status_code = 10 /* JobStatusCode.Ready */,
             next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
             modified_at_utc = @now,
             version = r.version + 1
         FROM @lanes e
         CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.status_code
-            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
             WHERE
-                m.lane_id = e.id
+                m.lane_id = e.lane_id
                 AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
+                AND m.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                     30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
             ORDER BY m.job_id
         ) h
-        INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
         WHERE
-            h.status_code = 15 /* JobStatusCode.Blocked */
-            AND r.status_code = 15 /* JobStatusCode.Blocked */
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
             AND NOT EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                 WHERE
-                    o.lane_id = e.id
+                    o.lane_id = e.lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
+                    AND o.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                         50 /* JobStatusCode.Executing */
                     )
             );
 
         SELECT
-            id AS job_id,
+            job_id,
             to_status_code AS to_status,
-            parent_id,
+            parent_job_id,
             CAST(0 AS TINYINT) AS lane_repaired
         FROM @reclaimed
         UNION ALL
         SELECT
-            id AS job_id,
+            job_id,
             CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS to_status,
-            NULL AS parent_id,
+            NULL AS parent_job_id,
             CAST(1 AS TINYINT) AS lane_repaired
         FROM @repaired;
 

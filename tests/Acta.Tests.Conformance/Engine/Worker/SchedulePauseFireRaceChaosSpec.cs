@@ -77,7 +77,7 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
 
         // The cursor does not move, which is what pausing always does: resume reconciles it by the
         // misfire policy rather than the fire silently consuming an occurrence.
-        Assert.Equal(cursorBefore, after.NextRunAtUtc);
+        Assert.Equal(cursorBefore, after.NextOccurrenceAtUtc);
 
         // And the timeline must not claim an expiry. Nothing expired: an operator paused it.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
@@ -125,11 +125,8 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
     }
 
     private async Task<DateTime?> ScheduleCursorAsync(long slotId, CancellationToken ct) =>
-        (await ScheduleAsync(Db, slotId, ct)).NextRunAtUtc;
+        (await ScheduleAsync(Db, slotId, ct)).NextOccurrenceAtUtc;
 
-    private static async Task<ScheduleEntity> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct)
-    {
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == ScheduleName).ToListAsync(ct);
-        return Assert.Single(rows);
-    }
+    private static async Task<ScheduleRow> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct) =>
+        Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == ScheduleName);
 }

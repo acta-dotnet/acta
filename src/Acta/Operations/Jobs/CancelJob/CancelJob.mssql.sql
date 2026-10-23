@@ -9,43 +9,42 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @from_status TINYINT, @namespace_id INT,
-        @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @audit_level TINYINT,
-        @parent_id BIGINT, @retention_seconds INT, @job_ref UNIQUEIDENTIFIER, @version INT, @lane_id BIGINT;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @event_recording TINYINT,
+        @parent_job_id BIGINT, @retention_seconds INT, @version INT, @lane_id BIGINT;
 
     /* Lock order: the lane, then the job's rows (docs/sql-execution-policy.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
     SELECT @lane_id = r.lane_id
-    FROM {{schema}}.runtimes r
-    WHERE r.job_id = @p_id;
+    FROM {{schema}}.jobs_state r
+    WHERE r.job_id = @p_job_id;
 
     IF @lane_id IS NOT NULL
-        SELECT @lane_id = l.id
+        SELECT @lane_id = l.lane_id
         FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
-        WHERE l.id = @lane_id;
+        WHERE l.lane_id = @lane_id;
 
     SELECT
-        @from_status = r.status_code,
+        @from_status = r.job_status_code,
         @namespace_id = j.namespace_id,
-        @lineage_root_id = j.lineage_root_id,
+        @lineage_root_job_id = j.lineage_root_job_id,
         @definition_id = j.definition_id,
         @tenant_id = j.tenant_id,
         @execution_number = r.execution_number,
-        @audit_level = j.audit_level_code,
-        @parent_id = j.parent_id,
-        @job_ref = j.job_ref,
+        @event_recording = j.event_recording_code,
+        @parent_job_id = j.parent_job_id,
         @worker_id = r.leased_by_worker_id,
         @version = r.version
-    FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
-    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
-    WHERE r.job_id = @p_id;
+    FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+    WHERE r.job_id = @p_job_id;
 
     IF @from_status IS NULL
         BEGIN
 
             SELECT
                 CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                CAST(NULL AS TINYINT) AS status_code,
-                CAST(NULL AS BIGINT) AS parent_id,
+                CAST(NULL AS TINYINT) AS status,
+                CAST(NULL AS BIGINT) AS parent_job_id,
                 CAST(NULL AS INT) AS version,
                 CAST(0 AS TINYINT) AS lane_promoted;
             GOTO Finish;
@@ -56,8 +55,8 @@ BEGIN TRY
 
             SELECT
                 CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
-                @from_status AS status_code,
-                @parent_id AS parent_id,
+                @from_status AS status,
+                @parent_job_id AS parent_job_id,
                 @version AS version,
                 CAST(0 AS TINYINT) AS lane_promoted;
             GOTO Finish;
@@ -75,8 +74,8 @@ BEGIN TRY
 
             SELECT
                 CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                @from_status AS status_code,
-                @parent_id AS parent_id,
+                @from_status AS status,
+                @parent_job_id AS parent_job_id,
                 @version AS version,
                 CAST(0 AS TINYINT) AS lane_promoted;
             GOTO Finish;
@@ -84,17 +83,17 @@ BEGIN TRY
 
     SELECT @retention_seconds = jd.retention_seconds_effective
     FROM {{schema}}.definitions jd
-    WHERE jd.id = @definition_id;
+    WHERE jd.definition_id = @definition_id;
 
-    UPDATE {{schema}}.runtimes
+    UPDATE {{schema}}.jobs_state
     SET
-        status_code = 220 /* JobStatusCode.Cancelled */,
+        job_status_code = 220 /* JobStatusCode.Cancelled */,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         retention_until_utc = DATEADD(SECOND, @retention_seconds, @now),
         modified_at_utc = @now,
         version = version + 1
-    WHERE job_id = @p_id;
+    WHERE job_id = @p_job_id;
     SET @version = @version + 1;
 
     /* A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the
@@ -108,12 +107,12 @@ BEGIN TRY
 
             SELECT TOP (1)
                 @head_id = m.job_id,
-                @head_status = m.status_code
-            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                @head_status = m.job_status_code
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
             WHERE
                 m.lane_id = @lane_id
                 AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
+                AND m.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                     30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
@@ -126,80 +125,81 @@ BEGIN TRY
             -- (docs/sql-execution-policy.md, "Lane lock order").
             IF EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                 WHERE
                     o.lane_id = @lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
+                    AND o.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                         50 /* JobStatusCode.Executing */
                     )
             )
                 BREAK;
 
-            UPDATE {{schema}}.runtimes
+            UPDATE {{schema}}.jobs_state
             SET
-                status_code = 10 /* JobStatusCode.Ready */,
+                job_status_code = 10 /* JobStatusCode.Ready */,
                 next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
                 modified_at_utc = @now,
                 version = version + 1
             WHERE
                 job_id = @head_id
-                AND status_code = 15 /* JobStatusCode.Blocked */;
+                AND job_status_code = 15 /* JobStatusCode.Blocked */;
 
             SET @promoted = @@ROWCOUNT;
         END;
 
-    IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
+    IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN
+            -- The attempt's details lead with its outcome, then the cancel's own: the writer's payload is a compact
+            -- JSON object, so its members follow the outcome once its opening brace is dropped. Pure ASCII, so
+            -- VARCHAR -> VARBINARY is UTF-8.
             IF @from_status = 50 /* JobStatusCode.Executing */
                 BEGIN
                     INSERT INTO {{schema}}.events (
                         event_code, created_at_utc, namespace_id,
-                        actor_code, actor,
-                        job_id, job_ref, execution_number,
-                        lineage_root_id, definition_id, tenant_id,
                         worker_id,
-                        from_status_code, to_status_code,
-                        execution_status_code, duration_ms,
-                        reason_code, reason_message
+                        entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id,
+                        execution_number,
+                        event_message, details_format_id, details
                     )
                     VALUES (
-                        41 /* EventCode.JobExecutionFinished */, @now, @namespace_id,
-                        @p_actor_code, @p_actor,
-                        @p_id, @job_ref, @execution_number,
-                        COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
+                        43 /* EventCode.JobExecutionYielded */, @now, @namespace_id,
                         @worker_id,
-                        50 /* JobStatusCode.Executing */, 220 /* JobStatusCode.Cancelled */,
-                        220 /* ExecutionStatusCode.Cancelled */, NULL,
-                        @p_reason_code, @p_reason_message
+                        50 /* EntityCode.Job */, @p_job_id,
+                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                        @execution_number,
+                        @p_event_message, 1 /* JobPayloadFormat.Json */,
+                        CASE
+                            WHEN @p_details IS NULL THEN CONVERT(VARBINARY(MAX), '{"outcome":"cancelled"}')
+                            ELSE
+                                CONVERT(VARBINARY(MAX), '{"outcome":"cancelled",')
+                                + SUBSTRING(@p_details, 2, DATALENGTH(@p_details) - 1)
+                        END
                     );
                 END;
 
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor,
-                job_id, job_ref, execution_number,
-                lineage_root_id, definition_id, tenant_id,
-                from_status_code, to_status_code,
-                execution_status_code, duration_ms,
-                reason_code, reason_message
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
             )
             VALUES (
                 70 /* EventCode.JobCancelled */, @now, @namespace_id,
-                @p_actor_code, @p_actor,
-                @p_id, @job_ref, @execution_number,
-                COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                @from_status, 220 /* JobStatusCode.Cancelled */,
-                NULL, NULL,
-                @p_reason_code, @p_reason_message
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                @p_event_message, @p_details_format_id, @p_details
             );
         END
 
     SELECT
         CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-        CAST(220 /* JobStatusCode.Cancelled */ AS TINYINT) AS status_code,
-        @parent_id AS parent_id,
+        CAST(220 /* JobStatusCode.Cancelled */ AS TINYINT) AS status,
+        @parent_job_id AS parent_job_id,
         @version AS version,
         CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS TINYINT) AS lane_promoted;
 

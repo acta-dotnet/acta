@@ -21,7 +21,8 @@ public sealed class WorkerExecutorOutcomeTests
 
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal((byte)JobStatusCode.Failed, harness.Completion.HandlerStatusCode);
-        Assert.Equal(EventReasonCode.JobHandlerFailed, harness.Completion.EventReasonCode);
+        Assert.Equal(EventReason.HandlerFailed, harness.Completion.Reason);
+        Assert.Equal(EventCode.JobFailed, harness.Completion.EventCode);
     }
 
     [Fact]
@@ -32,12 +33,12 @@ public sealed class WorkerExecutorOutcomeTests
 
         var outcome = await harness.RunAsync(
             static (_, _) =>
-                throw new StepExhaustedException(WorkerExecutorHarness.StepName, 3, EventReasonCode.JobUnhandledException, "declined")
+                throw new StepExhaustedException(WorkerExecutorHarness.StepName, 3, StepFailureCode.UnhandledException, "declined")
         );
 
         Assert.Equal(RunOnceStatus.Failed, outcome);
-        Assert.Equal(EventReasonCode.JobNonRetryableException, harness.Completion.EventReasonCode);
-        Assert.Null(harness.Completion.RescheduleStatusCode);
+        Assert.Equal(EventReason.NonRetryableException, harness.Completion.Reason);
+        Assert.Null(harness.Completion.RescheduleEventCode);
     }
 
     [Fact]

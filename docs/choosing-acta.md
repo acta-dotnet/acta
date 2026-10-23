@@ -204,7 +204,7 @@ public sealed class ImportJobs
 | `Interval` | `[JobSchedule("default", "PT10M")]` or cron |
 | `LastRunTime` | event timeline and schedule cursor |
 | `Status` | `jobs_view.status`, schedule status, worker lease state |
-| `Error` | failed execution event, reason code, alert, result/detail payload |
+| `Error` | failed execution event, its details reason, alert, result/details payload |
 | processor loop | Acta worker runtime |
 | manual lock row | worker leases, concurrency keys, durable locks |
 

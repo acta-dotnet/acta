@@ -105,7 +105,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     {
         var applied = $"{affected.Count} row(s): [{OutboxQuarantineTickException.FormatSample(affected)}]";
         var text = string.IsNullOrEmpty(reasonMessage) ? applied : $"{reasonMessage} - {applied}";
-        return text.Truncate(ActaTextLimits.ReasonMessage)!;
+        return text.Truncate(ActaTextLimits.EventMessage)!;
     }
 
     /// <summary>

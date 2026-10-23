@@ -18,7 +18,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
     private IOutbox Outbox => Services.GetRequiredService<IActaOperations>().Outbox;
 
     // A ledger job standing in for the namespace's sys.outbox slot: resolved by the fixed
-    // deduplication key and gated on the definition-supplied job name, with the runtimes row the
+    // deduplication key and gated on the definition-supplied job name, with the jobs_state row the
     // status read and the evidence event's join expect.
     private async Task<(long JobId, Guid JobRef)> SeedSlotJobAsync(string jobName, CancellationToken ct)
     {
@@ -35,21 +35,21 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
                     DeduplicationKey = "sys.outbox",
                     InputFormatId = 1,
                     Input = [0],
-                    AuditLevel = DefinitionAuditLevelCode.Off,
+                    EventRecording = EventRecordingCode.Off,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct
             );
-        await Db.From<RuntimeEntity>()
+        await Db.From<JobStateEntity>()
             .InsertAsync<long>(
-                new RuntimeEntity
+                new JobStateEntity
                 {
                     Id = jobId,
                     NamespaceId = NamespaceId,
                     Status = JobStatusCode.Ready,
                     Priority = JobPriorityCode.Critical,
                     // Ready carries its due instant the way register_schedules writes the real
-                    // slot row; ck_runtimes_ready_due rejects the pair otherwise.
+                    // slot row; ck_jobs_state_ready_due rejects the pair otherwise.
                     NextRunAtUtc = DateTime.UtcNow,
                     ExecutionNumber = 1,
                 },
@@ -85,9 +85,11 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         Assert.Equal(0, discarded);
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId)).StatusCode);
 
-        var evidence = Assert.Single(await Db.From<EventEntity>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
-        Assert.Equal("marko", evidence.Actor);
-        Assert.Contains("fixed the target route", evidence.ReasonMessage);
+        var evidence = Assert.Single(
+            await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct)
+        );
+        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Contains("fixed the target route", evidence.EventMessage);
 
         var again = await Outbox.RequeueAsync(TestNamespace, null, null, null, ct);
         Assert.Equal(ControlAction.Accepted, again.Action);

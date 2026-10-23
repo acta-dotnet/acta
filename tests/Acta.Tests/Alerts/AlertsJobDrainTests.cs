@@ -191,6 +191,7 @@ public sealed class AlertsJobDrainTests
         public AlertsOperations Lifecycle() => new ScriptedSession(call =>
                 call.Stem switch
                 {
+                    "GetAlertFloor" => Array.Empty<GetAlertFloorRow>(),
                     "GetAlertableEvents" => Read(
                         call.Get(ActaSchema.Sql.AlertCursorUtc),
                         call.Get(ActaSchema.Sql.CursorEventId),
@@ -235,10 +236,11 @@ public sealed class AlertsJobDrainTests
                 JobName: "probe",
                 AlertProfile: AlertProfileCode.OnTerminal,
                 AlertChannelName: null,
-                ExecutionStatus: ExecutionStatusCode.Failed,
-                ToStatus: JobStatusCode.Failed,
-                ReasonCode: EventReasonCode.JobUnhandledException,
-                ReasonMessage: "boom"
+                EventCode: EventCode.JobFailed,
+                EventMessage: "boom",
+                DetailsFormatId: JobPayloadFormat.Json.Id,
+                Details: EventDetails.Write(("reason", EventReason.UnhandledException)),
+                Superseded: false
             );
     }
 

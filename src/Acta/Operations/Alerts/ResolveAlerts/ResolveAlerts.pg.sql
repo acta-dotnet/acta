@@ -2,11 +2,11 @@
 -- (docs/sql-execution-policy.md, "Alert lock order"): purge_job holds the row FOR UPDATE while it
 -- deletes the job's alerts in id order. FOR SHARE, not FOR KEY SHARE: see that section.
 DROP TABLE IF EXISTS pg_temp._resolve_alerts_job;
-CREATE TEMP TABLE _resolve_alerts_job (id BIGINT NOT NULL) ON COMMIT DROP;
-INSERT INTO _resolve_alerts_job (id)
-SELECT j.id
+CREATE TEMP TABLE _resolve_alerts_job (job_id BIGINT NOT NULL) ON COMMIT DROP;
+INSERT INTO _resolve_alerts_job (job_id)
+SELECT j.job_id
 FROM {{schema}}.jobs j
-WHERE j.id = @p_job_id
+WHERE j.job_id = @p_job_id
 FOR SHARE;
 
 UPDATE {{schema}}.alerts a
@@ -27,8 +27,8 @@ SET
 WHERE
     a.namespace_id = @p_namespace_id
     AND a.job_id = @p_job_id
-    AND a.origin_code = 10 /* AlertOriginCode.Automatic */
-    AND a.kind_code IN (
+    AND a.alert_origin_code = 10 /* AlertOriginCode.Automatic */
+    AND a.alert_kind_code IN (
         10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
     )
     AND a.resolved_at_utc IS NULL

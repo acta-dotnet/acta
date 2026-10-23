@@ -99,7 +99,7 @@ public sealed class RecoveryPassSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // a crash between the two writes, which only the pass's backstop can repair.
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
         await SetTerminalWithoutRaiseAsync(child.Id, ct);
 
         var before = _wakeups.Published.Count;
@@ -147,7 +147,11 @@ public sealed class RecoveryPassSpec : ActaRuntimeTestBase<ConformanceFixture, T
             .ExtendWorkerLeasesAsync(new ExtendWorkerLeasesCommand(workerId, 30, false, [], [], recoveryIntervalSeconds), ct);
 
     private Task MakeDueAsync(CancellationToken ct) =>
-        Db.ExecuteRawAsync("UPDATE {schema}.namespaces SET recovery_due_at_utc = NULL WHERE id = @p_id", ct, ("@p_id", TestNamespaceId));
+        Db.ExecuteRawAsync(
+            "UPDATE {schema}.namespaces SET recovery_due_at_utc = NULL WHERE namespace_id = @p_id",
+            ct,
+            ("@p_id", TestNamespaceId)
+        );
 
     private async Task<DateTime?> RecoveryDueAsync(CancellationToken ct) =>
         (await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct))!.RecoveryDueAtUtc;
@@ -155,7 +159,7 @@ public sealed class RecoveryPassSpec : ActaRuntimeTestBase<ConformanceFixture, T
     /// <summary>Lands the child terminal the way a crash does: the status moves, the latch is never set.</summary>
     private Task SetTerminalWithoutRaiseAsync(long jobId, CancellationToken ct) =>
         Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Cancelled),
             ("@p_now", DateTime.UtcNow.AddMinutes(-1)),

@@ -56,15 +56,15 @@ internal sealed record SchemaSnapshot(
         ?? throw new InvalidOperationException($"Empty or invalid schema snapshot at {path}.");
 
     // Coded identity is IsCoded and the stable CodeKind, never EnumTypeName, so a CLR enum rename is not drift;
-    // member ids are not schema, since no column constrains its code values. The literal 0|0, inc=, and seq=False
-    // hold the places of a column's precision and scale and an index's includes and sequential-key hint, which
-    // the model no longer has, so the committed signatures stay unchanged.
+    // member ids are not schema, since no column constrains its code values. The literal 0|0 and seq=False hold the
+    // places of a column's precision and scale and an index's sequential-key hint, which the model no longer has, so
+    // the committed signatures stay unchanged; inc= is empty for an index without included columns.
     private static string ColumnSignature(ColumnModel c) =>
         $"{c.Kind}|{c.Size}|0|0|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|caseExact={c.CaseExact}";
 
     private static string IndexSignature(DbIndexSpec i) =>
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"
-        + "|inc="
+        + $"|inc={(i.Include is null ? "" : string.Join(",", i.Include))}"
         + $"|desc={(i.Descending is null ? "" : string.Join(",", i.Descending))}"
         + $"|filter={i.Filter}"
         + "|seq=False";

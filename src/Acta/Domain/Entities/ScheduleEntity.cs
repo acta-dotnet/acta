@@ -1,34 +1,27 @@
 namespace Acta;
 
 /// <summary>
-/// One named recurring schedule of a definition's slot Job, keyed by that job and its name, as every job satellite is.
-/// The <see cref="Origin"/> records how the row came to exist. Sparse override model (mirrors <c>definitions</c>): the bare
-/// field carries the origin-of-truth default and its <c>*_override</c> carries the operator edit (NULL = inherit);
-/// effective = <c>COALESCE(_override, default)</c>. Only <c>expression</c> and <c>time_zone_id</c> are
-/// operator-overridable. The canonical per-schedule cursor is <see cref="NextRunAtUtc"/>; the slot Job's cursor is the
-/// MIN over its live schedules.
+/// One named recurring schedule of a definition's slot Job, keyed by that job and its name: its declaration and
+/// operator lifecycle. Sparse override model (mirrors <c>definitions</c>): the bare field carries the origin-of-truth
+/// default and its <c>*_override</c> the operator edit (NULL = inherit); effective = <c>COALESCE(_override, default)</c>.
+/// Only <c>expression</c> and <c>time_zone_id</c> are operator-overridable. The cursor lives on
+/// <see cref="ScheduleStateEntity"/>, so a fire's plain advance never rewrites this row.
 /// </summary>
 [DbTable("schedules")]
-[DbPrimaryKey(Name = "pk_schedules", Columns = ["job_id", "name"])]
+[DbPrimaryKey(Name = "pk_schedules", Columns = ["job_id", "schedule_name"])]
 [DbForeignKey(
     Name = "fk_schedules_definitions",
     Target = typeof(DefinitionEntity),
-    TargetColumn = "id",
+    TargetColumn = "definition_id",
     Column = "definition_id",
     OnDelete = DbForeignKeyAction.NoAction
 )]
-[DbIndex(
-    Name = "ix_schedules_namespace_next",
-    Columns = ["namespace_id", "next_run_at_utc", "job_id", "name"],
-    Filter = "status_code <> 230",
-    Usage = "scheduler"
-)]
-[DbCheck(Name = "ck_schedules_paused_pair", Sql = "status_code = 30 OR paused_until_utc IS NULL")]
-[DbCheck(Name = "ck_schedules_orphan_origin", Sql = "origin_code = 40 OR status_code <> 230")]
+[DbCheck(Name = "ck_schedules_paused_pair", Sql = "schedule_status_code = 30 OR paused_until_utc IS NULL")]
+[DbCheck(Name = "ck_schedules_orphan_origin", Sql = "schedule_origin_code = 40 OR schedule_status_code <> 230")]
 internal sealed class ScheduleEntity : IEntity
 {
     /// <summary>
-    /// Per-namespace reload tick filters by this.
+    /// The owning slot Job's namespace, written once at insert. The startup reconcile reads a namespace's schedules by it.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }
@@ -42,7 +35,7 @@ internal sealed class ScheduleEntity : IEntity
 
     /// <summary>
     /// Denormalized from <c>jobs.definition_id</c> at INSERT and never mutated, since a job's definition never
-    /// changes. Retained for the per-namespace reload sweep and the catalog-upsert "find Definition-origin slot for
+    /// changes. Retained for the per-namespace reconcile read and the catalog-upsert "find Definition-origin slot for
     /// this (ns, def)" lookup without joining <c>jobs</c>.
     /// </summary>
     [DbColumn("definition_id", DbKind.Int32)]
@@ -53,14 +46,14 @@ internal sealed class ScheduleEntity : IEntity
     /// attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for system-owned
     /// schedule names, for parity with the other Name columns. The key's second column.
     /// </summary>
-    [DbColumn("name", DbKind.AsciiString, Size = 128)]
-    public string Name { get; init; } = default!;
+    [DbColumn("schedule_name", DbKind.AsciiString, Size = 128)]
+    public string ScheduleName { get; init; } = default!;
 
     /// <summary>
     /// Origin of the row's existence: <c>Definition</c> (declared in a <c>[JobSchedule]</c> attribute,
     /// refreshed by catalog upsert) or <c>Operator</c>. Override columns apply to any origin.
     /// </summary>
-    [DbColumn("origin_code")]
+    [DbColumn("schedule_origin_code")]
     public ScheduleOriginCode Origin { get; init; }
 
     // ---------- Schedule expression (paired: code/origin default, then operator _override) ----------
@@ -108,28 +101,6 @@ internal sealed class ScheduleEntity : IEntity
     [DbColumn("misfire_strategy_code")]
     public MisfireStrategyCode MisfireStrategy { get; init; }
 
-    // ---------- Cursor ----------
-
-    /// <summary>
-    /// Canonical per-schedule cursor: the next instant this schedule is due. The slot Job's
-    /// <c>next_run_at_utc</c> is MIN over its live schedules. NULL means the schedule is exhausted
-    /// (no further occurrence). Computed in C# (<c>NextOccurrenceCalculator</c> / <c>ScheduleWalker</c>);
-    /// the SQL appliers only persist it.
-    /// </summary>
-    [DbColumn("next_run_at_utc", DbKind.UtcInstant)]
-    public DateTime? NextRunAtUtc { get; set; }
-
-    /// <summary>
-    /// The most recent schedule occurrence this row was advanced past, set to the outgoing
-    /// <see cref="NextRunAtUtc"/> on every advance. Deliberately an occurrence, not a run: the cursor
-    /// also moves when the misfire policy skips, so this records the latest schedule point *crossed*
-    /// rather than a completed execution. NULL until the schedule first advances. Explains why
-    /// <see cref="NextRunAtUtc"/> holds its current value, and is the only per-schedule history when
-    /// several schedules share one recurring slot Job.
-    /// </summary>
-    [DbColumn("last_occurrence_at_utc", DbKind.UtcInstant)]
-    public DateTime? LastRunAtUtc { get; set; }
-
     // ---------- Operator lifecycle ----------
 
     /// <summary>
@@ -138,7 +109,7 @@ internal sealed class ScheduleEntity : IEntity
     /// re-declared orphan resets to <c>Active</c>, dropping any pause: a schedule that came back warrants a fresh
     /// operator decision.
     /// </summary>
-    [DbColumn("status_code")]
+    [DbColumn("schedule_status_code")]
     public ScheduleStatusCode Status { get; set; }
 
     /// <summary>
@@ -153,7 +124,7 @@ internal sealed class ScheduleEntity : IEntity
 
     /// <summary>
     /// Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the
-    /// attribute sets none. Distinct from <see cref="ReasonMessage"/>, which is operator-written.
+    /// attribute sets none. Distinct from <see cref="ChangeMessage"/>, which is operator-written.
     /// </summary>
     [DbColumn("description", DbKind.UnicodeString, Size = 512)]
     public string? Description { get; internal set; }
@@ -163,22 +134,22 @@ internal sealed class ScheduleEntity : IEntity
     /// reasonMessage text the audit event records, kept on the row so the current state explains
     /// itself.
     /// </summary>
-    [DbColumn("reason_message", DbKind.UnicodeString, Size = 512)]
-    public string? ReasonMessage { get; set; }
+    [DbColumn("change_message", DbKind.UnicodeString, Size = 512)]
+    public string? ChangeMessage { get; set; }
 
     /// <summary>When the schedule row was created. Set server-side.</summary>
     [DbColumn("created_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime CreatedAtUtc { get; set; }
 
-    /// <summary>
-    /// Last write of any kind. Drives the per-namespace reload tick.
-    /// </summary>
+    /// <summary>When this row was last written; a plain advance writes only the cursor row.</summary>
     [DbColumn("modified_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime ModifiedAtUtc { get; set; }
 
     /// <summary>
-    /// Optimistic-concurrency token; SPs manually increment via <c>SET version = version + 1</c>
-    /// on every UPDATE.
+    /// Optimistic-concurrency token, bumped by every write to this row: an operator edit, a registration that changes
+    /// the declaration or moves the cursor, and the fire that ends an elapsed timed pause. A plain advance writes only
+    /// the cursor row. A recurring completion advances a schedule only at the version its plan read, so an edit or
+    /// registration that landed while the attempt ran wins.
     /// </summary>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
     [DbConcurrencyToken]

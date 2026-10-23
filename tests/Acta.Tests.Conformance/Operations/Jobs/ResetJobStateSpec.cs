@@ -37,8 +37,8 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await AssertSubstrateCountsAsync(Db, sibling, 1, ct);
     }
 
-    [Fact(DisplayName = "One JobStateReset event is emitted with the Job actor and no status transition")]
-    public async Task Reset_emits_one_state_reset_event_with_job_actor_and_no_status_transition()
+    [Fact(DisplayName = "One JobStateReset event is emitted with the job as its actor and no reason")]
+    public async Task Reset_emits_one_state_reset_event_with_job_actor()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -47,32 +47,26 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
 
-        var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).ToListAsync(ct);
-
-        var ev = Assert.Single(events);
-        Assert.Equal(ActorCode.Job, ev.ActorCode);
-        Assert.Equal(jobId.ToString(CultureInfo.InvariantCulture), ev.Actor);
-        // Substrate event: no transition, so from == to == the job's current status.
-        Assert.Equal(ev.FromStatus, ev.ToStatus);
-        Assert.Null(ev.ReasonCode);
+        var ev = await ReadSingleEventAsync(jobId, EventCode.JobStateReset, ct);
+        Assert.Equal(jobId.ToString(CultureInfo.InvariantCulture), EventDetail(ev, "actor"));
+        Assert.Null(EventDetail(ev, "reason"));
         Assert.Equal(0, ev.WorkerId);
     }
 
-    [Fact(DisplayName = "Reset below the audit level clears the rows but emits no event")]
-    public async Task Reset_below_audit_level_clears_rows_but_emits_no_event()
+    [Fact(DisplayName = "Reset below Audit recording clears the rows but emits no event")]
+    public async Task Reset_below_audit_recording_clears_rows_but_emits_no_event()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var jobId = await EnqueueAsync(ct);
         await SeedSubstrateAsync(Db, jobId, ct);
-        await SetAuditLevelAsync(Db, jobId, auditLevel: 0, ct);
+        await SetEventRecordingAsync(Db, jobId, eventRecording: 0, ct);
 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
 
         await AssertSubstrateCountsAsync(Db, jobId, 0, ct);
 
-        var count = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).CountAsync(ct);
-        Assert.Equal(0, count);
+        Assert.Equal(0, await CountEventsAsync(jobId, EventCode.JobStateReset, ct));
     }
 
     private async Task<long> EnqueueAsync(CancellationToken ct)
@@ -94,19 +88,13 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Services
             .GetRequiredService<SignalsOperations>()
             .RaiseSignalAsync(
-                new RaiseSignalSlot(
-                    jobId,
-                    CheckpointKindCode.Signal,
-                    "s.test",
-                    0,
-                    null,
-                    new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), EventReasonCode.JobControlManual, "seed")
-                ),
+                new RaiseSignalSlot(jobId, CheckpointKindCode.Signal, "s.test", 0, null, new JobControlInput("op", null, "seed")),
                 ct
             );
 
         await db.ExecuteRawAsync(
-            "INSERT INTO {schema}.steps (job_id, name, status_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, @p_state, 1, 0)",
+            "INSERT INTO {schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id)"
+                + " VALUES (@p_job_id, @p_name, @p_state, 1, 0)",
             ct,
             ("@p_job_id", jobId),
             ("@p_name", "a.test"),
@@ -132,11 +120,11 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(expected, await db.From<StepEntity>().Where(a => a.JobId == jobId).CountAsync(ct));
     }
 
-    private static Task SetAuditLevelAsync(IDbSession db, long jobId, byte auditLevel, CancellationToken ct) =>
+    private static Task SetEventRecordingAsync(IDbSession db, long jobId, byte eventRecording, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.jobs SET audit_level_code = @p_level WHERE id = @p_id",
+            "UPDATE {schema}.jobs SET event_recording_code = @p_level WHERE job_id = @p_id",
             ct,
-            ("@p_level", auditLevel),
+            ("@p_level", eventRecording),
             ("@p_id", jobId)
         );
 }

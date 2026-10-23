@@ -23,10 +23,8 @@ internal static class SqlSchemaEmitter
         AppendTerminator(sb, dialect);
         sb.AppendLine();
 
-        // Table-name order: every foreign key's target sorts before the table that references it, and EmitTable
-        // throws if one does not.
         var emittedTables = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entity in model.Entities)
+        foreach (var entity in TargetsFirst(model.Entities))
         {
             EmitTable(sb, entity, dialect, emittedTables);
             sb.AppendLine();
@@ -116,9 +114,7 @@ internal static class SqlSchemaEmitter
             var targetTable = ResolveTableName(fk.Target);
             if (!emittedTables.Contains(targetTable))
             {
-                throw new InvalidOperationException(
-                    $"FK {fk.Name} on {e.TableName} references {targetTable}, which is not emitted yet; tables emit in name order, so a target must sort first."
-                );
+                throw new InvalidOperationException($"FK {fk.Name} on {e.TableName} references {targetTable}, which is not emitted yet.");
             }
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
@@ -165,8 +161,10 @@ internal static class SqlSchemaEmitter
     internal static string RenderIndex(string tableName, DbIndexSpec idx, SqlDdlDialect dialect)
     {
         var cols = string.Join(", ", idx.Columns.Select(c => idx.Descending?.Contains(c) == true ? $"{c} DESC" : c));
+        var include =
+            idx.Include is { Count: > 0 } && dialect.SupportsIncludedColumns ? $" INCLUDE ({string.Join(", ", idx.Include)})" : "";
         var filter = idx.Filter is null ? "" : $" WHERE {idx.Filter}";
-        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){filter};";
+        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){include}{filter};";
     }
 
     // True when the dialect folds this entity's identity column inline as its key (SQLite rowid alias).
@@ -209,6 +207,25 @@ internal static class SqlSchemaEmitter
             DbForeignKeyAction.SetNull => " ON DELETE SET NULL",
             _ => throw new InvalidOperationException($"Unhandled DbForeignKeyAction {action}"),
         };
+
+    // Table-name order, except that a table follows every table its foreign keys target, because EmitTable writes each
+    // key inline in the CREATE TABLE.
+    private static IEnumerable<EntityModel> TargetsFirst(IReadOnlyList<EntityModel> entities)
+    {
+        var pending = entities.ToList();
+        var placed = new HashSet<string>(StringComparer.Ordinal);
+        while (pending.Count > 0)
+        {
+            var next =
+                pending.Find(e => e.ForeignKeys.All(fk => placed.Contains(ResolveTableName(fk.Target))))
+                ?? throw new InvalidOperationException(
+                    $"Foreign keys form a cycle among {string.Join(", ", pending.Select(e => e.TableName))}."
+                );
+            pending.Remove(next);
+            placed.Add(next.TableName);
+            yield return next;
+        }
+    }
 
     private static string ResolveTableName(Type t)
     {

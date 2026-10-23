@@ -159,27 +159,25 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     }
 
     /// <summary>
-    /// One terminal-failure <c>job.execution-finished</c> row, with <c>created_at_utc</c> left to the
+    /// One <c>JobFailed</c> row, with <c>created_at_utc</c> left to the
     /// column default so the stamp is the database's own clock rather than this process's.
     /// </summary>
     private Task<long> StageFailureEventAsync(AlertingSubject subject, int executionNumber, CancellationToken ct) =>
-        Db.From<EventEntity>()
-            .InsertAsync<long>(
-                new EventEntity
-                {
-                    EventCode = EventCode.JobExecutionFinished,
-                    NamespaceId = NamespaceId,
-                    ActorCode = ActorCode.Worker,
-                    JobId = subject.JobId,
-                    DefinitionId = subject.DefinitionId,
-                    ExecutionNumber = executionNumber,
-                    ToStatus = JobStatusCode.Failed,
-                    ExecutionStatus = ExecutionStatusCode.Failed,
-                    ReasonCode = EventReasonCode.JobUnhandledException,
-                    ReasonMessage = "staged for the horizon",
-                },
-                ct
-            );
+        StagedEvents.InsertAsync(
+            Db,
+            new EventEntity
+            {
+                EventCode = EventCode.JobFailed,
+                NamespaceId = NamespaceId,
+                EntityCode = EntityCode.Job,
+                EntityId = subject.JobId,
+                DefinitionId = subject.DefinitionId,
+                ExecutionNumber = executionNumber,
+                EventMessage = "staged for the horizon",
+            },
+            EventDetails.Write(("reason", EventReason.UnhandledException)),
+            ct
+        );
 
     // The one driver in the suite that does NOT age events first: this spec is the horizon's own, so
     // the shared helper's convenience would erase exactly what is under test.

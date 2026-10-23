@@ -31,7 +31,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         var row = await Db.From<NamespaceEntity>().Where(n => n.Id == assignedId).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(row);
-        Assert.Equal(TestNamespace, row!.Name);
+        Assert.Equal(TestNamespace, row!.NamespaceName);
         Assert.Equal("test", row.OwnerTeam);
     }
 
@@ -61,10 +61,9 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
             .Where(e => e.WorkerId == worker!.Id && e.EventCode == EventCode.WorkerStarted)
             .ToListAsync(ct);
         var startedEvent = Assert.Single(events);
-        Assert.Null(startedEvent.JobId);
+        Assert.Equal((EntityCode.Worker, (long)worker!.Id), (startedEvent.EntityCode, startedEvent.EntityId));
         Assert.Equal(assignedId, startedEvent.NamespaceId);
-        Assert.Equal(ActorCode.Worker, startedEvent.ActorCode);
-        Assert.Null(startedEvent.ReasonCode);
+        Assert.Null(startedEvent.Details);
     }
 
     [Fact(DisplayName = "Full definition policy from the attribute persists verbatim")]
@@ -74,7 +73,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         var def = await Db.From<DefinitionEntity>()
-            .Where(d => d.NamespaceId == assignedId && d.Name == "policy-probe")
+            .Where(d => d.NamespaceId == assignedId && d.DefinitionName == "policy-probe")
             .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(def);
@@ -84,7 +83,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal("30s..2h x3 ±25%", def.Backoff);
         Assert.Equal(45, def.ExecutionTimeoutSeconds);
         Assert.Equal(7 * 24 * 60 * 60, def.JobRetentionSeconds);
-        Assert.Equal(DefinitionAuditLevelCode.Off, def.AuditLevel);
+        Assert.Equal(EventRecordingCode.Off, def.EventRecording);
         Assert.Equal("ops", def.AlertChannelName);
         Assert.Equal("https://runbook.example/policy-probe", def.RunbookUrl);
         Assert.Equal("Policy Probe", def.DisplayName);
@@ -99,7 +98,9 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
 
         // `echo` declares only its name - every policy column falls back to the framework default,
         // and the nullable operator columns stay null.
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == assignedId && d.Name == "echo").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == assignedId && d.DefinitionName == "echo")
+            .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(def);
         Assert.Equal("1m..1d x2 ~10%", def!.Backoff);

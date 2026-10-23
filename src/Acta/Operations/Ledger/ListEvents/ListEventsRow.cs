@@ -3,66 +3,56 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// One event list row. Detail bytes are decoded after binding: only text-shaped payload formats (json,
+/// One event list row. Details bytes are decoded after binding: only text-shaped payload formats (json,
 /// text) surface as text, using the same UTF-8 convention operators use in raw SQL; opaque formats
 /// surface as absent text instead of mojibake because only the producing worker knows their schema.
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record ListEventsRow(
-    long JobEventId,
+    long EventId,
     EventCode EventCode,
     DateTime CreatedAtUtc,
     string JobNamespace,
-    long? JobId,
-    long? LineageRootId,
-    int? DefinitionId,
-    int WorkerId,
-    int? ExecutionNumber,
-    ActorCode ActorCode,
-    string? Actor,
-    JobStatusCode? FromStatus,
-    JobStatusCode? ToStatus,
-    ExecutionStatusCode? ExecutionStatus,
-    int? DurationMs,
-    EventReasonCode? ReasonCode,
-    string? ReasonMessage,
-    Guid? JobRef,
-    Guid? LineageRootJobRef,
-    int? TenantId,
-    byte DetailFormatId,
-    byte[]? Detail,
+    EntityCode EntityCode,
+    long EntityId,
     string? JobName,
+    Guid? JobRef,
+    long? LineageRootJobId,
+    Guid? LineageRootJobRef,
+    int? DefinitionId,
+    int? TenantId,
+    string? TenantName,
+    int WorkerId,
     Guid? WorkerRef,
-    string? TenantName
+    int? ExecutionNumber,
+    int? DurationMs,
+    string? EventMessage,
+    byte DetailsFormatId,
+    byte[]? Details
 )
 {
     public ListEventsItem ToItem() =>
         new(
-            JobEventId,
+            EventId,
             EventCode,
             CreatedAtUtc,
             JobNamespace,
+            EntityCode,
+            EntityId,
             JobName,
-            JobId,
             JobRef is { } jobRef ? new JobRef(jobRef) : null,
-            LineageRootId,
+            LineageRootJobId,
             LineageRootJobRef is { } rootRef ? new JobRef(rootRef) : null,
             DefinitionId,
             TenantId,
+            TenantName,
             WorkerId == 0 ? null : WorkerId,
-            ExecutionNumber,
-            ActorCode,
-            Actor,
-            FromStatus,
-            ToStatus,
-            ExecutionStatus,
-            DurationMs,
-            ReasonCode,
-            ReasonMessage,
-            Detail is not null && (DetailFormatId == JobPayloadFormat.Json.Id || DetailFormatId == JobPayloadFormat.Text.Id)
-                ? Encoding.UTF8.GetString(Detail)
-                : null,
             WorkerRef is { } workerRef ? new Acta.WorkerRef(workerRef) : null,
-            TenantName
+            ExecutionNumber,
+            DurationMs,
+            EventMessage,
+            Details is not null && (DetailsFormatId == JobPayloadFormat.Json.Id || DetailsFormatId == JobPayloadFormat.Text.Id)
+                ? Encoding.UTF8.GetString(Details)
+                : null
         );
 }

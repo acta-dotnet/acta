@@ -19,23 +19,23 @@ namespace Acta.Tests.Conformance.Operations.Tags;
 )]
 public sealed class ResolveTagTargetSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    [Fact(DisplayName = "Each existing target resolves to its scope and the id or name the tags table joins on")]
+    [Fact(DisplayName = "Each existing target resolves to its entity kind and the id or name the tags table joins on")]
     public async Task Existing_targets_resolve_to_their_rows()
     {
         var ct = TestContext.Current.CancellationToken;
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var definition = Assert.Single(
-            await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "add-numbers").ToListAsync(ct)
+            await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.DefinitionName == "add-numbers").ToListAsync(ct)
         );
         var job = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
 
         Assert.Equal(
-            new ResolveTagTargetResponse(TagScopeCode.Definition, definition.Id, null),
+            new ResolveTagTargetResponse(EntityCode.Definition, definition.Id, null),
             await ResolveAsync(TagTarget.ForDefinition(TestNamespace, "add-numbers"), ct)
         );
-        Assert.Equal(new ResolveTagTargetResponse(TagScopeCode.Job, job.JobId, null), await ResolveAsync(TagTarget.ForJob(job.JobRef), ct));
+        Assert.Equal(new ResolveTagTargetResponse(EntityCode.Job, job.JobId, null), await ResolveAsync(TagTarget.ForJob(job.JobRef), ct));
         Assert.Equal(
-            new ResolveTagTargetResponse(TagScopeCode.Namespace, null, TestNamespace),
+            new ResolveTagTargetResponse(EntityCode.Namespace, null, TestNamespace),
             await ResolveAsync(TagTarget.ForNamespace(TestNamespace), ct)
         );
     }

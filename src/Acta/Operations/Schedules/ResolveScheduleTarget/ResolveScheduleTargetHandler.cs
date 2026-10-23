@@ -24,7 +24,7 @@ internal sealed class ResolveScheduleTargetHandler(GetJobIdHandler getJobId, IAc
 
         var nowUtc = await clock.GetUtcNowAsync(ct);
         var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct)).Schedules;
-        var target = live.FirstOrDefault(s => s.Name == scheduleName);
+        var target = live.FirstOrDefault(s => s.ScheduleName == scheduleName);
         return target is null ? null : new ResolveScheduleTargetResponse(jobId, nowUtc, live, target);
     }
 }

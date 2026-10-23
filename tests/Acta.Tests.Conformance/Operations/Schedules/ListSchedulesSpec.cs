@@ -46,7 +46,7 @@ public sealed class ListSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, 
         } while (cursor is not null);
 
         Assert.NotEmpty(seen);
-        Assert.All(seen, static s => Assert.NotNull(s.NextRunAtUtc));
+        Assert.All(seen, static s => Assert.NotNull(s.NextOccurrenceAtUtc));
         Assert.All(seen, static s => Assert.NotEqual(ScheduleStatusCode.Orphaned, s.Status));
         Assert.All(seen, static s => Assert.False(string.IsNullOrEmpty(s.Expression)));
         Assert.All(seen, static s => Assert.True(s.Version >= 0, "the list row must carry the schedule's optimistic-concurrency version"));
@@ -55,8 +55,8 @@ public sealed class ListSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, 
         for (var i = 1; i < seen.Count; i++)
         {
             var ordered =
-                seen[i - 1].NextRunAtUtc!.Value < seen[i].NextRunAtUtc!.Value
-                || (seen[i - 1].NextRunAtUtc == seen[i].NextRunAtUtc && seen[i - 1].JobId <= seen[i].JobId);
+                seen[i - 1].NextOccurrenceAtUtc!.Value < seen[i].NextOccurrenceAtUtc!.Value
+                || (seen[i - 1].NextOccurrenceAtUtc == seen[i].NextOccurrenceAtUtc && seen[i - 1].JobId <= seen[i].JobId);
             Assert.True(ordered, "rows are not in next_run ASC, job_id ASC, name ASC order");
         }
 

@@ -38,10 +38,10 @@ public sealed class LaneSettlePathsSpec : ActaRuntimeTestBase<ConformanceFixture
         // One attempt already spent of lane-doomed's two, and its lease long gone: the reclaim charges
         // the second and fails the head for good.
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = 50, leased_by_worker_id = @p_worker, "
+            "UPDATE {schema}.jobs_state SET job_status_code = 50, leased_by_worker_id = @p_worker, "
                 + "lease_expires_at_utc = @p_expires, failure_count = 1 WHERE job_id = @p_id",
             ct,
-            ("@p_worker", RuntimeStateStaging.StagedWorkerId),
+            ("@p_worker", JobStateStaging.StagedWorkerId),
             ("@p_expires", DateTime.UtcNow.AddMinutes(-5)),
             ("@p_id", head.JobId)
         );

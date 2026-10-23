@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 /// A worker start against a namespace that already exists must allocate no namespace id. PostgreSQL
 /// evaluates an identity default before it detects an <c>ON CONFLICT</c>, and SQLite advances
 /// <c>sqlite_sequence</c> before it detects one, so an upsert-shaped registration silently spent one
-/// <c>namespaces.id</c> on every worker start - the id space drains at worker-restart rate rather
+/// <c>namespaces.namespace_id</c> on every worker start - the id space drains at worker-restart rate rather
 /// than at namespace-creation rate.
 /// </summary>
 /// <remarks>

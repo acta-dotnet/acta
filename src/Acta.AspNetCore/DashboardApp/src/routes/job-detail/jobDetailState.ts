@@ -1,20 +1,31 @@
-import type { JobEvent, JobExplanation, JobLineageNode, JobDetail } from './types.ts';
+import type { EventItem } from '../../api.ts';
+import { eventFacts } from '../../lib/eventFacts.ts';
+import type { JobExplanation, JobLineageNode, JobDetail } from './types.ts';
 
-export function latestMeaningfulEvent(events: readonly JobEvent[]): JobEvent | null {
-  if (events.length === 0) return null;
-  const newest = [...events].sort(
-    (a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime() || b.jobEventId - a.jobEventId
+function newestFirst(events: readonly EventItem[]): EventItem[] {
+  return [...events].sort(
+    (a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime() || b.eventId - a.eventId
   );
-  return newest.find((event) => event.reasonMessage || event.reasonCode) ?? newest[0];
+}
+
+/** The event's message, else the reason in its details. */
+function eventReasonText(event: EventItem): string | null {
+  return event.message ?? eventFacts(event.detailsText).reason ?? null;
+}
+
+export function latestMeaningfulEvent(events: readonly EventItem[]): EventItem | null {
+  if (events.length === 0) return null;
+  const newest = newestFirst(events);
+  return newest.find((event) => eventReasonText(event) !== null) ?? newest[0];
 }
 
 /** Merge the independently polled newest page with immutable pages accumulated by the history feed. */
-export function mergeJobEvents(head: readonly JobEvent[], historyPages: readonly (readonly JobEvent[])[]): JobEvent[] {
+export function mergeJobEvents(head: readonly EventItem[], historyPages: readonly (readonly EventItem[])[]): EventItem[] {
   const seen = new Set<number>();
-  const merged: JobEvent[] = [];
+  const merged: EventItem[] = [];
   for (const event of [...head, ...historyPages.flat()]) {
-    if (seen.has(event.jobEventId)) continue;
-    seen.add(event.jobEventId);
+    if (seen.has(event.eventId)) continue;
+    seen.add(event.eventId);
     merged.push(event);
   }
   return merged;
@@ -58,7 +69,7 @@ export function payloadFormatLabel(id: number): string {
 export function buildIncidentSummary(
   job: JobDetail,
   explanation: JobExplanation | null,
-  events: readonly JobEvent[],
+  events: readonly EventItem[],
   dashboardUrl: string
 ): string {
   const lines = [
@@ -77,13 +88,11 @@ export function buildIncidentSummary(
     );
   }
 
-  const latest = [...events]
-    .sort((a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime() || b.jobEventId - a.jobEventId)
-    .slice(0, 5);
+  const latest = newestFirst(events).slice(0, 5);
   if (latest.length > 0) {
     lines.push('Latest events:');
     for (const event of latest) {
-      const reason = event.reasonMessage ?? event.reasonCode;
+      const reason = eventReasonText(event);
       lines.push(`- ${event.createdAtUtc} ${event.eventCode}${reason ? `: ${reason}` : ''}`);
     }
   }

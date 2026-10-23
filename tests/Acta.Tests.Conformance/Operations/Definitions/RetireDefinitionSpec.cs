@@ -65,11 +65,10 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
             Assert.Equal(1, await CountEventsAsync(cancelled.JobId, EventCode.JobCancelled, ct));
             var evt = await ReadSingleEventAsync(cancelled.JobId, EventCode.JobCancelled, ct);
-            Assert.Equal(EventReasonCode.JobDefinitionRetired, evt.ReasonCode);
-            Assert.Equal(ActorCode.Operator, evt.ActorCode);
-            Assert.Equal(Actor, evt.Actor);
-            Assert.Equal(Reason, evt.ReasonMessage);
-            Assert.Equal(JobStatusCode.Cancelled, evt.ToStatus);
+            Assert.Equal(EventReason.DefinitionRetired, EventDetail(evt, "reason"));
+            Assert.Equal(Actor, EventDetail(evt, "actor"));
+            Assert.Equal(Reason, evt.EventMessage);
+            Assert.Equal(0, evt.WorkerId);
         }
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(untouched.JobId, ct)).Status);
@@ -97,10 +96,10 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobDefinitionRetired)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
-        Assert.Null(evt!.JobId);
-        Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal(Actor, evt.Actor);
-        Assert.Equal(Reason, evt.ReasonMessage);
+        Assert.Equal(EntityCode.Definition, evt!.EntityCode);
+        Assert.Equal(before.DefinitionId, evt.EntityId);
+        Assert.Equal(Actor, EventDetail(evt, "actor"));
+        Assert.Equal(Reason, evt.EventMessage);
     }
 
     [Fact(DisplayName = "A running attempt keeps its lease through the retire and still completes")]
@@ -213,6 +212,27 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.JobRecurringRolledOver, ct));
     }
 
+    [Fact(DisplayName = "A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index")]
+    public async Task A_retired_definitions_schedules_keep_no_cursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
+        Assert.All(await ScheduleTestOps.ReadAsync(Db, slotId, ct), s => Assert.NotNull(s.NextOccurrenceAtUtc));
+
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
+
+        var schedules = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
+        Assert.NotEmpty(schedules);
+        Assert.All(
+            schedules,
+            s =>
+            {
+                Assert.Null(s.NextOccurrenceAtUtc);
+                Assert.Null(s.LastAdvancedOccurrenceAtUtc);
+            }
+        );
+    }
+
     [Fact(DisplayName = "A Suspended parent waiting on a child of the retired definition is released without a recovery pass")]
     public async Task A_parent_waiting_on_a_cancelled_child_is_released()
     {
@@ -222,7 +242,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
-        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
 
         Assert.Equal(ControlAction.Applied, (await RetireAsync("job-child-echo", ct)).Action);
 
@@ -230,7 +250,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
-        Assert.Equal($"sys.child.{child.Id}", latch.Name);
+        Assert.Equal($"sys.child.{child.Id}", latch.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Set, latch.Status);
     }
 
@@ -334,12 +354,13 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(row.RetentionUntilUtc);
 
         var evt = await ReadSingleEventAsync(jobId, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobDefinitionRetired, evt.ReasonCode);
-        Assert.Equal(ActorCode.Worker, evt.ActorCode);
+        Assert.Equal(EventReason.DefinitionRetired, EventDetail(evt, "reason"));
+        Assert.NotEqual(0, evt.WorkerId);
+        Assert.Null(EventDetail(evt, "actor"));
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.DefinitionId == definitionId && e.JobId == null).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.DefinitionId == definitionId && e.EntityCode == EntityCode.Definition).CountAsync(ct);
 
     private async Task<(int LeaseTtl, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {

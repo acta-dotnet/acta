@@ -29,7 +29,7 @@ internal static class RaiseChildLatch
         // than inherited from whatever the ambient one happens to be.
         var slotName = NamePrefix + childJobId.ToString(CultureInfo.InvariantCulture);
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus, childExecutionNumber);
-        var input = new JobControlInput(new JobControlActor(ActorCode.Sys), EventReasonCode.JobSignalReleased, null);
+        var input = new JobControlInput(null, EventReason.SignalReleased, null);
         var outcome = await signals.RaiseSignalAsync(
             new RaiseSignalSlot(parentJobId, CheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
             ct

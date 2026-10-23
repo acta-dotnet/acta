@@ -8,8 +8,8 @@
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_signal(
     p_job_id BIGINT,
-    p_kind_code SMALLINT,
-    p_name VARCHAR,
+    p_checkpoint_kind_code SMALLINT,
+    p_checkpoint_name VARCHAR,
     p_timeout_seconds INT DEFAULT NULL
 )
 RETURNS TABLE (
@@ -27,18 +27,18 @@ DECLARE
     v_due TIMESTAMPTZ;
     v_armed INT;
 BEGIN
-    SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+    SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
     INTO v_state, v_fmt, v_val, v_due
     FROM {{schema}}.checkpoints js
-    WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
+    WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
     FOR UPDATE;
 
     IF v_state IS NULL THEN
         INSERT INTO {{schema}}.checkpoints (
             job_id,
-            kind_code,
-            name,
-            status_code,
+            checkpoint_kind_code,
+            checkpoint_name,
+            checkpoint_status_code,
             due_at_utc,
             value_format_id,
             value,
@@ -47,8 +47,8 @@ BEGIN
             version)
         VALUES (
             p_job_id,
-            p_kind_code,
-            p_name,
+            p_checkpoint_kind_code,
+            p_checkpoint_name,
             10 /* CheckpointStatusCode.Pending */,
             CASE WHEN p_timeout_seconds IS NULL THEN NULL ELSE v_now + make_interval(secs => p_timeout_seconds) END,
             0 /* JobPayloadFormat.None */,
@@ -56,7 +56,7 @@ BEGIN
             v_now,
             v_now,
             0)
-        ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+        ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO NOTHING;
         GET DIAGNOSTICS v_armed = ROW_COUNT;
 
         /* A wait this call armed suspends once, even with an already-elapsed deadline: only a wait
@@ -73,10 +73,10 @@ BEGIN
         /* Lost the race, so DO NOTHING waited the winner out and its row is committed. The re-read
            sees it because this runs at READ COMMITTED - the repo sets no isolation level - where each
            statement takes a fresh snapshot; under Serializable it would abort, which is also correct. */
-        SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+        SELECT js.checkpoint_status_code, js.value_format_id, js.value, js.due_at_utc
         INTO v_state, v_fmt, v_val, v_due
         FROM {{schema}}.checkpoints js
-        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
+        WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
         FOR UPDATE;
     END IF;
 
@@ -94,10 +94,10 @@ BEGIN
 
         UPDATE {{schema}}.checkpoints js
         SET
-            status_code = 30 /* CheckpointStatusCode.Expired */,
+            checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
             modified_at_utc = v_now,
             version = js.version + 1
-        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
+        WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name;
 
         RETURN QUERY SELECT
             3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
@@ -113,9 +113,9 @@ BEGIN
                 version = js.version + 1
             WHERE
                 js.job_id = p_job_id
-                AND js.kind_code = p_kind_code
-                AND js.name = p_name
-                AND js.status_code = 10 /* CheckpointStatusCode.Pending */
+                AND js.checkpoint_kind_code = p_checkpoint_kind_code
+                AND js.checkpoint_name = p_checkpoint_name
+                AND js.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                 AND js.due_at_utc IS NULL;
         END IF;
 

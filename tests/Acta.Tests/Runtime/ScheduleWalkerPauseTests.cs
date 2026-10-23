@@ -43,9 +43,9 @@ public class ScheduleWalkerPauseTests
 
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
-        Assert.NotNull(advance.NextRunAtUtc);
-        Assert.True(advance.NextRunAtUtc > Now, "the advanced cursor must move strictly past now");
-        Assert.Equal(advance.NextRunAtUtc, outcome.SlotMinNextRunAtUtc);
+        Assert.NotNull(advance.NextOccurrenceAtUtc);
+        Assert.True(advance.NextOccurrenceAtUtc > Now, "the advanced cursor must move strictly past now");
+        Assert.Equal(advance.NextOccurrenceAtUtc, outcome.SlotMinNextRunAtUtc);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class ScheduleWalkerPauseTests
 
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
-        Assert.True(advance.NextRunAtUtc > Now);
+        Assert.True(advance.NextOccurrenceAtUtc > Now);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class ScheduleWalkerPauseTests
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.True(outcome.NothingDue);
-        Assert.Equal(next, Assert.Single(outcome.Advances).NextRunAtUtc);
+        Assert.Equal(next, Assert.Single(outcome.Advances).NextOccurrenceAtUtc);
         Assert.Equal(next, outcome.SlotMinNextRunAtUtc);
     }
 
@@ -99,7 +99,7 @@ public class ScheduleWalkerPauseTests
 
         Assert.Empty(outcome.TriggeringScheduleNames);
         Assert.True(outcome.NothingDue);
-        Assert.Equal(new DateTime(2024, 1, 1, 0, 5, 0, DateTimeKind.Utc), Assert.Single(outcome.Advances).NextRunAtUtc);
+        Assert.Equal(new DateTime(2024, 1, 1, 0, 5, 0, DateTimeKind.Utc), Assert.Single(outcome.Advances).NextOccurrenceAtUtc);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class ScheduleWalkerPauseTests
 
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         Assert.False(outcome.NothingDue);
-        Assert.True(Assert.Single(outcome.Advances).NextRunAtUtc > Now);
+        Assert.True(Assert.Single(outcome.Advances).NextOccurrenceAtUtc > Now);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class ScheduleWalkerPauseTests
         var (schedules, _, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
 
         var row = Assert.Single(schedules);
-        Assert.Equal(storedCursor, row.NextRunAtUtc); // a paused schedule's remembered cursor is not advanced
+        Assert.Equal(storedCursor, row.NextOccurrenceAtUtc); // a paused schedule's remembered cursor is not advanced
         Assert.Equal(until, slotMin); // only the timed pause window contributes to the slot
     }
 
@@ -206,7 +206,7 @@ public class ScheduleWalkerPauseTests
 
         var (schedules, _, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
 
-        Assert.Equal(storedCursor, Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(storedCursor, Assert.Single(schedules).NextOccurrenceAtUtc);
         Assert.Null(slotMin);
     }
 
@@ -222,9 +222,9 @@ public class ScheduleWalkerPauseTests
         var (schedules, _, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
 
         var row = Assert.Single(schedules);
-        Assert.NotNull(row.NextRunAtUtc);
-        Assert.True(row.NextRunAtUtc > Now, "an active schedule's missed cursor reconciles forward under Skip");
-        Assert.Equal(row.NextRunAtUtc, slotMin);
+        Assert.NotNull(row.NextOccurrenceAtUtc);
+        Assert.True(row.NextOccurrenceAtUtc > Now, "an active schedule's missed cursor reconciles forward under Skip");
+        Assert.Equal(row.NextOccurrenceAtUtc, slotMin);
     }
 
     private static ScheduleDescriptor Descriptor(string scheduleName) =>

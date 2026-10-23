@@ -5,13 +5,13 @@ namespace Acta.Tests.Conformance;
 /// <summary>
 /// Anchors the JobRef storage rule: job_ref is the source of truth on the jobs table (a uniquely
 /// indexed uuid with no database default, allocated in C# and passed into the inserting routine)
-/// and is denormalized onto the audit tables (events, alerts) so the public ref survives job
-/// purge; CASCADE child/substrate tables reference jobs by numeric id only.
+/// and is denormalized onto alerts so an incident keeps the public ref past a job purge; events name
+/// their subject by numeric id, and an explicit purge's tombstone snapshots the ref in its details.
 /// </summary>
 public sealed class JobRefSchemaShapeTests
 {
     [Fact]
-    public void Job_ref_lives_on_the_job_and_audit_tables_only()
+    public void Job_ref_lives_on_the_job_and_alert_tables_only()
     {
         var carriers = ActaSchema
             .Entities.Where(e => e.Columns.Any(c => c.Name == "job_ref"))
@@ -19,7 +19,7 @@ public sealed class JobRefSchemaShapeTests
             .OrderBy(t => t)
             .ToList();
 
-        Assert.Equal(["alerts", "events", "jobs"], carriers);
+        Assert.Equal(["alerts", "jobs"], carriers);
     }
 
     [Fact]

@@ -2,4 +2,4 @@ SELECT TOP 1
     input_format_id,
     input
 FROM {{schema}}.jobs
-WHERE id = @p_id;
+WHERE job_id = @p_job_id;

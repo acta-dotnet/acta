@@ -17,7 +17,7 @@ public sealed record JobDescriptor(
     JobPayloadFormat? OutputPayloadFormat,
     JobPriorityCode Priority,
     int MaxAttempts,
-    DefinitionAuditLevelCode AuditLevel,
+    EventRecordingCode EventRecording,
     AlertProfileCode AlertProfile,
     JobHandlerInvokeDelegate Invoker,
     Func<IJobPayloadSerializer, JobPayload, object> DeserializeInput,

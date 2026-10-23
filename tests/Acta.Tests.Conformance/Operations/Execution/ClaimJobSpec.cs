@@ -46,8 +46,8 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(before.DefinitionId, claimed.DefinitionId);
         Assert.False(claimed.Input.IsEmpty);
 
-        // Even at the audit level that records every outcome, the runtimes row is the live attempt's only record.
-        Assert.Equal(DefinitionAuditLevelCode.Audit, after.AuditLevel);
+        // Even at Audit recording, which records every outcome, the jobs_state row is the live attempt's only record.
+        Assert.Equal(EventRecordingCode.Audit, after.EventRecording);
         Assert.Equal(0, await EventCountAsync(enqueued.JobId, ct));
     }
 
@@ -167,9 +167,9 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private async Task SuspendAsync(long jobId, DateTime? nextRunAtUtc, CancellationToken ct)
     {
-        var affected = await Db.From<RuntimeEntity>()
+        var affected = await Db.From<JobStateEntity>()
             .Where(r => r.Id == jobId)
-            .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Suspended, NextRunAtUtc = nextRunAtUtc }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { Status = JobStatusCode.Suspended, NextRunAtUtc = nextRunAtUtc }, ct);
         Assert.Equal(1, affected);
     }
 
@@ -183,7 +183,7 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     }
 
     private Task<int> EventCountAsync(long jobId, CancellationToken ct) =>
-        Db.From<EventEntity>().Where(e => e.JobId == jobId).CountAsync(ct);
+        Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).CountAsync(ct);
 
     private async Task<int> WorkerIdAsync(CancellationToken ct)
     {

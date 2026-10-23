@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Sql;
 /// Guards two accidental-blast-radius shapes in operation SQL's <c>UPDATE</c>/<c>DELETE</c> statements: a
 /// statement with neither a <c>WHERE</c> nor a correlating <c>JOIN</c> (so it touches every row of a
 /// real table), and a comma-style <c>FROM</c>/<c>USING</c> join (implicit cross join) instead of an
-/// explicit <c>JOIN ... ON</c>. A statement whose target is an mssql table variable (<c>DELETE @del</c>)
+/// explicit <c>JOIN ... ON</c>. A statement whose target is an mssql table variable (<c>DELETE @job_del</c>)
 /// is exempt: it clears local scratch state, never persisted data. A <c>FOR UPDATE</c> row-locking clause
 /// and an <c>ON CONFLICT (...) DO UPDATE SET</c> upsert are not standalone DML statements and are skipped.
 /// </summary>

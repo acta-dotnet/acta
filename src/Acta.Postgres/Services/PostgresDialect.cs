@@ -139,7 +139,7 @@ internal sealed class PostgresDialect : ISqlDialect
             concurrencyKeys[i] = row.ConcurrencyKey;
             nextRunAtUtcs[i] = row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : null;
             delaySeconds[i] = row.DelaySeconds;
-            parentIds[i] = row.ParentId;
+            parentIds[i] = row.ParentJobId;
             tenantNames[i] = row.TenantName;
             tenantOverrides[i] = row.OverrideParentTenant;
         }
@@ -150,13 +150,13 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_job_name", NpgsqlDbType.Varchar, jobNames);
         AddArray(postgres, "@p_b_deduplication_key", NpgsqlDbType.Varchar, deduplicationKeys);
         AddArray(postgres, "@p_b_correlation_key", NpgsqlDbType.Varchar, correlationKeys);
-        AddArray(postgres, "@p_b_priority_override", NpgsqlDbType.Smallint, priorityOverrides);
+        AddArray(postgres, "@p_b_job_priority_code_override", NpgsqlDbType.Smallint, priorityOverrides);
         AddArray(postgres, "@p_b_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
         AddArray(postgres, "@p_b_input", NpgsqlDbType.Bytea, inputs);
         AddArray(postgres, "@p_b_concurrency_key", NpgsqlDbType.Varchar, concurrencyKeys);
         AddArray(postgres, "@p_b_next_run_at_utc", NpgsqlDbType.TimestampTz, nextRunAtUtcs);
         AddArray(postgres, "@p_b_delay_seconds", NpgsqlDbType.Integer, delaySeconds);
-        AddArray(postgres, "@p_b_parent_id", NpgsqlDbType.Bigint, parentIds);
+        AddArray(postgres, "@p_b_parent_job_id", NpgsqlDbType.Bigint, parentIds);
         AddArray(postgres, "@p_b_tenant_name", NpgsqlDbType.Varchar, tenantNames);
         AddArray(postgres, "@p_b_tenant_override", NpgsqlDbType.Boolean, tenantOverrides);
 
@@ -183,11 +183,11 @@ internal sealed class PostgresDialect : ISqlDialect
             }
         }
 
-        AddArray(postgres, "@p_t_ordinal", NpgsqlDbType.Integer, tagOrdinals);
-        AddArray(postgres, "@p_t_name", NpgsqlDbType.Varchar, tagNames);
-        AddArray(postgres, "@p_t_value", NpgsqlDbType.Varchar, tagValues);
-        AddArray(postgres, "@p_t_value_search", NpgsqlDbType.Varchar, tagValueSearches);
-        AddArray(postgres, "@p_b_lane", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
+        AddArray(postgres, "@p_tag_ordinal", NpgsqlDbType.Integer, tagOrdinals);
+        AddArray(postgres, "@p_tag_name", NpgsqlDbType.Varchar, tagNames);
+        AddArray(postgres, "@p_tag_value", NpgsqlDbType.Varchar, tagValues);
+        AddArray(postgres, "@p_tag_value_search", NpgsqlDbType.Varchar, tagValueSearches);
+        AddArray(postgres, "@p_b_lane_name", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
     }
 
     public void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
@@ -200,7 +200,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_correlation_key", NpgsqlDbType.Varchar, (object?)row.CorrelationKey ?? DBNull.Value);
         AddScalar(
             postgres,
-            "@p_priority_override",
+            "@p_job_priority_code_override",
             NpgsqlDbType.Smallint,
             row.PriorityOverride is { } priority ? (short)priority : DBNull.Value
         );
@@ -214,7 +214,7 @@ internal sealed class PostgresDialect : ISqlDialect
             row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : DBNull.Value
         );
         AddScalar(postgres, "@p_delay_seconds", NpgsqlDbType.Integer, (object?)row.DelaySeconds ?? DBNull.Value);
-        AddScalar(postgres, "@p_parent_id", NpgsqlDbType.Bigint, (object?)row.ParentId ?? DBNull.Value);
+        AddScalar(postgres, "@p_parent_job_id", NpgsqlDbType.Bigint, (object?)row.ParentJobId ?? DBNull.Value);
         AddScalar(postgres, "@p_tenant_name", NpgsqlDbType.Varchar, (object?)row.TenantName ?? DBNull.Value);
         AddScalar(postgres, "@p_tenant_override", NpgsqlDbType.Boolean, row.OverrideParentTenant);
 
@@ -229,10 +229,10 @@ internal sealed class PostgresDialect : ISqlDialect
             tagValueSearches[i] = TagValueSearch.Normalize(row.Tags[i].Value);
         }
 
-        AddArray(postgres, "@p_t_name", NpgsqlDbType.Varchar, tagNames);
-        AddArray(postgres, "@p_t_value", NpgsqlDbType.Varchar, tagValues);
-        AddArray(postgres, "@p_t_value_search", NpgsqlDbType.Varchar, tagValueSearches);
-        AddScalar(postgres, "@p_lane", NpgsqlDbType.Varchar, (object?)row.Lane ?? DBNull.Value);
+        AddArray(postgres, "@p_tag_name", NpgsqlDbType.Varchar, tagNames);
+        AddArray(postgres, "@p_tag_value", NpgsqlDbType.Varchar, tagValues);
+        AddArray(postgres, "@p_tag_value_search", NpgsqlDbType.Varchar, tagValueSearches);
+        AddScalar(postgres, "@p_lane_name", NpgsqlDbType.Varchar, (object?)row.Lane ?? DBNull.Value);
     }
 
     public void BindRegisterDefinitions(
@@ -262,7 +262,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var inputFormatNames = new string[count];
         var outputFormatIds = new short[count];
         var outputFormatNames = new string[count];
-        var auditLevelCodes = new short[count];
+        var eventRecordingCodes = new short[count];
         var alertProfileCodes = new short[count];
         var tenantRequirementCodes = new short[count];
         var alertChannelNames = new string?[count];
@@ -274,8 +274,8 @@ internal sealed class PostgresDialect : ISqlDialect
         for (var i = 0; i < count; i++)
         {
             var row = rows[i];
-            names[i] = row.Name;
-            priorityCodes[i] = row.PriorityCode;
+            names[i] = row.DefinitionName;
+            priorityCodes[i] = row.JobPriorityCode;
             maxAttempts[i] = row.MaxAttempts;
             concurrencyLimits[i] = row.ConcurrencyLimit;
             rateLimits[i] = row.RateLimit;
@@ -291,7 +291,7 @@ internal sealed class PostgresDialect : ISqlDialect
             inputFormatNames[i] = row.InputFormatName;
             outputFormatIds[i] = row.OutputFormatId;
             outputFormatNames[i] = row.OutputFormatName;
-            auditLevelCodes[i] = row.AuditLevelCode;
+            eventRecordingCodes[i] = row.EventRecordingCode;
             alertProfileCodes[i] = row.AlertProfileCode;
             tenantRequirementCodes[i] = row.TenantRequirementCode;
             alertChannelNames[i] = row.AlertChannelName;
@@ -303,8 +303,8 @@ internal sealed class PostgresDialect : ISqlDialect
 
         AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, namespaceId);
         AddScalar(postgres, "@p_manifest_generation", NpgsqlDbType.TimestampTz, manifestGenerationUtc);
-        AddArray(postgres, "@p_d_name", NpgsqlDbType.Varchar, names);
-        AddArray(postgres, "@p_d_priority_code", NpgsqlDbType.Smallint, priorityCodes);
+        AddArray(postgres, "@p_d_definition_name", NpgsqlDbType.Varchar, names);
+        AddArray(postgres, "@p_d_job_priority_code", NpgsqlDbType.Smallint, priorityCodes);
         AddArray(postgres, "@p_d_max_attempts", NpgsqlDbType.Integer, maxAttempts);
         AddArray(postgres, "@p_d_concurrency_limit", NpgsqlDbType.Integer, concurrencyLimits);
         AddArray(postgres, "@p_d_rate_limit", NpgsqlDbType.Varchar, rateLimits);
@@ -320,7 +320,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_input_format_name", NpgsqlDbType.Varchar, inputFormatNames);
         AddArray(postgres, "@p_d_output_format_id", NpgsqlDbType.Smallint, outputFormatIds);
         AddArray(postgres, "@p_d_output_format_name", NpgsqlDbType.Varchar, outputFormatNames);
-        AddArray(postgres, "@p_d_audit_level_code", NpgsqlDbType.Smallint, auditLevelCodes);
+        AddArray(postgres, "@p_d_event_recording_code", NpgsqlDbType.Smallint, eventRecordingCodes);
         AddArray(postgres, "@p_d_alert_profile_code", NpgsqlDbType.Smallint, alertProfileCodes);
         AddArray(postgres, "@p_d_tenant_requirement", NpgsqlDbType.Smallint, tenantRequirementCodes);
         AddArray(postgres, "@p_d_alert_channel_name", NpgsqlDbType.Varchar, alertChannelNames);
@@ -328,7 +328,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_display_name", NpgsqlDbType.Varchar, displayNames);
         AddArray(postgres, "@p_d_description", NpgsqlDbType.Varchar, descriptions);
         AddArray(postgres, "@p_d_definition_hash", NpgsqlDbType.Varchar, definitionHashes);
-        AddArray(postgres, "@p_d_lane", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
+        AddArray(postgres, "@p_d_lane_name", NpgsqlDbType.Varchar, rows.Select(row => row.LaneName).ToArray());
     }
 
     public void BindRegisterSchedules(
@@ -345,7 +345,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var deduplicationKeys = new string[definitionCount];
         var inputFormatIds = new short[definitionCount];
         byte[]?[] inputs = new byte[definitionCount][];
-        var auditLevels = new short[definitionCount];
+        var eventRecordings = new short[definitionCount];
         var slotStatuses = new short[definitionCount];
         var slotNextRuns = new DateTime?[definitionCount];
         var scheduleCount = 0;
@@ -357,7 +357,7 @@ internal sealed class PostgresDialect : ISqlDialect
             deduplicationKeys[i] = definition.JobName;
             inputFormatIds[i] = definition.InputFormatId;
             inputs[i] = definition.Input.IsEmpty ? null : definition.Input.ToArray();
-            auditLevels[i] = (short)definition.AuditLevel;
+            eventRecordings[i] = (short)definition.EventRecording;
             slotStatuses[i] = (short)definition.SlotStatus;
             slotNextRuns[i] = definition.SlotMinNextRunAtUtc;
             scheduleCount += definition.Schedules.Count;
@@ -377,33 +377,32 @@ internal sealed class PostgresDialect : ISqlDialect
             foreach (var schedule in definition.Schedules)
             {
                 scheduleDefinitionIds[scheduleIndex] = definition.DefinitionId;
-                scheduleNames[scheduleIndex] = schedule.Name;
+                scheduleNames[scheduleIndex] = schedule.ScheduleName;
                 expressions[scheduleIndex] = schedule.Expression;
                 timeZones[scheduleIndex] = string.IsNullOrWhiteSpace(schedule.TimeZoneId) ? "UTC" : schedule.TimeZoneId;
                 expressionKinds[scheduleIndex] = (short)schedule.ExpressionKind;
                 misfires[scheduleIndex] = (short)schedule.MisfireStrategy;
-                nextRuns[scheduleIndex] = schedule.NextRunAtUtc;
+                nextRuns[scheduleIndex] = schedule.NextOccurrenceAtUtc;
                 descriptions[scheduleIndex] = schedule.Description;
                 scheduleIndex++;
             }
         }
 
-        AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, definitions[0].NamespaceId);
         AddArray(postgres, "@p_d_job_ref", NpgsqlDbType.Uuid, jobRefs);
         AddArray(postgres, "@p_d_definition_id", NpgsqlDbType.Integer, definitionIds);
         AddArray(postgres, "@p_d_deduplication_key", NpgsqlDbType.Varchar, deduplicationKeys);
         AddArray(postgres, "@p_d_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
         AddArray(postgres, "@p_d_input", NpgsqlDbType.Bytea, inputs);
-        AddArray(postgres, "@p_d_audit_level", NpgsqlDbType.Smallint, auditLevels);
+        AddArray(postgres, "@p_d_event_recording_code", NpgsqlDbType.Smallint, eventRecordings);
         AddArray(postgres, "@p_d_slot_status", NpgsqlDbType.Smallint, slotStatuses);
         AddArray(postgres, "@p_d_slot_next_run_at_utc", NpgsqlDbType.TimestampTz, slotNextRuns);
         AddArray(postgres, "@p_s_definition_id", NpgsqlDbType.Integer, scheduleDefinitionIds);
-        AddArray(postgres, "@p_s_name", NpgsqlDbType.Varchar, scheduleNames);
+        AddArray(postgres, "@p_s_schedule_name", NpgsqlDbType.Varchar, scheduleNames);
         AddArray(postgres, "@p_s_expression", NpgsqlDbType.Varchar, expressions);
         AddArray(postgres, "@p_s_time_zone", NpgsqlDbType.Varchar, timeZones);
         AddArray(postgres, "@p_s_expression_kind", NpgsqlDbType.Smallint, expressionKinds);
         AddArray(postgres, "@p_s_misfire", NpgsqlDbType.Smallint, misfires);
-        AddArray(postgres, "@p_s_next_run_at_utc", NpgsqlDbType.TimestampTz, nextRuns);
+        AddArray(postgres, "@p_s_next_occurrence_at_utc", NpgsqlDbType.TimestampTz, nextRuns);
         AddArray(postgres, "@p_s_description", NpgsqlDbType.Varchar, descriptions);
     }
 
@@ -423,16 +422,17 @@ internal sealed class PostgresDialect : ISqlDialect
             NpgsqlDbType.Bytea,
             completions.Select(c => c.ResultFormatId == JobPayloadFormat.None.Id ? null : c.Result.ToArray()).ToArray()
         );
-        AddArray(postgres, "@p_reason_codes", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.EventReasonCode).ToArray());
-        AddArray(postgres, "@p_reason_messages", NpgsqlDbType.Varchar, completions.Select(c => c.ReasonMessage).ToArray());
+        AddArray(postgres, "@p_event_codes", NpgsqlDbType.Smallint, completions.Select(c => (short)c.EventCode).ToArray());
+        AddArray(postgres, "@p_reasons", NpgsqlDbType.Varchar, completions.Select(c => c.Reason).ToArray());
+        AddArray(postgres, "@p_event_messages", NpgsqlDbType.Varchar, completions.Select(c => c.EventMessage).ToArray());
         AddArray(postgres, "@p_duration_ms", NpgsqlDbType.Integer, completions.Select(c => c.DurationMs).ToArray());
         AddArray(postgres, "@p_failure_counts", NpgsqlDbType.Integer, completions.Select(c => c.FailureCount).ToArray());
         AddArray(postgres, "@p_retention_seconds", NpgsqlDbType.Integer, completions.Select(c => c.RetentionSeconds).ToArray());
         AddArray(
             postgres,
-            "@p_reschedule_status_codes",
+            "@p_reschedule_event_codes",
             NpgsqlDbType.Smallint,
-            completions.Select(c => (short?)c.RescheduleStatusCode).ToArray()
+            completions.Select(c => (short?)c.RescheduleEventCode).ToArray()
         );
         AddArray(
             postgres,
@@ -449,17 +449,22 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_wait_signal_names", NpgsqlDbType.Varchar, completions.Select(c => c.WaitSignalName).ToArray());
         AddArray(
             postgres,
-            "@p_handler_status_codes",
+            "@p_handler_job_status_codes",
             NpgsqlDbType.Smallint,
             completions.Select(c => (short?)c.HandlerStatusCode).ToArray()
         );
-        AddArray(postgres, "@p_final_statuses", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.FinalStatus).ToArray());
+        AddArray(postgres, "@p_final_job_status_codes", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.FinalStatus).ToArray());
         AddArray(postgres, "@p_job_next_run_at_utc", NpgsqlDbType.TimestampTz, completions.Select(c => c.JobNextRunAtUtc).ToArray());
 
         var advances = completions.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a))).ToList();
         AddArray(postgres, "@p_advance_job_ids", NpgsqlDbType.Bigint, advances.Select(a => a.JobId).ToArray());
         AddArray(postgres, "@p_advance_schedule_names", NpgsqlDbType.Varchar, advances.Select(a => a.Advance.ScheduleName).ToArray());
-        AddArray(postgres, "@p_advance_next_runs", NpgsqlDbType.TimestampTz, advances.Select(a => a.Advance.NextRunAtUtc).ToArray());
+        AddArray(
+            postgres,
+            "@p_advance_next_occurrences",
+            NpgsqlDbType.TimestampTz,
+            advances.Select(a => a.Advance.NextOccurrenceAtUtc).ToArray()
+        );
         AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, advances.Select(a => a.Advance.ExpectedVersion).ToArray());
         AddScalar(postgres, "@p_plain", NpgsqlDbType.Boolean, completions.All(c => c.IsPlain));
     }

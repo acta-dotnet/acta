@@ -5,7 +5,7 @@ namespace TestJobs;
 
 /// <summary>
 /// A handler whose failing prefix is chosen per namespace: it throws while its attempt number is at or
-/// below the configured count, then succeeds. Declared at <c>AuditLevel.Failures</c> with the default
+/// below the configured count, then succeeds. Declared at <c>EventRecording = Failures</c> with the default
 /// <c>OnFailure</c> profile, the pairing under which a success writes no event at all.
 /// </summary>
 public static class FailuresAuditProbe
@@ -22,7 +22,7 @@ public static class FailuresAuditProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("failures-audit-probe", MaxAttempts = 6, Backoff = "0s", AuditLevel = DefinitionAuditLevelCode.Failures)]
+    [Job("failures-audit-probe", MaxAttempts = 6, Backoff = "0s", EventRecording = EventRecordingCode.Failures)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         var attempt = _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);

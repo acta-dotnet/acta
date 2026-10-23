@@ -1,8 +1,8 @@
 CREATE OR ALTER PROCEDURE {{schema}}.access_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
-    @p_kind_code TINYINT,
-    @p_name VARCHAR(128),
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
     @p_value_format_id TINYINT,
     @p_value VARBINARY(MAX)
 AS
@@ -24,7 +24,7 @@ BEGIN
         -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
         IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
             BEGIN
-                DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_kind_code, N':', @p_name);
+                DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
                 DECLARE @slot_lock_result INT;
                 -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
                 EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
@@ -52,18 +52,18 @@ BEGIN
                 FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK)
                 WHERE
                     jv.job_id = @p_job_id
-                    AND jv.kind_code = @p_kind_code
-                    AND jv.name = @p_name;
+                    AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND jv.checkpoint_name = @p_checkpoint_name;
 
                 IF @@ROWCOUNT = 0
                     BEGIN
                         INSERT INTO {{schema}}.checkpoints (
-                            job_id, kind_code, name,
+                            job_id, checkpoint_kind_code, checkpoint_name,
                             value_format_id, value,
                             created_at_utc, modified_at_utc, version
                         )
                         VALUES (
-                            @p_job_id, @p_kind_code, @p_name,
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
                             @p_value_format_id, @p_value,
                             @now, @now, 0
                         );
@@ -82,8 +82,8 @@ BEGIN
                 FROM {{schema}}.checkpoints AS jv
                 WHERE
                     jv.job_id = @p_job_id
-                    AND jv.kind_code = @p_kind_code
-                    AND jv.name = @p_name;
+                    AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND jv.checkpoint_name = @p_checkpoint_name;
 
                 IF @@ROWCOUNT = 0
                     BEGIN
@@ -102,18 +102,18 @@ BEGIN
                 FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK)
                 WHERE
                     jv.job_id = @p_job_id
-                    AND jv.kind_code = @p_kind_code
-                    AND jv.name = @p_name;
+                    AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND jv.checkpoint_name = @p_checkpoint_name;
 
                 IF @@ROWCOUNT = 0
                     BEGIN
                         INSERT INTO {{schema}}.checkpoints (
-                            job_id, kind_code, name,
+                            job_id, checkpoint_kind_code, checkpoint_name,
                             value_format_id, value,
                             created_at_utc, modified_at_utc, version
                         )
                         VALUES (
-                            @p_job_id, @p_kind_code, @p_name,
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
                             @p_value_format_id, @p_value,
                             @now, @now, 0
                         );
@@ -132,8 +132,8 @@ BEGIN
                         FROM {{schema}}.checkpoints AS jv
                         WHERE
                             jv.job_id = @p_job_id
-                            AND jv.kind_code = @p_kind_code
-                            AND jv.name = @p_name
+                            AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                            AND jv.checkpoint_name = @p_checkpoint_name
                     ) THEN 1 ELSE 0 END,
                     NULL,
                     NULL,
@@ -144,8 +144,8 @@ BEGIN
                 DELETE FROM {{schema}}.checkpoints
                 WHERE
                     job_id = @p_job_id
-                    AND kind_code = @p_kind_code
-                    AND name = @p_name;
+                    AND checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND checkpoint_name = @p_checkpoint_name;
 
                 INSERT INTO @row (found, value_format_id, value, version)
                 VALUES (CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END, NULL, NULL, NULL);

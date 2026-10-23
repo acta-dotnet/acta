@@ -280,6 +280,7 @@
     "worker_sweep": [
       1,
       4,
+      8,
       16
     ],
     "sweep_policy": "one_factor_and_selected_pairwise_not_full_cartesian",
@@ -350,9 +351,21 @@
         "workers": 16
       },
       {
+        "name": "drain-workers-1",
+        "case_id": "L04",
+        "workers": 1,
+        "namespaces": 1
+      },
+      {
         "name": "drain-workers-4",
         "case_id": "L04",
         "workers": 4,
+        "namespaces": 2
+      },
+      {
+        "name": "drain-workers-8",
+        "case_id": "L04",
+        "workers": 8,
         "namespaces": 2
       },
       {

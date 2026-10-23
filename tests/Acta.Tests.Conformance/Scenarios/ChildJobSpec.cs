@@ -32,14 +32,14 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal("echo", child.DeduplicationKey);
-        Assert.Equal(parent.JobId, child.LineageRootId);
+        Assert.Equal(parent.JobId, child.LineageRootJobId);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
 
         var released = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, released.Status);
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
-        Assert.Equal($"sys.child.{child.Id}", latch.Name);
+        Assert.Equal($"sys.child.{child.Id}", latch.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Set, latch.Status);
         Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobSignalRaised, ct));
         Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobResumed, ct));
@@ -150,14 +150,15 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var rootJob = await ReadJobAsync(root.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, rootJob.Status);
         var rootCancelEvent = await ReadLatestEventAsync(root.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobControlManual, rootCancelEvent.ReasonCode);
+        // The operator's code implies its reason, so the root's cancel writes none; only the cascade names one.
+        Assert.Null(EventDetail(rootCancelEvent, "reason"));
 
         foreach (var descendantId in (long[])[child.JobId, grandchild.JobId, behindDone.JobId])
         {
             var descendant = await ReadJobAsync(descendantId, ct);
             Assert.Equal(JobStatusCode.Cancelled, descendant.Status);
             var descendantCancelEvent = await ReadLatestEventAsync(descendantId, EventCode.JobCancelled, ct);
-            Assert.Equal(EventReasonCode.JobParentCancelled, descendantCancelEvent.ReasonCode);
+            Assert.Equal(EventReason.ParentCancelled, EventDetail(descendantCancelEvent, "reason"));
             Assert.Equal(1, await CountEventsAsync(descendantId, EventCode.JobCancelled, ct));
         }
 
@@ -175,12 +176,12 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var parentJob = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, parentJob.Status);
         var parentCancelEvent = await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobHandlerCancelled, parentCancelEvent.ReasonCode);
+        Assert.Equal(EventReason.HandlerCancelled, EventDetail(parentCancelEvent, "reason"));
 
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(JobStatusCode.Cancelled, child.Status);
         var childCancelEvent = await ReadLatestEventAsync(child.Id, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobParentCancelled, childCancelEvent.ReasonCode);
+        Assert.Equal(EventReason.ParentCancelled, EventDetail(childCancelEvent, "reason"));
     }
 
     [Fact(DisplayName = "Parent completion never cascades and a raise to a terminal parent is a no-op")]
@@ -240,7 +241,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         int maxAttempts;
         {
             var def = await Db.From<DefinitionEntity>()
-                .Where(d => d.NamespaceId == ns && d.Name == "job-child-echo")
+                .Where(d => d.NamespaceId == ns && d.DefinitionName == "job-child-echo")
                 .SingleOrDefaultAsync(ct);
             maxAttempts = def!.MaxAttempts;
         }
@@ -248,7 +249,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         // Burn the child's whole budget through lost started attempts; the final reclaim lands it Failed
         // and reports the (child, parent) pair, whose raise (RecoveryPass's follow-up in production)
         // must release the parent, or the parent would hang forever.
-        var failed = new List<(long ChildId, long ParentId)>();
+        var failed = new List<(long ChildJobId, long ParentJobId)>();
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, child.Id, ct);
@@ -387,15 +388,15 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     private async Task<string> ExecutionFailureMessageAsync(long jobId, CancellationToken ct)
     {
         var finished = await Db.From<EventEntity>()
-            .Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionFinished && e.ToStatus == JobStatusCode.Failed)
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId && e.EventCode == EventCode.JobFailed)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(finished);
-        return finished!.ReasonMessage ?? "";
+        return finished!.EventMessage ?? "";
     }
 
     private async Task<IReadOnlyList<TestJobRow>> ReadChildrenAsync(long parentId, CancellationToken ct)
     {
-        var children = await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct);
+        var children = await Db.From<JobEntity>().Where(j => j.ParentJobId == parentId).ToListAsync(ct);
         var rows = new List<TestJobRow>(children.Count);
         foreach (var child in children)
         {
@@ -417,7 +418,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, int statusCode, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
             ct,
             ("@p_status", statusCode),
             ("@p_now", DateTime.UtcNow.AddMinutes(-1)),

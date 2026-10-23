@@ -47,11 +47,10 @@ public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(JobStatusCode.Ready, afterFirst.Status);
         Assert.Equal(1, afterFirst.FailureCount);
 
-        var firstEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(ExecutionStatusCode.Failed, firstEvent.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Ready, firstEvent.ToStatus);
-        Assert.Equal(EventReasonCode.JobUnhandledException, firstEvent.ReasonCode);
-        Assert.NotNull(firstEvent.ReasonMessage);
+        var firstEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFailed, ct);
+        Assert.Equal(JobStatusCode.Ready.Code, EventDetail(firstEvent, "to"));
+        Assert.Equal(EventReason.UnhandledException, EventDetail(firstEvent, "reason"));
+        Assert.NotNull(firstEvent.EventMessage);
 
         // The projector raises on it: a non-terminal failure under the default OnFailure profile is a
         // FirstFailure at Warning, open, against this slot.
@@ -70,9 +69,9 @@ public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceF
         // single row and Assert.Single keeps pinning the whole namespace, not just a match within it.
         await FailOneFireAsync(slotId, expectedFires: 2, ct);
 
-        var secondEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(JobStatusCode.Ready, secondEvent.ToStatus);
-        Assert.Equal(EventReasonCode.JobUnhandledException, secondEvent.ReasonCode);
+        var secondEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFailed, ct);
+        Assert.Equal(JobStatusCode.Ready.Code, EventDetail(secondEvent, "to"));
+        Assert.Equal(EventReason.UnhandledException, EventDetail(secondEvent, "reason"));
 
         await RunAlertsAsync(slotId, ct);
 

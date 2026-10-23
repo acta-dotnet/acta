@@ -1,9 +1,9 @@
 SELECT
-    a.id AS alert_id,
-    a.severity_code AS severity,
-    a.kind_code AS kind,
+    a.alert_id,
+    a.alert_severity_code AS severity,
+    a.alert_kind_code AS kind,
     a.title,
-    a.message,
+    a.alert_message AS message,
     jd.runbook_url_effective AS runbook_url,
     a.occurrence_count,
     a.created_at_utc,
@@ -12,12 +12,12 @@ SELECT
     a.alert_ref,
     a.job_ref,
     a.version,
-    a.origin_code AS origin
+    a.alert_origin_code AS origin
 FROM {{schema}}.alerts a
 LEFT JOIN {{schema}}.jobs j
-    ON j.id = a.job_id
+    ON j.job_id = a.job_id
 LEFT JOIN {{schema}}.definitions jd
-    ON jd.id = j.definition_id
+    ON jd.definition_id = j.definition_id
 WHERE
     a.namespace_id = @p_namespace_id
     /* A resolved incident is never delivered again, on either arm: the condition cleared, so the
@@ -38,5 +38,5 @@ WHERE
             AND a.retry_after_utc <= {{now}}
         )
     )
-ORDER BY a.id
+ORDER BY a.alert_id
 LIMIT @p_alert_batch_size;

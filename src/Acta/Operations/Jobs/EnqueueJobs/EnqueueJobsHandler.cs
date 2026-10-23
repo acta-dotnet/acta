@@ -181,14 +181,14 @@ internal sealed class EnqueueJobsHandler(
                 continue;
             }
 
-            var scope = row.ParentId is { } parentId
+            var scope = row.ParentJobId is { } parentId
                 ? $"child:{parentId.ToString(CultureInfo.InvariantCulture)}"
                 : $"root:{row.NamespaceName}";
             var composite = scope + "\0" + deduplicationKey;
 
             if (seen.TryGetValue(composite, out var firstOrdinal))
             {
-                throw row.ParentId is { } duplicateParentId
+                throw row.ParentJobId is { } duplicateParentId
                     ? DuplicateDeduplicationKeyInBatchException.ForChild(duplicateParentId, deduplicationKey, firstOrdinal, i)
                     : DuplicateDeduplicationKeyInBatchException.ForRoot(row.NamespaceName, deduplicationKey, firstOrdinal, i);
             }

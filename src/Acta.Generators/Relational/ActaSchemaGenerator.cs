@@ -225,6 +225,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         string Name,
         ImmutableArray<string> Columns,
         ImmutableArray<string> Descending,
+        ImmutableArray<string> Include,
         string? Filter,
         string Usage,
         bool IsUnique

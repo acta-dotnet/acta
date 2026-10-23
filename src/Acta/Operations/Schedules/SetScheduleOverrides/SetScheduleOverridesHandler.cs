@@ -44,35 +44,32 @@ internal sealed class SetScheduleOverridesHandler(
             {
                 Expression = effectiveExpression,
                 TimeZoneId = effectiveTimeZone,
-                NextRunAtUtc = scheduleNextRun,
+                NextOccurrenceAtUtc = scheduleNextRun,
             }
         );
 
-        var actor = JobControlActor.Operator(command.Actor);
-        var changeSummary = ChangeSummary(t, effectiveExpression, effectiveTimeZone).Truncate(ActaTextLimits.ReasonMessage);
+        var changeSummary = ChangeSummary(t, effectiveExpression, effectiveTimeZone).Truncate(ActaTextLimits.EventMessage);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("SetScheduleOverrides"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, t.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, t.ScheduleName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedScheduleVersion, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleExpressionOverride, command.Expression));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleTimeZoneIdOverride, command.TimeZoneId));
                 cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.Schedule.ReasonMessage, ScheduleControl.RowReason(command.ReasonMessage))
+                    dialect.CreateParameter(ActaSchema.Schedule.ChangeMessage, ScheduleControl.RowReason(command.ReasonMessage))
                 );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRun));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleNextRunAtUtc, scheduleNextRun));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, actor.Actor));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChangeSummary, changeSummary));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.ScheduleState.NextOccurrenceAtUtc, scheduleNextRun));
+                cmd.AddEventFields(dialect, changeSummary, ScheduleControl.Details(t.ScheduleName, command.Actor));
             },
             DbProjectionResolver.Resolve<SetScheduleOverridesRow>(),
             ct
         );
         await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);
-        return new SetScheduleOverridesResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextRunAtUtc, row.Version);
+        return new SetScheduleOverridesResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 
     /// <summary>
@@ -119,8 +116,8 @@ internal sealed class SetScheduleOverridesHandler(
     }
 
     /// <summary>
-    /// A short operator-readable summary of what changed, e.g.
-    /// "name: expression 0 0 * * * -&gt; */5 * * * *; tz cleared".
+    /// A short operator-readable summary of what changed, e.g. "expression 0 0 * * * -&gt; */5 * * * *; tz cleared";
+    /// the schedule's name rides the event's details.
     /// </summary>
     private static string ChangeSummary(LiveSchedule t, string newExpression, string? newTimeZone)
     {
@@ -137,6 +134,6 @@ internal sealed class SetScheduleOverridesHandler(
                 : $"tz {t.TimeZoneId} -> {newTimeZone}"
             );
         }
-        return parts.Count == 0 ? $"{t.Name}: overrides unchanged" : $"{t.Name}: {string.Join("; ", parts)}";
+        return parts.Count == 0 ? "overrides unchanged" : string.Join("; ", parts);
     }
 }

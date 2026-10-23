@@ -2,13 +2,13 @@ namespace Acta;
 
 /// <summary>
 /// The row a pause answers: the action plus the schedule row's state after the attempt, one
-/// <c>(action, status_code, paused_until_utc, next_run_at_utc, version)</c> row bound by position.
+/// <c>(action, status, paused_until_utc, next_occurrence_at_utc, version)</c> row bound by position.
 /// </summary>
 [DbProjection]
 internal sealed record PauseScheduleRow(
     ControlAction Action,
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,
-    DateTime? NextRunAtUtc,
+    DateTime? NextOccurrenceAtUtc,
     int? Version
 );

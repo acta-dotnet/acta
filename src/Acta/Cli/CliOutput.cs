@@ -140,7 +140,7 @@ internal static class CliOutput
                     {
                         w.WriteStartObject();
                         w.WriteString("name", s.Name);
-                        w.WriteString("state", s.Status.ToString());
+                        w.WriteString("status", s.Status.ToString());
                         w.WriteString("explanation", s.Explanation);
                         w.WriteEndObject();
                     }
@@ -262,7 +262,7 @@ internal static class CliOutput
 
     /// <summary>
     /// Writes a page of audit events newest first in plain or JSON format. Each event prints its
-    /// instant, code, and status transition on one line; reason code and message, when present,
+    /// instant, code, worker, and attempt on one line; its message and details, when present,
     /// follow on indented lines. A trailing hint surfaces the cursor for the next page.
     /// </summary>
     public static void WriteEvents(TextWriter writer, JobRef jobRef, IPagedResponse<ListEventsItem> page, bool json)
@@ -280,10 +280,8 @@ internal static class CliOutput
                         w.WriteStartObject();
                         w.WriteString("createdUtc", e.CreatedAtUtc.ToString("O"));
                         w.WriteString("event", e.EventCode.Code);
-                        WriteJsonStringOrNull(w, "fromStatus", e.FromStatus?.Code);
-                        WriteJsonStringOrNull(w, "toStatus", e.ToStatus?.Code);
-                        WriteJsonStringOrNull(w, "reasonCode", e.ReasonCode?.Code);
-                        WriteJsonStringOrNull(w, "reasonMessage", e.ReasonMessage);
+                        WriteJsonStringOrNull(w, "message", e.Message);
+                        WriteJsonStringOrNull(w, "detailsText", e.DetailsText);
                         if (e.WorkerRef is { } workerRef)
                         {
                             w.WriteString("workerRef", workerRef.ToString());
@@ -311,18 +309,16 @@ internal static class CliOutput
 
         foreach (var e in page.Items)
         {
-            var transition =
-                e.FromStatus is null && e.ToStatus is null ? "" : $"  {e.FromStatus?.Code ?? "?"} -> {e.ToStatus?.Code ?? "?"}";
             var attempt = e.WorkerRef is { } worker ? $"  worker {worker}" : "";
             attempt += e.ExecutionNumber is { } en ? $"  exec {en}" : "";
-            writer.WriteLine($"{e.CreatedAtUtc:O}  {e.EventCode.Code}{transition}{attempt}");
-            if (e.ReasonCode is { } reason)
-            {
-                writer.WriteLine($"  reason: {reason.Code}");
-            }
-            if (e.ReasonMessage is { } message)
+            writer.WriteLine($"{e.CreatedAtUtc:O}  {e.EventCode.Code}{attempt}");
+            if (e.Message is { } message)
             {
                 writer.WriteLine($"  message: {message}");
+            }
+            if (e.DetailsText is { } details)
+            {
+                writer.WriteLine($"  details: {details}");
             }
         }
 

@@ -10,7 +10,7 @@ namespace Acta.SqlServer;
 internal static class SqlServerTableParameters
 {
     /// <summary>
-    /// Column order and types must match the enqueue_jobs_batch TVP.
+    /// Column order and types must match the enqueue_jobs TVP.
     /// </summary>
     internal static readonly SqlMetaData[] BatchColumns =
     [
@@ -20,16 +20,16 @@ internal static class SqlServerTableParameters
         new("job_name", SqlDbType.VarChar, 128),
         new("deduplication_key", SqlDbType.VarChar, 128),
         new("correlation_key", SqlDbType.VarChar, 64),
-        new("priority_override", SqlDbType.TinyInt),
+        new("job_priority_code_override", SqlDbType.TinyInt),
         new("input_format_id", SqlDbType.TinyInt),
         new("input", SqlDbType.VarBinary, -1),
         new("concurrency_key", SqlDbType.VarChar, 128),
         new("next_run_at_utc", SqlDbType.DateTime2),
         new("delay_seconds", SqlDbType.Int),
-        new("parent_id", SqlDbType.BigInt),
+        new("parent_job_id", SqlDbType.BigInt),
         new("tenant_name", SqlDbType.VarChar, 128),
         new("tenant_override", SqlDbType.Bit),
-        new("lane", SqlDbType.VarChar, 128),
+        new("lane_name", SqlDbType.VarChar, 128),
     ];
 
     internal static IEnumerable<SqlDataRecord> BuildBatchRecords(IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs)
@@ -57,7 +57,7 @@ internal static class SqlServerTableParameters
             SetNullableString(record, 9, row.ConcurrencyKey);
             SetNullableDateTime(record, 10, row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : null);
             SetNullableInt32(record, 11, row.DelaySeconds);
-            if (row.ParentId is { } parentId)
+            if (row.ParentJobId is { } parentId)
             {
                 record.SetInt64(12, parentId);
             }
@@ -75,9 +75,9 @@ internal static class SqlServerTableParameters
     internal static readonly SqlMetaData[] TagColumns =
     [
         new("ordinal", SqlDbType.Int),
-        new("name", SqlDbType.VarChar, 128),
-        new("value", SqlDbType.NVarChar, 128),
-        new("value_search", SqlDbType.NVarChar, TagValueSearch.MaxLength),
+        new("tag_name", SqlDbType.VarChar, 128),
+        new("tag_value", SqlDbType.NVarChar, 128),
+        new("tag_value_search", SqlDbType.NVarChar, TagValueSearch.MaxLength),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildTagRecords(IReadOnlyList<JobEnqueueValues> rows)
@@ -113,17 +113,18 @@ internal static class SqlServerTableParameters
         new("succeeded", SqlDbType.Bit),
         new("result_format_id", SqlDbType.TinyInt),
         new("result", SqlDbType.VarBinary, -1),
-        new("reason_code", SqlDbType.TinyInt),
-        new("reason_message", SqlDbType.NVarChar, 512),
+        new("event_code", SqlDbType.TinyInt),
+        new("reason", SqlDbType.VarChar, 64),
+        new("event_message", SqlDbType.NVarChar, 512),
         new("duration_ms", SqlDbType.Int),
         new("failure_count", SqlDbType.Int),
         new("retention_seconds", SqlDbType.Int),
-        new("reschedule_status_code", SqlDbType.TinyInt),
+        new("reschedule_event_code", SqlDbType.TinyInt),
         new("reschedule_delay_seconds", SqlDbType.Int),
         new("reschedule_resume_at_utc", SqlDbType.DateTime2),
         new("wait_signal_name", SqlDbType.NVarChar, 128),
-        new("handler_status_code", SqlDbType.TinyInt),
-        new("final_status", SqlDbType.TinyInt),
+        new("handler_job_status_code", SqlDbType.TinyInt),
+        new("final_job_status_code", SqlDbType.TinyInt),
         new("job_next_run_at_utc", SqlDbType.DateTime2),
     ];
 
@@ -136,32 +137,33 @@ internal static class SqlServerTableParameters
             record.SetInt32(1, completion.ExecutionNumber);
             record.SetBoolean(2, completion.Succeeded);
             record.SetByte(3, completion.ResultFormatId);
-            // A result with a format and no bytes is still a result, bound zero-length: ck_runtimes_result_pair refuses a
+            // A result with a format and no bytes is still a result, bound zero-length: ck_jobs_state_result_pair refuses a
             // format with NULL bytes.
             SetBytesOrNull(record, 4, completion.Result, completion.ResultFormatId != JobPayloadFormat.None.Id);
-            SetNullableByte(record, 5, (byte?)completion.EventReasonCode);
-            SetNullableString(record, 6, completion.ReasonMessage);
-            SetNullableInt32(record, 7, completion.DurationMs);
-            SetNullableInt32(record, 8, completion.FailureCount);
-            SetNullableInt32(record, 9, completion.RetentionSeconds);
-            SetNullableByte(record, 10, completion.RescheduleStatusCode);
-            SetNullableInt32(record, 11, completion.RescheduleDelaySeconds);
-            SetNullableDateTime(record, 12, completion.RescheduleResumeAtUtc);
-            SetNullableString(record, 13, completion.WaitSignalName);
-            SetNullableByte(record, 14, completion.HandlerStatusCode);
-            SetNullableByte(record, 15, (byte?)completion.FinalStatus);
-            SetNullableDateTime(record, 16, completion.JobNextRunAtUtc);
+            record.SetByte(5, (byte)completion.EventCode);
+            SetNullableString(record, 6, completion.Reason);
+            SetNullableString(record, 7, completion.EventMessage);
+            SetNullableInt32(record, 8, completion.DurationMs);
+            SetNullableInt32(record, 9, completion.FailureCount);
+            SetNullableInt32(record, 10, completion.RetentionSeconds);
+            SetNullableByte(record, 11, (byte?)completion.RescheduleEventCode);
+            SetNullableInt32(record, 12, completion.RescheduleDelaySeconds);
+            SetNullableDateTime(record, 13, completion.RescheduleResumeAtUtc);
+            SetNullableString(record, 14, completion.WaitSignalName);
+            SetNullableByte(record, 15, completion.HandlerStatusCode);
+            SetNullableByte(record, 16, (byte?)completion.FinalStatus);
+            SetNullableDateTime(record, 17, completion.JobNextRunAtUtc);
             yield return record;
         }
     }
 
     /// <summary>
-    /// Column order must match the register_definitions_batch TVP.
+    /// Column order must match the register_definitions TVP.
     /// </summary>
     internal static readonly SqlMetaData[] DefinitionColumns =
     [
-        new("name", SqlDbType.VarChar, 128),
-        new("priority_code", SqlDbType.TinyInt),
+        new("definition_name", SqlDbType.VarChar, 128),
+        new("job_priority_code", SqlDbType.TinyInt),
         new("max_attempts", SqlDbType.Int),
         new("concurrency_limit", SqlDbType.Int),
         new("rate_limit", SqlDbType.VarChar, 16),
@@ -177,7 +179,7 @@ internal static class SqlServerTableParameters
         new("input_format_name", SqlDbType.VarChar, 128),
         new("output_format_id", SqlDbType.TinyInt),
         new("output_format_name", SqlDbType.VarChar, 128),
-        new("audit_level_code", SqlDbType.TinyInt),
+        new("event_recording_code", SqlDbType.TinyInt),
         new("alert_profile_code", SqlDbType.TinyInt),
         new("alert_channel_name", SqlDbType.VarChar, 128),
         new("runbook_url", SqlDbType.VarChar, 512),
@@ -185,7 +187,7 @@ internal static class SqlServerTableParameters
         new("description", SqlDbType.NVarChar, 512),
         new("definition_hash", SqlDbType.VarChar, 128),
         new("tenant_requirement_code", SqlDbType.TinyInt),
-        new("lane", SqlDbType.VarChar, 128),
+        new("lane_name", SqlDbType.VarChar, 128),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<DefinitionValues> rows)
@@ -197,8 +199,8 @@ internal static class SqlServerTableParameters
             var record = new SqlDataRecord(DefinitionColumns);
             foreach (var row in rows)
             {
-                record.SetString(0, row.Name);
-                record.SetByte(1, row.PriorityCode);
+                record.SetString(0, row.DefinitionName);
+                record.SetByte(1, row.JobPriorityCode);
                 record.SetInt32(2, row.MaxAttempts);
                 SetNullableInt32(record, 3, row.ConcurrencyLimit);
                 SetNullableString(record, 4, row.RateLimit);
@@ -214,7 +216,7 @@ internal static class SqlServerTableParameters
                 record.SetString(14, row.InputFormatName);
                 record.SetByte(15, row.OutputFormatId);
                 record.SetString(16, row.OutputFormatName);
-                record.SetByte(17, row.AuditLevelCode);
+                record.SetByte(17, row.EventRecordingCode);
                 record.SetByte(18, row.AlertProfileCode);
                 SetNullableString(record, 19, row.AlertChannelName);
                 SetNullableString(record, 20, row.RunbookUrl);
@@ -222,7 +224,7 @@ internal static class SqlServerTableParameters
                 SetNullableString(record, 22, row.Description);
                 record.SetString(23, row.DefinitionHash);
                 record.SetByte(24, row.TenantRequirementCode);
-                SetNullableString(record, 25, row.Lane);
+                SetNullableString(record, 25, row.LaneName);
                 yield return record;
             }
         }
@@ -235,7 +237,7 @@ internal static class SqlServerTableParameters
         new("deduplication_key", SqlDbType.VarChar, 128),
         new("input_format_id", SqlDbType.TinyInt),
         new("input", SqlDbType.VarBinary, -1),
-        new("audit_level_code", SqlDbType.TinyInt),
+        new("event_recording_code", SqlDbType.TinyInt),
         new("slot_status_code", SqlDbType.TinyInt),
         new("slot_next_run_at_utc", SqlDbType.DateTime2),
     ];
@@ -258,7 +260,7 @@ internal static class SqlServerTableParameters
                 record.SetString(2, definition.JobName);
                 record.SetByte(3, definition.InputFormatId);
                 SetBytesOrNull(record, 4, definition.Input, !definition.Input.IsEmpty);
-                record.SetByte(5, (byte)definition.AuditLevel);
+                record.SetByte(5, (byte)definition.EventRecording);
                 record.SetByte(6, (byte)definition.SlotStatus);
                 SetNullableDateTime(record, 7, definition.SlotMinNextRunAtUtc);
                 yield return record;
@@ -269,12 +271,12 @@ internal static class SqlServerTableParameters
     internal static readonly SqlMetaData[] ScheduleUpsertColumns =
     [
         new("definition_id", SqlDbType.Int),
-        new("name", SqlDbType.VarChar, 128),
+        new("schedule_name", SqlDbType.VarChar, 128),
         new("expression", SqlDbType.VarChar, 128),
         new("time_zone_id", SqlDbType.VarChar, 128),
         new("expression_kind_code", SqlDbType.TinyInt),
         new("misfire_strategy_code", SqlDbType.TinyInt),
-        new("next_run_at_utc", SqlDbType.DateTime2),
+        new("next_occurrence_at_utc", SqlDbType.DateTime2),
         new("description", SqlDbType.NVarChar, 512),
     ];
 
@@ -290,12 +292,12 @@ internal static class SqlServerTableParameters
                 foreach (var schedule in definition.Schedules)
                 {
                     record.SetInt32(0, definition.DefinitionId);
-                    record.SetString(1, schedule.Name);
+                    record.SetString(1, schedule.ScheduleName);
                     record.SetString(2, schedule.Expression);
                     record.SetString(3, string.IsNullOrWhiteSpace(schedule.TimeZoneId) ? "UTC" : schedule.TimeZoneId);
                     record.SetByte(4, (byte)schedule.ExpressionKind);
                     record.SetByte(5, (byte)schedule.MisfireStrategy);
-                    SetNullableDateTime(record, 6, schedule.NextRunAtUtc);
+                    SetNullableDateTime(record, 6, schedule.NextOccurrenceAtUtc);
                     SetNullableString(record, 7, schedule.Description);
                     yield return record;
                 }

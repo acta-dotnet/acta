@@ -17,22 +17,60 @@ public class EntitySchemaTests
 
         Assert.Equal("jobs", s.TableName);
         Assert.Equal("pk_jobs", s.PrimaryKey.Name);
-        Assert.Equal(["id"], s.PrimaryKey.Columns);
+        Assert.Equal(["job_id"], s.PrimaryKey.Columns);
         Assert.Contains(s.Columns, c => c.Name == "job_ref");
         Assert.Contains(s.Columns, c => c.Name == "deduplication_key");
         Assert.Contains(s.Columns, c => c.Name == "input");
+        Assert.Contains(s.Columns, c => c.Name == "parent_job_id");
+        Assert.Contains(s.Columns, c => c.Name == "lineage_root_job_id");
+        Assert.Equal("event-recording", s.Column("event_recording_code").CodeKind);
     }
 
     [Fact]
-    public void JobRuntimeSchema_Owns_MutableState()
+    public void Catalog_And_Satellite_Tables_Name_Their_Own_Identity_And_Columns()
     {
-        var s = ActaSchema.For<RuntimeEntity>();
+        Assert.Equal(["definition_id"], ActaSchema.For<DefinitionEntity>().PrimaryKey.Columns);
+        Assert.Equal(["lane_id"], ActaSchema.For<LaneEntity>().PrimaryKey.Columns);
+        Assert.Equal(["namespace_id"], ActaSchema.For<NamespaceEntity>().PrimaryKey.Columns);
+        Assert.Equal(["tenant_id"], ActaSchema.For<TenantEntity>().PrimaryKey.Columns);
+        Assert.Equal(["worker_id"], ActaSchema.For<WorkerEntity>().PrimaryKey.Columns);
+        Assert.Equal(["alert_id"], ActaSchema.For<AlertEntity>().PrimaryKey.Columns);
+        Assert.Equal(["job_id", "step_name"], ActaSchema.For<StepEntity>().PrimaryKey.Columns);
+        Assert.Equal(["job_id", "checkpoint_kind_code", "checkpoint_name"], ActaSchema.For<CheckpointEntity>().PrimaryKey.Columns);
 
-        Assert.Equal("runtimes", s.TableName);
-        Assert.Equal("pk_runtimes", s.PrimaryKey.Name);
+        var definition = ActaSchema.For<DefinitionEntity>();
+        Assert.Equal("COALESCE(job_priority_code_override, job_priority_code)", definition.Column("job_priority_code_effective").Generated);
+        Assert.Equal(
+            "COALESCE(event_recording_code_override, event_recording_code)",
+            definition.Column("event_recording_code_effective").Generated
+        );
+        Assert.True(definition.Column("lane_name").IsNullable);
+
+        var worker = ActaSchema.For<WorkerEntity>();
+        Assert.Contains(worker.Columns, c => c.Name == "host_name");
+        Assert.Contains(worker.Checks, c => c.Name == "ck_workers_max_concurrent_executors" && c.Sql == "max_concurrent_executors > 0");
+
+        var step = ActaSchema.For<StepEntity>();
+        Assert.Equal("step-failure", step.Column("failure_code").CodeKind);
+        Assert.Contains(step.Checks, c => c.Name == "ck_steps_failure_pair");
+
+        var alertColumns = ActaSchema.For<AlertEntity>().Columns.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+        Assert.Superset(
+            new HashSet<string> { "alert_origin_code", "alert_severity_code", "alert_kind_code", "alert_message" },
+            alertColumns
+        );
+    }
+
+    [Fact]
+    public void JobStateSchema_Owns_MutableState()
+    {
+        var s = ActaSchema.For<JobStateEntity>();
+
+        Assert.Equal("jobs_state", s.TableName);
+        Assert.Equal("pk_jobs_state", s.PrimaryKey.Name);
         Assert.Equal(["job_id"], s.PrimaryKey.Columns);
-        Assert.Contains(s.Columns, c => c.Name == "status_code");
-        Assert.Contains(s.Columns, c => c.Name == "priority_code");
+        Assert.Contains(s.Columns, c => c.Name == "job_status_code");
+        Assert.Contains(s.Columns, c => c.Name == "job_priority_code");
         Assert.Contains(s.Columns, c => c.Name == "version");
     }
 
@@ -46,6 +84,29 @@ public class EntitySchemaTests
     }
 
     [Fact]
+    public void ScheduleSchema_Leaves_The_Cursor_To_Its_State_Row()
+    {
+        var config = ActaSchema.For<ScheduleEntity>();
+        var state = ActaSchema.For<ScheduleStateEntity>();
+
+        Assert.Equal(["job_id", "schedule_name"], config.PrimaryKey.Columns);
+        Assert.Equal("schedules_state", state.TableName);
+        Assert.Equal("pk_schedules_state", state.PrimaryKey.Name);
+        Assert.Equal(["job_id", "schedule_name"], state.PrimaryKey.Columns);
+        Assert.DoesNotContain(config.Columns, c => c.Name.Contains("occurrence", StringComparison.Ordinal));
+        Assert.Empty(config.Indexes);
+        Assert.Equal(
+            ["job_id", "schedule_name", "namespace_id", "next_occurrence_at_utc", "last_advanced_occurrence_at_utc", "modified_at_utc"],
+            state.Columns.Select(c => c.Name)
+        );
+
+        var index = Assert.Single(state.Indexes);
+        Assert.Equal("ix_schedules_state_namespace_next", index.Name);
+        Assert.Equal(["namespace_id", "next_occurrence_at_utc", "job_id", "schedule_name"], index.Columns);
+        Assert.Equal("next_occurrence_at_utc IS NOT NULL", index.Filter);
+    }
+
+    [Fact]
     public void Job_ClrType_Is_Set()
     {
         Assert.Equal(typeof(JobEntity), ActaSchema.For<JobEntity>().ClrType);
@@ -54,7 +115,7 @@ public class EntitySchemaTests
     [Fact]
     public void StatusCode_Is_ByteBackedCode()
     {
-        var c = ActaSchema.For<RuntimeEntity>().Column("status_code");
+        var c = ActaSchema.For<JobStateEntity>().Column("job_status_code");
 
         Assert.Equal(DbKind.Byte, c.Kind);
         Assert.True(c.IsCoded);
@@ -64,19 +125,19 @@ public class EntitySchemaTests
     [Fact]
     public void PriorityCode_Is_ByteBackedCode()
     {
-        var c = ActaSchema.For<RuntimeEntity>().Column("priority_code");
+        var c = ActaSchema.For<JobStateEntity>().Column("job_priority_code");
 
         Assert.Equal(DbKind.Byte, c.Kind);
         Assert.True(c.IsCoded);
     }
 
     [Fact]
-    public void Actor_Is_NullableUnicode128()
+    public void EventMessage_Is_NullableUnicode512()
     {
-        var c = ActaSchema.For<EventEntity>().Column("actor");
+        var c = ActaSchema.For<EventEntity>().Column("event_message");
 
         Assert.Equal(DbKind.UnicodeString, c.Kind);
-        Assert.Equal(128, c.Size);
+        Assert.Equal(512, c.Size);
         Assert.True(c.IsNullable);
     }
 
@@ -105,7 +166,7 @@ public class EntitySchemaTests
                 "jobs.correlation_key",
                 "jobs.deduplication_key",
                 "locks.lock_key",
-                "tags.value_search",
+                "tags.tag_value_search",
             ],
             caseExact
         );
@@ -130,9 +191,9 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void JobRuntime_Version_Is_ConcurrencyToken()
+    public void JobState_Version_Is_ConcurrencyToken()
     {
-        var c = ActaSchema.For<RuntimeEntity>().Column("version");
+        var c = ActaSchema.For<JobStateEntity>().Column("version");
 
         Assert.True(c.IsConcurrencyToken);
         Assert.Equal(DbKind.Int32, c.Kind);
@@ -143,7 +204,7 @@ public class EntitySchemaTests
     {
         // Job.Id is a single-column integer PK with no Manual=true, so it triggers the IDENTITY
         // emission convention (provider-native identity assigns the id at INSERT).
-        var c = ActaSchema.For<JobEntity>().Column("id");
+        var c = ActaSchema.For<JobEntity>().Column("job_id");
 
         Assert.True(c.IsPrimaryKey);
         Assert.True(c.IsIdentity);
@@ -154,16 +215,16 @@ public class EntitySchemaTests
     {
         // JobNamespace.Id is another "not manual" single-column integer PK that triggers the
         // IDENTITY emission convention.
-        var c = ActaSchema.For<NamespaceEntity>().Column("id");
+        var c = ActaSchema.For<NamespaceEntity>().Column("namespace_id");
 
         Assert.True(c.IsIdentity);
     }
 
     [Fact]
-    public void JobRuntime_JobId_Is_ManualKey()
+    public void JobState_JobId_Is_ManualKey()
     {
         // Manual = true: the enqueue writes the job's id, so no identity is emitted.
-        var c = ActaSchema.For<RuntimeEntity>().Column("job_id");
+        var c = ActaSchema.For<JobStateEntity>().Column("job_id");
 
         Assert.True(c.IsPrimaryKey);
         Assert.False(c.IsIdentity);
@@ -172,15 +233,15 @@ public class EntitySchemaTests
     [Fact]
     public void JobEvent_Key_Is_WorkerThenGlobalIdentity()
     {
-        // Clustered by worker so concurrent writers insert into separate key ranges; id keeps the one
+        // Clustered by worker so concurrent writers insert into separate key ranges; event_id keeps the one
         // global identity, and a worker-less event takes worker_id 0 from the default.
         var s = ActaSchema.For<EventEntity>();
 
         Assert.Equal("pk_events", s.PrimaryKey.Name);
-        Assert.Equal(["worker_id", "id"], s.PrimaryKey.Columns);
-        Assert.Equal("id", s.PrimaryKey.Identity);
+        Assert.Equal(["worker_id", "event_id"], s.PrimaryKey.Columns);
+        Assert.Equal("event_id", s.PrimaryKey.Identity);
         Assert.True(s.PrimaryKey.OptimizeForSequentialKey);
-        Assert.True(s.Column("id").IsIdentity);
+        Assert.True(s.Column("event_id").IsIdentity);
 
         var worker = s.Column("worker_id");
         Assert.True(worker.IsPrimaryKey);
@@ -219,11 +280,11 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void JobRuntime_Indexes_Include_Ready()
+    public void JobState_Indexes_Include_Ready()
     {
-        var ix = ActaSchema.For<RuntimeEntity>().Indexes;
+        var ix = ActaSchema.For<JobStateEntity>().Indexes;
 
-        Assert.Contains(ix, i => i.Name == "ix_runtimes_claim_ready" && !i.IsUnique);
+        Assert.Contains(ix, i => i.Name == "ix_jobs_state_claim_ready" && !i.IsUnique);
     }
 
     [Fact]
@@ -244,7 +305,7 @@ public class EntitySchemaTests
     [Fact]
     public void StatusCode_Captures_EnumTypeName()
     {
-        var c = ActaSchema.For<RuntimeEntity>().Column("status_code");
+        var c = ActaSchema.For<JobStateEntity>().Column("job_status_code");
         Assert.Equal("JobStatusCode", c.EnumTypeName);
     }
 
@@ -254,7 +315,7 @@ public class EntitySchemaTests
         // The source generator emits CodeManifestEntry instances on each [Code] enum's
         // companion class; DbEntitySpec reads the kebab CodeKind off the first entry.
         // If this assertion breaks, the generator's emission shape changed.
-        var c = ActaSchema.For<RuntimeEntity>().Column("status_code");
+        var c = ActaSchema.For<JobStateEntity>().Column("job_status_code");
         Assert.NotNull(c.CodeKind);
         Assert.False(string.IsNullOrEmpty(c.CodeKind));
     }
@@ -262,9 +323,9 @@ public class EntitySchemaTests
     [Fact]
     public void Column_Lookup_Is_CaseSensitive()
     {
-        var s = ActaSchema.For<RuntimeEntity>();
-        Assert.Throws<InvalidOperationException>(() => s.Column("Status_Code"));
-        Assert.Throws<InvalidOperationException>(() => s.Column("STATUS_CODE"));
+        var s = ActaSchema.For<JobStateEntity>();
+        Assert.Throws<InvalidOperationException>(() => s.Column("Job_Status_Code"));
+        Assert.Throws<InvalidOperationException>(() => s.Column("JOB_STATUS_CODE"));
     }
 
     [Fact]
@@ -277,8 +338,8 @@ public class EntitySchemaTests
     [Fact]
     public void ActaSchema_Surfaces_Same_Column_Instances()
     {
-        var byActa = ActaSchema.Runtime.StatusCode;
-        var bySchema = ActaSchema.For<RuntimeEntity>().Column("status_code");
+        var byActa = ActaSchema.JobState.JobStatusCode;
+        var bySchema = ActaSchema.For<JobStateEntity>().Column("job_status_code");
 
         Assert.Equal(bySchema, byActa.Untyped);
     }
@@ -299,7 +360,8 @@ public class EntitySchemaTests
         Assert.Contains("events", names);
         Assert.Contains("definitions", names);
         Assert.Contains("namespaces", names);
-        Assert.Contains("runtimes", names);
+        Assert.Contains("jobs_state", names);
+        Assert.Contains("schedules_state", names);
         Assert.Contains("workers", names);
     }
 
@@ -317,7 +379,7 @@ public class EntitySchemaTests
         Assert.Equal(128, key.Size);
         Assert.False(key.IsNullable);
 
-        var status = s.Column("status_code");
+        var status = s.Column("tenant_status_code");
         Assert.True(status.IsCoded);
         Assert.False(status.IsNullable);
     }
@@ -325,7 +387,7 @@ public class EntitySchemaTests
     [Fact]
     public void JobTenant_Id_Is_DbAssignedIdentity()
     {
-        var c = ActaSchema.For<TenantEntity>().Column("id");
+        var c = ActaSchema.For<TenantEntity>().Column("tenant_id");
 
         Assert.True(c.IsIdentity);
         Assert.Equal(DbKind.Int32, c.Kind);
@@ -360,7 +422,7 @@ public class EntitySchemaTests
     {
         var columns = ActaSchema.For<TenantEntity>().Columns.Select(c => c.Name).ToList();
 
-        Assert.Equal(["id", "tenant_name", "status_code"], columns.Take(3));
+        Assert.Equal(["tenant_id", "tenant_name", "tenant_status_code"], columns.Take(3));
     }
 
     [Fact]
@@ -419,7 +481,7 @@ public class EntitySchemaTests
     [Fact]
     public void Namespace_StatusCode_Is_ByteBackedCode()
     {
-        var c = ActaSchema.For<NamespaceEntity>().Column("status_code");
+        var c = ActaSchema.For<NamespaceEntity>().Column("namespace_status_code");
         Assert.Equal(DbKind.Byte, c.Kind);
         Assert.True(c.IsCoded);
         Assert.False(c.IsNullable);

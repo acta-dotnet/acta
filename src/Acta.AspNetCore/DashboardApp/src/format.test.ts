@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { displayFormatter, parseUtcDateTimeInput } from './format.ts';
+import { displayFormatter, failureCountText, parseUtcDateTimeInput } from './format.ts';
 
 test('numbers use Latin digits, a decimal point, and no grouping', () => {
   assert.equal(displayFormatter.number(1234567.89), '1234567.89');
@@ -94,6 +94,12 @@ test('row timestamps drop the offset and zone suffix but keep the full instant',
     displayFormatter.rowTimestamp('2026-07-15T06:26:52Z'),
     displayFormatter.rowTimestampInZone('2026-07-15T06:26:52Z', displayFormatter.localTimeZone)
   );
+});
+
+test('a failure count at the saturation ceiling reads as a floor', () => {
+  assert.equal(failureCountText(0), '0');
+  assert.equal(failureCountText(32766), '32766');
+  assert.equal(failureCountText(32767), '32,767+');
 });
 
 test('the zone note names the local zone and its offset at the given instant', () => {

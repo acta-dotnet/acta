@@ -7,7 +7,7 @@ namespace Acta;
 internal static class ActaTextLimits
 {
     public const int Actor = 128;
-    public const int ReasonMessage = 512;
+    public const int EventMessage = 512;
     public const int AlertChannelName = 128;
     public const int AlertDeduplicationKey = 128;
     public const int AlertTitle = 512;
@@ -17,5 +17,6 @@ internal static class ActaTextLimits
     public const int DefinitionDescription = 512;
     public const int DefinitionRunbookUrl = 512;
     public const int DefinitionTypeName = 512;
-    public const int ScheduleReasonMessage = 512;
+    public const int ScheduleChangeMessage = 512;
+    public const int StepFailureMessage = 512;
 }

@@ -44,7 +44,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
 
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Rescheduled, ct));
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "rescheduled", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
 
         // Acceptance invariant: a re-arm writes no result payload.
@@ -62,7 +62,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Rescheduled, ct));
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "rescheduled", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
     }
 
@@ -88,7 +88,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var timers = await ReadTimersAsync(enqueued.JobId, ct);
         var nap = Assert.Single(timers);
-        Assert.Equal("nap", nap.Name);
+        Assert.Equal("nap", nap.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Pending, nap.Status);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -97,7 +97,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(nap.DueAtUtc, job.NextRunAtUtc);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Suspended, ct));
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "suspended", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
@@ -207,7 +207,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var timers = await ReadTimersAsync(enqueued.JobId, ct);
         var only = Assert.Single(timers);
-        Assert.Equal("already-pending", only.Name);
+        Assert.Equal("already-pending", only.CheckpointName);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
@@ -224,9 +224,9 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
-        var events = await Db.From<EventEntity>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
-        Assert.Contains(events, e => e.ReasonCode == EventReasonCode.JobUnhandledException);
-        Assert.DoesNotContain(events, e => e.ReasonCode == EventReasonCode.JobHandlerRescheduled);
+        var failed = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct);
+        Assert.Equal(EventReason.UnhandledException, EventDetail(failed, "reason"));
+        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.HandlerRescheduled, ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
@@ -237,7 +237,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
     private static Task SetJobNextRunAsync(IDbSession db, long jobId, DateTime nextRun, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET next_run_at_utc = @p_next WHERE job_id = @p_id",
             ct,
             ("@p_next", nextRun),
             ("@p_id", jobId)
@@ -245,7 +245,8 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
 
     private static Task SetTimerDueAsync(IDbSession db, long jobId, string name, DateTime due, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_id AND kind_code = 30 AND name = @p_name",
+            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 30 AND checkpoint_name = @p_name",
             ct,
             ("@p_due", due),
             ("@p_id", jobId),
@@ -255,7 +256,8 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     private static Task InsertPendingTimerAsync(IDbSession db, long jobId, string name, DateTime due, CancellationToken ct) =>
         db.ExecuteRawAsync(
             """
-            INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, due_at_utc, created_at_utc, modified_at_utc, version)
+            INSERT INTO {schema}.checkpoints (
+                job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, created_at_utc, modified_at_utc, version)
             VALUES (@p_id, 30, @p_name, 10, @p_due, @p_now, @p_now, 0)
             """,
             ct,

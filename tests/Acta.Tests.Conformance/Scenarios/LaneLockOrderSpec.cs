@@ -186,7 +186,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.False(batch.IsCompleted, "the batch did not wait for the parent row");
 
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.definitions SET lane = @p_lane WHERE namespace_id = @p_ns AND name = @p_name",
+            "UPDATE {schema}.definitions SET lane_name = @p_lane WHERE namespace_id = @p_ns AND definition_name = @p_name",
             ct,
             ("@p_lane", "moved-lane"),
             ("@p_ns", Runtime.RegisteredNamespaceIds[TestNamespace]),

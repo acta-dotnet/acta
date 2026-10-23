@@ -50,7 +50,7 @@ public class CliOutputTests
         var s = new GetJobResponse(
             JobId: 7,
             JobRef: SampleJobRef,
-            LineageRootId: null,
+            LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
             ParentJobRef: null,
@@ -115,7 +115,7 @@ public class CliOutputTests
         new(
             JobId: 7,
             JobRef: JobRef.New(),
-            LineageRootId: null,
+            LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
             ParentJobRef: null,
@@ -157,56 +157,35 @@ public class CliOutputTests
         Assert.Contains("\"status\":null", json.ToString());
     }
 
-    private static ListEventsItem Event(
-        EventCode code,
-        JobStatusCode? from,
-        JobStatusCode? to,
-        EventReasonCode? reason = null,
-        string? message = null,
-        string? detail = null
-    ) =>
+    private static ListEventsItem Event(EventCode code, string? message = null, string? details = null) =>
         new(
-            JobEventId: 1,
+            EventId: 1,
             EventCode: code,
             CreatedAtUtc: new DateTime(2026, 6, 21, 12, 30, 1, DateTimeKind.Utc),
             JobNamespace: "shop",
+            EntityKind: EntityCode.Job,
+            EntityId: 7,
             JobName: "send-invoice",
-            JobId: 7,
             JobRef: JobRef.New(),
-            LineageRootId: null,
+            LineageRootJobId: null,
             LineageRootJobRef: null,
             DefinitionId: null,
             TenantId: null,
+            TenantName: null,
             WorkerId: 3,
-            ExecutionNumber: 1,
-            ActorCode: ActorCode.Worker,
-            Actor: null,
-            FromStatus: from,
-            ToStatus: to,
-            ExecutionStatus: null,
-            DurationMs: null,
-            ReasonCode: reason,
-            ReasonMessage: message,
-            DetailText: detail,
             WorkerRef: WorkerRef.New(),
-            TenantName: null
+            ExecutionNumber: 1,
+            DurationMs: null,
+            Message: message,
+            DetailsText: details
         );
 
     [Fact]
-    public void Events_plain_writes_one_line_per_event_with_reason_detail()
+    public void Events_plain_writes_one_line_per_event_with_message_and_details()
     {
         var w = new StringWriter();
         var page = new ListEventsResponse(
-            [
-                Event(EventCode.JobResumed, JobStatusCode.Paused, JobStatusCode.Ready),
-                Event(
-                    EventCode.JobExecutionFinished,
-                    JobStatusCode.Executing,
-                    JobStatusCode.Failed,
-                    EventReasonCode.JobUnhandledException,
-                    "boom in handler"
-                ),
-            ],
+            [Event(EventCode.JobResumed), Event(EventCode.JobFailed, "boom in handler", """{"reason":"unhandled-exception"}""")],
             NextCursor: null,
             HasMore: false,
             PageSize: 50,
@@ -217,9 +196,9 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains($"Events for job {SampleJobRef}", text);
-        Assert.Contains("job.resumed  paused -> ready", text);
-        Assert.Contains("job.execution-finished  executing -> failed", text);
-        Assert.Contains("reason: job.unhandled-exception", text);
+        Assert.Contains("job.resumed", text);
+        Assert.Contains("job.failed", text);
+        Assert.Contains("""details: {"reason":"unhandled-exception"}""", text);
         Assert.Contains("message: boom in handler", text);
     }
 
@@ -237,15 +216,7 @@ public class CliOutputTests
     {
         var w = new StringWriter();
         var page = new ListEventsResponse(
-            [
-                Event(
-                    EventCode.JobExecutionFinished,
-                    JobStatusCode.Executing,
-                    JobStatusCode.Failed,
-                    EventReasonCode.JobUnhandledException,
-                    "boom"
-                ),
-            ],
+            [Event(EventCode.JobFailed, "boom", """{"reason":"unhandled-exception"}""")],
             NextCursor: "next-cur",
             HasMore: true,
             PageSize: 50,
@@ -256,9 +227,10 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
-        Assert.Contains("\"event\":\"job.execution-finished\"", text);
-        Assert.Contains("\"reasonCode\":\"job.unhandled-exception\"", text);
-        Assert.Contains("\"reasonMessage\":\"boom\"", text);
+        Assert.Contains("\"event\":\"job.failed\"", text);
+        Assert.Contains("\"message\":\"boom\"", text);
+        Assert.Contains("\"detailsText\":", text);
+        Assert.Contains("unhandled-exception", text);
         Assert.Contains("\"nextCursor\":\"next-cur\"", text);
     }
 
@@ -269,7 +241,7 @@ public class CliOutputTests
         var s = new GetJobResponse(
             JobId: 7,
             JobRef: JobRef.New(),
-            LineageRootId: null,
+            LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
             ParentJobRef: null,
@@ -481,7 +453,7 @@ public class CliOutputTests
     // the gate cannot be satisfied by writing nothing. Each writer runs plain and --json.
 
     private const long SentinelJobId = 424242;
-    private const long SentinelLineageRootId = 424243;
+    private const long SentinelLineageRootJobId = 424243;
     private const long SentinelParentJobId = 424244;
     private const int SentinelDefinitionId = 424245;
     private const int SentinelTenantId = 424246;
@@ -622,7 +594,7 @@ public class CliOutputTests
         new(
             JobId: SentinelJobId,
             JobRef: SampleJobRef,
-            LineageRootId: SentinelLineageRootId,
+            LineageRootJobId: SentinelLineageRootJobId,
             LineageRootJobRef: SentinelLineageRootJobRef,
             ParentJobId: SentinelParentJobId,
             ParentJobRef: SentinelParentJobRef,
@@ -656,30 +628,25 @@ public class CliOutputTests
         new(
             [
                 new ListEventsItem(
-                    JobEventId: SentinelJobEventId,
-                    EventCode: EventCode.JobExecutionFinished,
+                    EventId: SentinelJobEventId,
+                    EventCode: EventCode.JobFailed,
                     CreatedAtUtc: new DateTime(2026, 6, 21, 12, 30, 1, DateTimeKind.Utc),
                     JobNamespace: "shop",
+                    EntityKind: EntityCode.Job,
+                    EntityId: SentinelJobId,
                     JobName: "send-invoice",
-                    JobId: SentinelJobId,
                     JobRef: SampleJobRef,
-                    LineageRootId: SentinelLineageRootId,
+                    LineageRootJobId: SentinelLineageRootJobId,
                     LineageRootJobRef: SentinelLineageRootJobRef,
                     DefinitionId: SentinelDefinitionId,
                     TenantId: SentinelTenantId,
+                    TenantName: SentinelTenantName,
                     WorkerId: SentinelWorkerId,
-                    ExecutionNumber: 2,
-                    ActorCode: ActorCode.Worker,
-                    Actor: null,
-                    FromStatus: JobStatusCode.Executing,
-                    ToStatus: JobStatusCode.Failed,
-                    ExecutionStatus: null,
-                    DurationMs: 12,
-                    ReasonCode: EventReasonCode.JobUnhandledException,
-                    ReasonMessage: "boom",
-                    DetailText: null,
                     WorkerRef: SentinelWorkerRef,
-                    TenantName: SentinelTenantName
+                    ExecutionNumber: 2,
+                    DurationMs: 12,
+                    Message: "boom",
+                    DetailsText: """{"reason":"unhandled-exception"}"""
                 ),
             ],
             NextCursor: SentinelCursor,

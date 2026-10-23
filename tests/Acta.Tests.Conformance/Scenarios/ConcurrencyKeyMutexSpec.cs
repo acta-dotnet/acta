@@ -163,7 +163,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(0, row.FailureCount);
 
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal(EventReasonCode.JobConcurrencyKeyHeld, bounce.ReasonCode);
+        Assert.Equal(EventReason.ConcurrencyKeyHeld, EventDetail(bounce, "reason"));
 
         await locks.ReleaseLockAsync(held.Value, ct);
     }
@@ -193,15 +193,15 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         return await Db.From<JobEntity>().Where(j => j.ConcurrencyKey == key).CountAsync(ct);
     }
 
-    // Status lives on the runtimes row since the jobs/runtimes split; the fluent reader has no
-    // joins, so resolve the key's job ids first and read each 1:1 runtime row (tiny per-test sets).
+    // Status lives on the jobs_state row since the jobs/jobs_state split; the fluent reader has no
+    // joins, so resolve the key's job ids first and read each 1:1 jobs_state row (tiny per-test sets).
     private async Task<int> CountByStatusAsync(string key, Func<JobStatusCode, bool> match, CancellationToken ct)
     {
         var jobs = await Db.From<JobEntity>().Where(j => j.ConcurrencyKey == key).ToListAsync(ct);
         var count = 0;
         foreach (var job in jobs)
         {
-            var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
+            var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
             if (runtime is not null && match(runtime.Status))
             {
                 count++;

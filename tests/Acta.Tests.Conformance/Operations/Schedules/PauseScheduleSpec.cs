@@ -60,7 +60,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -108,11 +108,10 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleRow> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
-        return Assert.Single(rows);
+        return Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == scheduleName);
     }
 
     private async Task<TestJobRow> SlotAsync(string jobName, CancellationToken ct)
@@ -132,7 +131,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -168,7 +167,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var paused = await ScheduleAsync(Db, jobName, "late", ct);
         Assert.Equal(ScheduleStatusCode.Paused, paused.Status);
         Assert.Null(paused.PausedUntilUtc);
-        Assert.Equal(late, paused.NextRunAtUtc); // a pause never moves the schedule's own cursor
+        Assert.Equal(late, paused.NextOccurrenceAtUtc); // a pause never moves the schedule's own cursor
 
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
@@ -257,7 +256,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
 
-        // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
+        // Re-register with no declared schedules: the orphan sweep orphans "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
 
         Assert.Equal(ControlAction.NotFound, (await Schedules.PauseAsync(Lookup(jobName, "gone"), ct: ct)).Action);
@@ -307,6 +306,8 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(ScheduleStatusCode.Orphaned, schedule.Status);
         Assert.Null(schedule.PausedUntilUtc);
+        Assert.Null(schedule.NextOccurrenceAtUtc);
+        Assert.Null(schedule.LastAdvancedOccurrenceAtUtc);
     }
 
     [Fact(DisplayName = "Pause and resume emit audit events against the slot job")]
@@ -328,7 +329,10 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var resumed = events.SingleOrDefault(e => e.EventCode == EventCode.ScheduleResumed);
         Assert.NotNull(paused);
         Assert.NotNull(resumed);
-        Assert.Equal("only", paused!.ReasonMessage); // the schedule name rides reason_message
-        Assert.Equal("only", resumed!.ReasonMessage);
+        // The schedule name rides the details; the operator's text is the message.
+        Assert.Equal("only", paused!.Schedule);
+        Assert.Equal("maintenance", paused.Message);
+        Assert.Equal("only", resumed!.Schedule);
+        Assert.Null(resumed.Message);
     }
 }

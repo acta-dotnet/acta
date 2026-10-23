@@ -23,7 +23,8 @@ public sealed class WorkerExecutorUnsupportedClaimTests
 
         var released = harness.Completion;
         Assert.Equal(CompletionKind.Rescheduled, released.Outcome);
-        Assert.Equal((byte)ExecutionStatusCode.Rescheduled, released.RescheduleStatusCode);
+        Assert.Equal(EventCode.JobRescheduled, released.RescheduleEventCode);
+        Assert.Equal(EventCode.JobExecutionYielded, released.EventCode);
 
         // Budget-neutral, so a definition that stays missing cannot burn the job's retries: no failure
         // count is submitted and complete_executions' COALESCE leaves the stored one alone.
@@ -37,9 +38,9 @@ public sealed class WorkerExecutorUnsupportedClaimTests
 
         // No catalog reason describes a worker declining a claim; Unclassified says the story is in the
         // message, and the message names the definition so an operator can see which handler is missing.
-        Assert.Equal(EventReasonCode.Unclassified, released.EventReasonCode);
-        Assert.NotNull(released.ReasonMessage);
-        Assert.Contains("definition_id=1", released.ReasonMessage!, StringComparison.Ordinal);
+        Assert.Null(released.Reason);
+        Assert.NotNull(released.EventMessage);
+        Assert.Contains("definition_id=1", released.EventMessage!, StringComparison.Ordinal);
 
         // One warning per bounce, so an incapable worker cycling a job is visible in a log an operator
         // already reads rather than only in the event ledger.

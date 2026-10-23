@@ -17,7 +17,7 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     private async Task<CheckpointEntity> ReadSlotAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(
             await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.Name == name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.CheckpointName == name)
                 .ToListAsync(ct)
         );
 
@@ -41,11 +41,8 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(payload.Data.ToArray(), slot.Value);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
-        Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal("op-1", evt.Actor);
-        Assert.Equal(EventReasonCode.JobSignalReleased, evt.ReasonCode);
-        Assert.Equal(JobStatusCode.Ready, evt.FromStatus);
-        Assert.Equal(JobStatusCode.Ready, evt.ToStatus);
+        Assert.Equal("op-1", EventDetail(evt, "actor"));
+        Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
     }
 
     [Fact(DisplayName = "A repeat raise keeps one slot, overwrites its payload, and bumps its version")]

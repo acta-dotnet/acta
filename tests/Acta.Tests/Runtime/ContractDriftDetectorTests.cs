@@ -19,7 +19,7 @@ public class ContractDriftDetectorTests
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -31,7 +31,7 @@ public class ContractDriftDetectorTests
             name,
             gen,
             JobDefinitionRegistration.ContractOf(Desc(name, inputType)),
-            Id: 0,
+            DefinitionId: 0,
             DefinitionHash: "",
             Status: DefinitionStatusCode.Active,
             Effective: null! // drift detection ignores effective policy

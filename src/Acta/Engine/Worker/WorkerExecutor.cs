@@ -386,8 +386,7 @@ internal sealed class WorkerExecutor(
 
     // A claim this worker will not run goes back to Ready budget-neutral, through the finalizer, which writes it as a
     // hand-back because the entry carries no descriptor.
-    private static ExecutionCompletion HandBack(string reasonMessage) =>
-        new(CompletionKind.Rescheduled) { Reason = EventReasonCode.Unclassified, ReasonMessage = reasonMessage };
+    private static ExecutionCompletion HandBack(string reasonMessage) => new(CompletionKind.Rescheduled) { ReasonMessage = reasonMessage };
 
     private static bool Finalizing(InFlightJob entry, ExecutionCompletion completion)
     {

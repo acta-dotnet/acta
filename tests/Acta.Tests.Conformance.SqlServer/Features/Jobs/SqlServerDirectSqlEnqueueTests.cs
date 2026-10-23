@@ -18,12 +18,12 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = $"""
-                DECLARE @tags {Schema.SchemaName}.enqueue_tags_batch;
+                DECLARE @tags {Schema.SchemaName}.enqueue_tags;
                 EXEC {Schema.SchemaName}.enqueue_job
                     @p_namespace_name = @namespace,
                     @p_job_name = 'add-numbers',
                     @p_input = 0x7B226C656674223A312C227269676874223A327D,
-                    @p_tag_batch = @tags;
+                    @p_tags = @tags;
                 """;
             command.Parameters.Add(
                 new Microsoft.Data.SqlClient.SqlParameter("@namespace", System.Data.SqlDbType.VarChar, 128) { Value = TestNamespace }
@@ -39,7 +39,7 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         }
         await using (var inspect = connection.CreateCommand())
         {
-            inspect.CommandText = $"SELECT job_ref FROM {Schema.SchemaName}.jobs WHERE id = @id";
+            inspect.CommandText = $"SELECT job_ref FROM {Schema.SchemaName}.jobs WHERE job_id = @id";
             inspect.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@id", System.Data.SqlDbType.BigInt) { Value = jobId });
             Assert.Equal(jobRef, (Guid)(await inspect.ExecuteScalarAsync(ct))!);
         }

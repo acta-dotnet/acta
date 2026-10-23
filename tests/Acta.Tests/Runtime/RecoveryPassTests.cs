@@ -43,8 +43,8 @@ public sealed class RecoveryPassTests
         var execution = ExecutionStore(
             reclaimed:
             [
-                new ReclaimStuckJobsRow(JobId: 7, JobStatusCode.Failed, ParentId: 8, LaneRepaired: false),
-                new ReclaimStuckJobsRow(JobId: 11, JobStatusCode.Ready, ParentId: null, LaneRepaired: false),
+                new ReclaimStuckJobsRow(JobId: 7, JobStatusCode.Failed, ParentJobId: 8, LaneRepaired: false),
+                new ReclaimStuckJobsRow(JobId: 11, JobStatusCode.Ready, ParentJobId: null, LaneRepaired: false),
             ],
             staleLatches:
             [
@@ -67,7 +67,7 @@ public sealed class RecoveryPassTests
     {
         var wakeups = new RecordingWakeup();
         var execution = ExecutionStore(
-            reclaimed: [new ReclaimStuckJobsRow(JobId: 12, JobStatusCode.Ready, ParentId: null, LaneRepaired: true)]
+            reclaimed: [new ReclaimStuckJobsRow(JobId: 12, JobStatusCode.Ready, ParentJobId: null, LaneRepaired: true)]
         );
         var pass = Pass(WorkerSweep(), execution, SignalStore(releases: false), wakeup: wakeups);
 

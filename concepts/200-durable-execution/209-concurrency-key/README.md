@@ -75,7 +75,7 @@ queries select the fields that prove the lesson, and the text below explains the
 `jobs_view` shows the owner executing and the competitor ready without a worker. The lab also descends
 one level into the internal `locks` table to reveal the named holder (the key's slot rows are
 `<namespace id>.sem.<key>.<slot>`, and the meter's are its `.rate.ping-endpoint` bucket and
-reservations), then uses `events_view` to show `job.concurrency-key-held` and `job.rate-limited`. Base tables are implementation detail; use the curated views or `IJobs` for
+reservations), then uses `events_view` to show the `concurrency-key-held` and `rate-limited` reasons. Base tables are implementation detail; use the curated views or `IJobs` for
 normal operations.
 
 ## Break it

@@ -219,14 +219,13 @@ internal static partial class LedgerValidation
     {
         await using var command = connection.CreateCommand();
         command.CommandText = $"""
-            SELECT d.id, d.name, d.rate_limit_effective, e.created_at_utc
+            SELECT d.definition_id, d.definition_name, d.rate_limit_effective, e.created_at_utc
             FROM   {prefix}events e
-            JOIN   {prefix}jobs j ON j.id = e.job_id
-            JOIN   {prefix}definitions d ON d.id = j.definition_id
+            JOIN   {prefix}definitions d ON d.definition_id = e.definition_id
             WHERE  e.event_code = 90
-              AND  e.reason_message = 'metered-admitted'
+              AND  e.event_message = 'metered-admitted'
               AND  d.rate_limit_effective IS NOT NULL
-            ORDER  BY d.id, e.created_at_utc
+            ORDER  BY d.definition_id, e.created_at_utc
             """;
         command.CommandTimeout = 0;
         List<(long Definition, string Name, string Rate, DateTime Instant)> notes = [];

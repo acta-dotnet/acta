@@ -183,7 +183,7 @@ internal sealed partial class RuntimeJobContext(
             case ArmOrConsumeSleepTimerOutcomeCode.Continue:
                 return;
             case ArmOrConsumeSleepTimerOutcomeCode.Suspend:
-                // The host writes the stored due to runtimes.next_run_at_utc and finalizes the attempt Suspended.
+                // The host writes the stored due to jobs_state.next_run_at_utc and finalizes the attempt Suspended.
                 throw new SuspendSignal(decision.DueAtUtc!.Value, reason);
             default:
                 throw new InvalidOperationException(
@@ -223,7 +223,7 @@ internal sealed partial class RuntimeJobContext(
 
     /// <summary>
     /// The wait timed out, so this parent stopped waiting, and the child and everything under it is work nobody will
-    /// read. Reason JobWaitTimedOut rather than JobParentCancelled, because the parent was not cancelled and the
+    /// read. Reason wait-timed-out rather than parent-cancelled, because the parent was not cancelled and the
     /// timeline must not say it was. Follow-up transactions, like every cascade, not atomic with the Expired flip
     /// that preceded them: a crash mid-walk leaves live stragglers no maintenance pass sweeps, and the only repair is
     /// the parent replaying this wait, re-deriving TimedOut off the Expired slot, and re-running the cancel. A parent
@@ -255,11 +255,7 @@ internal sealed partial class RuntimeJobContext(
             return;
         }
 
-        var input = new JobControlInput(
-            new JobControlActor(ActorCode.Sys),
-            EventReasonCode.JobWaitTimedOut,
-            "Parent's child wait timed out."
-        );
+        var input = new JobControlInput(null, EventReason.WaitTimedOut, "Parent's child wait timed out.");
 
         // The child's own latch on this job is Expired, so no raise is needed or possible here; the
         // descendants' latches sit on parents this walk has already made terminal.
@@ -319,7 +315,7 @@ internal sealed partial class RuntimeJobContext(
             JobId,
             ExecutionNumber,
             WorkerId,
-            message.Truncate(ActaTextLimits.ReasonMessage)!,
+            message.Truncate(ActaTextLimits.EventMessage)!,
             payload,
             ct
         );

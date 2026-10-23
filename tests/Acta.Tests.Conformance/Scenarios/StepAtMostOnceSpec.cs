@@ -65,7 +65,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
             OutputPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 5,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: async (_, _, ctx, ct) =>
             {
@@ -165,7 +165,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
                 Succeeded: false,
                 ResultFormatId: 0,
                 Result: null,
-                EventReasonCode.JobUnhandledException,
+                StepFailureCode.UnhandledException,
                 "first attempt failed",
                 DelaySeconds: 60,
                 MaxAttempts: 5,
@@ -176,7 +176,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         );
         Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, failed.Outcome);
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND name = @p_name",
+            "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND step_name = @p_name",
             ct,
             ("@p_next", DateTime.UtcNow.AddMinutes(-1)),
             ("@p_id", enqueued.JobId),
@@ -189,7 +189,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row.Status);
         Assert.Null(row.NextRetryAtUtc);
-        Assert.Equal(EventReasonCode.JobStepInterrupted, row.ReasonCode);
+        Assert.Equal(StepFailureCode.Interrupted, row.FailureCode);
     }
 
     [Fact(DisplayName = "Uncaught StepInterruptedException fails the parent terminally without re-invoking the body")]
@@ -211,7 +211,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         // The slot is terminal Interrupted with the step-interrupted reason stamped by start_step.
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row.Status);
-        Assert.Equal(EventReasonCode.JobStepInterrupted, row.ReasonCode);
+        Assert.Equal(StepFailureCode.Interrupted, row.FailureCode);
 
         // Explain surfaces the interruption at both job and step level.
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
@@ -246,7 +246,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
     private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct)
     {
-        var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct);
+        var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.StepName == StepName).ToListAsync(ct);
         return Assert.Single(steps);
     }
 }

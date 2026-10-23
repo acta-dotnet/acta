@@ -6,27 +6,15 @@ namespace Acta;
 internal static class JobControl
 {
     /// <summary>
-    /// The public verbs are operator-only: the actor and the manual reason are stamped here, never taken from
-    /// the caller, and the message is capped to its column so both providers store the same text.
+    /// The public verbs are operator-only: the actor is stamped here, never taken from the caller, the operator
+    /// code implies the reason, and the message is capped to its column so every provider stores the same text.
     /// </summary>
     public static JobControlInput Operator(string? reasonMessage, string? actor, int? expectedVersion = null) =>
-        new(
-            JobControlActor.Operator(actor),
-            EventReasonCode.JobControlManual,
-            reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
-            expectedVersion
-        );
+        new(JobControlActor.Operator(actor), null, reasonMessage.Truncate(ActaTextLimits.EventMessage), expectedVersion);
 
-    public static void BindActor(DbCommand cmd, ISqlDialect dialect, JobControlInput input, bool includeReasonMessage = true)
-    {
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, input.Actor.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, input.Actor.Actor));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, input.ReasonCode));
-        if (includeReasonMessage)
-        {
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, input.ReasonMessage));
-        }
-    }
+    /// <summary>Binds the transition's event: its message as <c>event_message</c> and its actor and reason as details.</summary>
+    public static void BindEvent(DbCommand cmd, ISqlDialect dialect, JobControlInput input) =>
+        cmd.AddEventFields(dialect, input.Message, input.Details);
 
     public static void BindExpectedVersion(DbCommand cmd, ISqlDialect dialect, JobControlInput input) =>
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, input.ExpectedVersion));

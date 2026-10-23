@@ -54,7 +54,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
                     jobName,
                     0,
                     ReadOnlyMemory<byte>.Empty,
-                    DefinitionAuditLevelCode.Audit,
+                    EventRecordingCode.Audit,
                     slotStatus,
                     slotMin,
                     schedules
@@ -77,7 +77,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -147,8 +147,10 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal((long)defKeys.Count, page.TotalCount);
     }
 
-    [Fact(DisplayName = "LiveOnly excludes orphaned schedules and liveOnly=false includes them")]
-    public async Task LiveOnly_excludes_orphaned_schedules()
+    [Fact(
+        DisplayName = "The live list holds schedules with an upcoming occurrence; liveOnly=false lists orphaned, paused, and exhausted ones too, paged by key"
+    )]
+    public async Task LiveOnly_false_lists_every_schedule()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsId = NsId;
@@ -165,33 +167,60 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("gone", soon)], JobStatusCode.Ready, ct);
         await RegisterSchedulesAsync(nsId, defBId, jobBName, null, [], JobStatusCode.Paused, ct);
 
-        // Capture all (including orphaned) via LiveOnly=false: independent of the liveOnly filter
-        var allItems = (
-            await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100, LiveOnly: false), ct)
-        ).Items;
-        var liveKeys = allItems.Where(s => s.Status != ScheduleStatusCode.Orphaned).Select(Key).ToHashSet();
-        var orphanedKeys = allItems.Where(s => s.Status == ScheduleStatusCode.Orphaned).Select(Key).ToHashSet();
+        // Job C: paused by an operator, which keeps its cursor
+        var jobCName = Unique("paused");
+        var defCId = await CreateDefinitionAsync(nsId, jobCName, ct);
+        await RegisterSchedulesAsync(nsId, defCId, jobCName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
+        var lookupC = new ScheduleLookup(JobLookup.ByDeduplicationKey(TestNamespace, jobCName), "tick");
+        Assert.Equal(ControlAction.Applied, (await Queries.Schedules.PauseAsync(lookupC, untilUtc: null, ct: ct)).Action);
 
-        // Verify our seeded schedules landed in the right partitions
-        Assert.Contains(Key(allItems.Single(s => s.JobName == jobAName)), liveKeys);
-        Assert.Contains(Key(allItems.Single(s => s.JobName == jobBName)), orphanedKeys);
+        // Job D: exhausted, with no further occurrence
+        var jobDName = Unique("exhausted");
+        var defDId = await CreateDefinitionAsync(nsId, jobDName, ct);
+        var exhausted = new SlotSchedule("tick", Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, null);
+        await RegisterSchedulesAsync(nsId, defDId, jobDName, null, [exhausted], JobStatusCode.Paused, ct);
 
-        // LiveOnly=true (default): exact liveKeys, no orphaned, total = liveKeys count
         var livePage = await Queries.Schedules.ListAsync(
             new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: true, PageSize: 100, IncludeTotal: true),
             ct
         );
-        Assert.Equal(liveKeys, [.. livePage.Items.Select(Key)]);
-        Assert.Equal((long)liveKeys.Count, livePage.TotalCount);
-        Assert.Empty(livePage.Items.Select(Key).Intersect(orphanedKeys));
-
-        // LiveOnly=false: exact full set (live + orphaned)
         var allPage = await Queries.Schedules.ListAsync(
-            new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 100),
+            new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 100, IncludeTotal: true),
             ct
         );
-        Assert.Equal(allItems.Select(Key).ToHashSet(), [.. allPage.Items.Select(Key)]);
-        Assert.Empty(liveKeys.Intersect(orphanedKeys));
+
+        Assert.Contains(livePage.Items, s => s.JobName == jobAName);
+        Assert.Contains(livePage.Items, s => s.JobName == jobCName && s.Status == ScheduleStatusCode.Paused);
+        Assert.DoesNotContain(livePage.Items, s => s.JobName == jobBName || s.JobName == jobDName);
+        Assert.Equal((long)livePage.Items.Count, livePage.TotalCount);
+
+        Assert.Contains(allPage.Items, s => s.JobName == jobAName);
+        Assert.Contains(
+            allPage.Items,
+            s => s.JobName == jobBName && s.Status == ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is null
+        );
+        Assert.Contains(allPage.Items, s => s.JobName == jobCName && s.Status == ScheduleStatusCode.Paused);
+        Assert.Contains(
+            allPage.Items,
+            s => s.JobName == jobDName && s.Status == ScheduleStatusCode.Active && s.NextOccurrenceAtUtc is null
+        );
+        Assert.Equal((long)allPage.Items.Count, allPage.TotalCount);
+        Assert.Subset(allPage.Items.Select(Key).ToHashSet(), livePage.Items.Select(Key).ToHashSet());
+
+        // The full list pages by slot job and schedule name, so a NULL cursor never breaks a page boundary.
+        var paged = new List<ListSchedulesItem>();
+        string? cursor = null;
+        do
+        {
+            var page = await Queries.Schedules.ListAsync(
+                new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: false, PageSize: 2, Cursor: cursor),
+                ct
+            );
+            paged.AddRange(page.Items);
+            cursor = page.NextCursor;
+        } while (cursor is not null);
+        Assert.Equal(allPage.Items.Select(Key), paged.Select(Key));
+        Assert.Equal(paged.Select(s => s.JobId).Order(), paged.Select(s => s.JobId));
     }
 
     [Fact(DisplayName = "JobNamespace filter scopes schedules to exactly one namespace and excludes all other namespaces")]

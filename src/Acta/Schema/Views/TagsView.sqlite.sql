@@ -1,8 +1,8 @@
 SELECT
-    {{decode:tag-scope:t.scope_code}} AS scope,
-    t.scope_code,
-    t.scope_id,
-    t.name AS tag_name,
-    t.value AS tag_value,
-    t.value_search AS tag_value_search
+    {{decode:entity:t.entity_code}} AS entity_kind,
+    t.entity_code,
+    t.entity_id,
+    t.tag_name,
+    t.tag_value,
+    t.tag_value_search
 FROM {{schema}}.tags AS t

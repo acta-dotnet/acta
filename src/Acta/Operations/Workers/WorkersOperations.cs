@@ -38,7 +38,7 @@ internal sealed class WorkersOperations(
     /// window each lock hold whose token still holds its key and the lease of each held execution the worker still
     /// leases. Answers the renewed holds and those executions, each flagged renewed or skipped because another
     /// transaction held the row; a hold or held execution not answered is gone, and a leased row nothing holds lapses.
-    /// Also answers the namespace's newest <c>definitions.modified_at_utc</c>, and never bumps <c>runtimes.version</c>. With a
+    /// Also answers the namespace's newest <c>definitions.modified_at_utc</c>, and never bumps <c>jobs_state.version</c>. With a
     /// recovery interval it takes the namespace's due pass, moving it one interval on, and skips a namespace row held elsewhere.
     /// </summary>
     internal Task<ExtendWorkerLeasesResponse> ExtendWorkerLeasesAsync(ExtendWorkerLeasesCommand command, CancellationToken ct) =>

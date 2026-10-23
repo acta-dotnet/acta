@@ -36,7 +36,7 @@ public sealed class BenchWorkHandler(OracleClient oracle)
     [Job("retained-work", MaxAttempts = 4, Backoff = "1s..1s")]
     public Task<string> RunRetained(BenchWork input, JobContext ctx, CancellationToken ct) => Run(input, ctx, ct);
 
-    [Job("work", MaxAttempts = 4, Backoff = "1s..1s", AuditLevel = DefinitionAuditLevelCode.Audit)]
+    [Job("work", MaxAttempts = 4, Backoff = "1s..1s", EventRecording = EventRecordingCode.Audit)]
     public async Task<string> Run(BenchWork input, JobContext ctx, CancellationToken ct)
     {
         if (input.Witness)

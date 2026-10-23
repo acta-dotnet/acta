@@ -6,13 +6,13 @@ namespace Acta;
 /// binds the row into its native batch shape (TVP on SQL Server, typed arrays on PostgreSQL) verbatim.
 /// </summary>
 internal sealed record DefinitionValues(
-    string Name,
-    byte PriorityCode,
+    string DefinitionName,
+    byte JobPriorityCode,
     int MaxAttempts,
     int? ConcurrencyLimit,
     string? RateLimit,
     string? RateName,
-    string? Lane,
+    string? LaneName,
     string Backoff,
     int ExecutionTimeoutSeconds,
     int DeadlineSeconds,
@@ -24,7 +24,7 @@ internal sealed record DefinitionValues(
     string InputFormatName,
     byte OutputFormatId,
     string OutputFormatName,
-    byte AuditLevelCode,
+    byte EventRecordingCode,
     byte AlertProfileCode,
     byte TenantRequirementCode,
     string? AlertChannelName,

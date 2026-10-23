@@ -36,8 +36,9 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
                 Plain(job) with
                 {
                     Succeeded = false,
-                    EventReasonCode = EventReasonCode.JobUnhandledException,
-                    ReasonMessage = "boom",
+                    EventCode = EventCode.JobFailed,
+                    Reason = EventReason.UnhandledException,
+                    EventMessage = "boom",
                     FailureCount = 1,
                 },
         ];
@@ -88,7 +89,9 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.True(answers[head.JobId].LanePromoted);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(next.JobId, ct)).Status);
         var latchName = $"sys.child.{child.JobId}";
-        var latch = await Db.From<CheckpointEntity>().Where(c => c.JobId == parent.JobId && c.Name == latchName).SingleOrDefaultAsync(ct);
+        var latch = await Db.From<CheckpointEntity>()
+            .Where(c => c.JobId == parent.JobId && c.CheckpointName == latchName)
+            .SingleOrDefaultAsync(ct);
         Assert.Equal(CheckpointStatusCode.Set, latch?.Status);
     }
 
@@ -140,8 +143,8 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(3, (await Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ById(stale.JobId), ct))?.Sum);
     }
 
-    [Fact(DisplayName = "At the failures-only audit level a success writes a finished event only when it answers a recorded failure")]
-    public async Task Failures_level_success_is_recorded_only_when_it_answers_a_failure()
+    [Fact(DisplayName = "At the failures level a failed attempt is recorded, and a success only when it recovers from counted failures")]
+    public async Task Failures_level_success_is_recorded_only_when_it_recovers()
     {
         var ct = TestContext.Current.CancellationToken;
         var workerId = await WorkerIdAsync(ct);
@@ -149,29 +152,50 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         var quiet = await ExecutingAsync(probe, workerId, ct);
         var failing = await ExecutingAsync(probe, workerId, ct);
 
-        var first = await CompleteAsync(workerId, [Plain(quiet), Plain(failing) with { Succeeded = false, FailureCount = 6 }], ct);
+        // A retry within budget: the attempt failed, the job re-arms Ready now with one counted failure.
+        var retry = Plain(failing) with
+        {
+            Succeeded = false,
+            EventCode = EventCode.JobExecutionFailed,
+            Reason = EventReason.UnhandledException,
+            FailureCount = 1,
+            RescheduleEventCode = EventCode.JobRescheduled,
+            RescheduleDelaySeconds = 0,
+        };
+        var first = await CompleteAsync(workerId, [Plain(quiet), retry], ct);
 
         Assert.All(first.Values, row => Assert.Equal(CompleteExecutionsAction.Completed, row.Action));
-        Assert.Equal(0, await CountEventsAsync(quiet.JobId, EventCode.JobExecutionFinished, ct));
-        Assert.Equal(1, await CountFinishedWithStatusAsync(failing.JobId, ExecutionStatusCode.Failed, ct));
+        Assert.Equal(0, await CountEventsAsync(quiet.JobId, EventCode.JobExecutionSucceeded, ct));
+        Assert.Equal(1, await CountEventsAsync(failing.JobId, EventCode.JobExecutionFailed, ct));
 
-        // Restart writes nothing at this level, so the failure stays the newest finished event for the success to answer.
-        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(JobLookup.ById(failing.JobId), ct: ct)).Action);
+        // The job's failure count is the recovery test, read before this landing resets nothing.
         var retried = await ClaimExecutingAsync(failing.JobId, workerId, ct);
         var second = await CompleteAsync(workerId, [Plain(retried)], ct);
 
         Assert.Equal(CompleteExecutionsAction.Completed, Assert.Single(second.Values).Action);
-        Assert.Equal(1, await CountFinishedWithStatusAsync(failing.JobId, ExecutionStatusCode.Succeeded, ct));
+        Assert.Equal(1, await CountEventsAsync(failing.JobId, EventCode.JobExecutionSucceeded, ct));
     }
 
     private EnqueueJobRequest AddNumbers() => new(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)));
 
     // A success with no result, the shape each fact varies.
     private static CompleteExecutionsValues Plain(ClaimedJob job) =>
-        new(job.JobId, job.ExecutionNumber, true, JobPayloadFormat.None.Id, ReadOnlyMemory<byte>.Empty, null, null, 5, null, 3600)
+        new(
+            job.JobId,
+            job.ExecutionNumber,
+            true,
+            JobPayloadFormat.None.Id,
+            ReadOnlyMemory<byte>.Empty,
+            EventCode.JobExecutionSucceeded,
+            null,
+            null,
+            5,
+            null,
+            3600
+        )
         {
             HasLane = job.LaneId is not null,
-            HasParent = job.ParentId is not null,
+            HasParent = job.ParentJobId is not null,
         };
 
     private async Task<Dictionary<long, CompleteExecutionsRow>> CompleteAsync(
@@ -181,7 +205,7 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
     ) => (await Execution.CompleteExecutionsAsync(new CompleteExecutionsCommand(workerId, batch), ct)).Rows.ToDictionary(r => r.JobId);
 
     private static (CompleteExecutionsAction, byte?) Answer(Dictionary<long, CompleteExecutionsRow> answers, ClaimedJob job) =>
-        (answers[job.JobId].Action, answers[job.JobId].FinalStatusCode);
+        (answers[job.JobId].Action, answers[job.JobId].FinalJobStatusCode);
 
     private async Task<int> WorkerIdAsync(CancellationToken ct)
     {
@@ -198,16 +222,29 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
         return Assert.Single((await Execution.ClaimJobAsync(options, LeaseTtl, jobId, ct)).Jobs);
     }
 
-    // A row is untouched while its version and its finished events stay as they were.
+    // A row is untouched while its version and its attempt events stay as they were.
     private async Task<(int Version, int Finished)> StateAsync(long jobId, CancellationToken ct) =>
-        ((await ReadJobAsync(jobId, ct)).Version, await CountEventsAsync(jobId, EventCode.JobExecutionFinished, ct));
+        ((await ReadJobAsync(jobId, ct)).Version, (await AttemptEventsAsync(jobId, ct)).Count);
+
+    // The job's attempt events, 40 to 44.
+    private async Task<IReadOnlyList<EventEntity>> AttemptEventsAsync(long jobId, CancellationToken ct) =>
+        [
+            .. (await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct)).Where(e =>
+                e.EventCode
+                    is EventCode.JobExecutionSucceeded
+                        or EventCode.JobExecutionFailed
+                        or EventCode.JobExecutionOrphaned
+                        or EventCode.JobExecutionYielded
+                        or EventCode.JobFailed
+            ),
+        ];
 
     // What a completion lands, compared between the two ways: the instants differ, so retention compares as set.
     private async Task<object> LandedAsync(long jobId, CancellationToken ct)
     {
         var job = await ReadJobAsync(jobId, ct);
-        var runtime = Assert.IsType<RuntimeEntity>(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct));
-        var finished = await ReadSingleEventAsync(jobId, EventCode.JobExecutionFinished, ct);
+        var runtime = Assert.IsType<JobStateEntity>(await Db.From<JobStateEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct));
+        var finished = Assert.Single(await AttemptEventsAsync(jobId, ct));
         return (
             job.Status,
             job.FailureCount,
@@ -216,8 +253,8 @@ public sealed class CompleteExecutionsSpec : ActaRuntimeTestBase<ConformanceFixt
             job.RetentionUntilUtc is not null,
             runtime.ResultFormatId,
             runtime.Result is null ? null : Convert.ToBase64String(runtime.Result),
-            (finished.ActorCode, finished.WorkerId, finished.FromStatus, finished.ToStatus, finished.ExecutionStatus),
-            (finished.DurationMs, finished.ReasonCode, finished.ReasonMessage)
+            (finished.EventCode, finished.WorkerId, finished.ExecutionNumber),
+            (finished.DurationMs, finished.EventMessage, finished.Details is null ? null : Convert.ToBase64String(finished.Details))
         );
     }
 }

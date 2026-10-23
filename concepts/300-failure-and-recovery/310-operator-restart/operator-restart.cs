@@ -70,15 +70,15 @@ var operations = host.Services.GetRequiredService<IActaOperations>();
 var events = await operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, EventCode: EventCode.JobRestarted));
 foreach (var e in events.Items)
 {
-    Console.WriteLine($"event: {e.EventCode} actor={e.ActorCode} reason={e.ReasonCode} message=\"{e.ReasonMessage}\"");
+    Console.WriteLine($"event: {e.EventCode} message=\"{e.Message}\" details={e.DetailsText ?? "(none)"}");
 }
 
 await lab.ShowAsync(
     "Restart appends history; it does not manufacture exactly-once execution",
     """
-    SELECT event, from_status, to_status, execution_number, reason
+    SELECT event, execution_number, event_message, details_text
     FROM events_view
-    WHERE job_id = @jobId
+    WHERE entity_kind = 'job' AND entity_id = @jobId
     ORDER BY event_id
     """,
     new { jobId = outcome.JobId }

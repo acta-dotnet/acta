@@ -34,17 +34,16 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(EventReasonCode.JobHandlerFailed, finishedEvent.ReasonCode);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
+        Assert.Equal(EventReason.HandlerFailed, EventDetail(finishedEvent, "reason"));
 
         // Did not return to user code, and the failed attempt persisted no result payload.
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
-        // A handler fail is a failure: the finished event carries ExecutionStatusCode.Failed and there is
-        // no separate cancel/pause lifecycle event.
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Failed, ct));
+        // A handler fail is the job failing for good: one job.failed event and no separate cancel/pause lifecycle event.
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobFailed, ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobPaused, ct));
     }
@@ -61,13 +60,14 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(JobStatusCode.Failed, job.Status);
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(EventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
+        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
+        Assert.Equal(EventReason.NonRetryableException, EventDetail(finishedEvent, "reason"));
         Assert.NotNull(job.RetentionUntilUtc);
 
-        // A single failed finished event: the attempt was never re-armed for a retry.
+        // A single terminal failure and no failed-and-retried attempt: the attempt was never re-armed for a retry.
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Failed, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobFailed, ct));
+        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct));
 
         // A second tick on this job finds nothing: the job is terminal, not waiting on a retry.
         // Target the job id: a namespace-wide tick can legitimately claim a manifest schedule slot
@@ -89,12 +89,13 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var cancelEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobHandlerCancelled, cancelEvent.ReasonCode);
+        Assert.Equal(EventReason.HandlerCancelled, EventDetail(cancelEvent, "reason"));
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Cancelled, ct));
+        var yielded = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionYielded, ct);
+        Assert.Equal("cancelled", EventDetail(yielded, "outcome"));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
     }
 
@@ -113,12 +114,13 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.NotNull(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var pauseEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobPaused, ct);
-        Assert.Equal(EventReasonCode.JobHandlerPaused, pauseEvent.ReasonCode);
+        Assert.Equal(EventReason.HandlerPaused, EventDetail(pauseEvent, "reason"));
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Paused, ct));
+        var yielded = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionYielded, ct);
+        Assert.Equal("paused", EventDetail(yielded, "outcome"));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobPaused, ct));
 
         // A paused Job is not claimable: a second tick on its id finds nothing and leaves it Paused.

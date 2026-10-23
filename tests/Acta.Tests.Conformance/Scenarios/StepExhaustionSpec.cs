@@ -76,7 +76,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -99,7 +99,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 1,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -204,8 +204,8 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(EventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
+        var failedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
+        Assert.Equal(EventReason.NonRetryableException, EventDetail(failedEvent, "reason"));
         Assert.Equal(0, job.FailureCount);
     }
 

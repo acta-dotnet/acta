@@ -40,11 +40,10 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             .Where(e => e.WorkerId == worker.Id && e.EventCode == EventCode.WorkerStopped)
             .ToListAsync(ct);
         var stoppedEvent = Assert.Single(events);
-        Assert.Null(stoppedEvent.JobId);
+        Assert.Equal((EntityCode.Worker, (long)worker.Id), (stoppedEvent.EntityCode, stoppedEvent.EntityId));
         Assert.Equal(ns, stoppedEvent.NamespaceId);
-        Assert.Equal(ActorCode.Worker, stoppedEvent.ActorCode);
-        Assert.Null(stoppedEvent.Actor);
-        Assert.Equal(EventReasonCode.WorkerCleanShutdown, stoppedEvent.ReasonCode);
+        // A clean shutdown is the only way a worker stops, so the code says why and the details stay empty.
+        Assert.Null(stoppedEvent.Details);
     }
 
     [Fact(DisplayName = "A second stop on a terminal worker is a no-op and writes no further event")]

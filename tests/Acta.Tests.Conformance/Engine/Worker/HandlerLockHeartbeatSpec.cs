@@ -80,13 +80,14 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
 
         // The aborted attempt must NOT land terminal Failed: the row is still Executing and still
         // leased to this worker, so the completion CAS matches. The runner submits a retryable
-        // job.attempt-aborted failure and the job re-arms.
+        // attempt-aborted failure and the job re-arms.
         Assert.Equal(RunOnceStatus.Rearmed, await run.WaitAsync(Timeout, ct));
         Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished);
-        Assert.Equal(EventReasonCode.JobAttemptAborted, finished.EventReasonCode);
+        var failed = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFailed);
+        Assert.Equal(EventReason.AttemptAborted, failed.Reason);
+        Assert.Equal(JobStatusCode.Ready.Code, failed.To);
     }
 
     private string LockKey()

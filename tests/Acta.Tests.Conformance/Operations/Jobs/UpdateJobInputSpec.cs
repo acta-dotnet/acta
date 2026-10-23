@@ -38,15 +38,15 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(newInput.Data.ToArray(), job.Input);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
-        Assert.Equal("spec-actor", evt.Actor);
-        Assert.Equal("corrected operands", evt.ReasonMessage);
-        Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
-        Assert.NotNull(evt.Detail);
-        using var doc = System.Text.Json.JsonDocument.Parse(evt.Detail!);
+        Assert.Equal("spec-actor", EventDetail(evt, "actor"));
+        Assert.Equal("corrected operands", evt.EventMessage);
+        Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailsFormatId);
+        Assert.NotNull(evt.Details);
+        using var doc = System.Text.Json.JsonDocument.Parse(evt.Details!);
         Assert.Equal("json", doc.RootElement.GetProperty("format").GetString());
         Assert.Equal(oldInput.Data.Length, doc.RootElement.GetProperty("bytes").GetInt32());
         // The old payload bytes themselves must be gone from the ledger.
-        Assert.True(evt.Detail!.AsSpan().IndexOf(oldInput.Data.Span) < 0);
+        Assert.True(evt.Details!.AsSpan().IndexOf(oldInput.Data.Span) < 0);
     }
 
     // ACTA-004 acceptance: the amended-away payload must not outlive the job's payload retention.
@@ -84,29 +84,29 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // The amend event outlives the job (events carry no FK to jobs) with metadata only.
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
-        Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
-        using var doc = System.Text.Json.JsonDocument.Parse(evt.Detail!);
+        Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailsFormatId);
+        using var doc = System.Text.Json.JsonDocument.Parse(evt.Details!);
         Assert.Equal("json", doc.RootElement.GetProperty("format").GetString());
         Assert.Equal(oldInput.Data.Length, doc.RootElement.GetProperty("bytes").GetInt32());
 
         // No surviving event row or API projection carries the marker anywhere.
-        var rows = await Db.From<EventEntity>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == enqueued.JobId).ToListAsync(ct);
         Assert.NotEmpty(rows);
         foreach (var row in rows)
         {
-            Assert.DoesNotContain(marker, row.ReasonMessage ?? "");
-            if (row.Detail is not null)
+            Assert.DoesNotContain(marker, row.EventMessage ?? "");
+            if (row.Details is not null)
             {
-                Assert.DoesNotContain(marker, System.Text.Encoding.UTF8.GetString(row.Detail));
+                Assert.DoesNotContain(marker, System.Text.Encoding.UTF8.GetString(row.Details));
             }
         }
 
         var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
-        Assert.Contains(page.Items, i => i.EventCode == EventCode.JobInputAmended && i.DetailText is not null);
+        Assert.Contains(page.Items, i => i.EventCode == EventCode.JobInputAmended && i.DetailsText is not null);
         foreach (var item in page.Items)
         {
-            Assert.DoesNotContain(marker, item.DetailText ?? "");
-            Assert.DoesNotContain(marker, item.ReasonMessage ?? "");
+            Assert.DoesNotContain(marker, item.DetailsText ?? "");
+            Assert.DoesNotContain(marker, item.Message ?? "");
         }
     }
 
@@ -188,5 +188,5 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
     }
 
     private Task SetJobStatusAsync(long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(Db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(Db, jobId, statusCode, ct);
 }

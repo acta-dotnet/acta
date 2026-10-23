@@ -71,12 +71,14 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var events = await GetEventsByJobId.Run(Services, jobId, ct);
         var observedTypes = events.Select(e => e.EventCode).ToArray();
-        Assert.Equal([EventCode.JobExecutionFinished], observedTypes);
+        Assert.Equal([EventCode.JobExecutionSucceeded], observedTypes);
 
-        var finishedEvent = events.Single(e => e.EventCode == EventCode.JobExecutionFinished);
-        Assert.Equal(ExecutionStatusCode.Succeeded, finishedEvent.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Executing, finishedEvent.FromStatus);
-        Assert.Equal(JobStatusCode.Succeeded, finishedEvent.ToStatus);
+        // A success writes no sentence and no details: the code is the whole fact.
+        var succeeded = events.Single();
+        Assert.Equal(1, succeeded.ExecutionNumber);
+        Assert.NotNull(succeeded.DurationMs);
+        Assert.Null(succeeded.Message);
+        Assert.Null(succeeded.DetailsText);
 
         var result = await Services.GetRequiredService<GetResultHandler>().ReadAsync(jobId, null, ct);
         Assert.NotNull(result);

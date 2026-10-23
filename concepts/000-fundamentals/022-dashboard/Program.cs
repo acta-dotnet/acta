@@ -50,7 +50,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "The dashboard reads the same varied durable states as the operator views",
     """
-    SELECT job_ref, job_name, status, parent_id, execution_number, failure_count
+    SELECT job_ref, job_name, status, parent_job_id, execution_number, failure_count
     FROM jobs_view
     WHERE job_id IN (@successful, @failed, @retrying, @waiting, @parent)
     ORDER BY job_id

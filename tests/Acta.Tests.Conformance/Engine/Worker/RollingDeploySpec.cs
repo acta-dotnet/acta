@@ -40,7 +40,7 @@ public sealed class RollingGenerationBManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -187,7 +187,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(strandedNew.JobId, ct)).Status);
         var cancelEvent = await ReadLatestEventAsync(strandedNew.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobDefinitionRetired, cancelEvent.ReasonCode);
+        Assert.Equal(EventReason.DefinitionRetired, EventDetail(cancelEvent, "reason"));
 
         var rejected = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
             await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct)
@@ -238,7 +238,9 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
     private async Task<DefinitionEntity> ReadDefinitionAsync(string jobName, CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var definition = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == jobName).SingleOrDefaultAsync(ct);
+        var definition = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == jobName)
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(definition);
         return definition!;
     }

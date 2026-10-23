@@ -28,7 +28,9 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var workerId = await WorkerIdAsync(Db, ns, ct);
 
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "add-numbers").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "add-numbers")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         var maxAttempts = def!.MaxAttempts;
 
@@ -55,6 +57,45 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             // an in-budget re-arm leaves retention untouched.
             Assert.Equal(attempt < maxAttempts, job.RetentionUntilUtc is null);
         }
+    }
+
+    [Theory(DisplayName = "Reclaim saturates the failure count at 32,767: a recurring slot keeps re-arming and the count stops climbing")]
+    [InlineData(32_766)]
+    [InlineData(32_767)]
+    public async Task Reclaim_saturates_the_failure_count(int staged)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var workerId = await WorkerIdAsync(Db, ns, ct);
+        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
+
+        // A lapsed attempt on a slot whose count already sits at or one below the ceiling.
+        Assert.Equal(
+            1,
+            await Db.From<JobStateEntity>()
+                .Where(r => r.Id == slotId)
+                .UpdateOnlyAsync(
+                    () =>
+                        new JobStateEntity
+                        {
+                            Status = JobStatusCode.Executing,
+                            FailureCount = staged,
+                            LeasedByWorkerId = workerId,
+                            LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
+                        },
+                    ct
+                )
+        );
+
+        Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
+
+        var slot = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, slot.Status);
+        Assert.Equal(32_767, slot.FailureCount);
+        Assert.Equal(
+            EventReason.LeaseExpired,
+            EventDetail(await ReadSingleEventAsync(slotId, EventCode.JobExecutionOrphaned, ct), "reason")
+        );
     }
 
     [Fact(DisplayName = "Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped")]
@@ -89,14 +130,12 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Null(job.LeaseExpiresAtUtc);
         Assert.Equal(1, job.FailureCount);
 
-        var events = await Db.From<EventEntity>()
-            .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
-            .ToListAsync(ct);
-        var reclaimEvent = Assert.Single(events);
-        Assert.Equal(ActorCode.Sys, reclaimEvent.ActorCode);
-        Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Ready, reclaimEvent.ToStatus);
-        Assert.Equal(EventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
+        // The stale holder is the event's worker, and the details say why and where the job went.
+        var reclaimEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionOrphaned, ct);
+        Assert.Equal(workerId, reclaimEvent.WorkerId);
+        Assert.Equal(claimed.ExecutionNumber, reclaimEvent.ExecutionNumber);
+        Assert.Equal(EventReason.LeaseExpired, EventDetail(reclaimEvent, "reason"));
+        Assert.Equal(JobStatusCode.Ready.Code, EventDetail(reclaimEvent, "to"));
     }
 
     [Fact(DisplayName = "Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event")]
@@ -129,14 +168,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(job.LeasedByWorkerId);
         Assert.NotNull(job.LeaseExpiresAtUtc);
 
-        var leaseExpiredEvents = await Db.From<EventEntity>()
-            .Where(e =>
-                e.JobId == enqueued.JobId
-                && e.EventCode == EventCode.JobExecutionFinished
-                && e.ReasonCode == EventReasonCode.JobLeaseExpired
-            )
-            .ToListAsync(ct);
-        Assert.Empty(leaseExpiredEvents);
+        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.LeaseExpired, ct));
     }
 
     [Fact(DisplayName = "A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone")]
@@ -167,7 +199,8 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_job_id AND kind_code = @p_kind AND name = @p_name",
+                "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
+                    + " WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_kind AND checkpoint_name = @p_name",
                 ct,
                 ("@p_due", DateTime.UtcNow.AddMinutes(-5)),
                 ("@p_job_id", enqueued.JobId),

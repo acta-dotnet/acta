@@ -20,7 +20,7 @@ internal static class JobPolicyReader
     internal const int MinConcurrencyLimit = 1;
     internal const int MaxConcurrencyLimit = 1024;
     internal const string DefaultPriorityName = "Normal";
-    internal const string DefaultAuditLevelName = "Audit";
+    internal const string DefaultEventRecordingName = "Audit";
     internal const string DefaultAlertProfileName = "OnFailure";
 
     internal static AttributePolicy ReadAttributePolicy(AttributeData attr, List<DiagnosticRecord> diagnostics, Location location)
@@ -61,7 +61,7 @@ internal static class JobPolicyReader
             draft.RateLimit,
             draft.RateName,
             draft.Lane,
-            draft.AuditLevelName,
+            draft.EventRecordingName,
             draft.AlertProfileName,
             draft.TenantRequirementId,
             draft.BackoffExpression,
@@ -88,7 +88,7 @@ internal static class JobPolicyReader
         public string? RateLimit { get; set; }
         public string? RateName { get; set; }
         public string? Lane { get; set; }
-        public string? AuditLevelName { get; set; }
+        public string? EventRecordingName { get; set; }
         public string AlertProfileName { get; set; } = DefaultAlertProfileName;
         public byte TenantRequirementId { get; set; }
         public string? BackoffExpression { get; set; }
@@ -160,22 +160,22 @@ internal static class JobPolicyReader
                 }
                 return true;
 
-            case "AuditLevel":
-                if (TryGetEnumByte(named.Value, out var al))
+            case "EventRecording":
+                if (TryGetEnumByte(named.Value, out var er))
                 {
-                    var name = AuditLevelIdToName(al);
+                    var name = EventRecordingIdToName(er);
                     if (name is null)
                     {
                         diagnostics.Add(
                             ManifestDiagnostics.InvalidPolicyValue(
                                 named.Key,
-                                al.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The value is not a defined `DefinitionAuditLevelCode`.",
+                                er.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The value is not a defined `EventRecordingCode`.",
                                 location
                             )
                         );
                     }
-                    draft.AuditLevelName = name ?? DefaultAuditLevelName;
+                    draft.EventRecordingName = name ?? DefaultEventRecordingName;
                 }
                 return true;
 

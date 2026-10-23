@@ -1,0 +1,16 @@
+-- The slot is the namespace's root sys.alerts job; its cursor and skip records are variables keyed under it.
+SELECT
+    c.checkpoint_name,
+    c.value_format_id,
+    c.value
+FROM {{schema}}.jobs j
+LEFT JOIN {{schema}}.checkpoints c
+    ON
+        c.job_id = j.job_id
+        AND c.checkpoint_kind_code = 10 /* CheckpointKindCode.Variable */
+        AND (c.checkpoint_name = 'alerts-cursor' OR c.checkpoint_name LIKE 'alerts-skip-%')
+WHERE
+    j.namespace_id = COALESCE(@p_namespace_id, (SELECT o.namespace_id FROM {{schema}}.jobs o WHERE o.job_id = @p_job_id))
+    AND j.deduplication_key = 'sys.alerts'
+    AND j.parent_job_id IS NULL
+ORDER BY c.checkpoint_name;

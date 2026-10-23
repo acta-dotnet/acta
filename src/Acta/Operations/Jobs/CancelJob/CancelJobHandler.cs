@@ -17,11 +17,7 @@ internal sealed class CancelJobHandler(
     /// The cascade an ancestor's own cancellation causes. Named rather than defaulted so the other cause, a
     /// parent whose bounded child wait expired, has to say which one it is.
     /// </summary>
-    public static readonly JobControlInput ParentCancelled = new(
-        new JobControlActor(ActorCode.Sys),
-        EventReasonCode.JobParentCancelled,
-        "Ancestor job cancelled."
-    );
+    public static readonly JobControlInput ParentCancelled = new(null, EventReason.ParentCancelled, "Ancestor job cancelled.");
 
     public async ValueTask<CancelJobResponse> HandleAsync(CancelJobCommand command, CancellationToken ct)
     {
@@ -34,7 +30,7 @@ internal sealed class CancelJobHandler(
         if (row.Action == ControlAction.Applied)
         {
             var released =
-                row.ParentId is { } parentId
+                row.ParentJobId is { } parentId
                 && await RaiseChildLatch.Run(signals, jobId, parentId, JobStatusCode.Cancelled, childExecutionNumber: null, ct);
             await JobControl.WakeWorkersIfAsync(wakeup, released || row.LanePromoted, ct);
         }
@@ -55,8 +51,8 @@ internal sealed class CancelJobHandler(
             new StoreCommand("CancelJob"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                JobControl.BindActor(cmd, dialect, input);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                JobControl.BindEvent(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<CancelJobRow>(),

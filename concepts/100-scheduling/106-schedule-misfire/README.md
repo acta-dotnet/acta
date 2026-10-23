@@ -40,7 +40,7 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 The program prints `schedules_view` before the miss, while both cursors are overdue, and after resume.
-Compare the decoded `misfire_strategy` and `next_run_at_utc` values. The program compares the stored
+Compare the decoded `misfire_strategy` and `next_occurrence_at_utc` values. The program compares the stored
 cursor before and after resume; it deliberately does not compare the database decision with the
 application host's clock.
 

@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 
 /// <summary>
 /// The actual plans claim_jobs runs, returned by STATISTICS XML for every statement inside the procedure:
-/// the claim seeks ix_runtimes_claim_ready one priority band at a time and reads only the due rows, and the
+/// the claim seeks ix_jobs_state_claim_ready one priority band at a time and reads only the due rows, and the
 /// empty claim's horizon reads the head of each band once. Parked waits, which SQL Server sorts first in
 /// their band, and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
@@ -19,7 +19,7 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
     private static readonly XNamespace Showplan = "http://schemas.microsoft.com/sqlserver/2004/07/showplan";
 
     [Fact(
-        DisplayName = "claim_jobs seeks ix_runtimes_claim_ready per priority band and reads only the due rows, and its horizon reads each band's head"
+        DisplayName = "claim_jobs seeks ix_jobs_state_claim_ready per priority band and reads only the due rows, and its horizon reads each band's head"
     )]
     public async Task Claim_seeks_each_band_and_reads_only_due_rows()
     {
@@ -52,7 +52,7 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
             s =>
                 Assert.Contains(
                     s.Descendants(Showplan + "SeekPredicates").Descendants(Showplan + "ColumnReference"),
-                    c => (string?)c.Attribute("Column") is "priority_code" or "[priority_code]"
+                    c => (string?)c.Attribute("Column") is "job_priority_code" or "[job_priority_code]"
                 )
         );
 
@@ -96,7 +96,7 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
         return (claimed, plans);
     }
 
-    /// <summary>Every operator reading ix_runtimes_claim_ready inside the statements whose text contains <paramref name="marker"/>.</summary>
+    /// <summary>Every operator reading ix_jobs_state_claim_ready inside the statements whose text contains <paramref name="marker"/>.</summary>
     private static List<XElement> ClaimIndexOperators(IEnumerable<XDocument> plans, string marker) =>
         [
             .. plans
@@ -106,7 +106,7 @@ public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
                 .Where(op =>
                     op.Elements(Showplan + "IndexScan")
                         .Elements(Showplan + "Object")
-                        .Any(o => (string?)o.Attribute("Index") == "[ix_runtimes_claim_ready]")
+                        .Any(o => (string?)o.Attribute("Index") == "[ix_jobs_state_claim_ready]")
                 ),
         ];
 

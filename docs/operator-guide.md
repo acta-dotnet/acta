@@ -9,7 +9,7 @@ the ledger for everything else diagnostic. Queries below are
 Postgres-flavored against the `acta` schema; on SQL Server bracket the identifiers and swap the
 interval arithmetic (`DATEADD`).
 
-The job's `runtimes` row stores current state. Job events explain transitions. Use the CLI, API,
+The job's `jobs_state` row stores current state. Job events explain transitions. Use the CLI, API,
 dashboard, or a SQL query over the events timeline to find why.
 
 Curated operator views cover the common read paths: `acta.jobs_view`, `acta.events_view`,
@@ -29,7 +29,7 @@ Live statuses: `Ready = 10`, `Blocked = 15` (a laned job waiting behind its lane
 `Paused = 30`, `Executing = 50`.
 Terminal statuses follow the band rule: `100` is success (`Succeeded`), `200+` is unsuccessful
 (`Failed = 200`, `Cancelled = 220`). The reason for a transition lives on `events`, not on the
-runtime row.
+`jobs_state` row.
 
 Workers use the same bands: `Active = 10`, `Draining = 80` (stopped polling, finishing in-flight),
 `Stopped = 100`, `Dead = 200`.
@@ -54,9 +54,9 @@ of its own.
 
 ```sql
 -- Workers that died in the last hour, and how long they had been running.
-SELECT worker_id, host, deployment_version, created_at_utc, modified_at_utc
+SELECT worker_id, host_name, deployment_version, created_at_utc, modified_at_utc
   FROM acta.workers_view
- WHERE status_code = 200 AND modified_at_utc > now() - interval '1 hour'
+ WHERE worker_status_code = 200 AND modified_at_utc > now() - interval '1 hour'
  ORDER BY modified_at_utc DESC;
 ```
 
@@ -90,7 +90,7 @@ SELECT * FROM acta.jobs_view WHERE job_id = :job_id;
 
 -- By deduplication key (root jobs; children are keyed per parent instead).
 SELECT * FROM acta.jobs_view
- WHERE namespace = 'billing' AND deduplication_key = :key AND parent_id IS NULL;
+ WHERE namespace = 'billing' AND deduplication_key = :key AND parent_job_id IS NULL;
 
 -- Failures in the last 24 hours, newest first.
 SELECT job_id, job_ref, namespace, job_name, failure_count, modified_at_utc
@@ -117,12 +117,12 @@ SELECT tenant_name, COUNT(*) AS ready
  ORDER BY ready DESC;
 
 -- In-flight work and who holds it.
-SELECT job_id, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
+SELECT job_id, status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
   FROM acta.jobs_view
  WHERE status = 'executing';
 
--- The whole timeline for a job tree (parents + children share lineage_root_id).
-SELECT created_at_utc, job_id, event, from_status, to_status, reason, reason_message, detail_format, detail_text
+-- The whole timeline for a job tree (parents + children share lineage_root_job_id).
+SELECT created_at_utc, entity_id, event, execution_number, duration_ms, event_message, details_text
   FROM acta.events_view
  WHERE lineage_root_job_id = :root_job_id
  ORDER BY created_at_utc, event_id;
@@ -130,7 +130,7 @@ SELECT created_at_utc, job_id, event, from_status, to_status, reason, reason_mes
 -- Children of a parent.
 SELECT job_id, job_ref, deduplication_key, status
   FROM acta.jobs_view
- WHERE parent_id = :job_id;
+ WHERE parent_job_id = :job_id;
 
 -- Suspended jobs and the signals they wait on.
 SELECT c.job_id, c.job_ref, c.checkpoint_name, c.status, c.value_format, c.value_text
@@ -139,7 +139,7 @@ SELECT c.job_id, c.job_ref, c.checkpoint_name, c.status, c.value_format, c.value
  WHERE j.status = 'suspended' AND c.kind = 'signal';
 
 -- Durable step slots for a job: which named steps ran, their outcome, and retry state.
-SELECT step_name, status, attempt_number, next_retry_at_utc, reason, reason_message
+SELECT step_name, status, attempt_number, next_retry_at_utc, failure, failure_message
   FROM acta.steps_view WHERE job_id = :job_id ORDER BY step_name;
 
 -- Durable sleep timers for a job: when each named wait is due.
@@ -149,14 +149,14 @@ SELECT checkpoint_name, status, due_at_utc
  ORDER BY due_at_utc;
 
 -- Jobs carrying an exact tag, optionally narrowed by its preserved value.
-SELECT t.scope_id AS job_id, j.status, t.tag_name, t.tag_value
-  FROM acta.tags_view t JOIN acta.jobs_view j ON j.job_id = t.scope_id
- WHERE t.scope = 'job' AND j.namespace = :ns
+SELECT t.entity_id AS job_id, j.status, t.tag_name, t.tag_value
+  FROM acta.tags_view t JOIN acta.jobs_view j ON j.job_id = t.entity_id
+ WHERE t.entity_kind = 'job' AND j.namespace = :ns
    AND t.tag_name = :tag_name AND t.tag_value = :tag_value;
 ```
 
 The reason for a transition lives on the `events` timeline (and per-step on `steps`); the
-`runtimes` row carries status only.
+`jobs_state` row carries status only.
 
 ## Control verbs
 
@@ -239,7 +239,7 @@ intent, resuming something that was never paused does not.
 
 Five rules the table cannot show:
 
-- **`purge` also rejects a job that has children**, whatever its status. `parent_id` carries no
+- **`purge` also rejects a job that has children**, whatever its status. `parent_job_id` carries no
   database cascade, so purging a parent would leave a child pointing at a row that no longer exists.
   It also rejects a completed child whose parent is not terminal: the parent's replay dedupes onto
   that child and reads its result, so purging it would run the child again. Once the tree is
@@ -403,7 +403,7 @@ tenants.update
 
 ## Retention and purge
 
-A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `runtimes` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
 
 A recurring slot is never purged while its definition is live. Like every job it holds at most one result: its latest successful occurrence's, cleared when the next occurrence is claimed.
 
@@ -553,7 +553,7 @@ PostgreSQL:
   without a restart.
 - Keep transactions short across the whole database, not only Acta's. A claim starts past the dead
   index entries earlier claims left, so an open transaction no longer slows it, but vacuum cannot
-  reclaim those rows until the oldest transaction that can still see them ends, and `runtimes` grows
+  reclaim those rows until the oldest transaction that can still see them ends, and `jobs_state` grows
   meanwhile.
 
 SQL Server:
@@ -685,7 +685,7 @@ included, is one durable system.
 
 - `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
 - A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
-- At `AuditLevel = Failures` a one-shot job's retries are not recorded, so only its terminal `Failed` alerts. A recurring job's failed fire and a worker that died holding a job still do.
+- Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, so every profile fires and resolves the same at every level.
 - For recurring work use `OnFailure`: a recurring job's failures never land `Failed`, so `OnTerminal` and `Info` stay silent for them.
 
 ### Incidents
@@ -800,9 +800,9 @@ what a process can run, so during a rolling deploy either version can claim eith
 A worker with no handler for a claimed job returns it to `Ready` with the lease cleared, no failure
 charged and no retry consumed, due again one safety-poll interval later, and stops claiming that
 definition for the rest of its process life; the first hand-back logs a warning naming the job ref
-and definition id, the rest of the same claimed batch log at debug. Under audit level `Audit` the
-hand-back writes one `job.execution-finished` row with reason `job.unclassified` whose message names
-the definition; under `Failures` it writes nothing, because nothing failed. A job whose definition
+and definition id, the rest of the same claimed batch log at debug. Under `Audit` recording the
+hand-back writes one `job.execution-yielded` row whose message names the definition; under
+`Failures` it writes nothing, because nothing failed. A job whose definition
 no live worker carries sits `Ready` without progressing, and its definition page shows it `Active`
 with queued work and no worker that carries it; the fix is to redeploy a build that carries the
 handler, or to retire the definition from the dashboard, which cancels its parked jobs. Removing a
@@ -876,7 +876,7 @@ schedule downtime, purge, or restore: see [What happens if…](#what-happens-if)
 ### Start With `jobs explain`
 
 For any single stuck, waiting, or failed job, run `<app> jobs explain <job-ref|id>` first. It reads
-the same `runtimes` / lease / worker / checkpoint / step / event rows the checks below describe, in
+the same `jobs_state` / lease / worker / checkpoint / step / event rows the checks below describe, in
 one consistent snapshot, and states in plain English where the work is, why it moved there, and the
 next action (raise a signal, wait for crash recovery, resume, restart, or inspect the timeline). The
 manual checks below are for triaging many jobs at once, confirming what `explain` reports, or when
@@ -900,7 +900,7 @@ Start with `acta.jobs_view` so names and status values are decoded:
 - `namespace`: workers only claim inside their own namespace.
 - `job_name`: the worker must have registered the matching definition in that namespace.
 
-If you need raw storage state, `jobs_view` is built from the job's `runtimes` row (1:1 with `jobs` by `job_id`).
+If you need raw storage state, `jobs_view` is built from the job's `jobs_state` row (1:1 with `jobs` by `job_id`).
 
 Then check workers:
 
@@ -1072,22 +1072,22 @@ less common codes.
 ### Foreign-key policy
 
 Acta enforces database foreign keys in one shape: NO ACTION from transactional tables to dimension
-rows (schedules → definitions; workers → namespaces; runtimes → lanes). Definitions and namespaces
+rows (schedules → definitions; workers → namespaces; jobs_state → lanes). Definitions and namespaces
 have no delete surface, and retention deletes a lane only once no job references it.
 
-A job's own rows carry no key to it: purge and retention delete `runtimes`, `checkpoints`,
+A job's own rows carry no key to it: purge and retention delete `jobs_state`, `checkpoints`,
 `steps`, `schedules`, and the job's `tags` with the job, and conformance checks that nothing is left.
 Nor does `jobs` reference `namespaces`, `tenants`, or `definitions` by key; enqueue resolves those in
-its own transaction. A key on `runtimes` checked, on every enqueue, the new job row on the hottest page
+its own transaction. A key on `jobs_state` checked, on every enqueue, the new job row on the hottest page
 of `jobs`, and dropping it raised SQL Server's single enqueues by about a sixth.
 
 Never enforced, by design:
 
 - Audit/history rows (`events`, `alerts`): audit outlives its subjects. Queries against them must
   use their denormalized columns (e.g. `alerts.job_ref`), never joins to possibly-purged rows.
-- Ephemeral/operational references (`locks.job_id`, `runtimes.leased_by_worker_id`): reaped by
+- Ephemeral/operational references (`locks.job_id`, `jobs_state.leased_by_worker_id`): reaped by
   their own lifecycles.
-- Lineage self-references (`jobs.parent_id`, `jobs.lineage_root_id`): retention deletes parents in
+- Lineage self-references (`jobs.parent_job_id`, `jobs.lineage_root_job_id`): retention deletes parents in
   retention order and dangling lineage refs are tolerated everywhere; a RESTRICT self-FK would fail
   routine retention.
 
@@ -1098,7 +1098,7 @@ conformance tests. New hot-path tables must justify any FK in review.
 
 Creating work from SQL is a write, so call the installed `enqueue_job` routine instead of hand-writing
 `INSERT`s. You pass the **namespace name and the job name** (the `[Job("...")]` name); the routine
-resolves the definition, stamps the job ready, and writes the `jobs` and `runtimes` rows in one
+resolves the definition, stamps the job ready, and writes the `jobs` and `jobs_state` rows in one
 transaction.
 
 **Postgres**: a set-returning function; call it with named arguments:
@@ -1116,14 +1116,19 @@ SELECT job_id, job_ref, action  /* action: 1 inserted, 2 idempotency-deduped */
 so declare an empty one even for a tag-free enqueue:
 
 ```sql
-DECLARE @tags acta.enqueue_tags_batch;
+DECLARE @tags acta.enqueue_tags;
 DECLARE @payload varbinary(max) = CAST('{"invoiceId":42}' AS varbinary(max));
 EXEC acta.enqueue_job
     @p_namespace_name = 'billing',
     @p_job_name       = 'send-invoice',
     @p_input          = @payload,
-    @p_tag_batch      = @tags;
+    @p_tags           = @tags;
 ```
+
+The optional parameters keep their column names: `p_deduplication_key`, `p_correlation_key`,
+`p_job_priority_code_override`, `p_input_format_id`, `p_concurrency_key`, `p_next_run_at_utc` or
+`p_delay_seconds`, `p_parent_job_id`, `p_tenant_name` with `p_tenant_override`, and `p_lane_name`.
+Postgres takes tags as the three arrays `p_tag_name`, `p_tag_value`, and `p_tag_value_search`.
 
 SQLite has no callable enqueue routine; enqueue through the application (`IJobs.EnqueueAsync`).
 
@@ -1157,7 +1162,7 @@ claim batch, DB capacity, and whether jobs are due yet.
 ### In-Flight Jobs And Owners
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
+SELECT job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
   FROM acta.jobs_view
  WHERE status = 'executing'
  ORDER BY lease_expires_at_utc, job_id;
@@ -1169,15 +1174,15 @@ within one more lease.
 ### Event Timeline
 
 ```sql
-SELECT event_id, created_at_utc, job_id, job_ref, event, actor_kind, actor, from_status, to_status, execution_status, reason, reason_message, detail_format, detail_text, duration_ms
+SELECT event_id, created_at_utc, event, execution_number, duration_ms, event_message, details_format, details_text
   FROM acta.events_view
- WHERE job_id = :job_id
+ WHERE entity_kind = 'job' AND entity_id = :job_id
  ORDER BY created_at_utc, event_id;
 ```
 
 `events_view` is a readable ledger, not a rollup. The `jobs_view` row tells you where work is now;
-events tell you why it moved. `detail_text` decodes built-in `json` and `text` event details; binary
-and custom detail payloads stay opaque.
+events tell you why it moved. `details_text` decodes built-in `json` and `text` event details; binary
+and custom details payloads stay opaque.
 
 ### Recent Terminal Failures
 
@@ -1220,7 +1225,7 @@ Timers are job-internal slots. The owning job becomes claimable when the timer i
 ### Step State
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, step_name, status, attempt_number, next_retry_at_utc, reason, reason_message, result_format, result_text
+SELECT job_id, job_ref, namespace, job_name, step_name, status, attempt_number, next_retry_at_utc, failure, failure_message, result_format, result_text
   FROM acta.steps_view
  WHERE job_id = :job_id
  ORDER BY step_name;
@@ -1232,29 +1237,34 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, origin, expression_effective, time_zone_id_effective, next_run_at_utc, paused_until_utc, description
+SELECT namespace, job_name, schedule_name, status, origin, expression_effective, time_zone_id_effective, next_occurrence_at_utc, last_advanced_occurrence_at_utc, paused_until_utc, description, change_message
   FROM acta.schedules_view
- ORDER BY namespace, next_run_at_utc NULLS LAST, schedule_name;
+ ORDER BY namespace, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
-The schedule row carries the per-schedule cursor. The recurring slot job uses the minimum live
-schedule cursor as its `next_run_at_utc`.
+Each schedule's cursor lives in `schedules_state`, beside its `schedules` row, and the view joins the
+two. `next_occurrence_at_utc` is the next instant the schedule is due; an orphaned schedule, and every
+schedule of a retired definition, has none. The recurring slot job uses the minimum live schedule
+cursor as its `next_run_at_utc`.
 
 ### Job Definitions And Effective Policy
 
 ```sql
-SELECT namespace, job_name, status, input_type_name, input_format_name, output_type_name, output_format_name, priority, max_attempts, execution_timeout_seconds, deadline_seconds, retention_seconds, audit_level, alert_profile, alert_channel_name, runbook_url
+SELECT namespace, job_name, status, input_type_name, input_format_name, output_type_name, output_format_name, priority, max_attempts_effective, execution_timeout_seconds_effective, deadline_seconds_effective, retention_seconds_effective, event_recording, alert_profile, alert_channel_name_effective, runbook_url_effective
   FROM acta.definitions_view
  WHERE namespace = 'billing'
  ORDER BY job_name;
 ```
 
-Use this when a job behaves differently than expected after a deploy or operator override.
+Use this when a job behaves differently than expected after a deploy or operator override. Each
+policy appears three times: the bare column is the default the code declares, `_override` is the
+operator's edit (`NULL` when none), and `_effective` is the value that runs. The decoded columns
+(`priority`, `deadline_behavior`, `event_recording`, `alert_profile`) decode the effective value.
 
 ### Worker Liveness
 
 ```sql
-SELECT namespace, worker_id, host, status, deployment_version, max_concurrency, last_seen_at_utc
+SELECT namespace, worker_id, host_name, status, deployment_version, max_concurrent_executors, last_seen_at_utc
   FROM acta.workers_view
  ORDER BY last_seen_at_utc DESC;
 ```
@@ -1294,14 +1304,14 @@ retention have their own windows in `JobsOptions`.
 
 ### Tags
 
-`tags_view` decodes the exact target scope while retaining `scope_code` and `scope_id`. It carries no
-namespace: join job-scoped tags to `jobs_view` for the job's namespace and runtime context:
+`tags_view` decodes the tagged entity's kind as `entity_kind` while retaining `entity_code` and `entity_id`. It
+carries no namespace: join job tags to `jobs_view` for the job's namespace and runtime context:
 
 ```sql
-SELECT t.scope_id AS job_id, j.job_ref, j.namespace, j.job_name, j.status, t.tag_name, t.tag_value
+SELECT t.entity_id AS job_id, j.job_ref, j.namespace, j.job_name, j.status, t.tag_name, t.tag_value
   FROM acta.tags_view t
-  JOIN acta.jobs_view j ON j.job_id = t.scope_id
- WHERE t.scope = 'job'
+  JOIN acta.jobs_view j ON j.job_id = t.entity_id
+ WHERE t.entity_kind = 'job'
    AND j.namespace = 'billing'
    AND t.tag_name = 'tier'
    AND t.tag_value = 'gold';
@@ -1379,7 +1389,7 @@ Names (namespace, job, schedule, signal, channel, lane, tenant, rate meter) are 
 trims and lowercases them on input, so a name compares equal under any collation. Keys (deduplication,
 concurrency, lock, correlation) are stored exactly as the caller gave them and compared bytewise; on
 SQL Server the compared key columns carry a binary collation for that, on PostgreSQL and SQLite equality
-is already exact. Display text (`display_name`, `message`, `actor`) is stored verbatim and never compared.
+is already exact. Display text (`display_name`, `alert_message`, `actor`) is stored verbatim and never compared.
 
 For raw SQL this means: compare a name with a lowercase literal, and supply lowercase when you insert a
 name out of band, since a mixed-case name never matches Acta's equality, uniqueness, or joins; compare a
@@ -1387,5 +1397,5 @@ key with the exact casing the caller supplied.
 
 ```sql
 -- finds the tenant regardless of how the caller originally cased the name
-SELECT id, tenant_name, description FROM acta.tenants WHERE tenant_name = 'acme-corp';
+SELECT tenant_id, tenant_name, description FROM acta.tenants WHERE tenant_name = 'acme-corp';
 ```

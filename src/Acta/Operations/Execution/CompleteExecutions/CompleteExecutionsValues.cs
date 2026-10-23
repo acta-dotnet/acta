@@ -2,11 +2,10 @@ namespace Acta;
 
 /// <summary>
 /// One attempt's completion, landing Succeeded or Failed unless a shape field says otherwise, read in this order:
-/// <c>WaitSignalName</c> suspends on that signal (Ready when it already arrived), <c>RescheduleStatusCode</c> re-arms
-/// Ready and is the execution status the attempt records, <c>HandlerStatusCode</c> lands what the handler asked for,
-/// and <c>FinalStatus</c> is a recurring fire, which applies <c>ScheduleAdvances</c> and reads the slot's next run from
-/// its schedules. Every shape writes <c>ResultFormatId</c> and <c>Result</c> to the runtime row, so format None stores
-/// no result. <c>FailureCount</c> null keeps the row's; <c>RetentionSeconds</c> stamps retention at a terminal landing.
+/// <c>WaitSignalName</c> suspends on that signal (Ready when it already arrived), <c>RescheduleEventCode</c> re-arms
+/// Ready and names the event a re-arm records at Audit, <c>HandlerStatusCode</c> lands what the handler asked for, and
+/// <c>FinalStatus</c> is a recurring fire. <c>EventCode</c> is the attempt's own event, 40 to 44, with <c>Reason</c>
+/// its <see cref="EventReason"/>. <c>FailureCount</c> null keeps the row's; <c>RetentionSeconds</c> stamps a terminal landing.
 /// </summary>
 internal sealed record CompleteExecutionsValues(
     long JobId,
@@ -14,14 +13,15 @@ internal sealed record CompleteExecutionsValues(
     bool Succeeded,
     byte ResultFormatId,
     ReadOnlyMemory<byte> Result,
-    EventReasonCode? EventReasonCode,
-    string? ReasonMessage,
+    EventCode EventCode,
+    string? Reason,
+    string? EventMessage,
     int? DurationMs,
     int? FailureCount,
     int? RetentionSeconds
 )
 {
-    public byte? RescheduleStatusCode { get; init; }
+    public EventCode? RescheduleEventCode { get; init; }
 
     public int? RescheduleDelaySeconds { get; init; }
 
@@ -40,15 +40,10 @@ internal sealed record CompleteExecutionsValues(
     /// <summary>The job is in a lane, as its claim read it; lane_id never changes.</summary>
     public bool HasLane { get; init; }
 
-    /// <summary>The job has a parent, as its claim read it; parent_id never changes.</summary>
+    /// <summary>The job has a parent, as its claim read it; parent_job_id never changes.</summary>
     public bool HasParent { get; init; }
 
     /// <summary>A landing with no shape field, lane, or parent: the routine writes only its own row, result, and event.</summary>
     public bool IsPlain =>
-        RescheduleStatusCode is null
-        && HandlerStatusCode is null
-        && FinalStatus is null
-        && WaitSignalName is null
-        && !HasLane
-        && !HasParent;
+        RescheduleEventCode is null && HandlerStatusCode is null && FinalStatus is null && WaitSignalName is null && !HasLane && !HasParent;
 }

@@ -18,7 +18,9 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
         await Db.From<TenantEntity>().Where(t => t.TenantName == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int id, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.TenantId == id && e.EventCode == EventCode.TenantUpdated).CountAsync(ct);
+        await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == id && e.EventCode == EventCode.TenantUpdated)
+            .CountAsync(ct);
 
     [Fact(DisplayName = "A matching version writes both fields, bumps version, and emits tenant.updated")]
     public async Task Applies_and_emits()

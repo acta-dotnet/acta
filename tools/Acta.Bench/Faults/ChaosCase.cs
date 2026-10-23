@@ -224,7 +224,7 @@ internal static class ChaosCase
                     $"staged={producerCounts.Operations} ledger_jobs={delivered}"
                 )
             );
-            var rows = (await new DurableReader(state).ReadAsync(null, ct)).ToDictionary(r => r.Id);
+            var rows = (await new DurableReader(state).ReadAsync(null, ct)).ToDictionary(r => r.JobId);
             var reclaimed = victims.Count(v => rows.TryGetValue(v.Id, out var row) && row.ExecutionNumber > v.Execution);
             var recoveredHits = hits.Count(hit => hit.Any(v => rows.TryGetValue(v.Id, out var row) && row.ExecutionNumber > v.Execution));
             bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), BenchJson.Default.CheckArray);
@@ -435,7 +435,7 @@ internal static class ChaosCase
         await using var command = connection.CreateCommand();
         var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
         command.CommandText =
-            $"SELECT r.job_id, r.execution_number FROM {prefix}.runtimes r JOIN {prefix}.workers w ON w.id=r.leased_by_worker_id JOIN {prefix}.jobs j ON j.id=r.job_id JOIN {prefix}.definitions d ON d.id=j.definition_id WHERE w.process_id={pid} AND r.status_code=50 AND d.name NOT LIKE 'sys.%'";
+            $"SELECT r.job_id, r.execution_number FROM {prefix}.jobs_state r JOIN {prefix}.workers w ON w.worker_id=r.leased_by_worker_id JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE w.process_id={pid} AND r.job_status_code=50 AND d.definition_name NOT LIKE 'sys.%'";
         List<(long, int)> jobs = [];
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -457,7 +457,7 @@ internal static class ChaosCase
         await using var command = connection.CreateCommand();
         var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
         command.CommandText =
-            $"SELECT COUNT(*), SUM(CASE WHEN r.status_code IN (100, 200, 220) THEN 1 ELSE 0 END) FROM {prefix}.runtimes r JOIN {prefix}.jobs j ON j.id=r.job_id JOIN {prefix}.definitions d ON d.id=j.definition_id WHERE d.name NOT LIKE 'sys.%'";
+            $"SELECT COUNT(*), SUM(CASE WHEN r.job_status_code IN (100, 200, 220) THEN 1 ELSE 0 END) FROM {prefix}.jobs_state r JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%'";
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
         return (

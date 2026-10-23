@@ -138,7 +138,7 @@ internal static class JobPolicyValues
 
     /// <summary>
     /// Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
-    /// (JobPriorityCode / DefinitionAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
+    /// (JobPriorityCode / EventRecordingCode / AlertProfileCode), so an `is int` pattern silently
     /// misses them. Read whatever integral the constant carries and narrow to byte.
     /// </summary>
     internal static bool TryGetEnumByte(TypedConstant constant, out byte value)
@@ -170,7 +170,7 @@ internal static class JobPolicyValues
             _ => null,
         };
 
-    internal static string? AuditLevelIdToName(byte id) =>
+    internal static string? EventRecordingIdToName(byte id) =>
         id switch
         {
             0 => "Off",

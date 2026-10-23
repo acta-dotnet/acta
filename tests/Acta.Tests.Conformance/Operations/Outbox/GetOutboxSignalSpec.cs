@@ -72,7 +72,7 @@ public sealed class GetOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Equal(
             1,
             await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == expiredJob && c.Kind == CheckpointKindCode.Signal && c.Name == OutboxSignalNames.Requeue)
+                .Where(c => c.JobId == expiredJob && c.Kind == CheckpointKindCode.Signal && c.CheckpointName == OutboxSignalNames.Requeue)
                 .UpdateOnlyAsync(() => new CheckpointEntity { Status = CheckpointStatusCode.Expired }, ct)
         );
 
@@ -80,7 +80,8 @@ public sealed class GetOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, value_format_id) VALUES (@p_job_id, 10, @p_name, 0)",
+                "INSERT INTO {schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, value_format_id)"
+                    + " VALUES (@p_job_id, 10, @p_name, 0)",
                 ct,
                 ("@p_job_id", variableJob),
                 ("@p_name", OutboxSignalNames.Requeue)

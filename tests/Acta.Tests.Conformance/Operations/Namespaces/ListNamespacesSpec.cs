@@ -30,7 +30,7 @@ public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Write distinct non-null owner_team/description and bump the version off its default so a broken
         // projection cannot pass by reading a stray null or a stray 0.
-        var current = (await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))!;
+        var current = (await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct))!;
         var updated = await Operations.Namespaces.UpdateAsync(
             TestNamespace,
             current.Version,

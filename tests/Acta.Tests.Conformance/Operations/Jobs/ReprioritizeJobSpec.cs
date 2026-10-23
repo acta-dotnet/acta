@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "job.reprioritize",
     "Operator reprioritize changes claim priority, rejecting only terminal jobs.",
     Area = "Control",
-    Contract = "ReprioritizeAsync sets priority_code on any non-terminal row (including in-flight), leaving status and cursor unchanged, and rejects terminal rows."
+    Contract = "ReprioritizeAsync sets job_priority_code on any non-terminal row (including in-flight), leaving status and cursor unchanged, and rejects terminal rows."
 )]
 public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -43,7 +43,7 @@ public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.True(after.Version > before.Version);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobReprioritized, ct);
-        Assert.Equal("spec-actor", evt.Actor);
+        Assert.Equal("spec-actor", EventDetail(evt, "actor"));
     }
 
     [Fact(DisplayName = "ReprioritizeAsync accepts an in-flight job without changing its status")]
@@ -100,5 +100,5 @@ public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture
     }
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 }

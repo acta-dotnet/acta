@@ -45,13 +45,13 @@ public sealed class MigrationDeltaEmitterTests
     public void Added_column_renders_alter_table_add_using_the_real_column_definition()
     {
         var live = SchemaModel.Discover();
-        // 'priority_code' is a known existing Code column on 'runtimes'; pretend it is newly added.
-        var diff = Diff(addedColumns: [new TableMember("runtimes", "priority_code")]);
+        // 'job_priority_code' is a known existing Code column on 'jobs_state'; pretend it is newly added.
+        var diff = Diff(addedColumns: [new TableMember("jobs_state", "job_priority_code")]);
 
         var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_add_priority");
 
-        Assert.Contains("ALTER TABLE {{schema}}.runtimes ADD priority_code", sql);
-        Assert.DoesNotContain("ck_runtimes_priority_code", sql);
+        Assert.Contains("ALTER TABLE {{schema}}.jobs_state ADD job_priority_code", sql);
+        Assert.DoesNotContain("ck_jobs_state_job_priority_code", sql);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class MigrationDeltaEmitterTests
 
         var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_add_ix");
 
-        Assert.Contains("ix_jobs_parent ON {{schema}}.jobs (parent_id) WHERE parent_id IS NOT NULL;", sql);
+        Assert.Contains("ix_jobs_parent ON {{schema}}.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;", sql);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class MigrationDeltaEmitterTests
     public void Delta_self_stamps_and_is_not_labelled_a_draft()
     {
         var live = SchemaModel.Discover();
-        var diff = Diff(addedColumns: [new TableMember("runtimes", "priority_code")]);
+        var diff = Diff(addedColumns: [new TableMember("jobs_state", "job_priority_code")]);
 
         var sql = MigrationDeltaEmitter.EmitDelta(diff, live, NoObjects, new PostgresDdlDialect(), stem: "M20260102000000_add_priority");
 

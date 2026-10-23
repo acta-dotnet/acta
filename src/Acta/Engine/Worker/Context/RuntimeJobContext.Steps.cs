@@ -58,7 +58,7 @@ internal sealed partial class RuntimeJobContext
                 RecordStep(name, "replayed");
                 return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
             case StartStepOutcomeCode.Exhausted:
-                throw new StepExhaustedException(name, start.AttemptNumber, start.ReasonCode, start.ReasonMessage);
+                throw new StepExhaustedException(name, start.AttemptNumber, start.FailureCode, start.FailureMessage);
             case StartStepOutcomeCode.Interrupted:
                 // An AtMostOnce step re-entered before its outcome was recorded: the row was terminalized
                 // Interrupted by start_step. Do NOT run the body; the outcome is ambiguous (ran 0 or 1
@@ -91,7 +91,7 @@ internal sealed partial class RuntimeJobContext
                 options.BackoffMultiplier ?? _stepRetryDefaults.BackoffMultiplier,
                 options.BackoffJitter ?? _stepRetryDefaults.BackoffJitter
             );
-            var message = ex.Message.Truncate(ActaTextLimits.ReasonMessage);
+            var message = ex.Message.Truncate(ActaTextLimits.StepFailureMessage);
 
             var failure = await _executionStore.CompleteStepAsync(
                 new CompleteStepCommand(
@@ -100,7 +100,7 @@ internal sealed partial class RuntimeJobContext
                     Succeeded: false,
                     ResultFormatId: 0,
                     Result: null,
-                    EventReasonCode.JobUnhandledException,
+                    StepFailureCode.UnhandledException,
                     message,
                     delaySeconds,
                     maxAttempts,
@@ -125,7 +125,7 @@ internal sealed partial class RuntimeJobContext
                     start.AttemptNumber,
                     message
                 );
-                throw new StepExhaustedException(name, start.AttemptNumber, EventReasonCode.JobUnhandledException, message);
+                throw new StepExhaustedException(name, start.AttemptNumber, StepFailureCode.UnhandledException, message);
             }
 
             RecordStep(name, "failed");
@@ -156,8 +156,8 @@ internal sealed partial class RuntimeJobContext
                 Succeeded: true,
                 payload.Format.Id,
                 storeResult ? payload.Data.ToArray() : null,
-                ReasonCode: null,
-                ReasonMessage: null,
+                FailureCode: null,
+                FailureMessage: null,
                 DelaySeconds: 0,
                 maxAttempts,
                 retryWindowSeconds,

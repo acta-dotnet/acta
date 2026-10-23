@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -16,9 +17,9 @@ public sealed class RetentionJobTests
         var result = await Job(store.Handler, clock).PurgeExpiredDataAsync(Sweep, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, clock.Reads);
-        Assert.Equal(16, store.Calls.Count);
+        Assert.Equal(14, store.Calls.Count);
         Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2, 999), result);
-        for (var index = 0; index < 8; index++)
+        for (var index = 0; index < 7; index++)
         {
             var first = store.Calls[index * 2];
             Assert.Equal((RetentionSection)(index + 1), first.Section);
@@ -30,8 +31,8 @@ public sealed class RetentionJobTests
                 index switch
                 {
                     1 => Now.AddDays(-2),
-                    2 or 3 or 4 => Now.AddDays(-3),
-                    5 => Now.AddDays(-2),
+                    2 or 3 => Now.AddDays(-3),
+                    4 => Now.AddDays(-2),
                     _ => Now,
                 },
                 first.CutoffUtc
@@ -45,7 +46,7 @@ public sealed class RetentionJobTests
         // A jobs slice with nothing expired says nothing about the slices below it, so the walk goes on.
         var store = new Store(static _ => 0);
         var result = await Job(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, null, TestContext.Current.CancellationToken);
-        Assert.Equal(9, store.Calls.Count);
+        Assert.Equal(8, store.Calls.Count);
         Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
     }
 
@@ -56,7 +57,7 @@ public sealed class RetentionJobTests
         var result = await Job(store.Handler, new Clock())
             .PurgeExpiredDataAsync(Sweep with { SweepSystemEvents = true }, null, TestContext.Current.CancellationToken);
 
-        Assert.Equal(11, store.Calls.Count);
+        Assert.Equal(10, store.Calls.Count);
         Assert.Equal(RetentionSection.Events, store.Calls[2].Section);
         Assert.All(store.Calls.Skip(3).Take(2), call => Assert.Equal(store.Calls[2] with { NamespaceId = 1 }, call));
         Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
@@ -160,8 +161,8 @@ public sealed class RetentionJobTests
         Assert.Equal(expectedSlices, store.Calls.Count(c => c.Section == RetentionSection.Jobs));
     }
 
-    private static RetentionJob Job(PurgeExpiredDataHandler purge, IClockOperations clock) =>
-        new(new MaintenanceOperations(purge), clock, Options.Create(new JobsOptions()));
+    private static RetentionJob Job(MaintenanceOperations maintenance, IClockOperations clock) =>
+        new(maintenance, clock, Options.Create(new JobsOptions()));
 
     private sealed class Clock : IClockOperations
     {
@@ -176,26 +177,31 @@ public sealed class RetentionJobTests
     {
         public List<PurgeExpiredDataCommand> Calls { get; } = [];
 
-        public PurgeExpiredDataHandler Handler =>
-            new(
-                new ScriptedSession(call =>
+        /// <summary>The maintenance operations over this store, where the namespace has no alert projector to wait for.</summary>
+        public MaintenanceOperations Handler => new ScriptedSession(call =>
+                call.Stem switch
                 {
-                    var command = new PurgeExpiredDataCommand(
-                        call.Get(ActaSchema.Job.NamespaceId),
-                        (RetentionSection)call.Get(ActaSchema.Sql.PurgeSection),
-                        call.Get(ActaSchema.Sql.PurgeCutoffUtc),
-                        call.Get(ActaSchema.Sql.PurgeBatchSize),
-                        call.Get(ActaSchema.Sql.PurgeBeforeJobId)
-                    );
-                    Calls.Add(command);
-                    var nextJobId =
-                        command.Section != RetentionSection.Jobs ? 0
-                        : next is not null ? next(command)
-                        : command.BeforeJobId == 0 ? 1000
-                        : command.BeforeJobId - 1;
-                    return new PurgeExpiredDataResponse(execute(command), nextJobId);
-                }),
-                ScriptedSession.Dialect
+                    "GetAlertFloor" => Array.Empty<GetAlertFloorRow>(),
+                    _ => Purge(call),
+                }
+            ).Services().GetRequiredService<MaintenanceOperations>();
+
+        private PurgeExpiredDataResponse Purge(BoundCall call)
+        {
+            var command = new PurgeExpiredDataCommand(
+                call.Get(ActaSchema.Job.NamespaceId),
+                (RetentionSection)call.Get(ActaSchema.Sql.PurgeSection),
+                call.Get(ActaSchema.Sql.PurgeCutoffUtc),
+                call.Get(ActaSchema.Sql.PurgeBatchSize),
+                call.Get(ActaSchema.Sql.PurgeBeforeJobId)
             );
+            Calls.Add(command);
+            var nextJobId =
+                command.Section != RetentionSection.Jobs ? 0
+                : next is not null ? next(command)
+                : command.BeforeJobId == 0 ? 1000
+                : command.BeforeJobId - 1;
+            return new PurgeExpiredDataResponse(execute(command), nextJobId);
+        }
     }
 }

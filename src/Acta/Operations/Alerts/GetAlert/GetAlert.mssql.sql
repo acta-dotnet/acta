@@ -1,14 +1,14 @@
 -- Point-read of one alert row by ref, projecting the same columns as ListAlerts so both share
 -- the row shape. Missing ref returns no rows (the caller answers null).
 SELECT
-    a.id AS alert_id,
-    ns.name AS job_namespace,
+    a.alert_id,
+    ns.namespace_name AS job_namespace,
     a.job_id,
-    a.origin_code AS origin,
-    a.severity_code AS severity,
-    a.kind_code AS kind,
+    a.alert_origin_code AS origin,
+    a.alert_severity_code AS severity,
+    a.alert_kind_code AS kind,
     a.title,
-    a.message,
+    a.alert_message AS message,
     a.channel_name,
     a.occurrence_count,
     a.resolved_at_utc,
@@ -21,5 +21,5 @@ SELECT
     a.acknowledged_at_utc,
     a.alert_ref
 FROM {{schema}}.alerts a
-JOIN {{schema}}.namespaces ns ON ns.id = a.namespace_id
+JOIN {{schema}}.namespaces ns ON ns.namespace_id = a.namespace_id
 WHERE a.alert_ref = @p_alert_ref;

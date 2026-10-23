@@ -8,7 +8,7 @@ internal sealed class GetDefinitionHandler(ResolveDefinitionIdHandler resolveDef
             is { DefinitionId: var definitionId }
             ? await session.QuerySingleAsync(
                 "GetDefinition",
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId)),
+                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DefinitionId, definitionId)),
                 DbProjectionResolver.Resolve<GetDefinitionResponse>(),
                 ct
             )

@@ -28,7 +28,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             JobName: "add-numbers",
             Input: payload,
             TenantName: tenantName,
-            ParentId: parentId
+            ParentJobId: parentId
         );
     }
 
@@ -42,7 +42,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
     {
         var queries = Services.GetRequiredService<IActaOperations>();
         var page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct);
-        return [.. page.Items.Select(e => e.JobEventId)];
+        return [.. page.Items.Select(e => e.EventId)];
     }
 
     [Fact(DisplayName = "JobId filter returns only that job's events and excludes all other jobs' events")]
@@ -63,18 +63,18 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.NotEmpty(j2Events);
 
         var j1Page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct);
-        Assert.Equal(j1Events, [.. j1Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(j1Events, [.. j1Page.Items.Select(e => e.EventId)]);
 
         var j2Page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j2, PageSize: 100), ct);
-        Assert.Equal(j2Events, [.. j2Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(j2Events, [.. j2Page.Items.Select(e => e.EventId)]);
 
         // Cross-exclusion: neither job's page contains the other job's events
-        Assert.Empty(j1Page.Items.Select(e => e.JobEventId).Intersect(j2Events));
-        Assert.Empty(j2Page.Items.Select(e => e.JobEventId).Intersect(j1Events));
+        Assert.Empty(j1Page.Items.Select(e => e.EventId).Intersect(j2Events));
+        Assert.Empty(j2Page.Items.Select(e => e.EventId).Intersect(j1Events));
     }
 
-    [Fact(DisplayName = "LineageRootId filter returns all lineage events and excludes unrelated jobs")]
-    public async Task LineageRootId_filter_returns_exact_lineage_events()
+    [Fact(DisplayName = "LineageRootJobId filter returns all lineage events and excludes unrelated jobs")]
+    public async Task LineageRootJobId_filter_returns_exact_lineage_events()
     {
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
@@ -100,13 +100,13 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.NotEmpty(childEvents);
         Assert.NotEmpty(unrelatedEvents);
 
-        // events.lineage_root_id = COALESCE(job.lineage_root_id, job.id), so both root and child
-        // events share lineage_root_id = rootId; unrelated events carry their own id.
+        // events.lineage_root_job_id = COALESCE(job.lineage_root_job_id, job.job_id), so both root and child
+        // events share lineage_root_job_id = rootId; unrelated events carry their own id.
         var lineagePage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(LineageRootId: rootId, JobNamespace: TestNamespace, PageSize: 100),
+            new ListEventsQuery(LineageRootJobId: rootId, JobNamespace: TestNamespace, PageSize: 100),
             ct
         );
-        var lineageIds = lineagePage.Items.Select(e => e.JobEventId).ToHashSet();
+        var lineageIds = lineagePage.Items.Select(e => e.EventId).ToHashSet();
 
         Assert.Equal([.. rootEvents.Union(childEvents)], lineageIds);
     }
@@ -133,11 +133,11 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // j1 belongs to TestNamespace: filtering by TestNamespace + j1 returns all its events
         var ns1Page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, JobNamespace: TestNamespace, PageSize: 100), ct);
-        Assert.Equal(j1Events, [.. ns1Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(j1Events, [.. ns1Page.Items.Select(e => e.EventId)]);
 
         // Filtering by ns2 + j1 returns nothing: j1 is not in ns2
         var ns2Page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, JobNamespace: ns2Name, PageSize: 100), ct);
-        Assert.Equal([], ns2Page.Items.Select(e => e.JobEventId).ToHashSet());
+        Assert.Equal([], ns2Page.Items.Select(e => e.EventId).ToHashSet());
     }
 
     [Fact(DisplayName = "EventCode filter returns only events of that code and excludes all other codes")]
@@ -159,18 +159,18 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             new ListEventsQuery(JobId: j1, EventCode: EventCode.JobReprioritized, PageSize: 100),
             ct
         );
-        var reprioritizedIds = reprioritizedPage.Items.Select(e => e.JobEventId).ToHashSet();
+        var reprioritizedIds = reprioritizedPage.Items.Select(e => e.EventId).ToHashSet();
         Assert.NotEmpty(reprioritizedIds);
         Assert.All(reprioritizedPage.Items, e => Assert.Equal(EventCode.JobReprioritized, e.EventCode));
 
-        // Filter to JobExecutionFinished: only finished events
+        // Filter to JobExecutionSucceeded: only the attempt's own event
         var finishedPage = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: j1, EventCode: EventCode.JobExecutionFinished, PageSize: 100),
+            new ListEventsQuery(JobId: j1, EventCode: EventCode.JobExecutionSucceeded, PageSize: 100),
             ct
         );
-        var finishedIds = finishedPage.Items.Select(e => e.JobEventId).ToHashSet();
+        var finishedIds = finishedPage.Items.Select(e => e.EventId).ToHashSet();
         Assert.NotEmpty(finishedIds);
-        Assert.All(finishedPage.Items, e => Assert.Equal(EventCode.JobExecutionFinished, e.EventCode));
+        Assert.All(finishedPage.Items, e => Assert.Equal(EventCode.JobExecutionSucceeded, e.EventCode));
 
         // The two filtered sets are disjoint and together equal the full job event set
         Assert.Empty(reprioritizedIds.Intersect(finishedIds));
@@ -214,13 +214,13 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             new ListEventsQuery(JobNamespace: TestNamespace, DefinitionId: j1DefId, PageSize: 100),
             ct
         );
-        Assert.Equal(j1Events, [.. def1Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(j1Events, [.. def1Page.Items.Select(e => e.EventId)]);
 
         var def2Page = await queries.Ledger.ListEventsAsync(
             new ListEventsQuery(JobNamespace: TestNamespace, DefinitionId: j2DefId, PageSize: 100),
             ct
         );
-        Assert.Equal(j2Events, [.. def2Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(j2Events, [.. def2Page.Items.Select(e => e.EventId)]);
 
         // Count scope: with jobId + matching definition, TotalCount equals the filtered row count.
         // The COUNT query applies all filters uniformly: definition filter affects the total as it does rows.
@@ -237,7 +237,7 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             new ListEventsQuery(JobId: j1, DefinitionId: j2DefId, IncludeTotal: true, PageSize: 100),
             ct
         );
-        Assert.Equal([], mismatchPage.Items.Select(e => e.JobEventId).ToHashSet());
+        Assert.Equal([], mismatchPage.Items.Select(e => e.EventId).ToHashSet());
         Assert.Equal(0L, mismatchPage.TotalCount);
     }
 
@@ -278,54 +278,64 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             new ListEventsQuery(TenantId: t1Id, JobNamespace: TestNamespace, PageSize: 100),
             ct
         );
-        Assert.Equal(taEvents.Union(tbEvents).ToHashSet(), [.. t1Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(taEvents.Union(tbEvents).ToHashSet(), [.. t1Page.Items.Select(e => e.EventId)]);
 
         // t2 filter: tc events only; ta and tb excluded
         var t2Page = await queries.Ledger.ListEventsAsync(
             new ListEventsQuery(TenantId: t2Id, JobNamespace: TestNamespace, PageSize: 100),
             ct
         );
-        Assert.Equal(tcEvents, [.. t2Page.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(tcEvents, [.. t2Page.Items.Select(e => e.EventId)]);
 
         // The key filter selects the same rows as the id filter.
         var keyPage = await queries.Ledger.ListEventsAsync(
             new ListEventsQuery(TenantName: t1Key, JobNamespace: TestNamespace, PageSize: 100),
             ct
         );
-        Assert.Equal(taEvents.Union(tbEvents).ToHashSet(), [.. keyPage.Items.Select(e => e.JobEventId)]);
+        Assert.Equal(taEvents.Union(tbEvents).ToHashSet(), [.. keyPage.Items.Select(e => e.EventId)]);
     }
 
-    [Fact(DisplayName = "ActorCode filter partitions the timeline by each actor present on it")]
-    public async Task ActorCode_filter_partitions_by_actor()
+    [Fact(DisplayName = "The subject filters select exactly one subject's events, and a kind alone selects that kind")]
+    public async Task Entity_filters_select_one_subject()
     {
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        // Cancelling a Ready job stamps an Operator-actor event alongside the enqueue-time actor.
-        var outcomes = await EnqueueAsync([AddNumbersRow()], ct);
+        var outcomes = await EnqueueAsync([AddNumbersRow(), AddNumbersRow()], ct);
         var j1 = outcomes[0].JobId;
+        var j2 = outcomes[1].JobId;
         await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct: ct);
+        await Jobs.CancelAsync(JobLookup.ById(j2), "spec cancel", "op", ct: ct);
 
-        var all = (await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
-        Assert.NotEmpty(all);
-        Assert.Contains(all, e => e.ActorCode == ActorCode.Operator);
+        var byJob = (await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
+        Assert.NotEmpty(byJob);
+        Assert.All(
+            byJob,
+            e =>
+            {
+                Assert.Equal(EntityCode.Job, e.EntityKind);
+                Assert.Equal(j1, e.EntityId);
+            }
+        );
 
-        var union = new HashSet<long>();
-        foreach (var actor in all.Select(e => e.ActorCode).Distinct())
-        {
-            var expected = all.Where(e => e.ActorCode == actor).Select(e => e.JobEventId).ToHashSet();
-            var page = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, ActorCode: actor, PageSize: 100), ct);
-            var got = page.Items.Select(e => e.JobEventId).ToHashSet();
-            Assert.Equal(expected, got);
-            Assert.All(page.Items, e => Assert.Equal(actor, e.ActorCode));
-            union.UnionWith(got);
-        }
+        var bySubject = (
+            await queries.Ledger.ListEventsAsync(new ListEventsQuery(EntityKind: EntityCode.Job, EntityId: j1, PageSize: 100), ct)
+        ).Items;
+        Assert.Equal(byJob.Select(e => e.EventId).ToHashSet(), [.. bySubject.Select(e => e.EventId)]);
 
-        Assert.Equal([.. all.Select(e => e.JobEventId)], union);
+        var byKind = (
+            await queries.Ledger.ListEventsAsync(
+                new ListEventsQuery(JobNamespace: TestNamespace, EntityKind: EntityCode.Job, PageSize: 100),
+                ct
+            )
+        ).Items;
+        Assert.All(byKind, e => Assert.Equal(EntityCode.Job, e.EntityKind));
+        Assert.Contains(byKind, e => e.EntityId == j1);
+        Assert.Contains(byKind, e => e.EntityId == j2);
     }
 
-    [Fact(DisplayName = "ReasonCode filter returns only events carrying that reason and excludes reasonless ones")]
-    public async Task ReasonCode_filter_returns_exact_reason_partition()
+    [Fact(DisplayName = "An operator verb's event carries the operator's message and the principal in its details")]
+    public async Task Operator_event_carries_message_and_actor()
     {
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
@@ -334,16 +344,13 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var j1 = outcomes[0].JobId;
         await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct: ct);
 
-        var all = (await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
-        Assert.Contains(all, e => e.ReasonCode == EventReasonCode.JobControlManual);
-
-        var expected = all.Where(e => e.ReasonCode == EventReasonCode.JobControlManual).Select(e => e.JobEventId).ToHashSet();
         var page = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: j1, ReasonCode: EventReasonCode.JobControlManual, PageSize: 100),
+            new ListEventsQuery(JobId: j1, EventCode: EventCode.JobCancelled, PageSize: 100),
             ct
         );
-        Assert.Equal(expected, [.. page.Items.Select(e => e.JobEventId)]);
-        Assert.All(page.Items, e => Assert.Equal(EventReasonCode.JobControlManual, e.ReasonCode));
+        var cancelled = Assert.Single(page.Items);
+        Assert.Equal("spec cancel", cancelled.Message);
+        Assert.Equal("""{"actor":"op"}""", cancelled.DetailsText);
     }
 
     [Fact(DisplayName = "CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant")]
@@ -370,9 +377,9 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.All(toIds, e => Assert.True(e.CreatedAtUtc < boundary));
         Assert.NotEmpty(fromIds);
 
-        var fromSet = fromIds.Select(e => e.JobEventId).ToHashSet();
-        var toSet = toIds.Select(e => e.JobEventId).ToHashSet();
+        var fromSet = fromIds.Select(e => e.EventId).ToHashSet();
+        var toSet = toIds.Select(e => e.EventId).ToHashSet();
         Assert.Empty(fromSet.Intersect(toSet));
-        Assert.Equal(all.Select(e => e.JobEventId).ToHashSet(), [.. fromSet.Union(toSet)]);
+        Assert.Equal(all.Select(e => e.EventId).ToHashSet(), [.. fromSet.Union(toSet)]);
     }
 }

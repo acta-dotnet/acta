@@ -292,7 +292,7 @@ internal sealed partial class WorkerFinalizer(
     {
         var planned = PlanCompletion(entry);
         if (
-            planned.Row is { RescheduleStatusCode: null, FinalStatus: null }
+            planned.Row is { RescheduleEventCode: null, FinalStatus: null }
             || !context.RetentionSecondsByRetiredDefinitionId.TryGetValue(entry.Claim.DefinitionId, out var retentionSeconds)
         )
         {
@@ -301,7 +301,7 @@ internal sealed partial class WorkerFinalizer(
 
         var retired = new ExecutionCompletion(CompletionKind.Cancelled)
         {
-            Reason = EventReasonCode.JobDefinitionRetired,
+            Reason = EventReason.DefinitionRetired,
             ReasonMessage = "The job's definition is retired, so the job does not run again.",
             HandlerStatusCode = JobStatusCode.Cancelled,
             DurationMs = planned.Completion.DurationMs,
@@ -335,7 +335,7 @@ internal sealed partial class WorkerFinalizer(
             completion = completion with
             {
                 Outcome = CompletionKind.Cancelled,
-                Reason = EventReasonCode.JobDeadlineExceeded,
+                Reason = EventReason.DeadlineExceeded,
                 ReasonMessage = "Next retry would exceed the job deadline.",
                 HandlerStatusCode = JobStatusCode.Cancelled,
             };
@@ -365,7 +365,7 @@ internal sealed partial class WorkerFinalizer(
         var job = entry.Claim;
         var ns = context.WorkerRegistration!.NamespaceName;
         var landed = complete.Action == CompleteExecutionsAction.Completed;
-        var retired = completion.Reason == EventReasonCode.JobDefinitionRetired;
+        var retired = completion.Reason == EventReason.DefinitionRetired;
         if (!landed)
         {
             // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
@@ -392,7 +392,7 @@ internal sealed partial class WorkerFinalizer(
                 if (
                     completion.HandlerStatusCode == JobStatusCode.Cancelled
                     && !retired
-                    && (landed || complete.FinalStatusCode == (byte)JobStatusCode.Cancelled)
+                    && (landed || complete.FinalJobStatusCode == (byte)JobStatusCode.Cancelled)
                 )
                 {
                     if (apart)
@@ -405,14 +405,14 @@ internal sealed partial class WorkerFinalizer(
                     }
                 }
 
-                // reason_code is the failure cause's kebab (null on success).
+                // reason_code is the attempt's EventReason kebab (null on a plain success).
                 if (landed && entry.Descriptor is { } descriptor)
                 {
                     metrics?.RecordExecution(
                         ns,
                         descriptor.JobName,
                         OutcomeTag(completion.Outcome),
-                        completion.Reason?.Code,
+                        completion.Reason,
                         completion.DurationMs
                     );
                 }
@@ -562,7 +562,7 @@ internal sealed partial class WorkerFinalizer(
     /// </summary>
     private async Task WakeAsync(CompleteExecutionsRow complete, ClaimedJob job, string ns, CancellationToken ct)
     {
-        if (complete.FinalStatusCode == (byte)JobStatusCode.Ready)
+        if (complete.FinalJobStatusCode == (byte)JobStatusCode.Ready)
         {
             var wakeReason =
                 complete.FinalNextRunAtUtc is { } nextRun && nextRun > complete.DbNowUtc
@@ -570,7 +570,7 @@ internal sealed partial class WorkerFinalizer(
                     : WorkerWakeupReason.WorkAvailable;
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(ns), wakeReason, ct);
         }
-        else if (complete.FinalStatusCode is { } finalStatus && ((JobStatusCode)finalStatus).IsTerminal)
+        else if (complete.FinalJobStatusCode is { } finalStatus && ((JobStatusCode)finalStatus).IsTerminal)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(job.JobId), WorkerWakeupReason.JobFinished, ct);
         }

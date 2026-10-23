@@ -5,7 +5,7 @@ namespace Acta;
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record GetDefinitionContractsRow(
-    string Name,
+    string DefinitionName,
     DateTime ManifestGenerationAtUtc,
     string InputTypeName,
     string? OutputTypeName,
@@ -13,7 +13,7 @@ internal sealed record GetDefinitionContractsRow(
     string InputFormatName,
     byte OutputFormatId,
     string OutputFormatName,
-    int Id,
+    int DefinitionId,
     string DefinitionHash,
     DefinitionStatusCode Status,
     JobPriorityCode Priority,
@@ -26,7 +26,7 @@ internal sealed record GetDefinitionContractsRow(
     int DeadlineSeconds,
     DeadlineBehaviorCode DeadlineBehavior,
     int JobRetentionSeconds,
-    DefinitionAuditLevelCode AuditLevel,
+    EventRecordingCode EventRecording,
     AlertProfileCode AlertProfile,
     string? AlertChannelName,
     string? RunbookUrl
@@ -34,10 +34,10 @@ internal sealed record GetDefinitionContractsRow(
 {
     public StoredDefinitionContract ToContract() =>
         new(
-            Name,
+            DefinitionName,
             ManifestGenerationAtUtc,
             new DefinitionContract(InputTypeName, OutputTypeName, InputFormatId, InputFormatName, OutputFormatId, OutputFormatName),
-            Id,
+            DefinitionId,
             DefinitionHash,
             Status,
             new EffectiveJobPolicy(
@@ -51,7 +51,7 @@ internal sealed record GetDefinitionContractsRow(
                 DeadlineSeconds,
                 DeadlineBehavior,
                 JobRetentionSeconds,
-                AuditLevel,
+                EventRecording,
                 AlertProfile,
                 AlertChannelName,
                 RunbookUrl

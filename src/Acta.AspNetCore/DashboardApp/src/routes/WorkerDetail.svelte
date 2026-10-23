@@ -85,7 +85,7 @@
     <div class="panel"><StateView {error} onRetry={() => detail.refetch()} /></div>
   {:else if worker}
     <section class="entity-summary" aria-label="Worker identity">
-      <div class="entity-meta mono">{worker.workerRef} · {worker.jobNamespace} · {worker.host}{worker.processId == null ? '' : ` / PID ${worker.processId}`}</div>
+      <div class="entity-meta mono">{worker.workerRef} · {worker.jobNamespace} · {worker.hostName}{worker.processId == null ? '' : ` / PID ${worker.processId}`}</div>
       <StatusBadge status={worker.status} />
     </section>
 
@@ -105,9 +105,9 @@
         <section class="detail-panel" aria-labelledby="worker-process-heading">
           <h2 id="worker-process-heading">Process identity</h2>
           <dl class="detail-readonly detail-readonly-grid">
-            <div><dt>Host</dt><dd><span class="mono">{worker.host}</span></dd></div>
+            <div><dt>Host</dt><dd><span class="mono">{worker.hostName}</span></dd></div>
             <div><dt>Process ID</dt><dd><span class="mono">{worker.processId ?? 'unknown'}</span></dd></div>
-            <div><dt>Max concurrency</dt><dd>{displayFormatter.number(worker.maxConcurrency)}</dd></div>
+            <div><dt>Max concurrent executors</dt><dd>{displayFormatter.number(worker.maxConcurrentExecutors)}</dd></div>
             <div><dt>Worker ref</dt><dd><JobRef value={worker.workerRef} copy /></dd></div>
           </dl>
         </section>

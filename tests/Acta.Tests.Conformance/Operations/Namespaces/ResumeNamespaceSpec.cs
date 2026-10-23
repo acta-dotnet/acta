@@ -16,7 +16,7 @@ public sealed class ResumeNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
     protected override bool RunAsWorker => true;
 
     private async Task<NamespaceEntity?> ReadNsAsync(CancellationToken ct) =>
-        await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
+        await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct);
 
     [Fact(DisplayName = "Resuming a suspended namespace applies and emits namespace.resumed")]
     public async Task Resume_applies()

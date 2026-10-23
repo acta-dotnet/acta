@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Raised once at the end of a <c>sys.outbox</c> tick that quarantined one or more rows, after all
 /// valid work committed. Its bounded summary (source, count, sample ids) flows through the normal
-/// <c>SysCritical</c> / <c>AuditLevel.Failures</c> path, so operators get one deduplicated alert
+/// <c>SysCritical</c> / <c>EventRecording = Failures</c> path, so operators get one deduplicated alert
 /// rather than one per row.
 /// </summary>
 internal sealed class OutboxQuarantineTickException(string sourceName, IReadOnlyList<Guid> quarantinedIds)

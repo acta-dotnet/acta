@@ -157,7 +157,7 @@ curated-view rows.
 | 404 | [read-event-timeline](../concepts/400-observability-and-alerts/404-read-event-timeline/) | Read the `JobEvent` timeline ("why did this happen?") across a job lineage |
 | 405 | [real-alert-routing](../concepts/400-observability-and-alerts/405-real-alert-routing/) | A Slack-webhook channel from configuration, logging when none is set, with a severity floor; a deduplication key collapses repeats of one incident |
 | 406 | [automatic-failure-alerts](../concepts/400-observability-and-alerts/406-automatic-failure-alerts/) | An automatic failure alert via `[Job(AlertProfile=...)]`; same-job repeats dedupe and count up |
-| 407 | [audit-level](../concepts/400-observability-and-alerts/407-audit-level/) | `AuditLevel` (Off/Failures/Audit) changes how many `JobEvent`s a job emits |
+| 407 | [event-recording](../concepts/400-observability-and-alerts/407-event-recording/) | `EventRecording` (Off/Failures/Audit) changes how many `JobEvent`s a job emits |
 | 408 | [correlation-id](../concepts/400-observability-and-alerts/408-correlation-id/) | Propagate a `CorrelationKey` parent->child (read via log scope / raw SQL) |
 | 409 | [operator-queries](../concepts/400-observability-and-alerts/409-operator-queries/) | `ILedger` reads: filters, `NextCursor` paging, `IncludeTotal`, `GetOverviewAsync` |
 | 410 | [http-api-controls](../concepts/400-observability-and-alerts/410-http-api-controls/) | HTTP control API: `MapActaApi` + `EnableControls`, the `X-Acta-Control` header, `LocalOnly` |

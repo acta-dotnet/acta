@@ -49,8 +49,8 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 Before recovery, `jobs_view` is executing with a lapsed owner and `steps_view` is pending. After crash
-recovery re-arms it, the step becomes `interrupted` with reason
-`job.step-interrupted`; `events_view` preserves the loss and replay. The lab uses short lease timings
+recovery re-arms it, the step becomes `interrupted` with failure
+`interrupted`; `events_view` preserves the loss and replay. The lab uses short lease timings
 only to make the experiment quick.
 
 ## Break it

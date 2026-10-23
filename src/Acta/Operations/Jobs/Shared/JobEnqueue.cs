@@ -37,7 +37,7 @@ internal static class JobEnqueue
                 ConcurrencyKey: request.ConcurrencyKey,
                 NextRunAtUtc: request.NextRunAtUtc,
                 DelaySeconds: request.DelaySeconds,
-                ParentId: request.ParentJobId,
+                ParentJobId: request.ParentJobId,
                 TenantName: request.TenantName,
                 OverrideParentTenant: request.OverrideParentTenant,
                 Lane: request.Lane
@@ -102,9 +102,13 @@ internal static class JobEnqueue
             );
         }
 
-        if (row.ParentId is <= 0)
+        if (row.ParentJobId is <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(row), row.ParentId, $"Enqueue row at index {index} has a non-positive ParentId.");
+            throw new ArgumentOutOfRangeException(
+                nameof(row),
+                row.ParentJobId,
+                $"Enqueue row at index {index} has a non-positive ParentJobId."
+            );
         }
 
         if (row.Tags is { Count: > 1 } tags)

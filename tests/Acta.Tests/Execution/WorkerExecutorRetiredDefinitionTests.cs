@@ -52,8 +52,8 @@ public sealed class WorkerExecutorRetiredDefinitionTests
     private static void AssertCancelledByRetirement(BoundCompletion completion)
     {
         Assert.Equal((byte)JobStatusCode.Cancelled, completion.HandlerStatusCode);
-        Assert.Equal(EventReasonCode.JobDefinitionRetired, completion.EventReasonCode);
-        Assert.Null(completion.RescheduleStatusCode);
+        Assert.Equal(EventReason.DefinitionRetired, completion.Reason);
+        Assert.Null(completion.RescheduleEventCode);
         Assert.Null(completion.FailureCount);
     }
 }

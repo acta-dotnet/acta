@@ -32,7 +32,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
             JobName: "add-numbers",
             Input: payload,
             TenantName: tenantName,
-            ParentId: parentId,
+            ParentJobId: parentId,
             CorrelationKey: correlationKey,
             Tags: tags
         );

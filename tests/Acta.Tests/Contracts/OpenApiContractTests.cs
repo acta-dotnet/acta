@@ -86,8 +86,11 @@ public sealed partial class OpenApiContractTests
     private static readonly HashSet<string> AllowedWireIntegers = new(StringComparer.Ordinal)
     {
         // Ledger positions, counters, and the concurrency token.
-        "jobEventId",
+        "eventId",
         "executionNumber",
+        // An event's subject id beside its entityKind: the subject outlives its row (a purged job's tombstone still
+        // names it), so no ref can stand in for it.
+        "entityId",
         "occurrenceCount",
         "failureCount",
         "retryCount",
@@ -117,7 +120,7 @@ public sealed partial class OpenApiContractTests
         "concurrencyLimit",
         "concurrencyLimitEffective",
         "concurrencyLimitOverride",
-        "maxConcurrency",
+        "maxConcurrentExecutors",
         "oldestReadyAgeSeconds",
         "scheduleLagSeconds",
         // The operating-system process id a worker runs under: an external value, not an Acta row.
@@ -456,6 +459,7 @@ public sealed partial class OpenApiContractTests
                         var schema = doc.Kind switch
                         {
                             QueryParameterKind.Int => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+                            QueryParameterKind.Long => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" },
                             QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
                             QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
                             _ => new OpenApiSchema { Type = JsonSchemaType.String },

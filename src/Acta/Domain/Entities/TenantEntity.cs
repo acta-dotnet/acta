@@ -6,7 +6,7 @@ namespace Acta;
 /// Rows are never deleted; <see cref="Status"/> gates whether a key resolves at enqueue.
 /// </summary>
 [DbTable("tenants")]
-[DbPrimaryKey(Name = "pk_tenants", Columns = ["id"])]
+[DbPrimaryKey(Name = "pk_tenants", Columns = ["tenant_id"])]
 [DbUniqueIndex(Name = "ux_tenants_name", Columns = ["tenant_name"], Usage = "uniqueness")]
 internal sealed class TenantEntity : IEntity<int>
 {
@@ -14,7 +14,7 @@ internal sealed class TenantEntity : IEntity<int>
     /// DB-assigned identity. Referenced by <c>jobs.tenant_id</c> and <c>events.tenant_id</c>. Callers
     /// never pick the value; the runtime upserts the row by <see cref="TenantName"/> and reads the id back.
     /// </summary>
-    [DbColumn("id", DbKind.Int32)]
+    [DbColumn("tenant_id", DbKind.Int32)]
     public int Id { get; init; }
 
     /// <summary>
@@ -30,7 +30,7 @@ internal sealed class TenantEntity : IEntity<int>
     /// <see cref="TenantStatusCode.Suspended"/> rejects the enqueue (reversible). Supplied at INSERT by
     /// the <c>RegisterTenant</c> handler (no server-side default).
     /// </summary>
-    [DbColumn("status_code")]
+    [DbColumn("tenant_status_code")]
     public TenantStatusCode Status { get; internal set; }
 
     /// <summary>Human display label for dashboards and pickers; NULL falls back to the key.</summary>

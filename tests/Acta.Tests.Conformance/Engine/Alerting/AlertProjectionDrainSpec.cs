@@ -171,32 +171,31 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
     }
 
     /// <summary>
-    /// <paramref name="count"/> terminal-failure <c>job.execution-finished</c> rows above the
+    /// <paramref name="count"/> <c>JobFailed</c> rows above the
     /// projector's cursor, returned in the ascending id order the projector will read them in, so a
     /// fact can name the exact event a bound should have stopped on.
     /// </summary>
     private async Task<IReadOnlyList<long>> StageFailureEventsAsync(AlertingSubject subject, int count, CancellationToken ct)
     {
         var ids = new List<long>(count);
+        var details = EventDetails.Write(("reason", EventReason.UnhandledException));
         for (var i = 0; i < count; i++)
         {
-            var id = await Db.From<EventEntity>()
-                .InsertAsync<long>(
-                    new EventEntity
-                    {
-                        EventCode = EventCode.JobExecutionFinished,
-                        NamespaceId = NamespaceId,
-                        ActorCode = ActorCode.Worker,
-                        JobId = subject.JobId,
-                        DefinitionId = subject.DefinitionId,
-                        ExecutionNumber = i + 1,
-                        ToStatus = JobStatusCode.Failed,
-                        ExecutionStatus = ExecutionStatusCode.Failed,
-                        ReasonCode = EventReasonCode.JobUnhandledException,
-                        ReasonMessage = "staged backlog",
-                    },
-                    ct
-                );
+            var id = await StagedEvents.InsertAsync(
+                Db,
+                new EventEntity
+                {
+                    EventCode = EventCode.JobFailed,
+                    NamespaceId = NamespaceId,
+                    EntityCode = EntityCode.Job,
+                    EntityId = subject.JobId,
+                    DefinitionId = subject.DefinitionId,
+                    ExecutionNumber = i + 1,
+                    EventMessage = "staged backlog",
+                },
+                details,
+                ct
+            );
             ids.Add(id);
         }
 

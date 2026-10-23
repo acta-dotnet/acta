@@ -132,7 +132,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         ).Jobs;
         var ids = outcomes.Select(o => o.JobId).Order().ToList();
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status WHERE namespace_id = @p_ns AND job_id >= @p_first AND job_id <= @p_last",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status WHERE namespace_id = @p_ns AND job_id >= @p_first AND job_id <= @p_last",
             ct,
             ("@p_status", (byte)JobStatusCode.Failed),
             ("@p_ns", Runtime.RegisteredNamespaceIds[TestNamespace]),

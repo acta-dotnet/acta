@@ -195,7 +195,7 @@ internal static class FaultCaseRunner
                         new(
                             "partial-creation",
                             input.Key,
-                            snapshot.Count(r => r.ParentId == root.JobId) == 4,
+                            snapshot.Count(r => r.ParentJobId == root.JobId) == 4,
                             "Exactly four children existed at the injection boundary."
                         )
                     );
@@ -304,7 +304,7 @@ internal static class FaultCaseRunner
                         new(
                             "checkpoint-body-once",
                             $"step-{step}",
-                            events.Items.Count(e => e.ReasonMessage == $"checkpoint-body {step}") == 1,
+                            events.Items.Count(e => e.Message == $"checkpoint-body {step}") == 1,
                             "Committed checkpoint bodies are reused after recovery, independently witnessed by durable notes."
                         )
                     );

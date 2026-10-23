@@ -19,5 +19,5 @@ internal sealed record ClaimJobsRow(
     DateTime? DbNowUtc,
     DateTime? NextReadyAtUtc,
     long? LaneId,
-    long? ParentId
+    long? ParentJobId
 ) : IClaimColumns;

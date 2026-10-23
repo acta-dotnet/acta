@@ -18,7 +18,9 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
         await Db.From<TenantEntity>().Where(t => t.TenantName == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int tenantId, EventCode code, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.TenantId == tenantId && e.EventCode == code).CountAsync(ct);
+        await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == tenantId && e.EventCode == code)
+            .CountAsync(ct);
 
     [Fact(DisplayName = "Suspending an active tenant applies, bumps version, and emits one tenant.suspended to sys")]
     public async Task Suspend_applies_and_emits()
@@ -37,11 +39,12 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(after.Version, outcome.Version);
         Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
         var ev = await Db.From<EventEntity>()
-            .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
+            .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(1, ev!.NamespaceId);
-        Assert.Equal("op-1", ev.Actor);
-        Assert.Equal("hold", ev.ReasonMessage);
+        Assert.Equal((EntityCode.Tenant, (long)id), (ev.EntityCode, ev.EntityId));
+        Assert.Equal("op-1", EventDetail(ev, "actor"));
+        Assert.Equal("hold", ev.EventMessage);
     }
 
     [Fact(DisplayName = "Re-suspending is AlreadyInState with no second event")]

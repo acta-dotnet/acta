@@ -20,7 +20,7 @@ public sealed class NamespaceRowSpec : ActaStorageTestBase<ConformanceFixture>
         var ns = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(ns);
-        Assert.Equal(TestNamespace, ns!.Name);
+        Assert.Equal(TestNamespace, ns!.NamespaceName);
     }
 
     [Fact(DisplayName = "Db-assigned namespace id is positive and matches the persisted row")]

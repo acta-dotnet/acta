@@ -1,13 +1,12 @@
 CREATE OR ALTER PROCEDURE {{schema}}.raise_signal
     @p_job_id BIGINT,
-    @p_kind_code TINYINT,
-    @p_name VARCHAR(128),
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
     @p_value_format_id TINYINT,
     @p_value VARBINARY(MAX),
-    @p_actor_code TINYINT,
-    @p_actor NVARCHAR(128),
-    @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512)
+    @p_event_message NVARCHAR(512),
+    @p_details_format_id TINYINT,
+    @p_details VARBINARY(MAX)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -23,33 +22,31 @@ BEGIN
         DECLARE @expired BIT = 0;
         DECLARE @message NVARCHAR(512);
         DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-            @job_ref UNIQUEIDENTIFIER;
+            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
+            @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
 
         -- The slot's own lock, as wait_signal names it (docs/sql-execution-policy.md, "Slot locks").
-        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_kind_code, N':', @p_name);
+        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
         DECLARE @slot_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
         EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
         IF @slot_lock_result < 0
             THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
 
-        SELECT @existing = status_code
+        SELECT @existing = checkpoint_status_code
         FROM {{schema}}.checkpoints WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
         SELECT
-            @from_status = r.status_code,
+            @from_status = r.job_status_code,
             @namespace_id = j.namespace_id,
-            @lineage_root_id = j.lineage_root_id,
+            @lineage_root_job_id = j.lineage_root_job_id,
             @definition_id = j.definition_id,
             @tenant_id = j.tenant_id,
             @execution_number = r.execution_number,
-            @audit_level = j.audit_level_code,
-            @job_ref = j.job_ref
-        FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
+            @event_recording = j.event_recording_code
+        FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+        INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
         WHERE r.job_id = @p_job_id;
 
         IF @from_status IS NULL
@@ -57,7 +54,7 @@ BEGIN
 
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code;
+                    CAST(NULL AS TINYINT) AS status;
                 GOTO Finish;
             END;
 
@@ -66,7 +63,7 @@ BEGIN
 
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status_code;
+                    @from_status AS status;
                 GOTO Finish;
             END;
 
@@ -76,88 +73,84 @@ BEGIN
         SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
         SET @message = CASE
             WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_reason_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_reason_message
+                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @p_event_message
         END;
 
         IF @expired = 0
             BEGIN
                 IF @existing IS NULL
                     INSERT INTO {{schema}}.checkpoints (
-                        job_id, kind_code, name, status_code, value_format_id, value,
+                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
                         created_at_utc, modified_at_utc, version
                     )
-                    VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* CheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
+                    VALUES (
+                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
+                        @p_value_format_id, @p_value, @now, @now, 0
+                    );
                 ELSE
                     UPDATE {{schema}}.checkpoints
                     SET
-                        status_code = 20 /* CheckpointStatusCode.Set */,
+                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
                         value_format_id = @p_value_format_id,
                         value = @p_value,
                         modified_at_utc = @now,
                         version = version + 1
-                    WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+                    WHERE
+                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
             END
 
-        IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
+        IF @event_recording = 20 /* EventRecordingCode.Audit */
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor,
-                job_id, job_ref, execution_number,
-                lineage_root_id, definition_id, tenant_id,
-                from_status_code, to_status_code,
-                execution_status_code, duration_ms,
-                reason_code, reason_message
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
             )
             VALUES (
                 80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                @p_actor_code, @p_actor,
-                @p_job_id, @job_ref, @execution_number,
-                COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
-                @from_status, @from_status,
-                NULL, NULL,
-                @p_reason_code, @message
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                @message, @p_details_format_id, @p_details
             );
 
         IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
             BEGIN
-                UPDATE {{schema}}.runtimes
+                UPDATE {{schema}}.jobs_state
                 SET
-                    status_code = 10 /* JobStatusCode.Ready */,
+                    job_status_code = 10 /* JobStatusCode.Ready */,
                     next_run_at_utc = @now,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id;
 
-                IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
+                IF @event_recording = 20 /* EventRecordingCode.Audit */
                     INSERT INTO {{schema}}.events (
                         event_code, created_at_utc, namespace_id,
-                        actor_code, actor,
-                        job_id, job_ref, execution_number,
-                        lineage_root_id, definition_id, tenant_id,
-                        from_status_code, to_status_code,
-                        execution_status_code, duration_ms,
-                        reason_code, reason_message
+                        entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id,
+                        execution_number,
+                        event_message, details_format_id, details
                     )
                     VALUES (
                         72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        @p_actor_code, @p_actor,
-                        @p_job_id, @job_ref, @execution_number,
-                        COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
-                        20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
-                        NULL, NULL,
-                        @p_reason_code, @p_reason_message
+                        50 /* EntityCode.Job */, @p_job_id,
+                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                        @execution_number,
+                        @p_event_message, @p_details_format_id, @p_details
                     );
 
                 SELECT
                     CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
+                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
                 GOTO Finish;
             END
 
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status_code;
+            @from_status AS status;
 
     Finish:
 

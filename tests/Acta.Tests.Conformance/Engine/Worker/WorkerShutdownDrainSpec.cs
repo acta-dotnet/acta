@@ -64,12 +64,21 @@ public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFix
         var enqueued = await RunInFlightThenShutdownAsync(ct);
 
         // The worker wrote NO completion: the row is still Executing and still leased, exactly the
-        // reclaimable state crash recovery keys on, not a terminal Failed with an execution-finished event.
+        // reclaimable state crash recovery keys on, not a terminal Failed with an attempt event.
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.NotNull(after.LeasedByWorkerId);
         Assert.Equal(0, after.FailureCount);
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
+        Assert.DoesNotContain(
+            await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
+            e =>
+                e.EventCode
+                    is EventCode.JobExecutionSucceeded
+                        or EventCode.JobExecutionFailed
+                        or EventCode.JobExecutionOrphaned
+                        or EventCode.JobExecutionYielded
+                        or EventCode.JobFailed
+        );
     }
 
     private async Task ShutdownAbandonedJobIsReclaimedAndRetriedAsync(CancellationToken ct)
@@ -82,13 +91,13 @@ public sealed class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFix
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
 
-        // Reclaim re-armed it to Ready (a retry) with failure_count bumped and an Orphaned execution-finished
-        // event, never a terminal Failed.
+        // Reclaim re-armed it to Ready (a retry) with failure_count bumped and an orphaned attempt event,
+        // never a terminal Failed.
         var reclaimed = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Null(reclaimed.LeasedByWorkerId);
         Assert.Equal(1, reclaimed.FailureCount);
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Orphaned, ct));
+        Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionOrphaned, ct));
     }
 
     [Fact(DisplayName = "A worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion")]

@@ -4,7 +4,7 @@ namespace Acta;
 [DbProjection]
 internal sealed record GetJobLineageMapCheckpointRow(
     CheckpointKindCode Kind,
-    string Name,
+    string CheckpointName,
     CheckpointStatusCode? Status,
     DateTime? DueAtUtc
 );

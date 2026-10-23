@@ -317,9 +317,10 @@ internal static class EntityReader
         var name = ReadNamedArg(a, "Name") as string ?? "";
         var cols = ReadArrayNamedArg(a, "Columns");
         var desc = ReadArrayNamedArg(a, "Descending");
+        var include = ReadArrayNamedArg(a, "Include");
         var filt = ReadNamedArg(a, "Filter") as string;
         var usage = ReadNamedArg(a, "Usage") as string ?? "";
-        return new IndexInfo(name, cols, desc, filt, usage, isUnique);
+        return new IndexInfo(name, cols, desc, include, filt, usage, isUnique);
     }
 
     internal static object? ReadNamedArg(AttributeData a, string name)
@@ -573,7 +574,7 @@ internal static class EntityChecks
                     )
                 );
             }
-            foreach (var col in ix.Columns.Where(c => !columnNames.Contains(c)))
+            foreach (var col in ix.Columns.Concat(ix.Include).Where(c => !columnNames.Contains(c)))
             {
                 diagnostics.Add(
                     new DiagnosticInfo(

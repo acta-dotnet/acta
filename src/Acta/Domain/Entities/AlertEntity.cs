@@ -7,7 +7,7 @@ namespace Acta;
 /// is terminal: once stamped it never clears, and the next firing opens a new incident on the same key.
 /// </summary>
 [DbTable("alerts")]
-[DbPrimaryKey(Name = "pk_alerts", Columns = ["id"])]
+[DbPrimaryKey(Name = "pk_alerts", Columns = ["alert_id"])]
 [DbUniqueIndex(Name = "ux_alerts_ref", Columns = ["alert_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(
     Name = "ux_alerts_deduplication_key",
@@ -22,7 +22,7 @@ namespace Acta;
 // namespace-wide scan on every raise that opens an incident or is blocked from opening one. The
 // deduplication_key arm is kept: an equality on the column implies it, so all three planners still seek, and
 // keyless rows - which no raise ever looks up this way - stay out. Two columns is enough: one identity
-// holds a handful of incidents, so the ORDER BY id the fallback adds sorts almost nothing.
+// holds a handful of incidents, so the ORDER BY alert_id the fallback adds sorts almost nothing.
 [DbIndex(
     Name = "ix_alerts_deduplication_key_identity",
     Columns = ["namespace_id", "deduplication_key"],
@@ -31,29 +31,29 @@ namespace Acta;
 )]
 // Serves the whole delivery read, not just the retry arm: both arms filter on the namespace, then a
 // delivery status, then retry_after_utc, so the reminder arm seeks the same three columns in the same
-// order and the ORDER BY id rides the trailing key.
+// order and the ORDER BY alert_id rides the trailing key.
 [DbIndex(
     Name = "ix_alerts_delivery_due",
-    Columns = ["namespace_id", "delivery_status_code", "retry_after_utc", "id"],
+    Columns = ["namespace_id", "delivery_status_code", "retry_after_utc", "alert_id"],
     Usage = "maintenance"
 )]
 [DbIndex(
     Name = "ix_alerts_namespace_created",
-    Columns = ["namespace_id", "created_at_utc", "id"],
-    Descending = ["created_at_utc", "id"],
+    Columns = ["namespace_id", "created_at_utc", "alert_id"],
+    Descending = ["created_at_utc", "alert_id"],
     Usage = "dashboard_grid"
 )]
 [DbIndex(
     Name = "ix_alerts_namespace_unresolved",
-    Columns = ["namespace_id", "created_at_utc", "id"],
-    Descending = ["created_at_utc", "id"],
+    Columns = ["namespace_id", "created_at_utc", "alert_id"],
+    Descending = ["created_at_utc", "alert_id"],
     Filter = "resolved_at_utc IS NULL",
     Usage = "dashboard_grid"
 )]
 // A job's own alerts: purge and resolve lock that set after the job row
 // (docs/sql-execution-policy.md, "Alert lock order"), and the job-filtered alert list reads it.
 // Namespace-level alerts carry no job and stay out.
-[DbIndex(Name = "ix_alerts_job", Columns = ["job_id", "id"], Filter = "job_id IS NOT NULL", Usage = "maintenance")]
+[DbIndex(Name = "ix_alerts_job", Columns = ["job_id", "alert_id"], Filter = "job_id IS NOT NULL", Usage = "maintenance")]
 [DbCheck(Name = "ck_alerts_job_ref_pair", Sql = "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)")]
 [DbCheck(Name = "ck_alerts_occurrence_count", Sql = "occurrence_count >= 1")]
 internal sealed class AlertEntity : IEntity<long>
@@ -61,7 +61,7 @@ internal sealed class AlertEntity : IEntity<long>
     /// <summary>
     /// Alert row identifier.
     /// </summary>
-    [DbColumn("id", DbKind.Int64)]
+    [DbColumn("alert_id", DbKind.Int64)]
     public long Id { get; init; }
 
     /// <summary>
@@ -100,20 +100,20 @@ internal sealed class AlertEntity : IEntity<long>
     /// Origin of the alert (<c>Automatic</c> / <c>Manual</c>); shapes the
     /// deduplication-key default and audit attribution.
     /// </summary>
-    [DbColumn("origin_code")]
+    [DbColumn("alert_origin_code")]
     public AlertOriginCode OriginCode { get; init; }
 
     /// <summary>
     /// Severity tier (<c>Info</c> / <c>Warning</c> / <c>Error</c> / <c>Critical</c>) shaping channel routing
     /// rules and oncall pages.
     /// </summary>
-    [DbColumn("severity_code")]
+    [DbColumn("alert_severity_code")]
     public AlertSeverityCode SeverityCode { get; init; }
 
     /// <summary>
     /// What kind of alert this is (per the <see cref="AlertKindCode"/> taxonomy); informs triage flow.
     /// </summary>
-    [DbColumn("kind_code")]
+    [DbColumn("alert_kind_code")]
     public AlertKindCode Kind { get; init; }
 
     /// <summary>
@@ -125,8 +125,8 @@ internal sealed class AlertEntity : IEntity<long>
     /// <summary>
     /// Operator-readable message body; what oncall reads first. Truncated by <c>MessageTruncator</c>.
     /// </summary>
-    [DbColumn("message", DbKind.UnicodeString, Size = 512)]
-    public string Message { get; init; } = default!;
+    [DbColumn("alert_message", DbKind.UnicodeString, Size = 512)]
+    public string AlertMessage { get; init; } = default!;
 
     /// <summary>
     /// Channel that delivers this alert; resolved at delivery time, not at write, so there is no enforced

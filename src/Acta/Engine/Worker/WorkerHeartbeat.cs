@@ -282,13 +282,15 @@ internal sealed class WorkerHeartbeat(
         var catalog = (await _definitions.GetDefinitionContractsAsync(namespaceId, ct)).Contracts;
         foreach (var c in catalog)
         {
-            if (_context.DescriptorByDefinitionId.TryGetValue(c.Id, out var descriptor))
+            if (_context.DescriptorByDefinitionId.TryGetValue(c.DefinitionId, out var descriptor))
             {
-                _context.DescriptorByDefinitionId[c.Id] = EffectivePolicyOverlay.Apply(descriptor, c.Effective);
+                _context.DescriptorByDefinitionId[c.DefinitionId] = EffectivePolicyOverlay.Apply(descriptor, c.Effective);
             }
         }
         _context.ReplaceRetiredDefinitions(
-            catalog.Where(c => c.Status == DefinitionStatusCode.Retired).ToDictionary(c => c.Id, c => c.Effective.JobRetentionSeconds)
+            catalog
+                .Where(c => c.Status == DefinitionStatusCode.Retired)
+                .ToDictionary(c => c.DefinitionId, c => c.Effective.JobRetentionSeconds)
         );
         MeterConsistencyCheck.Check(ns, catalog, _log);
     }

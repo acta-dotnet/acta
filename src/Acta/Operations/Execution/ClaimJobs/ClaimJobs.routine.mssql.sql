@@ -34,7 +34,7 @@ BEGIN
         DECLARE
             @claimed TABLE
             (
-                id BIGINT NOT NULL PRIMARY KEY,
+                job_id BIGINT NOT NULL PRIMARY KEY,
                 job_ref UNIQUEIDENTIFIER NOT NULL,
                 definition_id INT NOT NULL,
                 tenant_id INT NULL,
@@ -48,12 +48,12 @@ BEGIN
                 created_at_utc DATETIME2(3) NOT NULL,
                 failure_count INT NOT NULL,
                 lane_id BIGINT NULL,
-                parent_id BIGINT NULL
+                parent_job_id BIGINT NULL
             );
 
         /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
-        DECLARE @bands TABLE (priority_code TINYINT NOT NULL PRIMARY KEY);
-        INSERT INTO @bands (priority_code)
+        DECLARE @bands TABLE (job_priority_code TINYINT NOT NULL PRIMARY KEY);
+        INSERT INTO @bands (job_priority_code)
         VALUES
             (100 /* JobPriorityCode.Realtime */),
             (85 /* JobPriorityCode.Critical */),
@@ -61,27 +61,27 @@ BEGIN
             (50 /* JobPriorityCode.Normal */),
             (0 /* JobPriorityCode.Bulk */);
 
-        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @candidates TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @remaining INT = @p_claim_limit;
-        DECLARE @band TINYINT = (SELECT MAX(priority_code) FROM @bands);
+        DECLARE @band TINYINT = (SELECT MAX(job_priority_code) FROM @bands);
 
         /* One seek per band, highest band first, each stopping at the band's first row not yet due. The
            UPDLOCK holds every candidate to the end of the transaction, so the update below finds each one
            as this loop left it. */
         WHILE @band IS NOT NULL AND @remaining > 0
             BEGIN
-                /* Pure claim-index seek on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is
+                /* Pure claim-index seek on ix_jobs_state_claim_ready via the denormalized namespace; concurrency-key admission is
                    executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. */
-                INSERT INTO @candidates (id)
+                INSERT INTO @candidates (job_id)
                 SELECT TOP (@remaining) r.job_id
-                FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
+                FROM {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
                 WHERE
                     r.namespace_id = @p_namespace_id
-                    AND r.priority_code = @band
-                    /* ix_runtimes_claim_ready's filter restated whole: filtered-index matching takes top-level AND-terms
-                       only, and without it the claim scans runtimes and widens its UPDLOCK footprint to match. Ready always
-                       carries its due instant (ck_runtimes_ready_due); a Suspended NULL never comes due. */
-                    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.job_priority_code = @band
+                    /* ix_jobs_state_claim_ready's filter restated whole: filtered-index matching takes top-level AND-terms
+                       only, and without it the claim scans jobs_state and widens its UPDLOCK footprint to match. Ready always
+                       carries its due instant (ck_jobs_state_ready_due); a Suspended NULL never comes due. */
+                    AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                     AND r.next_run_at_utc IS NOT NULL
                     AND r.next_run_at_utc <= @due_now
                     /* The worker's watermark starts the seek past the ghost records earlier claims left at the band's
@@ -94,7 +94,7 @@ BEGIN
                         OR NOT EXISTS (
                             SELECT 1
                             FROM {{schema}}.jobs j
-                            WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                            WHERE j.job_id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
                         )
                     )
                 ORDER BY
@@ -102,12 +102,12 @@ BEGIN
                     r.job_id ASC;
 
                 SET @remaining -= @@ROWCOUNT;
-                SET @band = (SELECT MAX(priority_code) FROM @bands WHERE priority_code < @band);
+                SET @band = (SELECT MAX(job_priority_code) FROM @bands WHERE job_priority_code < @band);
             END
 
         UPDATE r
         SET
-            status_code = 50 /* JobStatusCode.Executing */,
+            job_status_code = 50 /* JobStatusCode.Executing */,
             execution_number = r.execution_number + 1,
             leased_by_worker_id = @p_leased_by_worker_id,
             lease_expires_at_utc = @lease_expires,
@@ -130,25 +130,25 @@ BEGIN
             j.created_at_utc,
             INSERTED.failure_count,
             INSERTED.lane_id,
-            j.parent_id
+            j.parent_job_id
         INTO
             @claimed (
-                id, job_ref, definition_id, tenant_id, execution_number,
+                job_id, job_ref, definition_id, tenant_id, execution_number,
                 deduplication_key, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
-                failure_count, lane_id, parent_id
+                failure_count, lane_id, parent_job_id
             )
-        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state. The seek above holds
         -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
         -- order (docs/sql-execution-policy.md); a skipped candidate is simply not claimed.
-        FROM {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
-        INNER JOIN @candidates c ON c.id = r.job_id
-        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.id = r.job_id;
+        FROM {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
+        INNER JOIN @candidates c ON c.job_id = r.job_id
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id;
 
         IF EXISTS (SELECT 1 FROM @claimed)
             BEGIN
                 SELECT
-                    id,
+                    job_id,
                     definition_id,
                     execution_number,
                     deduplication_key,
@@ -164,14 +164,14 @@ BEGIN
                     CAST(NULL AS DATETIME2(7)) AS db_now,
                     CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
                     lane_id,
-                    parent_id
+                    parent_job_id
                 FROM @claimed
-                ORDER BY id;
+                ORDER BY job_id;
             END
         ELSE
             BEGIN
                 SELECT
-                    CAST(NULL AS BIGINT) AS id,
+                    CAST(NULL AS BIGINT) AS job_id,
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS INT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
@@ -191,11 +191,11 @@ BEGIN
                         FROM @bands b
                         CROSS APPLY (
                             SELECT TOP (1) r.next_run_at_utc
-                            FROM {{schema}}.runtimes r
+                            FROM {{schema}}.jobs_state r
                             WHERE
                                 r.namespace_id = @p_namespace_id
-                                AND r.priority_code = b.priority_code
-                                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                                AND r.job_priority_code = b.job_priority_code
+                                AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                                 AND r.next_run_at_utc IS NOT NULL
                                 /* Excluded rows are invisible to this worker's horizon too: a horizon at or
                                    before now is what tells the caller to retry at the anti-spin floor, so
@@ -205,14 +205,14 @@ BEGIN
                                     OR NOT EXISTS (
                                         SELECT 1
                                         FROM {{schema}}.jobs j
-                                        WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                                        WHERE j.job_id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
                                     )
                                 )
                             ORDER BY r.next_run_at_utc ASC
                         ) head
                     ) AS next_ready_at_utc,
                     CAST(NULL AS BIGINT) AS lane_id,
-                    CAST(NULL AS BIGINT) AS parent_id;
+                    CAST(NULL AS BIGINT) AS parent_job_id;
             END
 
         IF @entry_trancount = 0

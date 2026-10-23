@@ -617,8 +617,8 @@ internal static class TrialRunner
                         if (row.Status is 100 or 200 or 220)
                         {
                             var observation = new Observation(
-                                byId[row.Id].Key,
-                                row.Id,
+                                byId[row.JobId].Key,
+                                row.JobId,
                                 Stopwatch.GetTimestamp(),
                                 row.Status,
                                 Output: row.Output,
@@ -629,7 +629,7 @@ internal static class TrialRunner
                             {
                                 if (
                                     row.Key != observation.Key
-                                    || row.ParentId is not null
+                                    || row.ParentJobId is not null
                                     || row.JobNamespace != expectedRoots[observation.Key].JobNamespace
                                 )
                                 {
@@ -655,15 +655,15 @@ internal static class TrialRunner
                                     );
                                 }
                                 observationJournal.Append(observation, TrialJson.Default.Observation);
-                                terminalRoots.Add(row.Id);
+                                terminalRoots.Add(row.JobId);
                             }
                         }
-                        else if (row.Status == 20 && scenario.Id is "T04" or "T06" && signalled.Add(row.Id))
+                        else if (row.Status == 20 && scenario.Id is "T04" or "T06" && signalled.Add(row.JobId))
                         {
-                            await jobs.RaiseSignalAsync(JobLookup.ById(row.Id), "go", default(JobPayload), ct: token);
+                            await jobs.RaiseSignalAsync(JobLookup.ById(row.JobId), "go", default(JobPayload), ct: token);
                             if (scenario.Id == "T06")
                             {
-                                await jobs.RaiseSignalAsync(JobLookup.ById(row.Id), "go", default(JobPayload), ct: token);
+                                await jobs.RaiseSignalAsync(JobLookup.ById(row.JobId), "go", default(JobPayload), ct: token);
                             }
                         }
                     }
@@ -672,11 +672,11 @@ internal static class TrialRunner
                     {
                         foreach (var child in await reader.ReadAsync(terminalRoots, token, lineage: true))
                         {
-                            if (child.ParentId is null)
+                            if (child.ParentJobId is null)
                             {
                                 continue;
                             }
-                            observedIds.Add(child.Id);
+                            observedIds.Add(child.JobId);
                             if (child.Status is not (100 or 200 or 220))
                             {
                                 boundaryChecks.Add(
@@ -691,13 +691,13 @@ internal static class TrialRunner
                             else
                             {
                                 childObservations.TryAdd(
-                                    child.Id,
+                                    child.JobId,
                                     new(
                                         child.Key,
-                                        child.Id,
+                                        child.JobId,
                                         Stopwatch.GetTimestamp(),
                                         child.Status,
-                                        child.ParentId,
+                                        child.ParentJobId,
                                         child.Output,
                                         child.JobNamespace,
                                         child.Key

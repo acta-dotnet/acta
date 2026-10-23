@@ -4,24 +4,24 @@
 SELECT ACTA_ERROR('ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id')
 WHERE
     @p_job_id IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.id = @p_job_id);
+    AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id);
 
 INSERT INTO {{schema}}.alerts (
     namespace_id, alert_ref, job_id, job_ref,
-    origin_code, severity_code, kind_code, title, message, channel_name,
+    alert_origin_code, alert_severity_code, alert_kind_code, title, alert_message, channel_name,
     deduplication_key, occurrence_count, last_projected_event_id,
     delivery_status_code, retry_count
 )
 SELECT
-    ns.id,
+    ns.namespace_id,
     @p_alert_ref,
     @p_job_id,
     jr.job_ref,
-    @p_origin_code,
-    @p_severity_code,
-    @p_kind_code,
+    @p_alert_origin_code,
+    @p_alert_severity_code,
+    @p_alert_kind_code,
     @p_title,
-    @p_message,
+    @p_alert_message,
     @p_channel_name,
     @p_deduplication_key,
     1,
@@ -29,9 +29,9 @@ SELECT
     @p_delivery_status_code,
     0
 FROM {{schema}}.namespaces ns
-LEFT JOIN {{schema}}.jobs jr ON jr.id = @p_job_id
+LEFT JOIN {{schema}}.jobs jr ON jr.job_id = @p_job_id
 WHERE
-    ns.name = @p_namespace_name
+    ns.namespace_name = @p_namespace_name
     -- Ghost guard: a failure replayed after its incident closed must not open one behind the events
     -- this identity has already absorbed - which is why it compares against every row of the identity,
     -- not just an open one. NULL, hence never blocking, for a raise carrying no event.
@@ -39,7 +39,7 @@ WHERE
         SELECT 1
         FROM {{schema}}.alerts g
         WHERE
-            g.namespace_id = ns.id
+            g.namespace_id = ns.namespace_id
             AND g.deduplication_key = @p_deduplication_key
             AND g.last_projected_event_id >= @p_source_event_id
     )
@@ -50,11 +50,11 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 DO UPDATE SET
     job_id = excluded.job_id,
     job_ref = excluded.job_ref,
-    origin_code = excluded.origin_code,
-    severity_code = excluded.severity_code,
-    kind_code = excluded.kind_code,
+    alert_origin_code = excluded.alert_origin_code,
+    alert_severity_code = excluded.alert_severity_code,
+    alert_kind_code = excluded.alert_kind_code,
     title = excluded.title,
-    message = excluded.message,
+    alert_message = excluded.alert_message,
     channel_name = excluded.channel_name,
     occurrence_count = {{schema}}.alerts.occurrence_count + 1,
     last_projected_event_id = COALESCE(excluded.last_projected_event_id, {{schema}}.alerts.last_projected_event_id),
@@ -74,14 +74,14 @@ WHERE
     (@p_deduplication_key IS NULL AND a.alert_ref = @p_alert_ref) -- keyless: the row just minted
     OR (
         @p_deduplication_key IS NOT NULL
-        -- MAX(id), not ORDER BY id DESC LIMIT 1: both name the identity's newest row - the open
+        -- MAX(alert_id), not ORDER BY alert_id DESC LIMIT 1: both name the identity's newest row - the open
         -- incident, or the last-resolved one when a guard held the write back - but a top-level OR is
         -- served by a multi-index union that cannot also satisfy an ORDER BY, so sorting cost a b-tree.
-        AND a.id = (
-            SELECT MAX(b.id)
+        AND a.alert_id = (
+            SELECT MAX(b.alert_id)
             FROM {{schema}}.alerts b
             WHERE
-                b.namespace_id = (SELECT ns.id FROM {{schema}}.namespaces ns WHERE ns.name = @p_namespace_name)
+                b.namespace_id = (SELECT ns.namespace_id FROM {{schema}}.namespaces ns WHERE ns.namespace_name = @p_namespace_name)
                 AND b.deduplication_key = @p_deduplication_key
         )
     );

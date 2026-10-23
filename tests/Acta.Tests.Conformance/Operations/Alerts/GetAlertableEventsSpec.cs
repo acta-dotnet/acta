@@ -31,7 +31,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
     }
 
     [Fact(
-        DisplayName = "Only the namespace's finished attempts that alert are read: failures, charged retries, uncharged reclaims, and a retry's success"
+        DisplayName = "Only the namespace's alert-relevant attempts are read: failed, orphaned, terminally failed, and a retry's success"
     )]
     public async Task Only_alertable_finished_attempts_are_read()
     {
@@ -40,24 +40,24 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
 
         long[] alertable =
         [
-            await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, EventReasonCode.JobNonRetryableException, T0, ct),
-            await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Failed, EventReasonCode.JobUnhandledException, Ms(1), ct),
-            await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Orphaned, EventReasonCode.JobLeaseExpired, Ms(2), ct),
-            await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Failed, EventReasonCode.JobExecutionTimeout, Ms(3), ct),
-            await StageAsync(JobStatusCode.Suspended, ExecutionStatusCode.Orphaned, EventReasonCode.JobLeaseExpired, Ms(4), ct),
-            await StageAsync(JobStatusCode.Succeeded, ExecutionStatusCode.Succeeded, null, Ms(5), ct, executionNumber: 2),
+            await StageAsync(EventCode.JobFailed, EventReason.NonRetryableException, T0, ct),
+            await StageAsync(EventCode.JobExecutionFailed, EventReason.UnhandledException, Ms(1), ct),
+            await StageAsync(EventCode.JobExecutionOrphaned, EventReason.LeaseExpired, Ms(2), ct),
+            await StageAsync(EventCode.JobExecutionFailed, EventReason.ExecutionTimeout, Ms(3), ct),
+            await StageAsync(EventCode.JobExecutionOrphaned, EventReason.LeaseExpired, Ms(4), ct),
+            await StageAsync(EventCode.JobExecutionSucceeded, null, Ms(5), ct, executionNumber: 2),
         ];
 
         // A first attempt's success follows no failure of its job, so it has nothing to resolve.
-        await StageAsync(JobStatusCode.Succeeded, ExecutionStatusCode.Succeeded, null, Ms(12), ct);
-        await StageAsync(JobStatusCode.Ready, ExecutionStatusCode.Rescheduled, EventReasonCode.JobHandlerRescheduled, Ms(6), ct);
-        await StageAsync(JobStatusCode.Suspended, ExecutionStatusCode.Suspended, EventReasonCode.JobHandlerSuspended, Ms(7), ct);
-        await StageAsync(JobStatusCode.Cancelled, ExecutionStatusCode.Cancelled, EventReasonCode.JobControlManual, Ms(8), ct);
-        // A terminal failure's triple on rows the read must still pass over: another event code, no job,
-        // and another namespace.
-        await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(9), ct, code: EventCode.JobNoteRecorded);
-        await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(10), ct, jobless: true);
-        await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, null, Ms(11), ct, namespaceId: otherNamespaceId);
+        await StageAsync(EventCode.JobExecutionSucceeded, null, Ms(12), ct);
+        await StageAsync(EventCode.JobExecutionYielded, EventReason.HandlerRescheduled, Ms(6), ct);
+        await StageAsync(EventCode.JobExecutionYielded, EventReason.HandlerSuspended, Ms(7), ct);
+        await StageAsync(EventCode.JobCancelled, null, Ms(8), ct);
+        // A terminal failure's code on rows the read must still pass over: another subject kind and another
+        // namespace, beside a note on the job.
+        await StageAsync(EventCode.JobNoteRecorded, null, Ms(9), ct);
+        await StageAsync(EventCode.JobFailed, null, Ms(10), ct, entity: EntityCode.Definition);
+        await StageAsync(EventCode.JobFailed, null, Ms(11), ct, namespaceId: otherNamespaceId);
 
         var read = await ReadAsync(Start, 0, Horizon, ct);
 
@@ -127,7 +127,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
                     },
                 ct
             );
-        var eventId = await StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, EventReasonCode.JobNonRetryableException, T0, ct);
+        var eventId = await StageAsync(EventCode.JobFailed, EventReason.NonRetryableException, T0, ct);
 
         var row = Assert.Single(await ReadAsync(Start, 0, Horizon, ct));
 
@@ -138,10 +138,10 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
         Assert.Equal("alertable-def", row.JobName);
         Assert.Equal(AlertProfileCode.OnTerminal, row.AlertProfile);
         Assert.Equal("pager", row.AlertChannelName);
-        Assert.Equal(ExecutionStatusCode.Failed, row.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Failed, row.ToStatus);
-        Assert.Equal(EventReasonCode.JobNonRetryableException, row.ReasonCode);
-        Assert.Equal("staged", row.ReasonMessage);
+        Assert.Equal(EventCode.JobFailed, row.EventCode);
+        Assert.Equal(EventReason.NonRetryableException, row.Reason());
+        Assert.Equal("staged", row.EventMessage);
+        Assert.False(row.Superseded);
     }
 
     private static DateTime Ms(int milliseconds) => T0.AddMilliseconds(milliseconds);
@@ -160,45 +160,32 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
         ).Events;
 
     private Task<long> StageFailureAsync(DateTime stampUtc, CancellationToken ct) =>
-        StageAsync(JobStatusCode.Failed, ExecutionStatusCode.Failed, EventReasonCode.JobUnhandledException, stampUtc, ct);
+        StageAsync(EventCode.JobFailed, EventReason.UnhandledException, stampUtc, ct);
 
-    /// <summary>One event row, inserted and then re-stamped, since <c>created_at_utc</c> takes its column default on insert.</summary>
-    private async Task<long> StageAsync(
-        JobStatusCode? toStatus,
-        ExecutionStatusCode? outcome,
-        EventReasonCode? reason,
+    /// <summary>One event row at <paramref name="stampUtc"/>, carrying <paramref name="reason"/> in its details.</summary>
+    private Task<long> StageAsync(
+        EventCode code,
+        string? reason,
         DateTime stampUtc,
         CancellationToken ct,
-        EventCode code = EventCode.JobExecutionFinished,
-        bool jobless = false,
+        EntityCode entity = EntityCode.Job,
         int? namespaceId = null,
         int executionNumber = 1
-    )
-    {
-        var id = await Db.From<EventEntity>()
-            .InsertAsync<long>(
-                new EventEntity
-                {
-                    EventCode = code,
-                    NamespaceId = namespaceId ?? TestNamespaceId,
-                    ActorCode = ActorCode.Worker,
-                    JobId = jobless ? null : JobIdValue,
-                    DefinitionId = DefId,
-                    ExecutionNumber = executionNumber,
-                    ToStatus = toStatus,
-                    ExecutionStatus = outcome,
-                    ReasonCode = reason,
-                    ReasonMessage = "staged",
-                },
-                ct
-            );
-        // A staged row names no worker, so (0, id) is its key.
-        Assert.Equal(
-            1,
-            await Db.From<EventEntity>()
-                .Where(e => e.WorkerId == 0 && e.Id == id)
-                .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = stampUtc }, ct)
+    ) =>
+        StagedEvents.InsertAsync(
+            Db,
+            new EventEntity
+            {
+                EventCode = code,
+                NamespaceId = namespaceId ?? TestNamespaceId,
+                EntityCode = entity,
+                EntityId = entity == EntityCode.Job ? JobIdValue : DefId,
+                DefinitionId = DefId,
+                ExecutionNumber = executionNumber,
+                EventMessage = "staged",
+            },
+            EventDetails.Write(("reason", reason)),
+            ct,
+            stampUtc
         );
-        return id;
-    }
 }

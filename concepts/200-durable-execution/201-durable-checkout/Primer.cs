@@ -30,7 +30,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             new { jobId = checkout.JobId },
             ct
         );
-        await ShowSplitStateAsync("The append-mostly job row and hot runtime row start together", checkout.JobId, ct);
+        await ShowSplitStateAsync("The append-mostly job row and hot jobs_state row start together", checkout.JobId, ct);
 
         var release = await jobs.RescheduleAsync(
             checkout,
@@ -134,10 +134,10 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
                 ct
             );
             await lab.ShowAsync(
-                "Cancellation stores no result on the runtime row",
+                "Cancellation stores no result on the jobs_state row",
                 """
                 SELECT job_id, execution_number, result_format_id
-                FROM {{schema}}.runtimes
+                FROM {{schema}}.jobs_state
                 WHERE job_id = @jobId
                 """,
                 new { jobId = checkout.JobId },
@@ -210,16 +210,16 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             ct
         );
         await lab.ShowAsync(
-            "The terminal result is stored on the runtime row, beside the execution that produced it",
+            "The terminal result is stored on the jobs_state row, beside the execution that produced it",
             """
             SELECT job_id, execution_number, result_format_id
-            FROM {{schema}}.runtimes
+            FROM {{schema}}.jobs_state
             WHERE job_id = @jobId
             """,
             new { jobId = checkout.JobId },
             ct
         );
-        await ShowSplitStateAsync("The stable job row stayed put while the runtime row advanced", checkout.JobId, ct);
+        await ShowSplitStateAsync("The stable job row stayed put while the jobs_state row advanced", checkout.JobId, ct);
         await ShowLedgerAsync(checkout.JobId, ct);
 
         lifetime.StopApplication();
@@ -256,10 +256,10 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         lab.ShowAsync(
             title,
             """
-            SELECT j.id AS job_id, j.input_format_id AS stable_input_format, j.created_at_utc AS stable_created_at_utc, r.status_code AS runtime_status_code, r.execution_number AS runtime_executions, r.failure_count AS runtime_failures, r.leased_by_worker_id AS runtime_worker, r.modified_at_utc AS runtime_modified_at_utc
+            SELECT j.job_id, j.input_format_id AS stable_input_format, j.created_at_utc AS stable_created_at_utc, r.job_status_code AS state_status_code, r.execution_number AS state_executions, r.failure_count AS state_failures, r.leased_by_worker_id AS state_worker, r.modified_at_utc AS state_modified_at_utc
             FROM {{schema}}.jobs AS j
-            INNER JOIN {{schema}}.runtimes AS r ON r.job_id = j.id
-            WHERE j.id = @jobId
+            INNER JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id
+            WHERE j.job_id = @jobId
             """,
             new { jobId },
             ct
@@ -269,9 +269,9 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         lab.ShowAsync(
             "The append-only event ledger explains every transition",
             """
-            SELECT event, from_status, to_status, execution_number, reason
+            SELECT event, execution_number, event_message, details_text
             FROM events_view
-            WHERE job_id = @jobId
+            WHERE entity_kind = 'job' AND entity_id = @jobId
             ORDER BY event_id
             """,
             new { jobId },

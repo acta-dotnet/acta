@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Concepts.AuditLevel</RootNamespace>
+    <RootNamespace>Acta.Concepts.EventRecording</RootNamespace>
   </PropertyGroup>
 </Project>

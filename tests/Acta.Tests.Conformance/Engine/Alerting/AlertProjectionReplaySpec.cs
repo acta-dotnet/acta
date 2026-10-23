@@ -175,7 +175,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
         await OrphanWithoutTerminalizingAsync(slotId, ct);
         await OrphanWithoutTerminalizingAsync(slotId, ct);
         await OrphanWithoutTerminalizingAsync(slotId, ct);
-        var crossingEventId = (await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct)).Id;
+        var crossingEventId = (await ReadLatestEventAsync(slotId, EventCode.JobExecutionOrphaned, ct)).Id;
 
         await RunAlertsPinnedAsync(slotId, alertFailureThreshold: 3, ct);
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
@@ -229,7 +229,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
     /// </summary>
     private async Task OrphanWithoutTerminalizingAsync(long slotId, CancellationToken ct)
     {
-        await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = 0 }, ct);
+        await Db.From<JobStateEntity>().Where(r => r.Id == slotId).UpdateOnlyAsync(() => new JobStateEntity { FailureCount = 0 }, ct);
         await OrphanOneAttemptAsync(slotId, ct);
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
@@ -255,7 +255,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
     // targeting the projector's real checkpoint even if the projector renames it.
     private Task<int> ForgetAlertsCursorAsync(long slotId, CancellationToken ct) =>
         Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == slotId && v.Kind == CheckpointKindCode.Variable && v.Name == AlertsJob.CursorVariableName)
+            .Where(v => v.JobId == slotId && v.Kind == CheckpointKindCode.Variable && v.CheckpointName == AlertsJob.CursorVariableName)
             .DeleteAsync(ct);
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>

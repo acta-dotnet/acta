@@ -28,21 +28,23 @@ const job = {
   modifiedAtUtc: timestamp
 };
 
-// The failed attempt's one event: its finished event moves the job from executing to failed.
+// The failed attempt's one event: the job's final failure, which closes attempt 1.
 const event = {
-  jobEventId: 90,
-  eventCode: 'job.execution-finished',
+  eventId: 90,
+  eventCode: 'job.failed',
   createdAtUtc: timestamp,
   jobNamespace: 'billing',
+  entityKind: 'job',
+  entityId: 4242,
+  jobName: 'send-invoice',
   jobRef,
+  lineageRootJobRef: null,
+  tenantName: null,
   workerRef: 'wrk_019f9b3508007e4dbfd13d9d20bc81f4',
   executionNumber: 1,
-  fromStatus: 'executing',
-  toStatus: 'failed',
-  executionStatus: 'failed',
   durationMs: 125,
-  reasonCode: 'job.unhandled-exception',
-  reasonMessage: 'Invoice provider timed out.'
+  message: 'Invoice provider timed out.',
+  detailsText: '{"reason":"unhandled-exception"}'
 };
 
 async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void }): Promise<void> {
@@ -96,7 +98,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     }
     if (path === 'tenants') return json(paged([]));
     if (path === 'jobs/by-key') return json(job);
-    if (path === `jobs/${jobRef}/events`) return json(paged([event]));
+    if (path === `jobs/${jobRef}/events` || path === 'events') return json(paged([event]));
     // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
     // rather than on what they were written to check.
@@ -170,6 +172,17 @@ test('executions tab summarizes the attempt and deep-links expanded', async ({ p
   await walk.click();
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByLabel('Attempt')).toHaveValue('1');
+});
+
+test('events feed reads a linked job\'s events and shows their subject, message, and details', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  const feedRequest = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith('/api/v1/events'));
+  await page.goto(`/#/events?ns=billing&jobRef=${jobRef}`);
+
+  expect(new URL((await feedRequest).url()).searchParams.get('jobRef')).toBe(jobRef);
+  await expect(page.getByText('Invoice provider timed out.')).toBeVisible();
+  await expect(page.getByText('{"reason":"unhandled-exception"}')).toBeVisible();
+  await expect(page.getByRole('link', { name: jobRef })).toBeVisible();
 });
 
 test('quick search finds definitions by fragment and jumps to a pasted job ref', async ({ page }) => {

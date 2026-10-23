@@ -45,7 +45,7 @@ public sealed class RescheduleJobSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.True(after.Version > before.Version);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal("spec-actor", evt.Actor);
+        Assert.Equal("spec-actor", EventDetail(evt, "actor"));
     }
 
     [Fact(DisplayName = "RescheduleAsync rejects executing and terminal jobs without mutating them")]
@@ -96,5 +96,5 @@ public sealed class RescheduleJobSpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 }

@@ -85,7 +85,7 @@ internal static class ManifestSourceWriter
         sb.AppendLine($"                    OutputPayloadFormat: {outputFormatExpr},");
         sb.AppendLine($"                    Priority: global::Acta.JobPriorityCode.{j.PriorityName},");
         sb.AppendLine($"                    MaxAttempts: {j.MaxAttempts},");
-        sb.AppendLine($"                    AuditLevel: global::Acta.DefinitionAuditLevelCode.{j.AuditLevelName},");
+        sb.AppendLine($"                    EventRecording: global::Acta.EventRecordingCode.{j.EventRecordingName},");
         sb.AppendLine($"                    AlertProfile: global::Acta.AlertProfileCode.{j.AlertProfileName},");
         sb.AppendLine($"                    Invoker: {dispatch}.Invoke_{dispatchSuffix},");
         sb.AppendLine($"                    DeserializeInput: {dispatch}.DeserializeInput_{dispatchSuffix},");

@@ -33,7 +33,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -44,7 +44,9 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
 
     private async Task<DefinitionEntity> ReadAsync(string name, CancellationToken ct)
     {
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == TestNamespaceId && d.DefinitionName == name)
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         return def!;
     }

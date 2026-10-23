@@ -32,8 +32,20 @@ internal sealed class CatalogRegistrar(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log;
 
-    public async Task RegisterAsync(string ns, int namespaceId, ImmutableArray<JobDescriptor> allDescriptors, CancellationToken ct)
+    /// <summary>
+    /// Registers <paramref name="allDescriptors"/> into the namespace. <paramref name="registeredCatalogHash"/> is the hash
+    /// the namespace's last schedule registration stored; a start that computes the same hash and plans no cursor or
+    /// slot change skips that registration and its exclusive schedule lock.
+    /// </summary>
+    public async Task RegisterAsync(
+        WorkerRegistration registration,
+        int namespaceId,
+        string? registeredCatalogHash,
+        ImmutableArray<JobDescriptor> allDescriptors,
+        CancellationToken ct
+    )
     {
+        var ns = registration.NamespaceName;
         var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
@@ -60,7 +72,7 @@ internal sealed class CatalogRegistrar(
         var effectiveById = new Dictionary<int, EffectiveJobPolicy>(catalog.Count);
         foreach (var c in catalog)
         {
-            effectiveById[c.Id] = c.Effective;
+            effectiveById[c.DefinitionId] = c.Effective;
         }
         foreach (var descriptor in allDescriptors)
         {
@@ -77,7 +89,19 @@ internal sealed class CatalogRegistrar(
         _alertRouting?.ValidateRouting(ns, effectiveDescriptors);
         MeterConsistencyCheck.Check(ns, catalog, _log);
 
-        await ReconcileSchedulesAsync(ns, namespaceId, ct);
+        List<string?> catalogParts =
+        [
+            registration.OwnerTeam,
+            registration.Description,
+            manifestGenerationUtc.ToString("O", CultureInfo.InvariantCulture),
+        ];
+        foreach (var c in catalog.Where(c => perNamespaceDefIds.ContainsKey(c.DefinitionName)).OrderBy(c => c.DefinitionId))
+        {
+            catalogParts.Add(c.DefinitionName);
+            catalogParts.Add(c.DefinitionHash);
+        }
+
+        await ReconcileSchedulesAsync(ns, namespaceId, catalogParts, registeredCatalogHash, ct);
     }
 
     public ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
@@ -258,8 +282,15 @@ internal sealed class CatalogRegistrar(
     /// against persisted cursors at startup. The upsert set is the union of {descriptors that
     /// declare >= 1 [JobSchedule]} and {definitions with persisted schedule state}, so removed
     /// schedules can pause an existing slot, while ordinary non-scheduled jobs are never touched.
+    /// The registration stores the hash of <paramref name="catalogParts"/> and the plan's declarations on the namespace.
     /// </summary>
-    private async Task ReconcileSchedulesAsync(string ns, int namespaceId, CancellationToken ct)
+    private async Task ReconcileSchedulesAsync(
+        string ns,
+        int namespaceId,
+        List<string?> catalogParts,
+        string? registeredCatalogHash,
+        CancellationToken ct
+    )
     {
         var stored = (await _schedules.GetScheduleStateAsync(namespaceId, ct)).States;
 
@@ -296,15 +327,10 @@ internal sealed class CatalogRegistrar(
             inScope.Add(defId);
         }
 
-        if (inScope.Count == 0)
-        {
-            return;
-        }
-
         var nowUtc = await _clock.GetUtcNowAsync(ct);
         var definitions = new List<DefinitionSchedules>(inScope.Count);
 
-        foreach (var defId in inScope)
+        foreach (var defId in inScope.Order())
         {
             if (!_context.DescriptorByDefinitionId.TryGetValue(defId, out var descriptor))
             {
@@ -343,7 +369,7 @@ internal sealed class CatalogRegistrar(
                     JobName: descriptor.JobName,
                     InputFormatId: inputFormatId,
                     Input: inputBytes,
-                    AuditLevel: descriptor.AuditLevel,
+                    EventRecording: descriptor.EventRecording,
                     SlotStatus: slotStatus,
                     SlotMinNextRunAtUtc: slotNextRun,
                     Schedules: slotSchedules
@@ -351,12 +377,22 @@ internal sealed class CatalogRegistrar(
             );
         }
 
-        // Every in-scope definition came from persisted state alone, so this manifest declares no slot
-        // at all: a rolling deploy whose new generation carries no scheduled job into a namespace that
-        // has some. There is nothing to reconcile, and the register verb reads its namespace from the
-        // first row, so an empty batch has no namespace to send either.
-        if (definitions.Count == 0)
+        var catalogHash = CatalogHashOf(catalogParts, definitions);
+        if (
+            catalogHash == registeredCatalogHash
+            && definitions.All(d =>
+                IsRegistered(
+                    d,
+                    storedByDefinition.GetValueOrDefault(d.DefinitionId),
+                    _context.DescriptorByDefinitionId[d.DefinitionId].Priority
+                )
+            )
+        )
         {
+            foreach (var d in definitions)
+            {
+                _context.RecurringSlotJobIds[storedByDefinition[d.DefinitionId].Values.First().SlotId] = 0;
+            }
             return;
         }
 
@@ -368,7 +404,9 @@ internal sealed class CatalogRegistrar(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        var slots = (await _schedules.RegisterSchedulesAsync(new RegisterSchedulesCommand(definitions, slotRefs), ct)).Slots;
+        var slots = (
+            await _schedules.RegisterSchedulesAsync(new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, catalogHash), ct)
+        ).Slots;
         if (slots.Count != definitions.Count)
         {
             // A recurring slot's deduplication key is its job name, so an ordinary job that took that key
@@ -386,6 +424,66 @@ internal sealed class CatalogRegistrar(
         {
             _context.RecurringSlotJobIds[slot.SlotId] = 0;
         }
+    }
+
+    /// <summary>
+    /// The hash of <paramref name="catalogParts"/> and every declaration the plan writes: each slot's input and audit level
+    /// and each schedule's declared fields, but no cursor or slot state, which <see cref="IsRegistered"/> compares instead.
+    /// </summary>
+    private static string CatalogHashOf(List<string?> catalogParts, List<DefinitionSchedules> plan)
+    {
+        var c = CultureInfo.InvariantCulture;
+        catalogParts.Add(plan.Count.ToString(c));
+        foreach (var d in plan)
+        {
+            catalogParts.AddRange([
+                d.DefinitionId.ToString(c),
+                d.InputFormatId.ToString(c),
+                Convert.ToBase64String(d.Input.Span),
+                ((byte)d.EventRecording).ToString(c),
+                d.Schedules.Count.ToString(c),
+            ]);
+            foreach (var s in d.Schedules)
+            {
+                catalogParts.AddRange([
+                    s.ScheduleName,
+                    s.Expression,
+                    s.TimeZoneId,
+                    ((byte)s.ExpressionKind).ToString(c),
+                    ((byte)s.MisfireStrategy).ToString(c),
+                    s.Description,
+                ]);
+            }
+        }
+
+        return CatalogHash.Of([.. catalogParts]);
+    }
+
+    /// <summary>
+    /// Whether <c>register_schedules</c> would write nothing for <paramref name="plan"/>: each planned schedule is stored
+    /// with its planned cursor, no stored schedule is left to orphan, and the slot either rests where registration leaves
+    /// it (in flight, waiting, finished, or held) or already stands at the planned status, next run, and priority.
+    /// </summary>
+    private static bool IsRegistered(DefinitionSchedules plan, Dictionary<string, StoredScheduleState>? stored, JobPriorityCode priority)
+    {
+        if (
+            stored is null
+            || stored.Count != plan.Schedules.Count
+            || !plan.Schedules.All(s => stored.TryGetValue(s.ScheduleName, out var st) && st.NextOccurrenceAtUtc == s.NextOccurrenceAtUtc)
+        )
+        {
+            return false;
+        }
+
+        var slot = stored.Values.First();
+        return slot.SlotStatus
+                is JobStatusCode.Executing
+                    or JobStatusCode.Suspended
+                    or JobStatusCode.Succeeded
+                    or JobStatusCode.Failed
+                    or JobStatusCode.Cancelled
+            || ScheduleWalker.IsHeld(slot.SlotStatus, slot.SlotNextRunAtUtc)
+            || (slot.SlotStatus == plan.SlotStatus && slot.SlotNextRunAtUtc == plan.SlotMinNextRunAtUtc && slot.SlotPriority == priority);
     }
 
     /// <summary>
@@ -475,7 +573,7 @@ internal static class ContractDriftDetector
         var storedByName = new Dictionary<string, StoredDefinitionContract>(stored.Count, StringComparer.Ordinal);
         foreach (var s in stored)
         {
-            storedByName[s.Name] = s;
+            storedByName[s.DefinitionName] = s;
         }
 
         var drifts = new List<ContractDrift>();

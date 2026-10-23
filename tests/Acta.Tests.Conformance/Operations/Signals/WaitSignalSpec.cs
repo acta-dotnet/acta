@@ -21,7 +21,9 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Slots.WaitSignalAsync(jobId, CheckpointKindCode.Signal, name, timeoutSeconds, ct);
 
     private async Task<CheckpointEntity> ReadSlotAsync(long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
-        Assert.Single(await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == kind && c.Name == name).ToListAsync(ct));
+        Assert.Single(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == kind && c.CheckpointName == name).ToListAsync(ct)
+        );
 
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
         (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct)).JobId;
@@ -104,7 +106,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         await WaitAsync(jobId, "go", 60, ct);
         var past = DateTime.UtcNow.AddMinutes(-1);
         await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.Name == "go")
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.CheckpointName == "go")
             .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = past }, ct);
 
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", 60, ct)).Outcome);
@@ -117,7 +119,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         var jobId = await EnqueueAsync(ct);
-        var input = new JobControlInput(new JobControlActor(ActorCode.Sys), EventReasonCode.JobSignalReleased, null);
+        var input = new JobControlInput(null, EventReason.SignalReleased, null);
         await Slots.RaiseSignalAsync(new RaiseSignalSlot(jobId, CheckpointKindCode.ChildLatch, "go", 0, null, input), ct);
 
         Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitAsync(jobId, "go", null, ct)).Outcome);

@@ -10,6 +10,6 @@ internal readonly record struct RetireDefinitionRow(
     DefinitionOverrideAction Action,
     int? Version,
     long? JobId,
-    long? ParentId,
+    long? ParentJobId,
     bool LanePromoted
 );

@@ -39,7 +39,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
                     "s.ready",
                     signalValue.Format.Id,
                     signalValue.Data.ToArray(),
-                    new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), EventReasonCode.JobControlManual, "seed")
+                    new JobControlInput("op", null, "seed")
                 ),
                 ct
             );

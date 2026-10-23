@@ -1,9 +1,9 @@
 SELECT TOP (@p_take)
-    t.id AS tenant_id,
+    t.tenant_id,
     t.tenant_name,
     t.display_name,
     t.description,
-    t.status_code AS status,
+    t.tenant_status_code AS status,
     t.created_at_utc,
     t.modified_at_utc,
     t.version
@@ -15,18 +15,18 @@ WHERE
         OR CHARINDEX(@p_search, LOWER(t.display_name)) > 0
         OR CHARINDEX(@p_search, LOWER(t.description)) > 0
     )
-    AND (@p_status_code IS NULL OR t.status_code = @p_status_code)
+    AND (@p_tenant_status_code IS NULL OR t.tenant_status_code = @p_tenant_status_code)
     AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1
         FROM
             OPENJSON (@p_tag_filters)
-            WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
+            WITH (tag_name VARCHAR(128) '$.tag_name', tag_value_search NVARCHAR(128) '$.tag_value_search') f
         WHERE NOT EXISTS (
             SELECT 1 FROM {{schema}}.tags tg
             WHERE
-                tg.scope_code = 20 /* TagScopeCode.Tenant */ AND tg.scope_id = t.id
-                AND tg.name = f.name
-                AND (f.value_search IS NULL OR tg.value_search = f.value_search)
+                tg.entity_code = 120 /* EntityCode.Tenant */ AND tg.entity_id = t.tenant_id
+                AND tg.tag_name = f.tag_name
+                AND (f.tag_value_search IS NULL OR tg.tag_value_search = f.tag_value_search)
         )
     ))
     AND (@p_cursor_tenant_name IS NULL OR t.tenant_name > @p_cursor_tenant_name)
@@ -42,18 +42,18 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             OR CHARINDEX(@p_search, LOWER(t.display_name)) > 0
             OR CHARINDEX(@p_search, LOWER(t.description)) > 0
         )
-        AND (@p_status_code IS NULL OR t.status_code = @p_status_code)
+        AND (@p_tenant_status_code IS NULL OR t.tenant_status_code = @p_tenant_status_code)
         AND (@p_tag_filters IS NULL OR NOT EXISTS (
             SELECT 1
             FROM
                 OPENJSON (@p_tag_filters)
-                WITH (name VARCHAR(128) '$.name', value_search NVARCHAR(128) '$.value_search') f
+                WITH (tag_name VARCHAR(128) '$.tag_name', tag_value_search NVARCHAR(128) '$.tag_value_search') f
             WHERE NOT EXISTS (
                 SELECT 1 FROM {{schema}}.tags tg
                 WHERE
-                    tg.scope_code = 20 /* TagScopeCode.Tenant */ AND tg.scope_id = t.id
-                    AND tg.name = f.name
-                    AND (f.value_search IS NULL OR tg.value_search = f.value_search)
+                    tg.entity_code = 120 /* EntityCode.Tenant */ AND tg.entity_id = t.tenant_id
+                    AND tg.tag_name = f.tag_name
+                    AND (f.tag_value_search IS NULL OR tg.tag_value_search = f.tag_value_search)
             )
         ))
 ) END;

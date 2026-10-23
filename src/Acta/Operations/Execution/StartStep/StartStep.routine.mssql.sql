@@ -1,6 +1,6 @@
 CREATE OR ALTER PROCEDURE {{schema}}.start_step
     @p_job_id BIGINT,
-    @p_name VARCHAR(128),
+    @p_step_name VARCHAR(128),
     @p_at_most_once BIT
 AS
 BEGIN
@@ -27,7 +27,7 @@ BEGIN
         -- The step's own lock serializes starts of one step to commit (docs/sql-execution-policy.md,
         -- "Slot locks"); a range lock on a step not yet stored would hold the gap every running job's next step
         -- falls in.
-        DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_name);
+        DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_step_name);
         DECLARE @step_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
         EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
@@ -35,25 +35,25 @@ BEGIN
             THROW 51205, 'ACTA:SLOT_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
 
         SELECT
-            @state = status_code,
+            @state = step_status_code,
             @attempt = attempt_number,
             @version = version,
             @existing_next = next_retry_at_utc,
             @rfid = result_format_id,
             @result = result,
-            @rcode = reason_code,
-            @rmsg = reason_message
+            @rcode = failure_code,
+            @rmsg = failure_message
         FROM {{schema}}.steps WITH (UPDLOCK)
-        WHERE job_id = @p_job_id AND name = @p_name;
+        WHERE job_id = @p_job_id AND step_name = @p_step_name;
 
         IF @state IS NULL
             BEGIN
                 INSERT INTO {{schema}}.steps (
-                    job_id, name, status_code, attempt_number,
+                    job_id, step_name, step_status_code, attempt_number,
                     result_format_id, created_at_utc, modified_at_utc, version
                 )
                 VALUES (
-                    @p_job_id, @p_name, 10 /* StepStatusCode.Pending */, 1,
+                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */, 1,
                     0 /* JobPayloadFormat.None */, @now, @now, 0
                 );
 
@@ -106,13 +106,13 @@ BEGIN
             -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
                 UPDATE {{schema}}.steps
                 SET
-                    status_code = 230 /* StepStatusCode.Interrupted */,
+                    step_status_code = 230 /* StepStatusCode.Interrupted */,
                     next_retry_at_utc = NULL,
-                    reason_code = 63 /* EventReasonCode.JobStepInterrupted */,
-                    reason_message = N'At-most-once step re-entered before completion; outcome unknown.',
+                    failure_code = 20 /* StepFailureCode.Interrupted */,
+                    failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND name = @p_name;
+                WHERE job_id = @p_job_id AND step_name = @p_step_name;
 
                 SET @version = @version + 1;
                 SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
@@ -129,7 +129,7 @@ BEGIN
                     attempt_number = attempt_number + 1,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND name = @p_name;
+                WHERE job_id = @p_job_id AND step_name = @p_step_name;
 
                 SET @attempt = @attempt + 1;
                 SET @version = @version + 1;
@@ -148,8 +148,8 @@ BEGIN
             @next AS next_retry_at_utc,
             @rfid AS result_format_id,
             @result AS result,
-            @rcode AS reason_code,
-            @rmsg AS reason_message;
+            @rcode AS failure_code,
+            @rmsg AS failure_message;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

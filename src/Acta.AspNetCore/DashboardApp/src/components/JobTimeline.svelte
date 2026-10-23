@@ -1,5 +1,6 @@
 <script>
   import { displayFormatter } from '../format';
+  import { eventFacts } from '../lib/eventFacts.ts';
   import {
     failedTimelineAttempts,
     matchesTimelineCategory,
@@ -51,7 +52,7 @@
     const newest = filteredEvents[0];
     if (!newest) return null;
     const tone = timelinePresentation(newest).tone;
-    return tone === 'ok' || tone === 'bad' ? newest.jobEventId : null;
+    return tone === 'ok' || tone === 'bad' ? newest.eventId : null;
   });
 
   function jumpToFailedAttempt() {
@@ -110,18 +111,19 @@
           <span class:flag={failedAttempts.includes(attempt)}>{attempt === 0 ? 'Lifecycle' : 'Attempt ' + displayFormatter.number(attempt)}</span>
         </div>
         <ol class="rail">
-          {#each steps as evt (evt.jobEventId)}
+          {#each steps as evt (evt.eventId)}
             {@const p = timelinePresentation(evt)}
+            {@const facts = eventFacts(evt.detailsText)}
             <li class={'t-' + p.tone}>
-              <span class="rail-node" class:terminal={evt.jobEventId === terminalEventId}><Icon name={p.icon} /></span>
+              <span class="rail-node" class:terminal={evt.eventId === terminalEventId}><Icon name={p.icon} /></span>
               <div class="rail-body">
                 <div class="rail-title">
                   {p.title}
                   {#if evt.durationMs != null}<span class="rail-chip">{displayFormatter.milliseconds(evt.durationMs)}</span>{/if}
                 </div>
-                {#if evt.reasonMessage || evt.reasonCode}
+                {#if evt.message || facts.reason || facts.actor}
                   <div class="rail-reason">
-                    {#if evt.reasonCode}<span class="mono">{evt.reasonCode}</span>{/if}{#if evt.reasonCode && evt.reasonMessage}&nbsp;·&nbsp;{/if}{evt.reasonMessage ?? ''}
+                    {#if facts.reason}<span class="mono">{facts.reason}</span>{/if}{#if facts.reason && evt.message}&nbsp;·&nbsp;{/if}{evt.message ?? ''}{#if facts.actor}{#if facts.reason || evt.message}&nbsp;·&nbsp;{/if}by {facts.actor}{/if}
                   </div>
                 {/if}
                 <div class="rail-code">{evt.eventCode}</div>

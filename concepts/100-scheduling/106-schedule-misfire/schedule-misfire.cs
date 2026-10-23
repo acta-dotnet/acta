@@ -51,8 +51,8 @@ Console.WriteLine("Waiting one interval so a scheduled instant passes while paus
 await Task.Delay(2500);
 await ShowSchedulesAsync(lab, "Both cursors are overdue while the schedules remain paused");
 var overdue = await schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "schedule-misfire", PageSize: 10, IncludeTotal: true));
-var overdueSkip = overdue.Items.Single(item => item.JobName == "skip-report").NextRunAtUtc;
-var overdueCatchUp = overdue.Items.Single(item => item.JobName == "catch-up-report").NextRunAtUtc;
+var overdueSkip = overdue.Items.Single(item => item.JobName == "skip-report").NextOccurrenceAtUtc;
+var overdueCatchUp = overdue.Items.Single(item => item.JobName == "catch-up-report").NextOccurrenceAtUtc;
 
 // Resume reconciles each schedule's cursor by its misfire policy.
 // Skip: first occurrence strictly after now - the missed instant is dropped.
@@ -63,12 +63,12 @@ CatchUpReportJob.HoldNextExecution();
 var rs2 = await schedules.ResumeAsync(catchUpLookup, reasonMessage: "misfire demo");
 
 Console.WriteLine($"skip-report   overdue cursor: {overdueSkip?.ToString("O") ?? "(none)"}");
-Console.WriteLine($"skip-report   next-run (UTC): {rs1.NextRunAtUtc?.ToString("O") ?? "(none)"}");
+Console.WriteLine($"skip-report   next-run (UTC): {rs1.NextOccurrenceAtUtc?.ToString("O") ?? "(none)"}");
 Console.WriteLine($"catch-up-report overdue cursor: {overdueCatchUp?.ToString("O") ?? "(none)"}");
-Console.WriteLine($"catch-up-report next-run (UTC): {rs2.NextRunAtUtc?.ToString("O") ?? "(none)"}");
+Console.WriteLine($"catch-up-report next-run (UTC): {rs2.NextOccurrenceAtUtc?.ToString("O") ?? "(none)"}");
 
-var skipAdvancedPastMiss = overdueSkip is not null && rs1.NextRunAtUtc > overdueSkip;
-var catchUpPreservedMiss = overdueCatchUp is not null && rs2.NextRunAtUtc == overdueCatchUp;
+var skipAdvancedPastMiss = overdueSkip is not null && rs1.NextOccurrenceAtUtc > overdueSkip;
+var catchUpPreservedMiss = overdueCatchUp is not null && rs2.NextOccurrenceAtUtc == overdueCatchUp;
 
 Console.WriteLine($"skip-report advanced past missed cursor: {skipAdvancedPastMiss}  (missed instant dropped)");
 Console.WriteLine($"catch-up-report preserved missed cursor: {catchUpPreservedMiss}  (fires once on recovery)");
@@ -103,7 +103,7 @@ static async Task ShowSchedulesAsync(ConceptLab lab, string title)
     await lab.ShowAsync(
         title,
         """
-        SELECT job_name, schedule_name, status, misfire_strategy, next_run_at_utc, paused_until_utc
+        SELECT job_name, schedule_name, status, misfire_strategy, next_occurrence_at_utc, paused_until_utc
         FROM schedules_view
         WHERE namespace = @jobNamespace
           AND job_name IN ('skip-report', 'catch-up-report')
@@ -119,7 +119,7 @@ namespace Acta.Concepts.ScheduleMisfire
 
     public sealed class SkipReportJob
     {
-        [Job("skip-report", AuditLevel = DefinitionAuditLevelCode.Off)]
+        [Job("skip-report", EventRecording = EventRecordingCode.Off)]
         [JobSchedule("every-2s-skip", "PT2S", MisfireStrategy = MisfireStrategyCode.Skip)]
         public async Task Handle(SkipReportInput input, CancellationToken ct)
         {
@@ -146,7 +146,7 @@ namespace Acta.Concepts.ScheduleMisfire
 
         public static Task WaitForExecutionAsync(CancellationToken ct) => _completed.Task.WaitAsync(ct);
 
-        [Job("catch-up-report", AuditLevel = DefinitionAuditLevelCode.Off)]
+        [Job("catch-up-report", EventRecording = EventRecordingCode.Off)]
         [JobSchedule("every-2s-catchup", "PT2S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
         public async Task Handle(CatchUpReportInput input, CancellationToken ct)
         {

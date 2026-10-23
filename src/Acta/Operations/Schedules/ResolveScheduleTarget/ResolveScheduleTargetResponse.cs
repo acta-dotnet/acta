@@ -5,5 +5,5 @@ internal sealed record ResolveScheduleTargetResponse(long JobId, DateTime NowUtc
 {
     /// <summary>The slot cursor once <see cref="Schedule"/> changes as <paramref name="change"/> says: the MIN over the live set.</summary>
     public DateTime? SlotNextRunWith(Func<LiveSchedule, LiveSchedule> change) =>
-        ScheduleWalker.RecomputeSlotMin([.. Live.Select(s => s.Name == Schedule.Name ? change(s) : s)], NowUtc);
+        ScheduleWalker.RecomputeSlotMin([.. Live.Select(s => s.ScheduleName == Schedule.ScheduleName ? change(s) : s)], NowUtc);
 }

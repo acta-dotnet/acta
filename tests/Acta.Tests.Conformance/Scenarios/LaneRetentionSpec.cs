@@ -6,14 +6,14 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Retention deletes a lane once no runtime row references it, finished or not, so lanes named per
+/// Retention deletes a lane once no jobs_state row references it, finished or not, so lanes named per
 /// customer or per order do not accumulate. An enqueue that races the delete still lands in a lane.
 /// </summary>
 [ConformanceSpec(
     "lanes.retention",
-    "Retention deletes a lane that no runtime references",
+    "Retention deletes a lane that no jobs_state row references",
     Area = "Lanes",
-    Contract = "A retention sweep deletes a lane that no runtime row references, keeps a lane with any runtime row, and never strands an enqueue racing the delete."
+    Contract = "A retention sweep deletes a lane that no jobs_state row references, keeps a lane with any jobs_state row, and never strands an enqueue racing the delete."
 )]
 public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -77,7 +77,7 @@ public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, 
         }
     }
 
-    // A lane whose only job was cancelled and purged, so no runtime row references it.
+    // A lane whose only job was cancelled and purged, so no jobs_state row references it.
     private async Task EmptiedLaneAsync(string lane, CancellationToken ct)
     {
         var job = await StepAsync(lane, ct);
@@ -89,7 +89,7 @@ public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, 
     private async Task<bool> LaneExistsAsync(string lane, CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        return await Db.From<LaneEntity>().Where(l => l.NamespaceId == ns && l.Name == lane).SingleOrDefaultAsync(ct) is not null;
+        return await Db.From<LaneEntity>().Where(l => l.NamespaceId == ns && l.LaneName == lane).SingleOrDefaultAsync(ct) is not null;
     }
 
     private async Task<EnqueueJobResponse> StepAsync(string lane, CancellationToken ct) =>

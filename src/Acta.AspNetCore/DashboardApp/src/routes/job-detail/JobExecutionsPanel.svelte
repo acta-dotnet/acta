@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
-  import { api, type Paged } from '../../api.ts';
+  import { api, type EventItem, type Paged } from '../../api.ts';
   import { displayFormatter } from '../../format.ts';
   import { keys, listPage } from '../../query.ts';
   import { livePaused, listRefetchInterval } from '../../polling.ts';
@@ -11,7 +11,7 @@
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StateView from '../../components/StateView.svelte';
   import { routes } from '../../routes.ts';
-  import type { JobEvent, JobDetail } from './types.ts';
+  import type { JobDetail } from './types.ts';
   import { mergeJobEvents } from './jobDetailState.ts';
   import {
     deriveExecutions,
@@ -42,18 +42,18 @@
   const history = createInfiniteQuery(() => ({
     queryKey: keys.feed(endpoint, { pageSize: 100 }),
     queryFn: ({ pageParam, signal }: { pageParam: string | null; signal: AbortSignal }) =>
-      api<Paged<JobEvent>>(endpoint, { pageSize: 100, cursor: pageParam }, { signal }),
+      api<Paged<EventItem>>(endpoint, { pageSize: 100, cursor: pageParam }, { signal }),
     initialPageParam: null as string | null,
-    getNextPageParam: (last: Paged<JobEvent>) => (last.hasMore ? last.nextCursor : null),
+    getNextPageParam: (last: Paged<EventItem>) => (last.hasMore ? last.nextCursor : null),
     staleTime: Infinity
   }));
   const head = createQuery(() => ({
-    ...listPage<JobEvent>(endpoint, {}, { pageSize: 100, cursor: null }),
+    ...listPage<EventItem>(endpoint, {}, { pageSize: 100, cursor: null }),
     refetchInterval: polling && !$livePaused ? listRefetchInterval : false
   }));
 
   let historyPages = $derived(history.data?.pages.map((page) => page.items) ?? []);
-  let events: JobEvent[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
+  let events: EventItem[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
   let executions = $derived(withRunningExecution(deriveExecutions(events), job));
   let gap = $derived(executionGapSummary(job.executionNumber, executions));
 
@@ -108,7 +108,7 @@
         ? 'This job has not been claimed yet.'
         : history.hasNextPage
           ? 'No execution events in the loaded history yet; load older history below.'
-          : 'No execution events retained for this job (audit level or event retention).'}
+          : 'No execution events retained for this job (event recording or event retention).'}
       onRetry={() => head.refetch()} />
   {:else}
     <DataTable>
@@ -123,7 +123,7 @@
           {@const retryGapSeconds = execution.startedAtUtc && previous?.finishedAtUtc
             ? Math.round((Date.parse(execution.startedAtUtc) - Date.parse(previous.finishedAtUtc)) / 1000)
             : null}
-          {@const repeatReason = !!execution.reasonMessage && execution.reasonMessage === previous?.reasonMessage}
+          {@const repeatReason = !!execution.message && execution.message === previous?.message}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
           <tr
             class="{railClass(execution)} row-walk"
@@ -145,8 +145,8 @@
               {:else}<span class="dim">·</span>{/if}
             </td>
             <td class="wrap" class:cell-repeat={repeatReason}>
-              {#if execution.reasonCode}<span class="mono dim">{execution.reasonCode}</span>{/if}
-              {#if repeatReason}<span class="dim">same as below</span>{:else}{execution.reasonMessage ?? (execution.reasonCode ? '' : '·')}{/if}
+              {#if execution.reason}<span class="mono dim">{execution.reason}</span>{/if}
+              {#if repeatReason}<span class="dim">same as below</span>{:else}{execution.message ?? (execution.reason ? '' : '·')}{/if}
             </td>
             <td class="col-open">
               <button
@@ -164,7 +164,7 @@
                that, missing executions are usually just on unloaded pages. -->
           <tr>
             <td colspan="7" class="dim wrap">
-              {displayFormatter.number(gap.missing)} earlier executions have no retained events (audit level or event retention).
+              {displayFormatter.number(gap.missing)} earlier executions have no retained events (event recording or event retention).
             </td>
           </tr>
         {/if}

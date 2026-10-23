@@ -16,7 +16,7 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
 {
     private static readonly StoreCommand Command = new("UpdateNamespace");
 
-    private Action<DbCommand> Bind(int version, ActorCode? actor = ActorCode.Operator) =>
+    private Action<DbCommand> Bind(int version, bool validDetails = true) =>
         cmd =>
         {
             var dialect = Services.GetRequiredService<ISqlDialect>();
@@ -24,9 +24,11 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.OwnerTeam, "inline-updated"));
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.Description, "inline-description"));
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, version));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, "inline-test"));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, "inline-transaction"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventMessage, "inline-transaction"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DetailsFormatId, JobPayloadFormat.Json.Id));
+            cmd.Parameters.Add(
+                dialect.CreateParameter(ActaSchema.Event.Details, validDetails ? EventDetails.Write(("actor", "inline-test")) : null)
+            );
         };
 
     private async Task<NamespaceEntity> ReadAsync(CancellationToken ct) =>
@@ -40,8 +42,10 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await ReadAsync(ct);
-        // events.actor_code is NOT NULL, so the audit insert fails after the namespace update.
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.ExecuteAsync(Command, Bind(before.Version, actor: null), static _ => true, ct));
+        // A JSON format id with no payload breaks ck_events_details_pair, so the audit insert fails after the namespace update.
+        await Assert.ThrowsAnyAsync<DbException>(() =>
+            Db.ExecuteAsync(Command, Bind(before.Version, validDetails: false), static _ => true, ct)
+        );
 
         var after = await ReadAsync(ct);
         Assert.Equal(before.Version, after.Version);

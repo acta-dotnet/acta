@@ -12,27 +12,27 @@ internal sealed class ResolveTagTargetHandler(GetJobIdHandler getJobId, ResolveD
 
     private async ValueTask<ResolveTagTargetResponse?> ResolveAsync(TagTarget target, CancellationToken ct)
     {
-        switch (target.ScopeCode)
+        switch (target.EntityCode)
         {
-            case TagScopeCode.Tenant:
-            case TagScopeCode.Namespace:
-                return new ResolveTagTargetResponse(target.ScopeCode, null, (string)target.Lookup);
+            case EntityCode.Tenant:
+            case EntityCode.Namespace:
+                return new ResolveTagTargetResponse(target.EntityCode, null, (string)target.Lookup);
 
-            case TagScopeCode.Definition:
+            case EntityCode.Definition:
             {
                 var (jobNamespace, jobName) = ((string, string))target.Lookup;
                 var definition = await resolveDefinitionId.HandleAsync(new ResolveDefinitionIdQuery(jobNamespace, jobName), ct);
-                return definition is null ? null : new ResolveTagTargetResponse(TagScopeCode.Definition, definition.DefinitionId, null);
+                return definition is null ? null : new ResolveTagTargetResponse(EntityCode.Definition, definition.DefinitionId, null);
             }
 
-            case TagScopeCode.Job:
+            case EntityCode.Job:
             {
                 var job = await getJobId.HandleAsync(new GetJobIdQuery((JobLookup)target.Lookup), ct);
-                return job is null ? null : new ResolveTagTargetResponse(TagScopeCode.Job, job.JobId, null);
+                return job is null ? null : new ResolveTagTargetResponse(EntityCode.Job, job.JobId, null);
             }
 
             default:
-                throw new ArgumentOutOfRangeException(nameof(target), target.ScopeCode, "Unsupported tag target scope.");
+                throw new ArgumentOutOfRangeException(nameof(target), target.EntityCode, "Unsupported tag target entity.");
         }
     }
 }

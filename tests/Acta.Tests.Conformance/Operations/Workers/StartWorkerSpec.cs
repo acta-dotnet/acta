@@ -7,19 +7,21 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
 /// Operation-level conformance for <c>StartWorker</c>: namespace registration idempotency
-/// (hash-gated, no churn when metadata is unchanged), append-only worker rows, and per-worker
+/// (no churn when metadata is unchanged), append-only worker rows, and per-worker
 /// <c>worker.started</c> event fields. Calls <c>StartWorker.Run</c> directly with a fresh unique
 /// namespace per test so the registration is observed in isolation.
 /// </summary>
 [ConformanceSpec(
     "worker.start",
-    "StartWorker hash-gates the namespace write and appends a fresh worker row",
+    "StartWorker writes the namespace on a metadata change and appends a worker row",
     Area = "Workers",
-    Contract = "StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker."
+    Contract = "StartWorker writes the namespace only when its owner, description, or name is new, never its catalog hash, and appends one worker row and WorkerStarted event."
 )]
 public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    [Fact(DisplayName = "Namespace version is unchanged on same-metadata call and bumped on metadata change")]
+    [Fact(
+        DisplayName = "Namespace version is unchanged on same-metadata call and bumped on metadata change, and the start leaves the catalog hash unwritten"
+    )]
     public async Task Namespace_upsert_is_idempotent_then_churns_on_metadata_change()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -31,21 +33,20 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.NotNull(ns1);
         Assert.Equal(0, ns1!.Version); // initial version pinned at 0
         var capturedModified = ns1.ModifiedAtUtc;
-        var capturedHash = ns1.CatalogHash;
-        Assert.NotNull(capturedHash);
+        Assert.Null(ns1.CatalogHash);
 
-        // Step 2: same ownerTeam + description → same catalog_hash → no churn
+        // Step 2: same ownerTeam + description → no churn
         await WorkerTestOps.StartAsync(Services, nsName, "team-a", "desc", "host2", "v2", null, null, 1002, 4, ct);
         var ns2 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
         Assert.Equal(0, ns2!.Version); // version unchanged
         Assert.Equal(capturedModified, ns2.ModifiedAtUtc); // no write, timestamp unchanged
-        Assert.Equal(capturedHash, ns2.CatalogHash); // hash unchanged
 
-        // Step 3: different ownerTeam → different hash → version bumped by 1
+        // Step 3: different ownerTeam → version bumped by 1
         await WorkerTestOps.StartAsync(Services, nsName, "team-b", "desc", "host3", "v3", null, null, 1003, 4, ct);
         var ns3 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
         Assert.Equal(1, ns3!.Version); // bumped exactly once
-        Assert.NotEqual(capturedHash, ns3.CatalogHash); // hash changed
+        Assert.Equal("team-b", ns3.OwnerTeam);
+        Assert.Null(ns3.CatalogHash);
     }
 
     [Fact(DisplayName = "Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace")]
@@ -66,26 +67,24 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(3, count);
     }
 
-    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with actor worker, a null actor, and its own worker id")]
-    public async Task Each_worker_has_exactly_one_WorkerStarted_event_with_correct_actor_fields()
+    [Fact(DisplayName = "Each worker has exactly one WorkerStarted event with itself as the subject and no details")]
+    public async Task Each_worker_has_exactly_one_WorkerStarted_event_with_itself_as_subject()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsName = Unique("sw-evt");
         var (nsId, wId1) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host1", "v1", null, null, 1001, 4, ct);
         var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct);
 
-        // worker_id alone names the worker; the actor column stays null.
-        var events1 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
-        var e1 = Assert.Single(events1);
-        Assert.Equal(ActorCode.Worker, e1.ActorCode);
-        Assert.Null(e1.Actor);
-        Assert.Equal(nsId, e1.NamespaceId);
-
-        var events2 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
-        var e2 = Assert.Single(events2);
-        Assert.Equal(ActorCode.Worker, e2.ActorCode);
-        Assert.Null(e2.Actor);
-        Assert.Equal(nsId, e2.NamespaceId);
+        // The worker is the subject and the writer both; the event needs no actor to name it.
+        foreach (var workerId in new[] { wId1, wId2 })
+        {
+            var started = Assert.Single(
+                await Db.From<EventEntity>().Where(e => e.WorkerId == workerId && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct)
+            );
+            Assert.Equal((EntityCode.Worker, (long)workerId), (started.EntityCode, started.EntityId));
+            Assert.Null(started.Details);
+            Assert.Equal(nsId, started.NamespaceId);
+        }
     }
 
     [Fact(DisplayName = "Same host and process_id on two calls yields two distinct worker ids and two rows (no dedup)")]

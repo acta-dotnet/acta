@@ -32,6 +32,9 @@ internal sealed class WorkerRuntimeInitializer(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log ?? NullLogger.Instance;
 
+    /// <summary>The catalog hash the namespace held when this process's worker row was written.</summary>
+    private string? _registeredCatalogHash;
+
     /// <summary>
     /// Registers this worker's namespace, catalog, and recurring slots. Replicas of one build that start together
     /// register the same new rows at once, and the one that commits second sees its statement come back short or
@@ -78,13 +81,13 @@ internal sealed class WorkerRuntimeInitializer(
         var allDescriptors = _catalog.CollectDescriptors(_workerRegistration, ns);
         await RegisterWorkerAsync(_workerRegistration, ns, ct);
 
-        await _catalog.RegisterAsync(ns, _context.NamespaceIds[ns], allDescriptors, ct);
+        await _catalog.RegisterAsync(_workerRegistration, _context.NamespaceIds[ns], _registeredCatalogHash, allDescriptors, ct);
     }
 
     private async Task RegisterWorkerAsync(WorkerRegistration registration, string ns, CancellationToken ct)
     {
         // Namespace + worker register in one round trip (one transaction): the namespace row is updated
-        // only when its catalog hash changed and inserted only when the name is absent (an unchanged
+        // only when its owner or description changed and inserted only when the name is absent (an unchanged
         // restart writes nothing, allocates no id, and takes no key-range locks) and this process's
         // worker row is appended. The worker row landing before definitions is harmless: definitions
         // only need the namespace id, which this call also returns. The in-process guard (worker
@@ -106,7 +109,7 @@ internal sealed class WorkerRuntimeInitializer(
             // append-only, so this process's ref is fixed for the lifetime of the registration. The
             // store writes address the row by its numeric id, so only the id is kept in context.
             var workerRef = WorkerRef.New().Value;
-            var (registeredNamespaceId, registeredWorkerId) = await _workers.StartWorkerAsync(
+            var (registeredNamespaceId, registeredWorkerId, registeredCatalogHash) = await _workers.StartWorkerAsync(
                 StartWorkerCommand.Create(
                     ns,
                     registration.OwnerTeam,
@@ -123,6 +126,7 @@ internal sealed class WorkerRuntimeInitializer(
             );
             _context.NamespaceIds[ns] = registeredNamespaceId;
             _context.WorkerIdByNamespace[ns] = registeredWorkerId;
+            _registeredCatalogHash = registeredCatalogHash;
         }
     }
 

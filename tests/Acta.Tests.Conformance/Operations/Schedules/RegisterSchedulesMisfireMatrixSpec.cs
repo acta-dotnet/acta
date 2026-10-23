@@ -67,7 +67,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
         var slotId = await ReconcileAndRegisterAsync(db, dialect, defId, jobName, expression, kind, misfire, At(nowOffset), ct);
 
         var row = await ScheduleRowAsync(slotId, ct);
-        Assert.Equal(At(expectedOffset), row.NextRunAtUtc);
+        Assert.Equal(At(expectedOffset), row.NextOccurrenceAtUtc);
         Assert.Equal(misfire, row.MisfireStrategy);
     }
 
@@ -103,9 +103,8 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
             ct
         );
 
-        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
-        var row = Assert.Single(rows);
-        Assert.Equal(At(5), row.NextRunAtUtc);
+        var row = await ScheduleRowAsync(slotId, ct);
+        Assert.Equal(At(5), row.NextOccurrenceAtUtc);
         Assert.True(row.Version > 0, "Upsert must bump the schedule row version, not insert a fresh row.");
     }
 
@@ -141,9 +140,9 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
         );
 
         var after = await ScheduleRowAsync(slotId, ct);
-        Assert.Equal(At(0), after.NextRunAtUtc);
+        Assert.Equal(At(0), after.NextOccurrenceAtUtc);
         Assert.Equal(before.Version, after.Version);
-        var slot = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var slot = Assert.Single(await Db.From<JobStateEntity>().Where(r => r.Id == slotId).ToListAsync(ct));
         Assert.Equal(At(0), slot.NextRunAtUtc);
     }
 
@@ -180,7 +179,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
 
         // The declared minute would land at At(18); the hourly override in force lands at At(60).
         var row = await ScheduleRowAsync(slotId, ct);
-        Assert.Equal(At(60), row.NextRunAtUtc);
+        Assert.Equal(At(60), row.NextOccurrenceAtUtc);
         Assert.Equal("PT1H", row.ExpressionOverride);
     }
 
@@ -274,7 +273,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -283,11 +282,8 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
         return ids[defId];
     }
 
-    private async Task<ScheduleEntity> ScheduleRowAsync(long slotId, CancellationToken ct)
-    {
-        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
-        return Assert.Single(rows);
-    }
+    private async Task<ScheduleRow> ScheduleRowAsync(long slotId, CancellationToken ct) =>
+        Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
 
     private static JobDescriptor Def(string name) =>
         new(
@@ -300,7 +296,7 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

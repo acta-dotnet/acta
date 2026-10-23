@@ -1,52 +1,35 @@
 SELECT
-    e.id AS event_id,
+    e.event_id,
     e.created_at_utc,
-    e.job_id,
+    e.entity_id AS job_id,
     e.definition_id,
-    jd.name AS job_name,
+    jd.definition_name AS job_name,
     jd.alert_profile_code_effective AS alert_profile,
     jd.alert_channel_name_effective AS alert_channel_name,
-    e.execution_status_code AS execution_status,
-    e.to_status_code AS to_status,
-    e.reason_code,
-    e.reason_message
+    e.event_code,
+    e.event_message,
+    e.details_format_id,
+    e.details,
+    0 AS superseded
 FROM {{schema}}.events e
-INNER JOIN {{schema}}.definitions jd ON jd.id = e.definition_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = e.definition_id
 WHERE
     e.namespace_id = @p_namespace_id
-    /* Cursored by (created_at_utc, id), never by id alone: one writer at a time makes SQLite immune to the
+    /* Cursored by (created_at_utc, event_id), never by id alone: one writer at a time makes SQLite immune to the
        commit-order race the other two providers have, but the walk is written once for all three.
        created_at_utc, and both instant parameters the dialect binds against it, are epoch milliseconds. */
     AND e.created_at_utc <= @p_horizon_utc
     AND (
         e.created_at_utc > @p_cursor_utc
-        OR (e.created_at_utc = @p_cursor_utc AND e.id > @p_cursor_event_id)
+        OR (e.created_at_utc = @p_cursor_utc AND e.event_id > @p_cursor_event_id)
     )
-    AND e.job_id IS NOT NULL
-    AND e.event_code = 41 /* EventCode.JobExecutionFinished */
-    AND (
-        e.to_status_code = 200 /* JobStatusCode.Failed */
-        OR (
-            e.to_status_code = 10 /* JobStatusCode.Ready */
-            AND e.reason_code IN (
-                20 /* EventReasonCode.JobUnhandledException */,
-                21 /* EventReasonCode.JobLeaseExpired */,
-                22 /* EventReasonCode.JobExecutionTimeout */,
-                23 /* EventReasonCode.JobNonRetryableException */
-            )
-        )
-        /* Reclaim's uncharged arm lands Suspended rather than Ready, and charges nothing, so an
-           operator hears about a worker dying on the same wait over and over here or nowhere. */
-        OR (
-            e.to_status_code = 20 /* JobStatusCode.Suspended */
-            AND e.reason_code = 21 /* EventReasonCode.JobLeaseExpired */
-        )
-        /* A success resolves only its own job's failures, and a first attempt follows none, so only a retry's
-           success is read; at Audit every other success would cost the projector a resolve that closes nothing. */
-        OR (
-            e.execution_status_code = 100 /* ExecutionStatusCode.Succeeded */
-            AND e.execution_number > 1
-        )
+    AND e.entity_code = 50 /* EntityCode.Job */
+    AND e.event_code IN (
+        40 /* EventCode.JobExecutionSucceeded */, 41 /* EventCode.JobExecutionFailed */,
+        42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */
     )
-ORDER BY e.created_at_utc, e.id
+    /* A success resolves only its own job's failures, and a first attempt follows none, so only a retry's
+       success is read; at Audit every other success would cost the projector a resolve that closes nothing. */
+    AND (e.event_code <> 40 /* EventCode.JobExecutionSucceeded */ OR e.execution_number > 1)
+ORDER BY e.created_at_utc, e.event_id
 LIMIT @p_alert_batch_size;

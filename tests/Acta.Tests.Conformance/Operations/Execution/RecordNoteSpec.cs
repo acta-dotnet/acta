@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     "jobs.note",
     "A handler writes application-authored notes onto the job's own timeline",
     Area = "Execution",
-    Contract = "ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt and worker that authored it."
+    Contract = "ctx.NoteAsync appends a job.note-recorded event on the job carrying the message, the optional JSON details, and the attempt and worker that wrote it."
 )]
 public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -41,15 +41,14 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         );
 
         Assert.Equal(2, events.Items.Count);
-        Assert.All(events.Items, e => Assert.Equal(ActorCode.Job, e.ActorCode));
 
-        // The message rides reason_message; the typed overload additionally stores a JSON detail body,
-        // and the bare overload leaves the pair encoded as "no detail" (format id 0, NULL body), which
-        // surfaces on the read projection as a null DetailText.
-        Assert.Contains(events.Items, e => e.ReasonMessage == "plain note");
-        Assert.Contains(events.Items, e => e.ReasonMessage == "note with detail");
-        var detailed = Assert.Single(events.Items, e => e.DetailText is not null);
-        Assert.Contains("gather", detailed.DetailText!);
+        // The message rides event_message; the typed overload additionally stores a JSON details body,
+        // and the bare overload leaves the pair encoded as "no details" (format id 0, NULL body), which
+        // surfaces on the read projection as a null DetailsText.
+        Assert.Contains(events.Items, e => e.Message == "plain note");
+        Assert.Contains(events.Items, e => e.Message == "note with detail");
+        var detailed = Assert.Single(events.Items, e => e.DetailsText is not null);
+        Assert.Contains("gather", detailed.DetailsText!);
     }
 
     [Fact(DisplayName = "A note stores the id of the worker whose attempt wrote it")]
@@ -60,16 +59,17 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         await Runtime.RunOnceAsync(enqueued, ct);
 
-        var jobRef = enqueued.JobRef.Value;
-        var stored = await Db.From<EventEntity>().Where(e => e.JobRef == jobRef).ToListAsync(ct);
-        var finished = Assert.Single(stored, e => e.EventCode == EventCode.JobExecutionFinished);
+        var stored = await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == enqueued.JobId)
+            .ToListAsync(ct);
+        var finished = Assert.Single(stored, e => e.EventCode == EventCode.JobExecutionSucceeded);
         Assert.NotEqual(0, finished.WorkerId);
         var notes = stored.Where(e => e.EventCode == EventCode.JobNoteRecorded).ToList();
         Assert.Equal(2, notes.Count);
         Assert.All(notes, note => Assert.Equal(finished.WorkerId, note.WorkerId));
     }
 
-    [Fact(DisplayName = "A note is filed under the attempt that wrote it, not the attempt its runtime row has reached")]
+    [Fact(DisplayName = "A note is filed under the attempt that wrote it, not the attempt its jobs_state row has reached")]
     public async Task Note_is_filed_under_the_authoring_attempt()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -81,7 +81,7 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "UPDATE {schema}.runtimes SET execution_number = 8 WHERE job_id = @p_id",
+                "UPDATE {schema}.jobs_state SET execution_number = 8 WHERE job_id = @p_id",
                 ct,
                 ("@p_id", enqueued.JobId)
             )
@@ -95,10 +95,10 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         );
 
         var note = Assert.Single(events.Items);
-        Assert.Equal("late note", note.ReasonMessage);
+        Assert.Equal("late note", note.Message);
         Assert.Equal(7, note.ExecutionNumber);
 
-        var runtime = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == enqueued.JobId).ToListAsync(ct));
+        var runtime = Assert.Single(await Db.From<JobStateEntity>().Where(r => r.Id == enqueued.JobId).ToListAsync(ct));
         Assert.Equal(8, runtime.ExecutionNumber);
     }
 }

@@ -8,7 +8,7 @@ internal static class Anchors
     public static string Entity(string tableName) => $"entity-acta-{Slug(tableName)}";
 
     // Table and column are joined with a double hyphen. A single '-' is ambiguous: Slug maps '_' to
-    // '-', so job.tenant_id and tenants.id would both collapse to column-acta-job-tenant-id and the
+    // '-', so job.tenant_id and job_tenant.id would both collapse to column-acta-job-tenant-id and the
     // two anchors would collide. '--' never occurs inside a slug (Slug collapses runs and trims ends),
     // so the boundary, and thus the (table, column) pair, is unique.
     public static string Column(string table, string column) => $"column-acta-{Slug(table)}--{Slug(column)}";

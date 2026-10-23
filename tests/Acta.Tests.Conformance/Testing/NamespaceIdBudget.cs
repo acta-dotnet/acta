@@ -2,9 +2,9 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Fails a server-provider bootstrap fast, with one readable message, when the shared
-/// <c>acta_test</c> database's <c>namespaces.id</c> space is nearly spent. <c>namespaces.id</c> is an
+/// <c>acta_test</c> database's <c>namespaces.namespace_id</c> space is nearly spent. <c>namespaces.namespace_id</c> is an
 /// <c>int</c> IDENTITY/sequence column on both PostgreSQL and SQL Server (ceiling
-/// <see cref="int.MaxValue"/>); SQLite's <c>namespaces.id</c> is a 64-bit AUTOINCREMENT and is out of
+/// <see cref="int.MaxValue"/>); SQLite's <c>namespaces.namespace_id</c> is a 64-bit AUTOINCREMENT and is out of
 /// scope. Ids are never reclaimed in the append-only <c>acta_test</c> schema (see
 /// <c>ActaTestBase.cs</c>), so consumption only ever grows across every run against a given database.
 /// </summary>
@@ -90,9 +90,9 @@ public static class NamespaceIdBudget
         string.Create(
             System.Globalization.CultureInfo.InvariantCulture,
             $"""
-            {providerName}: the shared acta_test database's namespaces.id space is nearly exhausted.
+            {providerName}: the shared acta_test database's namespaces.namespace_id space is nearly exhausted.
 
-            namespaces.id is an int IDENTITY/sequence column (ceiling {Ceiling}, from int.MaxValue).
+            namespaces.namespace_id is an int IDENTITY/sequence column (ceiling {Ceiling}, from int.MaxValue).
             Current high-water mark: {consumedIds}. Remaining headroom: {remaining} ids, about
             {runsRemaining:F1} more full conformance legs at the measured cost of {IdsPerRun} ids each.
 

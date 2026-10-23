@@ -230,7 +230,7 @@ internal sealed class WorkerRuntime
     public int InFlightCount => _registry.Count();
 
     /// <summary>
-    /// This runtime's live descriptor index, keyed by <c>definitions.id</c>: what this deployment can
+    /// This runtime's live descriptor index, keyed by <c>definitions.definition_id</c>: what this deployment can
     /// actually run, which is not what the namespace holds jobs for. The heartbeat's policy reload rewrites
     /// entries here while executors read them, and an entry a deployment dropped stays dropped.
     /// </summary>

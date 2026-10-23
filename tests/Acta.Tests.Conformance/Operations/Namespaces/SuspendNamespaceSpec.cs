@@ -16,7 +16,7 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
     protected override bool RunAsWorker => true;
 
     private async Task<NamespaceEntity?> ReadNsAsync(CancellationToken ct) =>
-        await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
+        await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int nsId, EventCode code, CancellationToken ct) =>
         await Db.From<EventEntity>().Where(e => e.NamespaceId == nsId && e.EventCode == code).CountAsync(ct);
@@ -39,8 +39,9 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(nsId, ev!.NamespaceId);
-        Assert.Equal("op-1", ev.Actor);
-        Assert.Equal("hold", ev.ReasonMessage);
+        Assert.Equal((EntityCode.Namespace, (long)nsId), (ev.EntityCode, ev.EntityId));
+        Assert.Equal("op-1", EventDetail(ev, "actor"));
+        Assert.Equal("hold", ev.EventMessage);
     }
 
     [Fact(DisplayName = "Re-suspending is AlreadyInState with no second event")]

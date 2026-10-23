@@ -1,8 +1,8 @@
 -- Lock order: the batch's lanes in id order, then job rows (docs/sql-execution-policy.md,
 -- "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_jobs
-    @p_batch {{schema}}.enqueue_jobs_batch READONLY,
-    @p_tag_batch {{schema}}.enqueue_tags_batch READONLY
+    @p_batch {{schema}}.enqueue_jobs READONLY,
+    @p_tags {{schema}}.enqueue_tags READONLY
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -25,7 +25,7 @@ BEGIN
             ns_status TINYINT NOT NULL,
             def_id INT NOT NULL,
             def_priority SMALLINT NOT NULL,
-            def_audit_level TINYINT NOT NULL,
+            def_event_recording TINYINT NOT NULL,
             def_status TINYINT NOT NULL,
             def_tenant_req TINYINT NOT NULL,
             tenant_id INT NULL,
@@ -34,23 +34,23 @@ BEGIN
             lane_head BIT NOT NULL DEFAULT 0
         );
 
-        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_audit_level, def_status, def_tenant_req, lane)
+        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_event_recording, def_status, def_tenant_req, lane)
         SELECT
             b.ordinal,
-            ns.id,
-            ns.status_code,
-            jd.id,
-            jd.priority_code_effective,
-            jd.audit_level_code_effective,
-            jd.status_code,
+            ns.namespace_id,
+            ns.namespace_status_code,
+            jd.definition_id,
+            jd.job_priority_code_effective,
+            jd.event_recording_code_effective,
+            jd.definition_status_code,
             jd.tenant_requirement_code,
-            COALESCE(b.lane, jd.lane)
+            COALESCE(b.lane_name, jd.lane_name)
         FROM @p_batch b
-        INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
+        INNER JOIN {{schema}}.namespaces ns ON ns.namespace_name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd
             ON
-                jd.namespace_id = ns.id
-                AND jd.name = b.job_name;
+                jd.namespace_id = ns.namespace_id
+                AND jd.definition_name = b.job_name;
 
         IF (SELECT COUNT(*) FROM @resolved) < (SELECT COUNT(*) FROM @p_batch)
             BEGIN
@@ -85,13 +85,13 @@ BEGIN
             )
             BEGIN
                 UPDATE r
-                SET tenant_id = t.id
+                SET tenant_id = t.tenant_id
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 INNER JOIN {{schema}}.tenants t
                     ON
                         t.tenant_name = b.tenant_name
-                        AND t.status_code = 10 /* TenantStatusCode.Active */
+                        AND t.tenant_status_code = 10 /* TenantStatusCode.Active */
                 WHERE b.tenant_name IS NOT NULL;
 
                 IF
@@ -110,7 +110,7 @@ BEGIN
                 IF
                     EXISTS (
                         SELECT 1 FROM @p_batch b JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
-                        WHERE b.tenant_name IS NOT NULL AND t.status_code <> 10 /* TenantStatusCode.Active */
+                        WHERE b.tenant_name IS NOT NULL AND t.tenant_status_code <> 10 /* TenantStatusCode.Active */
                     )
                     BEGIN
                         THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
@@ -121,12 +121,12 @@ BEGIN
         -- at a time in id order (docs/sql-execution-policy.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
-            name VARCHAR(128) NOT NULL,
-            id BIGINT NULL,
-            PRIMARY KEY (ns_id, name)
+            lane_name VARCHAR(128) NOT NULL,
+            lane_id BIGINT NULL,
+            PRIMARY KEY (ns_id, lane_name)
         );
 
-        INSERT INTO @lanes (ns_id, name)
+        INSERT INTO @lanes (ns_id, lane_name)
         SELECT DISTINCT r.ns_id, r.lane
         FROM @resolved r
         WHERE r.lane IS NOT NULL;
@@ -144,17 +144,17 @@ BEGIN
             BEGIN
                 SET XACT_ABORT OFF;
                 BEGIN TRY
-                    INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
-                    SELECT e.ns_id, e.name, @now
+                    INSERT INTO {{schema}}.lanes (namespace_id, lane_name, created_at_utc)
+                    SELECT e.ns_id, e.lane_name, @now
                     FROM @lanes e
                     WHERE NOT EXISTS (
                         SELECT 1
                         FROM {{schema}}.lanes l
                         WHERE
                             l.namespace_id = e.ns_id
-                            AND l.name = e.name
+                            AND l.lane_name = e.lane_name
                     )
-                    ORDER BY e.name;
+                    ORDER BY e.lane_name;
                 END TRY
                 BEGIN CATCH
                     SET XACT_ABORT ON;
@@ -164,30 +164,30 @@ BEGIN
                 SET XACT_ABORT ON;
 
                 UPDATE e
-                SET id = l.id
+                SET lane_id = l.lane_id
                 FROM @lanes e
                 LEFT JOIN {{schema}}.lanes l
                     ON
                         l.namespace_id = e.ns_id
-                        AND l.name = e.name;
+                        AND l.lane_name = e.lane_name;
 
-                SET @lanes_pending = CASE WHEN EXISTS (SELECT 1 FROM @lanes WHERE id IS NULL) THEN 1 ELSE 0 END;
+                SET @lanes_pending = CASE WHEN EXISTS (SELECT 1 FROM @lanes WHERE lane_id IS NULL) THEN 1 ELSE 0 END;
                 SET @lane_cursor = 0;
                 WHILE @lanes_pending = 0
                     BEGIN
                         SET @lane_next = NULL;
-                        SELECT TOP (1) @lane_next = e.id
+                        SELECT TOP (1) @lane_next = e.lane_id
                         FROM @lanes e
-                        WHERE e.id > @lane_cursor
-                        ORDER BY e.id;
+                        WHERE e.lane_id > @lane_cursor
+                        ORDER BY e.lane_id;
 
                         IF @lane_next IS NULL
                             BREAK;
 
                         SET @lane_locked = NULL;
-                        SELECT @lane_locked = l.id
+                        SELECT @lane_locked = l.lane_id
                         FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
-                        WHERE l.id = @lane_next;
+                        WHERE l.lane_id = @lane_next;
 
                         IF @lane_locked IS NULL
                             SET @lanes_pending = 1;
@@ -196,16 +196,16 @@ BEGIN
             END;
 
         UPDATE r
-        SET lane_id = e.id
+        SET lane_id = e.lane_id
         FROM @resolved r
         INNER JOIN @lanes e
             ON
                 e.ns_id = r.ns_id
-                AND e.name = r.lane;
+                AND e.lane_name = r.lane;
 
         DECLARE @existing TABLE (
             ordinal INT PRIMARY KEY,
-            id BIGINT NOT NULL,
+            job_id BIGINT NOT NULL,
             job_ref UNIQUEIDENTIFIER NOT NULL
         );
 
@@ -222,7 +222,7 @@ BEGIN
                 SELECT DISTINCT
                     CONCAT(
                         N'{{schema}}.dedup:',
-                        CASE WHEN b.parent_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_id) END,
+                        CASE WHEN b.parent_job_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_job_id) END,
                         N':',
                         b.deduplication_key
                     )
@@ -230,7 +230,7 @@ BEGIN
                 LEFT JOIN @resolved r ON r.ordinal = b.ordinal
                 WHERE
                     b.deduplication_key IS NOT NULL
-                    AND (b.parent_id IS NOT NULL OR r.ns_id IS NOT NULL);
+                    AND (b.parent_job_id IS NOT NULL OR r.ns_id IS NOT NULL);
 
                 DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
                 WHILE @dedup_lock IS NOT NULL
@@ -245,26 +245,26 @@ BEGIN
                 -- Each probe seeks its dedup index on both key columns, the index's filter restated: a scan under UPDLOCK
                 -- locks every row it reads and escalates to a table lock on jobs, which a stale row estimate makes the
                 -- cheaper plan, and a seek on the leading column alone reads every key under it once per batch row.
-                INSERT INTO @existing (ordinal, id, job_ref)
+                INSERT INTO @existing (ordinal, job_id, job_ref)
                 SELECT
                     b.ordinal,
-                    j.id,
+                    j.job_id,
                     j.job_ref
                 FROM @p_batch b
-                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_id, deduplication_key)))
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_job_id, deduplication_key)))
                     ON
-                        j.parent_id = b.parent_id
+                        j.parent_job_id = b.parent_job_id
                         AND j.deduplication_key = b.deduplication_key
-                        AND j.parent_id IS NOT NULL
+                        AND j.parent_job_id IS NOT NULL
                         AND j.deduplication_key IS NOT NULL
                 WHERE
                     b.deduplication_key IS NOT NULL
-                    AND b.parent_id IS NOT NULL;
+                    AND b.parent_job_id IS NOT NULL;
 
-                INSERT INTO @existing (ordinal, id, job_ref)
+                INSERT INTO @existing (ordinal, job_id, job_ref)
                 SELECT
                     b.ordinal,
-                    j.id,
+                    j.job_id,
                     j.job_ref
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
@@ -272,38 +272,38 @@ BEGIN
                     ON
                         j.namespace_id = r.ns_id
                         AND j.deduplication_key = b.deduplication_key
-                        AND j.parent_id IS NULL
+                        AND j.parent_job_id IS NULL
                         AND j.deduplication_key IS NOT NULL
                 WHERE
                     b.deduplication_key IS NOT NULL
-                    AND b.parent_id IS NULL;
+                    AND b.parent_job_id IS NULL;
             END;
 
         DECLARE @parents TABLE (
             ordinal INT PRIMARY KEY,
-            lineage_root_id BIGINT NOT NULL,
+            lineage_root_job_id BIGINT NOT NULL,
             correlation_key VARCHAR(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
             tenant_id INT NULL
         );
 
-        INSERT INTO @parents (ordinal, lineage_root_id, correlation_key, tenant_id)
+        INSERT INTO @parents (ordinal, lineage_root_job_id, correlation_key, tenant_id)
         SELECT
             b.ordinal,
-            COALESCE(pj.lineage_root_id, pj.id),
+            COALESCE(pj.lineage_root_job_id, pj.job_id),
             pj.correlation_key,
             pj.tenant_id
         FROM @p_batch b
-        INNER JOIN {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.id = b.parent_id
-        INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
+        INNER JOIN {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.job_id = b.parent_job_id
+        INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = pj.job_id
         WHERE
-            b.parent_id IS NOT NULL
-            AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        ORDER BY pj.id DESC;
+            b.parent_job_id IS NOT NULL
+            AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        ORDER BY pj.job_id DESC;
 
         IF (
             SELECT COUNT(*) FROM @parents) < (
             SELECT COUNT(*) FROM @p_batch
-            WHERE parent_id IS NOT NULL
+            WHERE parent_job_id IS NOT NULL
         )
             BEGIN
                 THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
@@ -369,27 +369,27 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 WHERE
                     r.lane_id IS NOT NULL
-                    AND b.parent_id IS NOT NULL
+                    AND b.parent_job_id IS NOT NULL
             )
             BEGIN
                 WITH ancestors AS (
-                    SELECT r.lane_id, a.id, a.parent_id
+                    SELECT r.lane_id, a.job_id, a.parent_job_id
                     FROM @resolved r
                     INNER JOIN @p_batch b ON b.ordinal = r.ordinal
-                    INNER JOIN {{schema}}.jobs a ON a.id = b.parent_id
+                    INNER JOIN {{schema}}.jobs a ON a.job_id = b.parent_job_id
                     WHERE r.lane_id IS NOT NULL
                     UNION ALL
-                    SELECT c.lane_id, a.id, a.parent_id
+                    SELECT c.lane_id, a.job_id, a.parent_job_id
                     FROM {{schema}}.jobs a
-                    INNER JOIN ancestors c ON a.id = c.parent_id
+                    INNER JOIN ancestors c ON a.job_id = c.parent_job_id
                 )
 
                 SELECT @ancestor_lane_hits = COUNT(*)
                 FROM ancestors c
-                INNER JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+                INNER JOIN {{schema}}.jobs_state ar ON ar.job_id = c.job_id
                 WHERE
                     ar.lane_id = c.lane_id
-                    AND ar.status_code IN (
+                    AND ar.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                     )
@@ -407,27 +407,27 @@ BEGIN
 
         DECLARE @map TABLE (
             job_ref UNIQUEIDENTIFIER PRIMARY KEY,
-            id BIGINT NOT NULL
+            job_id BIGINT NOT NULL
         );
 
         -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
-        -- Both runtimes inserts force nested loops so the foreign-key checks seek their parent rows
+        -- Both jobs_state inserts force nested loops so the foreign-key checks seek their parent rows
         -- (docs/sql-execution-policy.md, "Foreign keys in set-based writes").
         IF @laned = 0
             BEGIN
                 INSERT INTO {{schema}}.jobs (
-                    job_ref, lineage_root_id, parent_id,
+                    job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
-                    concurrency_key, audit_level_code,
+                    concurrency_key, event_recording_code,
                     created_at_utc
                 )
-                OUTPUT INSERTED.job_ref, INSERTED.id INTO @map (job_ref, id)
+                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
                 SELECT
                     b.job_ref,
-                    p.lineage_root_id,
-                    b.parent_id,
+                    p.lineage_root_job_id,
+                    b.parent_job_id,
                     b.deduplication_key,
                     COALESCE(b.correlation_key, p.correlation_key),
                     r.ns_id,
@@ -439,7 +439,7 @@ BEGIN
                     b.input_format_id,
                     b.input,
                     b.concurrency_key,
-                    r.def_audit_level,
+                    r.def_event_recording,
                     @now
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
@@ -447,16 +447,16 @@ BEGIN
                 LEFT JOIN @existing e ON e.ordinal = b.ordinal
                 WHERE e.ordinal IS NULL;
 
-                INSERT INTO {{schema}}.runtimes (
-                    job_id, namespace_id, status_code, priority_code, next_run_at_utc,
+                INSERT INTO {{schema}}.jobs_state (
+                    job_id, namespace_id, job_status_code, job_priority_code, next_run_at_utc,
                     execution_number, failure_count, retention_until_utc,
                     modified_at_utc, version
                 )
                 SELECT
-                    m.id,
+                    m.job_id,
                     r.ns_id,
                     10 /* JobStatusCode.Ready */,
-                    COALESCE(b.priority_override, r.def_priority),
+                    COALESCE(b.job_priority_code_override, r.def_priority),
                     COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
                     0,
                     0,
@@ -471,18 +471,18 @@ BEGIN
         ELSE
             BEGIN
                 INSERT INTO {{schema}}.jobs (
-                    job_ref, lineage_root_id, parent_id,
+                    job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
-                    concurrency_key, audit_level_code,
+                    concurrency_key, event_recording_code,
                     created_at_utc
                 )
-                OUTPUT INSERTED.job_ref, INSERTED.id INTO @map (job_ref, id)
+                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
                 SELECT
                     b.job_ref,
-                    p.lineage_root_id,
-                    b.parent_id,
+                    p.lineage_root_job_id,
+                    b.parent_job_id,
                     b.deduplication_key,
                     COALESCE(b.correlation_key, p.correlation_key),
                     r.ns_id,
@@ -494,7 +494,7 @@ BEGIN
                     b.input_format_id,
                     b.input,
                     b.concurrency_key,
-                    r.def_audit_level,
+                    r.def_event_recording,
                     @now
                 FROM @p_batch b
                 INNER JOIN @resolved r ON r.ordinal = b.ordinal
@@ -507,7 +507,7 @@ BEGIN
 
                 -- A lane's head is its first inserted row, the lowest ordinal the dedup probe kept, and only
                 -- when no unfinished member is already there; every other laned row waits as Blocked. The
-                -- probe runs under the lane locks, before this batch has any runtimes row.
+                -- probe runs under the lane locks, before this batch has any jobs_state row.
                 UPDATE r
                 SET lane_head = 1
                 FROM @resolved r
@@ -522,30 +522,30 @@ BEGIN
                 ) f ON f.ordinal = r.ordinal
                 WHERE NOT EXISTS (
                     SELECT 1
-                    FROM {{schema}}.runtimes x WITH (FORCESEEK)
+                    FROM {{schema}}.jobs_state x WITH (FORCESEEK)
                     WHERE
                         x.lane_id = r.lane_id
                         AND x.lane_id IS NOT NULL
-                        AND x.status_code IN (
+                        AND x.job_status_code IN (
                             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                             30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                         )
                 );
 
-                INSERT INTO {{schema}}.runtimes (
-                    job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc,
+                INSERT INTO {{schema}}.jobs_state (
+                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
                     execution_number, failure_count, retention_until_utc,
                     modified_at_utc, version
                 )
                 SELECT
-                    m.id,
+                    m.job_id,
                     r.ns_id,
                     r.lane_id,
                     CASE
                         WHEN r.lane_id IS NULL OR r.lane_head = 1 THEN 10 /* JobStatusCode.Ready */
                         ELSE 15 /* JobStatusCode.Blocked */
                     END,
-                    COALESCE(b.priority_override, r.def_priority),
+                    COALESCE(b.job_priority_code_override, r.def_priority),
                     COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
                     0,
                     0,
@@ -558,23 +558,23 @@ BEGIN
                 OPTION (LOOP JOIN);
             END;
 
-        INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
+        INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
         SELECT
-            50 /* TagScopeCode.Job */,
-            m.id,
-            t.name,
-            t.value,
-            t.value_search
-        FROM @p_tag_batch t
+            50 /* EntityCode.Job */,
+            m.job_id,
+            t.tag_name,
+            t.tag_value,
+            t.tag_value_search
+        FROM @p_tags t
         INNER JOIN @p_batch b ON b.ordinal = t.ordinal
         INNER JOIN @map m ON m.job_ref = b.job_ref;
 
         SELECT
             b.ordinal,
-            COALESCE(m.id, e.id) AS job_id,
+            COALESCE(m.job_id, e.job_id) AS job_id,
             COALESCE(m.job_ref, e.job_ref) AS job_ref,
             CASE
-                WHEN m.id IS NOT NULL
+                WHEN m.job_id IS NOT NULL
                     THEN 1 /* EnqueueJobAction.Inserted */
                 ELSE 2 /* EnqueueJobAction.Deduplicated */
             END AS action

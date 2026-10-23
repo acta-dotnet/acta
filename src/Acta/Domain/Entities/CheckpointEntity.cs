@@ -1,13 +1,14 @@
 namespace Acta;
 
 /// <summary>
-/// One durable slot per <c>(JobId, Kind, Name)</c>: variables, signals, sleep timers, the progress slot, and child
-/// latches share this shape, told apart by <see cref="Kind"/> (steps keep their own <c>steps</c> table). Variables
-/// and progress are last-writer-wins upserts with a null <see cref="Status"/>; signals and latches move Pending to
-/// Set, or to Expired past <see cref="DueAtUtc"/>; timers move Pending to Consumed. The composite key is the identity.
+/// One durable slot per <c>(JobId, Kind, CheckpointName)</c>: variables, signals, sleep timers, the progress slot,
+/// and child latches share this shape, told apart by <see cref="Kind"/> (steps keep their own <c>steps</c> table).
+/// Variables and progress are last-writer-wins upserts with a null <see cref="Status"/>; signals and latches move
+/// Pending to Set, or to Expired past <see cref="DueAtUtc"/>; timers move Pending to Consumed. The composite key is
+/// the identity.
 /// </summary>
 [DbTable("checkpoints")]
-[DbPrimaryKey(Name = "pk_checkpoints", Columns = ["job_id", "kind_code", "name"])]
+[DbPrimaryKey(Name = "pk_checkpoints", Columns = ["job_id", "checkpoint_kind_code", "checkpoint_name"])]
 [DbCheck(
     Name = "ck_checkpoints_value_pair",
     Sql = "(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)"
@@ -15,16 +16,16 @@ namespace Acta;
 // Each conjunct binds only the kinds it names, so a kind or status this build does not know still inserts.
 [DbCheck(
     Name = "ck_checkpoints_kind_shape",
-    Sql = "(kind_code NOT IN (10, 40) OR (status_code IS NULL AND due_at_utc IS NULL))"
-        + " AND (kind_code NOT IN (20, 30, 50) OR status_code IS NOT NULL)"
-        + " AND (kind_code <> 30 OR due_at_utc IS NOT NULL)"
+    Sql = "(checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL))"
+        + " AND (checkpoint_kind_code NOT IN (20, 30, 50) OR checkpoint_status_code IS NOT NULL)"
+        + " AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL)"
 )]
 // The recovery pass's stale-latch read: a latch is Pending only while its parent waits on that child, so the pass
 // reads the parents waiting right now, never every checkpoint the namespace retains. The read restates the filter.
 [DbIndex(
     Name = "ix_checkpoints_pending_latches",
-    Columns = ["job_id", "name"],
-    Filter = "kind_code = 50 AND status_code = 10",
+    Columns = ["job_id", "checkpoint_name"],
+    Filter = "checkpoint_kind_code = 50 AND checkpoint_status_code = 10",
     Usage = "maintenance"
 )]
 internal sealed class CheckpointEntity : IEntity
@@ -39,7 +40,7 @@ internal sealed class CheckpointEntity : IEntity
     /// Which substrate feature owns this slot (variable / signal / timer / progress / child-latch).
     /// Part of the composite PK, so identical names under different kinds never collide.
     /// </summary>
-    [DbColumn("kind_code")]
+    [DbColumn("checkpoint_kind_code")]
     public CheckpointKindCode Kind { get; init; }
 
     /// <summary>
@@ -48,15 +49,15 @@ internal sealed class CheckpointEntity : IEntity
     /// for a bounded group wait's shared deadline. The <c>sys.</c> prefix stays
     /// system-reserved for user-writable kinds. Part of the composite PK.
     /// </summary>
-    [DbColumn("name", DbKind.AsciiString, Size = 128)]
-    public string Name { get; init; } = default!;
+    [DbColumn("checkpoint_name", DbKind.AsciiString, Size = 128)]
+    public string CheckpointName { get; init; } = default!;
 
     /// <summary>
     /// <c>Pending</c> / <c>Set</c> / <c>Expired</c> (signals, child latches) or <c>Pending</c> /
     /// <c>Consumed</c> (timers). NULL for the stateless kinds (variable, progress). Bound to
     /// <see cref="Kind"/> with <see cref="DueAtUtc"/> by <c>ck_checkpoints_kind_shape</c>.
     /// </summary>
-    [DbColumn("status_code")]
+    [DbColumn("checkpoint_status_code")]
     public CheckpointStatusCode? Status { get; set; }
 
     /// <summary>

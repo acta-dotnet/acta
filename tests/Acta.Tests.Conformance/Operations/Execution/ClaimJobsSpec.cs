@@ -312,13 +312,13 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             : throw new InvalidOperationException($"'{jobName}' is not registered in the test namespace.");
 
     /// <summary>
-    /// Every definition the namespace currently holds a claimable-or-waiting runtime row for: what a
+    /// Every definition the namespace currently holds a claimable-or-waiting jobs_state row for: what a
     /// caller must exclude for the horizon to have nothing left to report.
     /// </summary>
     private async Task<int[]> WaitingDefinitionIdsAsync(int namespaceId, CancellationToken ct)
     {
-        var runtimes = await Db.From<RuntimeEntity>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
-        var waiting = runtimes
+        var states = await Db.From<JobStateEntity>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
+        var waiting = states
             .Where(r => r.Status == JobStatusCode.Ready || (r.Status == JobStatusCode.Suspended && r.NextRunAtUtc is not null))
             .Select(r => r.Id)
             .ToHashSet();

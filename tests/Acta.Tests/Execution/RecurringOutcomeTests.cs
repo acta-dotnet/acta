@@ -23,13 +23,13 @@ public class RecurringOutcomeTests
             CompletionKind.Failed,
             Job(failureCount: 5),
             Fire(NextRun),
-            EventReasonCode.JobUnhandledException,
+            EventReason.UnhandledException,
             "boom"
         );
 
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal(6, failureCount);
-        Assert.Equal(EventReasonCode.JobUnhandledException, reason);
+        Assert.Equal(EventReason.UnhandledException, reason);
         Assert.Equal("boom", message);
     }
 
@@ -48,7 +48,7 @@ public class RecurringOutcomeTests
         Assert.Equal(0, failureCount);
 
         // The rollover carries whatever reason the attempt supplied; a clean success supplies none, so
-        // the reason columns stay empty and only a real failure marks the slot's timeline.
+        // the event carries no reason or message and only a real failure marks the slot's timeline.
         Assert.Null(reason);
         Assert.Null(message);
     }
@@ -65,7 +65,7 @@ public class RecurringOutcomeTests
         );
 
         Assert.Equal(JobStatusCode.Paused, status);
-        Assert.Equal(EventReasonCode.JobSchedulesExhausted, reason);
+        Assert.Equal(EventReason.SchedulesExhausted, reason);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class RecurringOutcomeTests
         // with the reason that makes it alert, and the next occurrence runs once the code is fixed.
         var failed = new ExecutionCompletion(CompletionKind.Failed)
         {
-            Reason = EventReasonCode.JobNonRetryableException,
+            Reason = EventReason.NonRetryableException,
             ReasonMessage = "Specified method is not supported.",
             HandlerStatusCode = JobStatusCode.Failed,
         };
@@ -86,7 +86,8 @@ public class RecurringOutcomeTests
         Assert.Equal(JobStatusCode.Ready, command.FinalStatus);
         Assert.Equal(NextRun, command.JobNextRunAtUtc);
         Assert.Equal(3, command.FailureCount);
-        Assert.Equal(EventReasonCode.JobNonRetryableException, command.EventReasonCode);
+        Assert.Equal(EventCode.JobExecutionFailed, command.EventCode);
+        Assert.Equal(EventReason.NonRetryableException, command.Reason);
     }
 
     [Fact]
@@ -95,7 +96,7 @@ public class RecurringOutcomeTests
         // ctx.FailAsync is the handler deciding, so it keeps stopping the whole schedule.
         var failed = new ExecutionCompletion(CompletionKind.Failed)
         {
-            Reason = EventReasonCode.JobHandlerFailed,
+            Reason = EventReason.HandlerFailed,
             HandlerStatusCode = JobStatusCode.Failed,
         };
 
@@ -103,6 +104,7 @@ public class RecurringOutcomeTests
 
         Assert.Equal((byte)JobStatusCode.Failed, command.HandlerStatusCode);
         Assert.Null(command.FinalStatus);
+        Assert.Equal(EventCode.JobFailed, command.EventCode);
     }
 
     private static RecurringFirePlan Fire(DateTime? nextRun) => new([], [], nextRun);
@@ -119,7 +121,7 @@ public class RecurringOutcomeTests
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

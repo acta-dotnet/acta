@@ -13,9 +13,9 @@ BEGIN TRY
         @ns = jd.namespace_id,
         @existing_version = jd.version,
         @rate_name = jd.rate_name,
-        @name = jd.name
+        @name = jd.definition_name
     FROM {{schema}}.definitions jd WITH (UPDLOCK, ROWLOCK)
-    WHERE jd.id = @p_id;
+    WHERE jd.definition_id = @p_definition_id;
 
     IF @ns IS NULL
         BEGIN
@@ -32,7 +32,7 @@ BEGIN TRY
     SET @meter = LOWER(COALESCE(@rate_name, @name));
 
     UPDATE {{schema}}.definitions SET
-        priority_code_override = @p_priority_code_override,
+        job_priority_code_override = @p_job_priority_code_override,
         max_attempts_override = @p_max_attempts_override,
         concurrency_limit_override = @p_concurrency_limit_override,
         rate_limit_override = @p_rate_limit_override,
@@ -41,7 +41,7 @@ BEGIN TRY
         deadline_seconds_override = @p_deadline_seconds_override,
         deadline_behavior_code_override = @p_deadline_behavior_code_override,
         retention_seconds_override = @p_retention_seconds_override,
-        audit_level_code_override = @p_audit_level_code_override,
+        event_recording_code_override = @p_event_recording_code_override,
         alert_profile_code_override = @p_alert_profile_code_override,
         alert_channel_name_override = @p_alert_channel_name_override,
         runbook_url_override = @p_runbook_url_override,
@@ -50,7 +50,7 @@ BEGIN TRY
         modified_at_utc = @now,
         version = jd.version + 1
     FROM {{schema}}.definitions jd
-    WHERE jd.id = @p_id AND jd.version = @p_version;
+    WHERE jd.definition_id = @p_definition_id AND jd.version = @p_version;
 
     -- A definition on a meter carries every sibling that already has a rate (declared or overridden)
     -- on the same effective key along with it here, so the meter never carries two rates and the
@@ -62,27 +62,21 @@ BEGIN TRY
         version = version + 1
     WHERE
         namespace_id = @ns
-        AND id <> @p_id
+        AND definition_id <> @p_definition_id
         AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
-        AND LOWER(COALESCE(rate_name, name)) = @meter;
+        AND LOWER(COALESCE(rate_name, definition_name)) = @meter;
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
-        actor_code, actor,
-        job_id, job_ref, execution_number,
-        lineage_root_id, definition_id,
-        from_status_code, to_status_code,
-        execution_status_code, duration_ms,
-        reason_code, reason_message
+        entity_code, entity_id,
+        definition_id,
+        event_message, details_format_id, details
     )
     VALUES (
         30 /* EventCode.JobDefinitionOverridesUpdated */, @now, @ns,
-        @p_actor_code, @p_actor,
-        NULL, NULL, NULL,
-        NULL, @p_id,
-        NULL, NULL,
-        NULL, NULL,
-        @p_reason_code, @p_reason_message
+        30 /* EntityCode.Definition */, @p_definition_id,
+        @p_definition_id,
+        @p_event_message, @p_details_format_id, @p_details
     );
 
     SELECT CAST(1 /* DefinitionOverrideAction.Applied */ AS TINYINT) AS action, @existing_version + 1 AS version;

@@ -10,13 +10,13 @@ BEGIN TRY
     -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
     -- and re-checked; the held job row keeps a raise from adding one meanwhile.
     DECLARE @job_locked BIGINT;
-    SELECT @job_locked = j.id
+    SELECT @job_locked = j.job_id
     FROM {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK)
-    WHERE j.id = @p_job_id;
+    WHERE j.job_id = @p_job_id;
 
-    DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
-    INSERT INTO @candidates (id)
-    SELECT a.id
+    DECLARE @candidates TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
+    INSERT INTO @candidates (alert_id)
+    SELECT a.alert_id
     FROM {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
     WHERE
         a.namespace_id = @p_namespace_id
@@ -39,12 +39,12 @@ BEGIN TRY
         modified_at_utc = SYSUTCDATETIME(),
         version = a.version + 1
     FROM {{schema}}.alerts a WITH (FORCESEEK)
-    INNER JOIN @candidates c ON c.id = a.id
+    INNER JOIN @candidates c ON c.alert_id = a.alert_id
     WHERE
         a.namespace_id = @p_namespace_id
         AND a.job_id = @p_job_id
-        AND a.origin_code = 10 /* AlertOriginCode.Automatic */
-        AND a.kind_code IN (
+        AND a.alert_origin_code = 10 /* AlertOriginCode.Automatic */
+        AND a.alert_kind_code IN (
             10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
         )
         AND a.resolved_at_utc IS NULL

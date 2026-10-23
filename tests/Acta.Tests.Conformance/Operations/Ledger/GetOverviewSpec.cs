@@ -119,9 +119,9 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         // Past the deadline it is backlog, because the claim will now take it and a worker is what it
         // is waiting for.
-        await Db.From<RuntimeEntity>()
+        await Db.From<JobStateEntity>()
             .Where(r => r.Id == bounded.JobId)
-            .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
         var expired = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
         Assert.Equal(before.ReadyCount + 1, expired.ReadyCount);
@@ -228,7 +228,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             engineVersion: null,
             dotnetVersion: null,
             processId: 0,
-            maxConcurrency: 1,
+            maxConcurrentExecutors: 1,
             ct
         );
         // Aged two minutes, well inside every dead-after window the suite's global reapers use (five

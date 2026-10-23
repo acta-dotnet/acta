@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeHistory, type HistoryEvent } from './changeHistory.ts';
 
-function event(jobEventId: number, createdAtUtc: string): HistoryEvent {
-  return { jobEventId, eventCode: 'namespace.suspended', createdAtUtc, actorCode: 'operator', actor: null, reasonMessage: null };
+function event(eventId: number, createdAtUtc: string): HistoryEvent {
+  return { eventId, eventCode: 'namespace.suspended', createdAtUtc, message: null, detailsText: '{"actor":"marko"}' };
 }
 
 test('mergeHistory: merges pages newest-first and breaks timestamp ties by event id', () => {
@@ -13,7 +13,7 @@ test('mergeHistory: merges pages newest-first and breaks timestamp ties by event
     [event(2, '2026-07-03T00:00:00Z')]
   ]);
 
-  assert.deepEqual(merged.map((e) => e.jobEventId), [3, 2, 1]);
+  assert.deepEqual(merged.map((e) => e.eventId), [3, 2, 1]);
 });
 
 test('mergeHistory: dedupes by event id across pages', () => {

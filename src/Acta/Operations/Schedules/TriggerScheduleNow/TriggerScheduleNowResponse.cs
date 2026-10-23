@@ -5,6 +5,6 @@ public sealed record TriggerScheduleNowResponse(
     ControlAction Action,
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,
-    DateTime? NextRunAtUtc,
+    DateTime? NextOccurrenceAtUtc,
     int? Version
 ) : IScheduleControlResponse;

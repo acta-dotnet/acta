@@ -78,7 +78,7 @@
     <Project Path="400-observability-and-alerts/404-read-event-timeline/404-read-event-timeline.csproj" />
     <Project Path="400-observability-and-alerts/405-real-alert-routing/405-real-alert-routing.csproj" />
     <Project Path="400-observability-and-alerts/406-automatic-failure-alerts/406-automatic-failure-alerts.csproj" />
-    <Project Path="400-observability-and-alerts/407-audit-level/407-audit-level.csproj" />
+    <Project Path="400-observability-and-alerts/407-event-recording/407-event-recording.csproj" />
     <Project Path="400-observability-and-alerts/408-correlation-id/408-correlation-id.csproj" />
     <Project Path="400-observability-and-alerts/409-operator-queries/409-operator-queries.csproj" />
     <Project Path="400-observability-and-alerts/410-http-api-controls/410-http-api-controls.csproj" />

@@ -7,17 +7,17 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
     @p_job_name VARCHAR(128) = NULL,
     @p_deduplication_key VARCHAR(128) = NULL,
     @p_correlation_key VARCHAR(64) = NULL,
-    @p_priority_override TINYINT = NULL,
+    @p_job_priority_code_override TINYINT = NULL,
     @p_input_format_id TINYINT = NULL,
     @p_input VARBINARY(MAX) = NULL,
     @p_concurrency_key VARCHAR(128) = NULL,
     @p_next_run_at_utc DATETIME2(3) = NULL,
     @p_delay_seconds INT = NULL,
-    @p_parent_id BIGINT = NULL,
+    @p_parent_job_id BIGINT = NULL,
     @p_tenant_name VARCHAR(128) = NULL,
     @p_tenant_override BIT = 0,
-    @p_tag_batch {{schema}}.enqueue_tags_batch READONLY,
-    @p_lane VARCHAR(128) = NULL
+    @p_tags {{schema}}.enqueue_tags READONLY,
+    @p_lane_name VARCHAR(128) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -30,7 +30,7 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
-        DECLARE @def_audit TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
+        DECLARE @def_event_recording TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
         DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
         DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
         DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
@@ -43,20 +43,20 @@ BEGIN
         SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
 
         SELECT
-            @ns_id = ns.id,
-            @ns_status = ns.status_code,
-            @def_id = jd.id,
-            @def_priority = jd.priority_code_effective,
-            @def_audit = jd.audit_level_code_effective,
-            @def_status = jd.status_code,
+            @ns_id = ns.namespace_id,
+            @ns_status = ns.namespace_status_code,
+            @def_id = jd.definition_id,
+            @def_priority = jd.job_priority_code_effective,
+            @def_event_recording = jd.event_recording_code_effective,
+            @def_status = jd.definition_status_code,
             @def_tenant_req = jd.tenant_requirement_code,
-            @lane = COALESCE(@p_lane, jd.lane)
+            @lane = COALESCE(@p_lane_name, jd.lane_name)
         FROM {{schema}}.namespaces ns
         INNER JOIN {{schema}}.definitions jd
             ON
-                jd.namespace_id = ns.id
-                AND jd.name = @p_job_name
-        WHERE ns.name = @p_namespace_name;
+                jd.namespace_id = ns.namespace_id
+                AND jd.definition_name = @p_job_name
+        WHERE ns.namespace_name = @p_namespace_name;
 
         IF @def_id IS NULL
             BEGIN
@@ -79,8 +79,8 @@ BEGIN
         IF @p_tenant_name IS NOT NULL
             BEGIN
                 SELECT
-                    @tenant_id = t.id,
-                    @tenant_status = t.status_code
+                    @tenant_id = t.tenant_id,
+                    @tenant_status = t.tenant_status_code
                 FROM {{schema}}.tenants t
                 WHERE t.tenant_name = @p_tenant_name;
 
@@ -111,22 +111,22 @@ BEGIN
         WHILE @lane IS NOT NULL AND @lane_id IS NULL
             BEGIN
                 SET @lane_found = NULL;
-                SELECT @lane_found = l.id
+                SELECT @lane_found = l.lane_id
                 FROM {{schema}}.lanes l
                 WHERE
                     l.namespace_id = @ns_id
-                    AND l.name = @lane;
+                    AND l.lane_name = @lane;
 
                 IF @lane_found IS NOT NULL
-                    SELECT @lane_id = l.id
+                    SELECT @lane_id = l.lane_id
                     FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
-                    WHERE l.id = @lane_found;
+                    WHERE l.lane_id = @lane_found;
 
                 IF @lane_found IS NULL
                     BEGIN
                         SET XACT_ABORT OFF;
                         BEGIN TRY
-                            INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
+                            INSERT INTO {{schema}}.lanes (namespace_id, lane_name, created_at_utc)
                             VALUES (@ns_id, @lane, @now);
                         END TRY
                         BEGIN CATCH
@@ -144,7 +144,7 @@ BEGIN
                 -- "Deduplication lock"); the same name in enqueue_jobs.
                 DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
                     N'{{schema}}.dedup:',
-                    CASE WHEN @p_parent_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_id) END,
+                    CASE WHEN @p_parent_job_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_job_id) END,
                     N':',
                     @p_deduplication_key
                 );
@@ -156,43 +156,43 @@ BEGIN
 
                 -- Each probe seeks its dedup index, the index's filter restated: a scan under UPDLOCK locks every row it
                 -- reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
-                IF @p_parent_id IS NOT NULL
+                IF @p_parent_job_id IS NOT NULL
                     BEGIN
                         SELECT
-                            @existing_id = j.id,
+                            @existing_id = j.job_id,
                             @existing_ref = j.job_ref
                         FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
                         WHERE
-                            j.parent_id = @p_parent_id
+                            j.parent_job_id = @p_parent_job_id
                             AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_id IS NOT NULL
+                            AND j.parent_job_id IS NOT NULL
                             AND j.deduplication_key IS NOT NULL;
                     END
                 ELSE
                     BEGIN
                         SELECT
-                            @existing_id = j.id,
+                            @existing_id = j.job_id,
                             @existing_ref = j.job_ref
                         FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
                         WHERE
                             j.namespace_id = @ns_id
                             AND j.deduplication_key = @p_deduplication_key
-                            AND j.parent_id IS NULL
+                            AND j.parent_job_id IS NULL
                             AND j.deduplication_key IS NOT NULL;
                     END;
             END;
 
-        IF @p_parent_id IS NOT NULL
+        IF @p_parent_job_id IS NOT NULL
             BEGIN
                 SELECT
-                    @lineage = COALESCE(pj.lineage_root_id, pj.id),
+                    @lineage = COALESCE(pj.lineage_root_job_id, pj.job_id),
                     @parent_corr = pj.correlation_key,
                     @parent_tenant = pj.tenant_id
                 FROM {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-                INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
+                INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = pj.job_id
                 WHERE
-                    pj.id = @p_parent_id
-                    AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+                    pj.job_id = @p_parent_job_id
+                    AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
                 IF @lineage IS NULL
                     BEGIN
@@ -202,21 +202,21 @@ BEGIN
                 IF @lane_id IS NOT NULL
                     BEGIN
                         WITH ancestors AS (
-                            SELECT a.id, a.parent_id
+                            SELECT a.job_id, a.parent_job_id
                             FROM {{schema}}.jobs a
-                            WHERE a.id = @p_parent_id
+                            WHERE a.job_id = @p_parent_job_id
                             UNION ALL
-                            SELECT a.id, a.parent_id
+                            SELECT a.job_id, a.parent_job_id
                             FROM {{schema}}.jobs a
-                            INNER JOIN ancestors c ON a.id = c.parent_id
+                            INNER JOIN ancestors c ON a.job_id = c.parent_job_id
                         )
 
                         SELECT @ancestor_lane_hits = COUNT(*)
                         FROM ancestors c
-                        INNER JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+                        INNER JOIN {{schema}}.jobs_state ar ON ar.job_id = c.job_id
                         WHERE
                             ar.lane_id = @lane_id
-                            AND ar.status_code IN (
+                            AND ar.job_status_code IN (
                                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                                 30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                             )
@@ -248,15 +248,15 @@ BEGIN
         IF @existing_id IS NULL
             BEGIN
                 INSERT INTO {{schema}}.jobs (
-                    job_ref, lineage_root_id, parent_id,
+                    job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
-                    concurrency_key, audit_level_code,
+                    concurrency_key, event_recording_code,
                     created_at_utc
                 )
                 VALUES (
-                    @p_job_ref, @lineage, @p_parent_id,
+                    @p_job_ref, @lineage, @p_parent_job_id,
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
@@ -268,7 +268,7 @@ BEGIN
                         CASE WHEN @p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END
                     ),
                     @p_input,
-                    @p_concurrency_key, @def_audit,
+                    @p_concurrency_key, @def_event_recording,
                     @now
                 );
 
@@ -281,38 +281,38 @@ BEGIN
                     @lane_id IS NOT NULL
                     AND EXISTS (
                         SELECT 1
-                        FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                        FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                         WHERE
                             m.lane_id = @lane_id
                             AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
+                            AND m.job_status_code IN (
                                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                                 30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                             )
                     )
                     SET @status = 15 /* JobStatusCode.Blocked */;
 
-                INSERT INTO {{schema}}.runtimes (
-                    job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc,
+                INSERT INTO {{schema}}.jobs_state (
+                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
                     execution_number, failure_count, retention_until_utc,
                     modified_at_utc, version
                 )
                 VALUES (
                     @job_id, @ns_id, @lane_id, @status,
-                    COALESCE(@p_priority_override, @def_priority),
+                    COALESCE(@p_job_priority_code_override, @def_priority),
                     COALESCE(@p_next_run_at_utc, DATEADD(SECOND, COALESCE(@p_delay_seconds, 0), @now)),
                     0, 0, NULL,
                     @now, 0
                 );
 
-                INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
+                INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
                 SELECT
-                    50 /* TagScopeCode.Job */,
+                    50 /* EntityCode.Job */,
                     @job_id,
-                    t.name,
-                    t.value,
-                    t.value_search
-                FROM @p_tag_batch t;
+                    t.tag_name,
+                    t.tag_value,
+                    t.tag_value_search
+                FROM @p_tags t;
             END;
 
         SELECT

@@ -85,14 +85,14 @@ internal sealed class Primer(
         await lab.ShowAsync(
             "Actual stored bytes (the lab expands the byte-length expression per provider)",
             """
-            SELECT d.name AS job_name, COUNT(*) AS rows, AVG({{bytes:j.input}}) AS avg_input_bytes, AVG({{bytes:r.result}}) AS avg_result_bytes
+            SELECT d.definition_name AS job_name, COUNT(*) AS rows, AVG({{bytes:j.input}}) AS avg_input_bytes, AVG({{bytes:r.result}}) AS avg_result_bytes
             FROM {{schema}}.jobs AS j
-            JOIN {{schema}}.definitions AS d ON d.id = j.definition_id
-            JOIN {{schema}}.namespaces AS n ON n.id = j.namespace_id
-            JOIN {{schema}}.runtimes AS r ON r.job_id = j.id
-            WHERE n.name = @jobNamespace AND j.correlation_key = @runId AND d.name LIKE 'echo-%'
-            GROUP BY d.name
-            ORDER BY d.name
+            JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id
+            JOIN {{schema}}.namespaces AS n ON n.namespace_id = j.namespace_id
+            JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id
+            WHERE n.namespace_name = @jobNamespace AND j.correlation_key = @runId AND d.definition_name LIKE 'echo-%'
+            GROUP BY d.definition_name
+            ORDER BY d.definition_name
             """,
             new { jobNamespace = Namespace, runId },
             ct

@@ -71,7 +71,7 @@ internal sealed class ListDefinitionsHandler(IDbSession session, ISqlDialect dia
     {
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, nameSearch));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.StatusCode, status));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DefinitionStatusCode, status));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, (string?)after?[0]));
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorJobName, (string?)after?[1]));

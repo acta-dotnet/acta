@@ -7,7 +7,7 @@ internal sealed class GetChildJobIdsHandler(IDbSession session, ISqlDialect dial
         new(
             await session.QueryListAsync(
                 "GetChildJobIds",
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.ParentId, query.ParentJobId)),
+                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.ParentJobId, query.ParentJobId)),
                 static reader => reader.GetInt64(0),
                 ct
             )

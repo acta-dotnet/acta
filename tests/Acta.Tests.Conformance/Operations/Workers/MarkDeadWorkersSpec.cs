@@ -66,7 +66,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             engineVersion: null,
             dotnetVersion: null,
             processId: 0,
-            maxConcurrency: 1,
+            maxConcurrentExecutors: 1,
             ct
         );
         var agedAtB = DateTime.UtcNow.AddHours(-1);
@@ -86,7 +86,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             engineVersion: null,
             dotnetVersion: null,
             processId: 0,
-            maxConcurrency: 1,
+            maxConcurrentExecutors: 1,
             ct
         );
         await Services.GetRequiredService<WorkersOperations>().StopWorkerAsync(nsA, stoppedWorkerId, ct);
@@ -106,7 +106,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             engineVersion: null,
             dotnetVersion: null,
             processId: 0,
-            maxConcurrency: 1,
+            maxConcurrentExecutors: 1,
             ct
         );
         await Db.From<WorkerEntity>()
@@ -128,7 +128,7 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             engineVersion: null,
             dotnetVersion: null,
             processId: 0,
-            maxConcurrency: 1,
+            maxConcurrentExecutors: 1,
             ct
         );
 
@@ -200,8 +200,8 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         );
         Assert.Equal(nsA, eventA.NamespaceId);
         Assert.Equal(nsB, eventB.NamespaceId);
-        Assert.Equal(ActorCode.Worker, eventA.ActorCode);
-        Assert.Null(eventA.Actor);
-        Assert.Equal(EventReasonCode.WorkerHeartbeatStale, eventA.ReasonCode);
+        // The worker is the subject, and the code alone says why: a stale heartbeat is the only way a worker dies.
+        Assert.Equal((EntityCode.Worker, (long)workerA.Id), (eventA.EntityCode, eventA.EntityId));
+        Assert.Null(eventA.Details);
     }
 }

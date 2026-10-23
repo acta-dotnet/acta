@@ -9,8 +9,8 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
     DECLARE @v_ns INT = (
-        SELECT id FROM {{schema}}.namespaces
-        WHERE name = @p_namespace_name
+        SELECT namespace_id FROM {{schema}}.namespaces
+        WHERE namespace_name = @p_namespace_name
     );
     IF @v_ns IS NULL
         THROW 50000, 'raise_alert: unknown namespace', 1;
@@ -21,7 +21,7 @@ BEGIN TRY
     DECLARE @v_job_ref UNIQUEIDENTIFIER;
     SELECT @v_job_ref = job_ref
     FROM {{schema}}.jobs WITH (UPDLOCK, ROWLOCK)
-    WHERE id = @p_job_id;
+    WHERE job_id = @p_job_id;
 
     IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
         THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id', 1;
@@ -30,14 +30,14 @@ BEGIN TRY
         BEGIN
             INSERT INTO {{schema}}.alerts (
                 namespace_id, alert_ref, job_id, job_ref,
-                origin_code, severity_code, kind_code, title, message, channel_name,
+                alert_origin_code, alert_severity_code, alert_kind_code, title, alert_message, channel_name,
                 deduplication_key, occurrence_count, last_projected_event_id,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
             )
             VALUES (
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                @p_alert_origin_code, @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
                 NULL, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0
@@ -55,11 +55,11 @@ BEGIN TRY
     SET
         job_id = @p_job_id,
         job_ref = @v_job_ref,
-        origin_code = @p_origin_code,
-        severity_code = @p_severity_code,
-        kind_code = @p_kind_code,
+        alert_origin_code = @p_alert_origin_code,
+        alert_severity_code = @p_alert_severity_code,
+        alert_kind_code = @p_alert_kind_code,
         title = @p_title,
-        message = @p_message,
+        alert_message = @p_alert_message,
         channel_name = @p_channel_name,
         occurrence_count = ja.occurrence_count + 1,
         last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
@@ -84,7 +84,7 @@ BEGIN TRY
             -- row of this identity already marked at or past this event.
             INSERT INTO {{schema}}.alerts (
                 namespace_id, alert_ref, job_id, job_ref,
-                origin_code, severity_code, kind_code, title, message, channel_name,
+                alert_origin_code, alert_severity_code, alert_kind_code, title, alert_message, channel_name,
                 deduplication_key, occurrence_count, last_projected_event_id,
                 delivery_status_code, retry_count,
                 created_at_utc, modified_at_utc, version
@@ -92,7 +92,7 @@ BEGIN TRY
             OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
             SELECT
                 @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                @p_alert_origin_code, @p_alert_severity_code, @p_alert_kind_code, @p_title, @p_alert_message, @p_channel_name,
                 @p_deduplication_key, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0
@@ -119,7 +119,7 @@ BEGIN TRY
                     WHERE
                         ja.namespace_id = @v_ns
                         AND ja.deduplication_key = @p_deduplication_key
-                    ORDER BY ja.id DESC;
+                    ORDER BY ja.alert_id DESC;
                 END
         END
 

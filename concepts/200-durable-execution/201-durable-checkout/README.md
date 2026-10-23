@@ -27,8 +27,8 @@ Acta gives one checkout identity several explicit relational facts: completed st
 variable, a signal latch, a timer, a terminal result, and an append-only event ledger. The worker uses
 those same facts to execute the job, while operators use curated views to understand it.
 
-The job and runtime rows are deliberately split. Stable identity and input stay on `jobs`; frequently
-updated status, scheduling, counters, and worker ownership live on the smaller `runtimes` row.
+The job and job-state rows are deliberately split. Stable identity and input stay on `jobs`; frequently
+updated status, scheduling, counters, and worker ownership live on the smaller `jobs_state` row.
 
 ## Trade-offs
 
@@ -52,7 +52,7 @@ then walks automatically through four snapshots:
 1. Enqueued but not yet executed.
 2. Suspended on fraud review with no worker lease.
 3. Waiting on a durable settlement timer with no worker lease.
-4. Done, with steps, checkpoints, result, split job/runtime state, and events visible.
+4. Done, with steps, checkpoints, result, split job and job-state rows, and events visible.
 
 Use `--brief` to skip row output. Use `--all-columns` to add the complete `jobs_view` record at the
 fraud-review boundary.
@@ -69,7 +69,7 @@ WHERE job_id = @jobId;
 ```
 
 The program primarily queries `jobs_view`, `steps_view`, `checkpoints_view`, and `events_view`. It goes
-one level deeper only to compare `jobs` with `runtimes` and to show the result stored on the runtime row. Those
+one level deeper only to compare `jobs` with `jobs_state` and to show the result stored on the `jobs_state` row. Those
 base tables explain Acta's design; applications should normally use `IJobs`, and operational tooling
 should prefer the curated views. Base tables are not the storage compatibility contract.
 
@@ -105,6 +105,6 @@ versioned processes or cross-system orchestration is itself the product.
 - [`Checkout.cs`](./Checkout.cs)
 - [`JobContext.cs`](../../../src/Acta/Handlers/JobContext.cs)
 - [`JobEntity.cs`](../../../src/Acta/Domain/Entities/JobEntity.cs)
-- [`RuntimeEntity.cs`](../../../src/Acta/Domain/Entities/RuntimeEntity.cs)
+- [`JobStateEntity.cs`](../../../src/Acta/Domain/Entities/JobStateEntity.cs)
 - [`CheckpointEntity.cs`](../../../src/Acta/Domain/Entities/CheckpointEntity.cs)
 - [`StepEntity.cs`](../../../src/Acta/Domain/Entities/StepEntity.cs)

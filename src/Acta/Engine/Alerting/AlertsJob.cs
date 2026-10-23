@@ -7,10 +7,10 @@ namespace Acta;
 
 /// <summary>
 /// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace. Generate classifies
-/// alertable events from their immutable transition triple, applies the definition profile, and collapses automatic
+/// alertable events from their immutable code and reason, applies the definition profile, and collapses automatic
 /// alerts onto one open incident row per job and condition, draining in bounded batches and checkpointing its cursor
-/// after each; a deterministic poison event is recorded before the cursor advances, a transient failure keeps it for
-/// retry. <see cref="AlertDelivery"/> resolves channels and transports and settles each row against its version at
+/// after each; a deterministic poison event is recorded before the cursor advances and replayed at the start of each
+/// pass, a transient failure keeps it for retry. <see cref="AlertDelivery"/> resolves channels and transports and settles each row against its version at
 /// selection, at least once (a crash after send may resend). An alert resolved before selection is not sent, and resolution stops further attempts.
 /// </summary>
 internal sealed class AlertsJob(
@@ -29,14 +29,12 @@ internal sealed class AlertsJob(
     /// exact checkpoint name; referencing the constant makes a rename a compile error instead of a
     /// spec that quietly stops staging its crash.
     /// </summary>
-    internal const string CursorVariableName = "alerts-cursor";
+    internal const string CursorVariableName = AlertsCursor.VariableName;
 
     /// <summary>
-    /// Internal for the same reason as the cursor name: the retention sweep prunes these by prefix
-    /// and its spec stages them against this exact one, so a rename is a compile error rather than
-    /// a spec that quietly stops staging what it prunes.
+    /// Internal so skip-record specs stage the same variable names as the projector.
     /// </summary>
-    internal const string SkipVariablePrefix = "alerts-skip-";
+    internal const string SkipVariablePrefix = PoisonAlertEvent.VariablePrefix;
     private const string DefaultChannelName = "default";
     private const int GenerateBatchSize = 256;
 
@@ -81,13 +79,13 @@ internal sealed class AlertsJob(
 
     /// <summary>
     /// Runs one alerting pass for the firing namespace: projects new alert-relevant events into
-    /// <c>alerts</c> rows, then delivers the rows that are due. <c>AuditLevel.Failures</c> keeps idle
+    /// <c>alerts</c> rows, then delivers the rows that are due. <c>EventRecording = Failures</c> keeps idle
     /// ticks out of <c>events</c>.
     /// </summary>
     [Job(
         "sys.alerts",
         Priority = JobPriorityCode.Realtime,
-        AuditLevel = DefinitionAuditLevelCode.Failures,
+        EventRecording = EventRecordingCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.EveryMinute)]
@@ -127,13 +125,14 @@ internal sealed class AlertsJob(
     /// </summary>
     private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
+        // A monotonic clock bounds work cooperatively across replay and the forward drain.
+        var elapsed = Stopwatch.StartNew();
+        await ReplaySkippedAsync(ctx, elapsed, ct);
+
         var horizonUtc = SafeHorizon(nowUtc, _alerts.SafeHorizonLag);
         var cursor = await ctx.GetVariableOrDefaultAsync(CursorVariableName, new AlertsCursor(0L, 0L), ct);
         var cursorUtc = cursor.Utc;
         var cursorId = cursor.EventId;
-        // Monotonic, because this is a local cooperative budget rather than a correctness instant: it
-        // decides only whether THIS pass keeps going, so it must not move with the database's clock.
-        var elapsed = Stopwatch.StartNew();
         var projected = 0;
 
         for (var batch = 0; batch < Drain.MaxBatches; batch++)
@@ -212,6 +211,58 @@ internal sealed class AlertsJob(
             elapsed.ElapsedMilliseconds
         );
 
+    /// <summary>
+    /// Replays the poison events this projector skipped, behind the cursor or not. One a newer success of its job
+    /// supersedes is dispositioned without a raise, since the incident it would open has closed, and one the ledger no
+    /// longer holds has nothing left to replay; either way its record is deleted, as it is once a replay projects. One
+    /// still malformed keeps its record until it projects or its definition disables alerts.
+    /// </summary>
+    private async Task ReplaySkippedAsync(JobContext ctx, Stopwatch elapsed, CancellationToken ct)
+    {
+        var floor = await _alerts.GetAlertFloorAsync(ctx.NamespaceId, ct);
+        if (floor.PoisonJson() is not { } poisonJson)
+        {
+            return;
+        }
+
+        var events = (await _alerts.GetPoisonAlertEventsAsync(ctx.NamespaceId, poisonJson, ct)).Events;
+        var held = events.Select(e => e.EventId).ToHashSet();
+        foreach (var gone in floor.Poison.Where(skip => !held.Contains(skip.EventId)))
+        {
+            await ctx.DeleteVariableAsync(gone.VariableName, ct);
+        }
+
+        foreach (var e in events)
+        {
+            if (elapsed.Elapsed >= Drain.TimeBudget)
+            {
+                break;
+            }
+
+            if (!e.Superseded && e.AlertProfile != AlertProfileCode.None)
+            {
+                try
+                {
+                    await ProjectAsync(ctx, e, ct);
+                }
+                catch (AlertProjectionDataException)
+                {
+                    continue;
+                }
+            }
+
+            await ctx.DeleteVariableAsync(new PoisonAlertEvent(e.EventId, e.JobId, e.CreatedAtUtc.Ticks).VariableName, ct);
+            _log.LogInformation(
+                "ACTA sys.alerts: replayed skipped alert event ({Detail}) in namespace ({Namespace}); reason ({Reason}).",
+                e.EventId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ctx.JobNamespace,
+                e.Superseded ? "superseded"
+                    : e.AlertProfile == AlertProfileCode.None ? "disabled"
+                    : "projected"
+            );
+        }
+    }
+
     private async Task RecordProjectionSkipAsync(
         JobContext ctx,
         AlertableEvent e,
@@ -220,10 +271,10 @@ internal sealed class AlertsJob(
     )
     {
         var reason = exception.Reason;
-        var variableName = SkipVariablePrefix + e.EventId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var detail = exception.Message.Truncate(ActaTextLimits.ReasonMessage);
-        var durableRecord =
-            $"namespace={ctx.JobNamespace};eventId={e.EventId};reason={reason};exception={exception.GetType().Name};detail={detail}";
+        var skip = new PoisonAlertEvent(e.EventId, e.JobId, e.CreatedAtUtc.Ticks);
+        var variableName = skip.VariableName;
+        var detail = exception.Message.Truncate(ActaTextLimits.EventMessage)!;
+        var durableRecord = skip.Record(ctx.JobNamespace, reason, exception.GetType().Name, detail);
 
         // Persist before moving the shared cursor. If this write fails, the whole pass fails and the event
         // is retried. A crash after this write but before the cursor update safely overwrites the same slot.
@@ -258,8 +309,7 @@ internal sealed class AlertsJob(
         var system = profile == AlertProfileCode.SysCritical;
         var channel = e.AlertChannelName ?? DefaultChannelName;
 
-        var isSuccess = e.ExecutionStatus == ExecutionStatusCode.Succeeded;
-        if (isSuccess)
+        if (e.EventCode == EventCode.JobExecutionSucceeded)
         {
             // Resolution is job-instance-scoped: a success closes only THIS job's open automatic failure
             // alerts, never a sibling job of the same definition, and writes no alert of its own. Resolve
@@ -269,14 +319,11 @@ internal sealed class AlertsJob(
             // success with nothing open closes nothing, so the repeat costs a no-op. The success event's
             // own id rides along: the resolve closes only alerts an OLDER event moved, so replaying this
             // success behind a newer failure leaves the alert that failure opened open.
-            if (e.JobId is { } jobId)
-            {
-                await _alerts.ResolveAlertsAsync(ctx.NamespaceId, jobId, e.EventId, ct);
-            }
+            await _alerts.ResolveAlertsAsync(ctx.NamespaceId, e.JobId, e.EventId, ct);
             return;
         }
 
-        if (e.ToStatus == JobStatusCode.Failed)
+        if (e.EventCode == EventCode.JobFailed)
         {
             var severity = system
                 ? AlertSeverityCode.Critical
@@ -287,8 +334,13 @@ internal sealed class AlertsJob(
 
         // Non-terminal failure (re-armed for retry, for the next occurrence, or back onto a wait whose
         // timeout it had already resolved when its worker died). Only OnFailure and the system
-        // profile alert on these; OnTerminal / Info stay quiet until the terminal transition.
-        if (profile is not (AlertProfileCode.OnFailure or AlertProfileCode.SysCritical))
+        // profile alert on these; OnTerminal / Info stay quiet until the terminal transition. An attempt
+        // the worker itself aborted under lease or lock pressure is an infrastructure retry, not the job
+        // failing, and raises nothing until it spends the budget.
+        if (
+            profile is not (AlertProfileCode.OnFailure or AlertProfileCode.SysCritical)
+            || (e.EventCode == EventCode.JobExecutionFailed && e.Reason() == EventReason.AttemptAborted)
+        )
         {
             return;
         }
@@ -327,7 +379,7 @@ internal sealed class AlertsJob(
         // Job-instance-scoped incident identity: includes the job id so a fan-out of sibling jobs of the same
         // definition each get their own row (and a success resolves only that job's failures), while
         // repeated failures of the SAME job still collapse onto its one open row.
-        var jobReason = e.ReasonCode?.Code;
+        var jobReason = e.Reason();
         var deduplicationKey = $"auto:{e.DefinitionId}:{e.JobId}:{reason.Code}:{jobReason ?? "none"}";
 
         var (title, message) = Render(e, reason);
@@ -381,7 +433,7 @@ internal sealed class AlertsJob(
 
     private static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)
     {
-        var reasonText = e.ReasonMessage ?? e.ReasonCode?.Code ?? "no reason recorded";
+        var reasonText = e.EventMessage ?? e.Reason() ?? "no reason recorded";
         return reason switch
         {
             AlertKindCode.FinalFailure => ($"Job '{e.JobName}' failed", $"Terminal failure: {reasonText}."),
@@ -398,9 +450,8 @@ internal sealed class AlertsJob(
 /// <summary>
 /// The bounds one <c>sys.alerts</c> generate pass drains within: how many events one batch reads
 /// (<c>BatchSize</c>), how many batches the pass may complete (<c>MaxBatches</c>), and the elapsed
-/// budget it spends (<c>TimeBudget</c>). The time budget is cooperative - read between batches, never
-/// inside one - so the batch in flight always finishes and always checkpoints its cursor. The first
-/// bound reached ends the pass.
+/// budget it spends (<c>TimeBudget</c>). The time budget is cooperative: replay checks between skips and the forward
+/// drain between batches, so a batch in flight finishes and checkpoints its cursor. The first bound ends the drain.
 /// </summary>
 internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);
 

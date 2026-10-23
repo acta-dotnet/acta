@@ -127,6 +127,10 @@ internal static class DataModelEmitter
         {
             var unique = idx.IsUnique ? "unique" : "not unique";
             var cols = string.Join(", ", idx.Columns.Select(c => idx.Descending?.Contains(c) == true ? $"`{c}` DESC" : $"`{c}`"));
+            if (idx.Include is { Count: > 0 })
+            {
+                cols += $" INCLUDE ({string.Join(", ", idx.Include.Select(c => $"`{c}`"))})";
+            }
             var filter = idx.Filter is null ? "none" : $"`{idx.Filter}`";
             var usage = idx.Usage.Length == 0 ? "·" : $"`{idx.Usage}`";
             sb.AppendLine(CultureInfo.InvariantCulture, $"| `{idx.Name}` | {cols} | {unique} | {filter} | {usage} |");

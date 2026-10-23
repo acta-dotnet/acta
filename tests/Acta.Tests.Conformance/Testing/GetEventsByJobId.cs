@@ -1,26 +1,54 @@
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// One <c>events</c> row projected for timeline verification.
+/// One job-subject <c>events</c> row projected for timeline verification. The details facts (<see cref="Reason"/>,
+/// <see cref="To"/>, <see cref="Outcome"/>, <see cref="Actor"/>, <see cref="Schedule"/>) read the JSON details text.
 /// </summary>
 internal sealed record JobEventRecord(
     long Id,
     EventCode EventCode,
     DateTime CreatedAtUtc,
     int? ExecutionNumber,
-    JobStatusCode? FromStatus,
-    JobStatusCode? ToStatus,
-    ExecutionStatusCode? ExecutionStatus,
     int? DurationMs,
-    EventReasonCode? EventReasonCode,
-    string? ReasonMessage
-);
+    int? WorkerId,
+    string? Message,
+    string? DetailsText
+)
+{
+    public string? Reason => Detail("reason");
+
+    public string? To => Detail("to");
+
+    public string? Outcome => Detail("outcome");
+
+    public string? Actor => Detail("actor");
+
+    public string? Schedule => Detail("schedule");
+
+    /// <summary>The named text fact of the JSON details, or null when absent.</summary>
+    public string? Detail(string name)
+    {
+        if (DetailsText is null)
+        {
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(DetailsText);
+        return
+            document.RootElement.ValueKind == JsonValueKind.Object
+            && document.RootElement.TryGetProperty(name, out var value)
+            && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
+}
 
 /// <summary>
-/// Test-support read: all <c>events</c> rows for a job id in ascending timeline order
-/// (<c>created_at_utc, id</c>). A thin projection over the production <see cref="ILedger.ListEventsAsync"/>
+/// Test-support read: all job-subject <c>events</c> rows for a job id in ascending timeline order
+/// (<c>created_at_utc, event_id</c>). A thin projection over the production <see cref="ILedger.ListEventsAsync"/>
 /// read, walked page by page newest first; the rows are reversed here to the ascending order specs
 /// assert on. Not a production operation: no live caller reads a job's whole event
 /// timeline outside conformance.
@@ -45,16 +73,14 @@ internal static class GetEventsByJobId
             var r = rows[i];
             timeline.Add(
                 new JobEventRecord(
-                    r.JobEventId,
+                    r.EventId,
                     r.EventCode,
                     r.CreatedAtUtc,
                     r.ExecutionNumber,
-                    r.FromStatus,
-                    r.ToStatus,
-                    r.ExecutionStatus,
                     r.DurationMs,
-                    r.ReasonCode,
-                    r.ReasonMessage
+                    r.WorkerId,
+                    r.Message,
+                    r.DetailsText
                 )
             );
         }

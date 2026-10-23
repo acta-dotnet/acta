@@ -9,32 +9,32 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @from_status TINYINT, @namespace_id INT,
-        @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-        @job_ref UNIQUEIDENTIFIER, @old_format_id TINYINT, @old_input VARBINARY(MAX);
-    DECLARE @detail VARBINARY(MAX);
-    DECLARE @detail_format_id TINYINT = 0 /* JobPayloadFormat.None */;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT,
+        @old_format_id TINYINT, @old_input VARBINARY(MAX);
+    DECLARE @old_members VARCHAR(100);
+    DECLARE @details VARBINARY(MAX) = @p_details;
+    DECLARE @details_format_id TINYINT = @p_details_format_id;
 
     SELECT
-        @from_status = r.status_code,
+        @from_status = r.job_status_code,
         @namespace_id = j.namespace_id,
-        @lineage_root_id = j.lineage_root_id,
+        @lineage_root_job_id = j.lineage_root_job_id,
         @definition_id = j.definition_id,
         @tenant_id = j.tenant_id,
         @execution_number = r.execution_number,
-        @audit_level = j.audit_level_code,
-        @job_ref = j.job_ref,
+        @event_recording = j.event_recording_code,
         @old_format_id = j.input_format_id,
         @old_input = j.input
-    FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
-    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
-    WHERE r.job_id = @p_id;
+    FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+    WHERE r.job_id = @p_job_id;
 
     IF @from_status IS NULL
         BEGIN
 
             SELECT
                 CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                CAST(NULL AS TINYINT) AS status_code;
+                CAST(NULL AS TINYINT) AS status;
             GOTO Finish;
         END;
 
@@ -46,7 +46,7 @@ BEGIN TRY
 
             SELECT
                 CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                @from_status AS status_code;
+                @from_status AS status;
             GOTO Finish;
         END;
 
@@ -54,53 +54,53 @@ BEGIN TRY
     SET
         input = @p_input,
         input_format_id = @p_input_format_id
-    WHERE id = @p_id;
+    WHERE job_id = @p_job_id;
 
-    IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
+    IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN
-        -- The event carries only bounded JSON metadata about the previous payload (format name
-        -- and byte count), never the payload itself. Pure ASCII, so VARCHAR -> VARBINARY is UTF-8.
+        -- The details are the operator's, plus bounded JSON metadata about the previous payload (format name
+        -- and byte count), never the payload itself. The writer's details are a compact JSON object, so the
+        -- metadata joins it as more members before its closing brace. Pure ASCII, so VARCHAR -> VARBINARY is UTF-8.
             IF @old_format_id <> 0 /* JobPayloadFormat.None */
                 BEGIN
-                    SET @detail_format_id = 1 /* JobPayloadFormat.Json */;
-                    SET @detail = CONVERT(
-                        VARBINARY(MAX),
-                        '{"format":"'
+                    SET @old_members =
+                        '"format":"'
                         + CASE @old_format_id
                             WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
                             WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
                             WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
                             ELSE 'custom-' + CONVERT(VARCHAR(3), @old_format_id)
                         END
-                        + '","bytes":' + CONVERT(VARCHAR(20), DATALENGTH(@old_input)) + '}'
-                    );
+                        + '","bytes":' + CONVERT(VARCHAR(20), DATALENGTH(@old_input));
+                    SET @details_format_id = 1 /* JobPayloadFormat.Json */;
+                    SET @details =
+                        CASE
+                            WHEN @p_details IS NULL THEN CONVERT(VARBINARY(MAX), '{' + @old_members + '}')
+                            ELSE
+                                SUBSTRING(@p_details, 1, DATALENGTH(@p_details) - 1)
+                                + CONVERT(VARBINARY(MAX), ',' + @old_members + '}')
+                        END;
                 END;
 
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor,
-                job_id, job_ref, execution_number,
-                lineage_root_id, definition_id, tenant_id,
-                from_status_code, to_status_code,
-                execution_status_code, duration_ms,
-                detail_format_id, detail,
-                reason_code, reason_message
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
             )
             VALUES (
                 76 /* EventCode.JobInputAmended */, @now, @namespace_id,
-                @p_actor_code, @p_actor,
-                @p_id, @job_ref, @execution_number,
-                COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                NULL, NULL,
-                NULL, NULL,
-                @detail_format_id, @detail,
-                @p_reason_code, @p_reason_message
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                @p_event_message, @details_format_id, @details
             );
         END
 
     SELECT
         CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-        @from_status AS status_code;
+        @from_status AS status;
 
 Finish:
 

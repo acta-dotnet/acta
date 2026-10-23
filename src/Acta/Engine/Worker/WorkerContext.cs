@@ -17,7 +17,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
+    /// definitions.definition_id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
     /// RegisterDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
     /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_jobs</c> free of any JOIN to
     /// definitions. Each descriptor carries the definition's effective (override-or-default)
@@ -27,7 +27,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
 
     /// <summary>
-    /// definitions.id to effective retention in seconds for each definition the heartbeat's last catalog read found
+    /// definitions.definition_id to effective retention in seconds for each definition the heartbeat's last catalog read found
     /// Retired, whether or not this deployment carries its handler. Their jobs never start another attempt or re-arm.
     /// Replaced whole on each read, so a definition a newer build made Active again leaves it.
     /// </summary>
@@ -41,7 +41,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     }
 
     /// <summary>
-    /// definitions.id values this worker bounced for want of a handler, and therefore stops claiming.
+    /// definitions.definition_id values this worker bounced for want of a handler, and therefore stops claiming.
     /// Per process and never persisted: a build that carries the handler is a new process, so the set
     /// never shrinks in production and an operator needs no way to clear it. Claims are by namespace,
     /// so during a rolling deploy an old worker keeps claiming a definition only the new build can run

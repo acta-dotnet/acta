@@ -42,7 +42,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
 
         var live = await ReadAsync(slotId, ct);
 
-        Assert.Equal(["alpha", "beta"], live.Select(s => s.Name));
+        Assert.Equal(["alpha", "beta"], live.Select(s => s.ScheduleName));
         var alpha = live[0];
         Assert.Equal(DailyCron, alpha.Expression);
         Assert.Equal(DailyCron, alpha.BaseExpression);
@@ -50,8 +50,8 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
         Assert.Equal(ScheduleExpressionKindCode.Cron, alpha.ExpressionKind);
         Assert.Equal(MisfireStrategyCode.Skip, alpha.MisfireStrategy);
         Assert.Equal(ScheduleStatusCode.Active, alpha.Status);
-        Assert.Equal(now.AddDays(1), alpha.NextRunAtUtc);
-        Assert.Equal(now.AddMinutes(5), live[1].NextRunAtUtc);
+        Assert.Equal(now.AddDays(1), alpha.NextOccurrenceAtUtc);
+        Assert.Equal(now.AddMinutes(5), live[1].NextOccurrenceAtUtc);
     }
 
     [Fact(DisplayName = "An override becomes the effective expression and time zone while the declared ones stay")]
@@ -90,7 +90,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(jobName, "kept"), pausedUntil, ct: ct)).Action);
 
         var kept = Assert.Single(await ReadAsync(slotId, ct));
-        Assert.Equal("kept", kept.Name);
+        Assert.Equal("kept", kept.ScheduleName);
         Assert.Equal(ScheduleStatusCode.Paused, kept.Status);
         Assert.Equal(pausedUntil, kept.PausedUntilUtc);
     }
@@ -126,9 +126,9 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: JobStatusCode.Ready,
-            SlotMinNextRunAtUtc: schedules.Min(s => s.NextRunAtUtc),
+            SlotMinNextRunAtUtc: schedules.Min(s => s.NextOccurrenceAtUtc),
             Schedules: schedules
         );
         return (await ScheduleTestOps.RegisterAsync(Services, [definition], ct))[defId];
@@ -145,7 +145,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

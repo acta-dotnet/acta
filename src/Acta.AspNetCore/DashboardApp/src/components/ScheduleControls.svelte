@@ -104,7 +104,7 @@
   let previewError = $state('');
   let previewLoading = $state(false);
 
-  // nextRunsUtc are UTC instants. The two views are the operator's IANA zone and raw UTC; the fixed
+  // nextOccurrencesUtc are UTC instants. The two views are the operator's IANA zone and raw UTC; the fixed
   // timestamp format includes both numeric offset and effective IANA zone.
   const browserZone = displayFormatter.localTimeZone;
   let previewZone = $state<'local' | 'utc'>('local');
@@ -256,14 +256,14 @@
           </select>
         </label>
       </div>
-      {#if previewData.nextRunsUtc.length === 0}
+      {#if previewData.nextOccurrencesUtc.length === 0}
         <div class="dim">No upcoming runs - the expression is exhausted.</div>
       {:else}
         <ol class="preview-runs">
-          {#each previewData.nextRunsUtc as runAtUtc}
+          {#each previewData.nextOccurrencesUtc as occurrenceAtUtc}
             <li>
-              <span class="mono preview-run-time">{displayFormatter.rowTimestampInZone(runAtUtc, displayZone)}</span>
-              <span class="dim preview-run-relative"><RelativeTime value={runAtUtc} /></span>
+              <span class="mono preview-run-time">{displayFormatter.rowTimestampInZone(occurrenceAtUtc, displayZone)}</span>
+              <span class="dim preview-run-relative"><RelativeTime value={occurrenceAtUtc} /></span>
             </li>
           {/each}
         </ol>

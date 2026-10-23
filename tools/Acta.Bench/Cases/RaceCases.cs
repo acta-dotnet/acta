@@ -82,7 +82,7 @@ internal static class RaceCases
                 if (ordering == "before")
                 {
                     await plan.DrainAsync(
-                        async () => 10 - (await reader.ReadAsync(null, ct)).Count(r => r.ParentId == root.JobId && r.Status == 100),
+                        async () => 10 - (await reader.ReadAsync(null, ct)).Count(r => r.ParentJobId == root.JobId && r.Status == 100),
                         plan.Deadline(expected.Length, 0, state.DrainRate),
                         ct
                     );

@@ -93,40 +93,56 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     {
         var job = await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
-        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
-        Assert.NotNull(runtime);
-        return new TestJobRow(job!, runtime!);
+        var jobState = await Db.From<JobStateEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
+        Assert.NotNull(jobState);
+        return new TestJobRow(job!, jobState!);
     }
 
     private protected async Task<EventEntity> ReadLatestEventAsync(long jobId, EventCode code, CancellationToken ct)
     {
-        var rows = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == code).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId && e.EventCode == code)
+            .ToListAsync(ct);
         Assert.NotEmpty(rows);
         return rows.OrderByDescending(e => e.Id).First();
     }
 
     private protected async Task<EventEntity> ReadSingleEventAsync(long jobId, EventCode code, CancellationToken ct)
     {
-        var rows = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == code).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId && e.EventCode == code)
+            .ToListAsync(ct);
         return Assert.Single(rows);
     }
 
     protected async Task<int> CountEventsAsync(long jobId, EventCode code, CancellationToken ct)
     {
-        return await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == code).CountAsync(ct);
-    }
-
-    protected async Task<int> CountFinishedWithStatusAsync(long jobId, ExecutionStatusCode status, CancellationToken ct)
-    {
         return await Db.From<EventEntity>()
-            .Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == status)
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId && e.EventCode == code)
             .CountAsync(ct);
     }
+
+    /// <summary>How many of the job's attempts yielded with <paramref name="outcome"/> (rescheduled, suspended, paused, cancelled).</summary>
+    protected async Task<int> CountYieldedAsync(long jobId, string outcome, CancellationToken ct) =>
+        (
+            await Db.From<EventEntity>()
+                .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId && e.EventCode == EventCode.JobExecutionYielded)
+                .ToListAsync(ct)
+        ).Count(e => EventDetail(e, "outcome") == outcome);
+
+    /// <summary>How many of the job's events record <paramref name="reason"/> in their details.</summary>
+    protected async Task<int> CountReasonAsync(long jobId, string reason, CancellationToken ct) =>
+        (await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct)).Count(e =>
+            EventDetail(e, "reason") == reason
+        );
+
+    /// <summary>The named text fact of an event's JSON details, or null when it records none.</summary>
+    private protected static string? EventDetail(EventEntity e, string name) => EventDetails.Read(e.DetailsFormatId, e.Details, name);
 
     protected async Task<int> CountVariableAsync(long jobId, string name, CancellationToken ct)
     {
         return await Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == jobId && v.Kind == CheckpointKindCode.Variable && v.Name == name)
+            .Where(v => v.JobId == jobId && v.Kind == CheckpointKindCode.Variable && v.CheckpointName == name)
             .CountAsync(ct);
     }
 
@@ -150,39 +166,39 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     /// </summary>
     private protected async Task<long> NextEventIdAsync(long jobId, CancellationToken ct)
     {
-        var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct);
         return events.Count == 0 ? 1L : events.Max(e => e.Id) + 1L;
     }
 }
 
 /// <summary>
-/// Test-side composite of one job's split rows: the identity/input row and its 1:1 runtime row.
+/// Test-side composite of one job's split rows: the identity/input row and its 1:1 jobs_state row.
 /// Exposes a flat property surface so specs keep asserting job.Status / job.LeasedByWorkerId
 /// without caring which physical row carries it.
 /// </summary>
-internal sealed record TestJobRow(JobEntity Job, RuntimeEntity Runtime)
+internal sealed record TestJobRow(JobEntity Job, JobStateEntity JobState)
 {
     public long Id => Job.Id;
     public Guid JobRef => Job.JobRef;
     public int NamespaceId => Job.NamespaceId;
     public int DefinitionId => Job.DefinitionId;
     public int? TenantId => Job.TenantId;
-    public long? ParentId => Job.ParentId;
-    public long? LineageRootId => Job.LineageRootId;
+    public long? ParentJobId => Job.ParentJobId;
+    public long? LineageRootJobId => Job.LineageRootJobId;
     public string? DeduplicationKey => Job.DeduplicationKey;
     public string? CorrelationKey => Job.CorrelationKey;
     public string? ConcurrencyKey => Job.ConcurrencyKey;
     public byte InputFormatId => Job.InputFormatId;
-    public DefinitionAuditLevelCode AuditLevel => Job.AuditLevel;
+    public EventRecordingCode EventRecording => Job.EventRecording;
     public DateTime CreatedAtUtc => Job.CreatedAtUtc;
-    public JobStatusCode Status => Runtime.Status;
-    public JobPriorityCode Priority => Runtime.Priority;
-    public DateTime? NextRunAtUtc => Runtime.NextRunAtUtc;
-    public int ExecutionNumber => Runtime.ExecutionNumber;
-    public int FailureCount => Runtime.FailureCount;
-    public DateTime? RetentionUntilUtc => Runtime.RetentionUntilUtc;
-    public DateTime ModifiedAtUtc => Runtime.ModifiedAtUtc;
-    public int Version => Runtime.Version;
-    public int? LeasedByWorkerId => Runtime.LeasedByWorkerId;
-    public DateTime? LeaseExpiresAtUtc => Runtime.LeaseExpiresAtUtc;
+    public JobStatusCode Status => JobState.Status;
+    public JobPriorityCode Priority => JobState.Priority;
+    public DateTime? NextRunAtUtc => JobState.NextRunAtUtc;
+    public int ExecutionNumber => JobState.ExecutionNumber;
+    public int FailureCount => JobState.FailureCount;
+    public DateTime? RetentionUntilUtc => JobState.RetentionUntilUtc;
+    public DateTime ModifiedAtUtc => JobState.ModifiedAtUtc;
+    public int Version => JobState.Version;
+    public int? LeasedByWorkerId => JobState.LeasedByWorkerId;
+    public DateTime? LeaseExpiresAtUtc => JobState.LeaseExpiresAtUtc;
 }

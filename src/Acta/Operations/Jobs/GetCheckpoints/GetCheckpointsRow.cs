@@ -7,7 +7,7 @@ namespace Acta;
 [DbProjection]
 internal sealed record GetCheckpointsRow(
     CheckpointKindCode Kind,
-    string Name,
+    string CheckpointName,
     CheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     byte ValueFormatId,
@@ -19,7 +19,7 @@ internal sealed record GetCheckpointsRow(
     public GetCheckpointsItem ToItem() =>
         new(
             Kind,
-            Name,
+            CheckpointName,
             Status,
             DueAtUtc,
             ValueFormatId == 0 ? null : JobPayload.FromBytes(JobPayloadFormat.ForId(ValueFormatId), Value ?? []),

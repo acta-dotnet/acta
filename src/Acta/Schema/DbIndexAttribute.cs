@@ -12,6 +12,13 @@ internal sealed class DbIndexAttribute : Attribute
     public required string Name { get; init; }
     public required string[] Columns { get; init; }
     public string[]? Descending { get; init; }
+
+    /// <summary>
+    /// Non-key columns stored in the index leaf so a read it serves never visits the table. SQL Server and PostgreSQL
+    /// render <c>INCLUDE</c>; SQLite has no such clause and indexes the key columns alone.
+    /// </summary>
+    public string[]? Include { get; init; }
+
     public string? Filter { get; init; }
 
     /// <summary>

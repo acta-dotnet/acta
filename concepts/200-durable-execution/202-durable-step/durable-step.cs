@@ -52,7 +52,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The durable step slot stores the completed outcome",
     """
-    SELECT step_name, status, attempt_number, reason
+    SELECT step_name, status, attempt_number, failure
     FROM steps_view
     WHERE job_id = @jobId
     """,
@@ -61,9 +61,9 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The event ledger keeps both executions",
     """
-    SELECT event, from_status, to_status, execution_number, reason
+    SELECT event, execution_number, event_message, details_text
     FROM events_view
-    WHERE job_id = @jobId
+    WHERE entity_kind = 'job' AND entity_id = @jobId
     ORDER BY event_id
     """,
     new { jobId = enqueued.JobId }

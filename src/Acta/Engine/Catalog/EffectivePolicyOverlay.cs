@@ -17,7 +17,7 @@ internal static class EffectivePolicyOverlay
             MaxAttempts = p.MaxAttempts,
             ConcurrencyLimit = p.ConcurrencyLimit,
             RateLimit = p.RateLimit,
-            AuditLevel = p.AuditLevel,
+            EventRecording = p.EventRecording,
             AlertProfile = p.AlertProfile,
             Backoff = p.Backoff,
             ExecutionTimeoutSeconds = p.ExecutionTimeoutSeconds,

@@ -431,7 +431,7 @@ internal sealed class FakeJobs : IJobs
         new(
             JobId: jobId,
             JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
-            LineageRootId: null,
+            LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
             ParentJobRef: null,
@@ -489,7 +489,7 @@ internal sealed class FakeJobs : IJobs
                 Status: JobStatusCode.Ready,
                 ParentJobId: null,
                 ParentJobRef: null,
-                LineageRootId: null,
+                LineageRootJobId: null,
                 LineageRootJobRef: null,
                 CreatedAtUtc: CreatedAtUtc,
                 ModifiedAtUtc: CreatedAtUtc

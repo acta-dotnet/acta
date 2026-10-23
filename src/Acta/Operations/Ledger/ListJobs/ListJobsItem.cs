@@ -17,7 +17,7 @@ public sealed record ListJobsItem(
     string? TenantName,
     [property: JsonIgnore] long? ParentJobId,
     JobRef? ParentJobRef,
-    [property: JsonIgnore] long? LineageRootId,
+    [property: JsonIgnore] long? LineageRootJobId,
     JobRef? LineageRootJobRef,
     string? DeduplicationKey,
     string? CorrelationKey,

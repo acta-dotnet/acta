@@ -10,27 +10,27 @@
    the arm, so only a wait armed by an earlier call can expire. Pg and mssql state the same rule. */
 UPDATE {{schema}}.checkpoints
 SET
-    status_code = 30 /* CheckpointStatusCode.Expired */,
+    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-    AND status_code = 10 /* CheckpointStatusCode.Pending */
+    job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
+    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND due_at_utc IS NOT NULL
     AND due_at_utc <= {{now}};
 
 INSERT INTO {{schema}}.checkpoints (
-    job_id, kind_code, name, status_code, due_at_utc,
+    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc,
     value_format_id, value, modified_at_utc, version
 )
 VALUES (
-    @p_job_id, @p_kind_code, @p_name,
+    @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
     10 /* CheckpointStatusCode.Pending */,
     CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE {{now}} + (@p_timeout_seconds) * 1000 END,
     0 /* JobPayloadFormat.None */,
     NULL, {{now}}, 0
 )
-ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO NOTHING;
 
 UPDATE {{schema}}.checkpoints
 SET
@@ -38,26 +38,26 @@ SET
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-    AND status_code = 10 /* CheckpointStatusCode.Pending */
+    job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
+    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND due_at_utc IS NULL
     AND @p_timeout_seconds IS NOT NULL;
 
 SELECT
     CASE
-        WHEN js.status_code = 20 /* CheckpointStatusCode.Set */
+        WHEN js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */
             THEN 2 /* WaitSignalOutcomeCode.ContinueSet */
-        WHEN js.status_code = 30 /* CheckpointStatusCode.Expired */
+        WHEN js.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
             THEN 3 /* WaitSignalOutcomeCode.TimedOut */
         ELSE 1 /* WaitSignalOutcomeCode.SuspendPending */
     END AS outcome_code,
     CASE
-        WHEN js.status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value_format_id
+        WHEN js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value_format_id
         ELSE 0 /* JobPayloadFormat.None */
     END AS value_format_id,
     CASE
-        WHEN js.status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value
+        WHEN js.checkpoint_status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value
         ELSE NULL
     END AS value
 FROM {{schema}}.checkpoints js
-WHERE js.job_id = @p_job_id AND js.kind_code = @p_kind_code AND js.name = @p_name;
+WHERE js.job_id = @p_job_id AND js.checkpoint_kind_code = @p_checkpoint_kind_code AND js.checkpoint_name = @p_checkpoint_name;

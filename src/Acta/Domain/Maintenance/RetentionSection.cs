@@ -7,8 +7,7 @@ internal enum RetentionSection
     Events = 2,
     SettledAlerts = 3,
     UndeliveredAlerts = 4,
-    PoisonSkipCheckpoints = 5,
-    Workers = 6,
-    Locks = 7,
-    Lanes = 8,
+    Workers = 5,
+    Locks = 6,
+    Lanes = 7,
 }

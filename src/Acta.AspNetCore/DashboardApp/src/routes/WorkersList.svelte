@@ -18,12 +18,12 @@
     workerRef: string;
     status: string;
     jobNamespace: string;
-    host: string;
+    hostName: string;
     deploymentVersion: string;
     engineVersion: string | null;
     dotnetVersion: string | null;
     processId: number | null;
-    maxConcurrency: number;
+    maxConcurrentExecutors: number;
     lastSeenAtUtc: string;
     startedAtUtc: string;
   }
@@ -47,12 +47,12 @@
     { key: 'workerRef', header: 'Worker' },
     { key: 'status', header: 'Status' },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
-    { key: 'host', header: 'Host' },
+    { key: 'hostName', header: 'Host' },
     { key: 'deploymentVersion', header: 'Version', class: 'mobile-hide' },
     { key: 'engineVersion', header: 'Engine', class: 'mobile-hide' },
     { key: 'dotnetVersion', header: '.NET', class: 'mono mobile-hide' },
     { key: 'processId', header: 'PID', class: 'mono mobile-hide', align: 'right' },
-    { key: 'maxConcurrency', header: 'Concurrency', class: 'mono mobile-hide', align: 'right' },
+    { key: 'maxConcurrentExecutors', header: 'Executors', class: 'mono mobile-hide', align: 'right' },
     { key: 'lastSeenAtUtc', header: 'Last heartbeat' },
     { key: 'startedAtUtc', header: 'Started', class: 'mobile-hide' }
   ];
@@ -87,7 +87,7 @@
     {#snippet statusCell(w: WorkerRow)}<StatusBadge status={w.status} />{/snippet}
     {#snippet lastSeenCell(w: WorkerRow)}<RelativeTime value={w.lastSeenAtUtc} />{/snippet}
     {#snippet startedCell(w: WorkerRow)}<RelativeTime value={w.startedAtUtc} />{/snippet}
-    {#snippet concurrencyCell(w: WorkerRow)}{displayFormatter.number(w.maxConcurrency)}{/snippet}
+    {#snippet executorsCell(w: WorkerRow)}{displayFormatter.number(w.maxConcurrentExecutors)}{/snippet}
 
     <ActaGrid
       rowKey={(worker: WorkerRow) => worker.workerRef}
@@ -102,7 +102,7 @@
       emptyText={activeChips.length > 0
         ? 'No workers match these ' + displayFormatter.number(activeChips.length) + ' filters.'
         : 'No workers registered here. Confirm a worker process is running and configured for this namespace.'}
-      cells={{ workerRef: workerCell, status: statusCell, maxConcurrency: concurrencyCell, lastSeenAtUtc: lastSeenCell, startedAtUtc: startedCell }}
+      cells={{ workerRef: workerCell, status: statusCell, maxConcurrentExecutors: executorsCell, lastSeenAtUtc: lastSeenCell, startedAtUtc: startedCell }}
       rowClass={(w: WorkerRow) => (w.status === 'dead' ? 'trouble' : isStale(w, $now) ? 'stale' : '')} />
   </div>
 </Page>

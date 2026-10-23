@@ -18,7 +18,7 @@ public sealed record DefinitionPolicyOverrides(
     int? DeadlineSeconds = null,
     DeadlineBehaviorCode? DeadlineBehavior = null,
     int? JobRetentionSeconds = null,
-    DefinitionAuditLevelCode? AuditLevel = null,
+    EventRecordingCode? EventRecording = null,
     AlertProfileCode? AlertProfile = null,
     string? AlertChannelName = null,
     string? RunbookUrl = null,

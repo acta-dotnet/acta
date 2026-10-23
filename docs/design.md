@@ -49,7 +49,7 @@ Job; Job-internal state lives in the `checkpoints` and `steps` substrate tables,
 
 The reason is the two-tier model: it keeps heavy machinery (claim queue, lease, audit, alerting) at
 the unit-of-work tier and lightweight per-Job substrate at the Job-internal tier, so one
-unit-of-work tier (the `jobs` row plus its 1:1 `runtimes` row) carries every external access
+unit-of-work tier (the `jobs` row plus its 1:1 `jobs_state` row) carries every external access
 pattern while internal state does not pay the per-claim cost.
 
 ## Substrate-generality principle
@@ -64,8 +64,8 @@ Examples:
 - The `DeduplicationKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
 - Domain metadata lives as fields on the input record, cross-cutting searchable metadata as `Tag` rows: no `JobMeta` table.
 - System jobs (`sys.alerts`, `sys.retention`, and `sys.outbox` where a relay is registered) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
-- Per-attempt history is one `JobEvent(job.execution-finished)` per `(JobId, ExecutionNumber)`, carrying the worker and the handler's duration: no separate execution table. An attempt in flight is its `runtimes` row.
-- Lanes earned the `lanes` table. A laned enqueue needs a row to lock until it commits, so two producers cannot interleave out of order, and the lane name is stored once. A hash on `runtimes` has no row to lock and can merge two lanes; `locks` rows are expiring leases, a different lifecycle.
+- Per-attempt history is one outcome event per `(JobId, ExecutionNumber)` — succeeded, failed, orphaned, yielded, or terminally failed — carrying the worker and the handler's duration: no separate execution table. An attempt in flight is its `jobs_state` row.
+- Lanes earned the `lanes` table. A laned enqueue needs a row to lock until it commits, so two producers cannot interleave out of order, and the lane name is stored once. A hash on `jobs_state` has no row to lock and can merge two lanes; `locks` rows are expiring leases, a different lifecycle.
 
 A worked example (see [the settled-decisions ledger below](#settled-decisions-ledger) § Substrate): the simple substrate is one merged `checkpoints` table discriminated by `Kind`, spending one table on five slot features; only `steps` earned its own table by carrying a genuinely different shape (attempt counters, retry budget, stored results).
 
@@ -73,16 +73,18 @@ The principle extends to APIs: adding a method requires showing no existing surf
 
 ## Vocabulary discipline
 
-**`Execution`** is what gets recorded: every run of the handler, success or failure, as a
-`job.execution-finished` event. **`Attempt`** is what counts against the retry budget
-(`MaxAttempts`) when it fails. Names that drift this are rejected: `MaxFailedExecutions` (a
+**`Execution`** is what gets recorded: every run of the handler, success or failure, as one outcome
+event (`job.execution-succeeded`, `job.execution-failed`, `job.execution-orphaned`,
+`job.execution-yielded`, or terminal `job.failed`). **`Attempt`** is what counts against the retry
+budget (`MaxAttempts`) when it fails. Names that drift this are rejected: `MaxFailedExecutions` (a
 successful execution is also an execution), `MaxRetries` (off-by-one trap, `MaxAttempts = 3` means
-three tries), a `JobAttempt` table (the finished event is the per-attempt record).
+three tries), a `JobAttempt` table (the outcome event is the per-attempt record).
 
 **`Status`** is the uniform column name for the operator-facing lifecycle enum; per-execution
-outcome is the event's `ExecutionStatus`; steps and checkpoints carry `status_code` like every other
-table, and only their two views name the decoded column `state`. The `runtimes` row stores current state and events explain transitions: the machine
-code is `ReasonCode`, the prose is `ReasonMessage`, both on the event, never on the runtime row.
+outcome is the event code itself; steps and checkpoints carry `step_status_code` and
+`checkpoint_status_code`, each status column named for its table, and their views decode it as `status`. The `jobs_state` row stores current state and events explain transitions: the machine
+fact is the event code (with `details.reason` where one code spans causes), the prose is
+`event_message`, both on the event, never on the `jobs_state` row.
 
 A **firing** is one scheduled occurrence of a recurring `[JobSchedule]`; the **execution** is the
 handler run that processes it (1:1 in steady state; misfire policy decides missed firings).
@@ -96,7 +98,7 @@ Reopening an entry means writing a proposal, not editing this file.
 ### Identity
 
 - **Leaderless.** Every worker is a peer and every claim is a competitive race; no leader role, election, or lock. *Reason:* removes failover and split-brain as operational concerns.
-- **One work-unit shape.** All work units (one-shot, recurring, coordinating parents, system maintenance) share one shape (a `jobs` row plus its 1:1 `runtimes` row); no `JobKind` enum, no per-kind tables. *Reason:* one substrate carries claim, lease, audit, and retention without per-kind branching.
+- **One work-unit shape.** All work units (one-shot, recurring, coordinating parents, system maintenance) share one shape (a `jobs` row plus its 1:1 `jobs_state` row); no `JobKind` enum, no per-kind tables. *Reason:* one substrate carries claim, lease, audit, and retention without per-kind branching.
 - **SQL is the operational interface; curated views are the supported query surface.** The runtime and operators query the same database; no proprietary query layer. Storage tables are not a compatibility contract. *Reason:* operators write ad-hoc production queries without coordinating with the framework.
 - **No reflection on the hot path.** Source generators emit all dispatch and persistence code; AOT-clean by construction. *Reason:* trim-friendly, no reflection cost per attempt.
 - **Category: durable work ledger for .NET.** Never positioned as a workflow engine, message bus, or scheduler; "workflow" appears only in non-goals, comparisons, and search metadata. *Reason:* the positive category claim stays singular.
@@ -106,19 +108,19 @@ Reopening an entry means writing a proposal, not editing this file.
 - **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](./sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
 - **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, `operations.md`, `conformance-contracts.md`, the provisioning scripts, and each provider's baseline migration are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
 - **Every operation is one handler over `IDbSession` and `ISqlDialect`, written once, with its SQL beside it per dialect.** Providers own executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
-- **`JobEvent` is the execution ledger AND the audit timeline.** One `job.execution-finished` event per `(JobId, ExecutionNumber)` carries per-attempt history; no per-attempt table. *Reason:* one append-only substrate, one retention sweep.
-- **`JobEvent` carries an optional `detail`/`detail_format_id` payload pair**, paired by `ck_events_detail_pair`; format `0` means no detail. Richer event-specific data still goes to OTel spans and logs; durable state lives on the entity row. *Reason:* keeps `JobEvent` frugal while still giving free-form (text) or structured (json) context beyond `ReasonCode`/`ReasonMessage` a home.
-- **One merged `checkpoints` table; `steps` stays separate.** Variables, signals, timers, progress, and child latches share one `(job_id, kind_code, name)` table; steps keep their own (attempt counters, retry budget, stored results). *Reason:* one physical shape for every simple slot; only steps carry a genuinely different shape.
-- **Single-tier retention on `JobEvent`.** One knob (`JobEventsRetention`, default 365 days) sweeps every row. *Reason:* the two-tier variant added a knob nobody tuned.
+- **`JobEvent` is the execution ledger AND the audit timeline.** One outcome event per `(JobId, ExecutionNumber)` carries per-attempt history; no per-attempt table. Every event names its subject by the generic `(entity_code, entity_id)` pair, shared with tags. *Reason:* one append-only substrate, one retention sweep.
+- **`JobEvent` carries an optional `details`/`details_format_id` payload pair**, paired by `ck_events_details_pair`; format `0` means no details, JSON is the default encoding — the same pair convention as `input`, `result`, and checkpoint `value`. Richer event-specific data still goes to OTel spans and logs; durable state lives on the entity row. *Reason:* keeps `JobEvent` frugal while still giving structured context beyond the event code and `event_message` a home.
+- **One merged `checkpoints` table; `steps` stays separate.** Variables, signals, timers, progress, and child latches share one `(job_id, checkpoint_kind_code, checkpoint_name)` table; steps keep their own (attempt counters, retry budget, stored results). *Reason:* one physical shape for every simple slot; only steps carry a genuinely different shape.
+- **Single-tier retention on `JobEvent`.** One knob (`JobEventsRetention`, default 365 days) sweeps every row, except that alert-required events wait behind the alert floor — the alerts projector's consumed cursor — so a transition an enabled alert still needs is never swept unprocessed. *Reason:* the two-tier variant added a knob nobody tuned; the floor is a correctness guard, not a tier.
 - **`JobResult` is keyed by `(JobId, ExecutionNumber)`**. *Reason:* the natural identity callers already address by.
 - **Timer checkpoints are arm/consume only.** `Pending → Consumed`; no `Cancelled` state; `ResetJobState` deletes rows outright. *Reason:* a state the runtime cannot reach is schema debt.
 - **A `Lock` carries no acquisition timestamp.** Lifecycle is `expires_at_utc` plus a per-hold `hold_token` that extend and release compare. *Reason:* no code path ever consulted the acquire instant.
-- **`jobs` + `runtimes` split: immutable identity vs mutable state.** `jobs` is never UPDATEd; the 1:1 `runtimes` row owns every mutable column with `runtimes.version` as the CAS token, and execution ownership lives on it, not in a lease table (that variant cost ~30-40% drain throughput and was reverted). *Reason:* the hot path rewrites a narrow row, and identity is immutable by construction.
-- **Reasons are events, not row state.** Why a job failed/paused lives on `JobEvent`, never on a `runtimes` reason column; snapshots and outcomes expose state only. *Reason:* a denormalized current-reason goes stale on re-arm; an append-only event cannot.
+- **`jobs` + `jobs_state` split: immutable identity vs mutable state.** `jobs` is never UPDATEd; the 1:1 `jobs_state` row owns every mutable column with `jobs_state.version` as the CAS token, and execution ownership lives on it, not in a lease table (that variant cost ~30-40% drain throughput and was reverted). *Reason:* the hot path rewrites a narrow row, and identity is immutable by construction.
+- **Reasons are events, not row state.** Why a job failed/paused lives on `JobEvent`, never on a `jobs_state` reason column; snapshots and outcomes expose state only. *Reason:* a denormalized current-reason goes stale on re-arm; an append-only event cannot.
 
 ### Boundaries
 
-- **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + the 32 hex digits of a C#-allocated UUIDv7, one word to copy and search), `DeduplicationKey` caller-defined; `events`/`alerts` denormalize `job_ref` at INSERT so they still name the job past purge; the ref resolves only through the job row. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers.
+- **Three-key job identity.** `JobId` internal (bigint), `JobRef` public (`job_` + the 32 hex digits of a C#-allocated UUIDv7, one word to copy and search), `DeduplicationKey` caller-defined; `alerts` denormalize `job_ref` at INSERT (low-volume retained incidents), while events carry only the numeric entity pair — an explicit purge leaves one `job.purged` tombstone whose details snapshot the ref and correlation once. *Reason:* numeric ids leak ordering/volume and exceed JavaScript safe integers; a GUID on every execution event is width the ledger never reads back.
 - **`JobNamespace` is the service-owned execution boundary.** One deployable service owns one namespace; replicas share it. *Reason:* namespace identity = deployment unit, not tenant marker.
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
 - **One `WorkerRuntime` per `Run(...)`; enqueue-only hosts register nothing.** A process running several `Run(...)` calls fans out one claimer, executor set, finalizer, and heartbeat per namespace. `Reference(...)` and enqueue-only frontends create no worker registration and write no catalog rows; typed enqueue resolves `(namespace, jobName)` to ids via SQL JOIN at INSERT time. *Reason:* routing lives in the database, so worker-hosted and enqueue-only deployments share one enqueue code path and a frontend can enqueue for a namespace it never claims.
@@ -132,11 +134,13 @@ Reopening an entry means writing a proposal, not editing this file.
 - **`ConcurrencyKey` is execution-time admission (at most `ConcurrencyLimit` per key, 1 by default), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
 - **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
 - **Recurring schedules are a single slot job per `(namespace, definition)`** carrying many `schedules` rows; due schedules coalesce into one execution; cursors computed in C#, applied in SQL. *Reason:* single-cursor claim scan, no per-firing row inflation, no Cronos in SQL.
+- **A schedule's cursor is its own row.** `schedules` holds the declaration and operator lifecycle; `schedules_state` holds only the cursor, keyed alike and written with it wherever a schedule is created, edited, or deleted. A fire advances the cursor alone, refused when the schedule's version moved since the fire was planned. An orphaned or retired schedule has a NULL cursor. *Reason:* the per-occurrence write is the hot one, and the narrow row keeps it off the declaration and its version.
 - **Misfire is a two-strategy per-schedule choice.** `Skip` (default, forward-only) or `CatchUpOnce`. *Reason:* forward-only avoids startup catch-up bursts; catch-up is opt-in.
-- **`job.audit_level_code` is a per-job snapshot** copied from the definition at enqueue; unset defaults to `Audit`. *Reason:* hot-path read with no join.
-- **`AuditLevel=Off` records no transition reasons.** No `JobEvent` rows means no persisted reason; current state and `FailureCount` remain. *Reason:* leanness is the point of `Off`; no hot-row reason columns to paper over a disabled trail.
+- **`jobs.event_recording_code` is a per-job snapshot** copied from the definition at enqueue; unset defaults to `Audit`. *Reason:* hot-path read with no join.
+- **A step's failure has its own code family.** `steps.failure_code` holds a `StepFailureCode` (`unhandled-exception`, `interrupted`) beside `failure_message`; the event reason codes stay on events. *Reason:* a step stores only the failures a step can have.
+- **`EventRecording=Off` records no optional history.** No optional `JobEvent` rows; current state and `FailureCount` remain. The one carve-out is deliberate: when a definition's alert profile is enabled, the alert-required transitions (failed, orphaned, terminal, and the recovery success) are captured durably at every recording level, because automatic alerts are independent of recording policy. *Reason:* leanness is the point of `Off`; alerting correctness is not optional history.
 - **`Job.Status = Failed` is terminal.** Non-terminal failures stay `Ready` with `NextRunAtUtc` advanced. *Reason:* terminal is terminal.
-- **A claim starts its jobs and writes no event.** The claim moves each row `Ready → Executing` under the lease; no status sits between claimed and running, and the `runtimes` row is the attempt in flight. *Reason:* a separate start cost one commit per job, and the window it made visible lasted milliseconds; a started event cost most of a SQL Server claim, waiting on the events table's last-page latch, and told nothing the finished event does not.
+- **A claim starts its jobs and writes no event.** The claim moves each row `Ready → Executing` under the lease; no status sits between claimed and running, and the `jobs_state` row is the attempt in flight. *Reason:* a separate start cost one commit per job, and the window it made visible lasted milliseconds; a started event cost most of a SQL Server claim, waiting on the events table's last-page latch, and told nothing the finished event does not.
 - **One execution path, no profile.** A worker claims a row for every free executor. Every completion commits in a database transaction, in one batch the finalizer writes in one call whatever its shape, and a drain lands every completion the executors produced; there is no relaxed-durability mode. *Reason:* a terminal result never reverts after an unclean shutdown, which is the point of a durable ledger; a group-committed profile bought throughput by giving that up, and a buffered profile bought a visible claimed state at the price of a commit per job.
 - **Pause is sticky.** No `PauseUntilUtc`, no auto-resume sweep. *Reason:* bounded pause is composable by the caller.
 - **Backoff is one expression column** (`backoff`, e.g. `"1m..8h x2 ±10%"`, with override/effective pair). *Reason:* the attribute is authored as a single DSL string, so storing parsed knobs was lossy and unfaithful; the shared parser validates at compile time and at override write, and SQL never computes with it.
@@ -146,7 +150,7 @@ Reopening an entry means writing a proposal, not editing this file.
 ### Storage and naming
 
 - **The migration history is frozen from 1.0.0.** Every schema change is an additive `M{datetime}_{name}` migration (new columns, tables, routine and view bodies): no renames, drops, retypes, or renumbered code values, and the baseline is never re-cut; `schema reset` remains only as a rebuild-and-compare check that the emitters still reproduce the committed baseline. *Reason:* closing the public, physical, and numeric vocabulary together is the 1.0 promise, and a migration a deployed database has run is history that cannot be folded away.
-- **Tag scope is exact attachment.** A tag scope identifies the exact target to which searchable metadata is attached. Tag scopes do not inherit, fall back, propagate, or participate in precedence resolution. *Reason:* a searchable annotation must never acquire configuration precedence semantics.
+- **Tag ownership is exact attachment.** A tag's entity pair (`entity_code`, `entity_id`) identifies the exact target to which searchable metadata is attached. Tags do not inherit, fall back, propagate, or participate in precedence resolution. *Reason:* a searchable annotation must never acquire configuration precedence semantics.
 - **Database schema is an install-time option per deployment**, default `acta`. *Reason:* co-deployment per DB without dynamic routing.
 - **Identifier convention:** plural, prefix-free, underscore-free tables; `lower_snake_case` columns; `ix_`/`ux_`/`pk_`/`ck_`/`fk_` prefixes; every persisted name explicit on its attribute; no quoted identifiers; CLR entities keep domain names (`Job*`). *Reason:* unquoted names work on every target DB and survive convention renames.
 - **Varchar sizes come from a fixed ladder:** 16, 32, 64, 128, 256, 512, 1024, max. *Reason:* SHA-256/512 hex fit natively; no bespoke widths.

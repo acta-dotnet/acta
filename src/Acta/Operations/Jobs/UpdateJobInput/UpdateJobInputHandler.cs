@@ -30,10 +30,10 @@ internal sealed class UpdateJobInputHandler(
             new StoreCommand("UpdateJobInput"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.InputFormatId, input.Format.Id));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray()));
-                JobControl.BindActor(cmd, dialect, control);
+                JobControl.BindEvent(cmd, dialect, control);
             },
             DbProjectionResolver.Resolve<UpdateJobInputRow>(),
             ct

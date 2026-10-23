@@ -6,29 +6,29 @@ namespace Acta;
 /// </summary>
 public sealed class TagTarget
 {
-    private TagTarget(TagScopeCode scopeCode, object lookup)
+    private TagTarget(EntityCode entityCode, object lookup)
     {
-        ScopeCode = scopeCode;
+        EntityCode = entityCode;
         Lookup = lookup;
     }
 
-    internal TagScopeCode ScopeCode { get; }
+    internal EntityCode EntityCode { get; }
     internal object Lookup { get; }
 
     public static TagTarget ForTenant(string tenantName) =>
-        new(TagScopeCode.Tenant, NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength));
+        new(EntityCode.Tenant, NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength));
 
     public static TagTarget ForNamespace(string namespaceName) =>
-        new(TagScopeCode.Namespace, NameSyntax.Canonicalize(namespaceName, nameof(namespaceName)));
+        new(EntityCode.Namespace, NameSyntax.Canonicalize(namespaceName, nameof(namespaceName)));
 
     public static TagTarget ForDefinition(string jobNamespace, string jobName) =>
         new(
-            TagScopeCode.Definition,
+            EntityCode.Definition,
             (
                 NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace)),
                 NameSyntax.Canonicalize(jobName, nameof(jobName), NameSyntax.ExtendedMaxLength)
             )
         );
 
-    public static TagTarget ForJob(JobLookup job) => new(TagScopeCode.Job, job);
+    public static TagTarget ForJob(JobLookup job) => new(EntityCode.Job, job);
 }

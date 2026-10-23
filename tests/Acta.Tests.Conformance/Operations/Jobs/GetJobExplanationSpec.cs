@@ -44,7 +44,8 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(TestNamespace, data.Header.JobNamespace);
         Assert.Equal("add-numbers", data.Header.JobName);
         Assert.Null(data.Header.LeasedByWorkerId);
-        Assert.Null(data.Header.LatestReasonCode);
+        Assert.Null(data.Header.LatestFailureMessage);
+        Assert.Null(data.Header.LatestFailureDetails);
         Assert.Empty(data.Steps);
         Assert.Empty(data.Checkpoints);
     }

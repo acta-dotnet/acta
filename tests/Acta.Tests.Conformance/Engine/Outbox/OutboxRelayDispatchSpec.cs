@@ -51,13 +51,17 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var outbox = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.outbox").SingleOrDefaultAsync(ct);
+        var outbox = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "sys.outbox")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(outbox);
-        var alerts = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.alerts").SingleOrDefaultAsync(ct);
+        var alerts = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "sys.alerts")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(alerts);
         // sys.retention is automatic-only; a relay must not pull it in.
         var retention = await Db.From<DefinitionEntity>()
-            .Where(d => d.NamespaceId == ns && d.Name == "sys.retention")
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "sys.retention")
             .SingleOrDefaultAsync(ct);
         Assert.Null(retention);
     }

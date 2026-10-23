@@ -53,7 +53,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         var winner = Assert.Single(winners);
         var winningWorker = (await first).Jobs.Count == 1 ? worker1 : worker2;
 
-        // Read the runtime row directly to assert lease ownership and the execution number.
+        // Read the jobs_state row directly to assert lease ownership and the execution number.
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, job!.Status);
         Assert.Equal(winningWorker, job.LeasedByWorkerId);
@@ -85,7 +85,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
-    [Fact(DisplayName = "Cancel while executing records both execution-finished Cancelled and job-cancelled")]
+    [Fact(DisplayName = "Cancel while executing records both the attempt yielded as cancelled and job-cancelled")]
     public async Task Cancel_while_executing_finishes_attempt_as_cancelled()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -106,17 +106,13 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(RunOnceStatus.NothingClaimed, await run);
         Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
-        // --- 3. Timeline: the Cancelled execution-finished and the job-cancelled event.
-        // cancel_job emits the finished event (Executing->Cancelled) before JobCancelled when it
-        // cancels an executing job, so both are deterministic here.
+        // --- 3. Timeline: the attempt yielded as cancelled, then the job-cancelled event.
+        // cancel_job ends the executing attempt before it writes JobCancelled, so both are deterministic here.
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = Assert.Single(
-            events,
-            e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Cancelled
-        );
-        Assert.Equal(JobStatusCode.Executing, finished.FromStatus);
-        Assert.Equal(JobStatusCode.Cancelled, finished.ToStatus);
-        Assert.Single(events, e => e.EventCode == EventCode.JobCancelled);
+        var yielded = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionYielded);
+        Assert.Equal("cancelled", yielded.Outcome);
+        var cancelled = Assert.Single(events, e => e.EventCode == EventCode.JobCancelled);
+        Assert.True(yielded.Id < cancelled.Id);
     }
 
     [Fact(DisplayName = "Resume after pause returns to Ready")]
@@ -137,13 +133,8 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         // --- 2. The resumed job runs to completion, with paired pause/resume events.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(
-            events,
-            e => e.EventCode == EventCode.JobPaused && e.FromStatus == JobStatusCode.Ready && e.ToStatus == JobStatusCode.Paused
-        );
-        Assert.Single(
-            events,
-            e => e.EventCode == EventCode.JobResumed && e.FromStatus == JobStatusCode.Paused && e.ToStatus == JobStatusCode.Ready
-        );
+        var paused = Assert.Single(events, e => e.EventCode == EventCode.JobPaused);
+        var resumed = Assert.Single(events, e => e.EventCode == EventCode.JobResumed);
+        Assert.True(paused.Id < resumed.Id);
     }
 }

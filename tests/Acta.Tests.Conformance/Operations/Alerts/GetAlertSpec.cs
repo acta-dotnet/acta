@@ -123,7 +123,7 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(row.SeverityCode, detail.Severity);
         Assert.Equal(row.Kind, detail.Kind);
         Assert.Equal(row.Title, detail.Title);
-        Assert.Equal(row.Message, detail.Message);
+        Assert.Equal(row.AlertMessage, detail.Message);
         Assert.Equal(row.ChannelName, detail.ChannelName);
         Assert.Equal(row.OccurrenceCount, detail.OccurrenceCount);
         Assert.Equal(row.ResolvedAtUtc, detail.ResolvedAtUtc);

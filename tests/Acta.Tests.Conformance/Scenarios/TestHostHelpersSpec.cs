@@ -25,7 +25,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var sleep = await host.Jobs.EnqueueAsync(TestJobsManifest.JobSleepBasic, ct: ct);
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(sleep, ct));
         var timer = Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct));
-        Assert.Equal(("nap", CheckpointStatusCode.Pending), (timer.Name, timer.Status));
+        Assert.Equal(("nap", CheckpointStatusCode.Pending), (timer.CheckpointName, timer.Status));
 
         await host.ForceTimerDueAsync(sleep.JobId, ct: ct);
         await RunUntilAsync(host, sleep, JobStatusCode.Succeeded, ct);
@@ -80,7 +80,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct));
         Assert.NotNull(latch.DueAtUtc);
 
-        await host.ForceWaitTimeoutDueAsync(parent.JobId, latch.Name, ct);
+        await host.ForceWaitTimeoutDueAsync(parent.JobId, latch.CheckpointName, ct);
         await RunUntilAsync(host, parent, JobStatusCode.Succeeded, ct);
 
         Assert.True((await host.Jobs.GetResultAsync<ChildWaitReport>(JobLookup.ById(parent.JobId), ct))!.TimedOut);
@@ -141,7 +141,9 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
     {
         for (var tick = 0; ; tick++)
         {
-            var waiting = (await CheckpointsAsync(host, job.JobId, CheckpointKindCode.Signal, ct)).SingleOrDefault(c => c.Name == signal);
+            var waiting = (await CheckpointsAsync(host, job.JobId, CheckpointKindCode.Signal, ct)).SingleOrDefault(c =>
+                c.CheckpointName == signal
+            );
             if (waiting is { Status: CheckpointStatusCode.Pending } || tick == MaxTicks)
             {
                 Assert.True(waiting is { Status: CheckpointStatusCode.Pending }, $"Job {job.JobId} never waited for signal '{signal}'.");
@@ -168,7 +170,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             await host
                 .Services.GetRequiredService<IDbSession>()
                 .From<StepEntity>()
-                .Where(s => s.JobId == jobId && s.Name == name)
+                .Where(s => s.JobId == jobId && s.StepName == name)
                 .SingleOrDefaultAsync(ct)
         );
 

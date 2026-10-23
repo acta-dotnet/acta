@@ -99,11 +99,11 @@ public sealed class JobAttribute(string name) : Attribute
     public string? JobRetention { get; init; }
 
     /// <summary>
-    /// Audit emission level; gates audit-filtered per-job <c>events</c> writes but not the alert
-    /// MERGE. When left unset the generator applies the framework default (<c>Audit</c>). Sub-minute
+    /// Which per-job <c>events</c> are recorded; an enabled alert profile still records the transitions its
+    /// alerts read. When left unset the generator applies the framework default (<c>Audit</c>). Sub-minute
     /// recurring definitions should consider <c>Off</c> or <c>Failures</c> to keep <c>events</c> lean.
     /// </summary>
-    public DefinitionAuditLevelCode AuditLevel { get; init; } = DefinitionAuditLevelCode.Audit;
+    public EventRecordingCode EventRecording { get; init; } = EventRecordingCode.Audit;
 
     /// <summary>
     /// Whether jobs of this definition must, may, or must not carry a tenant. Persisted on the

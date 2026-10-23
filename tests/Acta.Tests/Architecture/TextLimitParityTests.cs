@@ -35,13 +35,12 @@ public sealed class TextLimitParityTests
         Assert.Equal(ActaSchema.Tenant.Description.Size, TextLimits.TenantDescription);
         Assert.Equal(ActaSchema.Namespace.OwnerTeam.Size, TextLimits.NamespaceOwnerTeam);
         Assert.Equal(ActaSchema.Namespace.Description.Size, TextLimits.NamespaceDescription);
-        Assert.Equal(ActaSchema.Event.Actor.Size, ActaTextLimits.Actor);
-        Assert.Equal(ActaSchema.Event.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
-        Assert.Equal(ActaSchema.Step.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
+        Assert.Equal(ActaSchema.Event.EventMessage.Size, ActaTextLimits.EventMessage);
+        Assert.Equal(ActaSchema.Step.FailureMessage.Size, ActaTextLimits.StepFailureMessage);
         Assert.Equal(ActaSchema.Alert.ChannelName.Size, ActaTextLimits.AlertChannelName);
         Assert.Equal(ActaSchema.Alert.DeduplicationKey.Size, ActaTextLimits.AlertDeduplicationKey);
         Assert.Equal(ActaSchema.Alert.Title.Size, ActaTextLimits.AlertTitle);
-        Assert.Equal(ActaSchema.Alert.Message.Size, ActaTextLimits.AlertMessage);
+        Assert.Equal(ActaSchema.Alert.AlertMessage.Size, ActaTextLimits.AlertMessage);
         Assert.Equal(ActaSchema.Definition.Backoff.Size, ActaTextLimits.DefinitionBackoff);
         Assert.Equal(ActaSchema.Definition.BackoffOverride.Size, ActaTextLimits.DefinitionBackoff);
         Assert.Equal(ActaSchema.Definition.DisplayNameOverride.Size, ActaTextLimits.DefinitionDisplayName);
@@ -49,6 +48,6 @@ public sealed class TextLimitParityTests
         Assert.Equal(ActaSchema.Definition.RunbookUrlOverride.Size, ActaTextLimits.DefinitionRunbookUrl);
         Assert.Equal(ActaSchema.Definition.InputTypeName.Size, ActaTextLimits.DefinitionTypeName);
         Assert.Equal(ActaSchema.Definition.OutputTypeName.Size, ActaTextLimits.DefinitionTypeName);
-        Assert.Equal(ActaSchema.Schedule.ReasonMessage.Size, ActaTextLimits.ScheduleReasonMessage);
+        Assert.Equal(ActaSchema.Schedule.ChangeMessage.Size, ActaTextLimits.ScheduleChangeMessage);
     }
 }

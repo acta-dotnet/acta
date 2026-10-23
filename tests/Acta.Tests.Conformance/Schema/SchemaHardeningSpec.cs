@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Schema;
     "schema.hardening-facts",
     "Hardened schema enforces its checks, seed, and denormalized invariants",
     Area = "Schema",
-    Contract = "The hardened baseline schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs."
+    Contract = "The hardened baseline schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps jobs_state in step with jobs."
 )]
 public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
@@ -30,7 +30,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var sys = await Db.From<NamespaceEntity>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(sys);
-        Assert.Equal("sys", sys!.Name);
+        Assert.Equal("sys", sys!.NamespaceName);
     }
 
     [Fact(DisplayName = "ck_definitions_max_attempts rejects an UPDATE to zero while a positive value updates cleanly")]
@@ -118,40 +118,40 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             SeverityCode = AlertSeverityCode.Info,
             Kind = AlertKindCode.FirstFailure,
             Title = "schema-hardening check",
-            Message = "schema-hardening check",
+            AlertMessage = "schema-hardening check",
             ChannelName = "default",
             DeduplicationKey = deduplicationKey,
             OccurrenceCount = occurrenceCount,
             DeliveryStatusCode = AlertDeliveryStatusCode.Pending,
         };
 
-    [Fact(DisplayName = "ck_runtimes_counters rejects an UPDATE to a negative failure_count")]
-    public async Task Runtimes_check_rejects_negative_failure_count()
+    [Fact(DisplayName = "ck_jobs_state_counters rejects an UPDATE to a negative failure_count")]
+    public async Task Jobs_state_check_rejects_negative_failure_count()
     {
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         Assert.Equal(
             1,
-            await Db.From<RuntimeEntity>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = 2 }, ct)
+            await Db.From<JobStateEntity>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new JobStateEntity { FailureCount = 2 }, ct)
         );
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<RuntimeEntity>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = -1 }, ct)
+            Db.From<JobStateEntity>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new JobStateEntity { FailureCount = -1 }, ct)
         );
     }
 
     [Fact(
-        DisplayName = "ck_runtimes_inflight_leased, ck_runtimes_result_idle, and ck_runtimes_ready_due bind a status to its columns, and ck_runtimes_result_pair refuses half a result"
+        DisplayName = "ck_jobs_state_inflight_leased, ck_jobs_state_result_idle, and ck_jobs_state_ready_due bind a status to its columns, and ck_jobs_state_result_pair refuses half a result"
     )]
-    public async Task Runtimes_status_requires_its_paired_column()
+    public async Task Jobs_state_status_requires_its_paired_column()
     {
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         Task<int> SetLeasedAsync(JobStatusCode status) =>
             Db.ExecuteRawAsync(
-                "UPDATE {schema}.runtimes SET status_code = @p_status, leased_by_worker_id = @p_worker, lease_expires_at_utc = @p_expires "
+                "UPDATE {schema}.jobs_state SET job_status_code = @p_status, leased_by_worker_id = @p_worker, lease_expires_at_utc = @p_expires "
                     + "WHERE job_id = @p_job_id",
                 ct,
                 ("@p_status", (byte)status),
@@ -162,7 +162,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Task<int> SetUnleasedAsync(JobStatusCode status) =>
             Db.ExecuteRawAsync(
-                "UPDATE {schema}.runtimes SET status_code = @p_status, leased_by_worker_id = NULL, lease_expires_at_utc = NULL "
+                "UPDATE {schema}.jobs_state SET job_status_code = @p_status, leased_by_worker_id = NULL, lease_expires_at_utc = NULL "
                     + "WHERE job_id = @p_job_id",
                 ct,
                 ("@p_status", (byte)status),
@@ -181,20 +181,20 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Task<int> SetResultAsync(byte formatId, byte[]? result) =>
             result is null
                 ? Db.ExecuteRawAsync(
-                    "UPDATE {schema}.runtimes SET result_format_id = @p_format, result = NULL WHERE job_id = @p_job_id",
+                    "UPDATE {schema}.jobs_state SET result_format_id = @p_format, result = NULL WHERE job_id = @p_job_id",
                     ct,
                     ("@p_format", formatId),
                     ("@p_job_id", enq.JobId)
                 )
                 : Db.ExecuteRawAsync(
-                    "UPDATE {schema}.runtimes SET result_format_id = @p_format, result = @p_result WHERE job_id = @p_job_id",
+                    "UPDATE {schema}.jobs_state SET result_format_id = @p_format, result = @p_result WHERE job_id = @p_job_id",
                     ct,
                     ("@p_format", formatId),
                     ("@p_result", result),
                     ("@p_job_id", enq.JobId)
                 );
 
-        // ck_runtimes_result_pair holds a format to its bytes; ck_runtimes_result_idle keeps a result off an
+        // ck_jobs_state_result_pair holds a format to its bytes; ck_jobs_state_result_idle keeps a result off an
         // Executing row, so a claim that did not clear the result is refused.
         Assert.Equal(1, await SetResultAsync(JobPayloadFormat.Bytes.Id, [1, 2, 3]));
         await Assert.ThrowsAnyAsync<DbException>(() => SetResultAsync(JobPayloadFormat.Bytes.Id, null));
@@ -203,8 +203,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await SetResultAsync(JobPayloadFormat.None.Id, null));
         Assert.Equal(1, await SetLeasedAsync(JobStatusCode.Executing));
 
-        // ck_runtimes_ready_due is the same shape of rule on the other hot column: a Ready row is due
-        // at a known instant, so the claim can walk ix_runtimes_claim_ready instead of sorting.
+        // ck_jobs_state_ready_due is the same shape of rule on the other hot column: a Ready row is due
+        // at a known instant, so the claim can walk ix_jobs_state_claim_ready instead of sorting.
         var seeder = new ActaTestSeeder(Db);
         var nsId = await seeder.SeedJobNamespaceAsync(Unique("ready-due"), ct: ct);
         var defId = await seeder.SeedJobDefinitionAsync(nsId, Unique("ready-due-def"), ct: ct);
@@ -212,9 +212,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         async Task<long> InsertRuntimeAsync(JobStatusCode status, DateTime? nextRunAtUtc)
         {
             var (jobId, _) = await seeder.SeedJobAsync(nsId, defId, ct: ct);
-            return await Db.From<RuntimeEntity>()
+            return await Db.From<JobStateEntity>()
                 .InsertAsync<long>(
-                    new RuntimeEntity
+                    new JobStateEntity
                     {
                         Id = jobId,
                         NamespaceId = nsId,
@@ -236,12 +236,12 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // A live row reaches the bad shape by UPDATE, which is how the sleep timer could null the
         // instant under a worker whose lease had already been reclaimed.
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<RuntimeEntity>().Where(r => r.Id == readyId).UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = null }, ct)
+            Db.From<JobStateEntity>().Where(r => r.Id == readyId).UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = null }, ct)
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<RuntimeEntity>()
+            Db.From<JobStateEntity>()
                 .Where(r => r.Id == suspendedId)
-                .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Ready }, ct)
+                .UpdateOnlyAsync(() => new JobStateEntity { Status = JobStatusCode.Ready }, ct)
         );
     }
 
@@ -258,7 +258,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Task<int> SetStatusAsync(byte status) =>
             Db.ExecuteRawAsync(
-                "UPDATE {schema}.runtimes SET status_code = @p_status WHERE job_id = @p_job_id",
+                "UPDATE {schema}.jobs_state SET job_status_code = @p_status WHERE job_id = @p_job_id",
                 ct,
                 ("@p_status", status),
                 ("@p_job_id", enq.JobId)
@@ -267,7 +267,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Task<int> InsertCheckpointAsync(string name, byte kind, byte? status, bool due)
         {
             var sql =
-                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, due_at_utc, value_format_id) "
+                "INSERT INTO {schema}.checkpoints"
+                + " (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id) "
                 + $"VALUES (@p_job_id, {Literal(kind)}, @p_name, {Literal(status)}, {(due ? "@p_due" : "NULL")}, 0)";
             return due
                 ? Db.ExecuteRawAsync(sql, ct, ("@p_job_id", enq.JobId), ("@p_name", name), ("@p_due", DateTime.UtcNow.AddMinutes(5)))
@@ -289,15 +290,15 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             InsertCheckpointAsync("unassigned-timer-no-due", (byte)CheckpointKindCode.Timer, Unassigned, due: false)
         );
 
-        // A newer build's tag scope.
+        // A newer build's entity kind.
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.tags (scope_code, scope_id, name, value, value_search) "
-                    + $"VALUES ({Literal(Unassigned)}, @p_scope_id, @p_name, NULL, NULL)",
+                "INSERT INTO {schema}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search) "
+                    + $"VALUES ({Literal(Unassigned)}, @p_entity_id, @p_tag_name, NULL, NULL)",
                 ct,
-                ("@p_scope_id", enq.JobId),
-                ("@p_name", "unassigned-scope")
+                ("@p_entity_id", enq.JobId),
+                ("@p_tag_name", "unassigned-entity")
             )
         );
     }
@@ -312,7 +313,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(
             1,
             await Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value) "
+                "INSERT INTO {schema}.checkpoints"
+                    + " (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value) "
                     + "VALUES (@p_job_id, @p_kind, @p_name, NULL, @p_format, @p_value)",
                 ct,
                 ("@p_job_id", enq.JobId),
@@ -324,7 +326,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
 
         var stored = await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == enq.JobId && c.Name == "custom-format")
+            .Where(c => c.JobId == enq.JobId && c.CheckpointName == "custom-format")
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(stored);
         Assert.Equal(byte.MaxValue, stored!.ValueFormatId);
@@ -337,14 +339,15 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
         var due = DateTime.UtcNow.AddMinutes(5);
 
-        // status_code is written as a literal rather than bound, for the reason the steps fixture
+        // checkpoint_status_code is written as a literal rather than bound, for the reason the steps fixture
         // below omits its nullable column: a null TINYINT parameter leaves SQL Server no type to
         // infer. due_at_utc is bound only on the calls that set it.
         Task<int> InsertAsync(string name, CheckpointKindCode kind, CheckpointStatusCode? status, DateTime? dueAtUtc)
         {
             var statusSql = status is null ? "NULL" : ((byte)status.Value).ToString(CultureInfo.InvariantCulture);
             var sql =
-                "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code, due_at_utc, value_format_id) "
+                "INSERT INTO {schema}.checkpoints"
+                + " (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id) "
                 + $"VALUES (@p_job_id, @p_kind, @p_name, {statusSql}, {(dueAtUtc is null ? "NULL" : "@p_due")}, 0)";
 
             return dueAtUtc is null
@@ -363,7 +366,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         {
             var statusSql = status is null ? "NULL" : ((byte)status.Value).ToString(CultureInfo.InvariantCulture);
             return Db.ExecuteRawAsync(
-                "UPDATE {schema}.checkpoints SET status_code = " + statusSql + " WHERE job_id = @p_job_id AND name = @p_name",
+                "UPDATE {schema}.checkpoints SET checkpoint_status_code = "
+                    + statusSql
+                    + " WHERE job_id = @p_job_id AND checkpoint_name = @p_name",
                 ct,
                 ("@p_job_id", enq.JobId),
                 ("@p_name", name)
@@ -411,7 +416,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-variable", CheckpointStatusCode.Pending));
         await Assert.ThrowsAnyAsync<DbException>(() =>
             Db.ExecuteRawAsync(
-                "UPDATE {schema}.checkpoints SET due_at_utc = NULL WHERE job_id = @p_job_id AND name = @p_name",
+                "UPDATE {schema}.checkpoints SET due_at_utc = NULL WHERE job_id = @p_job_id AND checkpoint_name = @p_name",
                 ct,
                 ("@p_job_id", enq.JobId),
                 ("@p_name", "ok-timer")
@@ -430,7 +435,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // issue ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
         Task<int> InsertStepAsync(string name, int attemptNumber) =>
             Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.steps (job_id, name, status_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, 10, @p_attempt, 0)",
+                "INSERT INTO {schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id)"
+                    + " VALUES (@p_job_id, @p_name, 10, @p_attempt, 0)",
                 ct,
                 ("@p_job_id", enq.JobId),
                 ("@p_name", name),
@@ -485,37 +491,37 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", StepStatusCode.Exhausted, ct));
     }
 
-    [Fact(DisplayName = "ck_steps_reason_pair rejects a reason message with no reason code, on INSERT and on UPDATE")]
-    public async Task Steps_reason_message_requires_a_reason_code()
+    [Fact(DisplayName = "ck_steps_failure_pair rejects a failure message with no failure code, on INSERT and on UPDATE")]
+    public async Task Steps_failure_message_requires_a_failure_code()
     {
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
-        // Both legal shapes: no reason at all, and the full pair complete_step writes on a failure.
-        Assert.Equal(1, await InsertStepAsync(enq.JobId, "reason-none", StepStatusCode.Pending, ct));
+        // Both legal shapes: no failure at all, and the full pair complete_step writes on a failure.
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "failure-none", StepStatusCode.Pending, ct));
         Assert.Equal(
             1,
             await InsertStepAsync(
                 enq.JobId,
-                "reason-pair",
+                "failure-pair",
                 StepStatusCode.Pending,
                 ct,
-                reasonCode: EventReasonCode.JobUnhandledException,
-                reasonMessage: "boom"
+                failureCode: StepFailureCode.UnhandledException,
+                failureMessage: "boom"
             )
         );
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertStepAsync(enq.JobId, "reason-orphan", StepStatusCode.Pending, ct, reasonMessage: "boom")
+            InsertStepAsync(enq.JobId, "failure-orphan", StepStatusCode.Pending, ct, failureMessage: "boom")
         );
 
         // The same orphan reached by UPDATE: clearing only the code off a paired row.
         await Assert.ThrowsAnyAsync<DbException>(() =>
             Db.ExecuteRawAsync(
-                "UPDATE {schema}.steps SET reason_code = NULL WHERE job_id = @p_job_id AND name = @p_name",
+                "UPDATE {schema}.steps SET failure_code = NULL WHERE job_id = @p_job_id AND step_name = @p_name",
                 ct,
                 ("@p_job_id", enq.JobId),
-                ("@p_name", "reason-pair")
+                ("@p_name", "failure-pair")
             )
         );
     }
@@ -530,11 +536,11 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         CancellationToken ct,
         DateTime? nextRetryAtUtc = null,
         byte resultFormatId = 0,
-        EventReasonCode? reasonCode = null,
-        string? reasonMessage = null
+        StepFailureCode? failureCode = null,
+        string? failureMessage = null
     )
     {
-        List<string> columns = ["job_id", "name", "status_code", "attempt_number", "result_format_id"];
+        List<string> columns = ["job_id", "step_name", "step_status_code", "attempt_number", "result_format_id"];
         List<string> values =
         [
             "@p_job_id",
@@ -561,15 +567,15 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             parameters.Add(("@p_retry", retry));
         }
 
-        if (reasonCode is { } code)
+        if (failureCode is { } code)
         {
-            columns.Add("reason_code");
+            columns.Add("failure_code");
             values.Add(((byte)code).ToString(CultureInfo.InvariantCulture));
         }
 
-        if (reasonMessage is { } message)
+        if (failureMessage is { } message)
         {
-            columns.Add("reason_message");
+            columns.Add("failure_message");
             values.Add("@p_message");
             parameters.Add(("@p_message", message));
         }
@@ -583,21 +589,21 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
     private Task<int> SetStepStatusAsync(long jobId, string name, StepStatusCode status, CancellationToken ct) =>
         Db.ExecuteRawAsync(
-            "UPDATE {schema}.steps SET status_code = "
+            "UPDATE {schema}.steps SET step_status_code = "
                 + ((byte)status).ToString(CultureInfo.InvariantCulture)
-                + " WHERE job_id = @p_job_id AND name = @p_name",
+                + " WHERE job_id = @p_job_id AND step_name = @p_name",
             ct,
             ("@p_job_id", jobId),
             ("@p_name", name)
         );
 
-    [Fact(DisplayName = "ck_workers_max_concurrency rejects an INSERT with max_concurrency zero")]
-    public async Task Workers_check_rejects_max_concurrency_zero()
+    [Fact(DisplayName = "ck_workers_max_concurrent_executors rejects an INSERT with max_concurrent_executors zero")]
+    public async Task Workers_check_rejects_max_concurrent_executors_zero()
     {
         var ct = TestContext.Current.CancellationToken;
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        WorkerEntity NewWorker(int maxConcurrency) =>
+        WorkerEntity NewWorker(int maxConcurrentExecutors) =>
             new()
             {
                 NamespaceId = nsId,
@@ -606,8 +612,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                 WorkerRef = Acta.WorkerRef.New().Value,
                 Status = WorkerStatusCode.Active,
                 DeploymentVersion = "test",
-                Host = "test-host",
-                MaxConcurrency = maxConcurrency,
+                HostName = "test-host",
+                MaxConcurrentExecutors = maxConcurrentExecutors,
                 LastSeenAtUtc = DateTime.UtcNow,
             };
 
@@ -615,7 +621,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => Db.From<WorkerEntity>().InsertAsync<int>(NewWorker(0), ct));
     }
 
-    [Fact(DisplayName = "runtimes agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart")]
+    [Fact(DisplayName = "jobs_state agrees with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart")]
     public async Task Denormalized_namespace_id_agrees_with_jobs_across_write_paths()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -644,7 +650,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await AssertNamespaceAgreementAsync(one.JobId, ct);
     }
 
-    [Fact(DisplayName = "A recurring slot's schedule row agrees with its job on namespace_id and definition_id")]
+    [Fact(DisplayName = "A recurring slot's schedule and cursor rows agree with its job on namespace_id and definition_id")]
     public async Task Recurring_slot_schedule_agrees_with_its_job_namespace_and_definition()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -654,8 +660,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var job = await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
 
-        var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
-        Assert.Equal(job!.NamespaceId, schedule.NamespaceId);
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId!.Value, ct));
+        Assert.Equal(job!.NamespaceId, schedule.Config.NamespaceId);
+        Assert.Equal(job.NamespaceId, schedule.Cursor.NamespaceId);
         Assert.Equal(job.DefinitionId, schedule.DefinitionId);
     }
 
@@ -663,7 +670,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var job = await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
-        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(runtime);
         Assert.Equal(job!.NamespaceId, runtime!.NamespaceId);
     }

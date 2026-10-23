@@ -39,11 +39,11 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Paused, paused.Status);
 
         var pausedEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobPaused, ct);
-        Assert.Equal(ActorCode.Operator, pausedEvent.ActorCode);
-        Assert.Equal(JobStatusCode.Ready, pausedEvent.FromStatus);
-        Assert.Equal(JobStatusCode.Paused, pausedEvent.ToStatus);
-        Assert.Equal(EventReasonCode.JobControlManual, pausedEvent.ReasonCode);
-        Assert.Equal("maintenance window", pausedEvent.ReasonMessage);
+        Assert.Equal(EntityCode.Job, pausedEvent.EntityCode);
+        Assert.Equal(enqueued.JobId, pausedEvent.EntityId);
+        // No principal and a reason the code implies: the event carries its message and no details.
+        Assert.Null(pausedEvent.Details);
+        Assert.Equal("maintenance window", pausedEvent.EventMessage);
 
         var resume = await Jobs.ResumeAsync(enqueued, "all clear", ct: ct);
         Assert.Equal(ControlAction.Applied, resume.Action);
@@ -54,10 +54,8 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         // The message survives on the audit event.
         var resumedEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobResumed, ct);
-        Assert.Equal(ActorCode.Operator, resumedEvent.ActorCode);
-        Assert.Equal(JobStatusCode.Paused, resumedEvent.FromStatus);
-        Assert.Equal(JobStatusCode.Ready, resumedEvent.ToStatus);
-        Assert.Equal("all clear", resumedEvent.ReasonMessage);
+        Assert.Equal(enqueued.JobId, resumedEvent.EntityId);
+        Assert.Equal("all clear", resumedEvent.EventMessage);
     }
 
     [Fact(DisplayName = "Cancel terminates the job and persists the reason on the row and the event")]
@@ -76,14 +74,12 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Null(cancelled.LeaseExpiresAtUtc);
 
         var cancelEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(ActorCode.Operator, cancelEvent.ActorCode);
-        Assert.Equal(JobStatusCode.Ready, cancelEvent.FromStatus);
-        Assert.Equal(JobStatusCode.Cancelled, cancelEvent.ToStatus);
-        // Reason is always recorded on the event.
-        Assert.Equal(EventReasonCode.JobControlManual, cancelEvent.ReasonCode);
-        Assert.Equal("no longer needed", cancelEvent.ReasonMessage);
-        // The caller-supplied actor id (e.g. an authenticated principal name) persists on the event.
-        Assert.Equal("spec-actor", cancelEvent.Actor);
+        Assert.Equal(enqueued.JobId, cancelEvent.EntityId);
+        // The operator's code implies the reason, so none is written; the message is the operator's.
+        Assert.Null(EventDetail(cancelEvent, "reason"));
+        Assert.Equal("no longer needed", cancelEvent.EventMessage);
+        // The caller-supplied actor id (e.g. an authenticated principal name) persists in the event's details.
+        Assert.Equal("spec-actor", EventDetail(cancelEvent, "actor"));
     }
 
     [Fact(DisplayName = "Restart resets the failure budget and clears retention while keeping execution_number")]
@@ -116,10 +112,8 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         // The message lives on the event.
         var restartEvent = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobRestarted, ct);
-        Assert.Equal(ActorCode.Operator, restartEvent.ActorCode);
-        Assert.Equal(JobStatusCode.Succeeded, restartEvent.FromStatus);
-        Assert.Equal(JobStatusCode.Ready, restartEvent.ToStatus);
-        Assert.Equal("retry from scratch", restartEvent.ReasonMessage);
+        Assert.Equal(enqueued.JobId, restartEvent.EntityId);
+        Assert.Equal("retry from scratch", restartEvent.EventMessage);
     }
 
     [Fact(DisplayName = "Illegal control is Rejected with the current status")]

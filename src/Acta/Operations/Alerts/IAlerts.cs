@@ -8,7 +8,7 @@ public interface IAlerts
 {
     /// <summary>
     /// Acknowledge the alert identified by <paramref name="alertRef"/>: sets <c>AcknowledgedAtUtc</c> to now and
-    /// always emits <c>alert.acknowledged</c>, whatever the job's audit level, since this is low-volume operator
+    /// always emits <c>alert.acknowledged</c>, whatever the job's event recording, since this is low-volume operator
     /// activity. Re-acknowledging is <see cref="ControlAction.Applied"/> without mutation: the existing timestamp
     /// comes back and no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
     /// <paramref name="reasonMessage"/> is folded into the audit event's reason beside the alert ref, and
@@ -23,7 +23,7 @@ public interface IAlerts
 
     /// <summary>
     /// Manually resolve the alert identified by <paramref name="alertRef"/>: sets <c>ResolvedAtUtc</c> to now and
-    /// always emits <c>alert.resolved</c>, whatever the job's audit level; no prior acknowledge is needed.
+    /// always emits <c>alert.resolved</c>, whatever the job's event recording; no prior acknowledge is needed.
     /// Re-resolving is <see cref="ControlAction.Applied"/> without mutation: the existing timestamp comes back and
     /// no second event is emitted. A missing alert is <see cref="ControlAction.NotFound"/>.
     /// <paramref name="reasonMessage"/> is folded into the audit event's reason beside the alert ref, and

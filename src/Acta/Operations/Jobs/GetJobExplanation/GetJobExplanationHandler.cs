@@ -26,7 +26,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
     internal async ValueTask<GetJobExplanationRows?> ReadAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<GetJobExplanationRows?>(
             "GetJobExplanation",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
             static async (reader, token) =>
             {
                 var readHeader = DbProjectionResolver.Resolve<GetJobExplanationHeaderRow>();
@@ -74,7 +74,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         var h = data.Header;
         var status = h.Status;
         var steps = BuildSteps(data.Steps);
-        var reason = h.LatestReasonMessage ?? (h.LatestReasonCode?.Description is { Length: > 0 } d ? d : null);
+        var reason = h.LatestFailureMessage ?? EventDetails.Read(h.LatestFailureDetailsFormatId ?? 0, h.LatestFailureDetails, "reason");
 
         GetJobExplanationWait? wait = null;
         GetJobExplanationLease? lease = null;
@@ -227,21 +227,21 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         {
             if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new GetJobExplanationWait(CheckpointKindCode.Signal, c.CheckpointName, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new GetJobExplanationWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new GetJobExplanationWait(CheckpointKindCode.Timer, c.CheckpointName, c.DueAtUtc);
             }
         }
         return null;
@@ -282,7 +282,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
             recovery = "The lease is valid; the worker holds it and heartbeats keep it extended.";
         }
 
-        // The lease is reported whenever runtimes still names a holder, because its timings describe the
+        // The lease is reported whenever jobs_state still names a holder, because its timings describe the
         // Job. The ref and the name both come from the LEFT JOIN on that holder, so both go null together
         // once retention purges the workers row - the lease stands, its holder is simply unidentifiable.
         return new GetJobExplanationLease(
@@ -307,7 +307,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         var list = new List<GetJobExplanationStep>(rows.Count);
         foreach (var s in rows)
         {
-            list.Add(new GetJobExplanationStep(s.Name, s.Status, StepPhrase(s)));
+            list.Add(new GetJobExplanationStep(s.StepName, s.Status, StepPhrase(s)));
         }
         return list;
     }
@@ -316,11 +316,11 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         s.Status switch
         {
             StepStatusCode.Succeeded => "succeeded and will not rerun",
-            StepStatusCode.Exhausted => s.ReasonMessage is { Length: > 0 } m
+            StepStatusCode.Exhausted => s.FailureMessage is { Length: > 0 } m
                 ? $"exhausted after {Attempts(s.AttemptNumber)}: {m}"
                 : $"exhausted after {Attempts(s.AttemptNumber)}",
             StepStatusCode.Pending => s.NextRetryAtUtc is not null
-                ? s.ReasonMessage is { Length: > 0 } retryReason
+                ? s.FailureMessage is { Length: > 0 } retryReason
                     ? $"is waiting for retry attempt {s.AttemptNumber}: {retryReason}"
                     : $"is waiting for retry attempt {s.AttemptNumber}"
                 : "is in progress",

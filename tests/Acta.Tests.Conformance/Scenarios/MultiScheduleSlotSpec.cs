@@ -36,7 +36,7 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -186,10 +186,9 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, string scheduleName, CancellationToken ct)
     {
-        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
-        var row = rows.Single(s => s.Name == scheduleName);
-        Assert.NotNull(row.NextRunAtUtc);
-        return row.NextRunAtUtc!.Value;
+        var row = (await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Single(s => s.ScheduleName == scheduleName);
+        Assert.NotNull(row.NextOccurrenceAtUtc);
+        return row.NextOccurrenceAtUtc!.Value;
     }
 
     private async Task FireOnceAsync(long slotId, CancellationToken ct)

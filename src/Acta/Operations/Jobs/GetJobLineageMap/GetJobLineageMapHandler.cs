@@ -25,7 +25,7 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
             "GetJobLineageMap",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChildFetchLimit, childFetchLimit));
             },
             static async (reader, token) =>
@@ -95,7 +95,7 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
         var steps = new List<GetJobLineageMapStep>(data.Steps.Count);
         foreach (var s in data.Steps)
         {
-            steps.Add(new GetJobLineageMapStep(s.Name, s.Status, s.Status.Description));
+            steps.Add(new GetJobLineageMapStep(s.StepName, s.Status, s.Status.Description));
         }
 
         return new GetJobLineageMapResponse(data.Ancestors, data.Focus, steps, FindWait(data.Checkpoints), children, hasMore);
@@ -114,21 +114,21 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
         {
             if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobLineageMapWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new GetJobLineageMapWait(CheckpointKindCode.Signal, c.CheckpointName, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobLineageMapWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new GetJobLineageMapWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobLineageMapWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new GetJobLineageMapWait(CheckpointKindCode.Timer, c.CheckpointName, c.DueAtUtc);
             }
         }
         return null;

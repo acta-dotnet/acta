@@ -31,7 +31,7 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Critical,
                 MaxAttempts: 2,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -85,18 +85,18 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
-        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.Equal(JobPriorityCode.Critical, runtime!.Priority);
     }
 
-    [Fact(DisplayName = "Re-registration after the definition priority changes updates the existing slot runtime row")]
+    [Fact(DisplayName = "Re-registration after the definition priority changes updates the existing slot jobs_state row")]
     public async Task Reregistration_propagates_changed_definition_priority()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var slotId = await SlotIdAsync(ct);
 
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == JobName).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.DefinitionName == JobName).SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(JobPriorityCode.Critical, def!.PriorityEffective);
 
@@ -107,7 +107,7 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
 
         await ReRegisterAsync(ns, def.Id, ct);
 
-        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.Equal(JobPriorityCode.High, runtime!.Priority);
     }
 
@@ -124,18 +124,18 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
     {
         var slot = await Db.From<JobEntity>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == JobName).SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
-        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == slot!.Id).SingleOrDefaultAsync(ct);
-        var schedules = await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == definitionId).ToListAsync(ct);
+        var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == slot!.Id).SingleOrDefaultAsync(ct);
+        var schedules = await ScheduleTestOps.ReadAsync(Db, slot!.Id, ct);
 
         var slotSchedules = schedules
             .Select(s => new SlotSchedule(
-                s.Name,
+                s.ScheduleName,
                 s.Expression,
                 s.TimeZoneId,
                 s.MisfireStrategy,
                 s.ExpressionKind,
                 s.Description,
-                s.NextRunAtUtc
+                s.NextOccurrenceAtUtc
             ))
             .ToList();
 
@@ -145,7 +145,7 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
             JobName,
             slot!.InputFormatId,
             slot.Input is null ? ReadOnlyMemory<byte>.Empty : slot.Input,
-            slot.AuditLevel,
+            slot.EventRecording,
             runtime!.Status,
             runtime.NextRunAtUtc,
             slotSchedules

@@ -16,9 +16,9 @@ internal sealed class RescheduleJobHandler(GetJobIdHandler getJobId, IDbSession 
             new StoreCommand("RescheduleJob"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.NextRunAtUtc, command.NextRunAtUtc));
-                JobControl.BindActor(cmd, dialect, input);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.NextRunAtUtc, command.NextRunAtUtc));
+                JobControl.BindEvent(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<RescheduleJobRow>(),

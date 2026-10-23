@@ -8,9 +8,9 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Operator PurgeAsync: hard-deletes a terminal job. Only Succeeded/Failed/Cancelled rows qualify; the
-/// routine deletes the job's events, alerts, tags, checkpoints, steps, schedules, the job row, and its runtimes
+/// routine deletes the job's events, alerts, tags, checkpoints, steps, schedules, the job row, and its jobs_state
 /// row, none of which carries a key to the job. Always emits job.purged (not
-/// audit-gated), and rejects a terminal job that has child jobs (parent_id carries no DB
+/// audit-gated), and rejects a terminal job that has child jobs (parent_job_id carries no DB
 /// cascade, so deleting the parent would orphan the child's lineage).
 /// </summary>
 [ConformanceSpec(
@@ -29,8 +29,8 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var completed = await EnqueueAndRunAsync("add-numbers", new AddNumbers(2, 3), ct);
         var before = await ReadJobAsync(completed.JobId, ct);
 
-        // The completed run already left a job.execution-finished event for this job_id; seed
-        // an alert too, so purge's own-row cleanup of both tables is provable, not just the row delete.
+        // The completed run already left a succeeded event for this job; seed an alert too, so
+        // purge's own-row cleanup of both tables is provable, not just the row delete.
         await AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,
@@ -45,7 +45,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             null,
             ct
         );
-        Assert.NotEmpty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
+        Assert.NotEmpty(await JobEventsAsync(completed.JobId, ct));
         Assert.NotEmpty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
         // A step and a checkpoint: no key cascades them, so the delete has to name each table.
         var execution = Services.GetRequiredService<ExecutionOperations>();
@@ -68,22 +68,22 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Null(result.Status);
 
         Assert.Null(await Jobs.GetAsync(completed, ct));
-        Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == completed.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<JobStateEntity>().Where(r => r.Id == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<StepEntity>().Where(s => s.JobId == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == completed.JobId).ToListAsync(ct));
-        Assert.Empty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
         Assert.Empty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
 
-        var evt = await Db.From<EventEntity>()
-            .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobPurged)
-            .SingleOrDefaultAsync(ct);
-        Assert.NotNull(evt);
-        Assert.Null(evt!.JobId);
-        Assert.Null(evt.JobRef);
-        Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal("spec-actor", evt.Actor);
-        Assert.Contains($"purged {completed.JobRef} (", evt.ReasonMessage, StringComparison.Ordinal);
+        // Every event of the job is gone but the tombstone, which keeps the job as its subject and
+        // snapshots what no surviving row can carry any more.
+        var tombstone = Assert.Single(await JobEventsAsync(completed.JobId, ct));
+        Assert.Equal(EventCode.JobPurged, tombstone.EventCode);
+        Assert.Equal(before.DefinitionId, tombstone.DefinitionId);
+        Assert.Equal(completed.JobRef.ToString(), EventDetail(tombstone, "jobRef"));
+        Assert.Equal("spec-actor", EventDetail(tombstone, "actor"));
     }
+
+    private Task<IReadOnlyList<EventEntity>> JobEventsAsync(long jobId, CancellationToken ct) =>
+        Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct);
 
     [Fact(DisplayName = "PurgeAsync rejects a non-terminal job and leaves it intact")]
     public async Task Purge_rejects_non_terminal_job()
@@ -143,5 +143,5 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     }
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 }

@@ -36,9 +36,9 @@ internal sealed class ResumeJobHandler(
             new StoreCommand("ResumeJob"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                JobControl.BindActor(cmd, dialect, input);
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.NextRunAtUtc, nextRunAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                JobControl.BindEvent(cmd, dialect, input);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.NextRunAtUtc, nextRunAtUtc));
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<ResumeJobRow>(),

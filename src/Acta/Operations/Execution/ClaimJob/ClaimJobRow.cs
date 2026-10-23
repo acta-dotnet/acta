@@ -17,5 +17,5 @@ internal sealed record ClaimJobRow(
     Guid? JobRef,
     int? TenantId,
     long? LaneId,
-    long? ParentId
+    long? ParentJobId
 ) : IClaimColumns;

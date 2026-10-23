@@ -1,6 +1,6 @@
 CREATE OR ALTER PROCEDURE {{schema}}.arm_or_consume_sleep_timer
     @p_job_id BIGINT,
-    @p_name VARCHAR(128),
+    @p_checkpoint_name VARCHAR(128),
     @p_delay_seconds INT = NULL,
     @p_resume_at_utc DATETIME2(3) = NULL
 AS
@@ -22,17 +22,17 @@ BEGIN
         DECLARE @lock_id BIGINT;
 
         SELECT @lock_id = job_id
-        FROM {{schema}}.runtimes WITH (UPDLOCK)
+        FROM {{schema}}.jobs_state WITH (UPDLOCK)
         WHERE job_id = @p_job_id;
 
         SELECT
-            @existing_state = status_code,
+            @existing_state = checkpoint_status_code,
             @existing_due = due_at_utc
         FROM {{schema}}.checkpoints
         WHERE
             job_id = @p_job_id
-            AND kind_code = 30 /* CheckpointKindCode.Timer */
-            AND name = @p_name;
+            AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */
+            AND checkpoint_name = @p_checkpoint_name;
 
         IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
             BEGIN
@@ -45,19 +45,19 @@ BEGIN
 
                 UPDATE {{schema}}.checkpoints
                 SET
-                    status_code = 100 /* CheckpointStatusCode.Consumed */,
+                    checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND kind_code = 30 /* CheckpointKindCode.Timer */ AND name = @p_name;
+                WHERE job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_name = @p_checkpoint_name;
 
                 /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
-                   on an instant the reclaim owns, and ck_runtimes_ready_due requires Ready to keep one. */
-                UPDATE {{schema}}.runtimes
+                   on an instant the reclaim owns, and ck_jobs_state_ready_due requires Ready to keep one. */
+                UPDATE {{schema}}.jobs_state
                 SET
                     next_run_at_utc = NULL,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
+                WHERE job_id = @p_job_id AND job_status_code = 50 /* JobStatusCode.Executing */;
 
                 SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
@@ -75,7 +75,7 @@ BEGIN
             EXISTS (
                 SELECT 1 FROM {{schema}}.checkpoints
                 WHERE
-                    job_id = @p_job_id AND kind_code = 30 /* CheckpointKindCode.Timer */ AND status_code = 10
+                    job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_status_code = 10
             /* CheckpointStatusCode.Pending */
             )
             BEGIN
@@ -84,11 +84,11 @@ BEGIN
         ELSE
             BEGIN
                 INSERT INTO {{schema}}.checkpoints (
-                    job_id, kind_code, name, status_code, due_at_utc,
+                    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc,
                     created_at_utc, modified_at_utc, version
                 )
                 VALUES (
-                    @p_job_id, 30 /* CheckpointKindCode.Timer */, @p_name, 10 /* CheckpointStatusCode.Pending */, @due,
+                    @p_job_id, 30 /* CheckpointKindCode.Timer */, @p_checkpoint_name, 10 /* CheckpointStatusCode.Pending */, @due,
                     @now, @now, 0
                 );
 

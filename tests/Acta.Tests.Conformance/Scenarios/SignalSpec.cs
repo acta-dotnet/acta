@@ -94,12 +94,12 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Null(job.NextRunAtUtc);
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal("go", sig.Name);
+        Assert.Equal("go", sig.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Pending, sig.Status);
 
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Suspended, ct));
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "suspended", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
@@ -248,7 +248,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
 
     private static Task SetJobStatusReadyAsync(IDbSession db, long jobId, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Ready),
             ("@p_now", DateTime.UtcNow.AddMinutes(-1)),

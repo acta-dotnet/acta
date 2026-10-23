@@ -8,16 +8,16 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 
 /// <summary>
 /// The query plans of ClaimJobs' claim and horizon statements, read with EXPLAIN QUERY PLAN from the
-/// provider's own embedded script: the claim searches ix_runtimes_claim_ready once per priority band in
+/// provider's own embedded script: the claim searches ix_jobs_state_claim_ready once per priority band in
 /// claim order, so SQLite never sorts, and the horizon searches the head of each band. Parked waits, which
 /// SQLite sorts first in their band, and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
 public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
 {
-    private const string BandSeek = "USING COVERING INDEX ix_runtimes_claim_ready (namespace_id=? AND priority_code=?";
+    private const string BandSeek = "USING COVERING INDEX ix_jobs_state_claim_ready (namespace_id=? AND job_priority_code=?";
 
     [Fact(
-        DisplayName = "ClaimJobs searches ix_runtimes_claim_ready per priority band without a sort, and its horizon searches each band's head"
+        DisplayName = "ClaimJobs searches ix_jobs_state_claim_ready per priority band without a sort, and its horizon searches each band's head"
     )]
     public async Task Claim_searches_each_band_and_the_horizon_searches_each_band_head()
     {

@@ -19,7 +19,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
             .InsertAsync<int>(
                 new NamespaceEntity
                 {
-                    Name = name,
+                    NamespaceName = name,
                     OwnerTeam = ownerTeam,
                     Status = NamespaceStatusCode.Active,
                     CreatedAtUtc = now,
@@ -49,7 +49,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                 new DefinitionEntity
                 {
                     NamespaceId = namespaceId,
-                    Name = name,
+                    DefinitionName = name,
                     Status = DefinitionStatusCode.Active,
                     DefinitionHash = "test-hash",
                     ManifestGenerationAtUtc = now,
@@ -65,7 +65,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     DeadlineSeconds = 0,
                     DeadlineBehavior = DeadlineBehaviorCode.Advisory,
                     JobRetentionSeconds = 3600,
-                    AuditLevel = DefinitionAuditLevelCode.Off,
+                    EventRecording = EventRecordingCode.Off,
                     AlertProfile = alertProfile,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
@@ -100,7 +100,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     // null varbinary parameter, which SQL Server cannot implicitly type).
                     InputFormatId = 1,
                     Input = [0],
-                    AuditLevel = DefinitionAuditLevelCode.Off,
+                    EventRecording = EventRecordingCode.Off,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct

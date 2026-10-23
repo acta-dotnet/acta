@@ -55,11 +55,11 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
     public override string? PostTableSeed(string tableName) =>
         tableName == "namespaces"
-            ? "-- Seed: reserved system namespace (id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
-                + $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.namespaces WHERE id = 1)\n"
+            ? "-- Seed: reserved system namespace (namespace_id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
+                + $"IF NOT EXISTS (SELECT 1 FROM {SchemaPlaceholder}.namespaces WHERE namespace_id = 1)\n"
                 + "BEGIN\n"
                 + $"    SET IDENTITY_INSERT {SchemaPlaceholder}.namespaces ON;\n"
-                + $"    INSERT INTO {SchemaPlaceholder}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)\n"
+                + $"    INSERT INTO {SchemaPlaceholder}.namespaces (namespace_id, namespace_name, namespace_status_code, description, created_at_utc, modified_at_utc)\n"
                 + $"    VALUES (1, N'sys', {(byte)NamespaceStatusCode.Active}, N'Reserved system namespace for cross-namespace audit events.', SYSUTCDATETIME(), SYSUTCDATETIME());\n"
                 + $"    SET IDENTITY_INSERT {SchemaPlaceholder}.namespaces OFF;\n"
                 + "END"
@@ -81,7 +81,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
     // OPTIMIZE_FOR_SEQUENTIAL_KEY targets last-page insert contention on a monotonic clustered key,
     // so it is opted in per-PK via [DbPrimaryKey(OptimizeForSequentialKey = true)]: only on the
-    // high-insert sequence-keyed tables (events, jobs, results, runtimes), not blanket on every index.
+    // high-insert sequence-keyed tables (events, jobs, results, jobs_state), not blanket on every index.
     public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) =>
         pk.OptimizeForSequentialKey ? " WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)" : "";
 
@@ -107,60 +107,61 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
             -- Per-row enqueue batch: one row per Job to enqueue (1..5000 per call).
             -- Consumed by acta.enqueue_jobs's @p_batch sproc parameter.
-            IF TYPE_ID(N'{{schema}}.enqueue_jobs_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.enqueue_jobs_batch AS TABLE (
-                ordinal           INT              NOT NULL,
-                job_ref           UNIQUEIDENTIFIER NOT NULL,
-                namespace_name    VARCHAR(128)     NOT NULL,
-                job_name          VARCHAR(128)     NOT NULL,
-                deduplication_key        VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-                correlation_key    VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-                priority_override TINYINT          NULL,
-                input_format_id   TINYINT          NOT NULL,
-                input             VARBINARY(MAX)   NULL,
-                concurrency_key   VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-                next_run_at_utc   DATETIME2(3)     NULL,
-                delay_seconds     INT              NULL,
-                parent_id         BIGINT           NULL,
-                tenant_name       VARCHAR(128)     NULL,
-                tenant_override   BIT              NOT NULL,
-                lane              VARCHAR(128)     NULL,
+            IF TYPE_ID(N'{{schema}}.enqueue_jobs') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.enqueue_jobs AS TABLE (
+                ordinal                    INT              NOT NULL,
+                job_ref                    UNIQUEIDENTIFIER NOT NULL,
+                namespace_name             VARCHAR(128)     NOT NULL,
+                job_name                   VARCHAR(128)     NOT NULL,
+                deduplication_key          VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                correlation_key            VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                job_priority_code_override TINYINT          NULL,
+                input_format_id            TINYINT          NOT NULL,
+                input                      VARBINARY(MAX)   NULL,
+                concurrency_key            VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                next_run_at_utc            DATETIME2(3)     NULL,
+                delay_seconds              INT              NULL,
+                parent_job_id              BIGINT           NULL,
+                tenant_name                VARCHAR(128)     NULL,
+                tenant_override            BIT              NOT NULL,
+                lane_name                  VARCHAR(128)     NULL,
                 PRIMARY KEY (ordinal)
             );');
             GO
 
             -- Per-tag enqueue batch: zero-or-more rows per Job, joined to the main batch by ordinal.
-            -- Consumed by the @p_tag_batch sproc parameter of acta.enqueue_jobs and acta.enqueue_job.
-            IF TYPE_ID(N'{{schema}}.enqueue_tags_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.enqueue_tags_batch AS TABLE (
-                ordinal INT          NOT NULL,
-                name    VARCHAR(128) NOT NULL,
-                value   NVARCHAR(128) NULL,
-                value_search NVARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
-                PRIMARY KEY (ordinal, name)
+            -- Consumed by the @p_tags sproc parameter of acta.enqueue_jobs and acta.enqueue_job.
+            IF TYPE_ID(N'{{schema}}.enqueue_tags') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.enqueue_tags AS TABLE (
+                ordinal          INT           NOT NULL,
+                tag_name         VARCHAR(128)  NOT NULL,
+                tag_value        NVARCHAR(128) NULL,
+                tag_value_search NVARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                PRIMARY KEY (ordinal, tag_name)
             );');
             GO
 
             -- Per-completion batch: one row per completion by one worker, whose id is a scalar.
             -- Consumed by acta.complete_executions's @p_batch sproc parameter, which joins it by its key.
-            IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.complete_executions') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.complete_executions AS TABLE (
                 job_id                   BIGINT         NOT NULL,
                 execution_number         INT            NOT NULL,
                 succeeded                BIT            NOT NULL,
                 result_format_id         TINYINT        NOT NULL,
                 result                   VARBINARY(MAX) NULL,
-                reason_code              TINYINT        NULL,
-                reason_message           NVARCHAR(512)  NULL,
+                event_code               TINYINT        NOT NULL,
+                reason                   VARCHAR(64)    NULL,
+                event_message            NVARCHAR(512)  NULL,
                 duration_ms              INT            NULL,
                 failure_count            INT            NULL,
                 retention_seconds        INT            NULL,
-                reschedule_status_code   TINYINT        NULL,
+                reschedule_event_code    TINYINT        NULL,
                 reschedule_delay_seconds INT            NULL,
                 reschedule_resume_at_utc DATETIME2(3)   NULL,
                 wait_signal_name         NVARCHAR(128)  NULL,
-                handler_status_code      TINYINT        NULL,
-                final_status             TINYINT        NULL,
+                handler_job_status_code  TINYINT        NULL,
+                final_job_status_code    TINYINT        NULL,
                 job_next_run_at_utc      DATETIME2(3)   NULL,
                 PRIMARY KEY (job_id, execution_number)
             );');
@@ -168,11 +169,11 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
             -- Per-definition registration batch: one row per [Job] descriptor under a single namespace.
             -- Consumed by acta.register_definitions's @p_definitions sproc parameter (one round trip per
-            -- worker regardless of definition count). name is the per-namespace natural key.
-            IF TYPE_ID(N'{{schema}}.register_definitions_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.register_definitions_batch AS TABLE (
-                name                                 VARCHAR(128)  NOT NULL,
-                priority_code                        TINYINT       NOT NULL,
+            -- worker regardless of definition count). definition_name is the per-namespace natural key.
+            IF TYPE_ID(N'{{schema}}.register_definitions') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.register_definitions AS TABLE (
+                definition_name                      VARCHAR(128)  NOT NULL,
+                job_priority_code                    TINYINT       NOT NULL,
                 max_attempts                         INT           NOT NULL,
                 concurrency_limit                    INT           NULL,
                 rate_limit                           VARCHAR(16)   NULL,
@@ -188,7 +189,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 input_format_name                    VARCHAR(128)  NOT NULL,
                 output_format_id                     TINYINT       NOT NULL,
                 output_format_name                   VARCHAR(128)  NOT NULL,
-                audit_level_code                     TINYINT       NOT NULL,
+                event_recording_code                 TINYINT       NOT NULL,
                 alert_profile_code                   TINYINT       NOT NULL,
                 alert_channel_name                   VARCHAR(128)  NULL,
                 runbook_url                          VARCHAR(512)  NULL,
@@ -196,41 +197,41 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 description                          NVARCHAR(512) NULL,
                 definition_hash                      VARCHAR(128)  NOT NULL,
                 tenant_requirement_code              TINYINT       NOT NULL,
-                lane                                 VARCHAR(128)  NULL,
-                PRIMARY KEY (name)
+                lane_name                            VARCHAR(128)  NULL,
+                PRIMARY KEY (definition_name)
             );');
             GO
 
             -- Per-definition recurring slot batch: one row per definition reconciled in a single
             -- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
             -- deduplication_key is the slot job's natural key (the job name).
-            IF TYPE_ID(N'{{schema}}.register_slots_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.register_slots_batch AS TABLE (
+            IF TYPE_ID(N'{{schema}}.register_slots') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.register_slots AS TABLE (
                 definition_id    INT              NOT NULL PRIMARY KEY,
                 job_ref              UNIQUEIDENTIFIER NOT NULL,
                 deduplication_key           VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
                 input_format_id      TINYINT        NOT NULL,
                 input                VARBINARY(MAX) NULL,
-                audit_level_code     TINYINT        NOT NULL,
+                event_recording_code TINYINT        NOT NULL,
                 slot_status_code     TINYINT        NOT NULL,
                 slot_next_run_at_utc DATETIME2(3)   NULL
             );');
             GO
 
             -- All definitions' reconciled schedules for one acta.register_schedules call, tagged with
-            -- definition_id so each schedule links to its definition's slot. next_run_at_utc is the
-            -- C#-computed cursor; description is the optional operator note.
-            IF TYPE_ID(N'{{schema}}.register_schedules_batch') IS NULL
-            EXEC(N'CREATE TYPE {{schema}}.register_schedules_batch AS TABLE (
-                definition_id             INT          NOT NULL,
-                name                          VARCHAR(128) NOT NULL,
+            -- definition_id so each schedule links to its definition's slot. next_occurrence_at_utc is the
+            -- C#-computed cursor; description is the declared one.
+            IF TYPE_ID(N'{{schema}}.register_schedules') IS NULL
+            EXEC(N'CREATE TYPE {{schema}}.register_schedules AS TABLE (
+                definition_id                 INT          NOT NULL,
+                schedule_name                 VARCHAR(128) NOT NULL,
                 expression                    VARCHAR(128) NOT NULL,
                 time_zone_id                  VARCHAR(128) NOT NULL,
                 expression_kind_code          TINYINT      NOT NULL,
                 misfire_strategy_code         TINYINT      NOT NULL,
-                next_run_at_utc               DATETIME2(3) NULL,
+                next_occurrence_at_utc        DATETIME2(3) NULL,
                 description                   NVARCHAR(512) NULL,
-                PRIMARY KEY (definition_id, name)
+                PRIMARY KEY (definition_id, schedule_name)
             );');
             GO
             """;

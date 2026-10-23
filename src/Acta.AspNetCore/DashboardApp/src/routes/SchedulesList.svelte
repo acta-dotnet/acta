@@ -25,7 +25,7 @@
     expression: string;
     timeZoneId: string;
     misfireStrategy: string;
-    nextRunAtUtc: string | null;
+    nextOccurrenceAtUtc: string | null;
     pausedUntilUtc: string | null;
   }
 
@@ -61,18 +61,18 @@
     { key: 'expression', header: 'Expression', class: 'mono' },
     { key: 'timeZoneId', header: 'Time zone', class: 'mobile-hide' },
     { key: 'misfireStrategy', header: 'Misfire', class: 'mobile-hide' },
-    { key: 'nextRunAtUtc', header: 'Next run' },
+    { key: 'nextOccurrenceAtUtc', header: 'Next occurrence' },
     { key: 'actions', header: '', class: 'col-open' }
   ];
 
   function isDueSoon(schedule: ScheduleRow, nowMs: number): boolean {
-    return !!schedule.nextRunAtUtc && new Date(schedule.nextRunAtUtc).getTime() - nowMs < 900000;
+    return !!schedule.nextOccurrenceAtUtc && new Date(schedule.nextOccurrenceAtUtc).getTime() - nowMs < 900000;
   }
 
   // An active schedule whose next-run time is already in the past should have fired - flag it so a
   // stuck controller (or a namespace with no live worker) is obvious at a glance.
   function isOverdue(schedule: ScheduleRow, nowMs: number): boolean {
-    return schedule.status !== 'paused' && !!schedule.nextRunAtUtc && new Date(schedule.nextRunAtUtc).getTime() < nowMs;
+    return schedule.status !== 'paused' && !!schedule.nextOccurrenceAtUtc && new Date(schedule.nextOccurrenceAtUtc).getTime() < nowMs;
   }
 
   function jobsHref(schedule: ScheduleRow): string {
@@ -114,11 +114,11 @@
     {#snippet jobCell(schedule: ScheduleRow)}
       <a href={jobsHref(schedule)}>{schedule.jobNamespace} / {schedule.jobName}</a>
     {/snippet}
-    {#snippet nextRunCell(schedule: ScheduleRow)}
+    {#snippet nextOccurrenceCell(schedule: ScheduleRow)}
       {#if schedule.status === 'paused'}
         <RelativeTime value={schedule.pausedUntilUtc} />
       {:else}
-        <RelativeTime value={schedule.nextRunAtUtc} />
+        <RelativeTime value={schedule.nextOccurrenceAtUtc} />
         {#if isOverdue(schedule, $now)}<span class="badge warn">overdue</span>{/if}
       {/if}
     {/snippet}
@@ -141,7 +141,7 @@
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
       loadingText="Loading schedules..."
       emptyText="No schedules yet. Declare one with a [JobSchedule] attribute on a [Job] handler; it appears here after the host syncs at startup."
-      cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, nextRunAtUtc: nextRunCell, actions: actionsCell }}
+      cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
       rowClass={(schedule: ScheduleRow) =>
         schedule.status === 'paused'
           ? 'held'

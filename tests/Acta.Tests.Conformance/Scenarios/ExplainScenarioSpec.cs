@@ -71,7 +71,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await Db.From<Acta.JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<Acta.JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(parent.JobId), ct);
 

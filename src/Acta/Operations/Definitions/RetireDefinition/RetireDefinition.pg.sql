@@ -1,176 +1,170 @@
 -- One batch, one implicit transaction. Only the final SELECT returns rows; every earlier statement
 -- writes temp tables, so each later statement reads what the earlier ones did under the locks.
-CREATE TEMP TABLE IF NOT EXISTS _retire_lanes (id BIGINT PRIMARY KEY) ON COMMIT DROP;
+CREATE TEMP TABLE IF NOT EXISTS _retire_lanes (lane_id BIGINT PRIMARY KEY) ON COMMIT DROP;
 CREATE TEMP TABLE IF NOT EXISTS _retire_action (action SMALLINT NOT NULL, version INT) ON COMMIT DROP;
-CREATE TEMP TABLE IF NOT EXISTS _retire_cancelled (job_id BIGINT NOT NULL, parent_id BIGINT) ON COMMIT DROP;
+CREATE TEMP TABLE IF NOT EXISTS _retire_cancelled (job_id BIGINT NOT NULL, parent_job_id BIGINT) ON COMMIT DROP;
 CREATE TEMP TABLE IF NOT EXISTS _retire_promoted (promoted INT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE IF NOT EXISTS _retire_lock (granted INT NOT NULL) ON COMMIT DROP;
+
+-- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+INSERT INTO _retire_lock (granted)
+SELECT 1
+FROM (
+    SELECT pg_advisory_xact_lock(hashtext('{{schema}}.schedules'), jd.namespace_id)
+    FROM {{schema}}.definitions jd
+    WHERE jd.definition_id = @p_definition_id
+) l;
 
 -- The lanes of the definition's parked laned jobs, locked in id order before any job row
 -- (docs/sql-execution-policy.md, "Lane lock order").
-INSERT INTO _retire_lanes (id)
-SELECT l.id
+INSERT INTO _retire_lanes (lane_id)
+SELECT l.lane_id
 FROM {{schema}}.lanes l
-WHERE l.id IN (
+WHERE l.lane_id IN (
     SELECT r.lane_id
-    FROM {{schema}}.runtimes r
-    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
+    FROM {{schema}}.jobs_state r
+    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE
-        j.definition_id = @p_id
+        j.definition_id = @p_definition_id
         AND r.lane_id IS NOT NULL
-        AND r.status_code IN (
+        AND r.job_status_code IN (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
         )
 )
-ORDER BY l.id
+ORDER BY l.lane_id
 FOR UPDATE OF l;
 
 WITH target AS (
-    SELECT jd.id, jd.namespace_id, jd.status_code, jd.version
+    SELECT jd.definition_id, jd.namespace_id, jd.definition_status_code, jd.version
     FROM {{schema}}.definitions jd
-    WHERE jd.id = @p_id
+    WHERE jd.definition_id = @p_definition_id
     FOR UPDATE
 ),
 retired AS (
     UPDATE {{schema}}.definitions jd
     SET
-        status_code = 240 /* DefinitionStatusCode.Retired */,
+        definition_status_code = 240 /* DefinitionStatusCode.Retired */,
         modified_at_utc = now(),
         version = jd.version + 1
     FROM target t
     WHERE
-        jd.id = t.id
+        jd.definition_id = t.definition_id
         AND t.version = @p_version
-        AND t.status_code <> 240 /* DefinitionStatusCode.Retired */
-    RETURNING jd.id, jd.namespace_id, jd.version
+        AND t.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+    RETURNING jd.definition_id, jd.namespace_id, jd.version
 ),
 -- A laned job is parked here only in a lane locked above; Blocked is parked too, and an in-flight
 -- attempt is left to finish.
 parked AS (
     SELECT
-        j.id AS job_id,
-        j.job_ref,
-        j.parent_id,
+        j.job_id,
+        j.parent_job_id,
         j.namespace_id,
         j.tenant_id,
         j.definition_id,
-        j.audit_level_code,
-        COALESCE(j.lineage_root_id, j.id) AS lineage_root_id,
-        r.execution_number,
-        r.status_code AS from_status_code
+        j.event_recording_code,
+        COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
+        r.execution_number
     FROM {{schema}}.jobs j
-    INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+    INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
     WHERE
-        j.definition_id IN (SELECT d.id FROM retired d)
-        AND r.status_code IN (
+        j.definition_id IN (SELECT d.definition_id FROM retired d)
+        AND r.job_status_code IN (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
         )
-        AND (r.lane_id IS NULL OR r.lane_id IN (SELECT rl.id FROM _retire_lanes rl))
-    -- Locked here so the from_status the event records is the status the sweep below moves.
+        AND (r.lane_id IS NULL OR r.lane_id IN (SELECT rl.lane_id FROM _retire_lanes rl))
+    -- Locked here so the execution_number each event records is the one the sweep below cancels.
     FOR UPDATE OF r
 ),
 swept AS (
-    UPDATE {{schema}}.runtimes r
+    UPDATE {{schema}}.jobs_state r
     SET
-        status_code = 220 /* JobStatusCode.Cancelled */,
+        job_status_code = 220 /* JobStatusCode.Cancelled */,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         retention_until_utc = now() + make_interval(secs => jd.retention_seconds_effective),
         modified_at_utc = now(),
         version = r.version + 1
     FROM parked p
-    INNER JOIN {{schema}}.definitions jd ON jd.id = p.definition_id
+    INNER JOIN {{schema}}.definitions jd ON jd.definition_id = p.definition_id
     WHERE
         r.job_id = p.job_id
-        AND r.status_code IN (
+        AND r.job_status_code IN (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
         )
     RETURNING r.job_id
+),
+cleared AS (
+    UPDATE {{schema}}.schedules_state st
+    SET
+        next_occurrence_at_utc = NULL,
+        last_advanced_occurrence_at_utc = NULL,
+        modified_at_utc = now()
+    FROM {{schema}}.schedules s
+    INNER JOIN retired d ON d.definition_id = s.definition_id
+    WHERE
+        st.job_id = s.job_id
+        AND st.schedule_name = s.schedule_name
 ),
 cancel_events AS (
     INSERT INTO {{schema}}.events (
         event_code,
         created_at_utc,
         namespace_id,
-        actor_code,
-        actor,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
+        entity_code,
+        entity_id,
         definition_id,
         tenant_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
+        lineage_root_job_id,
+        execution_number,
+        event_message,
+        details_format_id,
+        details)
     SELECT
         70 /* EventCode.JobCancelled */,
         now(),
         p.namespace_id,
-        @p_actor_code,
-        @p_actor,
+        50 /* EntityCode.Job */,
         p.job_id,
-        p.job_ref,
-        p.execution_number,
-        p.lineage_root_id,
         p.definition_id,
         p.tenant_id,
-        p.from_status_code,
-        220 /* JobStatusCode.Cancelled */,
-        NULL,
-        NULL,
-        42 /* EventReasonCode.JobDefinitionRetired */,
-        @p_reason_message
+        p.lineage_root_job_id,
+        p.execution_number,
+        @p_event_message,
+        1 /* JobPayloadFormat.Json */,
+        @p_job_details
     FROM parked p
     INNER JOIN swept s ON s.job_id = p.job_id
-    WHERE p.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */
 ),
 definition_event AS (
     INSERT INTO {{schema}}.events (
         event_code,
         created_at_utc,
         namespace_id,
-        actor_code,
-        actor,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
+        entity_code,
+        entity_id,
         definition_id,
-        tenant_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
+        event_message,
+        details_format_id,
+        details)
     SELECT
         31 /* EventCode.JobDefinitionRetired */,
         now(),
         d.namespace_id,
-        @p_actor_code,
-        @p_actor,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        d.id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        @p_reason_code,
-        @p_reason_message
+        30 /* EntityCode.Definition */,
+        d.definition_id,
+        d.definition_id,
+        @p_event_message,
+        @p_details_format_id,
+        @p_details
     FROM retired d
 ),
 action_row AS (
     INSERT INTO _retire_action (action, version)
     SELECT
         CASE
-            WHEN t.id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
+            WHEN t.definition_id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
             WHEN t.version <> @p_version THEN 3 /* DefinitionOverrideAction.VersionConflict */
             ELSE 1 /* DefinitionOverrideAction.Applied */
         END,
@@ -179,29 +173,29 @@ action_row AS (
     LEFT JOIN target t ON TRUE
     LEFT JOIN retired d ON TRUE
 )
-INSERT INTO _retire_cancelled (job_id, parent_id)
-SELECT p.job_id, p.parent_id
+INSERT INTO _retire_cancelled (job_id, parent_job_id)
+SELECT p.job_id, p.parent_job_id
 FROM parked p
 INNER JOIN swept s ON s.job_id = p.job_id;
 
 -- Once every parked member is cancelled, each locked lane hands on to its lowest-id unfinished member
 -- if that member is Blocked and no member still runs, so no member of the retired definition is promoted.
 WITH promoted AS (
-    UPDATE {{schema}}.runtimes pr
+    UPDATE {{schema}}.jobs_state pr
     SET
-        status_code = 10 /* JobStatusCode.Ready */,
+        job_status_code = 10 /* JobStatusCode.Ready */,
         next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
         modified_at_utc = now(),
         version = pr.version + 1
     WHERE
-        pr.status_code = 15 /* JobStatusCode.Blocked */
+        pr.job_status_code = 15 /* JobStatusCode.Blocked */
         AND NOT EXISTS (
             SELECT 1
-            FROM {{schema}}.runtimes o
+            FROM {{schema}}.jobs_state o
             WHERE
                 o.lane_id = pr.lane_id
                 AND o.lane_id IS NOT NULL
-                AND o.status_code IN (
+                AND o.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                     50 /* JobStatusCode.Executing */
                 )
@@ -209,11 +203,11 @@ WITH promoted AS (
         AND pr.job_id IN (
             SELECT (
                 SELECT m.job_id
-                FROM {{schema}}.runtimes m
+                FROM {{schema}}.jobs_state m
                 WHERE
-                    m.lane_id = rl.id
+                    m.lane_id = rl.lane_id
                     AND m.lane_id IS NOT NULL
-                    AND m.status_code IN (
+                    AND m.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                     )
@@ -231,7 +225,7 @@ SELECT
     a.action,
     a.version,
     c.job_id,
-    c.parent_id,
+    c.parent_job_id,
     (SELECT p.promoted > 0 FROM _retire_promoted p) AS lane_promoted
 FROM _retire_action a
 LEFT JOIN _retire_cancelled c ON TRUE;

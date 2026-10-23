@@ -9,38 +9,54 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @slot_status TINYINT, @slot_next DATETIME2(7);
-    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
+    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @event_recording TINYINT;
+    DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
-    /* Lock the slot's runtimes row before the schedules row: register_schedules writes
-       runtimes then schedules, so every writer of both must take runtimes first. The schedules
-       row is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
+    /* The namespace's schedule lock, shared, before any row lock (docs/sql-execution-policy.md, "Schedule lock"), so
+       the reads below see a retire or registration that committed. */
+    SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(j.namespace_id AS NVARCHAR(12))
+    FROM {{schema}}.jobs j
+    WHERE j.job_id = @p_job_id;
+
+    IF @lock_resource IS NOT NULL
+        BEGIN
+            EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Shared', 'Transaction', -1;
+            IF @lock_result < 0
+                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+        END
+
+    /* The slot's jobs_state row locks before its schedules row, the order a fire's completion takes them in. The
+       schedules row is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
     SELECT
-        @slot_status = r.status_code,
+        @slot_status = r.job_status_code,
         @slot_next = r.next_run_at_utc,
         @en = r.execution_number
-    FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
+    FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     WHERE r.job_id = @p_job_id;
 
     SELECT
         @found = 1,
-        @status = js.status_code,
+        @status = js.schedule_status_code,
         @paused = js.paused_until_utc,
-        @next = js.next_run_at_utc,
+        @next = st.next_occurrence_at_utc,
         @version = js.version
     FROM {{schema}}.schedules js WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
+    INNER JOIN {{schema}}.schedules_state st ON st.job_id = js.job_id AND st.schedule_name = js.schedule_name
     WHERE
         js.job_id = @p_job_id
-        AND js.name = @p_name
-        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
+        AND js.schedule_name = @p_schedule_name
+        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
     IF @found = 0
         BEGIN
 
             SELECT
                 CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                CAST(NULL AS TINYINT) AS status_code,
+                CAST(NULL AS TINYINT) AS status,
                 CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
-                CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
+                CAST(NULL AS DATETIME2(7)) AS next_occurrence_at_utc,
                 CAST(NULL AS INT) AS version;
             GOTO Finish;
         END;
@@ -50,9 +66,9 @@ BEGIN TRY
 
             SELECT
                 CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                @status AS status_code,
+                @status AS status,
                 @paused AS paused_until_utc,
-                @next AS next_run_at_utc,
+                @next AS next_occurrence_at_utc,
                 @version AS version;
             GOTO Finish;
         END;
@@ -64,9 +80,9 @@ BEGIN TRY
 
             SELECT
                 CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                @status AS status_code,
+                @status AS status,
                 @paused AS paused_until_utc,
-                @next AS next_run_at_utc,
+                @next AS next_occurrence_at_utc,
                 @version AS version;
             GOTO Finish;
         END;
@@ -76,9 +92,9 @@ BEGIN TRY
 
             SELECT
                 CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                @status AS status_code,
+                @status AS status,
                 @paused AS paused_until_utc,
-                @next AS next_run_at_utc,
+                @next AS next_occurrence_at_utc,
                 @version AS version;
             GOTO Finish;
         END;
@@ -86,52 +102,47 @@ BEGIN TRY
     SELECT
         @ns = j.namespace_id,
         @def = j.definition_id,
-        @lineage = j.lineage_root_id,
-        @audit = j.audit_level_code,
-        @job_ref = j.job_ref
+        @lineage = j.lineage_root_job_id,
+        @event_recording = j.event_recording_code
     FROM {{schema}}.jobs j
-    WHERE j.id = @p_job_id;
+    WHERE j.job_id = @p_job_id;
 
-    UPDATE {{schema}}.runtimes
+    UPDATE {{schema}}.jobs_state
     SET
         next_run_at_utc = @now,
-        status_code = 10 /* JobStatusCode.Ready */,
+        job_status_code = 10 /* JobStatusCode.Ready */,
         modified_at_utc = @now,
         version = version + 1
     WHERE
         job_id = @p_job_id
         AND (
-            status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
-            OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+            job_status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+            OR (job_status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
         );
 
-    IF @audit = 20 /* DefinitionAuditLevelCode.Audit */
+    IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor,
-                job_id, job_ref, execution_number,
-                lineage_root_id, definition_id,
-                from_status_code, to_status_code,
-                execution_status_code, duration_ms,
-                reason_code, reason_message
+                entity_code, entity_id,
+                definition_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
             )
             VALUES (
                 104 /* EventCode.ScheduleTriggered */, @now, @ns,
-                @p_actor_code, @p_actor,
-                @p_job_id, @job_ref, @en,
-                COALESCE(@lineage, @p_job_id), @def,
-                NULL, NULL,
-                NULL, NULL,
-                NULL, @p_reason_message
+                50 /* EntityCode.Job */, @p_job_id,
+                @def, COALESCE(@lineage, @p_job_id),
+                @en,
+                @p_event_message, @p_details_format_id, @p_details
             );
         END
 
     SELECT
         CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-        @status AS status_code,
+        @status AS status,
         @paused AS paused_until_utc,
-        @next AS next_run_at_utc,
+        @next AS next_occurrence_at_utc,
         @version AS version;
 
 Finish:

@@ -35,14 +35,14 @@ internal sealed class PauseScheduleHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, target.Schedule.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, target.Schedule.ScheduleName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.PausedUntilUtc, command.UntilUtc));
-                ScheduleControl.BindTail(cmd, dialect, jobNextRun, command.Actor, command.ReasonMessage);
+                ScheduleControl.BindTail(cmd, dialect, jobNextRun, target.Schedule.ScheduleName, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<PauseScheduleRow>(),
             ct
         );
         await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);
-        return new PauseScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextRunAtUtc, row.Version);
+        return new PauseScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 }

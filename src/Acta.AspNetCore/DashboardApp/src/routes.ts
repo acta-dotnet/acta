@@ -95,7 +95,8 @@ export const routes = {
     href(`jobs/${encodeURIComponent(jobRef)}`, { ns: ns(options.namespace) }),
   enqueue: (options: { namespace?: string | null; jobName?: string | null; from?: string | null } = {}) =>
     href('enqueue', { ns: ns(options.namespace), jobName: options.jobName, from: options.from }),
-  events: (options: { namespace?: string | null; tenantName?: string | null } = {}) => href('events', { ns: ns(options.namespace), tenantName: options.tenantName }),
+  events: (options: { namespace?: string | null; tenantName?: string | null; jobRef?: string | null } = {}) =>
+    href('events', { ns: ns(options.namespace), tenantName: options.tenantName, jobRef: options.jobRef }),
   workers: (options: { namespace?: string | null; status?: string | null } = {}) => href('workers', { ns: ns(options.namespace), status: options.status }),
   worker: (workerRef: string, options: { namespace?: string | null } = {}) =>
     href(`workers/${encodeURIComponent(workerRef)}`, { ns: ns(options.namespace) }),

@@ -29,11 +29,11 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal("go", slot.Name);
+        Assert.Equal("go", slot.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
         Assert.NotNull(slot.DueAtUtc);
 
-        // The deadline is written once, on the slot; the runtime row only caches it for the claim.
+        // The deadline is written once, on the slot; the jobs_state row only caches it for the claim.
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, job.Status);
         Assert.Equal(slot.DueAtUtc, job.NextRunAtUtc);
@@ -59,7 +59,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Set, slot.Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.WaitTimedOut, ct));
     }
 
     [Fact(DisplayName = "A presence-only signal before the deadline resumes the non-Try overload")]
@@ -77,7 +77,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
-    [Fact(DisplayName = "An expired non-Try wait cancels the job with job.wait-timed-out and no budget charge")]
+    [Fact(DisplayName = "An expired non-Try wait cancels the job with reason wait-timed-out and no budget charge")]
     public async Task Expired_non_try_wait_cancels_the_job_budget_neutrally()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -99,9 +99,11 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Cancelled, ct));
+        // The first attempt yielded to the wait, the replay yielded to the cancel its expiry decided.
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "suspended", ct));
+        Assert.Equal(1, await CountYieldedAsync(enqueued.JobId, "cancelled", ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
-        Assert.Equal(2, await CountReasonAsync(enqueued.JobId, EventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(2, await CountReasonAsync(enqueued.JobId, EventReason.WaitTimedOut, ct));
     }
 
     [Fact(DisplayName = "An expired Try wait resumes the handler exactly once with a TimedOut result")]
@@ -201,7 +203,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
             await Jobs.GetResultAsync<WaitTimeoutReport>(enqueued, ct)
         );
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
-        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.WaitTimedOut, ct));
     }
 
     [Fact(DisplayName = "A raise on an expired slot revives nothing and the replayed wait stays TimedOut")]
@@ -230,14 +232,14 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Suspended, after.Status);
         Assert.Null(after.NextRunAtUtc);
         Assert.Equal(parked.Version, after.Version);
-        var go = (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go");
+        var go = (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.CheckpointName == "go");
         Assert.Equal(CheckpointStatusCode.Expired, go.Status);
         Assert.Equal(0, go.ValueFormatId);
 
         // The raise changed nothing, but it happened: the timeline says so and says why, or an operator
         // is left with a verb that reported Applied and a job that never moved.
         var raised = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
-        Assert.Contains("already expired", raised.ReasonMessage ?? "", StringComparison.Ordinal);
+        Assert.Contains("already expired", raised.EventMessage ?? "", StringComparison.Ordinal);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
 
         // Releasing the second signal replays the handler over the expired slot: it still resolves
@@ -245,7 +247,10 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
+        Assert.Equal(
+            CheckpointStatusCode.Expired,
+            (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.CheckpointName == "go").Status
+        );
     }
 
     [Fact(DisplayName = "An unbounded wait replayed over an expired slot cancels the job instead of parking")]
@@ -274,9 +279,12 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Cancelled, job.Status);
         Assert.Equal(0, job.FailureCount);
         Assert.NotNull(job.RetentionUntilUtc);
-        Assert.Equal(EventReasonCode.JobWaitTimedOut, (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct)).ReasonCode);
+        Assert.Equal(
+            EventReason.WaitTimedOut,
+            EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct), "reason")
+        );
 
-        var go = (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go");
+        var go = (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.CheckpointName == "go");
         Assert.Equal(CheckpointStatusCode.Expired, go.Status);
         Assert.Equal(0, go.ValueFormatId);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobNoteRecorded, ct));
@@ -302,7 +310,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
         Assert.NotNull(armed);
         // The same attempt that armed the slot completes through the suspend branch, so the wake time
-        // is cached on the runtime row without needing a second tick.
+        // is cached on the jobs_state row without needing a second tick.
         var suspended = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, suspended.Status);
         Assert.Equal(armed, suspended.NextRunAtUtc);
@@ -379,23 +387,21 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    private async Task<int> CountReasonAsync(long jobId, EventReasonCode reason, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
-
     // Moves the wait past its deadline the way real time would: the slot's stored expiration and the
     // job's cached claim instant both go into the past, and nothing else is touched.
     private static async Task ExpireWaitAsync(IDbSession db, long jobId, string name, CancellationToken ct)
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_id AND kind_code = 20 AND name = @p_name",
+            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 20 AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", jobId),
             ("@p_name", name)
         );
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET next_run_at_utc = @p_next WHERE job_id = @p_id",
             ct,
             ("@p_next", past),
             ("@p_id", jobId)
@@ -404,7 +410,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
     private static Task ForceClaimableAsync(IDbSession db, long jobId, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Ready),
             ("@p_now", DateTime.UtcNow.AddMinutes(-1)),

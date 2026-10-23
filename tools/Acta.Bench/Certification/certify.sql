@@ -17,9 +17,10 @@
 -- Codes, from source rather than memory:
 --   JobStatusCode        Ready=10 Blocked=15 Suspended=20 Paused=30 Executing=50
 --                        Succeeded=100 Failed=200 Cancelled=220
---   ExecutionStatusCode  Executing=50 Succeeded=100 Rescheduled=150 Suspended=151 Paused=152
---                        Failed=200 Cancelled=220 Orphaned=230
---   EventCode         41=job.execution-finished 90=job.note-recorded 122=worker.died
+--   EventCode            40=job.execution-succeeded 41=job.execution-failed 42=job.execution-orphaned
+--                        43=job.execution-yielded 44=job.failed (40-44: one per ended attempt)
+--                        90=job.note-recorded 122=worker.died
+--   EntityCode           50=Job: a job event's subject is entity_id
 --
 -- TIMING - the evidence MUST stamp LeaseTtlSeconds, HeartbeatInterval and WorkerDeadAfter, because
 -- every property here is timing-dependent. A shorter lease manufactures more handler overlap than
@@ -40,18 +41,19 @@
 -- ---------------------------------------------------------------------------------------------
 -- 1. execution-event ownership consistency               [any time]
 -- ---------------------------------------------------------------------------------------------
--- No two workers ever finished the same attempt. `runtimes.execution_number` is incremented
--- atomically on each claim, and 41 carries it beside `worker_id`, which recovery fills with the worker
--- that held the lapsed lease, so a finish recorded under a second worker surfaces exactly, with no
--- clock reasoning at all. A finish with no worker stores `worker_id` 0 and names no second worker.
+-- No two workers ever finished the same attempt. `jobs_state.execution_number` is incremented
+-- atomically on each claim, and every attempt event (40-44) carries it beside `worker_id`, which
+-- recovery fills with the worker that held the lapsed lease, so a finish recorded under a second worker
+-- surfaces exactly, with no clock reasoning at all. A finish with no worker stores `worker_id` 0 and
+-- names no second worker.
 --
 -- This is NOT lease exclusivity. The claim writes no event, so it cannot see a second claim of an
 -- attempt that never finished, and it cannot detect two overlapping claims that carried different
 -- execution numbers. Report it by this name.
-SELECT 'exec-event-ownership' AS check_name, job_id, execution_number, COUNT(DISTINCT worker_id) AS workers
+SELECT 'exec-event-ownership' AS check_name, entity_id AS job_id, execution_number, COUNT(DISTINCT worker_id) AS workers
 FROM   {s}events
-WHERE  event_code = 41 AND execution_number IS NOT NULL AND worker_id <> 0
-GROUP  BY job_id, execution_number
+WHERE  entity_code = 50 AND event_code BETWEEN 40 AND 44 AND execution_number IS NOT NULL AND worker_id <> 0
+GROUP  BY entity_id, execution_number
 HAVING COUNT(DISTINCT worker_id) > 1;
 
 -- ---------------------------------------------------------------------------------------------
@@ -65,10 +67,10 @@ HAVING COUNT(DISTINCT worker_id) > 1;
 -- writes no event, so its attempt has no finish forever. Nothing was lost or repeated - the slot ran
 -- once - and the refusal is deliberate engine behaviour with a spec of its own. Unclosed attempts are
 -- covered where they actually matter by check 4, which asks whether any job was left mid-flight.
-SELECT 'attempt-pairing' AS check_name, job_id, execution_number, COUNT(*) AS finished
+SELECT 'attempt-pairing' AS check_name, entity_id AS job_id, execution_number, COUNT(*) AS finished
 FROM   {s}events
-WHERE  event_code = 41 AND execution_number IS NOT NULL
-GROUP  BY job_id, execution_number
+WHERE  entity_code = 50 AND event_code BETWEEN 40 AND 44 AND execution_number IS NOT NULL
+GROUP  BY entity_id, execution_number
 HAVING COUNT(*) > 1;
 
 -- ---------------------------------------------------------------------------------------------
@@ -77,10 +79,10 @@ HAVING COUNT(*) > 1;
 -- No execution event was ever recorded under a namespace other than the owning job's. A worker
 -- claiming work it does not own is the worst failure this model can have, and it is silent without
 -- an explicit check.
-SELECT 'namespace-isolation' AS check_name, e.job_id, e.namespace_id AS event_ns, j.namespace_id AS job_ns
+SELECT 'namespace-isolation' AS check_name, e.entity_id AS job_id, e.namespace_id AS event_ns, j.namespace_id AS job_ns
 FROM   {s}events e
-JOIN   {s}jobs j ON j.id = e.job_id
-WHERE  e.event_code = 41
+JOIN   {s}jobs j ON j.job_id = e.entity_id
+WHERE  e.entity_code = 50 AND e.event_code BETWEEN 40 AND 44
   AND  e.namespace_id <> j.namespace_id;
 
 -- ---------------------------------------------------------------------------------------------
@@ -96,12 +98,12 @@ WHERE  e.event_code = 41
 -- One exception: a system recurring job whose lease is still live. A trial's workers stop with the
 -- trial, and sys.alerts fires on every minute, so a check that follows a fire meets an attempt whose
 -- lease has not yet lapsed. A system job stuck behind a lapsed lease still fails the check.
-SELECT 'no-stranded-work' AS check_name, r.job_id, r.status_code, r.leased_by_worker_id
-FROM   {s}runtimes r
-JOIN   {s}jobs j ON j.id = r.job_id
-JOIN   {s}definitions d ON d.id = j.definition_id
-WHERE  r.status_code = 50
-  AND  NOT (d.name LIKE 'sys.%' AND r.lease_expires_at_utc > {now});
+SELECT 'no-stranded-work' AS check_name, r.job_id, r.job_status_code, r.leased_by_worker_id
+FROM   {s}jobs_state r
+JOIN   {s}jobs j ON j.job_id = r.job_id
+JOIN   {s}definitions d ON d.definition_id = j.definition_id
+WHERE  r.job_status_code = 50
+  AND  NOT (d.definition_name LIKE 'sys.%' AND r.lease_expires_at_utc > {now});
 
 -- ---------------------------------------------------------------------------------------------
 -- 5. expected outcome per job shape                      [retired]
@@ -115,9 +117,9 @@ WHERE  r.status_code = 50
 -- 6. terminal-state integrity                            [QUIESCED ONLY]
 -- ---------------------------------------------------------------------------------------------
 -- A job that reached a terminal status holds no execution lease.
-SELECT 'terminal-integrity' AS check_name, r.job_id, r.status_code, r.leased_by_worker_id
-FROM   {s}runtimes r
-WHERE  r.status_code IN (100, 200, 220)
+SELECT 'terminal-integrity' AS check_name, r.job_id, r.job_status_code, r.leased_by_worker_id
+FROM   {s}jobs_state r
+WHERE  r.job_status_code IN (100, 200, 220)
   AND  r.leased_by_worker_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------------------------
@@ -139,15 +141,15 @@ WHERE  r.status_code IN (100, 200, 220)
 -- A second note is NOT a violation by itself: at-least-once means a body interrupted before its
 -- outcome committed legitimately re-runs, and that re-run is an attempt the engine counted. The
 -- violation is a body that ran without the engine admitting it, which is exactly notes > attempts.
-SELECT 'step-replay' AS check_name, s.job_id, s.name AS step_name, s.attempt_number, n.notes
+SELECT 'step-replay' AS check_name, s.job_id, s.step_name, s.attempt_number, n.notes
 FROM   {s}steps s
-JOIN   (SELECT job_id, reason_message, COUNT(*) AS notes
+JOIN   (SELECT entity_id, event_message, COUNT(*) AS notes
         FROM   {s}events
-        WHERE  event_code = 90
-        GROUP BY job_id, reason_message) n
-  ON   n.job_id = s.job_id
- AND   n.reason_message = CONCAT('step-body ', s.name)   -- CONCAT: || is not SQL Server
-WHERE  s.status_code = 100
+        WHERE  entity_code = 50 AND event_code = 90
+        GROUP BY entity_id, event_message) n
+  ON   n.entity_id = s.job_id
+ AND   n.event_message = CONCAT('step-body ', s.step_name)   -- CONCAT: || is not SQL Server
+WHERE  s.step_status_code = 100
   AND  n.notes > s.attempt_number;
 
 -- ---------------------------------------------------------------------------------------------
@@ -157,25 +159,26 @@ WHERE  s.status_code = 100
 -- This is the guard against a green seal that means nothing, applied to the cases that kill a busy
 -- worker: a missing row leaves the trial INCONCLUSIVE, never PASS.
 --
--- Keys on ORPHANED ATTEMPTS, not on worker.died (122). Recovery reclaims a killed worker's in-flight
+-- Keys on ORPHANED ATTEMPTS (42), not on worker.died (122). Recovery reclaims a killed worker's in-flight
 -- work on lease expiry without necessarily marking the worker row dead, so orphaned attempts can
 -- accumulate while 122 stays at zero. Requiring 122 would fail a run whose chaos was demonstrably
--- real. It is reported as a number, never asserted.
+-- real. It is reported as a number, never asserted. A reclaim that spends the job's last attempt writes
+-- 44 instead, so the count is a floor.
 --
 -- Note what this implies about run length: JobsOptions.LeaseTtlSeconds defaults to 180 and the
 -- recovery pass runs once a lease, so a killed worker's job is not reclaimable for up to two leases.
 -- A workload that drains faster than that reports zero reclaims no matter how many workers were
 -- killed. Size a chaos run by duration against that floor, never by job count.
 SELECT 'chaos-was-real' AS check_name,
-       SUM(CASE WHEN event_code = 41 AND execution_status_code = 230 THEN 1 ELSE 0 END) AS orphaned_attempts,
+       SUM(CASE WHEN event_code = 42 THEN 1 ELSE 0 END) AS orphaned_attempts,
        SUM(CASE WHEN event_code = 122 THEN 1 ELSE 0 END) AS workers_marked_dead
 FROM   {s}events
-HAVING SUM(CASE WHEN event_code = 41 AND execution_status_code = 230 THEN 1 ELSE 0 END) > 0;
+HAVING SUM(CASE WHEN event_code = 42 THEN 1 ELSE 0 END) > 0;
 
 -- ---------------------------------------------------------------------------------------------
 -- 9. how far the recorded clock ran backwards            [MEASURED: always reports, never fails]
 -- ---------------------------------------------------------------------------------------------
--- `events.id` is assigned in insert order, so a higher id carrying an earlier `created_at_utc` means
+-- `events.event_id` is assigned in insert order, so a higher id carrying an earlier `created_at_utc` means
 -- the recorded time moved backwards between those two writes. Reported, never asserted, because two
 -- causes are indistinguishable from here and only one is a fault: a routine captures its clock at
 -- entry, so a write blocked on locks lands with a stale stamp and looks identical to a container
@@ -185,7 +188,7 @@ HAVING SUM(CASE WHEN event_code = 41 AND execution_status_code = 230 THEN 1 ELSE
 -- without it, a check failing on a bunched or reordered stamp has no named cause.
 SELECT 'clock-backsteps' AS check_name, COUNT(*) AS backwards_writes
 FROM   (SELECT created_at_utc,
-               LAG(created_at_utc) OVER (ORDER BY id) AS previous_created_at_utc
+               LAG(created_at_utc) OVER (ORDER BY event_id) AS previous_created_at_utc
         FROM   {s}events) ordered
 WHERE  ordered.created_at_utc < ordered.previous_created_at_utc
 HAVING COUNT(*) >= 0;
@@ -202,10 +205,10 @@ HAVING COUNT(*) >= 0;
 -- Zero notes is legal and common: the kill landed before the engine admitted the body. The violation
 -- is strictly more than one, which is a body that ran again under a contract that forbids it.
 SELECT 'at-most-once' AS check_name, n.job_id, n.bodies
-FROM   (SELECT job_id, COUNT(*) AS bodies
+FROM   (SELECT entity_id AS job_id, COUNT(*) AS bodies
         FROM   {s}events
-        WHERE  event_code = 90 AND reason_message = 'charge-body'
-        GROUP  BY job_id) n
+        WHERE  entity_code = 50 AND event_code = 90 AND event_message = 'charge-body'
+        GROUP  BY entity_id) n
 WHERE  n.bodies > 1;
 
 -- ---------------------------------------------------------------------------------------------
@@ -220,11 +223,11 @@ WHERE  n.bodies > 1;
 -- rows target a handler with no designed failure, so any other terminal state is a real finding.
 -- Relayed jobs are recognized by the deduplication key the producer mints (`outbox-{n}`); a trial
 -- that staged nothing passes vacuously.
-SELECT 'outbox-relayed-outcome' AS check_name, r.job_id, r.status_code
-FROM   {s}runtimes r
-JOIN   {s}jobs j ON j.id = r.job_id
+SELECT 'outbox-relayed-outcome' AS check_name, r.job_id, r.job_status_code
+FROM   {s}jobs_state r
+JOIN   {s}jobs j ON j.job_id = r.job_id
 WHERE  j.deduplication_key LIKE 'outbox-%'
-  AND  r.status_code <> 100;
+  AND  r.job_status_code <> 100;
 
 -- ---------------------------------------------------------------------------------------------
 -- 12. how many outbox rows the relay delivered           [MEASURED: always reports, never fails]
@@ -247,13 +250,13 @@ HAVING COUNT(*) >= 0;
 --
 -- Not a security claim. docs/guide.md states plainly that the tenant field is not a security
 -- or isolation boundary; this asserts that the value survives intact, not that it confines anything.
-SELECT 'tenant-context' AS check_name, e.job_id, e.reason_message AS observed, COALESCE(t.tenant_name, '-') AS job_tenant
+SELECT 'tenant-context' AS check_name, e.entity_id AS job_id, e.event_message AS observed, COALESCE(t.tenant_name, '-') AS job_tenant
 FROM   {s}events e
-JOIN   {s}jobs j ON j.id = e.job_id
-LEFT   JOIN {s}tenants t ON t.id = j.tenant_id
-WHERE  e.event_code = 90
-  AND  e.reason_message LIKE 'tenant %'
-  AND  e.reason_message <> CONCAT('tenant ', COALESCE(t.tenant_name, '-'));
+JOIN   {s}jobs j ON j.job_id = e.entity_id
+LEFT   JOIN {s}tenants t ON t.tenant_id = j.tenant_id
+WHERE  e.entity_code = 50 AND e.event_code = 90
+  AND  e.event_message LIKE 'tenant %'
+  AND  e.event_message <> CONCAT('tenant ', COALESCE(t.tenant_name, '-'));
 
 -- ---------------------------------------------------------------------------------------------
 -- 14. the rate meter never over-admitted                 [COMPUTED IN PROCESS: see LedgerValidation]
@@ -294,7 +297,7 @@ WHERE  e.event_code = 90
 -- earlier one finished for the last time, through kills, reclaims, and re-runs of the head. That is
 -- both halves of it at once: nothing overtakes, and no two members of a lane are ever in flight.
 --
--- No clock. `events.id` is assigned in insert order, and the settle that finishes a member promotes
+-- No clock. `events.event_id` is assigned in insert order, and the settle that finishes a member promotes
 -- the next in the same transaction, so everything the next member writes is inserted after that finish.
 -- The claim writes no event, so a member's start is its first note, which its first attempt writes on
 -- entering its body; a later member claimed early but silent until the earlier one finished escapes
@@ -304,16 +307,16 @@ WHERE  e.event_code = 90
 SELECT 'lane-order' AS check_name, p.lane_id, p.job_id AS earlier_job, p.next_job_id AS later_job
 FROM   (SELECT r.lane_id, r.job_id,
                LEAD(r.job_id) OVER (PARTITION BY r.lane_id ORDER BY r.job_id) AS next_job_id
-        FROM   {s}runtimes r
+        FROM   {s}jobs_state r
         WHERE  r.lane_id IS NOT NULL) p
-JOIN   (SELECT job_id, MIN(id) AS first_start
+JOIN   (SELECT entity_id, MIN(event_id) AS first_start
         FROM   {s}events
-        WHERE  event_code = 90
-        GROUP  BY job_id) s ON s.job_id = p.next_job_id
-LEFT   JOIN (SELECT job_id, MAX(id) AS last_finish
+        WHERE  entity_code = 50 AND event_code = 90
+        GROUP  BY entity_id) s ON s.entity_id = p.next_job_id
+LEFT   JOIN (SELECT entity_id, MAX(event_id) AS last_finish
              FROM   {s}events
-             WHERE  event_code = 41
-             GROUP  BY job_id) f ON f.job_id = p.job_id
+             WHERE  entity_code = 50 AND event_code BETWEEN 40 AND 44
+             GROUP  BY entity_id) f ON f.entity_id = p.job_id
 WHERE  f.last_finish IS NULL
    OR  s.first_start < f.last_finish;
 
@@ -323,10 +326,10 @@ WHERE  f.last_finish IS NULL
 -- No laned job is left behind once the trial is over: none Ready, Blocked, Suspended, or Paused.
 -- Check 4 covers only rows in flight, and a lane whose promotion was lost strands its members
 -- Blocked, which nothing in flight would show.
-SELECT 'lane-drained' AS check_name, r.job_id, r.lane_id, r.status_code
-FROM   {s}runtimes r
+SELECT 'lane-drained' AS check_name, r.job_id, r.lane_id, r.job_status_code
+FROM   {s}jobs_state r
 WHERE  r.lane_id IS NOT NULL
-  AND  r.status_code NOT IN (100, 200, 220);
+  AND  r.job_status_code NOT IN (100, 200, 220);
 
 -- ---------------------------------------------------------------------------------------------
 -- 17. where the chaos landed                             [MEASURED: always reports, never fails]
@@ -336,11 +339,10 @@ WHERE  r.lane_id IS NOT NULL
 -- laned jobs (checks 15-16). A zero means that shape's checks ran with no kill in flight and prove
 -- less than their names say.
 SELECT 'chaos-by-shape' AS check_name,
-       SUM(CASE WHEN d.name = 'at-most-once-charge' THEN 1 ELSE 0 END) AS charges_orphaned,
-       SUM(CASE WHEN d.name LIKE 'metered-%' THEN 1 ELSE 0 END) AS metered_orphaned,
-       SUM(CASE WHEN d.name = 'laned' THEN 1 ELSE 0 END) AS laned_orphaned
+       SUM(CASE WHEN d.definition_name = 'at-most-once-charge' THEN 1 ELSE 0 END) AS charges_orphaned,
+       SUM(CASE WHEN d.definition_name LIKE 'metered-%' THEN 1 ELSE 0 END) AS metered_orphaned,
+       SUM(CASE WHEN d.definition_name = 'laned' THEN 1 ELSE 0 END) AS laned_orphaned
 FROM   {s}events e
-JOIN   {s}jobs j ON j.id = e.job_id
-JOIN   {s}definitions d ON d.id = j.definition_id
-WHERE  e.event_code = 41 AND e.execution_status_code = 230
+JOIN   {s}definitions d ON d.definition_id = e.definition_id
+WHERE  e.event_code = 42
 HAVING COUNT(*) >= 0;

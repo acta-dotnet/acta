@@ -33,9 +33,9 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.DoesNotContain((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
 
         // The child lands Failed and the raise that should follow is lost, as a crash between the two would leave it.
-        var affected = await Db.From<RuntimeEntity>()
+        var affected = await Db.From<JobStateEntity>()
             .Where(r => r.Id == child)
-            .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Failed }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { Status = JobStatusCode.Failed }, ct);
         Assert.Equal(1, affected);
 
         var stale = Assert.Single((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
@@ -49,7 +49,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var (parent, child) = await ParentWaitingOnChildAsync(ct);
 
-        Assert.Equal(1, await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE id = @p_id", ct, ("@p_id", child)));
+        Assert.Equal(1, await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE job_id = @p_id", ct, ("@p_id", child)));
 
         var stale = Assert.Single((await Execution.GetStaleChildLatchesAsync(NamespaceId, ct)).Latches, l => l.ParentJobId == parent);
         Assert.Equal(new GetStaleChildLatchesItem(parent, child, null, null), stale);
@@ -72,9 +72,9 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
     {
         var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentJobId == parent.JobId).ToListAsync(ct));
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
-        Assert.Equal($"sys.child.{child.Id}", latch.Name);
+        Assert.Equal($"sys.child.{child.Id}", latch.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Pending, latch.Status);
         return (parent.JobId, child.Id);
     }

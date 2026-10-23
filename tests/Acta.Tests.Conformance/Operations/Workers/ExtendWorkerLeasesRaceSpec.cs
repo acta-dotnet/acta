@@ -9,7 +9,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
-/// A child's completion locks its own runtime row and then its parent's, while the lease renewal walks
+/// A child's completion locks its own jobs_state row and then its parent's, while the lease renewal walks
 /// the rows the worker holds in job-id order, parent first. When one worker runs both, the two meet
 /// in opposite orders. The renewal skips a row another transaction holds and reports it unrenewed, so
 /// it never waits. Deadlock retry is off, so a deadlock fails the test instead of being retried.
@@ -51,7 +51,8 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         var (_, childExecution, complete) = await StartedAsync(child, ct);
         var latch = $"sys.child.{child.JobId}";
         await Db.ExecuteRawAsync(
-            "INSERT INTO {schema}.checkpoints (job_id, kind_code, name, status_code) VALUES (@p_id, 50, @p_name, 10)",
+            "INSERT INTO {schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code)"
+                + " VALUES (@p_id, 50, @p_name, 10)",
             ct,
             ("@p_id", parent.JobId),
             ("@p_name", latch)
@@ -90,7 +91,8 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText =
-            $"UPDATE {Db.Schema}.checkpoints SET version = version + 1 WHERE job_id = @p_id AND kind_code = 50 AND name = @p_name";
+            $"UPDATE {Db.Schema}.checkpoints SET version = version + 1"
+            + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name";
         var id = cmd.CreateParameter();
         id.ParameterName = "@p_id";
         id.Value = jobId;

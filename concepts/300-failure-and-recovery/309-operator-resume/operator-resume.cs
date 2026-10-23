@@ -47,12 +47,12 @@ Console.WriteLine($"Job finished with status={status}");
 var rejectedResult = await jobs.PauseAsync(outcome, "too late");
 Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
 
-// Step 4: read the event timeline to confirm the pause and resume events with actor and reason.
+// Step 4: read the event timeline to confirm the pause and resume events with their message and details.
 var events = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId));
 foreach (var ev in events.Items)
 {
     if (ev.EventCode is EventCode.JobPaused or EventCode.JobResumed)
-        Console.WriteLine($"  event={ev.EventCode} actor={ev.ActorCode} reason={ev.ReasonCode} message={ev.ReasonMessage ?? "(none)"}");
+        Console.WriteLine($"  event={ev.EventCode} message={ev.Message ?? "(none)"} details={ev.DetailsText ?? "(none)"}");
 }
 
 await host.StopAsync();

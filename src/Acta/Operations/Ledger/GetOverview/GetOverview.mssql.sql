@@ -7,9 +7,9 @@ DECLARE @ns_id INT = NULL;
 
 IF @p_namespace_name IS NOT NULL
     BEGIN
-        SELECT @ns_id = id
+        SELECT @ns_id = namespace_id
         FROM {{schema}}.namespaces
-        WHERE name = @p_namespace_name;
+        WHERE namespace_name = @p_namespace_name;
     END;
 
 /* The two backlog counters below admit what claim_jobs claims. Ready keeps its gauge meaning and
@@ -20,38 +20,38 @@ IF @p_namespace_name IS NOT NULL
 SELECT
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.runtimes r
+        FROM {{schema}}.jobs_state r
         WHERE
-            -- ix_runtimes_claim_ready's filter restated whole, so both counters read the claim index.
-            r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            -- ix_jobs_state_claim_ready's filter restated whole, so both counters read the claim index.
+            r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND r.next_run_at_utc IS NOT NULL
-            AND (r.status_code = 10 /* JobStatusCode.Ready */ OR r.next_run_at_utc <= @due_now)
+            AND (r.job_status_code = 10 /* JobStatusCode.Ready */ OR r.next_run_at_utc <= @due_now)
             AND (@p_namespace_name IS NULL OR r.namespace_id = @ns_id)
     ) AS ready_count,
     (
         SELECT CAST(DATEDIFF(SECOND, MIN(r.next_run_at_utc), @now) AS BIGINT)
-        FROM {{schema}}.runtimes r
+        FROM {{schema}}.jobs_state r
         WHERE
-            r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND r.next_run_at_utc IS NOT NULL
             AND r.next_run_at_utc <= @due_now
             AND (@p_namespace_name IS NULL OR r.namespace_id = @ns_id)
     ) AS oldest_ready_age_seconds,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.runtimes r
+        FROM {{schema}}.jobs_state r
         WHERE
-            r.status_code = 50 /* JobStatusCode.Executing */
-            -- ix_runtimes_worker_inflight's filter restated (ck_runtimes_inflight_leased holds it for every Executing
-            -- row), so the count reads the in-flight rows instead of scanning runtimes.
+            r.job_status_code = 50 /* JobStatusCode.Executing */
+            -- ix_jobs_state_worker_inflight's filter restated (ck_jobs_state_inflight_leased holds it for every Executing
+            -- row), so the count reads the in-flight rows instead of scanning jobs_state.
             AND r.leased_by_worker_id IS NOT NULL
             AND (@p_namespace_name IS NULL OR r.namespace_id = @ns_id)
     ) AS executing_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.runtimes r
+        FROM {{schema}}.jobs_state r
         WHERE
-            r.status_code = 200 /* JobStatusCode.Failed */
+            r.job_status_code = 200 /* JobStatusCode.Failed */
             AND (@p_namespace_name IS NULL OR r.namespace_id = @ns_id)
     ) AS failed_count,
     (
@@ -66,48 +66,54 @@ SELECT
         FROM {{schema}}.alerts a
         WHERE
             a.resolved_at_utc IS NULL
-            AND a.severity_code = 40 /* AlertSeverityCode.Critical */
+            AND a.alert_severity_code = 40 /* AlertSeverityCode.Critical */
             AND (@p_namespace_name IS NULL OR a.namespace_id = @ns_id)
     ) AS unresolved_critical_alert_count,
     (
         SELECT COUNT_BIG(*)
         FROM {{schema}}.workers w
         WHERE
-            w.status_code = 200 /* WorkerStatusCode.Dead */
+            w.worker_status_code = 200 /* WorkerStatusCode.Dead */
             AND (@p_namespace_name IS NULL OR w.namespace_id = @ns_id)
     ) AS dead_worker_count,
     (
         SELECT COUNT_BIG(*)
         FROM {{schema}}.workers w
         WHERE
-            w.status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            w.worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
             AND w.last_seen_at_utc < DATEADD(SECOND, -@p_stale_after_seconds, @now)
             AND (@p_namespace_name IS NULL OR w.namespace_id = @ns_id)
     ) AS stale_worker_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.schedules s
+        FROM {{schema}}.schedules_state st
+        INNER JOIN {{schema}}.schedules s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
         WHERE
-            s.next_run_at_utc IS NOT NULL
-            AND s.status_code = 10 /* ScheduleStatusCode.Active */
-            AND s.next_run_at_utc <= DATEADD(SECOND, @p_due_soon_seconds, @now)
-            AND (@p_namespace_name IS NULL OR s.namespace_id = @ns_id)
+            st.next_occurrence_at_utc IS NOT NULL
+            AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+            AND st.next_occurrence_at_utc <= DATEADD(SECOND, @p_due_soon_seconds, @now)
+            AND (@p_namespace_name IS NULL OR st.namespace_id = @ns_id)
     ) AS due_soon_schedule_count,
     (
-        SELECT COALESCE(SUM(CAST(w.max_concurrency AS BIGINT)), 0)
+        SELECT COALESCE(SUM(CAST(w.max_concurrent_executors AS BIGINT)), 0)
         FROM {{schema}}.workers w
         WHERE
-            w.status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            w.worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
             AND w.last_seen_at_utc >= DATEADD(SECOND, -@p_stale_after_seconds, @now)
             AND (@p_namespace_name IS NULL OR w.namespace_id = @ns_id)
     ) AS executor_capacity,
     (
-        SELECT CAST(DATEDIFF(SECOND, MIN(s.next_run_at_utc), @now) AS BIGINT)
-        FROM {{schema}}.schedules s
+        SELECT CAST(DATEDIFF(SECOND, MIN(st.next_occurrence_at_utc), @now) AS BIGINT)
+        FROM {{schema}}.schedules_state st
+        INNER JOIN {{schema}}.schedules s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
         WHERE
-            s.next_run_at_utc IS NOT NULL
-            AND s.status_code = 10 /* ScheduleStatusCode.Active */
-            AND s.next_run_at_utc <= @due_now
-            AND (@p_namespace_name IS NULL OR s.namespace_id = @ns_id)
+            st.next_occurrence_at_utc IS NOT NULL
+            AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+            AND st.next_occurrence_at_utc <= @due_now
+            AND (@p_namespace_name IS NULL OR st.namespace_id = @ns_id)
     ) AS schedule_lag_seconds
 OPTION (RECOMPILE);

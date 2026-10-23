@@ -15,14 +15,15 @@
   import { routes } from '../routes.ts';
   import JobRef from '../components/JobRef.svelte';
 
-  // Kebab codes the backend's events filter accepts (EventCode / ActorCode / EventReasonCode), less each
-  // family's never-written 'unspecified'.
+  // Kebab codes the backend's events filter accepts (EventCode, and the EntityCode kinds an event can
+  // have as its subject), less the never-written 'unspecified'.
   // Hardcoded rather than fetched: the code families are compile-time enums with no list endpoint.
   const EVENT_CODES = [
     'tenant.suspended', 'tenant.resumed', 'tenant.updated',
     'namespace.suspended', 'namespace.resumed', 'namespace.updated',
     'definition.overrides-updated', 'definition.retired',
-    'job.execution-finished', 'job.recurring-rolled-over',
+    'job.execution-succeeded', 'job.execution-failed', 'job.execution-orphaned', 'job.execution-yielded', 'job.failed',
+    'job.recurring-rolled-over',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
     'job.signal-raised', 'job.state-reset', 'job.note-recorded',
@@ -31,20 +32,12 @@
     'alert.acknowledged', 'alert.resolved',
     'outbox.requeued', 'outbox.discarded'
   ];
-  const ACTOR_CODES = ['sys', 'operator', 'job', 'worker'];
-  const REASON_CODES = [
-    'job.unclassified', 'job.unhandled-exception', 'job.lease-expired', 'job.execution-timeout',
-    'job.non-retryable-exception', 'job.deadline-exceeded', 'job.attempt-aborted', 'job.schedules-exhausted',
-    'job.control-manual', 'job.parent-cancelled', 'job.definition-retired',
-    'job.handler-rescheduled', 'job.handler-suspended', 'job.handler-failed', 'job.handler-cancelled', 'job.handler-paused',
-    'job.signal-released', 'job.step-retry-scheduled', 'job.concurrency-key-held', 'job.step-interrupted',
-    'job.result-oversized', 'job.wait-timed-out', 'job.rate-limited', 'job.lane-repaired',
-    'worker.clean-shutdown', 'worker.heartbeat-stale'
-  ];
+  const ENTITY_KINDS = ['alert', 'definition', 'job', 'namespace', 'tenant', 'worker'];
 
+  // tenantName and jobRef arrive only by link (a tenant's or a job's page); the bar edits the rest.
   const filters = createUrlFilters(
-    { eventCode: 'eventCode', actorCode: 'actorCode', reasonCode: 'reasonCode', tenantName: 'tenantName', createdFrom: 'from', createdTo: 'to' },
-    { eventCode: '', actorCode: '', reasonCode: '', tenantName: '', createdFrom: '', createdTo: '' }
+    { eventCode: 'eventCode', entityKind: 'entityKind', tenantName: 'tenantName', jobRef: 'jobRef', createdFrom: 'from', createdTo: 'to' },
+    { eventCode: '', entityKind: '', tenantName: '', jobRef: '', createdFrom: '', createdTo: '' }
   );
 
   // The datetime-local inputs are read as UTC wall-clock (the dashboard's convention: operators enter
@@ -62,23 +55,23 @@
   let requestFilters = $derived({
     jobNamespace: $scope,
     eventCode: $filters.eventCode,
-    actorCode: $filters.actorCode,
-    reasonCode: $filters.reasonCode,
+    entityKind: $filters.entityKind,
     tenantName: $filters.tenantName,
+    jobRef: $filters.jobRef,
     createdFromUtc: toUtcIso($filters.createdFrom),
     createdToUtc: toUtcIso($filters.createdTo)
   });
 
   const capabilities = createQuery(() => capabilitiesQuery());
 
-  // tenantName is omitted from the copy SQL: events_view carries tenant_id only.
   let copySql = $derived(
     eventsListSql(
       {
         namespace: $scope,
         eventCode: $filters.eventCode,
-        actorCode: $filters.actorCode,
-        reasonCode: $filters.reasonCode,
+        entityKind: $filters.entityKind,
+        jobRef: $filters.jobRef,
+        tenantName: $filters.tenantName,
         createdFromUtc: toUtcIso($filters.createdFrom),
         createdToUtc: toUtcIso($filters.createdTo)
       },
@@ -91,8 +84,8 @@
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.eventCode ? { label: 'Event', value: $filters.eventCode, onRemove: () => filters.patch({ eventCode: '' }) } : null,
-      $filters.actorCode ? { label: 'Actor', value: $filters.actorCode, onRemove: () => filters.patch({ actorCode: '' }) } : null,
-      $filters.reasonCode ? { label: 'Reason', value: $filters.reasonCode, onRemove: () => filters.patch({ reasonCode: '' }) } : null,
+      $filters.entityKind ? { label: 'Subject', value: $filters.entityKind, onRemove: () => filters.patch({ entityKind: '' }) } : null,
+      $filters.jobRef ? { label: 'Job', value: $filters.jobRef, onRemove: () => filters.patch({ jobRef: '' }) } : null,
       $filters.tenantName ? { label: 'Tenant', value: $filters.tenantName, onRemove: () => filters.patch({ tenantName: '' }) } : null,
       $filters.createdFrom ? { label: 'From (UTC)', value: $filters.createdFrom.replace('T', ' '), onRemove: () => filters.patch({ createdFrom: '' }) } : null,
       $filters.createdTo ? { label: 'To (UTC)', value: $filters.createdTo.replace('T', ' '), onRemove: () => filters.patch({ createdTo: '' }) } : null
@@ -107,15 +100,12 @@
   const columns = [
     { key: 'createdAtUtc', header: 'Time' },
     { key: 'eventCode', header: 'Event' },
-    { key: 'job', header: 'Job', class: 'shrink' },
+    { key: 'subject', header: 'Subject', class: 'shrink' },
     { key: 'jobName', header: 'Name', dimRepeats: true },
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'executionNumber', header: 'Attempt', align: 'right' },
-    { key: 'actor', header: 'Actor' },
-    { key: 'fromStatus', header: 'From', dimRepeats: true },
-    { key: 'toStatus', header: 'To', dimRepeats: true },
-    { key: 'executionStatus', header: 'Outcome', dimRepeats: true },
-    { key: 'reason', header: 'Reason' }
+    { key: 'message', header: 'Message' },
+    { key: 'detailsText', header: 'Details', class: 'mono' }
   ];
 </script>
 
@@ -131,17 +121,10 @@
         </select>
       </label>
       <label>
-        Actor
-        <select value={$filters.actorCode} onchange={(event) => filters.patch({ actorCode: event.currentTarget.value })}>
+        Subject
+        <select value={$filters.entityKind} onchange={(event) => filters.patch({ entityKind: event.currentTarget.value })}>
           <option value="">Any</option>
-          {#each ACTOR_CODES as code}<option value={code}>{code}</option>{/each}
-        </select>
-      </label>
-      <label>
-        Reason
-        <select value={$filters.reasonCode} onchange={(event) => filters.patch({ reasonCode: event.currentTarget.value })}>
-          <option value="">Any</option>
-          {#each REASON_CODES as code}<option value={code}>{code}</option>{/each}
+          {#each ENTITY_KINDS as kind}<option value={kind}>{kind}</option>{/each}
         </select>
       </label>
       <label>
@@ -171,25 +154,23 @@
     {#snippet timeCell(evt)}
       <TimeCell value={evt.createdAtUtc} />
     {/snippet}
-    {#snippet jobCell(evt)}
-      {#if evt.jobRef}
+    <!-- The subject links where the row carries its ref; otherwise its kind and numeric id name it. -->
+    {#snippet subjectCell(evt)}
+      {#if evt.entityKind === 'job' && evt.jobRef}
         <JobRef value={evt.jobRef} href={routes.job(evt.jobRef, { namespace: evt.jobNamespace })} copy />
+      {:else if evt.entityKind === 'worker' && evt.workerRef}
+        <JobRef value={evt.workerRef} href={routes.worker(evt.workerRef, { namespace: evt.jobNamespace })} />
       {:else}
-        <span class="dim">·</span>
+        <span class="dim">{evt.entityKind} #{displayFormatter.number(evt.entityId)}</span>
       {/if}
     {/snippet}
     {#snippet nameCell(evt)}
       {#if evt.jobName}<a href={routes.jobs({ jobName: evt.jobName, namespace: evt.jobNamespace })}>{evt.jobName}</a>{:else}<span class="dim">·</span>{/if}
     {/snippet}
-    {#snippet actorCell(evt)}
-      {@const who = evt.actor ?? (evt.actorCode === 'worker' ? evt.workerRef : null)}
-      {evt.actorCode}{#if who}<span class="dim"> · {who}</span>{/if}
-    {/snippet}
     {#snippet attemptCell(evt)}{evt.executionNumber == null ? '·' : displayFormatter.number(evt.executionNumber)}{/snippet}
-    {#snippet reasonCell(evt)}{evt.reasonMessage ?? evt.reasonCode ?? evt.detailText ?? '·'}{/snippet}
 
     <ActaGrid
-      rowKey={(event) => event.jobEventId}
+      rowKey={(event) => event.eventId}
       bind:this={grid}
       endpoint="events"
       mode="feed"
@@ -200,7 +181,7 @@
       emptyText={activeChips.length > 0
         ? 'No events match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
         : 'No events retained for this scope.'}
-      cells={{ createdAtUtc: timeCell, job: jobCell, jobName: nameCell, executionNumber: attemptCell, actor: actorCell, reason: reasonCell }} />
+      cells={{ createdAtUtc: timeCell, subject: subjectCell, jobName: nameCell, executionNumber: attemptCell }} />
   </div>
 </Page>
 

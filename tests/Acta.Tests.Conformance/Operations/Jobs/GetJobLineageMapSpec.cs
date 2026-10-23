@@ -43,7 +43,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(data);
         Assert.Equal(mid, data!.Focus.JobId);
         Assert.Equal(root, data.Focus.ParentJobId);
-        Assert.Equal(root, data.Focus.LineageRootId);
+        Assert.Equal(root, data.Focus.LineageRootJobId);
         Assert.Single(data.Ancestors);
         Assert.Equal(root, data.Ancestors[0].JobId);
         Assert.Null(data.Ancestors[0].ParentJobId);

@@ -7,14 +7,14 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 
 /// <summary>
 /// Conformance for the applied-command evidence event: written against the sys.outbox slot job with
-/// the operator actor, always emitted regardless of the job's audit level, because it is the only
+/// the operator actor, always emitted regardless of the job's event recording, because it is the only
 /// trail for actions whose subject rows live (or lived) in the producer's database.
 /// </summary>
 [ConformanceSpec(
     "outbox-signal.evidence",
     "An applied operator command leaves an always-emitted evidence event",
     Area = "Outbox",
-    Contract = "RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job's audit level records nothing else."
+    Contract = "RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job records no other events."
 )]
 public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -23,18 +23,18 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         var store = Services.GetRequiredService<OutboxOperations>();
-        // SeedJobAsync writes AuditLevel Off - exactly the case that proves the event has no audit gate.
+        // SeedJobAsync writes event recording Off - exactly the case that proves the event has no recording gate.
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
-        await Db.From<RuntimeEntity>()
+        await Db.From<JobStateEntity>()
             .InsertAsync<long>(
-                new RuntimeEntity
+                new JobStateEntity
                 {
                     Id = jobId,
                     NamespaceId = TestNamespaceId,
                     Status = JobStatusCode.Ready,
                     Priority = JobPriorityCode.Critical,
                     // Ready carries its due instant the way register_schedules writes the real
-                    // slot row; ck_runtimes_ready_due rejects the pair otherwise.
+                    // slot row; ck_jobs_state_ready_due rejects the pair otherwise.
                     NextRunAtUtc = DateTime.UtcNow,
                     ExecutionNumber = 1,
                 },
@@ -46,12 +46,11 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
             ct
         );
 
-        var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct);
         var evidence = Assert.Single(events);
         Assert.Equal(EventCode.OutboxDiscarded, evidence.EventCode);
-        Assert.Equal(ActorCode.Operator, evidence.ActorCode);
-        Assert.Equal("marko", evidence.Actor);
-        Assert.Equal("poison batch - 2 row(s): [a, b]", evidence.ReasonMessage);
+        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Equal("poison batch - 2 row(s): [a, b]", evidence.EventMessage);
         Assert.Equal(1, evidence.ExecutionNumber);
     }
 }

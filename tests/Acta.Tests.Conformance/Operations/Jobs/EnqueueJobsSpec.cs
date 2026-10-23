@@ -67,17 +67,19 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(JobStatusCode.Ready, jobRow.Status);
         Assert.Equal(namespaceId, jobRow.NamespaceId);
         Assert.Equal(deduplicationKey, jobRow.DeduplicationKey);
-        Assert.Null(jobRow.LineageRootId);
+        Assert.Null(jobRow.LineageRootJobId);
 
         // Enqueue does not write events - the Job row's own creation columns are the
         // enqueue record. events rows appear only for state transitions (claim/start/finish/...).
-        var enqueueEventCount = await Db.From<EventEntity>().Where(e => e.JobId == outcome.JobId).CountAsync(ct);
+        var enqueueEventCount = await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == outcome.JobId)
+            .CountAsync(ct);
         Assert.Equal(0, enqueueEventCount);
 
-        var tagRows = await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == outcome.JobId).ToListAsync(ct);
+        var tagRows = await Db.From<TagEntity>().Where(t => t.EntityCode == EntityCode.Job && t.EntityId == outcome.JobId).ToListAsync(ct);
         Assert.Equal(2, tagRows.Count);
-        Assert.Contains(tagRows, t => t.Name == "env" && t.Value == "EU-West" && t.ValueSearch == "EU-WEST");
-        Assert.Contains(tagRows, t => t.Name == "feature" && t.Value == "batch-enqueue");
+        Assert.Contains(tagRows, t => t.TagName == "env" && t.TagValue == "EU-West" && t.TagValueSearch == "EU-WEST");
+        Assert.Contains(tagRows, t => t.TagName == "feature" && t.TagValue == "batch-enqueue");
     }
 
     [Fact(DisplayName = "A 1000-row batch lands 1000 Ready jobs with positionally-aligned outcomes and unique JobIds")]
@@ -117,10 +119,11 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var jobCount = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == null).CountAsync(ct);
         Assert.Equal(batchSize, jobCount);
 
-        // No events rows on enqueue (see class-level summary). Filter to job-scoped events
-        // (job_id IS NOT NULL) so the worker.registered / job.definition.registered events that
-        // InitializeAsync emits at namespace scope don't pollute the count.
-        var eventCount = await Db.From<EventEntity>().Where(e => e.NamespaceId == namespaceId && e.JobId != null).CountAsync(ct);
+        // No events rows on enqueue (see class-level summary). Filter to job-subject events so the
+        // worker and definition events that InitializeAsync emits don't pollute the count.
+        var eventCount = await Db.From<EventEntity>()
+            .Where(e => e.NamespaceId == namespaceId && e.EntityCode == EntityCode.Job)
+            .CountAsync(ct);
         Assert.Equal(0, eventCount);
     }
 

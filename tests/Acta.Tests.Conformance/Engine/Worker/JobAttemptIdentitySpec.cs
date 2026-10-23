@@ -45,7 +45,7 @@ public sealed class JobAttemptIdentitySpec : ActaRuntimeTestBase<ConformanceFixt
         // for that same attempt. Comparing them pairwise is the assertion - two matching numbers read
         // from one source would prove nothing.
         var identities = notes
-            .Items.Select(e => (Stamped: e.ExecutionNumber, Read: Read(e.DetailText!)))
+            .Items.Select(e => (Stamped: e.ExecutionNumber, Read: Read(e.DetailsText!)))
             .OrderBy(pair => pair.Stamped)
             .ToList();
 

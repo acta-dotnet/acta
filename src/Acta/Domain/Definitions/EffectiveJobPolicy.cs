@@ -17,7 +17,7 @@ internal sealed record EffectiveJobPolicy(
     int DeadlineSeconds,
     DeadlineBehaviorCode DeadlineBehavior,
     int JobRetentionSeconds,
-    DefinitionAuditLevelCode AuditLevel,
+    EventRecordingCode EventRecording,
     AlertProfileCode AlertProfile,
     string? AlertChannelName,
     string? RunbookUrl

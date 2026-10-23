@@ -67,7 +67,7 @@ public class JobLineageMapperTests
             Status: JobStatusCode.Suspended,
             ParentJobId: null,
             ParentJobRef: null,
-            LineageRootId: null,
+            LineageRootJobId: null,
             LineageRootJobRef: null,
             CreatedAtUtc: Now,
             ModifiedAtUtc: Now

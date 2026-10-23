@@ -12,7 +12,7 @@ internal sealed class GetJobHandler(GetJobIdHandler getJobId, IDbSession session
         var read = DbProjectionResolver.Resolve<GetJobResponse>();
         return await session.QuerySingleAsync(
             "GetJob",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
             reader =>
             {
                 var job = read(reader);

@@ -1,5 +1,5 @@
 // Field order mirrors the server-side GetJobResponse record, which in turn mirrors the jobs entity and
-// then its runtimes row: identity, scope/routing, caller keys, input format, runtime state, audit.
+// then its jobs_state row: identity, scope/routing, caller keys, input format, runtime state, audit.
 export interface JobDetail {
   jobRef: string;
   jobNamespace: string;
@@ -27,26 +27,17 @@ export interface JobDetail {
   version: number;
 }
 
-export interface JobEvent {
-  jobEventId: number;
-  eventCode: string;
-  createdAtUtc: string;
-  jobNamespace: string;
-  jobRef: string | null;
-  workerRef: string | null;
-  executionNumber: number | null;
-  fromStatus: string | null;
-  toStatus: string | null;
-  executionStatus: string | null;
-  durationMs: number | null;
-  reasonCode: string | null;
-  reasonMessage: string | null;
-}
-
 export interface JobWait {
   kind: string;
   name: string;
   dueAtUtc: string | null;
+}
+
+// One step slot; status is the kebab StepStatusCode.
+export interface JobStep {
+  name: string;
+  status: string;
+  explanation: string;
 }
 
 export interface JobExplanation {
@@ -63,7 +54,7 @@ export interface JobExplanation {
     recoveryExpectation: string;
   } | null;
   lastExecutedBy: string | null;
-  steps: { name: string; state: string; explanation: string }[];
+  steps: JobStep[];
   reason: string | null;
   nextActions: { kind: string; description: string }[];
 }
@@ -79,7 +70,7 @@ export interface JobLineageNode {
 export interface JobLineage {
   ancestors: JobLineageNode[];
   job: JobLineageNode;
-  steps: { name: string; state: string; explanation: string }[];
+  steps: JobStep[];
   activeWait: JobWait | null;
   children: JobLineageNode[];
   childrenHasMore: boolean;
@@ -89,13 +80,13 @@ export interface JobWorker {
   workerRef: string;
   jobNamespace: string;
   status: string;
-  host: string;
+  hostName: string;
   deploymentVersion: string;
   engineVersion: string | null;
   dotnetVersion: string | null;
   processId: number | null;
-  maxConcurrency: number;
+  maxConcurrentExecutors: number;
   lastSeenAtUtc: string;
-  createdAtUtc: string;
+  startedAtUtc: string;
   modifiedAtUtc: string;
 }

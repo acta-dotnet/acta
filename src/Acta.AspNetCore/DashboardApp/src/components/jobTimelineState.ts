@@ -1,22 +1,20 @@
+import { eventFacts } from '../lib/eventFacts.ts';
+
 export type TimelineCategory = 'all' | 'failure' | 'control' | 'signal' | 'schedule';
 
 interface TimelineEvent {
   eventCode?: string | null;
   executionNumber?: number | null;
-  executionStatus?: string | null;
-  toStatus?: string | null;
+  detailsText?: string | null;
 }
+
+// The failed-attempt codes: a failure that runs again, a reclaimed orphan, and the job's final failure.
+const FAILURE_CODES: ReadonlySet<string> = new Set(['job.execution-failed', 'job.execution-orphaned', 'job.failed']);
 
 export function matchesTimelineCategory(evt: TimelineEvent, category: TimelineCategory): boolean {
   const code = String(evt.eventCode ?? '').toLowerCase();
   if (category === 'all') return true;
-  if (category === 'failure') {
-    return (
-      String(evt.executionStatus).toLowerCase() === 'failed' ||
-      String(evt.toStatus).toLowerCase() === 'failed' ||
-      code === 'job.cancelled'
-    );
-  }
+  if (category === 'failure') return FAILURE_CODES.has(code) || code === 'job.cancelled';
   if (category === 'control') {
     return /job\.(paused|resumed|restarted|cancelled|rescheduled|reprioritized|purged)/.test(code);
   }
@@ -36,18 +34,24 @@ export interface TimelinePresentation {
 /** Rail node presentation for an event: icon, tone, and a plain-verb title. The exact eventCode stays visible as a sub-line. */
 export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
   const code = String(evt.eventCode ?? '').toLowerCase();
-  const outcome = String(evt.executionStatus ?? evt.toStatus ?? '').toLowerCase();
   switch (code) {
-    case 'job.execution-finished':
-      // outcome carries the ExecutionStatusCode name: succeeded/failed/rescheduled/suspended/paused/cancelled/orphaned.
-      if (outcome === 'succeeded') return { icon: 'check', tone: 'ok', title: 'Completed' };
-      if (outcome === 'failed') return { icon: 'x', tone: 'bad', title: 'Execution failed' };
-      if (outcome === 'rescheduled') return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Attempt rescheduled' };
-      if (outcome === 'suspended') return { icon: 'clock', tone: 'held', title: 'Sleeping' };
-      if (outcome === 'paused') return { icon: 'pause', tone: 'warn', title: 'Paused' };
-      if (outcome === 'cancelled') return { icon: 'x', tone: 'bad', title: 'Cancelled' };
-      if (outcome === 'orphaned') return { icon: 'warn', tone: 'warn', title: 'Orphaned' };
-      return { icon: 'minus-circle', tone: 'neutral', title: 'Execution finished' };
+    case 'job.execution-succeeded':
+      return { icon: 'check', tone: 'ok', title: 'Completed' };
+    case 'job.execution-failed':
+      return { icon: 'x', tone: 'bad', title: 'Execution failed' };
+    case 'job.execution-orphaned':
+      return { icon: 'warn', tone: 'warn', title: 'Orphaned' };
+    case 'job.execution-yielded':
+      // details.outcome names how the attempt yielded.
+      switch (eventFacts(evt.detailsText).outcome) {
+        case 'rescheduled': return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Attempt rescheduled' };
+        case 'suspended': return { icon: 'clock', tone: 'held', title: 'Sleeping' };
+        case 'paused': return { icon: 'pause', tone: 'warn', title: 'Paused' };
+        case 'cancelled': return { icon: 'x', tone: 'bad', title: 'Cancelled' };
+        default: return { icon: 'minus-circle', tone: 'neutral', title: 'Attempt yielded' };
+      }
+    case 'job.failed':
+      return { icon: 'x-circle', tone: 'bad', title: 'Job failed' };
     case 'job.rescheduled':
       return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Rescheduled' };
     case 'job.recurring-rolled-over':
@@ -107,10 +111,6 @@ export function timelineAttemptNumbers(events: TimelineEvent[]): number[] {
 
 export function failedTimelineAttempts(events: TimelineEvent[]): number[] {
   return timelineAttemptNumbers(events).filter((attempt) =>
-    events.some(
-      (evt) =>
-        (evt.executionNumber ?? 0) === attempt &&
-        (String(evt.executionStatus).toLowerCase() === 'failed' || String(evt.toStatus).toLowerCase() === 'failed')
-    )
+    events.some((evt) => (evt.executionNumber ?? 0) === attempt && FAILURE_CODES.has(String(evt.eventCode ?? '').toLowerCase()))
   );
 }

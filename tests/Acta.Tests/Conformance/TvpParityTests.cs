@@ -25,19 +25,19 @@ public sealed partial class TvpParityTests
 
     /// <summary>
     /// The key of every TVP, pinned. A TVP is bound positionally and its key decides which rows the
-    /// receiving routine treats as distinct: keying <c>enqueue_jobs_batch</c> on anything a caller can
+    /// receiving routine treats as distinct: keying <c>enqueue_jobs</c> on anything a caller can
     /// repeat within one batch makes the whole batch fail on a duplicate. That is the defect this
     /// pinning exists to catch, and it is why the current baseline is keyed on <c>ordinal</c> - a
     /// position the caller cannot collide - rather than on any caller-supplied value.
     /// </summary>
     private static readonly Dictionary<string, string> ExpectedKeys = new(StringComparer.Ordinal)
     {
-        ["enqueue_jobs_batch"] = "ordinal",
-        ["enqueue_tags_batch"] = "ordinal, name",
-        ["complete_executions_batch"] = "job_id, execution_number",
-        ["register_definitions_batch"] = "name",
-        ["register_slots_batch"] = "definition_id",
-        ["register_schedules_batch"] = "definition_id, name",
+        ["enqueue_jobs"] = "ordinal",
+        ["enqueue_tags"] = "ordinal, tag_name",
+        ["complete_executions"] = "job_id, execution_number",
+        ["register_definitions"] = "definition_name",
+        ["register_slots"] = "definition_id",
+        ["register_schedules"] = "definition_id, schedule_name",
     };
 
     [Fact]
@@ -68,12 +68,12 @@ public sealed partial class TvpParityTests
     /// <summary>The runtime record shape the dialect binds for each TVP the baseline declares.</summary>
     private static readonly Dictionary<string, SqlMetaData[]> TvpShapes = new(StringComparer.Ordinal)
     {
-        ["enqueue_jobs_batch"] = SqlServerTableParameters.BatchColumns,
-        ["enqueue_tags_batch"] = SqlServerTableParameters.TagColumns,
-        ["complete_executions_batch"] = SqlServerTableParameters.CompleteExecutionsColumns,
-        ["register_definitions_batch"] = SqlServerTableParameters.DefinitionColumns,
-        ["register_slots_batch"] = SqlServerTableParameters.SlotColumns,
-        ["register_schedules_batch"] = SqlServerTableParameters.ScheduleUpsertColumns,
+        ["enqueue_jobs"] = SqlServerTableParameters.BatchColumns,
+        ["enqueue_tags"] = SqlServerTableParameters.TagColumns,
+        ["complete_executions"] = SqlServerTableParameters.CompleteExecutionsColumns,
+        ["register_definitions"] = SqlServerTableParameters.DefinitionColumns,
+        ["register_slots"] = SqlServerTableParameters.SlotColumns,
+        ["register_schedules"] = SqlServerTableParameters.ScheduleUpsertColumns,
     };
 
     [Fact]

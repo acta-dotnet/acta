@@ -60,7 +60,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -108,11 +108,10 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleRow> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
-        return Assert.Single(rows);
+        return Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == scheduleName);
     }
 
     private async Task<TestJobRow> SlotAsync(string jobName, CancellationToken ct)
@@ -132,7 +131,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -163,7 +162,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
 
         var seeded = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(description, seeded.Description);
-        Assert.Null(seeded.ReasonMessage);
+        Assert.Null(seeded.ChangeMessage);
 
         await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "operator drain", ct: ct);
 
@@ -173,6 +172,6 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
 
         var resynced = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(description, resynced.Description); // description keeps tracking the attribute
-        Assert.Equal("operator drain", resynced.ReasonMessage); // the operator note survives the re-sync
+        Assert.Equal("operator drain", resynced.ChangeMessage); // the operator note survives the re-sync
     }
 }

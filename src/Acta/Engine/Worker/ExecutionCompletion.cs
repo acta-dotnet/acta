@@ -3,7 +3,8 @@ namespace Acta;
 /// <summary>How one execution ended, as the admission gates, the handler, or the executor leave it for the finalizer.</summary>
 internal sealed record ExecutionCompletion(CompletionKind Outcome)
 {
-    public EventReasonCode? Reason { get; init; }
+    /// <summary>Why the attempt ended as it did, from the <see cref="EventReason"/> vocabulary; null when nothing needs saying.</summary>
+    public string? Reason { get; init; }
 
     public string? ReasonMessage { get; init; }
 
@@ -22,11 +23,11 @@ internal sealed record ExecutionCompletion(CompletionKind Outcome)
     public int DurationMs { get; init; }
 
     /// <summary>A deliberate terminal or hold: the target status overrides the outcome's, and the budget stays untouched.</summary>
-    public static ExecutionCompletion Terminal(CompletionKind outcome, EventReasonCode reason, string? message, JobStatusCode status) =>
+    public static ExecutionCompletion Terminal(CompletionKind outcome, string reason, string? message, JobStatusCode status) =>
         new(outcome)
         {
             Reason = reason,
-            ReasonMessage = message.Truncate(ActaTextLimits.ReasonMessage),
+            ReasonMessage = message.Truncate(ActaTextLimits.EventMessage),
             HandlerStatusCode = status,
         };
 }

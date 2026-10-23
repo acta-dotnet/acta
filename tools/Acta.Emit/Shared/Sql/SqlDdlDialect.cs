@@ -52,6 +52,9 @@ internal abstract class SqlDdlDialect
     /// <summary>The CREATE INDEX keywords, including <c>IF NOT EXISTS</c> where the dialect supports it.</summary>
     public abstract string CreateIndexClause(bool unique);
 
+    /// <summary>Whether CREATE INDEX takes an <c>INCLUDE</c> list; SQLite has none and indexes the key columns alone.</summary>
+    public virtual bool SupportsIncludedColumns => true;
+
     /// <summary>
     /// The <c>index-name ON table</c> fragment of a CREATE INDEX. SQL Server / PostgreSQL qualify the
     /// table (<c>idx ON schema.table</c>); SQLite qualifies the index name instead and leaves the

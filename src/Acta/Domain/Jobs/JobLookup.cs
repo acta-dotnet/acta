@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Lookup key for the read surface of <see cref="IJobs"/>. Carries the public <see cref="JobRef"/>,
 /// a <c>(JobNamespace, DeduplicationKey)</c> pair that resolves to the root <c>job</c> row (root only,
-/// parent_id IS NULL), or the database-local numeric <see cref="JobId"/>. Construct via
+/// parent_job_id IS NULL), or the database-local numeric <see cref="JobId"/>. Construct via
 /// <see cref="ByRef"/>, <see cref="ByDeduplicationKey"/>, or <see cref="ById"/>; implicit conversions
 /// exist for <see cref="JobRef"/> and <see cref="EnqueueJobResponse"/>.
 /// </summary>
@@ -46,7 +46,7 @@ public readonly record struct JobLookup
 
     /// <summary>
     /// Build a lookup by caller-supplied <paramref name="deduplicationKey"/> within
-    /// <paramref name="jobNamespace"/>. Matches the root Job row only (parent_id IS NULL).
+    /// <paramref name="jobNamespace"/>. Matches the root Job row only (parent_job_id IS NULL).
     /// </summary>
     public static JobLookup ByDeduplicationKey(string jobNamespace, string deduplicationKey)
     {

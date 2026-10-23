@@ -330,3 +330,8 @@ export function statusIcon(status: string): string {
 }
 
 export const TERMINAL_STATUSES = ['succeeded', 'failed', 'cancelled'];
+
+// A job's failure count saturates at 32767, so a count at the ceiling says "at least", not how many.
+export function failureCountText(count: number): string {
+  return count >= 32767 ? '32,767+' : formatNumber(count);
+}

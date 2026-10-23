@@ -8,13 +8,13 @@ namespace Acta.Tests.Conformance.Postgres.Features.Execution;
 
 /// <summary>
 /// The plans reclaim_stuck_jobs runs, captured by auto_explain from inside the routine: every read of the stuck
-/// in-flight rows goes through ix_runtimes_worker_inflight, never a scan of runtimes. A partial index serves only a
+/// in-flight rows goes through ix_jobs_state_worker_inflight, never a scan of jobs_state. A partial index serves only a
 /// query that states its filter, so the reads restate it; sequential scans are disabled for the capture, which
 /// makes the planner take the index whenever the query can use it, however small the shared table is.
 /// </summary>
 public sealed class PgReclaimPlanTests : ClaimSkewTestBase
 {
-    [Fact(DisplayName = "reclaim_stuck_jobs reads the stuck in-flight rows through ix_runtimes_worker_inflight")]
+    [Fact(DisplayName = "reclaim_stuck_jobs reads the stuck in-flight rows through ix_jobs_state_worker_inflight")]
     public async Task Reclaim_reads_in_flight_rows_through_the_in_flight_index()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -59,8 +59,8 @@ public sealed class PgReclaimPlanTests : ClaimSkewTestBase
             read =>
             {
                 var nodes = Nodes(read.GetProperty("Plan")).ToList();
-                Assert.Contains(nodes, n => Text(n, "Index Name") == "ix_runtimes_worker_inflight");
-                Assert.DoesNotContain(nodes, n => Text(n, "Node Type") == "Seq Scan" && Text(n, "Relation Name") == "runtimes");
+                Assert.Contains(nodes, n => Text(n, "Index Name") == "ix_jobs_state_worker_inflight");
+                Assert.DoesNotContain(nodes, n => Text(n, "Node Type") == "Seq Scan" && Text(n, "Relation Name") == "jobs_state");
             }
         );
     }

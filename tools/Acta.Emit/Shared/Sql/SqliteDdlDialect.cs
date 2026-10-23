@@ -31,6 +31,8 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
 
     public override string CreateIndexClause(bool unique) => unique ? "CREATE UNIQUE INDEX IF NOT EXISTS" : "CREATE INDEX IF NOT EXISTS";
 
+    public override bool SupportsIncludedColumns => false;
+
     // SQLite puts the schema qualifier on the index name; the table is referenced bare (same schema).
     public override string IndexNameAndTable(string indexName, string tableName) => $"{SchemaPlaceholder}.{indexName} ON {tableName}";
 
@@ -69,8 +71,8 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
 
     public override string? PostTableSeed(string tableName) =>
         tableName == "namespaces"
-            ? "-- Seed: reserved system namespace (id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
-                + $"INSERT OR IGNORE INTO {SchemaPlaceholder}.namespaces (id, name, status_code, description, created_at_utc, modified_at_utc)\n"
+            ? "-- Seed: reserved system namespace (namespace_id=1, 'sys') for cross-namespace audit events. Collation-neutral.\n"
+                + $"INSERT OR IGNORE INTO {SchemaPlaceholder}.namespaces (namespace_id, namespace_name, namespace_status_code, description, created_at_utc, modified_at_utc)\n"
                 + $"VALUES (1, 'sys', {(byte)NamespaceStatusCode.Active}, 'Reserved system namespace for cross-namespace audit events.', {NowExpression}, {NowExpression});"
             : null;
 

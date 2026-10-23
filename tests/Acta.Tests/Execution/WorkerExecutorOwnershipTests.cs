@@ -22,13 +22,14 @@ public sealed class WorkerExecutorOwnershipTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(CompletionKind.Failed, completion.Outcome);
-        Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
-        Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
+        Assert.Equal(EventReason.AttemptAborted, completion.Reason);
+        Assert.Contains(WorkerExecutorHarness.StepName, completion.EventMessage);
 
         // The re-arm shape, not a terminal one: the execution row records the charged attempt as Failed,
         // the job goes back to Ready with a backoff delay, and the bumped failure count is what the budget
         // reads on the next attempt. A terminal landing would carry none of these and no HandlerStatusCode.
-        Assert.Equal((byte)ExecutionStatusCode.Failed, completion.RescheduleStatusCode);
+        Assert.Equal(EventCode.JobExecutionFailed, completion.EventCode);
+        Assert.Equal(EventCode.JobRescheduled, completion.RescheduleEventCode);
         Assert.NotNull(completion.RescheduleDelaySeconds);
         Assert.Equal(1, completion.FailureCount);
         Assert.Null(completion.HandlerStatusCode);
@@ -57,10 +58,11 @@ public sealed class WorkerExecutorOwnershipTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(CompletionKind.Failed, completion.Outcome);
-        Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
-        Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
-        Assert.DoesNotContain("boom", completion.ReasonMessage, StringComparison.Ordinal);
-        Assert.Equal((byte)ExecutionStatusCode.Failed, completion.RescheduleStatusCode);
+        Assert.Equal(EventReason.AttemptAborted, completion.Reason);
+        Assert.Contains(WorkerExecutorHarness.StepName, completion.EventMessage);
+        Assert.DoesNotContain("boom", completion.EventMessage, StringComparison.Ordinal);
+        Assert.Equal(EventCode.JobExecutionFailed, completion.EventCode);
+        Assert.Equal(EventCode.JobRescheduled, completion.RescheduleEventCode);
     }
 
     [Fact]
@@ -75,9 +77,9 @@ public sealed class WorkerExecutorOwnershipTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Failed, outcome);
         Assert.Equal(CompletionKind.Failed, completion.Outcome);
-        Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
-        Assert.Contains(WorkerExecutorHarness.StepName, completion.ReasonMessage);
-        Assert.Null(completion.RescheduleStatusCode);
+        Assert.Equal(EventReason.AttemptAborted, completion.Reason);
+        Assert.Contains(WorkerExecutorHarness.StepName, completion.EventMessage);
+        Assert.Null(completion.RescheduleEventCode);
     }
 
     [Fact]
@@ -100,8 +102,8 @@ public sealed class WorkerExecutorOwnershipTests
         Assert.Contains(submitted, c => c.Outcome == CompletionKind.Succeeded);
         foreach (var completion in submitted.Where(c => c.Outcome == CompletionKind.Failed))
         {
-            Assert.NotNull(completion.EventReasonCode);
-            Assert.False(string.IsNullOrWhiteSpace(completion.ReasonMessage));
+            Assert.NotNull(completion.Reason);
+            Assert.False(string.IsNullOrWhiteSpace(completion.EventMessage));
         }
     }
 
@@ -122,7 +124,7 @@ public sealed class WorkerExecutorOwnershipTests
 
         Assert.Equal(RunOnceStatus.NothingClaimed, outcome);
         Assert.Empty(harness.Applied);
-        Assert.Equal((byte)ExecutionStatusCode.Failed, harness.Completion.RescheduleStatusCode);
+        Assert.Equal(EventCode.JobRescheduled, harness.Completion.RescheduleEventCode);
     }
 
     [Fact]

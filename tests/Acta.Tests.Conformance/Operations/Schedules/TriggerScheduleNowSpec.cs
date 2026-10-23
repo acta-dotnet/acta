@@ -58,16 +58,14 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
         // The schedule's OWN cursor and version are never written by this verb: cadence is preserved.
         var after = await ScheduleAsync(Db, jobName, "only", ct);
-        Assert.Equal(farFuture, after.NextRunAtUtc);
+        Assert.Equal(farFuture, after.NextOccurrenceAtUtc);
         Assert.Equal(before.Version, after.Version);
         Assert.Equal(ScheduleStatusCode.Active, after.Status);
 
         var slotId = await SlotIdAsync(jobName, ct);
-        var events = await Db.From<EventEntity>()
-            .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered)
-            .ToListAsync(ct);
-        var triggered = Assert.Single(events);
-        Assert.Equal("only: fire now", triggered.ReasonMessage); // the schedule name plus the operator note rides reason_message
+        var triggered = await ReadSingleEventAsync(slotId, EventCode.ScheduleTriggered, ct);
+        Assert.Equal("only", EventDetail(triggered, "schedule"));
+        Assert.Equal("fire now", triggered.EventMessage);
     }
 
     [Fact(DisplayName = "Triggering a paused schedule is rejected and leaves the slot and schedule untouched")]
@@ -119,7 +117,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         Assert.Equal(farFuture, slot.NextRunAtUtc);
 
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
-        Assert.Equal(farFuture, schedule.NextRunAtUtc); // the schedule's own cursor is never touched by this verb
+        Assert.Equal(farFuture, schedule.NextOccurrenceAtUtc); // the schedule's own cursor is never touched by this verb
     }
 
     [Fact(DisplayName = "Triggering a schedule whose slot is terminal is rejected with no phantom applied and no schedule.triggered event")]
@@ -142,10 +140,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
         Assert.Equal(farFuture, slot.NextRunAtUtc); // no phantom cursor move
-        var events = await Db.From<Acta.EventEntity>()
-            .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered)
-            .ToListAsync(ct);
-        Assert.Empty(events); // no schedule.triggered
+        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleTriggered, ct)); // no schedule.triggered
     }
 
     [Fact(DisplayName = "An unknown or orphaned schedule reports not found")]
@@ -160,7 +155,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
         Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "nope"), ct: ct)).Action);
 
-        // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
+        // Re-register with no declared schedules: the orphan sweep orphans "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
         Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "gone"), ct: ct)).Action);
     }
@@ -174,7 +169,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         new(name, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor);
 
     private static Task SetRuntimeStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 
     private async Task<int> CreateDefinitionAsync(IDbSession db, ISqlDialect dialect, string jobName, CancellationToken ct)
     {
@@ -199,7 +194,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -216,11 +211,10 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleRow> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
-        return Assert.Single(rows);
+        return Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == scheduleName);
     }
 
     private async Task<TestJobRow> SlotAsync(string jobName, CancellationToken ct)
@@ -240,7 +234,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

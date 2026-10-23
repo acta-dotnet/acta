@@ -91,7 +91,7 @@ ceiling counts every namespace ever created rather than the number that currentl
 this width that is an accounting note, not a budget: registration allocates an id only for a
 genuinely new namespace name (a worker restart re-registering an existing namespace allocates
 nothing), and namespaces are created deliberately, one per bounded context, not per request.
-SQLite's `namespaces.id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is the portable limit.
+SQLite's `namespaces.namespace_id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is the portable limit.
 
 Microsoft.Data.Sqlite (verified in 10.0.11 and on its `main`) carries an unsynchronized enumeration
 in `SqliteConnection.Deactivate`: returning a pooled connection walks the custom-function dictionary
@@ -115,6 +115,12 @@ configuration is exercised by the conformance suites.
 
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.
+
+A recurring job that an operator restarts after a terminal failure does not auto-resolve its open
+alert at the `Failures` or `Off` recording levels: the restart zeroes the failure count, so the next
+successful fire is not captured as a recovery. Resolve the incident manually, or run the definition
+at `Audit`, where every success is recorded and resolves it. One-shot jobs auto-resolve after a
+restart at every level.
 
 Large or sensitive payloads should live outside Acta tables. Store a reference in the job input and
 keep the body in blob/file/object storage.

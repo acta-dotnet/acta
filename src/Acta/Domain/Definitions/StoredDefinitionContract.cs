@@ -7,10 +7,10 @@ namespace Acta;
 /// after registration (plus on the reload tick) to overlay effective policy onto the worker's descriptors.
 /// </summary>
 internal sealed record StoredDefinitionContract(
-    string Name,
+    string DefinitionName,
     DateTime ManifestGenerationAtUtc,
     DefinitionContract Contract,
-    int Id,
+    int DefinitionId,
     string DefinitionHash,
     DefinitionStatusCode Status,
     EffectiveJobPolicy Effective

@@ -35,7 +35,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
             NamespaceName: TestNamespace,
             JobName: jobName,
             Input: payload,
-            ParentId: parentId,
+            ParentJobId: parentId,
             TenantName: tenantName
         );
     }

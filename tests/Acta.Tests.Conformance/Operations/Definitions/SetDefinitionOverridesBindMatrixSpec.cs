@@ -19,10 +19,10 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static JobControlActor Actor => new(ActorCode.Operator, "tester");
+    private const string Actor = "tester";
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
-    // Base policy: Priority=Bulk(0), MaxAttempts=3, AuditLevel=Off(0), AlertProfile=None(0).
+    // Base policy: Priority=Bulk(0), MaxAttempts=3, EventRecording=Off(0), AlertProfile=None(0).
     // Framework defaults fill Backoff="1m..1d x2 ~10%", ExecutionTimeout=300, JobRetention=7776000;
     // DeadlineSeconds=0, DeadlineBehavior=Strict.
     private static JobDescriptor Def(string name) =>
@@ -36,7 +36,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
             OutputPayloadFormat: null,
             Priority: default, // Bulk = 0
             MaxAttempts: 3,
-            AuditLevel: default, // Off = 0
+            EventRecording: default, // Off = 0
             AlertProfile: default, // None = 0
             Invoker: null!,
             DeserializeInput: null!,
@@ -47,7 +47,9 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
 
     private async Task<DefinitionEntity> ReadAsync(string name, CancellationToken ct)
     {
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == TestNamespaceId && d.DefinitionName == name)
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         return def!;
     }
@@ -88,7 +90,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
                 DeadlineSeconds: 444, // distinct int 4
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
                 JobRetentionSeconds: 555, // distinct int 5
-                AuditLevel: DefinitionAuditLevelCode.Audit, // ≠ Off base
+                EventRecording: EventRecordingCode.Audit, // ≠ Off base
                 AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
                 AlertChannelName: channelName,
                 RunbookUrl: runbookUrl,
@@ -112,7 +114,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
         Assert.Equal(444, after.DeadlineSecondsOverride);
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorOverride);
         Assert.Equal(555, after.JobRetentionSecondsOverride);
-        Assert.Equal(DefinitionAuditLevelCode.Audit, after.AuditLevelOverride);
+        Assert.Equal(EventRecordingCode.Audit, after.EventRecordingOverride);
         Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileOverride);
         Assert.Equal(channelName, after.AlertChannelNameOverride);
         Assert.Equal(runbookUrl, after.RunbookUrlOverride);
@@ -127,7 +129,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
         Assert.Equal(444, after.DeadlineSecondsEffective);
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorEffective);
         Assert.Equal(555, after.JobRetentionSecondsEffective);
-        Assert.Equal(DefinitionAuditLevelCode.Audit, after.AuditLevelEffective);
+        Assert.Equal(EventRecordingCode.Audit, after.EventRecordingEffective);
         Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileEffective);
         Assert.Equal(channelName, after.AlertChannelNameEffective);
         Assert.Equal(runbookUrl, after.RunbookUrlEffective);
@@ -161,7 +163,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
                 DeadlineSeconds: 444,
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory,
                 JobRetentionSeconds: 555,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnTerminal,
                 AlertChannelName: "chan-" + TestId,
                 RunbookUrl: "https://rb/" + TestId,
@@ -195,7 +197,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
         Assert.Null(cleared.DeadlineSecondsOverride);
         Assert.Null(cleared.DeadlineBehaviorOverride);
         Assert.Null(cleared.JobRetentionSecondsOverride);
-        Assert.Null(cleared.AuditLevelOverride);
+        Assert.Null(cleared.EventRecordingOverride);
         Assert.Null(cleared.AlertProfileOverride);
         Assert.Null(cleared.AlertChannelNameOverride);
         Assert.Null(cleared.RunbookUrlOverride);
@@ -210,7 +212,7 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
         Assert.Equal(0, cleared.DeadlineSecondsEffective); // no deadline
         Assert.Equal(DeadlineBehaviorCode.Strict, cleared.DeadlineBehaviorEffective);
         Assert.Equal(7776000, cleared.JobRetentionSecondsEffective); // framework default
-        Assert.Equal(DefinitionAuditLevelCode.Off, cleared.AuditLevelEffective);
+        Assert.Equal(EventRecordingCode.Off, cleared.EventRecordingEffective);
         Assert.Equal(AlertProfileCode.None, cleared.AlertProfileEffective);
         Assert.Null(cleared.AlertChannelNameEffective);
         Assert.Null(cleared.RunbookUrlEffective);

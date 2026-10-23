@@ -5,4 +5,4 @@ namespace Acta;
 /// commits, and whether the cancel promoted the next member of the job's lane.
 /// </summary>
 [DbProjection]
-internal sealed record CancelJobRow(ControlAction Action, JobStatusCode? Status, long? ParentId, int? Version, bool LanePromoted);
+internal sealed record CancelJobRow(ControlAction Action, JobStatusCode? Status, long? ParentJobId, int? Version, bool LanePromoted);

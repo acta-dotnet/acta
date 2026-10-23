@@ -90,7 +90,7 @@ public sealed class ListAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         // Direct DB delete (not the operator purge verb): jobs has no FK to alerts, so this proves the
         // list read itself keeps job_ref from the alert's own column, not by joining back to jobs.
-        await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE id = @p_id", ct, ("@p_id", completed.JobId));
+        await Db.ExecuteRawAsync("DELETE FROM {schema}.jobs WHERE job_id = @p_id", ct, ("@p_id", completed.JobId));
 
         var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct);
         var alert = Assert.Single(page.Items);

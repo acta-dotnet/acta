@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION {{schema}}.arm_or_consume_sleep_timer(
     p_job_id BIGINT,
-    p_name VARCHAR,
+    p_checkpoint_name VARCHAR,
     p_delay_seconds INT DEFAULT NULL,
     p_resume_at_utc TIMESTAMPTZ DEFAULT NULL
 )
@@ -17,14 +17,14 @@ DECLARE
     v_existing_due TIMESTAMPTZ;
 BEGIN
 
-    PERFORM 1 FROM {{schema}}.runtimes r0 WHERE r0.job_id = p_job_id FOR UPDATE;
+    PERFORM 1 FROM {{schema}}.jobs_state r0 WHERE r0.job_id = p_job_id FOR UPDATE;
 
-    SELECT jt.status_code, jt.due_at_utc INTO v_state, v_existing_due
+    SELECT jt.checkpoint_status_code, jt.due_at_utc INTO v_state, v_existing_due
     FROM {{schema}}.checkpoints jt
     WHERE
         jt.job_id = p_job_id
-        AND jt.kind_code = 30 /* CheckpointKindCode.Timer */
-        AND jt.name = p_name;
+        AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */
+        AND jt.checkpoint_name = p_checkpoint_name;
 
     IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
@@ -33,23 +33,23 @@ BEGIN
 
         UPDATE {{schema}}.checkpoints jt
         SET
-            status_code = 100 /* CheckpointStatusCode.Consumed */,
+            checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
             modified_at_utc = now(),
             version = jt.version + 1
         WHERE
             jt.job_id = p_job_id
-            AND jt.kind_code = 30 /* CheckpointKindCode.Timer */
-            AND jt.name = p_name;
+            AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */
+            AND jt.checkpoint_name = p_checkpoint_name;
         /* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an
-           instant the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
-        UPDATE {{schema}}.runtimes r2
+           instant the reclaim owns, and ck_jobs_state_ready_due requires a Ready row to keep one. */
+        UPDATE {{schema}}.jobs_state r2
         SET
             next_run_at_utc = NULL,
             modified_at_utc = now(),
             version = r2.version + 1
         WHERE
             r2.job_id = p_job_id
-            AND r2.status_code = 50 /* JobStatusCode.Executing */;
+            AND r2.job_status_code = 50 /* JobStatusCode.Executing */;
         RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_state IS NOT NULL THEN
 
@@ -57,14 +57,14 @@ BEGIN
     ELSIF v_due <= v_now THEN
 
         RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSIF EXISTS (SELECT 1 FROM {{schema}}.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.status_code = 10 /* CheckpointStatusCode.Pending */) THEN
+    ELSIF EXISTS (SELECT 1 FROM {{schema}}.checkpoints jt WHERE jt.job_id = p_job_id AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */) THEN
         RETURN QUERY SELECT 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO {{schema}}.checkpoints (
             job_id,
-            kind_code,
-            name,
-            status_code,
+            checkpoint_kind_code,
+            checkpoint_name,
+            checkpoint_status_code,
             due_at_utc,
             created_at_utc,
             modified_at_utc,
@@ -72,7 +72,7 @@ BEGIN
         VALUES (
             p_job_id,
             30 /* CheckpointKindCode.Timer */,
-            p_name,
+            p_checkpoint_name,
             10 /* CheckpointStatusCode.Pending */,
             v_due,
             now(),

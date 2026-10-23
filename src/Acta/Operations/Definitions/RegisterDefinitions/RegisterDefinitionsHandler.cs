@@ -27,7 +27,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         var storedByName = new Dictionary<string, StoredDefinitionContract>(command.Stored.Count, StringComparer.Ordinal);
         foreach (var s in command.Stored)
         {
-            storedByName[s.Name] = s;
+            storedByName[s.DefinitionName] = s;
         }
 
         ValidateJoiningRatesMatchOverriddenMeters(rows, storedByName, command.NamespaceId);
@@ -35,7 +35,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         var anyChange = false;
         foreach (var row in rows)
         {
-            if (!storedByName.TryGetValue(row.Name, out var s))
+            if (!storedByName.TryGetValue(row.DefinitionName, out var s))
             {
                 anyChange = true; // new
             }
@@ -51,7 +51,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             // map comes straight from the read.
             foreach (var row in rows)
             {
-                result[row.Name] = storedByName[row.Name].Id;
+                result[row.DefinitionName] = storedByName[row.DefinitionName].DefinitionId;
             }
 
             return new RegisterDefinitionsResponse(result);
@@ -91,19 +91,19 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
     {
         foreach (var row in rows)
         {
-            if (row.RateLimit is not { } declared || storedByName.ContainsKey(row.Name))
+            if (row.RateLimit is not { } declared || storedByName.ContainsKey(row.DefinitionName))
             {
                 continue;
             }
 
-            var meter = JobDefinitionRegistration.EffectiveRateName(row.RateName, row.Name);
+            var meter = JobDefinitionRegistration.EffectiveRateName(row.RateName, row.DefinitionName);
             foreach (var stored in storedByName.Values)
             {
                 if (
                     stored.Effective.RateLimit is not { } effective
                     || string.Equals(effective, declared, StringComparison.Ordinal)
                     || !string.Equals(
-                        JobDefinitionRegistration.EffectiveRateName(stored.Effective.RateName, stored.Name),
+                        JobDefinitionRegistration.EffectiveRateName(stored.Effective.RateName, stored.DefinitionName),
                         meter,
                         StringComparison.Ordinal
                     )
@@ -113,7 +113,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
                 }
 
                 throw new ArgumentException(
-                    $"Job definition \"{row.Name}\" (namespace {namespaceId.ToString(CultureInfo.InvariantCulture)}) declares a "
+                    $"Job definition \"{row.DefinitionName}\" (namespace {namespaceId.ToString(CultureInfo.InvariantCulture)}) declares a "
                         + $"RateLimit of \"{declared}\", but it is joining meter \"{meter}\", whose effective rate is \"{effective}\": "
                         + "declare the meter's effective rate, or clear the override on it first."
                 );
@@ -136,16 +136,16 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             {
                 continue;
             }
-            var key = JobDefinitionRegistration.EffectiveRateName(row.RateName, row.Name);
+            var key = JobDefinitionRegistration.EffectiveRateName(row.RateName, row.DefinitionName);
             if (!rateByKey.TryGetValue(key, out var first))
             {
-                rateByKey[key] = (row.Name, rateLimit);
+                rateByKey[key] = (row.DefinitionName, rateLimit);
                 continue;
             }
             if (!string.Equals(first.RateLimit, rateLimit, StringComparison.Ordinal))
             {
                 throw new ArgumentException(
-                    $"Job definitions \"{first.Name}\" and \"{row.Name}\" (namespace {namespaceId.ToString(CultureInfo.InvariantCulture)}) "
+                    $"Job definitions \"{first.Name}\" and \"{row.DefinitionName}\" (namespace {namespaceId.ToString(CultureInfo.InvariantCulture)}) "
                         + $"both meter on \"{key}\" but declare different rate limits "
                         + $"(\"{first.RateLimit}\" and \"{rateLimit}\"): definitions on one meter must declare the same rate."
                 );
@@ -172,7 +172,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;
         var deadlineBehaviorCode = (byte)descriptor.DeadlineBehavior;
         var jobRetention = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds;
-        var auditLevelCode = (byte)descriptor.AuditLevel;
+        var eventRecordingCode = (byte)descriptor.EventRecording;
         var alertProfileCode = (byte)descriptor.AlertProfile;
         var tenantRequirementCode = (byte)descriptor.TenantRequirement;
         var alertChannelName = descriptor.AlertChannelName;
@@ -199,7 +199,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             deadlineSeconds.ToString(c),
             deadlineBehaviorCode.ToString(c),
             jobRetention.ToString(c),
-            auditLevelCode.ToString(c),
+            eventRecordingCode.ToString(c),
             alertProfileCode.ToString(c),
             tenantRequirementCode.ToString(c),
             alertChannelName,
@@ -216,13 +216,13 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         );
 
         return new DefinitionValues(
-            Name: descriptor.JobName,
-            PriorityCode: priorityCode,
+            DefinitionName: descriptor.JobName,
+            JobPriorityCode: priorityCode,
             MaxAttempts: maxAttempts,
             ConcurrencyLimit: concurrencyLimit,
             RateLimit: rateLimit,
             RateName: rateName,
-            Lane: lane,
+            LaneName: lane,
             Backoff: backoff,
             ExecutionTimeoutSeconds: executionTimeout,
             DeadlineSeconds: deadlineSeconds,
@@ -234,7 +234,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             InputFormatName: contract.InputFormatName,
             OutputFormatId: contract.OutputFormatId,
             OutputFormatName: contract.OutputFormatName,
-            AuditLevelCode: auditLevelCode,
+            EventRecordingCode: eventRecordingCode,
             AlertProfileCode: alertProfileCode,
             TenantRequirementCode: tenantRequirementCode,
             AlertChannelName: alertChannelName,

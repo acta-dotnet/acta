@@ -21,8 +21,8 @@ internal sealed class PauseJobHandler(GetJobIdHandler getJobId, IDbSession sessi
             new StoreCommand("PauseJob"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                JobControl.BindActor(cmd, dialect, input);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                JobControl.BindEvent(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<PauseJobRow>(),

@@ -26,6 +26,7 @@ public sealed class AlertsJobPoisonEventTests
         var skip = await ctx.GetRequiredVariableAsync<string>("alerts-skip-11", ct);
         Assert.Contains("namespace=test-ns", skip);
         Assert.Contains("eventId=11", skip);
+        Assert.Equal(new PoisonAlertEvent(11, 101, DateTime.UnixEpoch.Ticks), PoisonAlertEvent.Parse("alerts-skip-11", skip));
         Assert.Contains("reason=unknown-job", skip);
         Assert.Contains(LogLevel.Warning, logger.Levels);
 
@@ -83,6 +84,8 @@ public sealed class AlertsJobPoisonEventTests
         public AlertsOperations Lifecycle() => new ScriptedSession(call =>
                 call.Stem switch
                 {
+                    // The skip records live in the recording context, not the store, so no replay is due.
+                    "GetAlertFloor" => Array.Empty<GetAlertFloorRow>(),
                     "GetAlertableEvents" => Events
                         .Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId))
                         .Take(call.Get(ActaSchema.Sql.AlertBatchSize))
@@ -112,10 +115,11 @@ public sealed class AlertsJobPoisonEventTests
                 JobName: "probe",
                 AlertProfile: AlertProfileCode.OnTerminal,
                 AlertChannelName: null,
-                ExecutionStatus: ExecutionStatusCode.Failed,
-                ToStatus: JobStatusCode.Failed,
-                ReasonCode: EventReasonCode.JobUnhandledException,
-                ReasonMessage: "boom"
+                EventCode: EventCode.JobFailed,
+                EventMessage: "boom",
+                DetailsFormatId: JobPayloadFormat.Json.Id,
+                Details: EventDetails.Write(("reason", EventReason.UnhandledException)),
+                Superseded: false
             );
     }
 

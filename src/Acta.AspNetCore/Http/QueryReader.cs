@@ -70,6 +70,14 @@ internal sealed class QueryReader(HttpRequest request)
         return value;
     }
 
+    public long? Long(string name)
+    {
+        string? error = null;
+        QueryBinding.TryLong(request.Query, name, out var value, ref error);
+        _error ??= error;
+        return value;
+    }
+
     public bool? Bool(string name)
     {
         string? error = null;

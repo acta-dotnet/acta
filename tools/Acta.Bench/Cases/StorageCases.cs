@@ -287,7 +287,7 @@ internal static class StorageCases
                 new(
                     "live-dependencies-preserved",
                     "root",
-                    before.Count(r => r.ParentId == root.JobId) == 10,
+                    before.Count(r => r.ParentJobId == root.JobId) == 10,
                     "Completed children required by a live parent survive retention."
                 )
             );
@@ -363,7 +363,7 @@ internal static class StorageCases
         await using var command = connection.CreateCommand();
         var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
         command.CommandText =
-            $"SELECT COUNT(*) FROM {prefix}.jobs j JOIN {prefix}.runtimes r ON r.job_id=j.id WHERE j.deduplication_key LIKE 'history-%' AND r.status_code={status}";
+            $"SELECT COUNT(*) FROM {prefix}.jobs j JOIN {prefix}.jobs_state r ON r.job_id=j.job_id WHERE j.deduplication_key LIKE 'history-%' AND r.job_status_code={status}";
         return Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 }

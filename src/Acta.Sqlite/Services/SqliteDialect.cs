@@ -176,7 +176,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
         var rows = request.Completions;
         var sql = command.CommandText;
         sql = rows.Any(c => c.WaitSignalName is not null) ? sql : WithoutSection(sql, "waits");
-        sql = rows.Any(c => c.RescheduleStatusCode is not null || c.HandlerStatusCode is not null || c.FinalStatus is not null)
+        sql = rows.Any(c => c.RescheduleEventCode is not null || c.HandlerStatusCode is not null || c.FinalStatus is not null)
             ? sql
             : WithoutSection(sql, "shapes");
         sql = rows.Any(c => c.HasParent) ? sql : WithoutSection(sql, "children");
@@ -227,16 +227,20 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteString("job_name", row.JobName);
                 WriteStringOrNull(writer, "deduplication_key", row.DeduplicationKey);
                 WriteStringOrNull(writer, "correlation_key", row.CorrelationKey);
-                WriteNumberOrNull(writer, "priority_override", row.PriorityOverride is { } priority ? (short)priority : (short?)null);
+                WriteNumberOrNull(
+                    writer,
+                    "job_priority_code_override",
+                    row.PriorityOverride is { } priority ? (short)priority : (short?)null
+                );
                 writer.WriteNumber("input_format_id", row.Input.Format.Id);
                 WriteBase64OrNull(writer, "input", row.Input.Format.IsNone ? (ReadOnlyMemory<byte>?)null : row.Input.Data);
                 WriteStringOrNull(writer, "concurrency_key", row.ConcurrencyKey);
                 WriteUtcOrNull(writer, "next_run_at_utc", row.NextRunAtUtc);
                 WriteNumberOrNull(writer, "delay_seconds", row.DelaySeconds);
-                WriteNumberOrNull(writer, "parent_id", row.ParentId);
+                WriteNumberOrNull(writer, "parent_job_id", row.ParentJobId);
                 WriteStringOrNull(writer, "tenant_name", row.TenantName);
                 writer.WriteNumber("tenant_override", row.OverrideParentTenant ? 1 : 0);
-                WriteStringOrNull(writer, "lane", row.Lane);
+                WriteStringOrNull(writer, "lane_name", row.Lane);
             }
         );
 
@@ -259,9 +263,9 @@ internal sealed partial class SqliteDialect : ISqlDialect
             (writer, tag, _) =>
             {
                 writer.WriteString("job_ref", tag.JobRef.ToString());
-                writer.WriteString("name", tag.Name);
-                WriteStringOrNull(writer, "value", tag.Value);
-                WriteStringOrNull(writer, "value_search", tag.ValueSearch);
+                writer.WriteString("tag_name", tag.Name);
+                WriteStringOrNull(writer, "tag_value", tag.Value);
+                WriteStringOrNull(writer, "tag_value_search", tag.ValueSearch);
             }
         );
 
@@ -271,7 +275,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
 
     public void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
     {
-        if (row.ParentId is null)
+        if (row.ParentJobId is null)
         {
             command.CommandText = WithoutSection(command.CommandText, "child-only");
         }
@@ -281,24 +285,24 @@ internal sealed partial class SqliteDialect : ISqlDialect
         AddText(command, "@p_job_name", row.JobName);
         AddNullableText(command, "@p_deduplication_key", row.DeduplicationKey);
         AddNullableText(command, "@p_correlation_key", row.CorrelationKey);
-        AddNullableInt(command, "@p_priority_override", row.PriorityOverride is { } priority ? (short)priority : null);
+        AddNullableInt(command, "@p_job_priority_code_override", row.PriorityOverride is { } priority ? (short)priority : null);
         AddInt(command, "@p_input_format_id", row.Input.Format.Id);
         AddNullableBlob(command, "@p_input", row.Input.Format.IsNone ? null : row.Input.Data.ToArray());
         AddNullableText(command, "@p_concurrency_key", row.ConcurrencyKey);
         AddNullableInt(command, "@p_next_run_at_utc", row.NextRunAtUtc is { } nextRun ? ToUnixMs(nextRun) : null);
         AddNullableInt(command, "@p_delay_seconds", row.DelaySeconds);
-        AddNullableInt(command, "@p_parent_id", row.ParentId);
+        AddNullableInt(command, "@p_parent_job_id", row.ParentJobId);
         AddNullableText(command, "@p_tenant_name", row.TenantName);
         AddInt(command, "@p_tenant_override", row.OverrideParentTenant ? 1 : 0);
-        AddNullableText(command, "@p_lane", row.Lane);
+        AddNullableText(command, "@p_lane_name", row.Lane);
 
         var jsonTags = JsonArray(
             row.Tags ?? [],
             (writer, tag, _) =>
             {
-                writer.WriteString("name", tag.Name);
-                WriteStringOrNull(writer, "value", tag.Value);
-                WriteStringOrNull(writer, "value_search", TagValueSearch.Normalize(tag.Value));
+                writer.WriteString("tag_name", tag.Name);
+                WriteStringOrNull(writer, "tag_value", tag.Value);
+                WriteStringOrNull(writer, "tag_value_search", TagValueSearch.Normalize(tag.Value));
             }
         );
         AddText(command, "@p_tags", jsonTags);
@@ -378,13 +382,13 @@ internal sealed partial class SqliteDialect : ISqlDialect
             rows,
             (writer, row, _) =>
             {
-                writer.WriteString("name", row.Name);
-                writer.WriteNumber("priority_code", row.PriorityCode);
+                writer.WriteString("definition_name", row.DefinitionName);
+                writer.WriteNumber("job_priority_code", row.JobPriorityCode);
                 writer.WriteNumber("max_attempts", row.MaxAttempts);
                 WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
                 WriteStringOrNull(writer, "rate_limit", row.RateLimit);
                 WriteStringOrNull(writer, "rate_name", row.RateName);
-                WriteStringOrNull(writer, "lane", row.Lane);
+                WriteStringOrNull(writer, "lane_name", row.LaneName);
                 writer.WriteString("backoff", row.Backoff);
                 writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);
                 writer.WriteNumber("deadline_seconds", row.DeadlineSeconds);
@@ -396,7 +400,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteString("input_format_name", row.InputFormatName);
                 writer.WriteNumber("output_format_id", row.OutputFormatId);
                 writer.WriteString("output_format_name", row.OutputFormatName);
-                writer.WriteNumber("audit_level_code", row.AuditLevelCode);
+                writer.WriteNumber("event_recording_code", row.EventRecordingCode);
                 writer.WriteNumber("alert_profile_code", row.AlertProfileCode);
                 writer.WriteNumber("tenant_requirement_code", row.TenantRequirementCode);
                 WriteStringOrNull(writer, "alert_channel_name", row.AlertChannelName);
@@ -417,8 +421,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
         string schema
     )
     {
-        AddInt(command, "@p_namespace_id", definitions[0].NamespaceId);
-
         var definitionRows = JsonArray(
             definitions,
             (writer, definition, index) =>
@@ -428,7 +430,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteString("deduplication_key", definition.JobName);
                 writer.WriteNumber("input_format_id", definition.InputFormatId);
                 WriteBase64OrNull(writer, "input", definition.Input.IsEmpty ? (ReadOnlyMemory<byte>?)null : definition.Input);
-                writer.WriteNumber("audit_level_code", (short)definition.AuditLevel);
+                writer.WriteNumber("event_recording_code", (short)definition.EventRecording);
                 writer.WriteNumber("slot_status_code", (short)definition.SlotStatus);
                 WriteUtcOrNull(writer, "slot_next_run_at_utc", definition.SlotMinNextRunAtUtc);
             }
@@ -448,12 +450,12 @@ internal sealed partial class SqliteDialect : ISqlDialect
             (writer, item, _) =>
             {
                 writer.WriteNumber("definition_id", item.DefinitionId);
-                writer.WriteString("name", item.Schedule.Name);
+                writer.WriteString("schedule_name", item.Schedule.ScheduleName);
                 writer.WriteString("expression", item.Schedule.Expression);
                 writer.WriteString("time_zone_id", string.IsNullOrWhiteSpace(item.Schedule.TimeZoneId) ? "UTC" : item.Schedule.TimeZoneId);
                 writer.WriteNumber("expression_kind_code", (short)item.Schedule.ExpressionKind);
                 writer.WriteNumber("misfire_strategy_code", (short)item.Schedule.MisfireStrategy);
-                WriteUtcOrNull(writer, "next_run_at_utc", item.Schedule.NextRunAtUtc);
+                WriteUtcOrNull(writer, "next_occurrence_at_utc", item.Schedule.NextOccurrenceAtUtc);
                 WriteStringOrNull(writer, "description", item.Schedule.Description);
             }
         );
@@ -469,8 +471,8 @@ internal sealed partial class SqliteDialect : ISqlDialect
             {
                 var advance = item.Advance;
                 writer.WriteNumber("job_id", item.JobId);
-                writer.WriteString("name", advance.ScheduleName);
-                WriteUtcOrNull(writer, "next_run_at_utc", advance.NextRunAtUtc);
+                writer.WriteString("schedule_name", advance.ScheduleName);
+                WriteUtcOrNull(writer, "next_occurrence_at_utc", advance.NextOccurrenceAtUtc);
                 if (advance.ExpectedVersion is { } expected)
                 {
                     writer.WriteNumber("expected_version", expected);

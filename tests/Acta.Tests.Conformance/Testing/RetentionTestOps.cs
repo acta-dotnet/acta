@@ -54,7 +54,7 @@ internal static class RetentionTestOps
     /// unrelated transaction's lock at the instant a one-shot purge runs.
     /// </item>
     /// <item>
-    /// A row aged to "expired now" is expired to the microsecond. <c>runtimes.retention_until_utc</c> is
+    /// A row aged to "expired now" is expired to the microsecond. <c>jobs_state.retention_until_utc</c> is
     /// <c>datetime2(3)</c> and completion stamps it from <c>SYSUTCDATETIME()</c>, whose extra digits round
     /// - up, most of the time - into the stored millisecond. A zero-retention job is therefore stamped up
     /// to half a millisecond past its own completion, and a sweep that lands inside that window reads

@@ -62,6 +62,6 @@ public sealed class WorkerExecutorAttemptContextTests
 
         // Without the running attempt the runner cannot tell a timeout from an external cancel and
         // files this as JobAttemptAborted, which is what blinded every timeout test on this harness.
-        Assert.Equal(EventReasonCode.JobExecutionTimeout, completion.EventReasonCode);
+        Assert.Equal(EventReason.ExecutionTimeout, completion.Reason);
     }
 }

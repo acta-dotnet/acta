@@ -55,7 +55,7 @@ internal static class ReplyLossCases
                 boundary is not null
                     && before.Any(r =>
                         r.Key == input.Key
-                        && r.ParentId is null
+                        && r.ParentJobId is null
                         && r.JobNamespace == "bench"
                         && (enqueueLoss || r.Status == 100 && r.Output == expected[0].Output)
                     ),
@@ -82,7 +82,7 @@ internal static class ReplyLossCases
                 new(
                     "deduplicated-retry",
                     input.Key,
-                    retried.Action == EnqueueJobAction.Deduplicated && before.Any(r => r.Key == input.Key && r.Id == retried.JobId),
+                    retried.Action == EnqueueJobAction.Deduplicated && before.Any(r => r.Key == input.Key && r.JobId == retried.JobId),
                     "Producer retried the same business key."
                 )
             );

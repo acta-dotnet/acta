@@ -7,7 +7,7 @@ namespace Acta;
 /// UPDATE-in-place across retries; terminal transition to <c>Succeeded</c> (with <c>Result</c> populated),
 /// <c>Exhausted</c> (parent receives <c>StepExhaustedException</c>), or <c>Interrupted</c> (an
 /// <c>AtMostOnce</c> step re-entered before completion; parent receives <c>StepInterruptedException</c>). One row per
-/// <c>(JobId, Name)</c>; the framework never INSERTs a second step row for the same slot.
+/// <c>(JobId, StepName)</c>; the framework never INSERTs a second step row for the same slot.
 /// </summary>
 [JsonConverter(typeof(StepStatusCodeJsonConverter))]
 [CodeKind("job-step-status")]
@@ -18,7 +18,7 @@ public enum StepStatusCode : byte
 
     /// <summary>First invocation INSERTed or retrying. <c>AttemptNumber</c> is 1 or more; <c>Result</c>
     /// is NULL. On failure within budget the row stays here with <c>AttemptNumber++</c>,
-    /// <c>NextRetryAtUtc</c> advanced, and <c>ReasonCode</c> / <c>ReasonMessage</c> updated.</summary>
+    /// <c>NextRetryAtUtc</c> advanced, and <c>FailureCode</c> / <c>FailureMessage</c> updated.</summary>
     [Code("pending", "Step in flight or retrying within MaxAttempts / RetryWindow.")]
     Pending = 10,
 
@@ -28,7 +28,7 @@ public enum StepStatusCode : byte
     Succeeded = 100,
 
     /// <summary>Terminal exhaustion: <c>MaxAttempts</c> reached or <c>RetryWindow</c> exceeded.
-    /// <c>Result</c> is NULL; <c>ReasonCode</c> / <c>ReasonMessage</c> carry the final failure context; parent receives
+    /// <c>Result</c> is NULL; <c>FailureCode</c> / <c>FailureMessage</c> carry the final failure context; parent receives
     /// <c>StepExhaustedException</c>.</summary>
     [Code("exhausted", "Step exhausted retry budget; parent handler receives StepExhaustedException.")]
     Exhausted = 200,

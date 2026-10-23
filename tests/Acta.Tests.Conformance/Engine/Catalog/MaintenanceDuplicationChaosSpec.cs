@@ -31,14 +31,14 @@ public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<Confor
 
         // --- 2. Registration is idempotent: one definition, one slot job, one schedule.
         var maintenanceDefinition = Assert.Single(
-            await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.retention").ToListAsync(ct)
+            await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.DefinitionName == "sys.retention").ToListAsync(ct)
         );
         var maintenanceJob = Assert.Single(
             await Db.From<JobEntity>().Where(j => j.NamespaceId == ns && j.DefinitionId == maintenanceDefinition.Id).ToListAsync(ct)
         );
         var schedule = Assert.Single(
             await Db.From<ScheduleEntity>()
-                .Where(s => s.NamespaceId == ns && s.JobId == maintenanceJob.Id && s.Name == "default")
+                .Where(s => s.NamespaceId == ns && s.JobId == maintenanceJob.Id && s.ScheduleName == "default")
                 .ToListAsync(ct)
         );
         Assert.Equal(maintenanceDefinition.Id, schedule.DefinitionId);
@@ -60,7 +60,7 @@ public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<Confor
         var claimed = (await first).Jobs.Concat((await secondClaim).Jobs).ToList();
         Assert.Single(claimed);
 
-        // Read the runtime row directly to assert which worker holds the execution lease.
+        // Read the jobs_state row directly to assert which worker holds the execution lease.
         var row = await ReadJobAsync(maintenanceJob.Id, ct);
         Assert.Equal(JobStatusCode.Executing, row!.Status);
         Assert.Contains(row.LeasedByWorkerId, workers.Select(w => (int?)w.Id));

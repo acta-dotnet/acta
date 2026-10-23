@@ -1,149 +1,135 @@
 DROP TABLE IF EXISTS temp._cancel_job;
 
 CREATE TEMP TABLE _cancel_job AS
-SELECT j.id, r.status_code AS from_status, j.parent_id, r.version AS from_version
+SELECT j.job_id, r.job_status_code AS from_status, j.parent_job_id, r.version AS from_version
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
-WHERE j.id = @p_id;
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+WHERE j.job_id = @p_job_id;
 
+-- An executing job's attempt yields first, then the job is cancelled. The attempt's details lead with its outcome,
+-- then the cancel's own: the writer's payload is a compact JSON object, so its members follow the outcome once its
+-- opening brace is dropped.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    job_ref,
-    execution_number,
-    lineage_root_id,
+    worker_id,
+    entity_code,
+    entity_id,
     definition_id,
     tenant_id,
-    worker_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    lineage_root_job_id,
+    execution_number,
+    event_message,
+    details_format_id,
+    details)
 SELECT
-    41 /* EventCode.JobExecutionFinished */,
+    43 /* EventCode.JobExecutionYielded */,
     {{now}},
     j.namespace_id,
-    @p_actor_code,
-    @p_actor,
-    j.id,
-    j.job_ref,
-    r.execution_number,
-    COALESCE(j.lineage_root_id, j.id),
+    r.leased_by_worker_id,
+    50 /* EntityCode.Job */,
+    j.job_id,
     j.definition_id,
     j.tenant_id,
-    r.leased_by_worker_id,
-    50 /* JobStatusCode.Executing */,
-    220 /* JobStatusCode.Cancelled */,
-    220 /* ExecutionStatusCode.Cancelled */,
-    NULL,
-    @p_reason_code,
-    @p_reason_message
+    COALESCE(j.lineage_root_job_id, j.job_id),
+    r.execution_number,
+    @p_event_message,
+    1 /* JobPayloadFormat.Json */,
+    CAST(CASE
+        WHEN @p_details IS NULL THEN '{"outcome":"cancelled"}'
+        ELSE '{"outcome":"cancelled",' || substr(@p_details, 2)
+    END AS BLOB)
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
-    j.id = @p_id
-    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    j.job_id = @p_job_id
+    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.status_code = 50 /* JobStatusCode.Executing */;
+    AND r.job_status_code = 50 /* JobStatusCode.Executing */;
 
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    job_ref,
-    execution_number,
-    lineage_root_id,
+    entity_code,
+    entity_id,
     definition_id,
     tenant_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    lineage_root_job_id,
+    execution_number,
+    event_message,
+    details_format_id,
+    details)
 SELECT
     70 /* EventCode.JobCancelled */,
     {{now}},
     j.namespace_id,
-    @p_actor_code,
-    @p_actor,
-    j.id,
-    j.job_ref,
-    r.execution_number,
-    COALESCE(j.lineage_root_id, j.id),
+    50 /* EntityCode.Job */,
+    j.job_id,
     j.definition_id,
     j.tenant_id,
-    r.status_code,
-    220 /* JobStatusCode.Cancelled */,
-    NULL,
-    NULL,
-    @p_reason_code,
-    @p_reason_message
+    COALESCE(j.lineage_root_job_id, j.job_id),
+    r.execution_number,
+    @p_event_message,
+    @p_details_format_id,
+    @p_details
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
-    j.id = @p_id
-    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    j.job_id = @p_job_id
+    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
+    AND r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
 
-UPDATE {{schema}}.runtimes
+UPDATE {{schema}}.jobs_state
 SET
-    status_code = 220 /* JobStatusCode.Cancelled */,
+    job_status_code = 220 /* JobStatusCode.Cancelled */,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     retention_until_utc = {{now}} + (
         SELECT jd.retention_seconds_effective
         FROM {{schema}}.definitions jd
-        JOIN {{schema}}.jobs j2 ON j2.id = runtimes.job_id
-        WHERE jd.id = j2.definition_id
+        JOIN {{schema}}.jobs j2 ON j2.job_id = jobs_state.job_id
+        WHERE jd.definition_id = j2.definition_id
     ) * 1000,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    job_id = @p_id
+    job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
+    AND job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
 
 -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head where
 -- it is, which the promotion reads for itself. A restarted member can wait Blocked below a running one,
 -- so it promotes only while no member runs. The immediate transaction is the lane's mutex on SQLite.
-UPDATE {{schema}}.runtimes
+UPDATE {{schema}}.jobs_state
 SET
-    status_code = 10 /* JobStatusCode.Ready */,
+    job_status_code = 10 /* JobStatusCode.Ready */,
     next_run_at_utc = MAX(next_run_at_utc, {{now}}),
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    status_code = 15 /* JobStatusCode.Blocked */
+    job_status_code = 15 /* JobStatusCode.Blocked */
     AND NOT EXISTS (
         SELECT 1
-        FROM {{schema}}.runtimes o
+        FROM {{schema}}.jobs_state o
         WHERE
-            o.lane_id = runtimes.lane_id
+            o.lane_id = jobs_state.lane_id
             AND o.lane_id IS NOT NULL
-            AND o.status_code IN (
+            AND o.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                 50 /* JobStatusCode.Executing */
             )
     )
     AND job_id = (
         SELECT m.job_id
-        FROM {{schema}}.runtimes m
-        JOIN {{schema}}.runtimes cancelled ON cancelled.lane_id = m.lane_id
+        FROM {{schema}}.jobs_state m
+        JOIN {{schema}}.jobs_state cancelled ON cancelled.lane_id = m.lane_id
         WHERE
-            cancelled.job_id = @p_id
+            cancelled.job_id = @p_job_id
             AND m.lane_id IS NOT NULL
-            AND m.status_code IN (
+            AND m.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
             )
@@ -153,24 +139,24 @@ WHERE
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
-        WHEN s.id IS NULL THEN NULL
+        WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
         WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 220 /* JobStatusCode.Cancelled */
         ELSE s.from_status
-    END AS status_code,
-    s.parent_id AS parent_id,
+    END AS status,
+    s.parent_job_id,
     CASE
-        WHEN s.id IS NULL THEN NULL
+        WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
         WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN s.from_version + 1
         ELSE s.from_version
     END AS version,
     CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted
-FROM (SELECT @p_id AS qid) q
-LEFT JOIN temp._cancel_job s ON s.id = q.qid;
+FROM (SELECT @p_job_id AS qid) q
+LEFT JOIN temp._cancel_job s ON s.job_id = q.qid;

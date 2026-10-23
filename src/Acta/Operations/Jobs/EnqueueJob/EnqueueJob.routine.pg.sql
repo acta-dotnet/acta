@@ -7,19 +7,19 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_job_name VARCHAR DEFAULT NULL,
     p_deduplication_key VARCHAR DEFAULT NULL,
     p_correlation_key VARCHAR DEFAULT NULL,
-    p_priority_override SMALLINT DEFAULT NULL,
+    p_job_priority_code_override SMALLINT DEFAULT NULL,
     p_input_format_id SMALLINT DEFAULT NULL,
     p_input BYTEA DEFAULT NULL,
     p_concurrency_key VARCHAR DEFAULT NULL,
     p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
     p_delay_seconds INT DEFAULT NULL,
-    p_parent_id BIGINT DEFAULT NULL,
+    p_parent_job_id BIGINT DEFAULT NULL,
     p_tenant_name VARCHAR DEFAULT NULL,
     p_tenant_override BOOLEAN DEFAULT FALSE,
-    p_t_name VARCHAR [] DEFAULT NULL,
-    p_t_value VARCHAR [] DEFAULT NULL,
-    p_t_value_search VARCHAR [] DEFAULT NULL,
-    p_lane VARCHAR DEFAULT NULL
+    p_tag_name VARCHAR [] DEFAULT NULL,
+    p_tag_value VARCHAR [] DEFAULT NULL,
+    p_tag_value_search VARCHAR [] DEFAULT NULL,
+    p_lane_name VARCHAR DEFAULT NULL
 )
 RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)
 LANGUAGE plpgsql
@@ -29,7 +29,7 @@ DECLARE
     v_ns_status SMALLINT;
     v_def_id INT;
     v_def_priority SMALLINT;
-    v_def_audit SMALLINT;
+    v_def_event_recording SMALLINT;
     v_def_status SMALLINT;
     v_def_tenant_req SMALLINT;
     v_tenant_id INT;
@@ -42,18 +42,18 @@ DECLARE
     v_lane_id BIGINT;
 BEGIN
     SELECT
-        ns.id,
-        ns.status_code,
-        jd.id,
-        jd.priority_code_effective,
-        jd.audit_level_code_effective,
-        jd.status_code,
+        ns.namespace_id,
+        ns.namespace_status_code,
+        jd.definition_id,
+        jd.job_priority_code_effective,
+        jd.event_recording_code_effective,
+        jd.definition_status_code,
         jd.tenant_requirement_code,
-        COALESCE(p_lane, jd.lane)
-    INTO v_ns_id, v_ns_status, v_def_id, v_def_priority, v_def_audit, v_def_status, v_def_tenant_req, v_lane
+        COALESCE(p_lane_name, jd.lane_name)
+    INTO v_ns_id, v_ns_status, v_def_id, v_def_priority, v_def_event_recording, v_def_status, v_def_tenant_req, v_lane
     FROM {{schema}}.namespaces ns
-    INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = p_job_name
-    WHERE ns.name = p_namespace_name;
+    INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.namespace_id AND jd.definition_name = p_job_name
+    WHERE ns.namespace_name = p_namespace_name;
 
     IF v_def_id IS NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
@@ -71,7 +71,7 @@ BEGIN
     END IF;
 
     IF p_tenant_name IS NOT NULL THEN
-        SELECT t.id, t.status_code INTO v_tenant_id, v_tenant_status
+        SELECT t.tenant_id, t.tenant_status_code INTO v_tenant_id, v_tenant_status
         FROM {{schema}}.tenants t
         WHERE t.tenant_name = p_tenant_name;
 
@@ -102,26 +102,26 @@ BEGIN
         END IF;
 
         LOOP
-            SELECT l.id INTO v_lane_id
+            SELECT l.lane_id INTO v_lane_id
             FROM {{schema}}.lanes l
-            WHERE l.namespace_id = v_ns_id AND l.name = v_lane
+            WHERE l.namespace_id = v_ns_id AND l.lane_name = v_lane
             FOR UPDATE;
             EXIT WHEN v_lane_id IS NOT NULL;
 
-            INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
+            INSERT INTO {{schema}}.lanes (namespace_id, lane_name, created_at_utc)
             VALUES (v_ns_id, v_lane, now())
-            ON CONFLICT (namespace_id, name) DO NOTHING;
+            ON CONFLICT (namespace_id, lane_name) DO NOTHING;
         END LOOP;
     END IF;
 
-    IF p_parent_id IS NOT NULL THEN
-        SELECT COALESCE(pj.lineage_root_id, pj.id), pj.correlation_key, pj.tenant_id
+    IF p_parent_job_id IS NOT NULL THEN
+        SELECT COALESCE(pj.lineage_root_job_id, pj.job_id), pj.correlation_key, pj.tenant_id
         INTO v_lineage, v_parent_corr, v_parent_tenant
         FROM {{schema}}.jobs pj
-        INNER JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
+        INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = pj.job_id
         WHERE
-            pj.id = p_parent_id
-            AND pr.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            pj.job_id = p_parent_job_id
+            AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         FOR UPDATE OF pj;
 
         IF v_lineage IS NULL THEN
@@ -141,20 +141,20 @@ BEGIN
 
         IF v_lane_id IS NOT NULL AND EXISTS (
             WITH RECURSIVE ancestors AS (
-                SELECT a.id, a.parent_id
+                SELECT a.job_id, a.parent_job_id
                 FROM {{schema}}.jobs a
-                WHERE a.id = p_parent_id
+                WHERE a.job_id = p_parent_job_id
                 UNION ALL
-                SELECT a.id, a.parent_id
+                SELECT a.job_id, a.parent_job_id
                 FROM {{schema}}.jobs a
-                INNER JOIN ancestors c ON a.id = c.parent_id
+                INNER JOIN ancestors c ON a.job_id = c.parent_job_id
             )
             SELECT 1
             FROM ancestors c
-            INNER JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+            INNER JOIN {{schema}}.jobs_state ar ON ar.job_id = c.job_id
             WHERE
                 ar.lane_id = v_lane_id
-                AND ar.status_code IN (
+                AND ar.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                     30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
@@ -165,8 +165,8 @@ BEGIN
 
         INSERT INTO {{schema}}.jobs (
             job_ref,
-            lineage_root_id,
-            parent_id,
+            lineage_root_job_id,
+            parent_job_id,
             deduplication_key,
             correlation_key,
             namespace_id,
@@ -175,12 +175,12 @@ BEGIN
             input_format_id,
             input,
             concurrency_key,
-            audit_level_code,
+            event_recording_code,
             created_at_utc)
         VALUES (
             p_job_ref,
             v_lineage,
-            p_parent_id,
+            p_parent_job_id,
             p_deduplication_key,
             COALESCE(p_correlation_key, v_parent_corr),
             v_ns_id,
@@ -190,12 +190,12 @@ BEGIN
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
             p_concurrency_key,
-            v_def_audit,
+            v_def_event_recording,
             now())
-        ON CONFLICT (parent_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL
+        ON CONFLICT (parent_job_id, deduplication_key)
+            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL
             DO NOTHING
-        RETURNING id INTO v_job_id;
+        RETURNING jobs.job_id INTO v_job_id;
     ELSE
         IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
@@ -204,8 +204,8 @@ BEGIN
 
         INSERT INTO {{schema}}.jobs (
             job_ref,
-            lineage_root_id,
-            parent_id,
+            lineage_root_job_id,
+            parent_job_id,
             deduplication_key,
             correlation_key,
             namespace_id,
@@ -214,7 +214,7 @@ BEGIN
             input_format_id,
             input,
             concurrency_key,
-            audit_level_code,
+            event_recording_code,
             created_at_utc)
         VALUES (
             p_job_ref,
@@ -228,23 +228,23 @@ BEGIN
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
             p_concurrency_key,
-            v_def_audit,
+            v_def_event_recording,
             now())
         ON CONFLICT (namespace_id, deduplication_key)
-            WHERE deduplication_key IS NOT NULL AND parent_id IS NULL
+            WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL
             DO NOTHING
-        RETURNING id INTO v_job_id;
+        RETURNING jobs.job_id INTO v_job_id;
     END IF;
 
     IF v_job_id IS NOT NULL THEN
         -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits as
         -- Blocked, keeping its due instant for when the settle ahead of it promotes it.
-        INSERT INTO {{schema}}.runtimes (
+        INSERT INTO {{schema}}.jobs_state (
             job_id,
             namespace_id,
             lane_id,
-            status_code,
-            priority_code,
+            job_status_code,
+            job_priority_code,
             next_run_at_utc,
             execution_number,
             failure_count,
@@ -258,11 +258,11 @@ BEGIN
             CASE
                 WHEN v_lane_id IS NOT NULL AND EXISTS (
                     SELECT 1
-                    FROM {{schema}}.runtimes m
+                    FROM {{schema}}.jobs_state m
                     WHERE
                         m.lane_id = v_lane_id
                         AND m.lane_id IS NOT NULL
-                        AND m.status_code IN (
+                        AND m.job_status_code IN (
                             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                             30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                         )
@@ -270,7 +270,7 @@ BEGIN
                     THEN 15 /* JobStatusCode.Blocked */
                 ELSE 10 /* JobStatusCode.Ready */
             END,
-            COALESCE(p_priority_override, v_def_priority),
+            COALESCE(p_job_priority_code_override, v_def_priority),
             COALESCE(p_next_run_at_utc, now() + make_interval(secs => COALESCE(p_delay_seconds, 0))),
             0,
             0,
@@ -278,22 +278,22 @@ BEGIN
             now(),
             0);
 
-        INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
-        SELECT 50 /* TagScopeCode.Job */, v_job_id, t.name, t.value, t.value_search
-        FROM unnest(p_t_name, p_t_value, p_t_value_search) AS t(name, value, value_search);
+        INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
+        SELECT 50 /* EntityCode.Job */, v_job_id, t.tag_name, t.tag_value, t.tag_value_search
+        FROM unnest(p_tag_name, p_tag_value, p_tag_value_search) AS t(tag_name, tag_value, tag_value_search);
 
         RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;
     ELSE
         RETURN QUERY
-        SELECT 0, j.id, j.job_ref, 2 /* EnqueueJobAction.Deduplicated */
+        SELECT 0, j.job_id, j.job_ref, 2 /* EnqueueJobAction.Deduplicated */
         FROM {{schema}}.jobs j
         WHERE
-            (p_parent_id IS NULL
+            (p_parent_job_id IS NULL
                 AND j.namespace_id = v_ns_id
                 AND j.deduplication_key = p_deduplication_key
-                AND j.parent_id IS NULL)
-            OR (p_parent_id IS NOT NULL
-                AND j.parent_id = p_parent_id
+                AND j.parent_job_id IS NULL)
+            OR (p_parent_job_id IS NOT NULL
+                AND j.parent_job_id = p_parent_job_id
                 AND j.deduplication_key = p_deduplication_key);
     END IF;
 END;

@@ -66,9 +66,9 @@ internal sealed class HandlerInvocation(
             // attempt is a zombie (StepOwnershipLostException says why the failure is retryable).
             completion = new ExecutionCompletion(CompletionKind.Failed)
             {
-                Reason = EventReasonCode.JobAttemptAborted,
+                Reason = EventReason.AttemptAborted,
                 ReasonMessage = $"Step '{ownershipLost.StepName}' ownership could not be confirmed; attempt aborted.".Truncate(
-                    ActaTextLimits.ReasonMessage
+                    ActaTextLimits.EventMessage
                 ),
             };
             log.LogInformation(
@@ -86,7 +86,7 @@ internal sealed class HandlerInvocation(
             // the "outcome unknown" story for jobs explain / the timeline.
             completion = ExecutionCompletion.Terminal(
                 CompletionKind.Failed,
-                EventReasonCode.JobStepInterrupted,
+                EventReason.StepInterrupted,
                 interrupted.Message,
                 JobStatusCode.Failed
             );
@@ -174,7 +174,7 @@ internal sealed class HandlerInvocation(
             payload.Data.Length,
             $"MaxInlinePayloadBytes cap of {maxInlinePayloadBytes} bytes"
         );
-        return succeeded with { Reason = EventReasonCode.JobResultOversized };
+        return succeeded with { Reason = EventReason.ResultOversized };
     }
 
     /// <summary>
@@ -189,16 +189,16 @@ internal sealed class HandlerInvocation(
             case RescheduleJobException reschedule:
                 return new ExecutionCompletion(CompletionKind.Rescheduled)
                 {
-                    Reason = EventReasonCode.JobHandlerRescheduled,
-                    ReasonMessage = reschedule.Message.Truncate(ActaTextLimits.ReasonMessage),
+                    Reason = EventReason.HandlerRescheduled,
+                    ReasonMessage = reschedule.Message.Truncate(ActaTextLimits.EventMessage),
                     RescheduleDelaySeconds = reschedule.Delay is { } delay ? (int)delay.TotalSeconds : null,
                     RescheduleResumeAtUtc = reschedule.Delay is null ? reschedule.ResumeAtUtc?.UtcDateTime : null,
                 };
             case SuspendSignal suspend:
                 return new ExecutionCompletion(CompletionKind.Suspended)
                 {
-                    Reason = EventReasonCode.JobHandlerSuspended,
-                    ReasonMessage = suspend.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage),
+                    Reason = EventReason.HandlerSuspended,
+                    ReasonMessage = suspend.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
                     RescheduleResumeAtUtc = suspend.ResumeAtUtc,
                 };
             case StepRetrySignal stepRetry:
@@ -207,9 +207,9 @@ internal sealed class HandlerInvocation(
                 // untouched) at the step's next_retry_at_utc; only the reason differs.
                 return new ExecutionCompletion(CompletionKind.Rescheduled)
                 {
-                    Reason = EventReasonCode.JobStepRetryScheduled,
+                    Reason = EventReason.StepRetryScheduled,
                     ReasonMessage = (stepRetry.ReasonMessage ?? $"Step '{stepRetry.StepName}' retry scheduled.").Truncate(
-                        ActaTextLimits.ReasonMessage
+                        ActaTextLimits.EventMessage
                     ),
                     RescheduleResumeAtUtc = stepRetry.ResumeAtUtc,
                 };
@@ -218,9 +218,9 @@ internal sealed class HandlerInvocation(
                 // locks the named slot and lands Ready instead if a raise won the race.
                 return new ExecutionCompletion(CompletionKind.Suspended)
                 {
-                    Reason = EventReasonCode.JobHandlerSuspended,
+                    Reason = EventReason.HandlerSuspended,
                     ReasonMessage = (signalSuspend.ReasonMessage ?? $"Signal '{signalSuspend.SignalName}' pending.").Truncate(
-                        ActaTextLimits.ReasonMessage
+                        ActaTextLimits.EventMessage
                     ),
                     WaitSignalName = signalSuspend.SignalName,
                 };
@@ -232,7 +232,7 @@ internal sealed class HandlerInvocation(
                 // an immortal Suspended row.
                 return ExecutionCompletion.Terminal(
                     CompletionKind.Cancelled,
-                    EventReasonCode.JobWaitTimedOut,
+                    EventReason.WaitTimedOut,
                     $"Durable wait '{waitTimeout.WaitName}' timed out.",
                     JobStatusCode.Cancelled
                 );
@@ -241,21 +241,21 @@ internal sealed class HandlerInvocation(
                 // exception (JobUnhandledException reason); both land Failed but the reason tells them apart.
                 return ExecutionCompletion.Terminal(
                     CompletionKind.Failed,
-                    EventReasonCode.JobHandlerFailed,
+                    EventReason.HandlerFailed,
                     fail.ReasonMessage,
                     JobStatusCode.Failed
                 );
             case HandlerCancelException cancel:
                 return ExecutionCompletion.Terminal(
                     CompletionKind.Cancelled,
-                    EventReasonCode.JobHandlerCancelled,
+                    EventReason.HandlerCancelled,
                     cancel.ReasonMessage,
                     JobStatusCode.Cancelled
                 );
             case HandlerPauseException pause:
                 return ExecutionCompletion.Terminal(
                     CompletionKind.Paused,
-                    EventReasonCode.JobHandlerPaused,
+                    EventReason.HandlerPaused,
                     pause.ReasonMessage,
                     JobStatusCode.Paused
                 );
@@ -272,9 +272,9 @@ internal sealed class HandlerInvocation(
                 );
                 return new ExecutionCompletion(CompletionKind.Failed)
                 {
-                    Reason = EventReasonCode.JobUnhandledException,
+                    Reason = EventReason.UnhandledException,
                     ReasonMessage = $"Unrecognized control signal {control.GetType().Name}: {control.Message}".Truncate(
-                        ActaTextLimits.ReasonMessage
+                        ActaTextLimits.EventMessage
                     ),
                 };
         }
@@ -289,7 +289,7 @@ internal sealed class HandlerInvocation(
             log.LogWarning("Handler for job ({JobName}) id {JobId} exceeded its execution timeout.", descriptor.JobName, job.JobId);
             return new ExecutionCompletion(CompletionKind.Failed)
             {
-                Reason = EventReasonCode.JobExecutionTimeout,
+                Reason = EventReason.ExecutionTimeout,
                 ReasonMessage = "Execution exceeded the configured timeout.",
             };
         }
@@ -305,7 +305,7 @@ internal sealed class HandlerInvocation(
         log.LogWarning("WorkerRuntime: job {JobId} attempt aborted mid-flight; handler stopped cooperatively.", job.JobId);
         return new ExecutionCompletion(CompletionKind.Failed)
         {
-            Reason = EventReasonCode.JobAttemptAborted,
+            Reason = EventReason.AttemptAborted,
             ReasonMessage = "Attempt aborted: the lease or a held lock could no longer be guaranteed.",
         };
     }
@@ -332,9 +332,9 @@ internal sealed class HandlerInvocation(
         var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException;
         return new ExecutionCompletion(CompletionKind.Failed)
         {
-            Reason = nonRetryable ? EventReasonCode.JobNonRetryableException : EventReasonCode.JobUnhandledException,
+            Reason = nonRetryable ? EventReason.NonRetryableException : EventReason.UnhandledException,
             ReasonMessage = (inputDeserialized ? ex.Message : $"Input deserialization failed ({ex.GetType().Name}): {ex.Message}").Truncate(
-                ActaTextLimits.ReasonMessage
+                ActaTextLimits.EventMessage
             ),
             HandlerStatusCode = nonRetryable ? JobStatusCode.Failed : null,
         };

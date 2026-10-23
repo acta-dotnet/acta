@@ -1507,7 +1507,7 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("immutable-array", 0)]
     [InlineData("generated-handler-dispatch", 0)]
     [InlineData("job-priority-code", 0)]
-    [InlineData("definition-audit-level-code", 0)]
+    [InlineData("event-recording-code", 0)]
     [InlineData("misfire-strategy-code", 0)]
     [InlineData("job-descriptor", 0)]
     public void Valid_job_names_compile_cleanly_and_warn_ACTA0106_on_a_collision(string jobNames, int collisions)

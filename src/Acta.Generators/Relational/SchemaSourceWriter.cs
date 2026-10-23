@@ -250,6 +250,7 @@ internal static class SchemaSourceWriter
         }
         sb.AppendLine(" },");
         sb.Append("                        Descending: ").Append(StringArrayLiteralOrNull(ix.Descending)).AppendLine(",");
+        sb.Append("                        Include: ").Append(StringArrayLiteralOrNull(ix.Include)).AppendLine(",");
         sb.Append("                        Filter: ").Append(StringLiteral(ix.Filter)).AppendLine(",");
         sb.Append("                        Usage: ").Append(StringLiteral(ix.Usage)).AppendLine(",");
         sb.Append("                        IsUnique: ").Append(ix.IsUnique ? "true" : "false").AppendLine("),");

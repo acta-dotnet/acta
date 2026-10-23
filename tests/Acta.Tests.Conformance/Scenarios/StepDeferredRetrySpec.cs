@@ -55,7 +55,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 5,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -112,7 +112,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // Step row: Pending at attempt 1, next_retry_at_utc set to a future instant.
         var step1 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepName, step1.Name);
+        Assert.Equal(StepName, step1.StepName);
         Assert.Equal(StepStatusCode.Pending, step1.Status);
         Assert.Equal(1, step1.AttemptNumber);
         Assert.NotNull(step1.NextRetryAtUtc);
@@ -148,8 +148,8 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         var retryInstant = step1.NextRetryAtUtc!.Value;
 
         // The failed attempt stamps its reason on the slot; the success below has to take it back off.
-        Assert.Equal(EventReasonCode.JobUnhandledException, step1.ReasonCode);
-        Assert.NotNull(step1.ReasonMessage);
+        Assert.Equal(StepFailureCode.UnhandledException, step1.FailureCode);
+        Assert.NotNull(step1.FailureMessage);
 
         // Parent is ready at retryInstant; confirm it matches before DB manipulation.
         var job1 = await ReadJobAsync(enqueued.JobId, ct);
@@ -174,8 +174,8 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // The earlier attempt's reason does not survive the success: a Succeeded row carrying one would
         // read as a failure to every post-mortem query.
-        Assert.Null(step3.ReasonCode);
-        Assert.Null(step3.ReasonMessage);
+        Assert.Null(step3.FailureCode);
+        Assert.Null(step3.FailureMessage);
 
         // Parent: Succeeded, failure_count still untouched.
         var job3 = await ReadJobAsync(enqueued.JobId, ct);
@@ -190,7 +190,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
     private static Task SetJobNextRunAsync(IDbSession db, long jobId, DateTime nextRun, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET next_run_at_utc = @p_next WHERE job_id = @p_id",
             ct,
             ("@p_next", nextRun),
             ("@p_id", jobId)
@@ -198,7 +198,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
     private static Task SetStepNextRetryAtAsync(IDbSession db, long jobId, string stepName, DateTime nextRetry, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND name = @p_name",
+            "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND step_name = @p_name",
             ct,
             ("@p_next", nextRetry),
             ("@p_id", jobId),

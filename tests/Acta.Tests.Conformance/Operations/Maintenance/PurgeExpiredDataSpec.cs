@@ -75,11 +75,11 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         Assert.Equal(1, purged.Jobs);
         Assert.Null(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<JobStateEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
         Assert.Empty(await Db.From<StepEntity>().Where(s => s.JobId == jobId).ToListAsync(ct));
         Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct));
         Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == jobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<TagEntity>().Where(t => t.EntityCode == EntityCode.Job && t.EntityId == jobId).ToListAsync(ct));
     }
 
     [Fact(DisplayName = "A future-retention job stamped with the default window survives the purge")]
@@ -161,7 +161,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Tenant events belong to the sys namespace, where no worker runs a sweep of its own.
         await tenants.SuspendAsync(key, ct: ct);
         var aged = await Db.From<EventEntity>()
-            .Where(e => e.TenantId == tenantId && e.EventCode == EventCode.TenantSuspended)
+            .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == tenantId && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(1, aged!.NamespaceId);
         var agedAt = DateTime.UtcNow.AddDays(-(eventsRetentionDays + 1));
@@ -187,7 +187,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Null(await Db.From<EventEntity>().Where(e => e.Id == aged.Id).SingleOrDefaultAsync(ct));
         Assert.NotNull(
             await Db.From<EventEntity>()
-                .Where(e => e.TenantId == tenantId && e.EventCode == EventCode.TenantResumed)
+                .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == tenantId && e.EventCode == EventCode.TenantResumed)
                 .SingleOrDefaultAsync(ct)
         );
     }
@@ -481,7 +481,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
 
         // The lineage guard keeps the expired parent until its descendant is deletable, so the
-        // child's parent_id / lineage_root_id never dangle.
+        // child's parent_job_id / lineage_root_job_id never dangle.
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == parent.JobId).SingleOrDefaultAsync(ct));
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.Id == child.JobId).SingleOrDefaultAsync(ct));
     }
@@ -677,7 +677,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                     JobName: jobName,
                     InputFormatId: 0,
                     Input: ReadOnlyMemory<byte>.Empty,
-                    AuditLevel: DefinitionAuditLevelCode.Audit,
+                    EventRecording: EventRecordingCode.Audit,
                     SlotStatus: JobStatusCode.Ready,
                     SlotMinNextRunAtUtc: cursor,
                     Schedules:
@@ -700,7 +700,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // An operator cancelled it a retention window ago.
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = NULL, retention_until_utc = @p_until WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, next_run_at_utc = NULL, retention_until_utc = @p_until WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Cancelled),
             ("@p_until", DateTime.UtcNow.AddDays(-1)),
@@ -712,7 +712,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotEmpty(await Db.From<ScheduleEntity>().Where(x => x.JobId == slotId).ToListAsync(ct));
 
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.definitions SET status_code = @p_status WHERE id = @p_id",
+            "UPDATE {schema}.definitions SET definition_status_code = @p_status WHERE definition_id = @p_id",
             ct,
             ("@p_status", (byte)DefinitionStatusCode.Retired),
             ("@p_id", defId)
@@ -743,7 +743,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

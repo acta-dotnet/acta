@@ -42,12 +42,10 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         Assert.False((await Fixture.ReadOutboxRowAsync(SourceTable, named)).Exists);
         Assert.True((await Fixture.ReadOutboxRowAsync(SourceTable, spared)).Exists);
 
-        var evidence = Assert.Single(
-            await Db.From<EventEntity>().Where(e => e.JobId == slotId && e.EventCode == EventCode.OutboxDiscarded).ToListAsync(ct)
-        );
-        Assert.Equal("op-1", evidence.Actor);
-        Assert.Contains("poison payload", evidence.ReasonMessage);
-        Assert.Contains(named.ToString(), evidence.ReasonMessage);
+        var evidence = await ReadSingleEventAsync(slotId, EventCode.OutboxDiscarded, ct);
+        Assert.Equal("op-1", EventDetail(evidence, "actor"));
+        Assert.Contains("poison payload", evidence.EventMessage);
+        Assert.Contains(named.ToString(), evidence.EventMessage);
 
         Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, null, null, null, ct)).Action);
     }

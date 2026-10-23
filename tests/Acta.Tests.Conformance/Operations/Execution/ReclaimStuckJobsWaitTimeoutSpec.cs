@@ -9,10 +9,10 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// <summary>
 /// Conformance for the one started attempt <c>reclaim_stuck_jobs</c> must not charge: the attempt that woke on a
 /// wait deadline, flipped the awaited slot to Expired, and then lost its worker. The surviving path ends
-/// that attempt Cancelled with <c>job.wait-timed-out</c> and no budget spent, so a reclaim that charged
+/// that attempt Cancelled with reason <c>wait-timed-out</c> and no budget spent, so a reclaim that charged
 /// it would let a crash fail a job the deadline had already resolved for free. Reclaim recognizes the
 /// case from state alone - a slot of the job's own wait kinds, Expired, whose stored expiration is the
-/// instant the suspend cached on the runtime row - and hands the job back Suspended on that same past
+/// instant the suspend cached on the jobs_state row - and hands the job back Suspended on that same past
 /// deadline, uncharged, for the replay to resolve as the waiting overload defines it.
 ///
 /// <para>Uncharged is not unwatched. Spending no budget means a worker dying on the same wait every
@@ -60,10 +60,9 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Null(reclaimed.LeaseExpiresAtUtc);
         Assert.Null(reclaimed.RetentionUntilUtc);
 
-        var recovery = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(ExecutionStatusCode.Orphaned, recovery.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Suspended, recovery.ToStatus);
-        Assert.Equal(EventReasonCode.JobLeaseExpired, recovery.ReasonCode);
+        var recovery = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionOrphaned, ct);
+        Assert.Equal(JobStatusCode.Suspended.Code, EventDetail(recovery, "to"));
+        Assert.Equal(EventReason.LeaseExpired, EventDetail(recovery, "reason"));
 
         // The replay lands exactly what the surviving path would have landed, still budget-neutral.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -71,7 +70,10 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(JobStatusCode.Cancelled, settled.Status);
         Assert.Equal(0, settled.FailureCount);
         Assert.NotNull(settled.RetentionUntilUtc);
-        Assert.Equal(EventReasonCode.JobWaitTimedOut, (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct)).ReasonCode);
+        Assert.Equal(
+            EventReason.WaitTimedOut,
+            EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct), "reason")
+        );
     }
 
     [Fact(DisplayName = "A crash before the wait expired is charged and re-armed the ordinary way")]
@@ -113,7 +115,10 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         // The Try wait resolves TimedOut and the handler parks on a second, unbounded wait: the job now
         // carries an Expired slot it walked past, which must not read as a deadline still resolving.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
+        Assert.Equal(
+            CheckpointStatusCode.Expired,
+            (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.CheckpointName == "go").Status
+        );
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
         await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
@@ -210,14 +215,15 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_id AND kind_code = 20 AND name = @p_name",
+            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 20 AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", jobId),
             ("@p_name", name)
         );
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET next_run_at_utc = @p_next WHERE job_id = @p_id",
             ct,
             ("@p_next", past),
             ("@p_id", jobId)

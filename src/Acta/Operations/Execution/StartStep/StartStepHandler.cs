@@ -9,7 +9,7 @@ internal sealed class StartStepHandler(IDbSession session, ISqlDialect dialect)
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.JobId, command.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.StepName, command.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AtMostOnce, command.AtMostOnce));
             },
             DbProjectionResolver.Resolve<StartStepResponse>(),

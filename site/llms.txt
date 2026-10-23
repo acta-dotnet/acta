@@ -173,7 +173,7 @@ A handler parks on a named signal and something outside raises it: a webhook, an
 job. `var r = await ctx.TryWaitSignalAsync("shipped", TimeSpan.FromDays(14), ct);` returns a
 `SignalWaitOutcome`; branch on `r.TimedOut` to handle the deadline in code. The other overload,
 `await ctx.WaitSignalAsync("shipped", TimeSpan.FromDays(14), ct)`, returns nothing, and a timeout
-ends the job `Cancelled` with reason `job.wait-timed-out` instead of returning; use it only when a
+ends the job `Cancelled` with reason `wait-timed-out` instead of returning; use it only when a
 missed deadline should stop the job. Both are typed too: `TryWaitSignalAsync<T>` returns
 `SignalWaitOutcome<T>` with `Value`, and `WaitSignalAsync<T>` returns the raised value. The raising
 side is `await jobs.RaiseSignalAsync(JobLookup.ByRef(jobRef), "shipped", new Shipped(trackingId))`
@@ -218,7 +218,7 @@ namespace: definitions in different namespaces never share it, so a partner quot
 services needs its rate split between them. Definitions on one meter must
 declare the same rate. A job that arrives early is BOOKED the next free instant: under a quarter second away
 the executor sleeps it out and takes it, farther away the job re-arms Ready at exactly that instant
-without spending retry budget (reason `job.rate-limited`, never a failure and never an alert), and a
+without spending retry budget (reason `rate-limited`, never a failure and never an alert), and a
 booked turn stays valid for a second, so a backlog drains in arrival order at the rate with at most
 one re-arm per job.
 

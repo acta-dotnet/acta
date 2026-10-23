@@ -30,17 +30,17 @@ internal static class ScheduleWalker
                             s.TimeZoneId,
                             s.ExpressionKind,
                             s.MisfireStrategy,
-                            s.NextRunAtUtc,
+                            s.NextOccurrenceAtUtc,
                             until.AddTicks(-1)
                         )
                         : null
-                    : s.NextRunAtUtc;
+                    : s.NextOccurrenceAtUtc;
             if (cursor is { } c && c <= nowUtc)
             {
                 due.Add(s);
                 advances.Add(
                     new ScheduleAdvance(
-                        s.Name,
+                        s.ScheduleName,
                         NextOccurrenceCalculator.FirstAfter(s.Expression, s.TimeZoneId, s.ExpressionKind, c, nowUtc),
                         s.Version
                     )
@@ -48,23 +48,23 @@ internal static class ScheduleWalker
             }
             else if (s.Status == ScheduleStatusCode.Paused && s.PausedUntilUtc <= nowUtc)
             {
-                advances.Add(new ScheduleAdvance(s.Name, cursor, s.Version));
+                advances.Add(new ScheduleAdvance(s.ScheduleName, cursor, s.Version));
             }
         }
-        due.Sort((a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
+        due.Sort((a, b) => StringComparer.Ordinal.Compare(a.ScheduleName, b.ScheduleName));
 
-        var advancedByName = advances.ToDictionary(a => a.ScheduleName, a => a.NextRunAtUtc, StringComparer.Ordinal);
+        var advancedByName = advances.ToDictionary(a => a.ScheduleName, a => a.NextOccurrenceAtUtc, StringComparer.Ordinal);
 
         // An advanced schedule contributes its new cursor; everything else contributes per the pause rule.
         var slotMin = SlotMin(
             live.Select(s =>
-                advancedByName.TryGetValue(s.Name, out var adv) ? adv
+                advancedByName.TryGetValue(s.ScheduleName, out var adv) ? adv
                 : s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc
-                : s.NextRunAtUtc
+                : s.NextOccurrenceAtUtc
             )
         );
 
-        return new RecurringFirePlan(due.Select(s => s.Name).ToList(), advances, slotMin);
+        return new RecurringFirePlan(due.Select(s => s.ScheduleName).ToList(), advances, slotMin);
     }
 
     /// <summary>
@@ -83,7 +83,7 @@ internal static class ScheduleWalker
                         s.TimeZoneId,
                         s.ExpressionKind,
                         s.MisfireStrategy,
-                        s.NextRunAtUtc,
+                        s.NextOccurrenceAtUtc,
                         nowUtc
                     )
             )
@@ -118,7 +118,7 @@ internal static class ScheduleWalker
             DateTime? contribution;
             if (stored is { Status: ScheduleStatusCode.Paused })
             {
-                cursor = stored.NextRunAtUtc; // preserve the remembered due point; do not advance a paused schedule
+                cursor = stored.NextOccurrenceAtUtc; // preserve the remembered due point; do not advance a paused schedule
                 contribution = stored.PausedUntilUtc; // timed pause is the wake point; indefinite contributes nothing
             }
             else
@@ -127,7 +127,7 @@ internal static class ScheduleWalker
                 // behind by a deploy that switched interval and cron, and registration clears it.
                 var expression = stored?.ExpressionKind == d.ExpressionKind ? stored.ExpressionOverride ?? d.Expression : d.Expression;
                 var zone = string.IsNullOrWhiteSpace(stored?.TimeZoneIdOverride) ? timeZone : stored.TimeZoneIdOverride;
-                var due = stored?.NextRunAtUtc;
+                var due = stored?.NextOccurrenceAtUtc;
                 // Rewriting the schedule of an attempt in flight bumps the row's version, which refuses that
                 // attempt's own advance, so the cursor it was armed for moves past it here instead.
                 cursor =
@@ -180,7 +180,7 @@ internal static class ScheduleWalker
     private static bool IsParked(StoredScheduleState? slot, IEnumerable<StoredScheduleState> rows, DateTime nowUtc) =>
         slot?.SlotStatus == JobStatusCode.Suspended
         || slot is { SlotStatus: JobStatusCode.Ready, SlotNextRunAtUtc: { } wake }
-            && rows.Any(s => s.Status == ScheduleStatusCode.Active && s.NextRunAtUtc is { } due && due <= nowUtc && due < wake);
+            && rows.Any(s => s.Status == ScheduleStatusCode.Active && s.NextOccurrenceAtUtc is { } due && due <= nowUtc && due < wake);
 
     /// <summary>
     /// Whether a job is held: Paused with a next run. An operator's pause and a handler's own pause always

@@ -54,7 +54,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(only.Name, plannedNext)],
+            [new ScheduleAdvance(only.ScheduleName, plannedNext)],
             JobStatusCode.Ready,
             plannedNext,
             ct
@@ -62,22 +62,23 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
 
         // The runtime decides whether to wake from the result row, so it must carry the derived state.
         Assert.Equal(CompleteExecutionsAction.Completed, result.Action);
-        Assert.Equal((byte)JobStatusCode.Paused, result.FinalStatusCode);
+        Assert.Equal((byte)JobStatusCode.Paused, result.FinalJobStatusCode);
         Assert.Null(result.FinalNextRunAtUtc);
 
         var schedule = Assert.Single(await SchedulesAsync(slotId, ct));
         Assert.Equal(ScheduleStatusCode.Orphaned, schedule.Status);
-        Assert.Equal(cursor, schedule.NextRunAtUtc);
+        Assert.Null(schedule.NextOccurrenceAtUtc);
 
         var runtime = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Paused, runtime.Status);
         Assert.Null(runtime.NextRunAtUtc);
 
-        // The audit row says what the runtime row says: paused, not rolled over.
-        var events = await Db.From<EventEntity>().Where(e => e.JobId == slotId && e.ExecutionNumber == Attempt).ToListAsync(ct);
-        Assert.Contains(events, e => e.EventCode == EventCode.JobPaused);
-        var finished = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished);
-        Assert.Equal(JobStatusCode.Paused, finished.ToStatus);
+        // The audit rows say what the jobs_state row says: paused, not rolled over.
+        var events = await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotId && e.ExecutionNumber == Attempt)
+            .ToListAsync(ct);
+        Assert.Single(events, e => e.EventCode == EventCode.JobExecutionSucceeded);
+        Assert.Single(events, e => e.EventCode == EventCode.JobPaused);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobRecurringRolledOver);
     }
 
@@ -93,8 +94,8 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         await RegisterAsync(defId, jobName, early, [Slot("early", early), Slot("late", late)], JobStatusCode.Ready, ct);
         var slotId = await SlotIdAsync(jobName, ct);
         var schedules = await SchedulesAsync(slotId, ct);
-        var earlyRow = Assert.Single(schedules, s => s.NextRunAtUtc == early);
-        var lateRow = Assert.Single(schedules, s => s.NextRunAtUtc == late);
+        var earlyRow = Assert.Single(schedules, s => s.NextOccurrenceAtUtc == early);
+        var lateRow = Assert.Single(schedules, s => s.NextOccurrenceAtUtc == late);
 
         var workerId = await LeaseInFlightAsync(slotId, ct);
 
@@ -107,21 +108,22 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(earlyRow.Name, earlyNext), new ScheduleAdvance(lateRow.Name, lateNext)],
+            [new ScheduleAdvance(earlyRow.ScheduleName, earlyNext), new ScheduleAdvance(lateRow.ScheduleName, lateNext)],
             JobStatusCode.Ready,
             earlyNext,
             ct
         );
-        Assert.Equal((byte)JobStatusCode.Ready, result.FinalStatusCode);
+        Assert.Equal((byte)JobStatusCode.Ready, result.FinalJobStatusCode);
         Assert.Equal(lateNext, result.FinalNextRunAtUtc);
 
         var after = await SchedulesAsync(slotId, ct);
-        var earlyAfter = Assert.Single(after, s => s.Name == earlyRow.Name);
+        var earlyAfter = Assert.Single(after, s => s.ScheduleName == earlyRow.ScheduleName);
         Assert.Equal(ScheduleStatusCode.Orphaned, earlyAfter.Status);
-        Assert.Equal(early, earlyAfter.NextRunAtUtc);
-        var lateAfter = Assert.Single(after, s => s.Name == lateRow.Name);
+        Assert.Null(earlyAfter.NextOccurrenceAtUtc);
+        var lateAfter = Assert.Single(after, s => s.ScheduleName == lateRow.ScheduleName);
         Assert.Equal(ScheduleStatusCode.Active, lateAfter.Status);
-        Assert.Equal(lateNext, lateAfter.NextRunAtUtc);
+        Assert.Equal(lateNext, lateAfter.NextOccurrenceAtUtc);
+        Assert.Equal(late, lateAfter.LastAdvancedOccurrenceAtUtc);
 
         var runtime = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, runtime.Status);
@@ -151,13 +153,20 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(existingRow.Name, existingNext, existingRow.Version)],
+            [new ScheduleAdvance(existingRow.ScheduleName, existingNext, existingRow.Version)],
             JobStatusCode.Ready,
             existingNext,
             ct
         );
-        Assert.Equal((byte)JobStatusCode.Ready, result.FinalStatusCode);
+        Assert.Equal((byte)JobStatusCode.Ready, result.FinalJobStatusCode);
         Assert.Equal(added, result.FinalNextRunAtUtc);
+
+        // The advance moves the cursor alone: the schedule's version and modified stamp stay as registration left them.
+        var existingAfter = Assert.Single(await SchedulesAsync(slotId, ct), s => s.ScheduleName == existingRow.ScheduleName);
+        Assert.Equal(existingNext, existingAfter.NextOccurrenceAtUtc);
+        Assert.Equal(existing, existingAfter.LastAdvancedOccurrenceAtUtc);
+        Assert.Equal(existingRow.Version, existingAfter.Version);
+        Assert.Equal(existingRow.Config.ModifiedAtUtc, existingAfter.Config.ModifiedAtUtc);
 
         var runtime = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, runtime.Status);
@@ -181,21 +190,21 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         var workerId = await LeaseInFlightAsync(slotId, ct);
 
         // An operator moves the cursor while the attempt runs; every edit verb bumps the version.
-        await EditCursorAsync(slotId, read.Name, edited, ct);
+        await EditCursorAsync(slotId, read.ScheduleName, edited, ct);
 
         // The plan was made against the version read before the edit.
         var plannedNext = cursor.AddMinutes(5);
         var result = await CompleteAsync(
             slotId,
             workerId,
-            [new ScheduleAdvance(read.Name, plannedNext, read.Version)],
+            [new ScheduleAdvance(read.ScheduleName, plannedNext, read.Version)],
             JobStatusCode.Ready,
             plannedNext,
             ct
         );
 
         var after = Assert.Single(await SchedulesAsync(slotId, ct));
-        Assert.Equal(edited, after.NextRunAtUtc);
+        Assert.Equal(edited, after.NextOccurrenceAtUtc);
         Assert.Equal(read.Version + 1, after.Version);
         Assert.Equal(ScheduleStatusCode.Active, after.Status);
 
@@ -207,22 +216,35 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
     }
 
     /// <summary>An operator edit as the verbs leave it: a new cursor, a new version, a new modified stamp.</summary>
-    private Task EditCursorAsync(long jobId, string scheduleName, DateTime nextRunAtUtc, CancellationToken ct) =>
-        Db.ExecuteRawAsync(
-            "UPDATE {schema}.schedules SET next_run_at_utc = @p_next, modified_at_utc = @p_next, version = version + 1 "
-                + "WHERE job_id = @p_job_id AND name = @p_name",
+    private async Task EditCursorAsync(long jobId, string scheduleName, DateTime nextOccurrenceAtUtc, CancellationToken ct)
+    {
+        var next = DbValueCoercion.Coerce(nextOccurrenceAtUtc, typeof(DateTime), Db.Provider);
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.schedules SET modified_at_utc = @p_next, version = version + 1 "
+                + "WHERE job_id = @p_job_id AND schedule_name = @p_name",
             ct,
-            ("@p_next", DbValueCoercion.Coerce(nextRunAtUtc, typeof(DateTime), Db.Provider)),
+            ("@p_next", next),
             ("@p_job_id", jobId),
             ("@p_name", scheduleName)
         );
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.schedules_state SET next_occurrence_at_utc = @p_next, modified_at_utc = @p_next "
+                + "WHERE job_id = @p_job_id AND schedule_name = @p_name",
+            ct,
+            ("@p_next", next),
+            ("@p_job_id", jobId),
+            ("@p_name", scheduleName)
+        );
+    }
 
-    /// <summary>The audit trail of a re-armed slot: one finished and one rolled-over event, both saying Ready.</summary>
+    /// <summary>The audit trail of a re-armed slot: one succeeded attempt and one rolled-over event, never a pause.</summary>
     private async Task AssertRolledOverAsync(long slotId, CancellationToken ct)
     {
-        var events = await Db.From<EventEntity>().Where(e => e.JobId == slotId && e.ExecutionNumber == Attempt).ToListAsync(ct);
-        Assert.Equal(JobStatusCode.Ready, Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished).ToStatus);
-        Assert.Equal(JobStatusCode.Ready, Assert.Single(events, e => e.EventCode == EventCode.JobRecurringRolledOver).ToStatus);
+        var events = await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotId && e.ExecutionNumber == Attempt)
+            .ToListAsync(ct);
+        Assert.Single(events, e => e.EventCode == EventCode.JobExecutionSucceeded);
+        Assert.Single(events, e => e.EventCode == EventCode.JobRecurringRolledOver);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobPaused);
     }
 
@@ -233,7 +255,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
         Assert.NotEmpty(workers);
         var worker = workers[0];
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, execution_number = @p_attempt, leased_by_worker_id = @p_worker, "
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, execution_number = @p_attempt, leased_by_worker_id = @p_worker, "
                 + "lease_expires_at_utc = @p_expires WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Executing),
@@ -263,6 +285,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
                     true,
                     JobPayloadFormat.None.Id,
                     ReadOnlyMemory<byte>.Empty,
+                    EventCode.JobExecutionSucceeded,
                     null,
                     null,
                     null,
@@ -277,11 +300,10 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
                 ct
             );
 
-    private Task<IReadOnlyList<ScheduleEntity>> SchedulesAsync(long jobId, CancellationToken ct) =>
-        Db.From<ScheduleEntity>().Where(s => s.JobId == jobId).ToListAsync(ct);
+    private Task<IReadOnlyList<ScheduleRow>> SchedulesAsync(long jobId, CancellationToken ct) => ScheduleTestOps.ReadAsync(Db, jobId, ct);
 
-    private async Task<RuntimeEntity> RuntimeAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
+    private async Task<JobStateEntity> RuntimeAsync(long jobId, CancellationToken ct) =>
+        Assert.Single(await Db.From<JobStateEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
 
     private async Task<int> CreateDefinitionAsync(string jobName, CancellationToken ct)
     {
@@ -304,7 +326,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -333,7 +355,7 @@ public sealed class CompleteExecutionsSchedulesChangedSpec : ActaRuntimeTestBase
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

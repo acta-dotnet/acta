@@ -211,7 +211,7 @@ internal sealed class WorkerExecutorHarness(
             OutputPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: maxAttempts,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: async (_, _, ctx, token) =>
             {
@@ -256,7 +256,7 @@ internal sealed class WorkerExecutorHarness(
         private object? Answer(BoundCall call) =>
             call.Stem switch
             {
-                "StartStep" => StartStep(call.Get(ActaSchema.Step.Name)),
+                "StartStep" => StartStep(call.Get(ActaSchema.Step.StepName)),
                 "CompleteStep" => CompleteStep(),
                 "CompleteExecutions" => BoundCompletion.Read(call).Select(Complete).ToList(),
                 // The deadline path cancels descendants, and a harness job has none.
@@ -274,8 +274,8 @@ internal sealed class WorkerExecutorHarness(
                 NextRetryAtUtc: null,
                 ResultFormatId: 0,
                 Result: null,
-                ReasonCode: null,
-                ReasonMessage: null
+                FailureCode: null,
+                FailureMessage: null
             );
         }
 
@@ -323,7 +323,7 @@ internal sealed class WorkerExecutorHarness(
         private static byte FinalStatus(BoundCompletion completion) =>
             completion switch
             {
-                { RescheduleStatusCode: not null } => (byte)JobStatusCode.Ready,
+                { RescheduleEventCode: not null } => (byte)JobStatusCode.Ready,
                 { HandlerStatusCode: { } handler } => handler,
                 { Outcome: CompletionKind.Succeeded } => (byte)JobStatusCode.Succeeded,
                 { Outcome: CompletionKind.Cancelled } => (byte)JobStatusCode.Cancelled,

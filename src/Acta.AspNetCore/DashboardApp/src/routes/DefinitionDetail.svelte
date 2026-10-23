@@ -33,7 +33,7 @@
     { key: 'deadlineSeconds', label: 'Deadline (s)', kind: 'int' },
     { key: 'deadlineBehavior', label: 'Deadline behavior', kind: 'enum' },
     { key: 'jobRetentionSeconds', label: 'Retention (s)', kind: 'int' },
-    { key: 'auditLevel', label: 'Audit level', kind: 'enum' },
+    { key: 'eventRecording', label: 'Event recording', kind: 'enum' },
     { key: 'alertProfile', label: 'Alert profile', kind: 'enum' },
     { key: 'alertChannelName', label: 'Alert channel', kind: 'str' },
     { key: 'runbookUrl', label: 'Runbook URL', kind: 'str' },

@@ -1,8 +1,8 @@
-// Concept: AuditLevel gates which job events are written; Audit emits everything, Failures emits failure
+// Concept: EventRecording gates which job events are written; Audit emits everything, Failures emits failure
 // outcomes and the success that follows one (which closes the incident), and Off suppresses all
-// audit-filtered per-job events.
+// recording-filtered per-job events.
 using Acta;
-using Acta.Concepts.AuditLevel;
+using Acta.Concepts.EventRecording;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -11,7 +11,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
     j.UseLocalDatabase(builder.Configuration);
-    j.Run<AuditLevelJobs>("audit-level");
+    j.Run<EventRecordingJobs>("event-recording");
 });
 
 using var host = builder.Build();
@@ -20,13 +20,13 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var queries = host.Services.GetRequiredService<IActaOperations>();
 
-// Audit: emits job.execution-finished for every run.
+// Audit: emits an attempt event (job.execution-succeeded, -failed, ...) for every run.
 var auditOutcome = await jobs.EnqueueAsync(new AuditWork("report-a"));
 await Task.Delay(500);
 var auditEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: auditOutcome.JobId));
 Console.WriteLine($"Audit level  -> event count: {auditEvents.Items.Count}");
 
-// Failures: suppresses job.execution-finished for successful runs that follow no failure; failures emit.
+// Failures: suppresses job.execution-succeeded for successful runs that follow no failure; failures emit.
 var failuresOutcome = await jobs.EnqueueAsync(new FailuresWork("report-b"));
 await Task.Delay(500);
 var failuresEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: failuresOutcome.JobId));
@@ -34,7 +34,7 @@ Console.WriteLine(
     $"Failures level -> event count: {failuresEvents.Items.Count} (expected 0: a successful run emits nothing at Failures level)"
 );
 
-// Off: suppresses all audit-filtered per-job events; the job runs but the ledger stays silent.
+// Off: suppresses all recording-filtered per-job events; the job runs but the ledger stays silent.
 var offOutcome = await jobs.EnqueueAsync(new OffWork("report-c"));
 await Task.Delay(500);
 var offEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: offOutcome.JobId));
@@ -42,7 +42,7 @@ Console.WriteLine($"Off level    -> event count: {offEvents.Items.Count}");
 
 await host.StopAsync();
 
-namespace Acta.Concepts.AuditLevel
+namespace Acta.Concepts.EventRecording
 {
     public sealed record AuditWork(string Id);
 
@@ -53,7 +53,7 @@ namespace Acta.Concepts.AuditLevel
     public static class AuditWorkJob
     {
         // Audit (default): a finished event is written for every execution.
-        [Job("audit-work", AuditLevel = DefinitionAuditLevelCode.Audit)]
+        [Job("audit-work", EventRecording = EventRecordingCode.Audit)]
         public static void Handle(AuditWork input) => Console.WriteLine($"[{input.Id}] running at Audit level");
     }
 
@@ -61,14 +61,14 @@ namespace Acta.Concepts.AuditLevel
     {
         // Failures: a failure writes an event, and so does the success that answers one; a run that
         // succeeds after no failure leaves none.
-        [Job("failures-work", AuditLevel = DefinitionAuditLevelCode.Failures)]
+        [Job("failures-work", EventRecording = EventRecordingCode.Failures)]
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");
     }
 
     public static class OffWorkJob
     {
-        // Off: no audit-filtered events at all; use for high-frequency definitions to keep events lean.
-        [Job("off-work", AuditLevel = DefinitionAuditLevelCode.Off)]
+        // Off: no recording-filtered events at all; use for high-frequency definitions to keep events lean.
+        [Job("off-work", EventRecording = EventRecordingCode.Off)]
         public static void Handle(OffWork input) => Console.WriteLine($"[{input.Id}] running at Off level");
     }
 }

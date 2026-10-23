@@ -39,7 +39,7 @@
           <dl class="schedule-meta">
             <div><dt>Expression</dt><dd class="mono">{schedule.expression}</dd></div>
             <div><dt>Kind</dt><dd>{schedule.expressionKind}</dd></div>
-            <div><dt>Next run</dt><dd><RelativeTime value={schedule.nextRunAtUtc} /></dd></div>
+            <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
           </dl>
           <ScheduleControls
             jobNamespace={schedule.jobNamespace}

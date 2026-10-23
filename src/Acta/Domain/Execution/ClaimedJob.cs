@@ -4,7 +4,7 @@ namespace Acta;
 /// One claimed row: the full job row needed to dispatch, and for the runner to take the <c>concurrency_key</c> slot
 /// before the handler, without re-reading <c>jobs</c>; tags and schedules load separately on demand, never joined into
 /// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion; a completion
-/// matches on worker and <c>ExecutionNumber</c>, which only a claim moves. <c>LaneId</c> and <c>ParentId</c> never change after insert, so the completion trusts them as the claim read them.
+/// matches on worker and <c>ExecutionNumber</c>, which only a claim moves. <c>LaneId</c> and <c>ParentJobId</c> never change after insert, so the completion trusts them as the claim read them.
 /// </summary>
 internal sealed record ClaimedJob(
     long JobId,
@@ -21,7 +21,7 @@ internal sealed record ClaimedJob(
     DateTime CreatedAtUtc,
     int FailureCount,
     long? LaneId = null,
-    long? ParentId = null
+    long? ParentJobId = null
 )
 {
     /// <summary>Reads a job row of either claim routine; the horizon sentinel row is the claim scan's own.</summary>
@@ -43,7 +43,7 @@ internal sealed record ClaimedJob(
             CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
             FailureCount: Required(row.FailureCount, "failure_count"),
             LaneId: row.LaneId,
-            ParentId: row.ParentId
+            ParentJobId: row.ParentJobId
         );
 
     private static T Required<T>(T? value, string column)

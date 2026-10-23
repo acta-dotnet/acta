@@ -37,12 +37,12 @@ public sealed class GetWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.NotNull(worker);
         Assert.Equal(started.WorkerId, worker!.WorkerId);
         Assert.Equal(TestNamespace, worker.JobNamespace);
-        Assert.Equal("detail-host", worker.Host);
+        Assert.Equal("detail-host", worker.HostName);
         Assert.Equal("deploy-detail", worker.DeploymentVersion);
         Assert.Equal("engine-detail", worker.EngineVersion);
         Assert.Equal(".NET detail", worker.DotnetVersion);
         Assert.Equal(4242, worker.ProcessId);
-        Assert.Equal(12, worker.MaxConcurrency);
+        Assert.Equal(12, worker.MaxConcurrentExecutors);
         Assert.True(worker.LastSeenAtUtc >= worker.StartedAtUtc);
         Assert.True(worker.ModifiedAtUtc >= worker.StartedAtUtc);
     }

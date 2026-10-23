@@ -1,53 +1,33 @@
 DROP TABLE IF EXISTS temp._dead_workers;
 
 CREATE TEMP TABLE _dead_workers AS
-SELECT id, namespace_id
+SELECT worker_id, namespace_id
 FROM {{schema}}.workers
 WHERE
     -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as dead as
     -- an active one; nothing else ever moves a Draining row.
-    status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+    worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
     AND last_seen_at_utc < {{now}} - (@p_dead_after_seconds) * 1000;
 
 INSERT INTO {{schema}}.events (
     event_code,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    execution_number,
-    lineage_root_id,
-    definition_id,
     worker_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    entity_code,
+    entity_id)
 SELECT
     122 /* EventCode.WorkerDied */,
     d.namespace_id,
-    70 /* ActorCode.Worker */,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    d.id,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    101 /* EventReasonCode.WorkerHeartbeatStale */,
-    NULL
+    d.worker_id,
+    130 /* EntityCode.Worker */,
+    d.worker_id
 FROM temp._dead_workers d;
 
 UPDATE {{schema}}.workers
 SET
-    status_code = 200 /* WorkerStatusCode.Dead */,
+    worker_status_code = 200 /* WorkerStatusCode.Dead */,
     modified_at_utc = {{now}},
     version = version + 1
-WHERE id IN (SELECT id FROM temp._dead_workers);
+WHERE worker_id IN (SELECT worker_id FROM temp._dead_workers);
 
 SELECT (SELECT COUNT(*) FROM temp._dead_workers) AS marked;

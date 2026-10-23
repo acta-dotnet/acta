@@ -75,7 +75,7 @@ public sealed class ListWorkersSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal("engine-c", newest.EngineVersion);
         Assert.Equal(".NET test", newest.DotnetVersion);
         Assert.Equal(1003, newest.ProcessId);
-        Assert.Equal(16, newest.MaxConcurrency);
+        Assert.Equal(16, newest.MaxConcurrentExecutors);
 
         for (var i = 1; i < rows.Count; i++)
         {

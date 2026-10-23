@@ -8,14 +8,14 @@ namespace Acta.Tests.Conformance.Operations.Maintenance;
 
 /// <summary>
 /// Conformance for the jobs walk of <c>purge_expired_data</c>: with no retention index, the jobs section reads
-/// <c>runtimes</c> downward from a cursor, ten batches a slice, and deletes the namespace's expired jobs in it. A call
+/// <c>jobs_state</c> downward from a cursor, ten batches a slice, and deletes the namespace's expired jobs in it. A call
 /// that deletes a full batch answers its last delete as the next cursor, and the walk answers zero at the oldest row.
 /// The cutoff sits a minute past the database clock, so a zero-retention job stamped a fraction of a millisecond
 /// after its completion is always expired; the shared schema holds other specs' rows, which the walk reads past.
 /// </summary>
 [ConformanceSpec(
     "purge-expired-data.jobs-walk",
-    "Purge walks runtimes downward from its cursor and wraps at the oldest row",
+    "Purge walks jobs_state downward from its cursor and wraps at the oldest row",
     Area = "Retention",
     Contract = "The jobs walk deletes only its namespace's expired jobs below the cursor, answers a full batch's last delete as the next cursor, and zero at the oldest row."
 )]

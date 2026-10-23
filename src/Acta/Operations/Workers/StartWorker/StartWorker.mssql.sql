@@ -9,48 +9,53 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @ns_id INT;
     DECLARE @worker_id INT;
+    DECLARE @catalog_hash VARCHAR(128);
 
-    UPDATE {{schema}}.namespaces
+    -- An unchanged owner and description write nothing: EXCEPT compares NULL-safely, and the binary collation sees a case edit.
+    UPDATE n
     SET
         owner_team = @p_owner_team,
         description = @p_description,
-        catalog_hash = @p_catalog_hash,
         modified_at_utc = @now,
-        version = version + 1
+        version = n.version + 1
+    FROM {{schema}}.namespaces AS n
     WHERE
-        name = @p_name
-        AND (catalog_hash <> @p_catalog_hash OR catalog_hash IS NULL);
+        n.namespace_name = @p_namespace_name
+        AND EXISTS (
+            SELECT n.owner_team COLLATE Latin1_General_100_BIN2, n.description COLLATE Latin1_General_100_BIN2
+            EXCEPT
+            SELECT @p_owner_team, @p_description
+        );
 
     INSERT INTO {{schema}}.namespaces
-    (name, owner_team, description, catalog_hash, status_code, created_at_utc, modified_at_utc, version)
+    (namespace_name, owner_team, description, namespace_status_code, created_at_utc, modified_at_utc, version)
     SELECT
-        @p_name,
+        @p_namespace_name,
         @p_owner_team,
         @p_description,
-        @p_catalog_hash,
-        @p_status_code,
+        @p_namespace_status_code,
         @now,
         @now,
         0
     WHERE NOT EXISTS (
         SELECT 1 FROM {{schema}}.namespaces
-        WHERE name = @p_name
+        WHERE namespace_name = @p_namespace_name
     );
 
-    SELECT @ns_id = id FROM {{schema}}.namespaces
-    WHERE name = @p_name;
+    SELECT @ns_id = namespace_id, @catalog_hash = catalog_hash FROM {{schema}}.namespaces
+    WHERE namespace_name = @p_namespace_name;
 
     INSERT INTO {{schema}}.workers
     (
         namespace_id,
         worker_ref,
-        status_code,
+        worker_status_code,
         deployment_version,
-        host,
+        host_name,
         engine_version,
         dotnet_version,
         process_id,
-        max_concurrency,
+        max_concurrent_executors,
         last_seen_at_utc,
         created_at_utc,
         modified_at_utc,
@@ -62,11 +67,11 @@ BEGIN TRY
         @p_worker_ref,
         10 /* WorkerStatusCode.Active */,
         @p_deployment_version,
-        @p_host,
+        @p_host_name,
         @p_engine_version,
         @p_dotnet_version,
         @p_process_id,
-        @p_max_concurrency,
+        @p_max_concurrent_executors,
         @now,
         @now,
         @now,
@@ -74,19 +79,13 @@ BEGIN TRY
     );
     SET @worker_id = CAST(SCOPE_IDENTITY() AS INT);
 
-    INSERT INTO {{schema}}.events (
-        event_code, created_at_utc, namespace_id, actor_code, actor, job_id, execution_number,
-        lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
-        execution_status_code, duration_ms, reason_code, reason_message
-    )
-    VALUES (
-        120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, NULL,
-        NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
-    );
+    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, worker_id, entity_code, entity_id)
+    VALUES (120 /* EventCode.WorkerStarted */, @now, @ns_id, @worker_id, 130 /* EntityCode.Worker */, @worker_id);
 
     SELECT
         @ns_id AS namespace_id,
-        @worker_id AS worker_id;
+        @worker_id AS worker_id,
+        @catalog_hash AS catalog_hash;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

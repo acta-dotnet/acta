@@ -7,6 +7,6 @@ namespace Acta;
 /// </summary>
 internal sealed record ReclaimStuckJobsResponse(
     int Reclaimed,
-    IReadOnlyList<(long ChildId, long ParentId)> FailedChildren,
+    IReadOnlyList<(long ChildJobId, long ParentJobId)> FailedChildren,
     int RepairedLanes
 );

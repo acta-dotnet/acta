@@ -17,18 +17,18 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
     "persisted-codes.forward-read",
     "An event or alert code from a newer Acta reads back as unspecified",
     Area = "Reads",
-    Contract = "An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every API read path and serializes as \"unspecified\"."
+    Contract = "An unassigned event code or alert kind id reads back as Unspecified on every API read path and serializes as \"unspecified\"."
 )]
 public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // No member of EventCode, EventReasonCode, or AlertKindCode holds this id, and none of the three
-    // columns carries an IN-list CHECK, so a newer Acta may write it.
+    // No member of EventCode or AlertKindCode holds this id, and neither column carries an IN-list
+    // CHECK, so a newer Acta may write it.
     private const byte UnassignedId = 200;
 
     // The dashboard API serializes camelCase through each code family's own converter.
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
-    [Fact(DisplayName = "An unassigned event and reason code read back as Unspecified and serialize as unspecified")]
+    [Fact(DisplayName = "An unassigned event code reads back as Unspecified and serializes as unspecified")]
     public async Task Unassigned_event_codes_read_as_unspecified()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -37,37 +37,20 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        var jobRef = enqueued.JobRef.Value;
+        var jobId = enqueued.JobId;
 
         var rewritten = await Db.From<EventEntity>()
-            .Where(e => e.JobRef == jobRef)
-            .UpdateOnlyAsync(() => new EventEntity { EventCode = (EventCode)UnassignedId, ReasonCode = (EventReasonCode)UnassignedId }, ct);
+            .Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId)
+            .UpdateOnlyAsync(() => new EventEntity { EventCode = (EventCode)UnassignedId }, ct);
         Assert.True(rewritten > 0);
 
-        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
+        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct);
         Assert.Equal(rewritten, page.Items.Count);
-        Assert.All(
-            page.Items,
-            e =>
-            {
-                Assert.Equal(EventCode.Unspecified, e.EventCode);
-                Assert.Equal(EventReasonCode.Unspecified, e.ReasonCode);
-            }
-        );
+        Assert.All(page.Items, e => Assert.Equal(EventCode.Unspecified, e.EventCode));
+        Assert.Contains("\"eventCode\":\"unspecified\"", JsonSerializer.Serialize(page, WebJson));
 
-        var json = JsonSerializer.Serialize(page, WebJson);
-        Assert.Contains("\"eventCode\":\"unspecified\"", json);
-        Assert.Contains("\"reasonCode\":\"unspecified\"", json);
-
-        var rows = await Db.From<EventEntity>().Where(e => e.JobRef == jobRef).ToListAsync(ct);
-        Assert.All(
-            rows,
-            e =>
-            {
-                Assert.Equal(EventCode.Unspecified, e.EventCode);
-                Assert.Equal(EventReasonCode.Unspecified, e.ReasonCode);
-            }
-        );
+        var rows = await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct);
+        Assert.All(rows, e => Assert.Equal(EventCode.Unspecified, e.EventCode));
     }
 
     [Fact(DisplayName = "An unassigned alert kind reads back as Unspecified from list and get and serializes as unspecified")]

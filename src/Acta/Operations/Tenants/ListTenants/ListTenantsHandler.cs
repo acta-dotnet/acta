@@ -26,7 +26,7 @@ internal sealed class ListTenantsHandler(IDbSession session, ISqlDialect dialect
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantSearch, search));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.StatusCode, query.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantStatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorTenantName, (string?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

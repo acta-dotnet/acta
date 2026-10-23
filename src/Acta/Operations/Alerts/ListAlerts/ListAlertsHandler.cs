@@ -37,7 +37,7 @@ internal sealed class ListAlertsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.JobId, query.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.UnresolvedOnlyFlag, unresolvedOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.SeverityCode, query.SeverityAtLeast));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertSeverityCode, query.SeverityAtLeast));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, query.DeliveryStatus));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AcknowledgedFilter, query.AcknowledgedOnly));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, (DateTime?)paging.After?[0]));

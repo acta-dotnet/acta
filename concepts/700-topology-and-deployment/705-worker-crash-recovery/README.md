@@ -56,8 +56,8 @@ queries select the fields that prove the lesson, and the text below explains the
 
 `jobs_view` moves from executing under A to done under B with a higher execution number.
 `workers_view` is filtered to the current session's deployment versions and preserves its
-heartbeat/liveness evidence, while `events_view` records
-`job.lease-expired`. Application code should use `IJobs`; the views are curated operator surfaces.
+heartbeat/liveness evidence, while `events_view` records the orphaned attempt with reason
+`lease-expired`. Application code should use `IJobs`; the views are curated operator surfaces.
 
 ## Break it
 

@@ -307,7 +307,7 @@
             <div class="panel-tab">SQL · the whole truth</div>
             <pre><code><span class="c">-- In-flight work and who holds it.</span>
 <span class="k">select</span> job_id, job_name, status,
-       leased_by_worker_host,
+       leased_by_worker_host_name,
        lease_expires_at_utc
 <span class="k">from</span> acta.jobs_view
 <span class="k">where</span> status = <span class="s">'executing'</span>;</code></pre>

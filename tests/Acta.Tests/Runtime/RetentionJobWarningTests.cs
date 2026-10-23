@@ -134,14 +134,14 @@ public sealed class RetentionJobWarningTests
         Assert.Contains("alert-retention-cap", record.Message, StringComparison.Ordinal);
     }
 
-    private static RetentionJob CreateJob(PurgeExpiredDataHandler purge, ILogger<RetentionJob> logger) =>
-        new(new MaintenanceOperations(purge), new StubClock(), Options.Create(new JobsOptions()), logger);
+    private static RetentionJob CreateJob(MaintenanceOperations maintenance, ILogger<RetentionJob> logger) =>
+        new(maintenance, new StubClock(), Options.Create(new JobsOptions()), logger);
 
-    private static PurgeExpiredDataHandler Purges(Func<RetentionSection, int> execute) =>
+    private static MaintenanceOperations Purges(Func<RetentionSection, int> execute) =>
         new RetentionJobTests.Store(command => execute(command.Section)).Handler;
 
     // Each section deletes once and then reports empty: three rows anywhere but the undelivered alerts.
-    private static PurgeExpiredDataHandler Stub(int undelivered)
+    private static MaintenanceOperations Stub(int undelivered)
     {
         var visited = new HashSet<RetentionSection>();
         return Purges(section =>

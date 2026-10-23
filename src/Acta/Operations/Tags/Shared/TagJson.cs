@@ -15,16 +15,16 @@ internal static class TagJson
             foreach (var tag in tags)
             {
                 writer.WriteStartObject();
-                writer.WriteString("name", tag.Name);
+                writer.WriteString("tag_name", tag.Name);
                 if (tag.Value is null)
                 {
-                    writer.WriteNull("value");
-                    writer.WriteNull("value_search");
+                    writer.WriteNull("tag_value");
+                    writer.WriteNull("tag_value_search");
                 }
                 else
                 {
-                    writer.WriteString("value", tag.Value);
-                    writer.WriteString("value_search", TagValueSearch.Normalize(tag.Value));
+                    writer.WriteString("tag_value", tag.Value);
+                    writer.WriteString("tag_value_search", TagValueSearch.Normalize(tag.Value));
                 }
                 writer.WriteEndObject();
             }

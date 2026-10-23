@@ -33,7 +33,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal("compute", step.Name);
+        Assert.Equal("compute", step.StepName);
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.NotEqual(0, step.ResultFormatId);
         Assert.NotNull(step.Result);
@@ -49,7 +49,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal("side-effect", step.Name);
+        Assert.Equal("side-effect", step.StepName);
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.Equal(0, step.ResultFormatId);
         Assert.Null(step.Result);
@@ -92,7 +92,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var jobAfterFirst = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(0, jobAfterFirst.FailureCount);
         var rescheduleEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal(EventReasonCode.JobStepRetryScheduled, rescheduleEvent.ReasonCode);
+        Assert.Equal(EventReason.StepRetryScheduled, EventDetail(rescheduleEvent, "reason"));
 
         // Tick 2: attempt_number increments before the second invocation, which also fails.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -125,13 +125,13 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Null(step.NextRetryAtUtc);
-        Assert.NotNull(step.ReasonCode);
+        Assert.NotNull(step.FailureCode);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
-        var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
+        var failedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
         // Uncaught, the exhaustion is non-retryable: every retry would replay the exhausted step and throw again.
-        Assert.Equal(EventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
+        Assert.Equal(EventReason.NonRetryableException, EventDetail(failedEvent, "reason"));
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 
@@ -165,8 +165,8 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
                     Succeeded: true,
                     ResultFormatId: 0,
                     Result: null,
-                    ReasonCode: null,
-                    ReasonMessage: null,
+                    FailureCode: null,
+                    FailureMessage: null,
                     DelaySeconds: 0,
                     MaxAttempts: 5,
                     RetryWindowSeconds: null,
@@ -203,8 +203,8 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
                     Succeeded: true,
                     ResultFormatId: 0,
                     Result: null,
-                    ReasonCode: null,
-                    ReasonMessage: null,
+                    FailureCode: null,
+                    FailureMessage: null,
                     DelaySeconds: 0,
                     MaxAttempts: 5,
                     RetryWindowSeconds: null,

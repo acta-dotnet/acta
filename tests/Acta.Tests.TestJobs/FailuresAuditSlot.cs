@@ -4,7 +4,7 @@ using Acta;
 namespace TestJobs;
 
 /// <summary>
-/// A recurring slot declared at <c>AuditLevel.Failures</c> whose next fires can be told to throw, per
+/// A recurring slot declared at <c>EventRecording = Failures</c> whose next fires can be told to throw, per
 /// namespace. One attempt per fire, so a throw is the fire's failure and rolls the slot to its next
 /// occurrence rather than retrying inside it.
 /// </summary>
@@ -22,7 +22,7 @@ public static class FailuresAuditSlot
 
     public static int Fires(string jobNamespace) => _fires.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("failures-audit-slot", MaxAttempts = 1, AuditLevel = DefinitionAuditLevelCode.Failures)]
+    [Job("failures-audit-slot", MaxAttempts = 1, EventRecording = EventRecordingCode.Failures)]
     [JobSchedule("default", Cron.Daily)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {

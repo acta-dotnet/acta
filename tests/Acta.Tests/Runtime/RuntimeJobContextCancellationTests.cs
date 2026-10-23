@@ -111,8 +111,8 @@ public sealed class RuntimeJobContextCancellationTests
                     NextRetryAtUtc: null,
                     ResultFormatId: 0,
                     Result: null,
-                    ReasonCode: null,
-                    ReasonMessage: null
+                    FailureCode: null,
+                    FailureMessage: null
                 ),
                 "CompleteStep" => throw new InvalidOperationException("CompleteStep must not run for caller cancellation."),
                 _ => throw new NotSupportedException(call.Stem),

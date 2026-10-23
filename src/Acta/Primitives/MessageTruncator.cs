@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Caps free-form operator and diagnostic text at the application boundary so it fits the bounded
-/// column it lands in (<c>reason_message</c>, alert message, step error). The single
+/// column it lands in (<c>event_message</c>, alert message, step error). The single
 /// truncator referenced by those entities' column docs; callers pass the column's declared length
 /// (typically from <c>ActaSchema</c>) so the limit has one source of truth in the entity.
 /// </summary>

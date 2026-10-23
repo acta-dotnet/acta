@@ -6,16 +6,29 @@ namespace Acta;
 internal static class ScheduleControl
 {
     /// <summary>An operator's note as the schedule row stores it, cut to that column.</summary>
-    public static string? RowReason(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.ScheduleReasonMessage);
+    public static string? RowReason(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.ScheduleChangeMessage);
 
-    /// <summary>Binds what pause and resume take after their own arguments: the slot cursor, the operator, and the note.</summary>
-    public static void BindTail(DbCommand cmd, ISqlDialect dialect, DateTime? jobNextRunAtUtc, string? actor, string? reasonMessage)
+    /// <summary>A schedule event's details: the operator, and the schedule by name, since a schedule has no numeric id.</summary>
+    public static byte[]? Details(string scheduleName, string? actor) =>
+        EventDetails.Write(("actor", JobControlActor.Operator(actor)), ("schedule", scheduleName));
+
+    /// <summary>
+    /// Binds what pause and resume take after their own arguments: the slot cursor, the note for the schedule row, and
+    /// the event's message and details.
+    /// </summary>
+    public static void BindTail(
+        DbCommand cmd,
+        ISqlDialect dialect,
+        DateTime? jobNextRunAtUtc,
+        string scheduleName,
+        string? actor,
+        string? reasonMessage
+    )
     {
-        var stamped = JobControlActor.Operator(actor);
+        var note = RowReason(reasonMessage);
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, stamped.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, stamped.Actor));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ReasonMessage, RowReason(reasonMessage)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ChangeMessage, note));
+        cmd.AddEventFields(dialect, note, Details(scheduleName, actor));
     }
 
     /// <summary>

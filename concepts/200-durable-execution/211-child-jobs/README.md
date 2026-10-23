@@ -46,7 +46,7 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 While children run, `jobs_view` shows a suspended, unleased parent plus independently executing children
-linked by `parent_id`/`lineage_root_job_id`. `checkpoints_view` shows pending child latches. The final
+linked by `parent_job_id`/`lineage_root_job_id`. `checkpoints_view` shows pending child latches. The final
 snapshot proves the parent resumed on a later execution.
 
 ## Break it

@@ -11,7 +11,7 @@ public static class ActaTestNames
 {
     /// <summary>
     /// Produce a namespace name in the shape <c>t-&lt;class-kebab&gt;-&lt;method-kebab&gt;-&lt;testId&gt;</c>,
-    /// truncated to satisfy the 64-char <c>namespaces.name</c> column and checked by
+    /// truncated to satisfy the 64-char <c>namespaces.namespace_name</c> column and checked by
     /// <see cref="NameSyntax.Canonicalize"/> with the <c>sys</c> reservation. The token is the test's <c>TestId</c>
     /// (see <c>ActaTestBase</c>), so a test's namespace rows and its global-key rows
     /// (<c>Unique</c>) share one needle.
@@ -21,7 +21,7 @@ public static class ActaTestNames
         const int maxLength = 64;
         const string prefix = "t-";
         // 12 hex chars (48 bits) - birthday-collision-safe across the lifetime of an append-only
-        // `acta_test` schema. Plenty of room within the 64-char namespaces.name limit.
+        // `acta_test` schema. Plenty of room within the 64-char namespaces.namespace_name limit.
         var hex = testId;
         var classPart = Kebab(testType.Name);
         var methodPart = methodName is null ? "" : "-" + Kebab(methodName);

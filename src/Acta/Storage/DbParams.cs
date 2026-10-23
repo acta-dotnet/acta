@@ -138,17 +138,18 @@ internal static class DbParams
                 $",\"succeeded\":{(c.Succeeded ? "true" : "false")},\"result_format_id\":{c.ResultFormatId}"
             );
             text.Append(CultureInfo.InvariantCulture, $",\"result\":\"{Convert.ToBase64String(c.Result.Span)}\"");
-            Field(text, "reason_code", (byte?)c.EventReasonCode);
-            Field(text, "reason_message", c.ReasonMessage);
+            Field(text, "event_code", (byte)c.EventCode);
+            Field(text, "reason", c.Reason);
+            Field(text, "event_message", c.EventMessage);
             Field(text, "duration_ms", c.DurationMs);
             Field(text, "failure_count", c.FailureCount);
             Field(text, "retention_seconds", c.RetentionSeconds);
-            Field(text, "reschedule_status_code", c.RescheduleStatusCode);
+            Field(text, "reschedule_event_code", (byte?)c.RescheduleEventCode);
             Field(text, "reschedule_delay_seconds", c.RescheduleDelaySeconds);
             Field(text, "reschedule_resume_at_utc", UnixMs(c.RescheduleResumeAtUtc));
             Field(text, "wait_signal_name", c.WaitSignalName);
-            Field(text, "handler_status_code", c.HandlerStatusCode);
-            Field(text, "final_status", (byte?)c.FinalStatus);
+            Field(text, "handler_job_status_code", c.HandlerStatusCode);
+            Field(text, "final_job_status_code", (byte?)c.FinalStatus);
             Field(text, "job_next_run_at_utc", UnixMs(c.JobNextRunAtUtc));
             text.Append('}');
         }

@@ -30,7 +30,9 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.alerts").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "sys.alerts")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
@@ -44,7 +46,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         Assert.NotNull(slotRow.NextRunAtUtc);
 
         var schedules = await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct);
-        Assert.Equal("default", Assert.Single(schedules).Name);
+        Assert.Equal("default", Assert.Single(schedules).ScheduleName);
     }
 
     [Fact(DisplayName = "Init makes the sys.retention definition Active with a Ready name-keyed slot and an hourly default schedule")]
@@ -53,7 +55,9 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.retention").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "sys.retention")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
@@ -66,7 +70,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         Assert.NotNull(slotRow.NextRunAtUtc);
 
         var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct));
-        Assert.Equal("default", schedule.Name);
+        Assert.Equal("default", schedule.ScheduleName);
         Assert.Equal(Cron.Hourly, schedule.Expression);
     }
 }

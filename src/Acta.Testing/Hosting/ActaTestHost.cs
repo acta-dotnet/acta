@@ -121,15 +121,15 @@ public static class ActaTestHost
                 throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
             }
 
-            var affected = await Db.From<RuntimeEntity>()
+            var affected = await Db.From<JobStateEntity>()
                 .Where(r => r.Id == jobId)
                 .UpdateOnlyAsync(
-                    () => new RuntimeEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1), ModifiedAtUtc = DbFn.UtcNow },
+                    () => new JobStateEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1), ModifiedAtUtc = DbFn.UtcNow },
                     ct
                 );
             if (affected != 1)
             {
-                throw new InvalidOperationException($"ForceJobDueAsync expected one runtime row for job {jobId}, found {affected}.");
+                throw new InvalidOperationException($"ForceJobDueAsync expected one jobs_state row for job {jobId}, found {affected}.");
             }
         }
 
@@ -138,12 +138,12 @@ public static class ActaTestHost
             var timer = await FindPendingTimerAsync(jobId, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Name == timer.Name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.CheckpointName == timer.CheckpointName)
                 .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
                 throw new InvalidOperationException(
-                    $"ForceTimerDueAsync expected one timer row for job {jobId} name '{timer.Name}', found {affected}."
+                    $"ForceTimerDueAsync expected one timer row for job {jobId} name '{timer.CheckpointName}', found {affected}."
                 );
             }
 
@@ -156,7 +156,7 @@ public static class ActaTestHost
             var candidates = steps.Where(s => s.NextRetryAtUtc is not null);
             if (!string.IsNullOrWhiteSpace(name))
             {
-                candidates = candidates.Where(s => s.Name == name);
+                candidates = candidates.Where(s => s.StepName == name);
             }
 
             var step = candidates.OrderBy(s => s.NextRetryAtUtc).FirstOrDefault();
@@ -168,12 +168,12 @@ public static class ActaTestHost
 
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<StepEntity>()
-                .Where(s => s.JobId == jobId && s.Name == step.Name)
+                .Where(s => s.JobId == jobId && s.StepName == step.StepName)
                 .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
                 throw new InvalidOperationException(
-                    $"ForceStepRetryDueAsync expected one step row for job {jobId} name '{step.Name}', found {affected}."
+                    $"ForceStepRetryDueAsync expected one step row for job {jobId} name '{step.StepName}', found {affected}."
                 );
             }
 
@@ -185,16 +185,16 @@ public static class ActaTestHost
             var wait = await FindPendingWaitAsync(jobId, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == wait.Kind && c.Name == wait.Name)
+                .Where(c => c.JobId == jobId && c.Kind == wait.Kind && c.CheckpointName == wait.CheckpointName)
                 .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
                 throw new InvalidOperationException(
-                    $"ForceWaitTimeoutDueAsync expected one wait row for job {jobId} name '{wait.Name}', found {affected}."
+                    $"ForceWaitTimeoutDueAsync expected one wait row for job {jobId} name '{wait.CheckpointName}', found {affected}."
                 );
             }
 
-            // The deadline lives on the slot, but claimability lives on the runtime row: both must move
+            // The deadline lives on the slot, but claimability lives on the jobs_state row: both must move
             // or the job stays parked past its own expiration.
             await ForceJobDueAsync(jobId, ct);
         }
@@ -224,10 +224,10 @@ public static class ActaTestHost
                 throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
             }
 
-            var affected = await Db.From<RuntimeEntity>()
+            var affected = await Db.From<JobStateEntity>()
                 .Where(r => r.Id == jobId && r.LeasedByWorkerId != null)
                 .UpdateOnlyAsync(
-                    () => new RuntimeEntity { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5), ModifiedAtUtc = DbFn.UtcNow },
+                    () => new JobStateEntity { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5), ModifiedAtUtc = DbFn.UtcNow },
                     ct
                 );
             if (affected != 1)
@@ -261,7 +261,7 @@ public static class ActaTestHost
             var candidates = checkpoints.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(name))
             {
-                candidates = candidates.Where(c => c.Name == name);
+                candidates = candidates.Where(c => c.CheckpointName == name);
             }
 
             var checkpoint = candidates.OrderBy(c => c.DueAtUtc ?? DateTime.MaxValue).FirstOrDefault();
@@ -291,7 +291,7 @@ public static class ActaTestHost
             var candidates = waits.Where(c => c.DueAtUtc is not null);
             if (!string.IsNullOrWhiteSpace(name))
             {
-                candidates = candidates.Where(c => c.Name == name);
+                candidates = candidates.Where(c => c.CheckpointName == name);
             }
 
             var wait = candidates.OrderBy(c => c.DueAtUtc).FirstOrDefault();
@@ -481,7 +481,7 @@ internal static class WaitTimeoutStaging
         foreach (var name in deadlines)
         {
             await db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable && c.Name == name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable && c.CheckpointName == name)
                 .UpdateOnlyAsync(() => new CheckpointEntity { Value = value, ModifiedAtUtc = DbFn.UtcNow }, ct);
         }
 
@@ -512,8 +512,8 @@ internal static class WaitTimeoutStaging
             .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable)
             .ToListAsync(ct);
         var deadlines = variables
-            .Where(c => c.Name.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))
-            .Where(c => slotName is null || c.Name == slotName)
+            .Where(c => c.CheckpointName.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))
+            .Where(c => slotName is null || c.CheckpointName == slotName)
             .ToList();
 
         foreach (var slot in deadlines)
@@ -521,12 +521,12 @@ internal static class WaitTimeoutStaging
             if (slot.ValueFormatId != JobPayloadFormat.Json.Id)
             {
                 throw new InvalidOperationException(
-                    $"Group deadline slot '{slot.Name}' on job {jobId} carries payload format {slot.ValueFormatId}, not JSON. "
+                    $"Group deadline slot '{slot.CheckpointName}' on job {jobId} carries payload format {slot.ValueFormatId}, not JSON. "
                         + "The staging helper writes the deadline as JSON ticks and has to move with the sink that stores it."
                 );
             }
         }
 
-        return [.. deadlines.Select(c => c.Name)];
+        return [.. deadlines.Select(c => c.CheckpointName)];
     }
 }

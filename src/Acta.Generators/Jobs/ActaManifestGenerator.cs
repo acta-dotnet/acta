@@ -223,7 +223,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var inputFormatName = inputType is null ? "none" : (inputExplicit ?? InferPayloadFormatName(inputType, isInput: true));
         var outputFormatName = outputType is null ? null : outputExplicit ?? InferPayloadFormatName(outputType, isInput: false);
 
-        var auditLevelName = policy.AuditLevelName ?? DefaultAuditLevelName;
+        var eventRecordingName = policy.EventRecordingName ?? DefaultEventRecordingName;
 
         // A scheduled definition seeds its slot from a fabricated default input (`new TIn()`).
         // A TIn without an accessible parameterless ctor cannot be fabricated.
@@ -252,7 +252,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             RateLimit: policy.RateLimit,
             RateName: policy.RateName,
             Lane: policy.Lane,
-            AuditLevelName: auditLevelName,
+            EventRecordingName: eventRecordingName,
             AlertProfileName: policy.AlertProfileName,
             TenantRequirementId: policy.TenantRequirementId,
             // Operator-tooling shape hint, json inputs only: any other format has no object shape to
@@ -283,7 +283,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? RateLimit,
         string? RateName,
         string? Lane,
-        string? AuditLevelName,
+        string? EventRecordingName,
         string AlertProfileName,
         byte TenantRequirementId,
         string? Backoff,
@@ -533,7 +533,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? RateLimit,
         string? RateName,
         string? Lane,
-        string AuditLevelName,
+        string EventRecordingName,
         string AlertProfileName,
         byte TenantRequirementId,
         string? InputTemplateJson,

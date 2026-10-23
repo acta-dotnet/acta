@@ -178,7 +178,7 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(ActaSchema.Alert.Title.Size, row.Title.Length);
-        Assert.Equal(ActaSchema.Alert.Message.Size, row.Message.Length);
+        Assert.Equal(ActaSchema.Alert.AlertMessage.Size, row.AlertMessage.Length);
     }
 
     [Fact(DisplayName = "AlertAsync stamps the Manual origin and carries the caller's deduplication key")]

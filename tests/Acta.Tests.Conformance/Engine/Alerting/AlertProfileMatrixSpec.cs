@@ -140,7 +140,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
             AlertSeverityCode.Error,
             AlertKindCode.FinalFailure,
             seeded.Title,
-            seeded.Message,
+            seeded.AlertMessage,
             seeded.ChannelName,
             AlertDeliveryStatusCode.Pending,
             seeded.DeduplicationKey,

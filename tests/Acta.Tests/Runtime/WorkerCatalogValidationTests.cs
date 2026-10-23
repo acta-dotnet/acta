@@ -120,7 +120,7 @@ public sealed class WorkerCatalogValidationTests
             OutputPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.None,
             Invoker: static async (_, _, _, _) =>
             {

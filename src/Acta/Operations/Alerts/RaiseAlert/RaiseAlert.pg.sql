@@ -9,13 +9,13 @@ CREATE TEMP TABLE _raise_alert_check (unknown_namespace BOOLEAN NOT NULL, unknow
 INSERT INTO _raise_alert_job (job_ref)
 SELECT j.job_ref
 FROM {{schema}}.jobs j
-WHERE j.id = @p_job_id
+WHERE j.job_id = @p_job_id
 FOR SHARE;
 
 -- An unknown namespace or job is refused before anything is written; the anonymous block only raises.
 INSERT INTO _raise_alert_check (unknown_namespace, unknown_job)
 SELECT
-    NOT EXISTS (SELECT 1 FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name),
+    NOT EXISTS (SELECT 1 FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name),
     @p_job_id::BIGINT IS NOT NULL AND NOT EXISTS (SELECT 1 FROM _raise_alert_job);
 
 DO $$
@@ -34,11 +34,11 @@ INSERT INTO {{schema}}.alerts (
     alert_ref,
     job_id,
     job_ref,
-    origin_code,
-    severity_code,
-    kind_code,
+    alert_origin_code,
+    alert_severity_code,
+    alert_kind_code,
     title,
-    message,
+    alert_message,
     channel_name,
     deduplication_key,
     occurrence_count,
@@ -49,15 +49,15 @@ INSERT INTO {{schema}}.alerts (
     modified_at_utc,
     version)
 SELECT
-    ns.id,
+    ns.namespace_id,
     @p_alert_ref,
     @p_job_id,
     (SELECT jr.job_ref FROM _raise_alert_job jr),
-    @p_origin_code,
-    @p_severity_code,
-    @p_kind_code,
+    @p_alert_origin_code,
+    @p_alert_severity_code,
+    @p_alert_kind_code,
     @p_title,
-    @p_message,
+    @p_alert_message,
     @p_channel_name,
     @p_deduplication_key,
     1,
@@ -69,7 +69,7 @@ SELECT
     0
 FROM {{schema}}.namespaces ns
 WHERE
-    ns.name = @p_namespace_name
+    ns.namespace_name = @p_namespace_name
     -- Ghost guard: a failure replayed after its incident closed must not open one behind the events
     -- this identity has already absorbed - which is why it compares against every row of the identity,
     -- not just an open one. NULL, hence never blocking, for a raise carrying no event or no key.
@@ -77,7 +77,7 @@ WHERE
         SELECT 1
         FROM {{schema}}.alerts g
         WHERE
-            g.namespace_id = ns.id
+            g.namespace_id = ns.namespace_id
             AND g.deduplication_key = @p_deduplication_key
             AND g.last_projected_event_id >= @p_source_event_id
     )
@@ -88,11 +88,11 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 DO UPDATE SET
     job_id = EXCLUDED.job_id,
     job_ref = EXCLUDED.job_ref,
-    origin_code = EXCLUDED.origin_code,
-    severity_code = EXCLUDED.severity_code,
-    kind_code = EXCLUDED.kind_code,
+    alert_origin_code = EXCLUDED.alert_origin_code,
+    alert_severity_code = EXCLUDED.alert_severity_code,
+    alert_kind_code = EXCLUDED.alert_kind_code,
     title = EXCLUDED.title,
-    message = EXCLUDED.message,
+    alert_message = EXCLUDED.alert_message,
     channel_name = EXCLUDED.channel_name,
     occurrence_count = {{schema}}.alerts.occurrence_count + 1,
     last_projected_event_id = COALESCE(EXCLUDED.last_projected_event_id, {{schema}}.alerts.last_projected_event_id),
@@ -112,11 +112,11 @@ WHERE
     (@p_deduplication_key::VARCHAR IS NULL AND a.alert_ref = @p_alert_ref)
     OR (
         @p_deduplication_key::VARCHAR IS NOT NULL
-        AND a.id = (
-            SELECT MAX(b.id)
+        AND a.alert_id = (
+            SELECT MAX(b.alert_id)
             FROM {{schema}}.alerts b
             WHERE
-                b.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name)
+                b.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name)
                 AND b.deduplication_key = @p_deduplication_key
         )
     );

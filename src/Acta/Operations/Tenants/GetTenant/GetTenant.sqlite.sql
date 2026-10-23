@@ -1,9 +1,9 @@
 SELECT
-    t.id AS tenant_id,
+    t.tenant_id,
     t.tenant_name,
     t.display_name,
     t.description,
-    t.status_code AS status,
+    t.tenant_status_code AS status,
     t.created_at_utc,
     t.modified_at_utc,
     t.version

@@ -141,7 +141,7 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
     await lab.ShowAsync(
         "The database is the shared authority for ownership and recovery",
         """
-        SELECT job_ref, status, execution_number, failure_count, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
+        SELECT job_ref, status, execution_number, failure_count, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
         FROM jobs_view
         WHERE job_id = @jobId
         """,
@@ -165,9 +165,9 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
     await lab.ShowAsync(
         "The event ledger retains claim loss and replay",
         """
-        SELECT event, from_status, to_status, execution_number, reason, worker_id
+        SELECT event, execution_number, details_text, worker_id
         FROM events_view
-        WHERE job_id = @jobId
+        WHERE entity_kind = 'job' AND entity_id = @jobId
         ORDER BY event_id
         """,
         new { jobId }

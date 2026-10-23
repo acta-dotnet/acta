@@ -1,8 +1,8 @@
 SELECT
-    jd.id AS definition_id,
-    ns.name AS job_namespace,
-    jd.name AS job_name,
-    jd.status_code AS status,
+    jd.definition_id,
+    ns.namespace_name AS job_namespace,
+    jd.definition_name AS job_name,
+    jd.definition_status_code AS status,
     jd.definition_hash,
     jd.manifest_generation_at_utc,
     jd.input_type_name,
@@ -11,9 +11,9 @@ SELECT
     jd.output_type_name,
     jd.output_format_id,
     jd.output_format_name,
-    jd.priority_code AS priority,
-    jd.priority_code_override AS priority_override,
-    jd.priority_code_effective AS priority_effective,
+    jd.job_priority_code AS priority,
+    jd.job_priority_code_override AS priority_override,
+    jd.job_priority_code_effective AS priority_effective,
     jd.max_attempts,
     jd.max_attempts_override,
     jd.max_attempts_effective,
@@ -24,7 +24,7 @@ SELECT
     jd.rate_limit_override,
     jd.rate_limit_effective,
     jd.rate_name,
-    jd.lane,
+    jd.lane_name AS lane,
     jd.backoff,
     jd.backoff_override,
     jd.backoff_effective,
@@ -40,9 +40,9 @@ SELECT
     jd.retention_seconds AS job_retention_seconds,
     jd.retention_seconds_override AS job_retention_seconds_override,
     jd.retention_seconds_effective AS job_retention_seconds_effective,
-    jd.audit_level_code AS audit_level,
-    jd.audit_level_code_override AS audit_level_override,
-    jd.audit_level_code_effective AS audit_level_effective,
+    jd.event_recording_code AS event_recording,
+    jd.event_recording_code_override AS event_recording_override,
+    jd.event_recording_code_effective AS event_recording_effective,
     jd.alert_profile_code AS alert_profile,
     jd.alert_profile_code_override AS alert_profile_override,
     jd.alert_profile_code_effective AS alert_profile_effective,
@@ -62,5 +62,5 @@ SELECT
     jd.modified_at_utc,
     jd.version
 FROM {{schema}}.definitions jd
-JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
-WHERE jd.id = @p_id;
+JOIN {{schema}}.namespaces ns ON ns.namespace_id = jd.namespace_id
+WHERE jd.definition_id = @p_definition_id;

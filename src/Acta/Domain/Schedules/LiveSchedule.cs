@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// An effective schedule row read for one slot. Expression and time zone are the effective values
-/// (override falling back to original). <c>NextRunAtUtc</c> is the stored cursor; null means the
+/// (override falling back to original). <c>NextOccurrenceAtUtc</c> is the stored cursor; null means the
 /// schedule has no pending occurrence. <c>BaseExpression</c>/<c>BaseTimeZone</c> are the un-overridden
 /// defaults, carried so a caller clearing an override (e.g. set-overrides) can compute the resulting
 /// effective value without a second read. <c>Version</c> is the row version the read observed, which a
@@ -10,12 +10,12 @@ namespace Acta;
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record LiveSchedule(
-    string Name,
+    string ScheduleName,
     string Expression,
     string? TimeZoneId,
     MisfireStrategyCode MisfireStrategy,
     ScheduleExpressionKindCode ExpressionKind,
-    DateTime? NextRunAtUtc,
+    DateTime? NextOccurrenceAtUtc,
     ScheduleStatusCode Status,
     DateTime? PausedUntilUtc,
     string BaseExpression,

@@ -12,7 +12,7 @@ internal sealed class GetJobStatusHandler(GetJobIdHandler getJobId, IDbSession s
     internal async ValueTask<JobStatusCode?> ReadAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobStatusCode?>(
             "GetJobStatus",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
             static async (reader, token) =>
                 await reader.ReadAsync(token) ? (JobStatusCode)reader.GetByteFromNumeric(0) : (JobStatusCode?)null,
             ct

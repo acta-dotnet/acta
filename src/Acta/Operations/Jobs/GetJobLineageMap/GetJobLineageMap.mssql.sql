@@ -3,95 +3,95 @@
 
 -- 1) Focus job.
 SELECT
-    j.id AS job_id,
+    j.job_id,
     j.job_ref,
-    ns.name AS job_namespace,
-    jd.name AS job_name,
-    r.status_code AS status,
-    j.parent_id AS parent_job_id,
+    ns.namespace_name AS job_namespace,
+    jd.definition_name AS job_name,
+    r.job_status_code AS status,
+    j.parent_job_id,
     pj.job_ref AS parent_job_ref,
-    j.lineage_root_id,
+    j.lineage_root_job_id,
     lr.job_ref AS lineage_root_job_ref,
     j.created_at_utc,
     r.modified_at_utc
 FROM {{schema}}.jobs j
-INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
-INNER JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
-INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
-LEFT JOIN {{schema}}.jobs pj ON pj.id = j.parent_id
-LEFT JOIN {{schema}}.jobs lr ON lr.id = j.lineage_root_id
-WHERE j.id = @p_id;
+INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+INNER JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+LEFT JOIN {{schema}}.jobs pj ON pj.job_id = j.parent_job_id
+LEFT JOIN {{schema}}.jobs lr ON lr.job_id = j.lineage_root_job_id
+WHERE j.job_id = @p_job_id;
 
--- 2) Ancestors: walk parent_id from the focus job's parent up to the root, root row first.
-WITH anc (id, parent_id, depth) AS (
+-- 2) Ancestors: walk parent_job_id from the focus job's parent up to the root, root row first.
+WITH anc (job_id, parent_job_id, depth) AS (
     SELECT
-        a.id,
-        a.parent_id,
+        a.job_id,
+        a.parent_job_id,
         1
     FROM {{schema}}.jobs a
     WHERE
-        a.id = (
-            SELECT parent_id FROM {{schema}}.jobs
-            WHERE id = @p_id
+        a.job_id = (
+            SELECT parent_job_id FROM {{schema}}.jobs
+            WHERE job_id = @p_job_id
         )
     UNION ALL
     SELECT
-        p.id,
-        p.parent_id,
+        p.job_id,
+        p.parent_job_id,
         anc.depth + 1
     FROM {{schema}}.jobs p
-    INNER JOIN anc ON p.id = anc.parent_id
+    INNER JOIN anc ON p.job_id = anc.parent_job_id
 )
 
 SELECT
-    j.id AS job_id,
+    j.job_id,
     j.job_ref,
-    ns.name AS job_namespace,
-    jd.name AS job_name,
-    r.status_code AS status,
-    j.parent_id AS parent_job_id,
+    ns.namespace_name AS job_namespace,
+    jd.definition_name AS job_name,
+    r.job_status_code AS status,
+    j.parent_job_id,
     pj.job_ref AS parent_job_ref,
-    j.lineage_root_id,
+    j.lineage_root_job_id,
     lr.job_ref AS lineage_root_job_ref,
     j.created_at_utc,
     r.modified_at_utc
 FROM anc
-INNER JOIN {{schema}}.jobs j ON j.id = anc.id
-INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
-INNER JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
-INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
-LEFT JOIN {{schema}}.jobs pj ON pj.id = j.parent_id
-LEFT JOIN {{schema}}.jobs lr ON lr.id = j.lineage_root_id
+INNER JOIN {{schema}}.jobs j ON j.job_id = anc.job_id
+INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+INNER JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+LEFT JOIN {{schema}}.jobs pj ON pj.job_id = j.parent_job_id
+LEFT JOIN {{schema}}.jobs lr ON lr.job_id = j.lineage_root_job_id
 ORDER BY anc.depth DESC;
 
 -- 3) Focus job steps, creation order.
 SELECT
-    s.name,
-    s.status_code
+    s.step_name,
+    s.step_status_code AS status
 FROM {{schema}}.steps s
-WHERE s.job_id = @p_id
-ORDER BY s.created_at_utc, s.name;
+WHERE s.job_id = @p_job_id
+ORDER BY s.created_at_utc, s.step_name;
 
 -- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait.
 SELECT
-    c.kind_code,
-    c.name,
-    c.status_code,
+    c.checkpoint_kind_code AS kind,
+    c.checkpoint_name,
+    c.checkpoint_status_code AS status,
     c.due_at_utc
 FROM {{schema}}.checkpoints c
-WHERE c.job_id = @p_id
-ORDER BY c.kind_code, c.name;
+WHERE c.job_id = @p_job_id
+ORDER BY c.checkpoint_kind_code, c.checkpoint_name;
 
 -- 5) Direct children, newest first, capped at the fetch limit (ChildLimit + 1).
 SELECT TOP (@p_child_limit)
-    j.id AS job_id,
+    j.job_id,
     j.job_ref,
-    jd.name AS job_name,
-    r.status_code AS status,
+    jd.definition_name AS job_name,
+    r.job_status_code AS status,
     j.created_at_utc,
     r.modified_at_utc
 FROM {{schema}}.jobs j
-INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
-INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
-WHERE j.parent_id = @p_id
-ORDER BY j.created_at_utc DESC, j.id DESC;
+INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+WHERE j.parent_job_id = @p_job_id
+ORDER BY j.created_at_utc DESC, j.job_id DESC;

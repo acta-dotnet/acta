@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS temp._claim_bands;
 
 /* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
 CREATE TEMP TABLE _claim_bands AS
-SELECT column1 AS priority_code
+SELECT column1 AS job_priority_code
 FROM (
     VALUES
         (100 /* JobPriorityCode.Realtime */),
@@ -16,16 +16,16 @@ FROM (
 CREATE TEMP TABLE _claimed AS
 /* Pure claim-index scan; concurrency-key admission is executor-owned (lock store) after the start CAS,
    and the one jobs lookup is the exclusion below, which an empty set short-circuits. */
-SELECT r.job_id AS id
-FROM {{schema}}.runtimes r
+SELECT r.job_id
+FROM {{schema}}.jobs_state r
 WHERE
     r.namespace_id = @p_namespace_id
     /* One IN key per band: SQLite seeks the bands in ORDER BY order, leaves each at its first row not yet
        due, and never sorts. */
-    AND r.priority_code IN (SELECT b.priority_code FROM temp._claim_bands b)
-    /* ix_runtimes_claim_ready's filter restated whole: SQLite matches a partial index only against top-level
-       AND-terms. Ready always carries its due instant (ck_runtimes_ready_due); a Suspended NULL never comes due. */
-    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+    AND r.job_priority_code IN (SELECT b.job_priority_code FROM temp._claim_bands b)
+    /* ix_jobs_state_claim_ready's filter restated whole: SQLite matches a partial index only against top-level
+       AND-terms. Ready always carries its due instant (ck_jobs_state_ready_due); a Suspended NULL never comes due. */
+    AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
     AND r.next_run_at_utc IS NOT NULL
     AND r.next_run_at_utc <= {{now}}
     /* The worker's watermark, as on the server providers (docs/sql-execution-policy.md, "Claim
@@ -39,18 +39,18 @@ WHERE
         OR NOT EXISTS (
             SELECT 1
             FROM {{schema}}.jobs j
-            WHERE j.id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
+            WHERE j.job_id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
         )
     )
 ORDER BY
-    r.priority_code DESC,
+    r.job_priority_code DESC,
     r.next_run_at_utc ASC,
     r.job_id ASC
 LIMIT @p_claim_limit;
 
-UPDATE {{schema}}.runtimes
+UPDATE {{schema}}.jobs_state
 SET
-    status_code = 50 /* JobStatusCode.Executing */,
+    job_status_code = 50 /* JobStatusCode.Executing */,
     execution_number = execution_number + 1,
     leased_by_worker_id = @p_leased_by_worker_id,
     lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000,
@@ -59,11 +59,11 @@ SET
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    job_id IN (SELECT id FROM temp._claimed)
-    AND status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */);
+    job_id IN (SELECT job_id FROM temp._claimed)
+    AND job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */);
 
 SELECT
-    j.id,
+    j.job_id,
     j.definition_id,
     r.execution_number,
     j.deduplication_key,
@@ -79,13 +79,13 @@ SELECT
     NULL AS db_now,
     NULL AS next_ready_at_utc,
     r.lane_id,
-    j.parent_id
+    j.parent_job_id
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
-WHERE j.id IN (SELECT id FROM temp._claimed)
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+WHERE j.job_id IN (SELECT job_id FROM temp._claimed)
 UNION ALL
 SELECT
-    NULL AS id,
+    NULL AS job_id,
     NULL AS definition_id,
     NULL AS execution_number,
     NULL AS deduplication_key,
@@ -104,11 +104,11 @@ SELECT
         SELECT
             MIN((
                 SELECT r.next_run_at_utc
-                FROM {{schema}}.runtimes r
+                FROM {{schema}}.jobs_state r
                 WHERE
                     r.namespace_id = @p_namespace_id
-                    AND r.priority_code = b.priority_code
-                    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.job_priority_code = b.job_priority_code
+                    AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
                     AND r.next_run_at_utc IS NOT NULL
                     /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now is
                        what tells the caller to retry at the anti-spin floor, so counting rows this worker will
@@ -118,7 +118,7 @@ SELECT
                         OR NOT EXISTS (
                             SELECT 1
                             FROM {{schema}}.jobs j
-                            WHERE j.id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
+                            WHERE j.job_id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
                         )
                     )
                 ORDER BY r.next_run_at_utc
@@ -127,6 +127,6 @@ SELECT
         FROM temp._claim_bands b
     ) AS next_ready_at_utc,
     NULL AS lane_id,
-    NULL AS parent_id
+    NULL AS parent_job_id
 WHERE NOT EXISTS (SELECT 1 FROM temp._claimed)
-ORDER BY id;
+ORDER BY job_id;

@@ -254,10 +254,8 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     private async Task<int> LaneRepairedEventsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var events = await Db.From<EventEntity>()
-            .Where(e => e.NamespaceId == ns && e.ReasonCode == EventReasonCode.JobLaneRepaired)
-            .ToListAsync(ct);
-        return events.Count;
+        var events = await Db.From<EventEntity>().Where(e => e.NamespaceId == ns && e.EventCode == EventCode.JobResumed).ToListAsync(ct);
+        return events.Count(e => EventDetail(e, "reason") == EventReason.LaneRepaired);
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.

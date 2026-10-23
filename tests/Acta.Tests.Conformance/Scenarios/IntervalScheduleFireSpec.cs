@@ -36,7 +36,7 @@ public sealed class IntervalPingManifest : IJobManifest
                 OutputPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -123,7 +123,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         // Audit events confirm a complete recurring lifecycle.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var codes = events.Select(e => e.EventCode).ToHashSet();
-        Assert.Contains(EventCode.JobExecutionFinished, codes);
+        Assert.Contains(EventCode.JobExecutionSucceeded, codes);
         Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
@@ -195,10 +195,9 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, CancellationToken ct)
     {
-        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
-        var row = Assert.Single(rows);
-        Assert.NotNull(row.NextRunAtUtc);
-        return row.NextRunAtUtc!.Value;
+        var row = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.NotNull(row.NextOccurrenceAtUtc);
+        return row.NextOccurrenceAtUtc!.Value;
     }
 
     private async Task FireOnceAsync(long slotId, CancellationToken ct)

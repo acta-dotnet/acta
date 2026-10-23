@@ -98,7 +98,7 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
 
     private static async Task ThrowIfNamespaceIdSpaceExhaustedAsync(SqlConnection conn)
     {
-        // IDENT_CURRENT reads the identity allocator's own high-water mark rather than MAX(id), so a
+        // IDENT_CURRENT reads the identity allocator's own high-water mark rather than MAX(namespace_id), so a
         // namespace row removed by an explicit reset doesn't understate how much of the int space
         // is spent - ids are never reused. On a brand-new table (no row ever inserted) it
         // returns the identity seed (1), not 0 or NULL; that reads as "1 consumed", which is nowhere
@@ -112,18 +112,18 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
 
     private static async Task UpsertFrameworkNamespaceAsync(SqlConnection conn)
     {
-        // The namespaces.id column is IDENTITY; the framework namespace row is upserted by name.
+        // The namespaces.namespace_id column is IDENTITY; the framework namespace row is upserted by name.
         // Race-safe ensure-exists as ONE atomic statement: UPDLOCK + HOLDLOCK takes a key-range lock on
         // ux_namespaces_name that is held through the INSERT. An IF NOT EXISTS ... INSERT would release
-        // the check's lock before the INSERT and still race. Mirrors Postgres ON CONFLICT (name) DO NOTHING.
+        // the check's lock before the INSERT and still race. Mirrors Postgres ON CONFLICT (namespace_name) DO NOTHING.
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {IntegrationConfig.TestSchemaName}.namespaces
-                (name, owner_team, description, catalog_hash, status_code, created_at_utc, modified_at_utc, version)
+                (namespace_name, owner_team, description, catalog_hash, namespace_status_code, created_at_utc, modified_at_utc, version)
             SELECT @name, NULL, NULL, NULL, 10, @now, @now, 0
             WHERE NOT EXISTS (
                 SELECT 1 FROM {IntegrationConfig.TestSchemaName}.namespaces WITH (UPDLOCK, HOLDLOCK)
-                 WHERE [name] = @name);
+                 WHERE namespace_name = @name);
             """;
         cmd.Parameters.Add(new SqlParameter("@name", SqlDbType.VarChar, 64) { Value = FrameworkNamespaceName });
         cmd.Parameters.Add(new SqlParameter("@now", SqlDbType.DateTime2) { Value = DateTime.UtcNow });

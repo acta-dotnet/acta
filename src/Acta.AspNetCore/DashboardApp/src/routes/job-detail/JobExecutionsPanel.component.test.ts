@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import JobExecutionsPanelHarness from '../../test/JobExecutionsPanelHarness.svelte';
-import type { JobDetail, JobEvent } from './types.ts';
+import type { EventItem } from '../../api.ts';
+import type { JobDetail } from './types.ts';
 
 const workerRef = 'wrk_019f9b3508007e4dbfd13d9d20bc81f4';
 
@@ -33,25 +34,27 @@ function executingJob(executionNumber: number): JobDetail {
   };
 }
 
-function failed(executionNumber: number): JobEvent {
+function failed(executionNumber: number): EventItem {
   return {
-    jobEventId: executionNumber,
-    eventCode: 'job.execution-finished',
+    eventId: executionNumber,
+    eventCode: 'job.execution-failed',
     createdAtUtc: '2026-07-14T07:58:00Z',
     jobNamespace: 'billing',
+    entityKind: 'job',
+    entityId: 42,
+    jobName: 'send-invoice',
     jobRef: 'job_019f9b3509487d1b911f2020158384a3',
+    lineageRootJobRef: null,
+    tenantName: null,
     workerRef,
     executionNumber,
-    fromStatus: 'executing',
-    toStatus: 'ready',
-    executionStatus: 'failed',
     durationMs: 125,
-    reasonCode: 'job.unhandled-exception',
-    reasonMessage: 'Invoice provider timed out.'
+    message: 'Invoice provider timed out.',
+    detailsText: '{"reason":"unhandled-exception","to":"ready"}'
   };
 }
 
-function serveEvents(items: JobEvent[]): void {
+function serveEvents(items: EventItem[]): void {
   const page = { items, nextCursor: null, hasMore: false, pageSize: 100, totalCount: items.length };
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(page), { status: 200 })));
 }
@@ -80,6 +83,6 @@ describe('JobExecutionsPanel', () => {
     serveEvents([]);
     render(JobExecutionsPanelHarness, { job: executingJob(3) });
 
-    expect(await screen.findByText('2 earlier executions have no retained events (audit level or event retention).')).toBeTruthy();
+    expect(await screen.findByText('2 earlier executions have no retained events (event recording or event retention).')).toBeTruthy();
   });
 });

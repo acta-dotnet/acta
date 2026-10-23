@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static JobControlActor Actor => new(ActorCode.Operator, "tester");
+    private const string Actor = "tester";
 
     [Fact(DisplayName = "Competing definition overrides with one version have one winner and one audit event")]
     public async Task Concurrent_overrides_have_one_winner()
@@ -70,7 +70,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -81,7 +81,9 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
 
     private async Task<DefinitionEntity> ReadAsync(string name, CancellationToken ct)
     {
-        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == TestNamespaceId && d.DefinitionName == name)
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         return def!;
     }
@@ -249,7 +251,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
                         JobRetentionSeconds: jobRetentionSeconds
                     ),
                     "out of range",
-                    Actor.Actor,
+                    Actor,
                     ct
                 )
                 .AsTask()
@@ -275,7 +277,7 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
                 before.Version,
                 new DefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
                 "boundary",
-                Actor.Actor,
+                Actor,
                 ct
             );
 
@@ -327,9 +329,9 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
             .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(evt);
-        Assert.Null(evt!.JobId); // definition-scoped, not a job instance
-        Assert.Equal(ActorCode.Operator, evt.ActorCode);
-        Assert.Equal("tester", evt.Actor);
-        Assert.Equal("audited edit", evt.ReasonMessage);
+        Assert.Equal(EntityCode.Definition, evt!.EntityCode);
+        Assert.Equal(id, evt.EntityId);
+        Assert.Equal("tester", EventDetail(evt, "actor"));
+        Assert.Equal("audited edit", evt.EventMessage);
     }
 }

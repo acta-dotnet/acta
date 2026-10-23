@@ -81,5 +81,5 @@ public sealed class BatchDeduplicationScopeTests
         new(jobNamespace, "job", JobPayload.None, DeduplicationKey: deduplicationKey);
 
     private static JobEnqueueValues Child(long parentJobId, string deduplicationKey) =>
-        new("billing", "job", JobPayload.None, DeduplicationKey: deduplicationKey, ParentId: parentJobId);
+        new("billing", "job", JobPayload.None, DeduplicationKey: deduplicationKey, ParentJobId: parentJobId);
 }

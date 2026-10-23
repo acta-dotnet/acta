@@ -1,42 +1,48 @@
 SELECT
-    ns.id AS namespace_id,
-    ns.name AS job_namespace,
-    ns.status_code AS status,
+    ns.namespace_id,
+    ns.namespace_name AS job_namespace,
+    ns.namespace_status_code AS status,
     ns.owner_team,
     ns.description,
     ns.version
 FROM {{schema}}.namespaces ns
 WHERE
-    (@p_name_search IS NULL OR ns.name LIKE @p_name_search)
-    AND (@p_status_code IS NULL OR ns.status_code = @p_status_code)
+    (@p_name_search IS NULL OR ns.namespace_name LIKE @p_name_search)
+    AND (@p_namespace_status_code IS NULL OR ns.namespace_status_code = @p_namespace_status_code)
     AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1 FROM JSON_EACH(@p_tag_filters) f
         WHERE NOT EXISTS (
             SELECT 1 FROM {{schema}}.tags tg
             WHERE
-                tg.scope_code = 30 /* TagScopeCode.Namespace */ AND tg.scope_id = ns.id
-                AND tg.name = JSON_EXTRACT(f.value, '$.name')
-                AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
+                tg.entity_code = 80 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
+                AND tg.tag_name = JSON_EXTRACT(f.value, '$.tag_name')
+                AND (
+                    JSON_EXTRACT(f.value, '$.tag_value_search') IS NULL
+                    OR tg.tag_value_search = JSON_EXTRACT(f.value, '$.tag_value_search')
+                )
         )
     ))
-    AND (@p_cursor_namespace_name IS NULL OR ns.name > @p_cursor_namespace_name)
-ORDER BY ns.name ASC
+    AND (@p_cursor_namespace_name IS NULL OR ns.namespace_name > @p_cursor_namespace_name)
+ORDER BY ns.namespace_name ASC
 LIMIT @p_take;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.namespaces ns
     WHERE
-        (@p_name_search IS NULL OR ns.name LIKE @p_name_search)
-        AND (@p_status_code IS NULL OR ns.status_code = @p_status_code)
+        (@p_name_search IS NULL OR ns.namespace_name LIKE @p_name_search)
+        AND (@p_namespace_status_code IS NULL OR ns.namespace_status_code = @p_namespace_status_code)
         AND (@p_tag_filters IS NULL OR NOT EXISTS (
             SELECT 1 FROM JSON_EACH(@p_tag_filters) f
             WHERE NOT EXISTS (
                 SELECT 1 FROM {{schema}}.tags tg
                 WHERE
-                    tg.scope_code = 30 /* TagScopeCode.Namespace */ AND tg.scope_id = ns.id
-                    AND tg.name = JSON_EXTRACT(f.value, '$.name')
-                    AND (JSON_EXTRACT(f.value, '$.value_search') IS NULL OR tg.value_search = JSON_EXTRACT(f.value, '$.value_search'))
+                    tg.entity_code = 80 /* EntityCode.Namespace */ AND tg.entity_id = ns.namespace_id
+                    AND tg.tag_name = JSON_EXTRACT(f.value, '$.tag_name')
+                    AND (
+                        JSON_EXTRACT(f.value, '$.tag_value_search') IS NULL
+                        OR tg.tag_value_search = JSON_EXTRACT(f.value, '$.tag_value_search')
+                    )
             )
         ))
 ) END;

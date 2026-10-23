@@ -10,6 +10,9 @@ namespace Acta;
 /// </summary>
 internal sealed record AlertsCursor(long Ticks, long EventId)
 {
+    /// <summary>The variable on the namespace's <c>sys.alerts</c> slot that holds the cursor.</summary>
+    public const string VariableName = "alerts-cursor";
+
     [JsonIgnore]
     public DateTime Utc => new(Ticks, DateTimeKind.Utc);
 }

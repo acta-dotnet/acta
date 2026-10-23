@@ -35,8 +35,8 @@ public sealed class ResolveScheduleTargetSpec : ActaRuntimeTestBase<ConformanceF
 
         Assert.NotNull(target);
         Assert.Equal(slotId, target.JobId);
-        Assert.Equal(ScheduleName, target.Schedule.Name);
-        Assert.Equal([ScheduleName], target.Live.Select(s => s.Name));
+        Assert.Equal(ScheduleName, target.Schedule.ScheduleName);
+        Assert.Equal([ScheduleName], target.Live.Select(s => s.ScheduleName));
         Assert.InRange(target.NowUtc, before.AddSeconds(-1), after.AddSeconds(1));
         // Paused indefinitely, the slot's only schedule leaves the slot no next run.
         Assert.Null(target.SlotNextRunWith(s => s with { Status = ScheduleStatusCode.Paused, PausedUntilUtc = null }));

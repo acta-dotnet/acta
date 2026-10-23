@@ -20,17 +20,17 @@ internal sealed class TriggerScheduleNowHandler(
             return NotFound;
         }
 
-        var name = target.Schedule.Name;
+        var name = target.Schedule.ScheduleName;
         var row = await session.ExecuteOneAsync(
             new StoreCommand("TriggerScheduleNow"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, name));
-                cmd.AddOperatorAudit(
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, name));
+                cmd.AddEventFields(
                     dialect,
-                    command.Actor,
-                    command.ReasonMessage is null ? name : $"{name}: {ScheduleControl.RowReason(command.ReasonMessage)}"
+                    command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
+                    ScheduleControl.Details(name, command.Actor)
                 );
             },
             DbProjectionResolver.Resolve<TriggerScheduleNowRow>(),
@@ -43,6 +43,6 @@ internal sealed class TriggerScheduleNowHandler(
             await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return new TriggerScheduleNowResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextRunAtUtc, row.Version);
+        return new TriggerScheduleNowResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 }

@@ -16,7 +16,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
     protected override bool RunAsWorker => true;
 
     private async Task<NamespaceEntity?> ReadNsAsync(CancellationToken ct) =>
-        await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
+        await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int nsId, CancellationToken ct) =>
         await Db.From<EventEntity>().Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceUpdated).CountAsync(ct);

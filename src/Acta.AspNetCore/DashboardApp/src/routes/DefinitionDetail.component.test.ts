@@ -40,9 +40,9 @@ const definition = {
   jobRetentionSeconds: 86400,
   jobRetentionSecondsOverride: null,
   jobRetentionSecondsEffective: 86400,
-  auditLevel: 'standard',
-  auditLevelOverride: null,
-  auditLevelEffective: 'standard',
+  eventRecording: 'audit',
+  eventRecordingOverride: null,
+  eventRecordingEffective: 'audit',
   alertProfile: 'default',
   alertProfileOverride: null,
   alertProfileEffective: 'default',
@@ -67,32 +67,47 @@ function pagedResponse(items: unknown[]) {
   );
 }
 
-const overrideEvent = {
-  jobEventId: 1,
-  eventCode: 'definition.overrides-updated',
-  createdAtUtc: '2026-07-14T08:00:00Z',
-  actorCode: 'operator',
-  actor: 'marko',
-  reasonMessage: 'Raised max attempts for the holiday backlog'
-};
+function definitionEvent(overrides: Record<string, unknown>) {
+  return {
+    eventId: 0,
+    eventCode: 'definition.overrides-updated',
+    createdAtUtc: '2026-07-14T08:00:00Z',
+    jobNamespace,
+    entityKind: 'definition',
+    entityId: 12,
+    jobName,
+    jobRef: null,
+    lineageRootJobRef: null,
+    tenantName: null,
+    workerRef: null,
+    executionNumber: null,
+    durationMs: null,
+    message: null,
+    detailsText: '{"actor":"marko"}',
+    ...overrides
+  };
+}
 
-const retiredEvent = {
-  jobEventId: 3,
+const overrideEvent = definitionEvent({ eventId: 1, message: 'Raised max attempts for the holiday backlog' });
+
+const retiredEvent = definitionEvent({
+  eventId: 3,
   eventCode: 'definition.retired',
   createdAtUtc: '2026-07-15T08:00:00Z',
-  actorCode: 'operator',
-  actor: 'marko',
-  reasonMessage: 'Handler left the build'
-};
+  message: 'Handler left the build'
+});
 
-const executionEvent = {
-  jobEventId: 2,
-  eventCode: 'job.execution-finished',
+const executionEvent = definitionEvent({
+  eventId: 2,
+  eventCode: 'job.execution-succeeded',
   createdAtUtc: '2026-07-14T09:00:00Z',
-  actorCode: 'system',
-  actor: null,
-  reasonMessage: null
-};
+  entityKind: 'job',
+  entityId: 77,
+  jobRef: 'job_019f9b3509487d1b911f2020158384a3',
+  executionNumber: 1,
+  durationMs: 40,
+  detailsText: null
+});
 
 function stubFetch(handler: (url: URL) => Response) {
   vi.stubGlobal(
@@ -136,7 +151,8 @@ describe('DefinitionDetail change history', () => {
 
     expect(await screen.findByText('Raised max attempts for the holiday backlog')).toBeTruthy();
     expect(await screen.findByText('Handler left the build')).toBeTruthy();
-    expect(screen.queryByText('job.execution-finished')).toBeNull();
+    expect(screen.getAllByText('marko')).toHaveLength(2);
+    expect(screen.queryByText('job.execution-succeeded')).toBeNull();
   });
 
   it('shows the empty-history text when the definition has no override events', async () => {

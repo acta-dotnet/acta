@@ -27,7 +27,7 @@ internal sealed class ResumeScheduleHandler(
             t.TimeZoneId,
             t.ExpressionKind,
             t.MisfireStrategy,
-            t.NextRunAtUtc,
+            t.NextOccurrenceAtUtc,
             target.NowUtc
         );
         var jobNextRun = target.SlotNextRunWith(s =>
@@ -35,7 +35,7 @@ internal sealed class ResumeScheduleHandler(
             {
                 Status = ScheduleStatusCode.Active,
                 PausedUntilUtc = null,
-                NextRunAtUtc = reconciled,
+                NextOccurrenceAtUtc = reconciled,
             }
         );
 
@@ -44,14 +44,14 @@ internal sealed class ResumeScheduleHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, t.Name));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.NextRunAtUtc, reconciled));
-                ScheduleControl.BindTail(cmd, dialect, jobNextRun, command.Actor, command.ReasonMessage);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, t.ScheduleName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.ScheduleState.NextOccurrenceAtUtc, reconciled));
+                ScheduleControl.BindTail(cmd, dialect, jobNextRun, t.ScheduleName, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<ResumeScheduleRow>(),
             ct
         );
         await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);
-        return new ResumeScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextRunAtUtc, row.Version);
+        return new ResumeScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 }

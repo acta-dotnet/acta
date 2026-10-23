@@ -78,15 +78,12 @@ internal static class SchedulingCases
         var actual = await reader.OutcomesAsync(ct);
         var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected(input), actual).ToList();
         var notes = await NotesAsync(operations, ct);
-        var entries = notes
-            .Where(n => n.ReasonMessage?.StartsWith("begin ", StringComparison.Ordinal) == true)
-            .OrderBy(n => n.JobEventId)
-            .ToArray();
+        var entries = notes.Where(n => n.Message?.StartsWith("begin ", StringComparison.Ordinal) == true).OrderBy(n => n.EventId).ToArray();
         checks.Add(
             new(
                 "witness-coverage",
                 scenario.Id,
-                input.All(i => entries.Any(e => e.ReasonMessage == "begin " + i.Key)),
+                input.All(i => entries.Any(e => e.Message == "begin " + i.Key)),
                 "Every root left an independent durable entry witness."
             )
         );
@@ -94,11 +91,11 @@ internal static class SchedulingCases
         {
             // Note ids are assigned in insert order, and a member's end note commits before the completion that
             // promotes the next member, so the ids order the two notes without a clock.
-            var firstBegin = entries.GroupBy(e => e.JobId!.Value).ToDictionary(g => g.Key, g => g.Min(e => e.JobEventId));
+            var firstBegin = entries.GroupBy(e => e.EntityId).ToDictionary(g => g.Key, g => g.Min(e => e.EventId));
             var lastEnd = notes
-                .Where(n => n.ReasonMessage?.StartsWith("end ", StringComparison.Ordinal) == true)
-                .GroupBy(n => n.JobId!.Value)
-                .ToDictionary(g => g.Key, g => g.Max(n => n.JobEventId));
+                .Where(n => n.Message?.StartsWith("end ", StringComparison.Ordinal) == true)
+                .GroupBy(n => n.EntityId)
+                .ToDictionary(g => g.Key, g => g.Max(n => n.EventId));
             foreach (var lane in admitted.GroupBy(a => a.Lane, StringComparer.Ordinal))
             {
                 var members = lane.Select(a => a.Job.JobId).Order().ToArray();
@@ -118,9 +115,9 @@ internal static class SchedulingCases
         {
             var concurrency = 0;
             var maximum = 0;
-            foreach (var note in notes.OrderBy(e => e.JobEventId))
+            foreach (var note in notes.OrderBy(e => e.EventId))
             {
-                concurrency += note.ReasonMessage?.StartsWith("begin ", StringComparison.Ordinal) == true ? 1 : -1;
+                concurrency += note.Message?.StartsWith("begin ", StringComparison.Ordinal) == true ? 1 : -1;
                 maximum = Math.Max(maximum, concurrency);
             }
             checks.Add(
@@ -135,7 +132,7 @@ internal static class SchedulingCases
         if (scenario.Id == "O04")
         {
             var starts = entries
-                .Select(e => int.Parse(e.ReasonMessage!.AsSpan("begin root-".Length), System.Globalization.CultureInfo.InvariantCulture))
+                .Select(e => int.Parse(e.Message!.AsSpan("begin root-".Length), System.Globalization.CultureInfo.InvariantCulture))
                 .ToArray();
             var firstNormal = Array.FindIndex(starts, i => i % 2 != 0);
             checks.Add(

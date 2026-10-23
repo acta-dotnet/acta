@@ -17,12 +17,12 @@ public class JobExplainerTests
         string? workerDeploymentVersion = null,
         WorkerStatusCode? workerStatus = null,
         DateTime? workerLastSeenAtUtc = null,
-        EventReasonCode? latestReasonCode = null,
-        string? latestReasonMessage = null,
+        string? latestReason = null,
+        string? latestFailureMessage = null,
         string? lastExecutedByWorkerName = null,
         Guid? leasedByWorkerRef = null,
         Guid? lastExecutedByWorkerRef = null,
-        // Retention deletes workers rows, so a runtimes/events worker id can outlive its row. The LEFT
+        // Retention deletes workers rows, so a jobs_state/events worker id can outlive its row. The LEFT
         // JOINs then yield neither a ref nor a deployment version while the id still points somewhere.
         bool workerRowPurged = false
     ) =>
@@ -40,8 +40,9 @@ public class JobExplainerTests
             WorkerDeploymentVersion: workerRowPurged ? null : workerDeploymentVersion,
             WorkerStatus: workerStatus,
             WorkerLastSeenAtUtc: workerLastSeenAtUtc,
-            LatestReasonCode: latestReasonCode,
-            LatestReasonMessage: latestReasonMessage,
+            LatestFailureMessage: latestFailureMessage,
+            LatestFailureDetailsFormatId: latestReason is null ? null : JobPayloadFormat.Json.Id,
+            LatestFailureDetails: EventDetails.Write(("reason", latestReason)),
             LastExecutedByWorkerName: workerRowPurged ? null : lastExecutedByWorkerName,
             // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
             // so the fixture mirrors that.
@@ -197,7 +198,7 @@ public class JobExplainerTests
     [Fact]
     public void A_lease_whose_worker_row_was_purged_keeps_the_lease_but_fabricates_no_ref()
     {
-        // runtimes still names a holder, but retention deleted that workers row: the lease timings stay
+        // jobs_state still names a holder, but retention deleted that workers row: the lease timings stay
         // meaningful while the holder becomes unidentifiable. The prose must never print the internal id
         // and must never mint an all-zero ref.
         var data = Data(
@@ -273,7 +274,7 @@ public class JobExplainerTests
     [Fact]
     public void Failed_surfaces_the_latest_reason_and_offers_timeline_and_restart()
     {
-        var data = Data(Header(JobStatusCode.Failed, latestReasonMessage: "boom in handler"));
+        var data = Data(Header(JobStatusCode.Failed, latestFailureMessage: "boom in handler"));
 
         var x = GetJobExplanationHandler.Explain(data, Now);
 
@@ -336,21 +337,21 @@ public class JobExplainerTests
                     StepStatusCode.Succeeded,
                     AttemptNumber: 1,
                     NextRetryAtUtc: null,
-                    ReasonMessage: null
+                    FailureMessage: null
                 ),
                 new GetJobExplanationStepRow(
                     "charge-card",
                     StepStatusCode.Pending,
                     AttemptNumber: 2,
                     NextRetryAtUtc: Now.AddMinutes(1),
-                    ReasonMessage: "declined"
+                    FailureMessage: "declined"
                 ),
                 new GetJobExplanationStepRow(
                     "ship",
                     StepStatusCode.Exhausted,
                     AttemptNumber: 5,
                     NextRetryAtUtc: null,
-                    ReasonMessage: "carrier down"
+                    FailureMessage: "carrier down"
                 ),
             ]
         );
@@ -382,7 +383,7 @@ public class JobExplainerTests
     [Fact]
     public void Cancelled_surfaces_reason_separately_and_only_restarts_if_reversed()
     {
-        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Cancelled, latestReasonMessage: "superseded")), Now);
+        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Cancelled, latestFailureMessage: "superseded")), Now);
 
         Assert.Equal("Cancelled.", x.Headline);
         Assert.Equal("superseded", x.Reason);

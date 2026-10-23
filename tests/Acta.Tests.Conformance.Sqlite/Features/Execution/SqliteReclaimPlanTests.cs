@@ -8,12 +8,12 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 
 /// <summary>
 /// The query plan of ReclaimStuckJobs' read of the stuck in-flight rows, from the provider's own embedded script:
-/// it searches ix_runtimes_worker_inflight rather than scanning runtimes. SQLite uses a partial index only for a
+/// it searches ix_jobs_state_worker_inflight rather than scanning jobs_state. SQLite uses a partial index only for a
 /// query that states the index's filter, so the read restates it.
 /// </summary>
 public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
 {
-    [Fact(DisplayName = "ReclaimStuckJobs reads the stuck in-flight rows through ix_runtimes_worker_inflight")]
+    [Fact(DisplayName = "ReclaimStuckJobs reads the stuck in-flight rows through ix_jobs_state_worker_inflight")]
     public async Task Reclaim_reads_in_flight_rows_through_the_in_flight_index()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -42,7 +42,7 @@ public sealed class SqliteReclaimPlanTests : ClaimSkewTestBase
         }
 
         var text = "Reclaim plan:\n" + string.Join("\n", plan);
-        Assert.True(plan.Any(row => row.Contains("INDEX ix_runtimes_worker_inflight", StringComparison.Ordinal)), text);
+        Assert.True(plan.Any(row => row.Contains("INDEX ix_jobs_state_worker_inflight", StringComparison.Ordinal)), text);
         Assert.False(plan.Any(row => row.StartsWith("SCAN r", StringComparison.Ordinal)), text);
     }
 

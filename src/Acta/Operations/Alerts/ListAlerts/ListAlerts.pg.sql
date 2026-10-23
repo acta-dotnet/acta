@@ -1,12 +1,12 @@
 SELECT
-    a.id AS alert_id,
-    ns.name AS job_namespace,
+    a.alert_id,
+    ns.namespace_name AS job_namespace,
     a.job_id,
-    a.origin_code AS origin,
-    a.severity_code AS severity,
-    a.kind_code AS kind,
+    a.alert_origin_code AS origin,
+    a.alert_severity_code AS severity,
+    a.alert_kind_code AS kind,
     a.title,
-    a.message,
+    a.alert_message AS message,
     a.channel_name,
     a.occurrence_count,
     a.resolved_at_utc,
@@ -19,28 +19,28 @@ SELECT
     a.acknowledged_at_utc,
     a.alert_ref
 FROM {{schema}}.alerts a
-JOIN {{schema}}.namespaces ns ON ns.id = a.namespace_id
+JOIN {{schema}}.namespaces ns ON ns.namespace_id = a.namespace_id
 WHERE
-    (@p_namespace_name IS NULL OR a.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
+    (@p_namespace_name IS NULL OR a.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name))
     AND (@p_job_id IS NULL OR a.job_id = @p_job_id)
     AND (@p_unresolved_only IS NULL OR a.resolved_at_utc IS NULL)
-    AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
+    AND (@p_alert_severity_code IS NULL OR a.alert_severity_code >= @p_alert_severity_code)
     AND (@p_delivery_status_code IS NULL OR a.delivery_status_code = @p_delivery_status_code)
     AND (@p_acknowledged IS NULL OR (a.acknowledged_at_utc IS NOT NULL) = @p_acknowledged)
     AND (@p_cursor_created_at_utc IS NULL
         OR a.created_at_utc < @p_cursor_created_at_utc
-        OR (a.created_at_utc = @p_cursor_created_at_utc AND a.id < @p_cursor_id))
-ORDER BY a.created_at_utc DESC, a.id DESC
+        OR (a.created_at_utc = @p_cursor_created_at_utc AND a.alert_id < @p_cursor_id))
+ORDER BY a.created_at_utc DESC, a.alert_id DESC
 LIMIT @p_take;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
     FROM {{schema}}.alerts a
     WHERE
-        (@p_namespace_name IS NULL OR a.namespace_id = (SELECT n.id FROM {{schema}}.namespaces n WHERE n.name = @p_namespace_name))
+        (@p_namespace_name IS NULL OR a.namespace_id = (SELECT n.namespace_id FROM {{schema}}.namespaces n WHERE n.namespace_name = @p_namespace_name))
         AND (@p_job_id IS NULL OR a.job_id = @p_job_id)
         AND (@p_unresolved_only IS NULL OR a.resolved_at_utc IS NULL)
-        AND (@p_severity_code IS NULL OR a.severity_code >= @p_severity_code)
+        AND (@p_alert_severity_code IS NULL OR a.alert_severity_code >= @p_alert_severity_code)
         AND (@p_delivery_status_code IS NULL OR a.delivery_status_code = @p_delivery_status_code)
         AND (@p_acknowledged IS NULL OR (a.acknowledged_at_utc IS NOT NULL) = @p_acknowledged)
 ) END;

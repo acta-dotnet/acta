@@ -11,7 +11,7 @@ internal sealed class PreviewScheduleHandler(ResolveScheduleTargetHandler resolv
         }
 
         var t = target.Schedule;
-        var nextRuns = NextOccurrenceCalculator.Walk(t.Expression, t.TimeZoneId, t.ExpressionKind, target.NowUtc, query.Count);
-        return new PreviewScheduleResponse(t.Expression, t.TimeZoneId ?? "UTC", nextRuns);
+        var nextOccurrences = NextOccurrenceCalculator.Walk(t.Expression, t.TimeZoneId, t.ExpressionKind, target.NowUtc, query.Count);
+        return new PreviewScheduleResponse(t.Expression, t.TimeZoneId ?? "UTC", nextOccurrences);
     }
 }

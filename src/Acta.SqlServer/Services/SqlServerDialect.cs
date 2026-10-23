@@ -113,7 +113,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             "@p_batch",
             SqlDbType.Structured,
             SqlServerTableParameters.BuildCompleteExecutionsRecords(request.Completions),
-            typeName: $"{schema}.complete_executions_batch"
+            typeName: $"{schema}.complete_executions"
         );
         AddParameter(sql, "@p_plain", SqlDbType.Bit, request.Completions.All(c => c.IsPlain));
 
@@ -133,16 +133,16 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_batch",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.enqueue_jobs_batch",
+                TypeName = $"{schema}.enqueue_jobs",
                 Value = SqlServerTableParameters.BuildBatchRecords(rows, jobRefs),
             }
         );
         sql.Parameters.Add(
             new SqlParameter
             {
-                ParameterName = "@p_tag_batch",
+                ParameterName = "@p_tags",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.enqueue_tags_batch",
+                TypeName = $"{schema}.enqueue_tags",
                 Value = SqlServerTableParameters.BuildTagRecords(rows),
             }
         );
@@ -156,22 +156,27 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_job_name", SqlDbType.VarChar, row.JobName);
         AddScalar(sql, "@p_deduplication_key", SqlDbType.VarChar, (object?)row.DeduplicationKey ?? DBNull.Value);
         AddScalar(sql, "@p_correlation_key", SqlDbType.VarChar, (object?)row.CorrelationKey ?? DBNull.Value);
-        AddScalar(sql, "@p_priority_override", SqlDbType.TinyInt, row.PriorityOverride is { } priority ? (byte)priority : DBNull.Value);
+        AddScalar(
+            sql,
+            "@p_job_priority_code_override",
+            SqlDbType.TinyInt,
+            row.PriorityOverride is { } priority ? (byte)priority : DBNull.Value
+        );
         AddScalar(sql, "@p_input_format_id", SqlDbType.TinyInt, row.Input.Format.Id);
         AddScalar(sql, "@p_input", SqlDbType.VarBinary, row.Input.Format.IsNone ? DBNull.Value : row.Input.Data.ToArray());
         AddScalar(sql, "@p_concurrency_key", SqlDbType.VarChar, (object?)row.ConcurrencyKey ?? DBNull.Value);
         AddScalar(sql, "@p_next_run_at_utc", SqlDbType.DateTime2, row.NextRunAtUtc is { } nextRun ? DbParams.ToUtc(nextRun) : DBNull.Value);
         AddScalar(sql, "@p_delay_seconds", SqlDbType.Int, (object?)row.DelaySeconds ?? DBNull.Value);
-        AddScalar(sql, "@p_parent_id", SqlDbType.BigInt, (object?)row.ParentId ?? DBNull.Value);
+        AddScalar(sql, "@p_parent_job_id", SqlDbType.BigInt, (object?)row.ParentJobId ?? DBNull.Value);
         AddScalar(sql, "@p_tenant_name", SqlDbType.VarChar, (object?)row.TenantName ?? DBNull.Value);
         AddScalar(sql, "@p_tenant_override", SqlDbType.Bit, row.OverrideParentTenant);
-        AddScalar(sql, "@p_lane", SqlDbType.VarChar, (object?)row.Lane ?? DBNull.Value);
+        AddScalar(sql, "@p_lane_name", SqlDbType.VarChar, (object?)row.Lane ?? DBNull.Value);
         sql.Parameters.Add(
             new SqlParameter
             {
-                ParameterName = "@p_tag_batch",
+                ParameterName = "@p_tags",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.enqueue_tags_batch",
+                TypeName = $"{schema}.enqueue_tags",
                 Value = SqlServerTableParameters.BuildTagRecords([row]),
             }
         );
@@ -203,7 +208,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_definitions",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.register_definitions_batch",
+                TypeName = $"{schema}.register_definitions",
                 Value = SqlServerTableParameters.BuildDefinitionRecords(rows),
             }
         );
@@ -217,13 +222,12 @@ internal sealed class SqlServerDialect : ISqlDialect
     )
     {
         var sql = (SqlCommand)command;
-        sql.Parameters.Add(new SqlParameter("@p_namespace_id", SqlDbType.Int) { Value = definitions[0].NamespaceId });
         sql.Parameters.Add(
             new SqlParameter
             {
                 ParameterName = "@p_definitions",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.register_slots_batch",
+                TypeName = $"{schema}.register_slots",
                 Value = SqlServerTableParameters.BuildSlotRecords(definitions, slotRefs),
             }
         );
@@ -232,7 +236,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 ParameterName = "@p_schedules",
                 SqlDbType = SqlDbType.Structured,
-                TypeName = $"{schema}.register_schedules_batch",
+                TypeName = $"{schema}.register_schedules",
                 Value = SqlServerTableParameters.BuildScheduleUpsertRecords(definitions),
             }
         );
@@ -246,7 +250,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             advances.Select(item =>
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{{\"job_id\":{item.JobId},\"name\":\"{JsonEncodedText.Encode(item.Advance.ScheduleName)}\",\"next_run_at_utc\":{(item.Advance.NextRunAtUtc is { } next ? $"\"{DbParams.ToUtc(next):yyyy-MM-ddTHH:mm:ss.fff}\"" : "null")},\"expected_version\":{item.Advance.ExpectedVersion?.ToString(CultureInfo.InvariantCulture) ?? "null"}}}"
+                    $"{{\"job_id\":{item.JobId},\"schedule_name\":\"{JsonEncodedText.Encode(item.Advance.ScheduleName)}\",\"next_occurrence_at_utc\":{(item.Advance.NextOccurrenceAtUtc is { } next ? $"\"{DbParams.ToUtc(next):yyyy-MM-ddTHH:mm:ss.fff}\"" : "null")},\"expected_version\":{item.Advance.ExpectedVersion?.ToString(CultureInfo.InvariantCulture) ?? "null"}}}"
                 )
             )
         )

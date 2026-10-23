@@ -5,12 +5,11 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// <c>sys.retention</c>, the system retention sweep. A recurring, competitively-claimed
-/// <c>[Job]</c> auto-registered into every worker namespace; whichever live worker claims the hourly
-/// tick runs one namespace-scoped <c>purge_expired_data</c> pass, plus the sys namespace's expired events
-/// (sections and bounds: <see cref="RetentionSection"/>, <see cref="RetentionSweep"/>). Leaderless: the recurring
-/// slot's single claim per tick is the only coordination, so exactly one pass runs per namespace per tick.
-/// <c>AuditLevel.Failures</c> keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
+/// <c>sys.retention</c>, the system retention sweep, auto-registered into every worker namespace: whichever live
+/// worker claims the hourly tick runs one namespace-scoped <c>purge_expired_data</c> pass, plus the sys namespace's
+/// expired events (<see cref="RetentionSection"/>, <see cref="RetentionSweep"/>). The slot's single claim per tick is
+/// the only coordination. The pass never runs ahead of the namespace's alert projector: what the projector still
+/// owes, events and their jobs, waits for it. <c>Failures</c> recording keeps idle ticks out of <c>events</c>.
 /// </summary>
 internal sealed class RetentionJob(
     MaintenanceOperations maintenance,
@@ -51,7 +50,7 @@ internal sealed class RetentionJob(
     [Job(
         "sys.retention",
         Priority = JobPriorityCode.Realtime,
-        AuditLevel = DefinitionAuditLevelCode.Failures,
+        EventRecording = EventRecordingCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.Hourly)]
@@ -88,7 +87,9 @@ internal sealed class RetentionJob(
         ArgumentOutOfRangeException.ThrowIfNegative(command.MaxIterations);
         ArgumentOutOfRangeException.ThrowIfNegative(command.MaxJobSlices);
         var now = await clock.GetUtcNowAsync(ct);
-        var counts = new int[8];
+        // Read once, before any batch: the cursor only moves forward, so a floor read early keeps at least as much.
+        var alertFloor = await maintenance.GetAlertFloorAsync(command.NamespaceId, ct);
+        var counts = new int[7];
         var cursor = command.JobsCursor;
         try
         {
@@ -98,15 +99,19 @@ internal sealed class RetentionJob(
                 var cutoff = section switch
                 {
                     RetentionSection.Events => now.AddDays(-command.EventsRetentionDays),
-                    RetentionSection.SettledAlerts or RetentionSection.UndeliveredAlerts or RetentionSection.PoisonSkipCheckpoints =>
-                        now.AddDays(-command.AlertRetention),
+                    RetentionSection.SettledAlerts or RetentionSection.UndeliveredAlerts => now.AddDays(-command.AlertRetention),
                     // A terminal worker is also kept for the events window, so an event's worker_id finds its row while the event lasts.
                     RetentionSection.Workers => now.AddSeconds(
                         -Math.Max(command.WorkerRetentionSeconds, command.EventsRetentionDays * TimeSpan.SecondsPerDay)
                     ),
                     _ => now,
                 };
-                var batch = new PurgeExpiredDataCommand(command.NamespaceId, section, cutoff, command.BatchSize);
+                var (floorUtc, floorEventId) = alertFloor.Floor(cutoff);
+                var batch = new PurgeExpiredDataCommand(command.NamespaceId, section, cutoff, command.BatchSize)
+                {
+                    AlertFloorUtc = floorUtc,
+                    AlertFloorEventId = floorEventId,
+                };
                 if (section == RetentionSection.Jobs)
                 {
                     // A slice with nothing expired is no reason to stop: the walk ends at the oldest row, after
@@ -141,7 +146,8 @@ internal sealed class RetentionJob(
                     for (var iteration = 0; iteration < command.MaxIterations; iteration++)
                     {
                         ct.ThrowIfCancellationRequested();
-                        if ((await maintenance.PurgeExpiredDataAsync(batch with { NamespaceId = SysNamespaceId }, ct)).Purged == 0)
+                        var system = batch with { NamespaceId = SysNamespaceId, AlertFloorUtc = null, AlertFloorEventId = null };
+                        if ((await maintenance.PurgeExpiredDataAsync(system, ct)).Purged == 0)
                         {
                             break;
                         }
@@ -149,7 +155,7 @@ internal sealed class RetentionJob(
                 }
             }
 
-            return new RetentionSweepCounts(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7], cursor);
+            return new RetentionSweepCounts(counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], cursor);
         }
         finally
         {

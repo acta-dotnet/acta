@@ -8,7 +8,7 @@ SET
     retry_after_utc = @p_retry_after_utc,
     modified_at_utc = SYSUTCDATETIME(),
     version = version + 1
-OUTPUT INSERTED.id
+OUTPUT INSERTED.alert_id
 WHERE
-    id = @p_id
+    alert_id = @p_alert_id
     AND version = @p_version;

@@ -1,25 +1,25 @@
-WITH target (scope_id) AS (
-    SELECT CONVERT(BIGINT, t.id)
+WITH target (entity_id) AS (
+    SELECT CONVERT(BIGINT, t.tenant_id)
     FROM {{schema}}.tenants t
-    WHERE @p_scope_code = 20 /* TagScopeCode.Tenant */ AND t.tenant_name = @p_lookup_name
+    WHERE @p_entity_code = 120 /* EntityCode.Tenant */ AND t.tenant_name = @p_lookup_name
     UNION ALL
-    SELECT CONVERT(BIGINT, n.id)
+    SELECT CONVERT(BIGINT, n.namespace_id)
     FROM {{schema}}.namespaces n
-    WHERE @p_scope_code = 30 /* TagScopeCode.Namespace */ AND n.name = @p_lookup_name
+    WHERE @p_entity_code = 80 /* EntityCode.Namespace */ AND n.namespace_name = @p_lookup_name
     UNION ALL
-    SELECT CONVERT(BIGINT, d.id)
+    SELECT CONVERT(BIGINT, d.definition_id)
     FROM {{schema}}.definitions d
-    WHERE @p_scope_code = 40 /* TagScopeCode.Definition */ AND d.id = @p_lookup_id
+    WHERE @p_entity_code = 30 /* EntityCode.Definition */ AND d.definition_id = @p_lookup_id
     UNION ALL
-    SELECT j.id
+    SELECT j.job_id
     FROM {{schema}}.jobs j
-    WHERE @p_scope_code = 50 /* TagScopeCode.Job */ AND j.id = @p_lookup_id
+    WHERE @p_entity_code = 50 /* EntityCode.Job */ AND j.job_id = @p_lookup_id
 )
 
 SELECT
-    tg.name,
-    tg.value
+    tg.tag_name,
+    tg.tag_value
 FROM target x
 LEFT JOIN {{schema}}.tags tg
-    ON tg.scope_code = @p_scope_code AND tg.scope_id = x.scope_id
-ORDER BY tg.name;
+    ON tg.entity_code = @p_entity_code AND tg.entity_id = x.entity_id
+ORDER BY tg.tag_name;

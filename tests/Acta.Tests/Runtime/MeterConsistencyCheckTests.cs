@@ -14,10 +14,10 @@ public sealed class MeterConsistencyCheckTests
 
     private static StoredDefinitionContract Definition(string name, string? rateName, string? effectiveRate) =>
         new(
-            Name: name,
+            DefinitionName: name,
             ManifestGenerationAtUtc: new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
             Contract: new DefinitionContract("Input", null, 0, "none", 0, "none"),
-            Id: name.GetHashCode(StringComparison.Ordinal),
+            DefinitionId: name.GetHashCode(StringComparison.Ordinal),
             DefinitionHash: "hash",
             Status: DefinitionStatusCode.Active,
             Effective: new EffectiveJobPolicy(
@@ -31,7 +31,7 @@ public sealed class MeterConsistencyCheckTests
                 DeadlineSeconds: 0,
                 DeadlineBehavior: DeadlineBehaviorCode.Strict,
                 JobRetentionSeconds: 3600,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 AlertChannelName: null,
                 RunbookUrl: null

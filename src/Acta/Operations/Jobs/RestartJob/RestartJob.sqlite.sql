@@ -4,31 +4,31 @@ DROP TABLE IF EXISTS temp._restart_job;
 -- unfinished (docs/sql-execution-policy.md, "Lane lock order").
 CREATE TEMP TABLE _restart_job AS
 SELECT
-    j.id,
-    r.status_code AS from_status,
+    j.job_id,
+    r.job_status_code AS from_status,
     r.version AS from_version,
-    CASE WHEN r.status_code = 50 /* JobStatusCode.Executing */ THEN 1 ELSE 0 END AS rejected,
+    CASE WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 1 ELSE 0 END AS rejected,
     CASE
         WHEN
             r.lane_id IS NOT NULL
             AND EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o
+                FROM {{schema}}.jobs_state o
                 WHERE
                     o.lane_id = r.lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
+                    AND o.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                     )
                     AND o.job_id <> r.job_id
                     AND (
-                        o.status_code IN (
+                        o.job_status_code IN (
                             10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                             50 /* JobStatusCode.Executing */
                         )
                         OR (
-                            r.status_code NOT IN (
+                            r.job_status_code NOT IN (
                                 10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */
                             )
                             AND o.job_id < r.job_id
@@ -39,8 +39,8 @@ SELECT
         ELSE 10 /* JobStatusCode.Ready */
     END AS to_status
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
-WHERE j.id = @p_id;
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+WHERE j.job_id = @p_job_id;
 
 -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane, the
 -- state the enqueue ancestor guard refuses (docs/sql-execution-policy.md, "Lane lock order").
@@ -50,36 +50,36 @@ WHERE
     from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND EXISTS (
         WITH RECURSIVE
-            ancestors (id, parent_id) AS (
-                SELECT a.id, a.parent_id
+            ancestors (job_id, parent_job_id) AS (
+                SELECT a.job_id, a.parent_job_id
                 FROM {{schema}}.jobs a
-                WHERE a.id = (SELECT j.parent_id FROM {{schema}}.jobs j WHERE j.id = @p_id)
+                WHERE a.job_id = (SELECT j.parent_job_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
                 UNION ALL
-                SELECT a.id, a.parent_id
+                SELECT a.job_id, a.parent_job_id
                 FROM {{schema}}.jobs a
-                JOIN ancestors c ON a.id = c.parent_id
+                JOIN ancestors c ON a.job_id = c.parent_job_id
             ),
-            descendants (id) AS (
-                SELECT d.id
+            descendants (job_id) AS (
+                SELECT d.job_id
                 FROM {{schema}}.jobs d
-                WHERE d.parent_id = @p_id
+                WHERE d.parent_job_id = @p_job_id
                 UNION ALL
-                SELECT d.id
+                SELECT d.job_id
                 FROM {{schema}}.jobs d
-                JOIN descendants c ON d.parent_id = c.id
+                JOIN descendants c ON d.parent_job_id = c.job_id
             ),
-            lineage (id) AS (
-                SELECT a.id FROM ancestors a
+            lineage (job_id) AS (
+                SELECT a.job_id FROM ancestors a
                 UNION ALL
-                SELECT d.id FROM descendants d
+                SELECT d.job_id FROM descendants d
             )
         SELECT 1
         FROM lineage c
-        JOIN {{schema}}.runtimes lr ON lr.job_id = c.id
-        JOIN {{schema}}.runtimes r ON r.job_id = @p_id
+        JOIN {{schema}}.jobs_state lr ON lr.job_id = c.job_id
+        JOIN {{schema}}.jobs_state r ON r.job_id = @p_job_id
         WHERE
             lr.lane_id = r.lane_id
-            AND lr.status_code IN (
+            AND lr.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
             )
@@ -89,44 +89,34 @@ INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    job_ref,
-    execution_number,
-    lineage_root_id,
+    entity_code,
+    entity_id,
     definition_id,
     tenant_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    lineage_root_job_id,
+    execution_number,
+    event_message,
+    details_format_id,
+    details)
 SELECT
     73 /* EventCode.JobRestarted */,
     {{now}},
     j.namespace_id,
-    @p_actor_code,
-    @p_actor,
-    j.id,
-    j.job_ref,
-    r.execution_number,
-    COALESCE(j.lineage_root_id, j.id),
+    50 /* EntityCode.Job */,
+    j.job_id,
     j.definition_id,
     j.tenant_id,
-    r.status_code,
-    s.to_status,
-    NULL,
-    NULL,
-    @p_reason_code,
-    @p_reason_message
+    COALESCE(j.lineage_root_job_id, j.job_id),
+    r.execution_number,
+    @p_event_message,
+    @p_details_format_id,
+    @p_details
 FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
-JOIN temp._restart_job s ON s.id = j.id
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+JOIN temp._restart_job s ON s.job_id = j.job_id
 WHERE
-    j.id = @p_id
-    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    j.job_id = @p_job_id
+    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
@@ -134,14 +124,14 @@ WHERE
 -- step stays, since only someone who reconciled its outcome can say it may run again.
 DELETE FROM {{schema}}.steps
 WHERE
-    job_id = @p_id
-    AND status_code = 200 /* StepStatusCode.Exhausted */
+    job_id = @p_job_id
+    AND step_status_code = 200 /* StepStatusCode.Exhausted */
     AND (SELECT s.rejected FROM temp._restart_job s) = 0
     AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version);
 
-UPDATE {{schema}}.runtimes
+UPDATE {{schema}}.jobs_state
 SET
-    status_code = (SELECT s.to_status FROM temp._restart_job s),
+    job_status_code = (SELECT s.to_status FROM temp._restart_job s),
     failure_count = 0,
     next_run_at_utc = COALESCE(@p_next_run_at_utc, {{now}}),
     leased_by_worker_id = NULL,
@@ -152,28 +142,28 @@ SET
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    job_id = @p_id
+    job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0;
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN s.rejected = 1 THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
-        WHEN s.id IS NULL THEN NULL
+        WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
         WHEN s.rejected = 1 THEN s.from_status
         ELSE s.to_status
-    END AS status_code,
+    END AS status,
     CASE
-        WHEN s.id IS NULL THEN NULL
+        WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
         WHEN s.rejected = 1 THEN s.from_version
         ELSE s.from_version + 1
     END AS version
-FROM (SELECT @p_id AS qid) q
-LEFT JOIN temp._restart_job s ON s.id = q.qid;
+FROM (SELECT @p_job_id AS qid) q
+LEFT JOIN temp._restart_job s ON s.job_id = q.qid;

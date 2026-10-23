@@ -117,7 +117,7 @@ from your IDE's test runner, or with the xunit v3 in-process runner:
 whitelist (`acta-test`), so `acta-dev` can never be reset by it. Run it when accumulated
 append-only rows get unwieldy or after a destructive schema change.
 
-**Namespace id budget (Postgres / SQL Server).** `namespaces.id` is an `int` IDENTITY/sequence column,
+**Namespace id budget (Postgres / SQL Server).** `namespaces.namespace_id` is an `int` IDENTITY/sequence column,
 and the shared `acta_test` schema is append-only, so ids are never reclaimed between runs. At 32 bits
 the suite never spends them on its own; `tests/Acta.Tests.Conformance/Testing/NamespaceIdBudget.cs`
 keeps a guard that fails the bootstrap when the space is nearly gone, and if it fires, suspect an
@@ -310,15 +310,15 @@ line-leading keywords, no tabs, no trailing whitespace) and the rest is conventi
 
 ```sql
 SELECT
-    j.id,
-    ns.name AS namespace_name,
-    r.status_code
+    j.job_id,
+    ns.namespace_name,
+    r.job_status_code
 FROM {{schema}}.jobs j
-INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
-    j.id = @p_id
-    AND r.status_code = 10 /* JobStatusCode.Ready */
-ORDER BY j.id
+    j.job_id = @p_job_id
+    AND r.job_status_code = 10 /* JobStatusCode.Ready */
+ORDER BY j.job_id
 LIMIT 1;
 ```
 
@@ -330,7 +330,7 @@ LIMIT 1;
   column and value lines pair up one-to-one; a short insert that fits in one line stays inline.
 - Multi-line `SELECT` projections put one item per line, except deliberate semantic groupings (the
   `x, x_override, x_effective` policy triples stay on one line per family); the same latitude
-  covers recurring paired predicates in `WHERE` (the tag-scope `scope_code = N AND scope_id = x`
+  covers recurring paired predicates in `WHERE` (the tag owner `entity_code = N AND entity_id = x`
   idiom).
 - Target line length 140, matching `.csharpierrc.json`.
 
@@ -387,7 +387,7 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
   meaning: a control endpoint never takes a `note`, a handler API never records a `reasonMessage`.
 - **`lock` is the object, `lease` is the grant.** A lock is the mutual-exclusion thing with an
   identity; a lease is a time-bounded, renewable ownership grant. Lease names mechanics only -
-  columns, TTLs, heartbeats: the execution lease on `runtimes`, the lease on a lock hold - never a
+  columns, TTLs, heartbeats: the execution lease on `jobs_state`, the lease on a lock hold - never a
   table or a store. `ExtendWorkerLeases` "extends the leases" of the executions and lock holds a
   worker holds; that layering is the rule.
 - **`run` is the verb, `execution` is the noun.** You run a step (`RunStepAsync`,
@@ -416,17 +416,17 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
   (`job_ref`). A plain uuid is never a `_ref`, so the staging table's `outbox_id` keeps its name.
 - **`_id`** is a numeric identity or a plain uuid.
 - **`_name`** is a name: Acta's vocabulary, ASCII `dotted.kebab-case`, trimmed and lowercased on input, so it compares
-  equal under any collation (`tenant_name`, `rate_name`, `lanes.name`, `definitions.name`).
+  equal under any collation (`tenant_name`, `rate_name`, `lane_name`, `definition_name`).
 - **`_key`** is a key: the caller's identity, printable ASCII without whitespace, kept exactly as given and compared
   bytewise (`deduplication_key`, `concurrency_key`, `lock_key`, `correlation_key`). Only a deduplication key
   reserves `sys.`, because the system jobs' keys share its index.
-- **`display_name`, `value`, `message`, `actor`** are display text: any Unicode within a cap, never compared.
+- **`display_name`, `value`, `alert_message`, `failure_message`, `actor`** are display text: any Unicode within a cap, never compared.
 - **`_token`** is opaque claim evidence (`claim_token`), proof of ownership rather than identity.
 
 ### Composition rules
 
 - **Modifiers append to the complete base name, type marker included.** `_override` / `_effective`
-  follow the full column they modify: `priority_code_override`, never `priority_override_code`.
+  follow the full column they modify: `job_priority_code_override`, never `job_priority_override_code`.
   Composition outranks type-marker-last for modifiers; constraint-name dedupe handles any `_code`
   doubling mechanically.
 - **Names at typed entry points optimize for brevity; names in inferred positions may carry full
@@ -441,8 +441,9 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
   `<Sys>Job` (`OutboxJob`, `RetentionJob`), named for the job, not for what it relays or sweeps.
 - **Verb first, plural for a set.** An operation, its routine, and a SQL Server table type read as the
   action they carry, with a plural noun when they act on a set: `ClaimJob` and `ClaimJobs` (`claim_job`,
-  `claim_jobs`), `CompleteExecutions`. A table type is named for the routine that takes it plus `_batch`
-  (`enqueue_jobs_batch`, `complete_executions_batch`); `Batch` is never the noun.
+  `claim_jobs`), `CompleteExecutions`. A table type is verb first with the plural of the rows it carries
+  and no `_batch` (`complete_executions`, `enqueue_tags`); a type and a routine are different object
+  classes, so they may share a name. `Batch` is never the noun.
 
 ### Type names: one suffix per role
 
@@ -460,7 +461,7 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 | A group's operations class | the group's name plus `Operations` | `JobsOperations : IJobs`, `ExecutionOperations` |
 | HTTP request body of a route | `Request` | `PauseJobRequest`, `UpsertJobTagsRequest` |
 | Route table of a group / one route | `Endpoints`, `Endpoint` | `JobsEndpoints`, `EnqueueJobEndpoint` |
-| Table model, one class per table, named by the table's singular | `Entity` | `JobEntity`, `RuntimeEntity` |
+| Table model, one class per table, named by the table's singular | `Entity` | `JobEntity`, `JobStateEntity` |
 | Persisted enum, options, fluent builder, error, attribute | `Code`, `Options`, `Builder`, `Exception`, `Attribute` | `JobStatusCode` |
 | How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `SignalWaitOutcome` |
 | An in-memory registry, built at startup or kept by a running worker | `Registry` | `JobDescriptorRegistry`, `IJobPayloadSerializerRegistry` |
@@ -470,7 +471,7 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 - A command's answer is its `XResponse`, its one member named for what it means; a command that answers nothing returns nothing.
 - A route reads its own `XRequest` and answers with the SDK's `XResponse`; a route that renders or composes is its own operation. `EnqueueJobRequest` is the one `Request` outside `Acta.AspNetCore`.
 - Every `*Row` carries `[DbProjection]`, lives in its operation's folder, and is never public.
-- A type takes the subject of the table it describes (`StepStatusCode` maps `steps.status_code`); `Job` prefixes only what describes a job.
+- A type takes the subject of the table it describes (`StepStatusCode` maps `steps.step_status_code`); `Job` prefixes only what describes a job.
 - Banned suffixes: `Result`, `Dto`, `Data`, `Info`, `Model`, `Record`, `ListItem`, `Detail`, `Snapshot`, `Set`, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`, `HttpRequest`, `HttpResponse`, and `Entity` or `Item` outside their roles.
 - `TypeNamingTests`, `HandlerResponseTests`, and `RouteBodyTests` enforce these.
 
@@ -725,7 +726,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 - A completion write that keeps failing while the heartbeat renews the lease settles on the same worker once the database returns: `CompleteAndClockChaosSpec`, `WorkerCrashRecoveryChaosSpec`, and `WorkerFinalizerTests`.
 - A completion that commits and loses its response is reconciled, not rerun, and never advances a recurring slot twice: `CompleteAndClockChaosSpec`.
 - Recovery runs while every executor is busy, and one heartbeat takes each due pass: `RecoveryPassSpec`.
-- Incidents at the failures-only audit level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
+- Incidents at the failures-only recording level close on the success that answers the failure, and only that one: `FailuresAuditFailureEventSpec`.
 - A build refuses a database it cannot run on, and a script-provisioned database runs and re-runs: `MigrationHistoryPreflightTests`, `MigrationHistoryPreflightSpec`, and the `*ProvisionScriptSpec` classes.
 - The packed packages build as an external consumer would, and their metadata is complete: `tests/PackageSmoke/run.ps1`, which CI runs on every push.
 

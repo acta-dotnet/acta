@@ -47,8 +47,8 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(parent.JobId, ct)).Single().Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Equal(0, await CountReasonAsync(parent.JobId, EventReasonCode.JobWaitTimedOut, ct));
-        Assert.Equal(0, await CountReasonAsync(child, EventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(parent.JobId, EventReason.WaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(child, EventReason.WaitTimedOut, ct));
     }
 
     [Fact(DisplayName = "A child that fails or is cancelled before the deadline rides its status back to the parent")]
@@ -117,7 +117,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
             Assert.Equal(JobStatusCode.Cancelled, job.Status);
             Assert.Equal(1, await CountEventsAsync(cancelledId, EventCode.JobCancelled, ct));
             var cancel = await ReadLatestEventAsync(cancelledId, EventCode.JobCancelled, ct);
-            Assert.Equal(EventReasonCode.JobWaitTimedOut, cancel.ReasonCode);
+            Assert.Equal(EventReason.WaitTimedOut, EventDetail(cancel, "reason"));
         }
 
         // The cascade walks the awaited child's subtree, never the parent's other branches.
@@ -125,7 +125,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(0, await CountEventsAsync(sibling, EventCode.JobCancelled, ct));
         Assert.Equal(
             CheckpointStatusCode.Expired,
-            (await ReadSignalsAsync(parent.JobId, ct)).Single(s => s.Name == $"sys.child.{slow}").Status
+            (await ReadSignalsAsync(parent.JobId, ct)).Single(s => s.CheckpointName == $"sys.child.{slow}").Status
         );
     }
 
@@ -201,7 +201,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // The completion changed nothing, but it happened: the timeline says so and says why, or an
         // operator sees a succeeded child beside a parent its outcome never reached.
         var raised = await ReadSingleEventAsync(parent.JobId, EventCode.JobSignalRaised, ct);
-        Assert.Contains("already expired", raised.ReasonMessage ?? "", StringComparison.Ordinal);
+        Assert.Contains("already expired", raised.EventMessage ?? "", StringComparison.Ordinal);
 
         // The parent still resolves TimedOut, and its cancel of an already-succeeded child is rejected.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
@@ -231,8 +231,8 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Null(job.LeasedByWorkerId);
 
         var cancel = await ReadLatestEventAsync(child, EventCode.JobCancelled, ct);
-        Assert.Equal(EventReasonCode.JobWaitTimedOut, cancel.ReasonCode);
-        Assert.Equal("Parent's child wait timed out.", cancel.ReasonMessage);
+        Assert.Equal(EventReason.WaitTimedOut, EventDetail(cancel, "reason"));
+        Assert.Equal("Parent's child wait timed out.", cancel.EventMessage);
     }
 
     [Fact(DisplayName = "An unbounded wait replayed over an expired child latch cancels the parent instead")]
@@ -262,10 +262,10 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Cancelled, job.Status);
         Assert.Equal(0, job.FailureCount);
         Assert.NotNull(job.RetentionUntilUtc);
-        Assert.Equal(EventReasonCode.JobWaitTimedOut, (await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct)).ReasonCode);
+        Assert.Equal(EventReason.WaitTimedOut, EventDetail(await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct), "reason"));
         Assert.Equal(
             CheckpointStatusCode.Expired,
-            (await ReadSignalsAsync(parent.JobId, ct)).Single(s => s.Name == $"sys.child.{child}").Status
+            (await ReadSignalsAsync(parent.JobId, ct)).Single(s => s.CheckpointName == $"sys.child.{child}").Status
         );
         Assert.Equal(0, await CountEventsAsync(parent.JobId, EventCode.JobNoteRecorded, ct));
     }
@@ -302,7 +302,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Suspended, untouched.Status);
         Assert.Null(untouched.RetentionUntilUtc);
         Assert.Equal(0, await CountEventsAsync(foreign.JobId, EventCode.JobCancelled, ct));
-        Assert.Equal(0, await CountReasonAsync(foreign.JobId, EventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(foreign.JobId, EventReason.WaitTimedOut, ct));
     }
 
     [Fact(DisplayName = "An unbounded child wait still suspends with no due instant and stays unclaimable")]
@@ -350,16 +350,13 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     }
 
     private async Task<long> OnlyChildAsync(long parentId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Id;
+        Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentJobId == parentId).ToListAsync(ct)).Id;
 
     private async Task<IReadOnlyDictionary<string, long>> ChildIdsAsync(long parentId, CancellationToken ct)
     {
-        var children = await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct);
+        var children = await Db.From<JobEntity>().Where(j => j.ParentJobId == parentId).ToListAsync(ct);
         return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
     }
-
-    private async Task<int> CountReasonAsync(long jobId, EventReasonCode reason, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
 
     // Moves the child wait past its deadline the way real time would: the latch's stored expiration and
     // the parent's cached claim instant both go into the past, and nothing else is touched.
@@ -367,14 +364,15 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due WHERE job_id = @p_id AND kind_code = 50 AND name = @p_name",
+            "UPDATE {schema}.checkpoints SET due_at_utc = @p_due"
+                + " WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name",
             ct,
             ("@p_due", past),
             ("@p_id", parentId),
             ("@p_name", $"sys.child.{childId}")
         );
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET next_run_at_utc = @p_next WHERE job_id = @p_id",
             ct,
             ("@p_next", past),
             ("@p_id", parentId)
@@ -388,8 +386,8 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.checkpoints SET status_code = @p_status, due_at_utc = @p_due "
-                + "WHERE job_id = @p_id AND kind_code = 50 AND name = @p_name",
+            "UPDATE {schema}.checkpoints SET checkpoint_status_code = @p_status, due_at_utc = @p_due "
+                + "WHERE job_id = @p_id AND checkpoint_kind_code = 50 AND checkpoint_name = @p_name",
             ct,
             ("@p_status", (byte)CheckpointStatusCode.Expired),
             ("@p_due", past),
@@ -397,7 +395,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
             ("@p_name", $"sys.child.{childId}")
         );
         await db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET next_run_at_utc = @p_next WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET next_run_at_utc = @p_next WHERE job_id = @p_id",
             ct,
             ("@p_next", past),
             ("@p_id", parentId)
@@ -406,7 +404,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
     private static Task SetJobStatusReadyAsync(IDbSession db, long jobId, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_status, next_run_at_utc = @p_now WHERE job_id = @p_id",
             ct,
             ("@p_status", (byte)JobStatusCode.Ready),
             ("@p_now", DateTime.UtcNow.AddMinutes(-1)),

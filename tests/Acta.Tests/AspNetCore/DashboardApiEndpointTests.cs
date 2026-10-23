@@ -817,7 +817,7 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
         Assert.Contains("\"expression\":\"0 9 * * *\"", body);
         Assert.Contains("\"timeZoneId\":\"UTC\"", body);
-        Assert.Contains("\"nextRunsUtc\":[", body);
+        Assert.Contains("\"nextOccurrencesUtc\":[", body);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 

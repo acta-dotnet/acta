@@ -39,7 +39,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Two independently moving schedule cursors",
     """
-    SELECT schedule_name, status, expression, next_run_at_utc
+    SELECT schedule_name, status, expression, next_occurrence_at_utc
     FROM schedules_view
     WHERE namespace = @jobNamespace AND job_name = @jobName
     ORDER BY schedule_name

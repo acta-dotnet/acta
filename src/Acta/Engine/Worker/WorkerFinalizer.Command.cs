@@ -4,11 +4,20 @@ namespace Acta;
 internal sealed partial class WorkerFinalizer
 {
     /// <summary>
+    /// The ceiling <c>jobs_state.failure_count</c> saturates at: a count there stops climbing, which the dashboard
+    /// shows as <c>32,767+</c>. Registration caps MaxAttempts at it, so a saturated count still spends any budget.
+    /// </summary>
+    internal const int FailureCountCeiling = short.MaxValue;
+
+    /// <summary>The failure count after one more charged failure, saturating at <see cref="FailureCountCeiling"/>.</summary>
+    internal static int NextFailureCount(int failureCount) => failureCount >= FailureCountCeiling ? FailureCountCeiling : failureCount + 1;
+
+    /// <summary>
     /// One-shot failure retry math, shared by the deadline reschedule guard and the re-arm shape. One-shot only:
     /// MaxAttempts is the one-off retry budget, and a recurring slot rolls over instead (its null DeadlineAtUtc
     /// keeps the deadline guard off it too).
     /// </summary>
-    private static (int Attempted, int DelaySeconds, bool InBudget) PlanRetry(
+    internal static (int Attempted, int DelaySeconds, bool InBudget) PlanRetry(
         JobDescriptor descriptor,
         ClaimedJob job,
         RecurringFirePlan? fire,
@@ -20,7 +29,7 @@ internal sealed partial class WorkerFinalizer
             return (0, 0, false);
         }
 
-        var attempted = job.FailureCount + 1;
+        var attempted = NextFailureCount(job.FailureCount);
         if (attempted >= descriptor.MaxAttempts)
         {
             return (attempted, 0, false);
@@ -30,12 +39,9 @@ internal sealed partial class WorkerFinalizer
         return (attempted, BackoffSchedule.ComputeDelaySeconds(attempted, backoff), true);
     }
 
-    // Unclassified rather than a borrowed code: no catalog reason describes a worker declining a
-    // claim, and the two candidates would both misreport it - JobAttemptAborted is published as a
-    // mid-flight abort retried under the failure budget, JobDefinitionRetired as a catalog
-    // retirement that cancels. Unclassified is the writer saying the story is in the message, and
-    // it stays out of both the alertable set and the Failures audit level, which a bounce belongs
-    // outside of: nothing failed.
+    // No reason: none describes a worker declining a claim, and a borrowed one would misreport it. The message
+    // tells the story, and the yielded event it writes stays out of the Failures level and the alertable set, where a
+    // bounce belongs: nothing failed.
     private CompleteExecutionsValues HandBack(ClaimedJob job, ExecutionCompletion completion) =>
         new(
             job.JobId,
@@ -43,17 +49,18 @@ internal sealed partial class WorkerFinalizer
             Succeeded: false,
             0,
             ReadOnlyMemory<byte>.Empty,
-            EventReasonCode.Unclassified,
-            completion.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage),
+            EventCode.JobExecutionYielded,
+            Reason: null,
+            completion.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
             DurationMs: 0,
             FailureCount: null,
             RetentionSeconds: null
         )
         {
-            RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
+            RescheduleEventCode = EventCode.JobRescheduled,
             RescheduleDelaySeconds = _handBackDelaySeconds,
             HasLane = job.LaneId is not null,
-            HasParent = job.ParentId is not null,
+            HasParent = job.ParentJobId is not null,
         };
 
     // The handler-status shape, so the job's lane hands on and its parent's latch is raised. The retention is the
@@ -65,6 +72,7 @@ internal sealed partial class WorkerFinalizer
             Succeeded: false,
             0,
             ReadOnlyMemory<byte>.Empty,
+            EventCode.JobExecutionYielded,
             completion.Reason,
             completion.ReasonMessage,
             completion.DurationMs,
@@ -74,7 +82,7 @@ internal sealed partial class WorkerFinalizer
         {
             HandlerStatusCode = (byte)JobStatusCode.Cancelled,
             HasLane = job.LaneId is not null,
-            HasParent = job.ParentId is not null,
+            HasParent = job.ParentJobId is not null,
         };
 
     internal static CompleteExecutionsValues BuildCommand(
@@ -86,7 +94,7 @@ internal sealed partial class WorkerFinalizer
     )
     {
         // Resolved once and passed on every completion shape; complete_executions stamps it onto
-        // runtimes.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
+        // jobs_state.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
         // Every shape but the recurring and the success one writes no result payload.
         var payloadless = new CompleteExecutionsValues(
@@ -95,6 +103,7 @@ internal sealed partial class WorkerFinalizer
             s.Outcome == CompletionKind.Succeeded,
             0,
             ReadOnlyMemory<byte>.Empty,
+            s.Outcome == CompletionKind.Succeeded ? EventCode.JobExecutionSucceeded : EventCode.JobFailed,
             s.Reason,
             s.ReasonMessage,
             s.DurationMs,
@@ -103,21 +112,22 @@ internal sealed partial class WorkerFinalizer
         )
         {
             HasLane = job.LaneId is not null,
-            HasParent = job.ParentId is not null,
+            HasParent = job.ParentJobId is not null,
         };
 
         if (fire is { NothingDue: true })
         {
             // The recurring shape applies the advances, which clear the elapsed pauses, and reads the slot's
-            // next run from the schedules; the re-arm status records a re-arm rather than a run, so the
-            // failure count and any open incident stand as they were.
+            // next run from the schedules; the re-arm records a yield rather than a run, so the failure count and
+            // any open incident stand as they were.
             return payloadless with
             {
-                EventReasonCode = null,
+                EventCode = EventCode.JobExecutionYielded,
+                Reason = null,
                 ScheduleAdvances = fire.Advances,
                 FinalStatus = JobStatusCode.Ready,
                 JobNextRunAtUtc = fire.SlotMinNextRunAtUtc,
-                RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
+                RescheduleEventCode = EventCode.JobRescheduled,
                 // A Ready row must carry a next run before the recurring block sets the real one.
                 RescheduleResumeAtUtc = fire.SlotMinNextRunAtUtc ?? DateTime.UtcNow,
             };
@@ -129,9 +139,8 @@ internal sealed partial class WorkerFinalizer
             // cursors are never advanced; no result payload is written (budget-neutral re-arm).
             return payloadless with
             {
-                RescheduleStatusCode = (byte)(
-                    s.Outcome == CompletionKind.Suspended ? ExecutionStatusCode.Suspended : ExecutionStatusCode.Rescheduled
-                ),
+                EventCode = EventCode.JobExecutionYielded,
+                RescheduleEventCode = s.Outcome == CompletionKind.Suspended ? EventCode.JobSuspended : EventCode.JobRescheduled,
                 RescheduleDelaySeconds = s.RescheduleDelaySeconds,
                 RescheduleResumeAtUtc = s.RescheduleResumeAtUtc,
                 WaitSignalName = s.WaitSignalName,
@@ -140,17 +149,21 @@ internal sealed partial class WorkerFinalizer
 
         // A non-retryable exception ends a one-off job, but a fire's is one more failed occurrence: it rolls over below,
         // since a library throwing NotSupportedException on one night's data must not stop the schedule for good.
-        if (s.HandlerStatusCode is { } handlerStatus && !(fire is not null && s.Reason == EventReasonCode.JobNonRetryableException))
+        if (s.HandlerStatusCode is { } handlerStatus && !(fire is not null && s.Reason == EventReason.NonRetryableException))
         {
             // Handler fail/cancel/pause: a deliberate terminal/hold decision. Takes the non-recurring
             // shape even on a recurring slot (like the re-arm shape) so its schedule cursors are never
             // advanced; the whole Job stops. No result payload; budget untouched.
-            return payloadless with { HandlerStatusCode = (byte)handlerStatus };
+            return payloadless with
+            {
+                EventCode = handlerStatus == JobStatusCode.Failed ? EventCode.JobFailed : EventCode.JobExecutionYielded,
+                HandlerStatusCode = (byte)handlerStatus,
+            };
         }
 
         if (fire is not null)
         {
-            var (finalStatus, failureCount, reasonCode, reasonMessage) = ComputeRecurringOutcome(
+            var (finalStatus, failureCount, reason, reasonMessage) = ComputeRecurringOutcome(
                 s.Outcome,
                 job,
                 fire,
@@ -161,8 +174,10 @@ internal sealed partial class WorkerFinalizer
             {
                 ResultFormatId = s.ResultFormatId,
                 Result = s.Result,
-                EventReasonCode = reasonCode,
-                ReasonMessage = reasonMessage,
+                // A fire never lands Failed: a failed occurrence rolls the slot over or pauses it.
+                EventCode = s.Outcome == CompletionKind.Succeeded ? EventCode.JobExecutionSucceeded : EventCode.JobExecutionFailed,
+                Reason = reason,
+                EventMessage = reasonMessage,
                 ScheduleAdvances = fire.Advances,
                 FinalStatus = finalStatus,
                 JobNextRunAtUtc = fire.SlotMinNextRunAtUtc,
@@ -173,7 +188,7 @@ internal sealed partial class WorkerFinalizer
         if (s.Outcome == CompletionKind.Failed && IsRetryable(s.Reason))
         {
             // One-shot failure (unhandled exception / execution timeout / aborted attempt): honor the retry budget.
-            // In budget: re-arm to Ready with a backoff delay, record the charged attempt as Failed, and persist the
+            // In budget: re-arm to Ready with a backoff delay, record the charged attempt as failed, and persist the
             // bumped failure_count.
             // Exhausted: terminal Failed, keeping the final count.
             // The Strict deadline guard may have already converted this to Cancelled with a handler status,
@@ -181,7 +196,8 @@ internal sealed partial class WorkerFinalizer
             return retry.InBudget
                 ? payloadless with
                 {
-                    RescheduleStatusCode = (byte)ExecutionStatusCode.Failed,
+                    EventCode = EventCode.JobExecutionFailed,
+                    RescheduleEventCode = EventCode.JobRescheduled,
                     RescheduleDelaySeconds = retry.DelaySeconds,
                     FailureCount = retry.Attempted,
                 }
@@ -201,28 +217,22 @@ internal sealed partial class WorkerFinalizer
     /// <summary>
     /// Recurring completion outcome from the attempt and the planned slot MIN. A recurring slot re-arms Ready on any
     /// failure (MaxAttempts is the one-off budget only); exhausted schedules pause; a success resets the failure
-    /// counter and a failure bumps it. The Ready rollover keeps the attempt's reason like every other shape: the
-    /// alertable set admits a Ready event only for reasons 20/21/22/23 (GetAlertableEvents.sql), so a nightly job that
-    /// throws every night still alerts and explains. An aborted attempt (25) rolls over Ready without alerting.
+    /// counter and a failure bumps it, saturating. The Ready rollover keeps the attempt's reason like every other
+    /// shape, so a nightly job that throws every night still alerts and explains.
     /// </summary>
-    internal static (
-        JobStatusCode FinalStatus,
-        int FailureCount,
-        EventReasonCode? ReasonCode,
-        string? ReasonMessage
-    ) ComputeRecurringOutcome(
+    internal static (JobStatusCode FinalStatus, int FailureCount, string? Reason, string? ReasonMessage) ComputeRecurringOutcome(
         CompletionKind outcome,
         ClaimedJob job,
         RecurringFirePlan fire,
-        EventReasonCode? failureReason,
+        string? failureReason,
         string? failureMessage
     )
     {
-        var failureCount = outcome == CompletionKind.Succeeded ? 0 : job.FailureCount + 1;
+        var failureCount = outcome == CompletionKind.Succeeded ? 0 : NextFailureCount(job.FailureCount);
 
         if (fire.SlotMinNextRunAtUtc is null)
         {
-            return (JobStatusCode.Paused, failureCount, EventReasonCode.JobSchedulesExhausted, null);
+            return (JobStatusCode.Paused, failureCount, EventReason.SchedulesExhausted, null);
         }
 
         return (JobStatusCode.Ready, failureCount, failureReason, failureMessage);
@@ -247,9 +257,9 @@ internal sealed partial class WorkerFinalizer
     /// <summary>
     /// Failures eligible for the one-shot retry budget: an unhandled exception, an execution
     /// timeout, or an attempt aborted by lease/lock pressure. A deliberate ctx.FailAsync
-    /// (JobHandlerFailed) takes the handler-status path and never retries; a null reason falls through
+    /// (handler-failed) takes the handler-status path and never retries; a null reason falls through
     /// to a terminal completion.
     /// </summary>
-    private static bool IsRetryable(EventReasonCode? reason) =>
-        reason is EventReasonCode.JobUnhandledException or EventReasonCode.JobExecutionTimeout or EventReasonCode.JobAttemptAborted;
+    private static bool IsRetryable(string? reason) =>
+        reason is EventReason.UnhandledException or EventReason.ExecutionTimeout or EventReason.AttemptAborted;
 }

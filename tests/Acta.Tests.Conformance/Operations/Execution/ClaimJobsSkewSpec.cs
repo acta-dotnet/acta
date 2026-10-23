@@ -41,7 +41,7 @@ public sealed class ClaimJobsSkewSpec : ClaimSkewTestBase
         // due now, so it heads the claim.
         var expired = await EnqueueAsync(JobPriorityCode.Critical, dbNow.AddDays(1), ct);
         await Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_suspended, next_run_at_utc = @p_deadline WHERE job_id = @p_job_id",
+            "UPDATE {schema}.jobs_state SET job_status_code = @p_suspended, next_run_at_utc = @p_deadline WHERE job_id = @p_job_id",
             ct,
             ("@p_suspended", (byte)JobStatusCode.Suspended),
             ("@p_deadline", dbNow.AddMinutes(-1)),
@@ -77,7 +77,7 @@ public sealed class ClaimJobsSkewSpec : ClaimSkewTestBase
         Assert.Equal(expected.Chunk(Batch).Select(c => c.Order().ToArray()), batches);
 
         var horizon = Assert.NotNull(claimed.Horizon);
-        var high = await Db.From<RuntimeEntity>().Where(r => r.NamespaceId == ns && r.Priority == JobPriorityCode.High).ToListAsync(ct);
+        var high = await Db.From<JobStateEntity>().Where(r => r.NamespaceId == ns && r.Priority == JobPriorityCode.High).ToListAsync(ct);
         Assert.Equal(high.Min(r => r.NextRunAtUtc), horizon.NextReadyAtUtc);
     }
 }

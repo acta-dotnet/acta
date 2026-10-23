@@ -48,7 +48,7 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 `jobs_view` shows the durable format and whether input is human-readable. The second query deliberately
-descends to `jobs`/`runtimes` to measure physical bytes; `{{bytes:...}}` and `{{schema}}` are expanded by
+descends to `jobs`/`jobs_state` to measure physical bytes; `{{bytes:...}}` and `{{schema}}` are expanded by
 the lab for SQLite, PostgreSQL, or SQL Server. Base tables are internal, not an application query API.
 
 ## Break it

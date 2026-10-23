@@ -64,14 +64,15 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(result.AcknowledgedAtUtc);
         Assert.Null(result.ResolvedAtUtc);
 
+        // The event's subject is the alert; the job it concerns stays on the lineage dimension.
         var evt = await Db.From<EventEntity>()
-            .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
+            .Where(e => e.LineageRootJobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
-        Assert.Equal(ActorCode.Operator, evt!.ActorCode);
-        Assert.Equal("spec-actor", evt.Actor);
-        Assert.Contains($"alert {alertRef}", evt.ReasonMessage);
-        Assert.Contains("looks fine", evt.ReasonMessage);
+        Assert.Equal(EntityCode.Alert, evt!.EntityCode);
+        Assert.Equal("spec-actor", EventDetail(evt, "actor"));
+        Assert.Contains($"alert {alertRef}", evt.EventMessage);
+        Assert.Contains("looks fine", evt.EventMessage);
 
         var acknowledgedOnly = await Operations.Alerts.ListAsync(
             new ListAlertsQuery(JobNamespace: TestNamespace, AcknowledgedOnly: true),
@@ -99,7 +100,7 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(first.AcknowledgedAtUtc, second.AcknowledgedAtUtc);
 
         var eventCount = await Db.From<EventEntity>()
-            .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
+            .Where(e => e.LineageRootJobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
             .CountAsync(ct);
         Assert.Equal(1, eventCount);
     }

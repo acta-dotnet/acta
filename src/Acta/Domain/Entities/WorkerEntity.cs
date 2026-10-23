@@ -9,34 +9,34 @@ namespace Acta;
 /// <c>JobsOptions.JobEventsRetention</c>.
 /// </summary>
 [DbTable("workers")]
-[DbPrimaryKey(Name = "pk_workers", Columns = ["id"])]
+[DbPrimaryKey(Name = "pk_workers", Columns = ["worker_id"])]
 [DbUniqueIndex(Name = "ux_workers_ref", Columns = ["worker_ref"], Usage = "uniqueness")]
 [DbIndex(
     Name = "ix_workers_namespace_status_last_seen",
-    Columns = ["namespace_id", "status_code", "last_seen_at_utc"],
+    Columns = ["namespace_id", "worker_status_code", "last_seen_at_utc"],
     Usage = "dashboard"
 )]
-[DbIndex(Name = "ix_workers_status_last_seen", Columns = ["status_code", "last_seen_at_utc"], Usage = "maintenance")]
+[DbIndex(Name = "ix_workers_status_last_seen", Columns = ["worker_status_code", "last_seen_at_utc"], Usage = "maintenance")]
 [DbIndex(
     Name = "ix_workers_namespace_last_seen",
-    Columns = ["namespace_id", "last_seen_at_utc", "id"],
-    Descending = ["last_seen_at_utc", "id"],
+    Columns = ["namespace_id", "last_seen_at_utc", "worker_id"],
+    Descending = ["last_seen_at_utc", "worker_id"],
     Usage = "dashboard_grid"
 )]
 [DbForeignKey(
     Name = "fk_workers_namespaces",
     Target = typeof(NamespaceEntity),
-    TargetColumn = "id",
+    TargetColumn = "namespace_id",
     Column = "namespace_id",
     OnDelete = DbForeignKeyAction.NoAction
 )]
-[DbCheck(Name = "ck_workers_max_concurrency", Sql = "max_concurrency > 0")]
+[DbCheck(Name = "ck_workers_max_concurrent_executors", Sql = "max_concurrent_executors > 0")]
 internal sealed class WorkerEntity : IEntity<int>
 {
     /// <summary>
     /// Worker process identifier; never reused.
     /// </summary>
-    [DbColumn("id", DbKind.Int32)]
+    [DbColumn("worker_id", DbKind.Int32)]
     public int Id { get; init; }
 
     /// <summary>
@@ -59,7 +59,7 @@ internal sealed class WorkerEntity : IEntity<int>
     /// flips stale rows to <c>Dead</c> when <see cref="LastSeenAtUtc"/> falls past
     /// <c>JobsOptions.WorkerDeadAfter</c>, alongside its stuck-job lease reclaim.
     /// </summary>
-    [DbColumn("status_code")]
+    [DbColumn("worker_status_code")]
     public WorkerStatusCode Status { get; set; }
 
     /// <summary>
@@ -71,8 +71,8 @@ internal sealed class WorkerEntity : IEntity<int>
     /// <summary>
     /// Hostname or pod name; informational.
     /// </summary>
-    [DbColumn("host", DbKind.AsciiString, Size = 256)]
-    public string Host { get; init; } = default!;
+    [DbColumn("host_name", DbKind.AsciiString, Size = 256)]
+    public string HostName { get; init; } = default!;
 
     /// <summary>
     /// Acta engine assembly informational version, distinct from <see cref="DeploymentVersion"/> (the
@@ -100,8 +100,8 @@ internal sealed class WorkerEntity : IEntity<int>
     /// Effective per-process executor cap (<c>JobsOptions.MaxConcurrentExecutors</c>) recorded at
     /// registration.
     /// </summary>
-    [DbColumn("max_concurrency", DbKind.Int32)]
-    public int MaxConcurrency { get; init; }
+    [DbColumn("max_concurrent_executors", DbKind.Int32)]
+    public int MaxConcurrentExecutors { get; init; }
 
     /// <summary>
     /// Liveness heartbeat. Written on startup by <c>StartWorker</c> and refreshed every

@@ -3,12 +3,18 @@
   import RelativeTime from './RelativeTime.svelte';
   import StateView from './StateView.svelte';
   import type { HistoryEvent } from './changeHistory.ts';
+  import { eventFacts } from '../lib/eventFacts.ts';
 
   let {
     history,
     loading = false,
     emptyText = 'No recorded changes.'
   }: { history: HistoryEvent[]; loading?: boolean; emptyText?: string } = $props();
+
+  // Only an operator verb records who acted (details.actor); a system or worker event names no one, so
+  // the column shows only when some row has an actor.
+  let actors = $derived(history.map((ev) => eventFacts(ev.detailsText).actor ?? null));
+  let showWho = $derived(actors.some((actor) => actor !== null));
 </script>
 
 <section class="detail-panel">
@@ -18,13 +24,13 @@
   {:else}
     <DataTable>
       <caption class="sr-only">Change history</caption>
-      <thead><tr><th>When</th><th>Who</th><th>Change</th></tr></thead>
+      <thead><tr><th>When</th>{#if showWho}<th>Who</th>{/if}<th>Change</th></tr></thead>
       <tbody>
-        {#each history as ev (ev.jobEventId)}
+        {#each history as ev, index (ev.eventId)}
           <tr>
             <td><RelativeTime value={ev.createdAtUtc} /></td>
-            <td class="mono">{ev.actor ?? ev.actorCode}</td>
-            <td class="wrap">{ev.reasonMessage ?? ev.eventCode}</td>
+            {#if showWho}<td class="mono">{actors[index] ?? '·'}</td>{/if}
+            <td class="wrap">{ev.message ?? ev.eventCode}</td>
           </tr>
         {/each}
       </tbody>

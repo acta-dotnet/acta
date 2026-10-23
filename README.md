@@ -122,7 +122,7 @@ There is no proprietary console and no hidden state to decode. Jobs, leases, att
 
 ```sql
 -- In-flight work and who holds it.
-select job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host, lease_expires_at_utc
+select job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
 from acta.jobs_view
 where status = 'executing';
 ```

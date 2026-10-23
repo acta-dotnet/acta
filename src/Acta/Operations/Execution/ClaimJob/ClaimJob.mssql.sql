@@ -16,7 +16,7 @@ BEGIN TRY
     DECLARE
         @claimed TABLE
         (
-            id BIGINT NOT NULL PRIMARY KEY,
+            job_id BIGINT NOT NULL PRIMARY KEY,
             job_ref UNIQUEIDENTIFIER NOT NULL,
             definition_id INT NOT NULL,
             tenant_id INT NULL,
@@ -30,25 +30,25 @@ BEGIN TRY
             created_at_utc DATETIME2(3) NOT NULL,
             failure_count INT NOT NULL,
             lane_id BIGINT NULL,
-            parent_id BIGINT NULL
+            parent_job_id BIGINT NULL
         );
 
     WITH candidates AS (
-        /* claim_jobs' due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
+        /* claim_jobs' due test: a Ready row always carries its due instant (ck_jobs_state_ready_due), and a
            Suspended row with a NULL instant is an unbounded wait that never comes due. */
-        SELECT r.job_id AS id
-        FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
+        SELECT r.job_id
+        FROM {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
         WHERE
-            r.job_id = @p_id
+            r.job_id = @p_job_id
             AND r.namespace_id = @p_namespace_id
-            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND r.next_run_at_utc IS NOT NULL
             AND r.next_run_at_utc <= @due_now
     )
 
     UPDATE r
     SET
-        status_code = 50 /* JobStatusCode.Executing */,
+        job_status_code = 50 /* JobStatusCode.Executing */,
         execution_number = r.execution_number + 1,
         leased_by_worker_id = @p_leased_by_worker_id,
         lease_expires_at_utc = @lease_expires,
@@ -60,23 +60,23 @@ BEGIN TRY
         INSERTED.job_id, j.job_ref, j.definition_id, j.tenant_id,
         INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
         j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc,
-        INSERTED.failure_count, INSERTED.lane_id, j.parent_id
+        INSERTED.failure_count, INSERTED.lane_id, j.parent_job_id
     INTO
         @claimed (
-            id, job_ref, definition_id, tenant_id, execution_number,
+            job_id, job_ref, definition_id, tenant_id, execution_number,
             deduplication_key, correlation_key, concurrency_key,
             input_format_id, input, next_run_at_utc, created_at_utc,
-            failure_count, lane_id, parent_id
+            failure_count, lane_id, parent_job_id
         )
-    -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes. The seek above holds
+    -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state. The seek above holds
     -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
     -- order (docs/sql-execution-policy.md); a skipped candidate is simply not claimed.
-    FROM {{schema}}.runtimes r WITH (INDEX (pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
-    INNER JOIN candidates c ON c.id = r.job_id
-    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
+    FROM {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
+    INNER JOIN candidates c ON c.job_id = r.job_id
+    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id;
 
     SELECT
-        id,
+        job_id,
         definition_id,
         execution_number,
         deduplication_key,
@@ -90,7 +90,7 @@ BEGIN TRY
         job_ref,
         tenant_id,
         lane_id,
-        parent_id
+        parent_job_id
     FROM @claimed;
 
     IF @entry_trancount = 0

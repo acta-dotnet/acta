@@ -33,7 +33,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
             NamespaceName: TestNamespace,
             JobName: "add-numbers",
             Input: payload,
-            ParentId: parentId,
+            ParentJobId: parentId,
             TenantName: tenantName
         );
     }

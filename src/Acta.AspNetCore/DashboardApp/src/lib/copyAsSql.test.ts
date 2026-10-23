@@ -37,8 +37,12 @@ test('the list builders fold names the way the API stores them, and keep keys ex
     "SELECT * FROM acta.events_view WHERE namespace = 'billing' ORDER BY created_at_utc DESC LIMIT 100;"
   );
   assert.equal(
+    eventsListSql({ tenantName: 'ACME' }),
+    "SELECT * FROM acta.events_view WHERE tenant_name = 'acme' ORDER BY created_at_utc DESC LIMIT 100;"
+  );
+  assert.equal(
     schedulesListSql({ namespace: 'Billing', jobName: 'Nightly-Close' }),
-    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' ORDER BY next_run_at_utc LIMIT 100;"
+    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' ORDER BY next_occurrence_at_utc LIMIT 100;"
   );
 });
 
@@ -62,12 +66,22 @@ test('eventsListSql filters code families through the decoded columns and a time
     eventsListSql({
       namespace: 'billing',
       eventCode: 'job.cancelled',
-      actorCode: 'operator',
-      reasonCode: 'job.control-manual',
+      entityKind: 'job',
       createdFromUtc: '2026-07-01T00:00:00.000Z',
       createdToUtc: '2026-07-22T00:00:00.000Z'
     }),
-    "SELECT * FROM acta.events_view WHERE namespace = 'billing' AND event = 'job.cancelled' AND actor_kind = 'operator' AND reason = 'job.control-manual' AND created_at_utc >= '2026-07-01T00:00:00.000Z' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.events_view WHERE namespace = 'billing' AND event = 'job.cancelled' AND entity_kind = 'job' AND created_at_utc >= '2026-07-01T00:00:00.000Z' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC LIMIT 100;"
+  );
+});
+
+test('eventsListSql finds a job\'s events through jobs_view, in the configured schema, escaping the ref', () => {
+  assert.equal(
+    eventsListSql({ jobRef: 'job_019f9b3509487d1b911f2020158384a3' }, { provider: 'pg', schema: 'ops' }),
+    "SELECT * FROM ops.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM ops.jobs_view WHERE job_ref = 'job_019f9b3509487d1b911f2020158384a3') ORDER BY created_at_utc DESC LIMIT 100;"
+  );
+  assert.equal(
+    eventsListSql({ jobRef: "x' OR '1'='1" }),
+    "SELECT * FROM acta.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = 'x'' OR ''1''=''1') ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 
@@ -109,7 +123,7 @@ test('eventsListSql emits the SQL Server TOP form and the exclusive "to" bound',
 test('schedulesListSql emits the SQL Server TOP form with no LIMIT', () => {
   assert.equal(
     schedulesListSql({ liveOnly: true }, { provider: 'mssql', schema: 'acta' }),
-    'SELECT TOP 100 * FROM acta.schedules_view WHERE orphaned_at_utc IS NULL ORDER BY next_run_at_utc;'
+    "SELECT TOP 100 * FROM acta.schedules_view WHERE status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL ORDER BY next_occurrence_at_utc;"
   );
 });
 
@@ -117,16 +131,16 @@ test('eventsListSql with no filters selects the whole view', () => {
   assert.equal(eventsListSql({}), 'SELECT * FROM acta.events_view ORDER BY created_at_utc DESC LIMIT 100;');
 });
 
-test('schedulesListSql maps live-only to a not-orphaned predicate (no interpolated value)', () => {
+test('schedulesListSql maps live-only to the not-orphaned, upcoming predicate (no interpolated value)', () => {
   assert.equal(
     schedulesListSql({ namespace: 'billing', jobName: 'nightly-close', liveOnly: true }),
-    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' AND orphaned_at_utc IS NULL ORDER BY next_run_at_utc LIMIT 100;"
+    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' AND status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL ORDER BY next_occurrence_at_utc LIMIT 100;"
   );
 });
 
 test('schedulesListSql omits the live-only predicate when live-only is off', () => {
   assert.equal(
     schedulesListSql({ liveOnly: false }),
-    'SELECT * FROM acta.schedules_view ORDER BY next_run_at_utc LIMIT 100;'
+    'SELECT * FROM acta.schedules_view ORDER BY next_occurrence_at_utc LIMIT 100;'
   );
 });

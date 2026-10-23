@@ -1,7 +1,7 @@
 SELECT
     result_format_id,
     result
-FROM {{schema}}.runtimes
+FROM {{schema}}.jobs_state
 WHERE
     job_id = @p_job_id
     AND result_format_id <> 0 /* JobPayloadFormat.None */

@@ -8,36 +8,38 @@ SELECT
     r.job_id,
     r.execution_number,
     r.lane_id,
-    j.parent_id,
+    j.parent_job_id,
     j.namespace_id,
-    j.lineage_root_id,
+    j.lineage_root_job_id,
     j.definition_id,
     j.tenant_id,
-    j.audit_level_code,
-    j.job_ref,
+    j.event_recording_code,
+    jd.alert_profile_code_effective,
+    r.failure_count AS prior_failure_count,
     json_extract(c.value, '$.succeeded') AS succeeded,
     json_extract(c.value, '$.result_format_id') AS result_format_id,
     CASE
         WHEN json_extract(c.value, '$.result_format_id') <> 0 /* JobPayloadFormat.None */
             THEN COALESCE(acta_blob(json_extract(c.value, '$.result')), X'')
     END AS result,
-    json_extract(c.value, '$.reason_code') AS reason_code,
-    json_extract(c.value, '$.reason_message') AS reason_message,
+    json_extract(c.value, '$.event_code') AS event_code,
+    json_extract(c.value, '$.reason') AS reason,
+    json_extract(c.value, '$.event_message') AS event_message,
     json_extract(c.value, '$.duration_ms') AS duration_ms,
     json_extract(c.value, '$.failure_count') AS failure_count,
     json_extract(c.value, '$.retention_seconds') AS retention_seconds,
-    json_extract(c.value, '$.reschedule_status_code') AS reschedule_status_code,
+    json_extract(c.value, '$.reschedule_event_code') AS reschedule_event_code,
     json_extract(c.value, '$.reschedule_delay_seconds') AS reschedule_delay_seconds,
     json_extract(c.value, '$.reschedule_resume_at_utc') AS reschedule_resume_at_utc,
     json_extract(c.value, '$.wait_signal_name') AS wait_signal_name,
-    json_extract(c.value, '$.handler_status_code') AS handler_status_code,
-    json_extract(c.value, '$.final_status') AS final_status,
+    json_extract(c.value, '$.handler_job_status_code') AS handler_job_status_code,
+    json_extract(c.value, '$.final_job_status_code') AS final_job_status_code,
     json_extract(c.value, '$.job_next_run_at_utc') AS job_next_run_at_utc,
     CASE
         WHEN json_extract(c.value, '$.wait_signal_name') IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
-        WHEN json_extract(c.value, '$.reschedule_status_code') IS NOT NULL THEN 10 /* JobStatusCode.Ready */
-        WHEN json_extract(c.value, '$.handler_status_code') IS NOT NULL THEN json_extract(c.value, '$.handler_status_code')
-        WHEN json_extract(c.value, '$.final_status') IS NOT NULL THEN json_extract(c.value, '$.final_status')
+        WHEN json_extract(c.value, '$.reschedule_event_code') IS NOT NULL THEN 10 /* JobStatusCode.Ready */
+        WHEN json_extract(c.value, '$.handler_job_status_code') IS NOT NULL THEN json_extract(c.value, '$.handler_job_status_code')
+        WHEN json_extract(c.value, '$.final_job_status_code') IS NOT NULL THEN json_extract(c.value, '$.final_job_status_code')
         WHEN json_extract(c.value, '$.succeeded') = 1 THEN 100 /* JobStatusCode.Succeeded */
         ELSE 200 /* JobStatusCode.Failed */
     END AS to_status,
@@ -51,11 +53,12 @@ SELECT
     NULL AS latch_state,
     NULL AS head_id
 FROM jsonb_each(@p_completions) c
-INNER JOIN {{schema}}.runtimes r ON r.job_id = json_extract(c.value, '$.job_id')
-INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
+INNER JOIN {{schema}}.jobs_state r ON r.job_id = json_extract(c.value, '$.job_id')
+INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 WHERE
     r.execution_number = json_extract(c.value, '$.execution_number')
-    AND r.status_code = 50 /* JobStatusCode.Executing */
+    AND r.job_status_code = 50 /* JobStatusCode.Executing */
     AND r.leased_by_worker_id = @p_leased_by_worker_id;
 
 -- begin waits
@@ -63,18 +66,18 @@ WHERE
 UPDATE temp._ces_done
 SET
     sig_state = (
-        SELECT s.status_code FROM {{schema}}.checkpoints s
+        SELECT s.checkpoint_status_code FROM {{schema}}.checkpoints s
         WHERE
             s.job_id = temp._ces_done.job_id
-            AND s.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-            AND s.name = temp._ces_done.wait_signal_name
+            AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+            AND s.checkpoint_name = temp._ces_done.wait_signal_name
     ),
     sig_due = (
         SELECT s.due_at_utc FROM {{schema}}.checkpoints s
         WHERE
             s.job_id = temp._ces_done.job_id
-            AND s.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
-            AND s.name = temp._ces_done.wait_signal_name
+            AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+            AND s.checkpoint_name = temp._ces_done.wait_signal_name
     )
 WHERE wait_signal_name IS NOT NULL;
 
@@ -85,26 +88,26 @@ WHERE wait_signal_name IS NOT NULL AND sig_state = 20 /* CheckpointStatusCode.Se
 
 -- begin shapes
 -- The next run goes first, while the row is still Executing: a timer consumed this attempt left it NULL, and
--- ck_runtimes_ready_due holds a Ready row to one.
-UPDATE {{schema}}.runtimes AS r
+-- ck_jobs_state_ready_due holds a Ready row to one.
+UPDATE {{schema}}.jobs_state AS r
 SET next_run_at_utc = CASE
     WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 20 /* CheckpointStatusCode.Set */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
     WHEN d.wait_signal_name IS NOT NULL THEN d.sig_due
-    WHEN d.reschedule_status_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1) + d.reschedule_delay_seconds * 1000)
+    WHEN d.reschedule_event_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1) + d.reschedule_delay_seconds * 1000)
     -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
-    WHEN d.handler_status_code = 30 /* JobStatusCode.Paused */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
-    WHEN d.handler_status_code IS NOT NULL THEN NULL
+    WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
+    WHEN d.handler_job_status_code IS NOT NULL THEN NULL
     ELSE d.job_next_run_at_utc
 END
 FROM temp._ces_done d
 WHERE
     r.job_id = d.job_id
-    AND (d.reschedule_status_code IS NOT NULL OR d.handler_status_code IS NOT NULL OR d.final_status IS NOT NULL);
+    AND (d.reschedule_event_code IS NOT NULL OR d.handler_job_status_code IS NOT NULL OR d.final_job_status_code IS NOT NULL);
 -- end shapes
 
-UPDATE {{schema}}.runtimes AS r
+UPDATE {{schema}}.jobs_state AS r
 SET
-    status_code = d.to_status,
+    job_status_code = d.to_status,
     failure_count = COALESCE(d.failure_count, r.failure_count),
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
@@ -122,135 +125,225 @@ WHERE r.job_id = d.job_id;
 
 -- begin recurring
 /* A fire advances its schedules: an edit made while it ran wins over the older plan, an operator pause wins unless it
-   was timed and has elapsed, and an orphaned schedule is left alone. The audit insert shares the update's predicate. */
+   was timed and has elapsed, and an orphaned or retired schedule is left alone. The audit insert shares the update's
+   predicate. A schedule name is dotted kebab ASCII, so it sits in the JSON details unescaped. */
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
-    lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code,
-    execution_status_code, duration_ms, reason_code, reason_message)
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, tenant_id, lineage_root_job_id, execution_number, details_format_id, details)
 SELECT
-    102 /* EventCode.SchedulePauseExpired */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 10 /* ActorCode.Sys */, NULL,
-    d.job_id, d.job_ref, d.execution_number, COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
-    NULL, NULL, NULL, NULL, NULL, js.name
+    102 /* EventCode.SchedulePauseExpired */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 50 /* EntityCode.Job */, d.job_id,
+    d.definition_id, d.tenant_id, COALESCE(d.lineage_root_job_id, d.job_id), d.execution_number,
+    1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || js.schedule_name || '"}' AS BLOB)
 FROM json_each(@p_schedule_advances) a
 INNER JOIN temp._ces_done d ON d.job_id = json_extract(a.value, '$.job_id')
-INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.name = json_extract(a.value, '$.name')
+INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.schedule_name = json_extract(a.value, '$.schedule_name')
+INNER JOIN {{schema}}.definitions sd ON sd.definition_id = js.definition_id
 WHERE
     (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
-    AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
-    AND js.status_code = 30 /* ScheduleStatusCode.Paused */
+    AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+    AND d.event_recording_code = 20 /* EventRecordingCode.Audit */
+    AND js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */
     AND js.paused_until_utc IS NOT NULL
     AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1);
 
+UPDATE {{schema}}.schedules_state AS st
+SET
+    next_occurrence_at_utc = json_extract(a.value, '$.next_occurrence_at_utc'),
+    last_advanced_occurrence_at_utc = st.next_occurrence_at_utc,
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1)
+FROM json_each(@p_schedule_advances) a
+INNER JOIN {{schema}}.schedules js
+    ON js.job_id = json_extract(a.value, '$.job_id') AND js.schedule_name = json_extract(a.value, '$.schedule_name')
+INNER JOIN {{schema}}.definitions sd ON sd.definition_id = js.definition_id
+WHERE
+    st.job_id = js.job_id
+    AND st.schedule_name = js.schedule_name
+    AND js.job_id IN (SELECT d.job_id FROM temp._ces_done d)
+    AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
+    AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+    AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    AND (
+        js.schedule_status_code <> 30 /* ScheduleStatusCode.Paused */
+        OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1))
+    );
+
+-- A timed pause the advance passed is over, and only then does the fire touch the schedules row.
 UPDATE {{schema}}.schedules AS js
 SET
-    next_run_at_utc = json_extract(a.value, '$.next_run_at_utc'),
-    last_occurrence_at_utc = js.next_run_at_utc,
-    status_code = 10 /* ScheduleStatusCode.Active */,
+    schedule_status_code = 10 /* ScheduleStatusCode.Active */,
     paused_until_utc = NULL,
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = js.version + 1
 FROM json_each(@p_schedule_advances) a
 WHERE
     js.job_id = json_extract(a.value, '$.job_id')
-    AND js.name = json_extract(a.value, '$.name')
+    AND js.schedule_name = json_extract(a.value, '$.schedule_name')
     AND js.job_id IN (SELECT d.job_id FROM temp._ces_done d)
     AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
-    AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-    AND (
-        js.status_code <> 30 /* ScheduleStatusCode.Paused */
-        OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1))
+    AND js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */
+    AND js.paused_until_utc IS NOT NULL
+    AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1)
+    AND EXISTS (
+        SELECT 1
+        FROM {{schema}}.definitions sd
+        WHERE sd.definition_id = js.definition_id AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     );
 
 -- The slot's next state is read from the schedules as they stand now, not from the plan made before the handler ran.
 UPDATE temp._ces_done
 SET slot_wake = (
-    SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
+    SELECT
+        MIN(
+            CASE
+                WHEN js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc
+                ELSE st.next_occurrence_at_utc
+            END
+        )
     FROM {{schema}}.schedules js
-    WHERE js.job_id = temp._ces_done.job_id AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    INNER JOIN {{schema}}.definitions sd ON sd.definition_id = js.definition_id
+    INNER JOIN {{schema}}.schedules_state st ON st.job_id = js.job_id AND st.schedule_name = js.schedule_name
+    WHERE
+        js.job_id = temp._ces_done.job_id
+        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
 )
-WHERE final_status IS NOT NULL;
+WHERE final_job_status_code IS NOT NULL;
 
 UPDATE temp._ces_done
 SET to_status = CASE WHEN slot_wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END
-WHERE final_status IS NOT NULL;
+WHERE final_job_status_code IS NOT NULL;
 
-UPDATE {{schema}}.runtimes AS r
-SET status_code = d.to_status, next_run_at_utc = d.slot_wake
+UPDATE {{schema}}.jobs_state AS r
+SET job_status_code = d.to_status, next_run_at_utc = d.slot_wake
 FROM temp._ces_done d
-WHERE r.job_id = d.job_id AND d.final_status IS NOT NULL;
+WHERE r.job_id = d.job_id AND d.final_job_status_code IS NOT NULL;
 -- end recurring
 
-/* At Failures a failure carrying no re-arm or handler hold is written, and a success only when it answers a recorded
-   failure, which closes the incident: the job's newest finished event is not a success. One seek on the timeline
-   index per row. */
+/* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's
+   success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
+   fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
-    lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
-    execution_status_code, duration_ms, reason_code, reason_message)
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number, duration_ms,
+    event_message, details_format_id, details)
 SELECT
-    41 /* EventCode.JobExecutionFinished */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 70 /* ActorCode.Worker */, NULL,
-    d.job_id, d.job_ref, d.execution_number, COALESCE(d.lineage_root_id, d.job_id), d.definition_id, d.tenant_id,
-    @p_leased_by_worker_id, 50 /* JobStatusCode.Executing */, d.to_status,
-    CASE
-        WHEN d.reschedule_status_code IS NOT NULL THEN d.reschedule_status_code
-        WHEN d.handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 220 /* ExecutionStatusCode.Cancelled */
-        WHEN d.handler_status_code = 30 /* JobStatusCode.Paused */ THEN 152 /* ExecutionStatusCode.Paused */
-        WHEN d.succeeded = 1 THEN 100 /* ExecutionStatusCode.Succeeded */
-        ELSE 200 /* ExecutionStatusCode.Failed */
-    END,
-    d.duration_ms, d.reason_code, d.reason_message
-FROM temp._ces_done d
+    x.event_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), x.namespace_id, 50 /* EntityCode.Job */, x.job_id,
+    x.definition_id, x.tenant_id, COALESCE(x.lineage_root_job_id, x.job_id), @p_leased_by_worker_id, x.execution_number, x.duration_ms,
+    x.event_message,
+    CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+    CAST(x.details AS BLOB)
+FROM (
+    SELECT
+        d.*,
+        NULLIF(
+            '{'
+            || substr(
+                COALESCE(
+                    CASE
+                        WHEN d.event_code = 41 /* EventCode.JobExecutionFailed */
+                            THEN ',"to":"' || CASE d.to_status
+                                WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
+                                WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
+                                WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
+                            END || '"'
+                        WHEN d.event_code = 43 /* EventCode.JobExecutionYielded */
+                            THEN ',"outcome":"' || CASE
+                                WHEN d.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
+                                WHEN d.reschedule_event_code IS NOT NULL THEN 'rescheduled'
+                                WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
+                                ELSE 'cancelled'
+                            END || '"'
+                    END,
+                    ''
+                )
+                || COALESCE(',"reason":"' || d.reason || '"', ''),
+                2
+            )
+            || '}',
+            '{}'
+        ) AS details
+    FROM temp._ces_done d
+) x
 WHERE
-    d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    x.event_recording_code = 20 /* EventRecordingCode.Audit */
     OR (
-        d.audit_level_code = 10 /* DefinitionAuditLevelCode.Failures */
-        AND d.reschedule_status_code IS NULL
-        AND (d.handler_status_code IS NULL OR d.handler_status_code NOT IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
+        x.event_recording_code = 10 /* EventRecordingCode.Failures */
         AND (
-            d.succeeded = 0
-            OR COALESCE((
-                SELECT e.execution_status_code
-                FROM {{schema}}.events e
-                WHERE e.job_id = d.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
-                ORDER BY e.created_at_utc DESC, e.id DESC
-                LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */
+            x.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
+            OR (x.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND x.prior_failure_count > 0)
+        )
+    )
+    OR (
+        x.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+        AND (
+            x.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
+            OR (
+                x.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                AND (x.prior_failure_count > 0 OR (x.execution_number > 1 AND x.final_job_status_code IS NULL))
+            )
         )
     );
 
 -- begin shapes
--- At Audit each shape also says what it did: rolled over or paused a recurring slot, re-armed, or held by its handler.
+/* At Audit each shape also says what it did: rolled over or paused a recurring slot, re-armed, or held by its handler.
+   A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
-    lineage_root_id, definition_id, tenant_id, worker_id, from_status_code, to_status_code,
-    execution_status_code, duration_ms, reason_code, reason_message)
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, tenant_id, lineage_root_job_id, worker_id, execution_number,
+    event_message, details_format_id, details)
 SELECT
-    k.event_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), k.namespace_id, 70 /* ActorCode.Worker */, NULL,
-    k.job_id, k.job_ref, k.execution_number, COALESCE(k.lineage_root_id, k.job_id), k.definition_id, k.tenant_id,
-    @p_leased_by_worker_id, 50 /* JobStatusCode.Executing */, k.to_status, NULL, NULL, k.reason_code, k.reason_message
+    k.shape_code, (SELECT now_utc FROM temp._ces_done LIMIT 1), k.namespace_id, 50 /* EntityCode.Job */, k.job_id,
+    k.definition_id, k.tenant_id, COALESCE(k.lineage_root_job_id, k.job_id), @p_leased_by_worker_id, k.execution_number,
+    k.event_message,
+    CASE WHEN k.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+    CAST(k.details AS BLOB)
 FROM (
     SELECT
-        d.*,
-        n.ord,
-        CASE n.ord
-            WHEN 1 THEN CASE
-                WHEN d.final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */)
-                    THEN CASE WHEN d.to_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */ ELSE 71 /* EventCode.JobPaused */ END
-            END
-            -- A wait whose signal had already arrived landed Ready and re-armed nothing.
-            WHEN 2 THEN CASE
-                WHEN d.reschedule_status_code IS NOT NULL AND NOT (d.wait_signal_name IS NOT NULL AND d.to_status = 10 /* JobStatusCode.Ready */)
-                    THEN CASE WHEN d.reschedule_status_code = 151 /* ExecutionStatusCode.Suspended */ THEN 60 /* EventCode.JobSuspended */ ELSE 61 /* EventCode.JobRescheduled */ END
-            END
-            ELSE CASE
-                WHEN d.handler_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
-                WHEN d.handler_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
-            END
-        END AS event_code
-    FROM temp._ces_done d
-    CROSS JOIN (SELECT 1 AS ord UNION ALL SELECT 2 UNION ALL SELECT 3) n
-    WHERE d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+        s.*,
+        NULLIF(
+            '{'
+            || substr(
+                COALESCE(
+                    CASE
+                        WHEN s.shape_code = 60 /* EventCode.JobSuspended */
+                            THEN CASE s.to_status
+                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
+                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
+                            END
+                    END,
+                    ''
+                )
+                || COALESCE(',"reason":"' || s.reason || '"', ''),
+                2
+            )
+            || '}',
+            '{}'
+        ) AS details
+    FROM (
+        SELECT
+            d.*,
+            n.ord,
+            CASE n.ord
+                WHEN 1 THEN CASE
+                    WHEN d.final_job_status_code IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */)
+                        THEN CASE WHEN d.to_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */ ELSE 71 /* EventCode.JobPaused */ END
+                END
+                -- A wait whose signal had already arrived landed Ready and re-armed nothing.
+                WHEN 2 THEN CASE
+                    WHEN d.reschedule_event_code IS NOT NULL AND NOT (d.wait_signal_name IS NOT NULL AND d.to_status = 10 /* JobStatusCode.Ready */)
+                        THEN d.reschedule_event_code
+                END
+                ELSE CASE
+                    WHEN d.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                    WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                END
+            END AS shape_code
+        FROM temp._ces_done d
+        CROSS JOIN (SELECT 1 AS ord UNION ALL SELECT 2 UNION ALL SELECT 3) n
+        WHERE d.event_recording_code = 20 /* EventRecordingCode.Audit */
+    ) s
 ) k
-WHERE k.event_code IS NOT NULL
+WHERE k.shape_code IS NOT NULL
 ORDER BY k.job_id, k.ord;
 -- end shapes
 
@@ -259,21 +352,23 @@ ORDER BY k.job_id, k.ord;
    out, so a later child writes no latch and wakes no one, though the audit event records it; a finished parent takes nothing. */
 UPDATE temp._ces_done
 SET
-    parent_status = (SELECT pr.status_code FROM {{schema}}.runtimes pr WHERE pr.job_id = temp._ces_done.parent_id),
+    parent_status = (SELECT pr.job_status_code FROM {{schema}}.jobs_state pr WHERE pr.job_id = temp._ces_done.parent_job_id),
     latch_state = (
-        SELECT l.status_code FROM {{schema}}.checkpoints l
+        SELECT l.checkpoint_status_code FROM {{schema}}.checkpoints l
         WHERE
-            l.job_id = temp._ces_done.parent_id
-            AND l.kind_code = 50 /* CheckpointKindCode.ChildLatch */
-            AND l.name = 'sys.child.' || temp._ces_done.job_id
+            l.job_id = temp._ces_done.parent_job_id
+            AND l.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */
+            AND l.checkpoint_name = 'sys.child.' || temp._ces_done.job_id
     )
 WHERE
-    parent_id IS NOT NULL
+    parent_job_id IS NOT NULL
     AND to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
-INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
+INSERT INTO {{schema}}.checkpoints (
+    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value, modified_at_utc, version
+)
 SELECT
-    d.parent_id,
+    d.parent_job_id,
     50 /* CheckpointKindCode.ChildLatch */,
     'sys.child.' || d.job_id,
     20 /* CheckpointStatusCode.Set */,
@@ -285,56 +380,58 @@ FROM temp._ces_done d
 WHERE
     d.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
-ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-    status_code = 20 /* CheckpointStatusCode.Set */,
+ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
+    checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
     value_format_id = excluded.value_format_id,
     value = excluded.value,
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = {{schema}}.checkpoints.version + 1;
 
--- The resumed event goes once per parent; the raised event once per child, its message capped at the column width.
+/* The resumed event goes once per parent; the raised event once per child, carrying the child's reason and message,
+   the message capped at the column width. */
 INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, actor_code, actor, job_id, job_ref, execution_number,
-    lineage_root_id, definition_id, tenant_id, from_status_code, to_status_code,
-    execution_status_code, duration_ms, reason_code, reason_message)
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, tenant_id, lineage_root_job_id, execution_number,
+    event_message, details_format_id, details)
 SELECT
-    80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
-    d.parent_id, pj.job_ref, pr.execution_number, COALESCE(pj.lineage_root_id, d.parent_id), pj.definition_id, pj.tenant_id,
-    d.parent_status, d.parent_status, NULL, NULL, d.reason_code,
+    80 /* EventCode.JobSignalRaised */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 50 /* EntityCode.Job */, d.parent_job_id,
+    pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
     CASE
         WHEN d.latch_state = 30 /* CheckpointStatusCode.Expired */
-            THEN substr(COALESCE(d.reason_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 1, 512)
-        ELSE d.reason_message
-    END
+            THEN substr(COALESCE(d.event_message || ' ', '') || 'Child outcome not applied: the wait had already expired.', 1, 512)
+        ELSE d.event_message
+    END,
+    CASE WHEN d.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+    CAST('{"reason":"' || d.reason || '"}' AS BLOB)
 FROM temp._ces_done d
-INNER JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
-INNER JOIN {{schema}}.runtimes pr ON pr.job_id = d.parent_id
+INNER JOIN {{schema}}.jobs pj ON pj.job_id = d.parent_job_id
+INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = d.parent_job_id
 WHERE
     d.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND pj.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    AND pj.event_recording_code = 20 /* EventRecordingCode.Audit */
 UNION ALL
 SELECT DISTINCT
-    72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 10 /* ActorCode.Sys */, NULL,
-    d.parent_id, pj.job_ref, pr.execution_number, COALESCE(pj.lineage_root_id, d.parent_id), pj.definition_id, pj.tenant_id,
-    20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, NULL, NULL, 60 /* EventReasonCode.JobSignalReleased */, NULL
+    72 /* EventCode.JobResumed */, (SELECT now_utc FROM temp._ces_done LIMIT 1), pj.namespace_id, 50 /* EntityCode.Job */, d.parent_job_id,
+    pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, d.parent_job_id), pr.execution_number,
+    NULL, 1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS BLOB)
 FROM temp._ces_done d
-INNER JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
-INNER JOIN {{schema}}.runtimes pr ON pr.job_id = d.parent_id
+INNER JOIN {{schema}}.jobs pj ON pj.job_id = d.parent_job_id
+INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = d.parent_job_id
 WHERE
     d.parent_status = 20 /* JobStatusCode.Suspended */
     AND (d.latch_state IS NULL OR d.latch_state <> 30 /* CheckpointStatusCode.Expired */)
-    AND pj.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
+    AND pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
-UPDATE {{schema}}.runtimes
+UPDATE {{schema}}.jobs_state
 SET
-    status_code = 10 /* JobStatusCode.Ready */,
+    job_status_code = 10 /* JobStatusCode.Ready */,
     next_run_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = version + 1
 WHERE
-    status_code = 20 /* JobStatusCode.Suspended */
+    job_status_code = 20 /* JobStatusCode.Suspended */
     AND job_id IN (
-        SELECT d.parent_id
+        SELECT d.parent_job_id
         FROM temp._ces_done d
         WHERE
             d.parent_status = 20 /* JobStatusCode.Suspended */
@@ -347,15 +444,15 @@ WHERE
    member becomes Ready at its own due instant or now when it is Blocked, and any other head keeps the lane. */
 UPDATE temp._ces_done
 SET head_id = (
-    SELECT CASE WHEN h.status_code = 15 /* JobStatusCode.Blocked */ THEN h.job_id END
-    FROM {{schema}}.runtimes h
+    SELECT CASE WHEN h.job_status_code = 15 /* JobStatusCode.Blocked */ THEN h.job_id END
+    FROM {{schema}}.jobs_state h
     WHERE
         h.job_id = (
             SELECT m.job_id
-            FROM {{schema}}.runtimes m
+            FROM {{schema}}.jobs_state m
             WHERE
                 m.lane_id = temp._ces_done.lane_id
-                AND m.status_code IN (
+                AND m.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                     30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
@@ -367,9 +464,9 @@ WHERE
     lane_id IS NOT NULL
     AND to_status IN (30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
-UPDATE {{schema}}.runtimes
+UPDATE {{schema}}.jobs_state
 SET
-    status_code = 10 /* JobStatusCode.Ready */,
+    job_status_code = 10 /* JobStatusCode.Ready */,
     next_run_at_utc = MAX(next_run_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1)),
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = version + 1
@@ -382,14 +479,14 @@ SELECT
     CASE
         WHEN d.job_id IS NOT NULL THEN 1 /* CompleteExecutionsAction.Completed */
         WHEN
-            r.status_code IS NULL
-            OR r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            r.job_status_code IS NULL
+            OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
         WHEN r.leased_by_worker_id IS NULL OR r.leased_by_worker_id <> @p_leased_by_worker_id
             THEN 2 /* CompleteExecutionsAction.NotOwner */
         ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
     END AS action,
-    r.status_code AS final_status_code,
+    r.job_status_code AS final_job_status_code,
     r.next_run_at_utc AS final_next_run_at_utc,
     {{now}} AS db_now,
     CASE
@@ -401,4 +498,4 @@ SELECT
 FROM jsonb_each(@p_completions) c
 LEFT JOIN temp._ces_done d
     ON d.job_id = json_extract(c.value, '$.job_id') AND d.execution_number = json_extract(c.value, '$.execution_number')
-LEFT JOIN {{schema}}.runtimes r ON r.job_id = json_extract(c.value, '$.job_id');
+LEFT JOIN {{schema}}.jobs_state r ON r.job_id = json_extract(c.value, '$.job_id');

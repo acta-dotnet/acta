@@ -7,7 +7,7 @@ internal static class ChaosSpecHelpers
 {
     public static async Task<int> NamespaceIdAsync(IDbSession db, string name, CancellationToken ct)
     {
-        var row = await db.From<NamespaceEntity>().Where(n => n.Name == name).SingleOrDefaultAsync(ct);
+        var row = await db.From<NamespaceEntity>().Where(n => n.NamespaceName == name).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         return row!.Id;
     }
@@ -20,9 +20,9 @@ internal static class ChaosSpecHelpers
 
     public static async Task ExpireLeaseAsync(IDbSession db, long jobId, CancellationToken ct)
     {
-        var affected = await db.From<RuntimeEntity>()
+        var affected = await db.From<JobStateEntity>()
             .Where(r => r.Id == jobId && r.LeasedByWorkerId != null)
-            .UpdateOnlyAsync(() => new RuntimeEntity { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5) }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5) }, ct);
         Assert.Equal(1, affected);
     }
 
@@ -46,11 +46,11 @@ internal static class ChaosSpecHelpers
 
     public static async Task SetReadyAsync(IDbSession db, long jobId, CancellationToken ct)
     {
-        var affected = await db.From<RuntimeEntity>()
+        var affected = await db.From<JobStateEntity>()
             .Where(r => r.Id == jobId)
             .UpdateOnlyAsync(
                 () =>
-                    new RuntimeEntity
+                    new JobStateEntity
                     {
                         Status = JobStatusCode.Ready,
                         NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1),
@@ -90,29 +90,30 @@ internal static class ChaosSpecHelpers
     public static async Task<int> ReclaimAsync(IServiceProvider services, int namespaceId, CancellationToken ct) =>
         (await RecoverySweep.ReclaimAtLeastOneAsync(services, namespaceId, ct)).Reclaimed;
 
-    public static JobEventRecord AssertRecoveryEvent(IReadOnlyList<JobEventRecord> events, JobStatusCode? from, JobStatusCode? to)
+    /// <summary>
+    /// The one lease-loss event of the timeline: orphaned with its landing in details, or a terminal failure when the
+    /// reclaim spent the budget.
+    /// </summary>
+    public static JobEventRecord AssertRecoveryEvent(IReadOnlyList<JobEventRecord> events, JobStatusCode to)
     {
         var match = Assert.Single(
-            events.Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Orphaned)
+            events.Where(e => e.EventCode is EventCode.JobExecutionOrphaned or EventCode.JobFailed && e.Reason == "lease-expired")
         );
-        Assert.Equal(from, match.FromStatus);
-        Assert.Equal(to, match.ToStatus);
-        Assert.Equal(EventReasonCode.JobLeaseExpired, match.EventReasonCode);
+        if (to == JobStatusCode.Failed)
+        {
+            Assert.Equal(EventCode.JobFailed, match.EventCode);
+        }
+        else
+        {
+            Assert.Equal(EventCode.JobExecutionOrphaned, match.EventCode);
+            Assert.Equal(to.Code, match.To);
+        }
         return match;
     }
 
-    public static JobEventRecord AssertSingleFinished(
-        IReadOnlyList<JobEventRecord> events,
-        ExecutionStatusCode status,
-        JobStatusCode? from,
-        JobStatusCode? to
-    )
-    {
-        var match = Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == status));
-        Assert.Equal(from, match.FromStatus);
-        Assert.Equal(to, match.ToStatus);
-        return match;
-    }
+    /// <summary>The one attempt event of the given code.</summary>
+    public static JobEventRecord AssertSingleAttempt(IReadOnlyList<JobEventRecord> events, EventCode code) =>
+        Assert.Single(events.Where(e => e.EventCode == code));
 
     /// <summary>
     /// Stages the one way a completion is lost now that the write repeats until it lands: the store keeps

@@ -23,8 +23,8 @@ internal sealed class GetResultHandler(GetJobIdHandler getJobId, IDbSession sess
             "GetResult",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.JobId, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.ExecutionNumber, executionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.ExecutionNumber, executionNumber));
             },
             DbProjectionResolver.Resolve<GetResultRow>(),
             ct

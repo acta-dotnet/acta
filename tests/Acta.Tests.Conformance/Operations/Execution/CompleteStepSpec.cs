@@ -31,7 +31,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, (await FailAsync(job, first.Version, maxAttempts: 3, null, ct)).Outcome);
         var due = DateTime.UtcNow.AddMinutes(-1);
         await Db.From<StepEntity>()
-            .Where(s => s.JobId == job && s.Name == StepName)
+            .Where(s => s.JobId == job && s.StepName == StepName)
             .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due }, ct);
         var second = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
         Assert.Equal(2, second.AttemptNumber);
@@ -46,8 +46,8 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.Equal(JobPayloadFormat.Json.Id, step.ResultFormatId);
         Assert.Equal(Result, step.Result);
-        Assert.Null(step.ReasonCode);
-        Assert.Null(step.ReasonMessage);
+        Assert.Null(step.FailureCode);
+        Assert.Null(step.FailureMessage);
         Assert.Null(step.NextRetryAtUtc);
         Assert.Equal(second.Version + 1, step.Version);
     }
@@ -68,8 +68,8 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var step = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Pending, step.Status);
         Assert.Equal(retryAt, step.NextRetryAtUtc);
-        Assert.Equal(EventReasonCode.JobUnhandledException, step.ReasonCode);
-        Assert.Equal(Reason, step.ReasonMessage);
+        Assert.Equal(StepFailureCode.UnhandledException, step.FailureCode);
+        Assert.Equal(Reason, step.FailureMessage);
         Assert.Equal(1, step.AttemptNumber);
         Assert.Equal(start.Version + 1, step.Version);
     }
@@ -87,8 +87,8 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var step = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Null(step.NextRetryAtUtc);
-        Assert.Equal(EventReasonCode.JobUnhandledException, step.ReasonCode);
-        Assert.Equal(Reason, step.ReasonMessage);
+        Assert.Equal(StepFailureCode.UnhandledException, step.FailureCode);
+        Assert.Equal(Reason, step.FailureMessage);
     }
 
     [Fact(DisplayName = "A retry that would land past the retry window exhausts the slot with attempts still left")]
@@ -132,7 +132,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(StepStatusCode.Pending, after.Status);
         Assert.Equal(before.Version, after.Version);
         Assert.Null(after.Result);
-        Assert.Null(after.ReasonCode);
+        Assert.Null(after.FailureCode);
         Assert.Null(after.NextRetryAtUtc);
     }
 
@@ -147,7 +147,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 Succeeded: false,
                 ResultFormatId: 0,
                 Result: null,
-                EventReasonCode.JobUnhandledException,
+                StepFailureCode.UnhandledException,
                 Reason,
                 DelaySeconds: 600,
                 maxAttempts,
@@ -158,5 +158,5 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         );
 
     private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct));
+        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.StepName == StepName).ToListAsync(ct));
 }

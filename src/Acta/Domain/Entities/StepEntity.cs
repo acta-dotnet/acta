@@ -1,22 +1,22 @@
 namespace Acta;
 
 /// <summary>
-/// The durable retry and result state of one step, one row per <c>(JobId, Name)</c>, written by <c>start_step</c>
+/// The durable retry and result state of one step, one row per <c>(JobId, StepName)</c>, written by <c>start_step</c>
 /// and <c>complete_step</c> behind <c>ctx.RunStepAsync</c>: inserted Pending on first run, updated across retries,
 /// and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). <see cref="Status"/> is
 /// the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt.
 /// Keyed by its job, as every job satellite is: concurrent steps of in-flight jobs spread over those jobs' pages.
 /// </summary>
 [DbTable("steps")]
-[DbPrimaryKey(Name = "pk_steps", Columns = ["job_id", "name"])]
+[DbPrimaryKey(Name = "pk_steps", Columns = ["job_id", "step_name"])]
 [DbCheck(
     Name = "ck_steps_result_pair",
     Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_steps_attempt_number", Sql = "attempt_number >= 1")]
-[DbCheck(Name = "ck_steps_terminal_no_retry", Sql = "status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL")]
-[DbCheck(Name = "ck_steps_result_succeeded", Sql = "result_format_id = 0 OR status_code = 100")]
-[DbCheck(Name = "ck_steps_reason_pair", Sql = "reason_message IS NULL OR reason_code IS NOT NULL")]
+[DbCheck(Name = "ck_steps_terminal_no_retry", Sql = "step_status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL")]
+[DbCheck(Name = "ck_steps_result_succeeded", Sql = "result_format_id = 0 OR step_status_code = 100")]
+[DbCheck(Name = "ck_steps_failure_pair", Sql = "failure_message IS NULL OR failure_code IS NOT NULL")]
 internal sealed class StepEntity : IEntity
 {
     /// <summary>
@@ -28,13 +28,13 @@ internal sealed class StepEntity : IEntity
     /// <summary>
     /// Step slot name. Kebab-case ASCII. The key's second column.
     /// </summary>
-    [DbColumn("name", DbKind.AsciiString, Size = 128)]
-    public string Name { get; init; } = default!;
+    [DbColumn("step_name", DbKind.AsciiString, Size = 128)]
+    public string StepName { get; init; } = default!;
 
     /// <summary>
     /// <c>Pending</c> while retrying; <c>Succeeded</c> / <c>Exhausted</c> on terminal.
     /// </summary>
-    [DbColumn("status_code")]
+    [DbColumn("step_status_code")]
     public StepStatusCode Status { get; set; }
 
     /// <summary>
@@ -51,19 +51,19 @@ internal sealed class StepEntity : IEntity
     public DateTime? NextRetryAtUtc { get; set; }
 
     /// <summary>
-    /// Machine-readable reason of the most recent failed attempt. NULL until first failure, and cleared
+    /// Machine-readable failure of the most recent failed attempt. NULL until first failure, and cleared
     /// again by a succeeding attempt; preserved on terminal <c>Exhausted</c> and <c>Interrupted</c> rows
     /// so post-mortem reads always have the final failure context.
     /// </summary>
-    [DbColumn("reason_code")]
-    public EventReasonCode? ReasonCode { get; set; }
+    [DbColumn("failure_code")]
+    public StepFailureCode? FailureCode { get; set; }
 
     /// <summary>
-    /// Free-form prose paired with <see cref="ReasonCode"/> by <c>ck_steps_reason_pair</c>. NULL until
+    /// Free-form prose paired with <see cref="FailureCode"/> by <c>ck_steps_failure_pair</c>. NULL until
     /// first failure; truncated by <c>MessageTruncator</c>.
     /// </summary>
-    [DbColumn("reason_message", DbKind.UnicodeString, Size = 512)]
-    public string? ReasonMessage { get; set; }
+    [DbColumn("failure_message", DbKind.UnicodeString, Size = 512)]
+    public string? FailureMessage { get; set; }
 
     /// <summary>
     /// Format-id selector for <see cref="Result"/>; <c>0</c> means no result (void step or in-flight

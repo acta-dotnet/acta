@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, ApiError, type JobDetailView } from '../api.ts';
+  import { api, ApiError, type EventItem, type JobDetailView } from '../api.ts';
   import { TERMINAL_STATUSES, statusClass, displayFormatter } from '../format.ts';
   import { keys } from '../query.ts';
   import { scope } from '../scope.ts';
@@ -27,7 +27,6 @@
   import { createUrlFilters } from '../urlFilters.ts';
   import { buildIncidentSummary, latestMeaningfulEvent } from './job-detail/jobDetailState.ts';
   import { statusTonePresentation } from '../components/jobTimelineState.ts';
-  import type { JobEvent } from './job-detail/types.ts';
   import { routes } from '../routes.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import { detailRefetchInterval, livePaused } from '../polling.ts';
@@ -35,7 +34,7 @@
   let { jobRef }: { jobRef: string } = $props();
   let eventsPanel: { refresh(): void } | undefined = $state();
   let executionsPanel: { refresh(): void } | undefined = $state();
-  let events: JobEvent[] = $state([]);
+  let events: EventItem[] = $state([]);
 
   // One aggregate read renders the whole screen: snapshot plus explain, lineage, eligible workers, the
   // definition link, this job's schedules, and the input/result/checkpoint payloads. Only the unbounded
@@ -246,6 +245,7 @@
             <a href={routes.jobs({ jobName: job.jobName, namespace: job.jobNamespace })}>Similar jobs</a>
             <a href={routes.namespace(job.jobNamespace, { namespace: job.jobNamespace })}>Namespace</a>
             <a href={routes.workers({ namespace: job.jobNamespace })}>Workers</a>
+            <a href={routes.events({ namespace: job.jobNamespace, jobRef: job.jobRef })}>Events</a>
           </nav>
         </section>
         <TagEditor path={`jobs/${jobRef}/tags`} />

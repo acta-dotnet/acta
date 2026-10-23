@@ -23,10 +23,10 @@ see [design](./design.md).
 
 | Term | Meaning |
 | --- | --- |
-| **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `runtimes`. One-shot work, delayed work, recurring slots, coordinating parents, child jobs, and system maintenance all use the same tables. |
-| **Execution** | One recorded run of a handler. At the default audit level every run (success or failure) is recorded as one `job.execution-finished` event on `(JobId, ExecutionNumber)`, carrying the worker and the handler's duration; the `Failures` and `Off` levels record less. A run in progress is its `runtimes` row. |
+| **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `jobs_state`. One-shot work, delayed work, recurring slots, coordinating parents, child jobs, and system maintenance all use the same tables. |
+| **Execution** | One recorded run of a handler. At the default recording level every run is recorded as one outcome event on `(JobId, ExecutionNumber)` — succeeded, failed, orphaned, yielded, or terminally failed — carrying the worker and the handler's duration; the `Failures` and `Off` levels record less. A run in progress is its `jobs_state` row. |
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
-| **Status** | The lifecycle-or-outcome enum column on every entity that has one (`JobRuntime.Status`, `JobWorker.Status`, `JobStep.Status`, `JobCheckpoint.Status`, ...). The job's `runtimes` row stores current status; events explain transitions. |
+| **Status** | The lifecycle-or-outcome code on every entity that has one, named for its table (`jobs_state.job_status_code`, `workers.worker_status_code`, `steps.step_status_code`, `checkpoints.checkpoint_status_code`, ...). The job's `jobs_state` row stores current status; events explain transitions. |
 | **Firing** | One scheduled occurrence of a recurring `[JobSchedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
@@ -59,8 +59,8 @@ A tenant is not a security boundary. Acta does not authorize callers or isolate 
 
 ### Executions and attempts
 
-An **Execution** is one recorded run of the handler; at the default audit level the event ledger
-records one finished event for every run. An **Attempt** is one try that counts against retry policy when it fails.
+An **Execution** is one recorded run of the handler; at the default recording level the event ledger
+records one outcome event for every run. An **Attempt** is one try that counts against retry policy when it fails.
 A handler can be re-entered after a crash, retry, signal, or sleep; completed durable slots are not
 repeated.
 
@@ -458,11 +458,11 @@ Task<TOut>
 ValueTask<TOut>
 ```
 
-A job stores at most one result, on its `runtimes` row, written by a successful completion: a one-shot job's terminal success, or a recurring job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a recurring job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
+A job stores at most one result, on its `jobs_state` row, written by a successful completion: a one-shot job's terminal success, or a recurring job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a recurring job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
 
 The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
 
-Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `job.execution-timeout`). The job's `runtimes` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TOut`.
+Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `execution-timeout`). The job's `jobs_state` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TOut`.
 
 Nullable annotations do not change the descriptor. Both of these declare a durable result and must return non-null; returning `null` fails the attempt either way:
 
@@ -479,9 +479,9 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 ### Exception semantics
 
-Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's reason, at the job's audit level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
+Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `job.non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A recurring job instead rolls over to its next occurrence, as it does after any failure. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A recurring job instead rolls over to its next occurrence, as it does after any failure. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -664,7 +664,7 @@ A worker claims one row for every free executor and moves it straight to `Execut
 
 ### Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, audit level, priority, concurrency limit, rate limit, and schedule policy are declared on `[Job(...)]` and `[JobSchedule(...)]`, not on `JobsOptions`. An operator overrides them without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard: a null field clears an override, the definition's `version` guards a concurrent edit, and workers pick the change up on their next heartbeat.
+Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, rate limit, and schedule policy are declared on `[Job(...)]` and `[JobSchedule(...)]`, not on `JobsOptions`. An operator overrides them without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard: a null field clears an override, the definition's `version` guards a concurrent edit, and workers pick the change up on their next heartbeat.
 
 The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps a failing job retrying for about 4.4 days before it lands Failed.
 
@@ -719,7 +719,7 @@ await tx.CommitAsync(ct);
 
 With EF Core or another ORM, cast the unwrapped transaction (`(NpgsqlTransaction)efTx.GetDbTransaction()`).
 
-- Staging returns nothing. A staged request needs a `DeduplicationKey`, which the relay reuses for every delivery, and must be a root job (`ParentId` null).
+- Staging returns nothing. A staged request needs a `DeduplicationKey`, which the relay reuses for every delivery, and must be a root job (`ParentJobId` null).
 - `DelaySeconds` counts from when the relay ingests the row.
 - Find the job afterwards by `JobLookup.ByDeduplicationKey(namespace, key)`; null means not relayed yet.
 
@@ -754,9 +754,9 @@ Recurring cadence, missed-time policy, an operator-triggered run, and historical
 different operations. Keeping them separate prevents duplicate work and makes the schedule cursor
 understandable in SQL and the dashboard.
 
-Acta represents a recurring job as one durable slot job plus one row per named schedule. It does not
-create future job rows for every calendar occurrence. The schedule cursors move; the stable slot job
-runs when the earliest active cursor is due.
+Acta represents a recurring job as one durable slot job plus one row per named schedule, whose cursor
+sits in a narrow companion row. It does not create future job rows for every calendar occurrence. The
+schedule cursors move; the stable slot job runs when the earliest active cursor is due.
 
 ### The four operations
 
@@ -841,7 +841,7 @@ Before a large backfill:
 - Cancelling a recurring job ends it until a restart. A manual purge deletes it, and the next start registers it as a new job.
 - A recurring job's slot uses the job name as its deduplication key, so a worker refuses to start while an ordinary job holds that key.
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
-- Expression and time-zone overrides are version-checked operator state. A deploy that switches a schedule between interval and cron drops its expression override.
+- Expression and time-zone overrides are version-checked operator state. The version moves with operator edits and deploys, not with each fire. A deploy that switches a schedule between interval and cron drops its expression override.
 
 Concepts [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`105-schedule-control`](../concepts/100-scheduling/105-schedule-control/), and [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/) show each behavior.
 

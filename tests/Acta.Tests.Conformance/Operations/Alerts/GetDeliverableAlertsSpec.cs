@@ -130,7 +130,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(row.SeverityCode, due.Severity);
         Assert.Equal(row.Kind, due.Kind);
         Assert.Equal(row.Title, due.Title);
-        Assert.Equal(row.Message, due.Message);
+        Assert.Equal(row.AlertMessage, due.Message);
         Assert.Equal(row.ChannelName, due.ChannelName);
         Assert.Equal(row.OccurrenceCount, due.OccurrenceCount);
         Assert.Equal(row.RetryCount, due.RetryCount);

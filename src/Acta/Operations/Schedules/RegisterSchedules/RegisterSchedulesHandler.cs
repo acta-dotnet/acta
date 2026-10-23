@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="SchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each slot job, refreshes input, audit, status, and
-/// cursor, upserts schedules, and sweeps orphans.
+/// cursor, upserts schedules, sweeps orphans, and stores the namespace's catalog hash.
 /// </summary>
 internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
@@ -14,7 +14,12 @@ internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect d
         // (ScheduleWalker.IsHeld) or restarts a finished slot.
         var slots = await session.ExecuteAsync(
             new StoreCommand("RegisterSchedules"),
-            cmd => dialect.BindRegisterSchedules(cmd, command.Definitions, command.SlotRefs, session.Schema),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, command.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.CatalogHash, command.CatalogHash));
+                dialect.BindRegisterSchedules(cmd, command.Definitions, command.SlotRefs, session.Schema);
+            },
             DbProjectionResolver.Resolve<RegisterSchedulesRow>(),
             ct
         );

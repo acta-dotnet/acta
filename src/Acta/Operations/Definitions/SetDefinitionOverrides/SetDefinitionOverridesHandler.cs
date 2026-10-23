@@ -18,14 +18,13 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
             return new SetDefinitionOverridesResponse(ControlAction.NotFound, null);
         }
 
-        var actor = JobControlActor.Operator(command.Actor);
         var row = await session.ExecuteOneAsync(
             new StoreCommand("SetDefinitionOverrides"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DefinitionId, definitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.PriorityCodeOverride, overrides.Priority));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.JobPriorityCodeOverride, overrides.Priority));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.MaxAttemptsOverride, overrides.MaxAttempts));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.ConcurrencyLimitOverride, overrides.ConcurrencyLimit));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.RateLimitOverride, overrides.RateLimit));
@@ -36,18 +35,13 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DeadlineSecondsOverride, overrides.DeadlineSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DeadlineBehaviorCodeOverride, overrides.DeadlineBehavior));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.RetentionSecondsOverride, overrides.JobRetentionSeconds));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.AuditLevelCodeOverride, overrides.AuditLevel));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.EventRecordingCodeOverride, overrides.EventRecording));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.AlertProfileCodeOverride, overrides.AlertProfile));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.AlertChannelNameOverride, overrides.AlertChannelName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.RunbookUrlOverride, overrides.RunbookUrl));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DisplayNameOverride, overrides.DisplayName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DescriptionOverride, overrides.Description));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Actor, actor.Actor));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))
-                );
+                cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<SetDefinitionOverridesRow>(),
             ct
@@ -71,9 +65,12 @@ internal sealed class SetDefinitionOverridesHandler(ResolveDefinitionIdHandler r
             overrides = overrides with { DeadlineBehavior = null };
         }
 
-        if (overrides.MaxAttempts is <= 0)
+        if (overrides.MaxAttempts is <= 0 or > JobDefinitionRegistration.MaxMaxAttempts)
         {
-            throw new ArgumentOutOfRangeException(nameof(overrides), "MaxAttempts override must be at least 1.");
+            throw new ArgumentOutOfRangeException(
+                nameof(overrides),
+                $"MaxAttempts override must be between 1 and {JobDefinitionRegistration.MaxMaxAttempts}."
+            );
         }
         if (
             overrides.ConcurrencyLimit is < JobDefinitionRegistration.MinConcurrencyLimit or > JobDefinitionRegistration.MaxConcurrencyLimit

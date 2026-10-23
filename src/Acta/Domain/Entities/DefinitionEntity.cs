@@ -9,8 +9,8 @@ namespace Acta;
 /// Identity, the type contract, and formats are code-fixed (no override). One entity, never split.
 /// </summary>
 [DbTable("definitions")]
-[DbPrimaryKey(Name = "pk_definitions", Columns = ["id"])]
-[DbUniqueIndex(Name = "ux_definitions_namespace_name", Columns = ["namespace_id", "name"], Usage = "uniqueness")]
+[DbPrimaryKey(Name = "pk_definitions", Columns = ["definition_id"])]
+[DbUniqueIndex(Name = "ux_definitions_namespace_name", Columns = ["namespace_id", "definition_name"], Usage = "uniqueness")]
 [DbCheck(Name = "ck_definitions_max_attempts", Sql = "max_attempts >= 1")]
 [DbCheck(Name = "ck_definitions_max_attempts_override", Sql = "max_attempts_override IS NULL OR max_attempts_override >= 1")]
 [DbCheck(Name = "ck_definitions_execution_timeout", Sql = "execution_timeout_seconds > 0")]
@@ -30,11 +30,11 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// Surrogate PK referenced by <c>jobs.definition_id</c>, <c>events.definition_id</c>, and
     /// <c>schedules.definition_id</c>.
     /// </summary>
-    [DbColumn("id", DbKind.Int32)]
+    [DbColumn("definition_id", DbKind.Int32)]
     public int Id { get; init; }
 
     /// <summary>
-    /// Owning service's namespace; logical FK to <c>namespaces.id</c> (no enforced FK, SP-side
+    /// Owning service's namespace; logical FK to <c>namespaces.namespace_id</c> (no enforced FK, SP-side
     /// validation).
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
@@ -43,8 +43,8 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// <summary>
     /// Operator-facing kebab-case identifier; the natural key together with the namespace.
     /// </summary>
-    [DbColumn("name", DbKind.AsciiString, Size = 128)]
-    public string Name { get; init; } = default!;
+    [DbColumn("definition_name", DbKind.AsciiString, Size = 128)]
+    public string DefinitionName { get; init; } = default!;
 
     /// <summary>
     /// Lifecycle of this definition (<c>Active</c> / <c>Retired</c>); enqueue is rejected at the DB
@@ -52,7 +52,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// <c>Active</c> and nothing else: <c>Retired</c> is written only by the operator retire verb, never
     /// by registration, so a definition absent from a manifest keeps running.
     /// </summary>
-    [DbColumn("status_code")]
+    [DbColumn("definition_status_code")]
     public DefinitionStatusCode Status { get; internal set; }
 
     /// <summary>
@@ -104,7 +104,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     public string? OutputTypeName { get; internal set; }
 
     /// <summary>
-    /// Default payload format id for execution results; stamped into <c>runtimes.result_format_id</c>
+    /// Default payload format id for execution results; stamped into <c>jobs_state.result_format_id</c>
     /// on success.
     /// </summary>
     [DbColumn("output_format_id", DbKind.Byte)]
@@ -135,15 +135,15 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// Default priority for Jobs enqueued from this definition; per-instance overrides apply at
     /// enqueue and post-enqueue.
     /// </summary>
-    [DbColumn("priority_code")]
+    [DbColumn("job_priority_code")]
     public JobPriorityCode Priority { get; internal set; }
 
     /// <summary>Operator override of <see cref="Priority"/>; NULL = inherit the default.</summary>
-    [DbColumn("priority_code_override")]
+    [DbColumn("job_priority_code_override")]
     public JobPriorityCode? PriorityOverride { get; internal set; }
 
     /// <summary>Effective priority (DB-computed); read-only.</summary>
-    [DbColumn("priority_code_effective", Generated = "COALESCE(priority_code_override, priority_code)")]
+    [DbColumn("job_priority_code_effective", Generated = "COALESCE(job_priority_code_override, job_priority_code)")]
     public JobPriorityCode PriorityEffective { get; internal set; }
 
     /// <summary>
@@ -206,10 +206,10 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// Default lane for this definition's jobs, used when an enqueue names none; an enqueue lane
     /// overrides it but cannot clear it. NULL means unlaned. Code-owned and deliberately without an
     /// override triple, like <see cref="RateName"/>: a lane decides ordering, a contract rather than an
-    /// operator dial. Stored canonical, like <c>lanes.name</c>.
+    /// operator dial. Stored canonical, like <c>lanes.lane_name</c>.
     /// </summary>
-    [DbColumn("lane", DbKind.AsciiString, Size = 128)]
-    public string? Lane { get; internal set; }
+    [DbColumn("lane_name", DbKind.AsciiString, Size = 128)]
+    public string? LaneName { get; internal set; }
 
     /// <summary>
     /// Retry backoff policy as an Acta backoff expression, e.g. <c>"1m..8h x2 ~10%"</c>. Resolved to a
@@ -289,19 +289,19 @@ internal sealed class DefinitionEntity : IEntity<int>
     public int JobRetentionSecondsEffective { get; internal set; }
 
     /// <summary>
-    /// Controls <c>events</c> emission (<c>Off</c> / <c>Failures</c> / <c>Audit</c>) on hot-path state
-    /// mutations. Does not gate alert MERGE; alerts and audit are independent.
+    /// Controls <c>events</c> recording (<c>Off</c> / <c>Failures</c> / <c>Audit</c>) on hot-path state
+    /// mutations. Does not gate alert MERGE; alerts and event recording are independent.
     /// </summary>
-    [DbColumn("audit_level_code")]
-    public DefinitionAuditLevelCode AuditLevel { get; internal set; }
+    [DbColumn("event_recording_code")]
+    public EventRecordingCode EventRecording { get; internal set; }
 
-    /// <summary>Operator override of <see cref="AuditLevel"/>; NULL = inherit.</summary>
-    [DbColumn("audit_level_code_override")]
-    public DefinitionAuditLevelCode? AuditLevelOverride { get; internal set; }
+    /// <summary>Operator override of <see cref="EventRecording"/>; NULL = inherit.</summary>
+    [DbColumn("event_recording_code_override")]
+    public EventRecordingCode? EventRecordingOverride { get; internal set; }
 
-    /// <summary>Effective audit level (DB-computed); read-only.</summary>
-    [DbColumn("audit_level_code_effective", Generated = "COALESCE(audit_level_code_override, audit_level_code)")]
-    public DefinitionAuditLevelCode AuditLevelEffective { get; internal set; }
+    /// <summary>Effective event recording (DB-computed); read-only.</summary>
+    [DbColumn("event_recording_code_effective", Generated = "COALESCE(event_recording_code_override, event_recording_code)")]
+    public EventRecordingCode EventRecordingEffective { get; internal set; }
 
     /// <summary>
     /// Automatic-alert behavior for state-mutating operations (<c>None</c> / <c>OnFailure</c> /

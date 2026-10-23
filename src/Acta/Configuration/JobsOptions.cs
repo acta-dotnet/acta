@@ -150,7 +150,7 @@ public sealed class JobsOptions
     public bool RegisterSystemJobs { get; set; } = true;
 
     /// <summary>
-    /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>jobs.input</c>, <c>runtimes.result</c>,
+    /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>jobs.input</c>, <c>jobs_state.result</c>,
     /// <c>checkpoints.value</c>, <c>steps.result</c>) and the largest HTTP request body, so a body the ledger
     /// would refuse is refused at the edge with the same number. Caller-controlled writes (enqueue, variables,
     /// progress, signals, step results) throw <c>PayloadTooLargeException</c> past it; a handler result past it is
@@ -180,7 +180,7 @@ public sealed class JobsOptions
     /// <summary>
     /// Failures within one incident at which an automatic failure alert escalates to <c>ThresholdReached</c>
     /// (<c>Error</c> severity). The <c>sys.alerts</c> generate phase reads the post-upsert <c>occurrence_count</c>
-    /// from <c>raise_alert</c>, with no JOIN to the mutable <c>runtimes.failure_count</c>, and escalates when it meets
+    /// from <c>raise_alert</c>, with no JOIN to the mutable <c>jobs_state.failure_count</c>, and escalates when it meets
     /// this value and the row's high-water mark names the event being projected, so a crash-replay re-fires only for
     /// the event that crossed. The count starts at 1 when the incident opens and only climbs until a success resolves
     /// it, so the escalation fires once per incident and reads as "N failures since this broke". Default 3.

@@ -34,9 +34,9 @@ public sealed class UnicodeActorSpec : ActaStorageTestBase<ConformanceFixture>
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var ev = await Db.From<EventEntity>()
-            .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
+            .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(ev);
-        Assert.Equal(OperatorName, ev.Actor);
+        Assert.Equal(OperatorName, EventDetail(ev, "actor"));
     }
 }

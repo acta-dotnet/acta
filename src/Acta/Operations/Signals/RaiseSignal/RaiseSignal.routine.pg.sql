@@ -1,15 +1,14 @@
 CREATE OR REPLACE FUNCTION {{schema}}.raise_signal(
     p_job_id BIGINT,
-    p_kind_code SMALLINT,
-    p_name VARCHAR,
+    p_checkpoint_kind_code SMALLINT,
+    p_checkpoint_name VARCHAR,
     p_value_format_id SMALLINT,
     p_value BYTEA,
-    p_actor_code SMALLINT,
-    p_actor VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR
+    p_event_message VARCHAR,
+    p_details_format_id SMALLINT,
+    p_details BYTEA
 )
-RETURNS TABLE (action SMALLINT, status_code SMALLINT)
+RETURNS TABLE (action SMALLINT, status SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -19,34 +18,32 @@ DECLARE
     v_message VARCHAR;
     v_from_status SMALLINT;
     v_namespace_id INT;
-    v_lineage_root_id BIGINT;
+    v_lineage_root_job_id BIGINT;
     v_definition_id INT;
     v_tenant_id INT;
     v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
+    v_event_recording SMALLINT;
 BEGIN
 
-    SELECT js.status_code INTO v_existing
+    SELECT js.checkpoint_status_code INTO v_existing
     FROM {{schema}}.checkpoints js
     WHERE
         js.job_id = p_job_id
-        AND js.kind_code = p_kind_code
-        AND js.name = p_name
+        AND js.checkpoint_kind_code = p_checkpoint_kind_code
+        AND js.checkpoint_name = p_checkpoint_name
     FOR UPDATE;
 
     SELECT
-        r.status_code,
+        r.job_status_code,
         j.namespace_id,
-        j.lineage_root_id,
+        j.lineage_root_job_id,
         j.definition_id,
         j.tenant_id,
         r.execution_number,
-        j.audit_level_code,
-        j.job_ref
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref
-    FROM {{schema}}.runtimes r
-    JOIN {{schema}}.jobs j ON j.id = r.job_id
+        j.event_recording_code
+    INTO v_from_status, v_namespace_id, v_lineage_root_job_id, v_definition_id, v_tenant_id, v_execution_number, v_event_recording
+    FROM {{schema}}.jobs_state r
+    JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE r.job_id = p_job_id
     FOR UPDATE OF r;
 
@@ -68,15 +65,15 @@ BEGIN
     v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
     v_message := CASE
         WHEN v_expired
-            THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
-        ELSE p_reason_message END;
+            THEN LEFT(COALESCE(p_event_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
+        ELSE p_event_message END;
 
     IF NOT v_expired THEN
         INSERT INTO {{schema}}.checkpoints (
             job_id,
-            kind_code,
-            name,
-            status_code,
+            checkpoint_kind_code,
+            checkpoint_name,
+            checkpoint_status_code,
             value_format_id,
             value,
             created_at_utc,
@@ -84,107 +81,87 @@ BEGIN
             version)
         VALUES (
             p_job_id,
-            p_kind_code,
-            p_name,
+            p_checkpoint_kind_code,
+            p_checkpoint_name,
             20 /* CheckpointStatusCode.Set */,
             p_value_format_id,
             p_value,
             v_now,
             v_now,
             0)
-        ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-            status_code = 20 /* CheckpointStatusCode.Set */,
+        ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
+            checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
             value_format_id = EXCLUDED.value_format_id,
             value = EXCLUDED.value,
             modified_at_utc = v_now,
             version = {{schema}}.checkpoints.version + 1;
     END IF;
 
-    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
+    IF v_event_recording = 20 /* EventRecordingCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
             namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
+            entity_code,
+            entity_id,
             definition_id,
             tenant_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
+            lineage_root_job_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details)
         VALUES (
             80 /* EventCode.JobSignalRaised */,
             v_now,
             v_namespace_id,
-            p_actor_code,
-            p_actor,
+            50 /* EntityCode.Job */,
             p_job_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_job_id),
             v_definition_id,
             v_tenant_id,
-            v_from_status,
-            v_from_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            v_message);
+            COALESCE(v_lineage_root_job_id, p_job_id),
+            v_execution_number,
+            v_message,
+            p_details_format_id,
+            p_details);
     END IF;
 
     IF v_from_status = 20 /* JobStatusCode.Suspended */ AND NOT v_expired THEN
-        UPDATE {{schema}}.runtimes
+        UPDATE {{schema}}.jobs_state
         SET
-            status_code = 10 /* JobStatusCode.Ready */,
+            job_status_code = 10 /* JobStatusCode.Ready */,
             next_run_at_utc = v_now,
             modified_at_utc = v_now,
             version = version + 1
         WHERE job_id = p_job_id;
 
-        IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
+        IF v_event_recording = 20 /* EventRecordingCode.Audit */ THEN
             INSERT INTO {{schema}}.events (
                 event_code,
                 created_at_utc,
                 namespace_id,
-                actor_code,
-                actor,
-                job_id,
-                job_ref,
-                execution_number,
-                lineage_root_id,
+                entity_code,
+                entity_id,
                 definition_id,
                 tenant_id,
-                from_status_code,
-                to_status_code,
-                execution_status_code,
-                duration_ms,
-                reason_code,
-                reason_message)
+                lineage_root_job_id,
+                execution_number,
+                event_message,
+                details_format_id,
+                details)
             VALUES (
                 72 /* EventCode.JobResumed */,
                 v_now,
                 v_namespace_id,
-                p_actor_code,
-                p_actor,
+                50 /* EntityCode.Job */,
                 p_job_id,
-                v_job_ref,
-                v_execution_number,
-                COALESCE(v_lineage_root_id, p_job_id),
                 v_definition_id,
                 v_tenant_id,
-                20 /* JobStatusCode.Suspended */,
-                10 /* JobStatusCode.Ready */,
-                NULL,
-                NULL,
-                p_reason_code,
-                p_reason_message);
+                COALESCE(v_lineage_root_job_id, p_job_id),
+                v_execution_number,
+                p_event_message,
+                p_details_format_id,
+                p_details);
         END IF;
 
         RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 10 /* JobStatusCode.Ready */::SMALLINT;

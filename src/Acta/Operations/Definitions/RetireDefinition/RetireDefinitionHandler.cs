@@ -29,10 +29,15 @@ internal sealed class RetireDefinitionHandler(
             new StoreCommand("RetireDefinition"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DefinitionId, definitionId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
                 cmd.AddOperatorAudit(dialect, command.Actor, command.ReasonMessage);
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(
+                        ActaSchema.Sql.RetiredJobDetails,
+                        EventDetails.Write(("actor", JobControlActor.Operator(command.Actor)), ("reason", EventReason.DefinitionRetired))
+                    )
+                );
             },
             DbProjectionResolver.Resolve<RetireDefinitionRow>(),
             ct
@@ -59,7 +64,7 @@ internal sealed class RetireDefinitionHandler(
 
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
             if (
-                row.ParentId is { } parent
+                row.ParentJobId is { } parent
                 && await RaiseChildLatch.Run(signals, jobId, parent, JobStatusCode.Cancelled, childExecutionNumber: null, ct)
             )
             {

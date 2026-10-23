@@ -8,21 +8,24 @@ import {
   mergeJobEvents,
   payloadFormatLabel
 } from './jobDetailState.ts';
-import type { JobEvent, JobDetail } from './types.ts';
+import type { EventItem } from '../../api.ts';
+import type { JobDetail } from './types.ts';
 
-const event = (jobEventId: number, createdAtUtc: string, reasonMessage: string | null = null): JobEvent => ({
-  jobEventId,
+const event = (eventId: number, createdAtUtc: string, message: string | null = null, detailsText: string | null = null): EventItem => ({
+  eventId,
   createdAtUtc,
-  reasonMessage,
-  reasonCode: null,
-  eventCode: `event-${jobEventId}`,
+  message,
+  detailsText,
+  eventCode: `event-${eventId}`,
   jobNamespace: 'billing',
+  entityKind: 'job',
+  entityId: 1,
+  jobName: 'invoice',
   jobRef: 'job_1',
+  lineageRootJobRef: null,
+  tenantName: null,
   workerRef: null,
   executionNumber: 1,
-  fromStatus: null,
-  toStatus: null,
-  executionStatus: null,
   durationMs: null
 });
 
@@ -32,7 +35,16 @@ test('latest meaningful event prefers the newest reason-bearing event', () => {
     event(2, '2026-01-02T00:00:00Z'),
     event(3, '2026-01-03T00:00:00Z')
   ];
-  assert.equal(latestMeaningfulEvent(events)?.jobEventId, 1);
+  assert.equal(latestMeaningfulEvent(events)?.eventId, 1);
+});
+
+test('a reason in the details makes an event meaningful; an unreadable payload does not', () => {
+  const events = [
+    event(1, '2026-01-01T00:00:00Z', 'root cause'),
+    event(2, '2026-01-02T00:00:00Z', null, '{"reason":"lease-expired","to":"ready"}'),
+    event(3, '2026-01-03T00:00:00Z', null, 'not json')
+  ];
+  assert.equal(latestMeaningfulEvent(events)?.eventId, 2);
 });
 
 test('event head replaces overlapping history without duplicating immutable pages', () => {
@@ -44,7 +56,7 @@ test('event head replaces overlapping history without duplicating immutable page
     ]
   );
 
-  assert.deepEqual(merged.map((item) => item.jobEventId), [4, 3, 2, 1]);
+  assert.deepEqual(merged.map((item) => item.eventId), [4, 3, 2, 1]);
 });
 
 test('child rollup is deterministic by count then status', () => {
@@ -89,11 +101,13 @@ test('incident summary includes current evidence in newest-first order', () => {
   const summary = buildIncidentSummary(
     snapshot,
     null,
-    [event(1, '2026-01-01T00:00:00Z'), event(2, '2026-01-02T00:00:00Z', 'timeout')],
+    [event(1, '2026-01-01T00:00:00Z', null, '{"reason":"wait-timed-out"}'), event(2, '2026-01-02T00:00:00Z', 'timeout')],
     'http://localhost/#/jobs/job_1'
   );
 
   assert.match(summary, /Acta incident: job_1/);
   assert.ok(summary.indexOf('event-2') < summary.indexOf('event-1'));
+  assert.match(summary, /event-2: timeout/);
+  assert.match(summary, /event-1: wait-timed-out/);
   assert.match(summary, /Dashboard: http:\/\/localhost\/#\/jobs\/job_1/);
 });

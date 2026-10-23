@@ -234,7 +234,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
 
         Assert.Null(await Db.From<JobEntity>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<TagEntity>().Where(x => x.EntityCode == EntityCode.Job && x.EntityId == jobId).ToListAsync(ct));
 
         var purgeAudit = await Db.From<EventEntity>()
             .Where(x => x.NamespaceId == namespaceId && x.EventCode == EventCode.JobPurged)
@@ -257,7 +257,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         Assert.Contains((await mutationTask).Action, new[] { ControlAction.Applied, ControlAction.NotFound });
         Assert.Equal(ControlAction.Applied, (await purgeTask).Action);
         Assert.Null(await Db.From<JobEntity>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Empty(await Db.From<TagEntity>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<TagEntity>().Where(x => x.EntityCode == EntityCode.Job && x.EntityId == jobId).ToListAsync(ct));
     }
 
     private async Task<TestTargets> CreateTargetsAsync(CancellationToken ct)
@@ -267,7 +267,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var definition = Assert.Single(
-            await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "add-numbers").ToListAsync(ct)
+            await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.DefinitionName == "add-numbers").ToListAsync(ct)
         );
 
         var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
@@ -279,7 +279,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             [
                 TagTarget.ForTenant(tenantName),
                 TagTarget.ForNamespace(TestNamespace),
-                TagTarget.ForDefinition(TestNamespace, definition.Name),
+                TagTarget.ForDefinition(TestNamespace, definition.DefinitionName),
                 TagTarget.ForJob(job),
             ]
         );

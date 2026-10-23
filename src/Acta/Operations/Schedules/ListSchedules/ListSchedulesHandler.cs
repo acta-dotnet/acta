@@ -2,7 +2,10 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="ISchedules.ListAsync"/>: schedules next run first, one keyset page at a time.</summary>
+/// <summary>
+/// <see cref="ISchedules.ListAsync"/>: the live list pages by next occurrence; the full list, which includes schedules
+/// with no next occurrence, pages by slot job and schedule name.
+/// </summary>
 internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<ListSchedulesResponse> HandleAsync(ListSchedulesQuery query, CancellationToken ct)
@@ -13,19 +16,32 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
         QueryValidation.ValidateEnum(query.Origin, nameof(query.Origin));
 
         var liveOnly = query.LiveOnly is null or true ? true : (bool?)null;
-        var paging = Paging.Start(
-            "ListSchedules",
-            "next_run_at_utc asc, job_id asc, name asc",
-            [CursorKeyKind.Utc, CursorKeyKind.Long, CursorKeyKind.Text],
-            query.Cursor,
-            query.PageSize,
-            [
-                ("ns", jobNamespace),
-                ("name", jobName),
-                ("origin", ((byte?)query.Origin)?.ToString(CultureInfo.InvariantCulture)),
-                ("live", liveOnly?.ToString()),
-            ]
-        );
+        ReadOnlySpan<(string, string?)> filters =
+        [
+            ("ns", jobNamespace),
+            ("name", jobName),
+            ("origin", ((byte?)query.Origin)?.ToString(CultureInfo.InvariantCulture)),
+            ("live", liveOnly?.ToString()),
+        ];
+        var paging = liveOnly is true
+            ? Paging.Start(
+                "ListSchedules",
+                "next_occurrence_at_utc asc, job_id asc, schedule_name asc",
+                [CursorKeyKind.Utc, CursorKeyKind.Long, CursorKeyKind.Text],
+                query.Cursor,
+                query.PageSize,
+                filters
+            )
+            : Paging.Start(
+                "ListSchedules",
+                "job_id asc, schedule_name asc",
+                [CursorKeyKind.Long, CursorKeyKind.Text],
+                query.Cursor,
+                query.PageSize,
+                filters
+            );
+        var after = paging.After;
+        var keyOffset = liveOnly is true ? 1 : 0;
 
         var (rows, total) = await session.QueryPageAsync(
             "ListSchedules",
@@ -33,11 +49,13 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.OriginCode, query.Origin));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleOriginCode, query.Origin));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LiveOnlyFlag, liveOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNextRunAtUtc, (DateTime?)paging.After?[0]));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)paging.After?[1]));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorScheduleName, (string?)paging.After?[2]));
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(ActaSchema.Sql.CursorNextOccurrenceAtUtc, liveOnly is true ? (DateTime?)after?[0] : null)
+                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)after?[keyOffset]));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorScheduleName, (string?)after?[keyOffset + 1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
@@ -45,12 +63,10 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
             ct
         );
 
-        // The list excludes rows without a next run, so the cursor key is always present.
-        var (items, nextCursor, hasMore, pageSize, totalCount) = paging.Page(
-            rows,
-            total,
-            static item => [item.NextRunAtUtc!.Value, item.JobId, item.ScheduleName]
-        );
+        // The live list holds only rows with a next occurrence, so its first cursor key is always present.
+        var (items, nextCursor, hasMore, pageSize, totalCount) = liveOnly is true
+            ? paging.Page(rows, total, static item => [item.NextOccurrenceAtUtc!.Value, item.JobId, item.ScheduleName])
+            : paging.Page(rows, total, static item => [item.JobId, item.ScheduleName]);
         return new ListSchedulesResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

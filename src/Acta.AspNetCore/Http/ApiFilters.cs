@@ -34,6 +34,10 @@ internal static class ApiFilters
                 extensions: new Dictionary<string, object?> { ["reasonCode"] = ex.Reason.ToString() }
             );
         }
+        catch (JobPurgeBlockedException ex)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Purge blocked.", detail: ex.Message);
+        }
         catch (PayloadTooLargeException ex)
         {
             // The BoundedReadStream ceiling tripped mid-read (a chunked body that outran its

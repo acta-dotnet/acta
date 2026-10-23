@@ -33,7 +33,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         Assert.InRange(due, dbNow.AddSeconds(599), dbNow.AddSeconds(660));
 
         var timer = Assert.Single(await TimersAsync(job.JobId, ct));
-        Assert.Equal(TimerName, timer.Name);
+        Assert.Equal(TimerName, timer.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Pending, timer.Status);
         Assert.Equal(due, timer.DueAtUtc);
     }
@@ -128,7 +128,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         var rival = await SleepAsync(job.JobId, "t.rival", delaySeconds: 600, ct);
 
         Assert.Equal(new ArmOrConsumeSleepTimerResponse(ArmOrConsumeSleepTimerOutcomeCode.Reject, null), rival);
-        Assert.Equal(TimerName, Assert.Single(await TimersAsync(job.JobId, ct)).Name);
+        Assert.Equal(TimerName, Assert.Single(await TimersAsync(job.JobId, ct)).CheckpointName);
     }
 
     private async Task<EnqueueJobResponse> EnqueueAsync(CancellationToken ct) =>
@@ -150,7 +150,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     {
         var past = DateTime.UtcNow.AddMinutes(-5);
         var affected = await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Name == TimerName)
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.CheckpointName == TimerName)
             .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = past }, ct);
         Assert.Equal(1, affected);
     }

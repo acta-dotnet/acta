@@ -44,7 +44,7 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         return Db.ExecuteRawAsync(
-            "UPDATE {schema}.namespaces SET status_code = @p_status WHERE id = @p_id",
+            "UPDATE {schema}.namespaces SET namespace_status_code = @p_status WHERE namespace_id = @p_id",
             ct,
             ("@p_status", (byte)status),
             ("@p_id", namespaceId)

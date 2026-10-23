@@ -33,7 +33,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
             JobName: "add-numbers",
             Input: payload,
             DeduplicationKey: deduplicationKey,
-            ParentId: parentId,
+            ParentJobId: parentId,
             TenantName: tenantName,
             OverrideParentTenant: overrideParent
         );

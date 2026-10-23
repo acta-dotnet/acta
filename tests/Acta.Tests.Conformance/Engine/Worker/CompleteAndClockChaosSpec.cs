@@ -37,7 +37,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.DoesNotContain(
             await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
-            e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded
+            e => e.EventCode == EventCode.JobExecutionSucceeded
         );
 
         // --- 2. Reclaim and rerun converge to one Succeeded finish; the handler ran twice.
@@ -46,8 +46,8 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
+        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Ready);
+        ChaosSpecHelpers.AssertSingleAttempt(events, EventCode.JobExecutionSucceeded);
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
@@ -65,8 +65,8 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
-        Assert.DoesNotContain(events, e => e.ExecutionStatus == ExecutionStatusCode.Orphaned);
+        ChaosSpecHelpers.AssertSingleAttempt(events, EventCode.JobExecutionSucceeded);
+        Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobExecutionOrphaned);
     }
 
     [Fact(DisplayName = "A complete after-commit failure is reconciled by the repeat itself and is not rerun")]
@@ -87,7 +87,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
+        ChaosSpecHelpers.AssertSingleAttempt(events, EventCode.JobExecutionSucceeded);
     }
 }
 
@@ -128,7 +128,7 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
         var runtime = Services.GetServices<WorkerRuntime>().Single();
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => runtime.InitializeAsync(ct));
         Assert.Contains("clock skew", ex.Message, StringComparison.OrdinalIgnoreCase);
-        var namespaceRow = await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
+        var namespaceRow = await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct);
         if (namespaceRow is not null)
         {
             Assert.Empty(await Db.From<WorkerEntity>().Where(w => w.NamespaceId == namespaceRow.Id).ToListAsync(ct));

@@ -34,11 +34,11 @@ internal static class DefinitionTestOps
         string jobName,
         int expectedVersion,
         DefinitionPolicyOverrides overrides,
-        JobControlActor actor,
+        string? actor,
         string? reasonMessage,
         CancellationToken ct
     ) =>
         await services
             .GetRequiredService<IDefinitions>()
-            .UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor.Actor, ct);
+            .UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor, ct);
 }

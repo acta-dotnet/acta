@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS temp._update_tenant;
 
 CREATE TEMP TABLE _update_tenant AS
-SELECT t.id, t.version AS from_version
+SELECT t.tenant_id, t.version AS from_version
 FROM {{schema}}.tenants t
 WHERE t.tenant_name = @p_tenant_name;
 
@@ -10,38 +10,20 @@ INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    job_ref,
-    execution_number,
-    lineage_root_id,
-    definition_id,
-    tenant_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    entity_code,
+    entity_id,
+    event_message,
+    details_format_id,
+    details)
 SELECT
     12 /* EventCode.TenantUpdated */,
     {{now}},
     1,
-    @p_actor_code,
-    @p_actor,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    s.id,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    @p_reason_message
+    120 /* EntityCode.Tenant */,
+    s.tenant_id,
+    @p_event_message,
+    @p_details_format_id,
+    @p_details
 FROM temp._update_tenant s
 WHERE s.from_version = @p_expected_version;
 
@@ -53,12 +35,12 @@ WHERE
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.tenant_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
-        WHEN s.id IS NULL THEN NULL
+        WHEN s.tenant_id IS NULL THEN NULL
         WHEN s.from_version <> @p_expected_version THEN s.from_version
         ELSE s.from_version + 1
     END AS version

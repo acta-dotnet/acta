@@ -9,6 +9,6 @@ SET
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    id = @p_id
+    alert_id = @p_alert_id
     AND version = @p_version
-RETURNING id;
+RETURNING alert_id;

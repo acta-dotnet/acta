@@ -83,7 +83,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         log.LogInformation("WorkerRuntime: job {JobId} overdue at admission; cancelling without running the handler.", job.JobId);
         return ExecutionCompletion.Terminal(
             CompletionKind.Cancelled,
-            EventReasonCode.JobDeadlineExceeded,
+            EventReason.DeadlineExceeded,
             "Job passed its deadline before execution started.",
             JobStatusCode.Cancelled
         );
@@ -96,7 +96,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     private ExecutionCompletion Bounced(bool admissionFailed) =>
         new(CompletionKind.Rescheduled)
         {
-            Reason = admissionFailed ? EventReasonCode.Unclassified : EventReasonCode.JobConcurrencyKeyHeld,
+            Reason = admissionFailed ? null : EventReason.ConcurrencyKeyHeld,
             ReasonMessage = admissionFailed
                 ? "Admission failed on a provider error; the attempt re-armed instead of running."
                 : "Every concurrency slot for this key is held by another execution.",
@@ -204,7 +204,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         // An absolute instant rather than a delay, because the turn is a place in the meter's queue, not a cooldown.
         return new ExecutionCompletion(CompletionKind.Rescheduled)
         {
-            Reason = EventReasonCode.JobRateLimited,
+            Reason = EventReason.RateLimited,
             ReasonMessage = "The rate limit for this key reserved this job its next turn.",
             RescheduleResumeAtUtc = reservation.ResumeAtUtc,
         };

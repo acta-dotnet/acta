@@ -19,6 +19,8 @@ internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect di
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeCutoffUtc, command.CutoffUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBatchSize, command.BatchSize));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PurgeBeforeJobId, command.BeforeJobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertFloorUtc, command.AlertFloorUtc ?? command.CutoffUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertFloorEventId, command.AlertFloorEventId ?? long.MaxValue));
             },
             static reader => new PurgeExpiredDataResponse(reader.GetInt32(0), reader.GetInt64(1)),
             ct

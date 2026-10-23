@@ -1,46 +1,40 @@
 SELECT
-    e.id AS event_id,
+    e.event_id,
     e.created_at_utc,
-    ns.name AS namespace,
-    e.job_id,
-    e.job_ref,
-    e.lineage_root_id AS lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.definition_id,
-    d.name AS job_name,
+    ns.namespace_name AS namespace,
+    e.namespace_id,
+    {{decode:entity:e.entity_code}} AS entity_kind,
+    e.entity_code,
+    e.entity_id,
     {{decode:event:e.event_code}} AS event,
     e.event_code,
-    {{decode:actor:e.actor_code}} AS actor_kind,
-    e.actor_code,
-    e.actor,
-    {{decode:job-status:e.from_status_code}} AS from_status,
-    e.from_status_code,
-    {{decode:job-status:e.to_status_code}} AS to_status,
-    e.to_status_code,
-    {{decode:execution-status:e.execution_status_code}} AS execution_status,
-    e.execution_status_code,
-    {{decode:job-event-reason:e.reason_code}} AS reason,
-    e.reason_code,
-    e.reason_message,
-    CASE e.detail_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE CONCAT('custom-', e.detail_format_id)
-    END AS detail_format,
-    CASE
-        WHEN
-            e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
-            THEN CAST(e.detail AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS detail_text,
+    e.definition_id,
+    d.definition_name AS job_name,
+    e.tenant_id,
+    t.tenant_name,
+    e.lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
     e.worker_id,
     wkr.worker_ref,
     e.execution_number,
     e.duration_ms,
-    e.tenant_id
+    e.event_message,
+    CASE e.details_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE CONCAT('custom-', e.details_format_id)
+    END AS details_format,
+    CASE
+        WHEN
+            e.details_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS details_text
 FROM {{schema}}.events AS e
-JOIN {{schema}}.namespaces AS ns ON ns.id = e.namespace_id
-LEFT JOIN {{schema}}.definitions AS d ON d.id = e.definition_id
-LEFT JOIN {{schema}}.jobs AS root ON root.id = e.lineage_root_id
-LEFT JOIN {{schema}}.workers AS wkr ON wkr.id = e.worker_id
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = e.namespace_id
+LEFT JOIN {{schema}}.definitions AS d ON d.definition_id = e.definition_id
+LEFT JOIN {{schema}}.tenants AS t
+    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
+LEFT JOIN {{schema}}.jobs AS root ON root.job_id = e.lineage_root_job_id
+LEFT JOIN {{schema}}.workers AS wkr ON wkr.worker_id = e.worker_id

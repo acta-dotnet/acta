@@ -3,9 +3,9 @@
 // events_view / schedules_view, qualified by the configured schema). Those views are for ad-hoc
 // inspection and learning the schema only, never a stable integration API, so the generated statement
 // is a starting point for a human at a SQL prompt, not a contract. Interpolated string values are
-// single-quote escaped; the code filters go through the decoded text columns (event / actor_kind /
-// reason / status), which is what the kebab-case filter values the dashboard carries actually match (the
-// raw *_code columns are the undecoded numeric codes). Names (namespace, job name, tenant name, lane) are
+// single-quote escaped; the code filters go through the decoded text columns (event / entity_kind /
+// status), which is what the kebab-case filter values the dashboard carries actually match (the raw
+// *_code columns are the undecoded numeric codes). Names (namespace, job name, tenant name, lane) are
 // stored lowercase and the API folds their filters, so the copy folds them the same way.
 
 const ROW_LIMIT = 100;
@@ -79,18 +79,26 @@ export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): 
 export interface EventsSqlFilters {
   namespace?: string;
   eventCode?: string;
-  actorCode?: string;
-  reasonCode?: string;
+  entityKind?: string;
+  jobRef?: string;
+  tenantName?: string;
   createdFromUtc?: string;
   createdToUtc?: string;
 }
 
 export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
+  const schema = dialect.schema ?? 'acta';
   if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
-  if (text(filters.actorCode)) predicates.push({ column: 'actor_kind', op: '=', value: text(filters.actorCode) });
-  if (text(filters.reasonCode)) predicates.push({ column: 'reason', op: '=', value: text(filters.reasonCode) });
+  if (text(filters.entityKind)) predicates.push({ column: 'entity_kind', op: '=', value: text(filters.entityKind) });
+  // events_view stores no job ref: a job's events are the job subject's, its id looked up by ref.
+  if (text(filters.jobRef)) {
+    predicates.push({
+      raw: `entity_kind = 'job' AND entity_id = (SELECT job_id FROM ${schema}.jobs_view WHERE job_ref = ${sqlLiteral(text(filters.jobRef))})`
+    });
+  }
+  if (text(filters.tenantName)) predicates.push({ column: 'tenant_name', op: '=', value: name(filters.tenantName) });
   if (text(filters.createdFromUtc))
     predicates.push({ column: 'created_at_utc', op: '>=', value: text(filters.createdFromUtc) });
   // Exclusive upper bound to match every provider's ListEvents.sql (`created_at_utc < to`); a `<=`
@@ -110,7 +118,7 @@ export function schedulesListSql(filters: SchedulesSqlFilters, dialect: SqlDiale
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
   if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: name(filters.jobName) });
-  // "Live only" is the not-orphaned view the list shows by default; a schedule keeps its origin link.
-  if (filters.liveOnly) predicates.push({ raw: 'orphaned_at_utc IS NULL' });
-  return select(dialect, 'schedules_view', predicates, 'next_run_at_utc');
+  // "Live only" is the list's default: schedules with an upcoming occurrence that are not orphaned.
+  if (filters.liveOnly) predicates.push({ raw: "status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL" });
+  return select(dialect, 'schedules_view', predicates, 'next_occurrence_at_utc');
 }

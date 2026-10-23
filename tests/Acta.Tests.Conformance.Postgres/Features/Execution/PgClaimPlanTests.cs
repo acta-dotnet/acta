@@ -8,13 +8,13 @@ namespace Acta.Tests.Conformance.Postgres.Features.Execution;
 
 /// <summary>
 /// The plans claim_jobs actually runs, captured by auto_explain from inside the routine: the claim is one
-/// ordered scan of ix_runtimes_claim_ready keyed per priority band, and the empty claim's horizon reads the
+/// ordered scan of ix_jobs_state_claim_ready keyed per priority band, and the empty claim's horizon reads the
 /// head of each band once. Parked waits and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
 public sealed class PgClaimPlanTests : ClaimSkewTestBase
 {
     [Fact(
-        DisplayName = "claim_jobs seeks ix_runtimes_claim_ready per priority band without sorting, and its horizon reads each band's head"
+        DisplayName = "claim_jobs seeks ix_jobs_state_claim_ready per priority band without sorting, and its horizon reads each band's head"
     )]
     public async Task Claim_seeks_each_band_and_the_horizon_reads_each_band_head()
     {
@@ -62,16 +62,16 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
         var candidates = Nodes(Assert.Single(Nodes(routine[0].GetProperty("Plan")), n => Text(n, "Subplan Name") == "CTE candidates"))
             .ToList();
         Assert.DoesNotContain(candidates, n => Text(n, "Node Type") == "Sort");
-        var scan = Assert.Single(candidates, n => Text(n, "Index Name") == "ix_runtimes_claim_ready");
-        Assert.Contains("priority_code = ANY", Text(scan, "Index Cond"), StringComparison.Ordinal);
+        var scan = Assert.Single(candidates, n => Text(n, "Index Name") == "ix_jobs_state_claim_ready");
+        Assert.Contains("job_priority_code = ANY", Text(scan, "Index Cond"), StringComparison.Ordinal);
         Assert.Contains("next_run_at_utc <= now()", Text(scan, "Index Cond"), StringComparison.Ordinal);
         Assert.Equal((double)DueRows, scan.GetProperty("Actual Rows").GetDouble());
 
         var heads = Assert.Single(
             Nodes(routine[1].GetProperty("Plan")),
             n =>
-                Text(n, "Index Name") == "ix_runtimes_claim_ready"
-                && Text(n, "Index Cond").Contains("band.priority_code", StringComparison.Ordinal)
+                Text(n, "Index Name") == "ix_jobs_state_claim_ready"
+                && Text(n, "Index Cond").Contains("job_priority_code = band.", StringComparison.Ordinal)
         );
         Assert.Equal((double)Enum.GetValues<JobPriorityCode>().Length, heads.GetProperty("Actual Loops").GetDouble());
     }
@@ -79,7 +79,7 @@ public sealed class PgClaimPlanTests : ClaimSkewTestBase
     private async Task<int> ClaimAsync(NpgsqlConnection conn, int ns, int workerId, CancellationToken ct)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT id FROM {Schema.SchemaName}.claim_jobs(@ns, @worker, 16, 30) WHERE id IS NOT NULL";
+        cmd.CommandText = $"SELECT job_id FROM {Schema.SchemaName}.claim_jobs(@ns, @worker, 16, 30) WHERE job_id IS NOT NULL";
         cmd.Parameters.AddWithValue("ns", ns);
         cmd.Parameters.AddWithValue("worker", workerId);
         var claimed = 0;

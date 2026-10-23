@@ -140,7 +140,7 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int> PurgeBatchSize = new("p_batch_size", DbKind.Int32);
 
-        /// <summary>The jobs walk's cursor: the section reads the runtimes rows below this job id, or from the newest when zero.</summary>
+        /// <summary>The jobs walk's cursor: the section reads the jobs_state rows below this job id, or from the newest when zero.</summary>
         public static readonly DbValueSpec<long> PurgeBeforeJobId = new("p_before_job_id", DbKind.Int64);
 
         /// <summary>
@@ -165,18 +165,18 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<string?> CorrelationKeyFilter = new("p_correlation_key", DbKind.AsciiString, 64);
 
         /// <summary>
-        /// List-read lane filter: non-null restricts to jobs in lanes of this name. Sized to lanes.name
+        /// List-read lane filter: non-null restricts to jobs in lanes of this name. Sized to lanes.lane_name
         /// (128) and bound canonical, as the name is stored.
         /// </summary>
         public static readonly DbValueSpec<string?> LaneFilter = new("p_lane_filter", DbKind.AsciiString, 128);
 
         /// <summary>
-        /// List-read tag filters encoded as JSON rows with canonical tag name and internal value_search.
+        /// List-read tag filters encoded as JSON rows with canonical tag_name and internal tag_value_search.
         /// NULL means no tag filter. The operation SQL parses this provider-locally.
         /// </summary>
         public static readonly DbValueSpec<string?> TagFiltersJson = new("p_tag_filters", DbKind.UnicodeString, -1);
 
-        public static readonly DbValueSpec<byte> TagTargetScopeCode = new("p_scope_code", DbKind.Byte);
+        public static readonly DbValueSpec<byte> TagTargetEntityCode = new("p_entity_code", DbKind.Byte);
 
         public static readonly DbValueSpec<long?> TagTargetLookupId = new("p_lookup_id", DbKind.Int64);
 
@@ -187,14 +187,14 @@ internal static partial class ActaSchema
         /// <summary>
         /// List-read parent filter: non-null restricts to the direct children of one job (ix_jobs_parent).
         /// </summary>
-        public static readonly DbValueSpec<long?> ParentIdFilter = new("p_parent_id", DbKind.Int64);
+        public static readonly DbValueSpec<long?> ParentJobIdFilter = new("p_parent_job_id", DbKind.Int64);
 
         /// <summary>
         /// List-read keyset cursors: the last returned row's order-key values; all NULL on page one.
         /// </summary>
         public static readonly DbValueSpec<DateTime?> CursorCreatedAtUtc = new("p_cursor_created_at_utc", DbKind.UtcInstant);
 
-        public static readonly DbValueSpec<DateTime?> CursorNextRunAtUtc = new("p_cursor_next_run_at_utc", DbKind.UtcInstant);
+        public static readonly DbValueSpec<DateTime?> CursorNextOccurrenceAtUtc = new("p_cursor_next_occurrence_at_utc", DbKind.UtcInstant);
 
         public static readonly DbValueSpec<DateTime?> CursorLastSeenAtUtc = new("p_cursor_last_seen_at_utc", DbKind.UtcInstant);
 
@@ -294,16 +294,28 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<DateTime> StaleBefore = new("p_stale_before_utc", DbKind.UtcInstant);
 
         /// <summary>
-        /// set_schedule_overrides audit text: the rendered what-changed summary written to
-        /// events.reason_message. A separate parameter from p_reason_message, which carries the
-        /// operator's justification into schedules.reason_message on the same command.
+        /// retire_definition's details for each job.cancelled event it writes: the operator and the definition-retired
+        /// reason, beside p_details, which the definition.retired event carries.
         /// </summary>
-        public static readonly DbValueSpec<string?> ChangeSummary = new("p_change_summary", DbKind.UnicodeString, 512);
+        public static readonly DbValueSpec<byte[]?> RetiredJobDetails = new("p_job_details", DbKind.BinaryPayload);
+
+        /// <summary>ListEvents job filter: the job-subject events of one job id; NULL skips it.</summary>
+        public static readonly DbValueSpec<long?> JobIdFilter = new("p_job_id", DbKind.Int64);
 
         /// <summary>
-        /// set_schedule_overrides: the target schedule's own cursor, recomputed in C# from the new
-        /// effective expression/time zone (distinct from p_job_next_run_at_utc, the owning slot's MIN).
+        /// The namespace's alert floor (GetAlertFloorResponse), bound as a (created_at_utc, event_id) pair.
         /// </summary>
-        public static readonly DbValueSpec<DateTime?> ScheduleNextRunAtUtc = new("p_schedule_next_run_at_utc", DbKind.UtcInstant);
+        public static readonly DbValueSpec<DateTime> AlertFloorUtc = new("p_alert_floor_utc", DbKind.UtcInstant);
+
+        /// <summary>The event id half of the alert floor; see <see cref="AlertFloorUtc"/>.</summary>
+        public static readonly DbValueSpec<long> AlertFloorEventId = new("p_alert_floor_event_id", DbKind.Int64);
+
+        /// <summary>
+        /// A JSON array of <c>{"event_id", "job_id"}</c> objects naming every unresolved skip for the replay read.
+        /// </summary>
+        public static readonly DbValueSpec<string?> AlertPoisonEvents = new("p_alert_poison_events", DbKind.UnicodeString, -1);
+
+        /// <summary>get_alert_floor's namespace, or NULL to take the namespace of <see cref="JobIdFilter"/>'s job.</summary>
+        public static readonly DbValueSpec<int?> NamespaceIdFilter = new("p_namespace_id", DbKind.Int32);
     }
 }

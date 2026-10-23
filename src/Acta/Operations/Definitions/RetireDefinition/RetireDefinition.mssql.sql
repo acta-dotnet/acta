@@ -6,66 +6,77 @@ DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 DECLARE @ns INT, @version INT, @existing_status TINYINT, @retention_seconds INT, @action TINYINT;
 DECLARE @parked TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
-    job_ref UNIQUEIDENTIFIER NOT NULL,
-    parent_id BIGINT NULL,
+    parent_job_id BIGINT NULL,
     namespace_id INT NOT NULL,
     tenant_id INT NULL,
     definition_id INT NOT NULL,
-    lineage_root_id BIGINT NOT NULL,
-    audit_level_code TINYINT NOT NULL);
+    lineage_root_job_id BIGINT NOT NULL,
+    event_recording_code TINYINT NOT NULL);
 DECLARE @cancelled TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
-    from_status_code TINYINT NOT NULL,
     execution_number INT NOT NULL);
-DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @heads TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT, @promoted INT = 0;
+DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
 BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
+    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+    SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(jd.namespace_id AS NVARCHAR(12))
+    FROM {{schema}}.definitions jd
+    WHERE jd.definition_id = @p_definition_id;
+
+    IF @lock_resource IS NOT NULL
+        BEGIN
+            EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
+            IF @lock_result < 0
+                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+        END
+
     -- The lanes of the definition's parked laned jobs, locked one row at a time in id order before any
     -- job row (docs/sql-execution-policy.md, "Lane lock order").
-    INSERT INTO @lanes (id)
+    INSERT INTO @lanes (lane_id)
     SELECT DISTINCT r.lane_id
-    FROM {{schema}}.runtimes r
-    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
+    FROM {{schema}}.jobs_state r
+    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE
-        j.definition_id = @p_id
+        j.definition_id = @p_definition_id
         AND r.lane_id IS NOT NULL
-        AND r.status_code IN (
+        AND r.job_status_code IN (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
         );
 
     WHILE 1 = 1
     BEGIN
         SET @lane_next = NULL;
-        SELECT TOP (1) @lane_next = l.id
+        SELECT TOP (1) @lane_next = l.lane_id
         FROM @lanes l
-        WHERE l.id > @lane_cursor
-        ORDER BY l.id;
+        WHERE l.lane_id > @lane_cursor
+        ORDER BY l.lane_id;
 
         IF @lane_next IS NULL
             BREAK;
 
         SET @lane_locked = NULL;
-        SELECT @lane_locked = l.id
+        SELECT @lane_locked = l.lane_id
         FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
-        WHERE l.id = @lane_next;
+        WHERE l.lane_id = @lane_next;
 
         IF @lane_locked IS NULL
-            DELETE FROM @lanes WHERE id = @lane_next;
+            DELETE FROM @lanes WHERE lane_id = @lane_next;
         SET @lane_cursor = @lane_next;
     END;
 
     SELECT
         @ns = jd.namespace_id,
         @version = jd.version,
-        @existing_status = jd.status_code,
+        @existing_status = jd.definition_status_code,
         @retention_seconds = jd.retention_seconds_effective
     FROM {{schema}}.definitions jd WITH (UPDLOCK, ROWLOCK)
-    WHERE jd.id = @p_id;
+    WHERE jd.definition_id = @p_definition_id;
 
     SET @action = CASE
         WHEN @ns IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
@@ -77,135 +88,116 @@ BEGIN TRY
     BEGIN
         UPDATE {{schema}}.definitions
         SET
-            status_code = 240 /* DefinitionStatusCode.Retired */,
+            definition_status_code = 240 /* DefinitionStatusCode.Retired */,
             modified_at_utc = @now,
             version = version + 1
-        WHERE id = @p_id;
+        WHERE definition_id = @p_definition_id;
         SET @version = @version + 1;
 
-        /* The parked set is materialized first so the runtimes update drives off a table variable and
-           can seek pk_runtimes, per the SQL Server join-update rule in sql-execution-policy.md. */
+        /* The parked set is materialized first so the jobs_state update drives off a table variable and
+           can seek pk_jobs_state, per the SQL Server join-update rule in sql-execution-policy.md. */
         INSERT INTO @parked (
             job_id,
-            job_ref,
-            parent_id,
+            parent_job_id,
             namespace_id,
             tenant_id,
             definition_id,
-            lineage_root_id,
-            audit_level_code)
+            lineage_root_job_id,
+            event_recording_code)
         SELECT
-            j.id,
-            j.job_ref,
-            j.parent_id,
+            j.job_id,
+            j.parent_job_id,
             j.namespace_id,
             j.tenant_id,
             j.definition_id,
-            COALESCE(j.lineage_root_id, j.id),
-            j.audit_level_code
+            COALESCE(j.lineage_root_job_id, j.job_id),
+            j.event_recording_code
         FROM {{schema}}.jobs j
-        INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+        INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
         WHERE
-            j.definition_id = @p_id
-            AND r.status_code IN (
+            j.definition_id = @p_definition_id
+            AND r.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
             )
             -- A laned job is parked here only in a lane locked above.
-            AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.id FROM @lanes l));
+            AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.lane_id FROM @lanes l));
 
         UPDATE r
         SET
-            status_code = 220 /* JobStatusCode.Cancelled */,
+            job_status_code = 220 /* JobStatusCode.Cancelled */,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             retention_until_utc = DATEADD(SECOND, @retention_seconds, @now),
             modified_at_utc = @now,
             version = r.version + 1
-        OUTPUT INSERTED.job_id, DELETED.status_code, INSERTED.execution_number
-            INTO @cancelled (job_id, from_status_code, execution_number)
-        FROM {{schema}}.runtimes r WITH (FORCESEEK)
+        OUTPUT INSERTED.job_id, INSERTED.execution_number
+            INTO @cancelled (job_id, execution_number)
+        FROM {{schema}}.jobs_state r WITH (FORCESEEK)
         INNER JOIN @parked p ON p.job_id = r.job_id
         WHERE
-            r.status_code IN (
+            r.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
             );
+
+        UPDATE st
+        SET
+            next_occurrence_at_utc = NULL,
+            last_advanced_occurrence_at_utc = NULL,
+            modified_at_utc = @now
+        FROM {{schema}}.schedules s
+        INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.job_id = s.job_id AND st.schedule_name = s.schedule_name
+        WHERE s.definition_id = @p_definition_id;
 
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
             namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
+            entity_code,
+            entity_id,
             definition_id,
             tenant_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
+            lineage_root_job_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details)
         SELECT
             70 /* EventCode.JobCancelled */,
             @now,
             p.namespace_id,
-            @p_actor_code,
-            @p_actor,
+            50 /* EntityCode.Job */,
             p.job_id,
-            p.job_ref,
-            c.execution_number,
-            p.lineage_root_id,
             p.definition_id,
             p.tenant_id,
-            c.from_status_code,
-            220 /* JobStatusCode.Cancelled */,
-            NULL,
-            NULL,
-            42 /* EventReasonCode.JobDefinitionRetired */,
-            @p_reason_message
+            p.lineage_root_job_id,
+            c.execution_number,
+            @p_event_message,
+            1 /* JobPayloadFormat.Json */,
+            @p_job_details
         FROM @cancelled c
         INNER JOIN @parked p ON p.job_id = c.job_id
-        WHERE p.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
+        WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
             namespace_id,
-            actor_code,
-            actor,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
+            entity_code,
+            entity_id,
             definition_id,
-            tenant_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
+            event_message,
+            details_format_id,
+            details)
         VALUES (
             31 /* EventCode.JobDefinitionRetired */,
             @now,
             @ns,
-            @p_actor_code,
-            @p_actor,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            @p_id,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            @p_reason_code,
-            @p_reason_message);
+            30 /* EntityCode.Definition */,
+            @p_definition_id,
+            @p_definition_id,
+            @p_event_message,
+            @p_details_format_id,
+            @p_details);
 
         -- Once every parked member is cancelled, each locked lane hands on to its lowest-id unfinished
         -- member if that member is Blocked and no member still runs, so no retired member is promoted.
@@ -213,26 +205,26 @@ BEGIN TRY
         SELECT h.job_id
         FROM @lanes l
         CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.status_code
-            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
             WHERE
-                m.lane_id = l.id
+                m.lane_id = l.lane_id
                 AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
+                AND m.job_status_code IN (
                     10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                     30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
                 )
             ORDER BY m.job_id
         ) h
         WHERE
-            h.status_code = 15 /* JobStatusCode.Blocked */
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
             AND NOT EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
                 WHERE
-                    o.lane_id = l.id
+                    o.lane_id = l.lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
+                    AND o.job_status_code IN (
                         10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
                         50 /* JobStatusCode.Executing */
                     )
@@ -240,13 +232,13 @@ BEGIN TRY
 
         UPDATE r
         SET
-            status_code = 10 /* JobStatusCode.Ready */,
+            job_status_code = 10 /* JobStatusCode.Ready */,
             next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
             modified_at_utc = @now,
             version = r.version + 1
-        FROM {{schema}}.runtimes r WITH (FORCESEEK)
+        FROM {{schema}}.jobs_state r WITH (FORCESEEK)
         INNER JOIN @heads h ON h.job_id = r.job_id
-        WHERE r.status_code = 15 /* JobStatusCode.Blocked */;
+        WHERE r.job_status_code = 15 /* JobStatusCode.Blocked */;
         SET @promoted = @@ROWCOUNT;
     END;
 
@@ -254,7 +246,7 @@ BEGIN TRY
         @action AS action,
         @version AS version,
         c.job_id,
-        p.parent_id,
+        p.parent_job_id,
         CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT) AS lane_promoted
     FROM @cancelled c
     INNER JOIN @parked p ON p.job_id = c.job_id
@@ -263,7 +255,7 @@ BEGIN TRY
         @action AS action,
         @version AS version,
         CAST(NULL AS BIGINT) AS job_id,
-        CAST(NULL AS BIGINT) AS parent_id,
+        CAST(NULL AS BIGINT) AS parent_job_id,
         CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT) AS lane_promoted
     WHERE NOT EXISTS (SELECT 1 FROM @cancelled);
 

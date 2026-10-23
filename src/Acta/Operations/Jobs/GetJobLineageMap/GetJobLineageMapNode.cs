@@ -14,7 +14,7 @@ public sealed record GetJobLineageMapNode(
     JobStatusCode Status,
     [property: JsonIgnore] long? ParentJobId,
     JobRef? ParentJobRef,
-    [property: JsonIgnore] long? LineageRootId,
+    [property: JsonIgnore] long? LineageRootJobId,
     JobRef? LineageRootJobRef,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc

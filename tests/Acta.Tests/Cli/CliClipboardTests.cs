@@ -217,7 +217,7 @@ public class CliRunnerClipboardTests
                         JobNamespace: "shop",
                         DefinitionId: 1,
                         JobName: "send-email",
-                        LineageRootId: null,
+                        LineageRootJobId: null,
                         LineageRootJobRef: null,
                         ParentJobId: null,
                         ParentJobRef: null,

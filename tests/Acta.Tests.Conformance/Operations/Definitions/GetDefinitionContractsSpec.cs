@@ -44,18 +44,18 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
         var firstId = await RegisterAsync(TestNamespaceId, first, 3, ct);
         var secondId = await RegisterAsync(TestNamespaceId, second, 5, ct);
 
-        var catalog = (await ReadAsync(TestNamespaceId, ct)).ToDictionary(c => c.Name);
+        var catalog = (await ReadAsync(TestNamespaceId, ct)).ToDictionary(c => c.DefinitionName);
 
         Assert.Equal([first, second], catalog.Keys.Order(StringComparer.Ordinal));
         var stored = catalog[first];
-        Assert.Equal(firstId, stored.Id);
+        Assert.Equal(firstId, stored.DefinitionId);
         Assert.Equal(Generation, stored.ManifestGenerationAtUtc);
         Assert.Equal(typeof(int).FullName, stored.Contract.InputTypeName);
         Assert.Equal(JobPayloadFormat.Json.Id, stored.Contract.InputFormatId);
         Assert.False(string.IsNullOrEmpty(stored.DefinitionHash));
         Assert.Equal(DefinitionStatusCode.Active, stored.Status);
         Assert.Equal(3, stored.Effective.MaxAttempts);
-        Assert.Equal(secondId, catalog[second].Id);
+        Assert.Equal(secondId, catalog[second].DefinitionId);
         Assert.Equal(5, catalog[second].Effective.MaxAttempts);
     }
 
@@ -72,7 +72,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
             name,
             await VersionAsync(id, ct),
             new DefinitionPolicyOverrides(MaxAttempts: 9),
-            new JobControlActor(ActorCode.Operator, "tester"),
+            "tester",
             null,
             ct
         );
@@ -104,7 +104,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
         await RegisterAsync(TestNamespaceId, mine, 3, ct);
         await RegisterAsync(otherNamespaceId, Unique("contract-theirs"), 3, ct);
 
-        Assert.Equal(mine, Assert.Single(await ReadAsync(TestNamespaceId, ct)).Name);
+        Assert.Equal(mine, Assert.Single(await ReadAsync(TestNamespaceId, ct)).DefinitionName);
     }
 
     private static JobDescriptor Def(string name, int maxAttempts) =>
@@ -118,7 +118,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

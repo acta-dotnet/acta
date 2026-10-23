@@ -59,7 +59,8 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var after = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(DailyCron, after.ExpressionOverride);
         Assert.Equal(DailyCron, after.ExpressionEffective);
-        Assert.Equal(expectedNext, after.NextRunAtUtc); // moved off the old Cron5 cursor onto the new expression's next instant
+        Assert.Equal(expectedNext, after.NextOccurrenceAtUtc); // moved off the old Cron5 cursor onto the new expression's next instant
+        Assert.Equal("widen", after.ChangeMessage);
 
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(expectedNext, slot.NextRunAtUtc); // the sole schedule, so the slot MIN follows it
@@ -69,14 +70,11 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(DailyCron, item.Expression); // ListAsync/detail shows the overridden effective expression
 
         var slotId = await SlotIdAsync(jobName, ct);
-        var events = await Db.From<EventEntity>()
-            .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleOverridesUpdated)
-            .ToListAsync(ct);
-        var changed = Assert.Single(events);
-        Assert.Equal("operator-1", changed.Actor);
-        Assert.Contains("only", changed.ReasonMessage);
-        Assert.Contains(Cron5, changed.ReasonMessage);
-        Assert.Contains(DailyCron, changed.ReasonMessage);
+        var changed = await ReadSingleEventAsync(slotId, EventCode.ScheduleOverridesUpdated, ct);
+        Assert.Equal("operator-1", EventDetail(changed, "actor"));
+        Assert.Equal("only", EventDetail(changed, "schedule"));
+        Assert.Contains(Cron5, changed.EventMessage);
+        Assert.Contains(DailyCron, changed.EventMessage);
     }
 
     [Fact(DisplayName = "A stale expected version is VersionConflict with the schedule's current state and nothing changes")]
@@ -211,7 +209,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
             (await Schedules.UpdateOverridesAsync(Lookup(jobName, "nope"), 0, DailyCron, null, ct: ct)).Action
         );
 
-        // Re-register with no declared schedules: the orphan sweep stamps orphaned_at_utc on "gone".
+        // Re-register with no declared schedules: the orphan sweep orphans "gone".
         await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
         Assert.Equal(
             ControlAction.NotFound,
@@ -242,7 +240,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         var afterOverride = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(DailyCron, afterOverride.ExpressionOverride);
         Assert.Equal(DailyCron, afterOverride.ExpressionEffective);
-        Assert.Equal(expectedNext, afterOverride.NextRunAtUtc); // a fresh cursor under the new expression, even while paused
+        Assert.Equal(expectedNext, afterOverride.NextOccurrenceAtUtc); // a fresh cursor under the new expression, even while paused
         Assert.Equal(ScheduleStatusCode.Paused, afterOverride.Status); // the override does not resurrect the schedule
         Assert.Null(afterOverride.PausedUntilUtc); // still the same indefinite pause
 
@@ -252,7 +250,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
 
         var resumed = await Schedules.ResumeAsync(Lookup(jobName, "only"), ct: ct);
         Assert.Equal(ControlAction.Applied, resumed.Action);
-        Assert.Equal(expectedNext, resumed.NextRunAtUtc); // resume reconciles the still-future overridden cursor unchanged
+        Assert.Equal(expectedNext, resumed.NextOccurrenceAtUtc); // resume reconciles the still-future overridden cursor unchanged
 
         var resumedSlot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Ready, resumedSlot.Status);
@@ -290,7 +288,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -307,11 +305,10 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleRow> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
-        return Assert.Single(rows);
+        return Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == scheduleName);
     }
 
     private async Task<TestJobRow> SlotAsync(string jobName, CancellationToken ct)
@@ -331,7 +328,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,

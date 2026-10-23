@@ -102,8 +102,8 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal([ScheduleName], triggers[0]);
     }
 
-    [Fact(DisplayName = "Audit level emits finished and rolled-over events")]
-    public async Task Audit_level_audit_emits_finished_and_rolled_over()
+    [Fact(DisplayName = "Audit recording emits succeeded and rolled-over events")]
+    public async Task Audit_recording_emits_succeeded_and_rolled_over()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
@@ -113,7 +113,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var codes = events.Select(e => e.EventCode).ToHashSet();
-        Assert.Contains(EventCode.JobExecutionFinished, codes);
+        Assert.Contains(EventCode.JobExecutionSucceeded, codes);
         Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
@@ -214,7 +214,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var cancelEvent = Assert.Single(events, e => e.EventCode == EventCode.JobCancelled);
-        Assert.Equal(EventReasonCode.JobHandlerCancelled, cancelEvent.EventReasonCode);
+        Assert.Equal(EventReason.HandlerCancelled, cancelEvent.Reason);
     }
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
@@ -227,10 +227,9 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, CancellationToken ct)
     {
-        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
-        var row = Assert.Single(rows);
-        Assert.NotNull(row.NextRunAtUtc);
-        return row.NextRunAtUtc!.Value;
+        var row = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.NotNull(row.NextOccurrenceAtUtc);
+        return row.NextOccurrenceAtUtc!.Value;
     }
 
     // Advance the fake clock to the slot's due instant so the walker sees the schedule due, then run

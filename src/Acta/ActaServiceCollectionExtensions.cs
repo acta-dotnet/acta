@@ -99,6 +99,8 @@ public static class ActaServiceCollectionExtensions
 
         services.TryAddSingleton<AcknowledgeAlertHandler>();
         services.TryAddSingleton<GetAlertableEventsHandler>();
+        services.TryAddSingleton<GetAlertFloorHandler>();
+        services.TryAddSingleton<GetPoisonAlertEventsHandler>();
         services.TryAddSingleton<GetAlertHandler>();
         services.TryAddSingleton<GetDeliverableAlertsHandler>();
         services.TryAddSingleton<ListAlertsHandler>();

@@ -30,7 +30,7 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
             .InsertAsync<int>(
                 new NamespaceEntity
                 {
-                    Name = $"{TestNamespace}-insert",
+                    NamespaceName = $"{TestNamespace}-insert",
                     OwnerTeam = "team-a",
                     Status = NamespaceStatusCode.Active,
                     CreatedAtUtc = now,
@@ -44,7 +44,7 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
 
         var row = await Db.From<NamespaceEntity>().Where(n => n.Id == id).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
-        Assert.Equal($"{TestNamespace}-insert", row!.Name);
+        Assert.Equal($"{TestNamespace}-insert", row!.NamespaceName);
         Assert.Equal("team-a", row.OwnerTeam);
     }
 
@@ -64,7 +64,7 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal("changed", row!.OwnerTeam);
         Assert.Equal("updated", row.Description);
         // The columns not named in the set selector are untouched.
-        Assert.Equal(TestNamespace, row.Name);
+        Assert.Equal(TestNamespace, row.NamespaceName);
     }
 
     [Fact(DisplayName = "UpdateOnlyAsync normalizes a non-UTC-kind DateTime to UTC on write and read")]
@@ -133,7 +133,7 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
             .InsertAsync<int>(
                 new NamespaceEntity
                 {
-                    Name = $"{TestNamespace}-delete",
+                    NamespaceName = $"{TestNamespace}-delete",
                     OwnerTeam = "team-b",
                     Status = NamespaceStatusCode.Active,
                     CreatedAtUtc = now,

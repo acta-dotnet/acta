@@ -9,21 +9,19 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE
         @status TINYINT, @namespace_id INT,
-        @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-        @job_ref UNIQUEIDENTIFIER;
+        @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
 
     SELECT
-        @status = r.status_code,
+        @status = r.job_status_code,
         @namespace_id = j.namespace_id,
-        @lineage_root_id = j.lineage_root_id,
+        @lineage_root_job_id = j.lineage_root_job_id,
         @definition_id = j.definition_id,
         @tenant_id = j.tenant_id,
         @execution_number = r.execution_number,
-        @audit_level = j.audit_level_code,
-        @job_ref = j.job_ref
-    FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
-    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
-    WHERE r.job_id = @p_id;
+        @event_recording = j.event_recording_code
+    FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+    WHERE r.job_id = @p_job_id;
 
     IF @status IS NULL
         BEGIN
@@ -32,29 +30,27 @@ BEGIN TRY
         END;
 
     DELETE FROM {{schema}}.checkpoints
-    WHERE job_id = @p_id;
+    WHERE job_id = @p_job_id;
     DELETE FROM {{schema}}.steps
-    WHERE job_id = @p_id;
+    WHERE job_id = @p_job_id;
 
-    IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
+    -- The job's own handler asked for the reset, so the job id is the actor. Digits need no JSON escaping, and
+    -- pure ASCII makes VARCHAR -> VARBINARY UTF-8.
+    IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
-                actor_code, actor,
-                job_id, job_ref, execution_number,
-                lineage_root_id, definition_id, tenant_id,
-                from_status_code, to_status_code,
-                execution_status_code, duration_ms,
-                reason_code, reason_message
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                details_format_id, details
             )
             VALUES (
                 81 /* EventCode.JobStateReset */, @now, @namespace_id,
-                50 /* ActorCode.Job */, CONVERT(VARCHAR(128), @p_id),
-                @p_id, @job_ref, @execution_number,
-                COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                @status, @status,
-                NULL, NULL,
-                NULL, NULL
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"actor":"' + CONVERT(VARCHAR(20), @p_job_id) + '"}')
             );
         END
 

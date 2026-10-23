@@ -96,7 +96,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         var schedule = await ScheduleAsync(Db, slotId, ct);
         Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
         Assert.Null(schedule.PausedUntilUtc);
-        Assert.Equal(occurrence, schedule.NextRunAtUtc);
+        Assert.Equal(occurrence, schedule.NextOccurrenceAtUtc);
 
         // The occurrence the pause never covered fires on time, once.
         Clock.AdvanceTo(occurrence);
@@ -119,7 +119,7 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
         var next = missed.AddMinutes(5);
-        Assert.Equal(next, (await ScheduleAsync(Db, slotId, ct)).NextRunAtUtc);
+        Assert.Equal(next, (await ScheduleAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
 
         Clock.AdvanceTo(next);
         Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
@@ -142,9 +142,6 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         return slot.NextRunAtUtc!.Value;
     }
 
-    private static async Task<ScheduleEntity> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct)
-    {
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
-        return Assert.Single(rows);
-    }
+    private static async Task<ScheduleRow> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct) =>
+        Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct));
 }

@@ -21,7 +21,7 @@ internal sealed class GetJobInputHandler(GetJobIdHandler getJobId, IDbSession se
     internal Task<GetJobInputRow?> ReadAsync(long jobId, CancellationToken ct) =>
         session.QuerySingleAsync(
             "GetJobInput",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
             DbProjectionResolver.Resolve<GetJobInputRow>(),
             ct
         );

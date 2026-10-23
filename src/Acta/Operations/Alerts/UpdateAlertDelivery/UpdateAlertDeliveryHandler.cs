@@ -12,7 +12,7 @@ internal sealed class UpdateAlertDeliveryHandler(IDbSession session, ISqlDialect
             new StoreCommand("UpdateAlertDelivery"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Id, command.AlertId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertId, command.AlertId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.Version, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.DeliveryStatusCode, (short)command.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.RetryCount, command.RetryCount));

@@ -35,6 +35,12 @@ internal static class JobDefinitionRegistration
     public const int MaxConcurrencyLimit = 1024;
 
     /// <summary>
+    /// The largest MaxAttempts a definition or override may declare: the ceiling <c>jobs_state.failure_count</c>
+    /// saturates at, so a saturated count still reaches every budget.
+    /// </summary>
+    public const int MaxMaxAttempts = short.MaxValue;
+
+    /// <summary>
     /// The longest a rate name may be, matching <c>definitions.rate_name</c> and the concurrency key it
     /// shares a lock-key budget with.
     /// </summary>
@@ -94,6 +100,14 @@ internal static class JobDefinitionRegistration
             throw new ArgumentException(
                 $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) has an invalid Backoff expression "
                     + $"\"{backoff}\": it must be a valid Acta backoff expression of at most {ActaTextLimits.DefinitionBackoff} characters."
+            );
+        }
+
+        if (descriptor.MaxAttempts is < 1 or > MaxMaxAttempts)
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares MaxAttempts "
+                    + $"{descriptor.MaxAttempts}: it must be between 1 and {MaxMaxAttempts}."
             );
         }
 

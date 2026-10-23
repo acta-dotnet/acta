@@ -5,34 +5,32 @@ INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    job_id,
-    job_ref,
-    execution_number,
-    lineage_root_id,
+    worker_id,
+    entity_code,
+    entity_id,
     definition_id,
     tenant_id,
-    worker_id,
-    detail_format_id,
-    detail,
-    reason_message)
+    lineage_root_job_id,
+    execution_number,
+    event_message,
+    details_format_id,
+    details)
 SELECT
     90 /* EventCode.JobNoteRecorded */,
     now(),
     j.namespace_id,
-    50 /* ActorCode.Job */,
-    j.id,
-    j.job_ref,
-    @p_execution_number,
-    COALESCE(j.lineage_root_id, j.id),
+    @p_worker_id,
+    50 /* EntityCode.Job */,
+    j.job_id,
     j.definition_id,
     j.tenant_id,
-    @p_worker_id,
-    @p_detail_format_id,
-    @p_detail,
-    @p_reason_message
+    COALESCE(j.lineage_root_job_id, j.job_id),
+    @p_execution_number,
+    @p_event_message,
+    @p_details_format_id,
+    @p_details
 FROM {{schema}}.jobs j
-WHERE j.id = @p_job_id
+WHERE j.job_id = @p_job_id
 RETURNING 1
 )
 SELECT count(*)::INT AS inserted FROM inserted;

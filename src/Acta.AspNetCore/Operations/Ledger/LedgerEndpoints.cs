@@ -80,8 +80,8 @@ internal static class LedgerEndpoints
                             JobNamespace: query.Text("jobNamespace"),
                             EventCode: query.EventCode("eventCode"),
                             TenantName: query.Text("tenantName"),
-                            ActorCode: query.Code("actorCode", ActorCodeExtensions.FromCode),
-                            ReasonCode: query.Code("reasonCode", EventReasonCodeExtensions.FromCode),
+                            EntityKind: query.Code("entityKind", EntityCodeExtensions.FromCode),
+                            EntityId: query.Long("entityId"),
                             CreatedFromUtc: query.DateTime("createdFromUtc"),
                             CreatedToUtc: query.DateTime("createdToUtc"),
                             PageSize: query.Int("pageSize"),
@@ -96,7 +96,7 @@ internal static class LedgerEndpoints
                         bound.Query with
                         {
                             JobId = await call.JobIdAsync(bound.Job),
-                            LineageRootId = await call.JobIdAsync(bound.Lineage),
+                            LineageRootJobId = await call.JobIdAsync(bound.Lineage),
                             WorkerId = bound.Worker is { } worker
                                 ? (
                                     await call.Operations.Workers.GetAsync(worker, call.Ct) ?? throw new TargetNotFoundException("Worker")
@@ -115,13 +115,13 @@ internal static class LedgerEndpoints
                         "Exact event code as its kebab string.",
                         CodeKind: "event"
                     ),
-                    new QueryParameterDoc("actorCode", QueryParameterKind.String, "Exact actor as its kebab code.", CodeKind: "actor"),
                     new QueryParameterDoc(
-                        "reasonCode",
+                        "entityKind",
                         QueryParameterKind.String,
-                        "Exact reason as its kebab code.",
-                        CodeKind: "job-event-reason"
+                        "Only events about this kind of subject.",
+                        CodeKind: "entity"
                     ),
+                    new QueryParameterDoc("entityId", QueryParameterKind.Long, "Only events about this subject id; requires entityKind."),
                     new QueryParameterDoc("tenantName", QueryParameterKind.String, "Only events stamped with this tenant name."),
                     new QueryParameterDoc("workerRef", QueryParameterKind.String, "Only events recorded by this worker ref."),
                     new QueryParameterDoc("createdFromUtc", QueryParameterKind.Instant, "Inclusive lower bound on the event instant."),

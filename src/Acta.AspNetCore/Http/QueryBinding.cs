@@ -31,6 +31,25 @@ internal static class QueryBinding
         return false;
     }
 
+    public static bool TryLong(IQueryCollection query, string name, out long? value, ref string? error)
+    {
+        value = null;
+        var raw = query[name];
+        if (raw.Count == 0 || string.IsNullOrEmpty(raw[0]))
+        {
+            return true;
+        }
+
+        if (long.TryParse(raw[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+        {
+            value = parsed;
+            return true;
+        }
+
+        error = $"Query parameter '{name}' is not a valid integer.";
+        return false;
+    }
+
     public static bool TryInt(IQueryCollection query, string name, out int? value, ref string? error)
     {
         value = null;
@@ -79,7 +98,7 @@ internal static class QueryBinding
 
     /// <summary>
     /// Binds a <c>[Code]</c>-family enum from its exact dotted-kebab wire name via the family's generated
-    /// <c>FromCode</c> parser (e.g. <c>ActorCodeExtensions.FromCode</c>), rather than the .NET member
+    /// <c>FromCode</c> parser (e.g. <c>EntityCodeExtensions.FromCode</c>), rather than the .NET member
     /// name. An unknown code is a caller error mapped to 400.
     /// </summary>
     public static bool TryCode<TEnum>(

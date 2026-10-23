@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Internal control-flow signal raised by <c>RuntimeJobContext.SleepCoreAsync</c> after the timer round trip decides
 /// the Job must wait, carrying the DB-computed <see cref="ResumeAtUtc"/> the host writes to
-/// <c>runtimes.next_run_at_utc</c> and an operator <paramref name="reasonMessage"/>. Internal by design: the only
+/// <c>jobs_state.next_run_at_utc</c> and an operator <paramref name="reasonMessage"/>. Internal by design: the only
 /// safe way to suspend is <c>ctx.SleepAsync</c>, which arms the timer before signalling; a raw user throw would skip
 /// arming and break replay idempotency, so this type never escapes the assembly.
 /// </summary>

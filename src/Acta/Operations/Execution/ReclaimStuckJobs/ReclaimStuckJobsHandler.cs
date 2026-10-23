@@ -24,7 +24,7 @@ internal sealed class ReclaimStuckJobsHandler(IDbSession session, ISqlDialect di
             {
                 repaired++;
             }
-            else if (row.ToStatus == JobStatusCode.Failed && row.ParentId is { } parentId)
+            else if (row.ToStatus == JobStatusCode.Failed && row.ParentJobId is { } parentId)
             {
                 (failed ??= []).Add((row.JobId, parentId));
             }

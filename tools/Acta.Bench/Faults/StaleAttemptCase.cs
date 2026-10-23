@@ -58,7 +58,7 @@ internal static class StaleAttemptCase
         var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected([input]), actual).ToList();
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
-        var table = state.Provider == "sqlite" ? "main.runtimes" : $"{state.Schema}.runtimes";
+        var table = state.Provider == "sqlite" ? "main.jobs_state" : $"{state.Schema}.jobs_state";
         command.CommandText = $"SELECT COUNT(*) FROM {table} WHERE job_id=@id AND execution_number=1 AND result_format_id <> 0";
         var parameter = command.CreateParameter();
         parameter.ParameterName = "@id";

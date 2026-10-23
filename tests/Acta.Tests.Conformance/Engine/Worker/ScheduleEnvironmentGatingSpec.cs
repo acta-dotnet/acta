@@ -41,7 +41,7 @@ public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<Conforma
 
         var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId!.Value).ToListAsync(ct);
         var row = Assert.Single(rows);
-        Assert.Equal("staging-tick", row.Name);
+        Assert.Equal("staging-tick", row.ScheduleName);
     }
 
     [Fact(DisplayName = "A staging worker creates no recurring slot for a job whose only schedule is production-scoped")]

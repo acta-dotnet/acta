@@ -131,7 +131,7 @@ public abstract partial class JobContext
     /// superseded, not-applicable work). Throws <see cref="HandlerCancelException"/> synchronously; code
     /// after this call in the current attempt is unreachable. The attempt is not retried and the failure
     /// budget is untouched. The cancel cascades recursively to this Job's non-terminal descendant
-    /// subtree (descendants land <c>Cancelled</c> with <c>reason = ParentCancelled</c>).
+    /// subtree (descendants land <c>Cancelled</c> with the event reason <c>parent-cancelled</c>).
     /// </summary>
     public Task CancelAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
@@ -196,10 +196,10 @@ public abstract partial class JobContext
     /// <summary>
     /// Writes an application-authored note onto this job's timeline, beside the framework's own events rather than in
     /// a log sink not joined to the job row. Annotation, not logging: <c>events</c> is indexed for timeline queries,
-    /// so use <c>ILogger</c> for volume. Notes ignore <c>AuditLevel</c>, a volume control over events Acta chooses to
+    /// so use <c>ILogger</c> for volume. Notes ignore <c>EventRecording</c>, a volume control over events Acta chooses to
     /// record, because dropping an explicit call would be data loss; bounding a job's event volume is the caller's.
     /// Notes are the only event code an application can write and the runtime never emits, so an application can
-    /// annotate the ledger but never forge <c>job.execution-finished</c>; do not widen this to a second code.
+    /// annotate the ledger but never forge an attempt's outcome; do not widen this to a second code.
     /// </summary>
     public async Task NoteAsync(string message, CancellationToken ct = default)
     {

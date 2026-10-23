@@ -56,10 +56,10 @@ public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture
     {
         // Enqueued far out, so nothing claims them before they are parked.
         var parked = await EnqueueManyAsync(count, priority: null, dbNow.AddDays(3), ct);
-        await RuntimeStateStaging.UpdateAsync(
+        await JobStateStaging.UpdateAsync(
             Db,
             parked.Select(job => job.JobId),
-            "status_code = @p_suspended, next_run_at_utc = NULL",
+            "job_status_code = @p_suspended, next_run_at_utc = NULL",
             ct,
             ("@p_suspended", (byte)JobStatusCode.Suspended)
         );

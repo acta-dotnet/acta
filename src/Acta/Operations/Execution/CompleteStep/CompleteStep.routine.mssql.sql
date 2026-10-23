@@ -1,11 +1,11 @@
 CREATE OR ALTER PROCEDURE {{schema}}.complete_step
     @p_job_id BIGINT,
-    @p_name VARCHAR(128),
+    @p_step_name VARCHAR(128),
     @p_succeeded BIT,
     @p_result_format_id TINYINT,
     @p_result VARBINARY(MAX),
-    @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512),
+    @p_failure_code TINYINT,
+    @p_failure_message NVARCHAR(512),
     @p_delay_seconds INT,
     @p_max_attempts INT,
     @p_retry_window_seconds INT,
@@ -30,23 +30,23 @@ BEGIN
             @attempt = attempt_number,
             @created = created_at_utc
         FROM {{schema}}.steps
-        WHERE job_id = @p_job_id AND name = @p_name;
+        WHERE job_id = @p_job_id AND step_name = @p_step_name;
 
         IF @p_succeeded = 1
             BEGIN
                 UPDATE {{schema}}.steps
                 SET
-                    status_code = 100 /* StepStatusCode.Succeeded */,
+                    step_status_code = 100 /* StepStatusCode.Succeeded */,
                     result_format_id = @p_result_format_id,
                     result = @p_result,
                     next_retry_at_utc = NULL,
                     /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
-                       reason: a Succeeded row with a reason reads as a failure to every post-mortem query. */
-                    reason_code = NULL,
-                    reason_message = NULL,
+                       failure snapshot: a Succeeded row with a failure_code reads as a failure to every post-mortem query. */
+                    failure_code = NULL,
+                    failure_message = NULL,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND name = @p_name AND version = @p_version;
+                WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
 
                 IF @@ROWCOUNT = 0
                     SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
@@ -67,13 +67,13 @@ BEGIN
                     BEGIN
                         UPDATE {{schema}}.steps
                         SET
-                            status_code = 200 /* StepStatusCode.Exhausted */,
+                            step_status_code = 200 /* StepStatusCode.Exhausted */,
                             next_retry_at_utc = NULL,
-                            reason_code = @p_reason_code,
-                            reason_message = @p_reason_message,
+                            failure_code = @p_failure_code,
+                            failure_message = @p_failure_message,
                             modified_at_utc = @now,
                             version = version + 1
-                        WHERE job_id = @p_job_id AND name = @p_name AND version = @p_version;
+                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
 
                         IF @@ROWCOUNT = 0
                             SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
@@ -86,11 +86,11 @@ BEGIN
                         UPDATE {{schema}}.steps
                         SET
                             next_retry_at_utc = @next,
-                            reason_code = @p_reason_code,
-                            reason_message = @p_reason_message,
+                            failure_code = @p_failure_code,
+                            failure_message = @p_failure_message,
                             modified_at_utc = @now,
                             version = version + 1
-                        WHERE job_id = @p_job_id AND name = @p_name AND version = @p_version;
+                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
 
                         IF @@ROWCOUNT = 0
                             BEGIN

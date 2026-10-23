@@ -38,7 +38,7 @@ public static class ChaosProbes
     public static void Fail(long jobId) =>
         Gates.GetOrAdd(jobId, static _ => new Gate()).Release.TrySetException(new InvalidOperationException("Failed by the test."));
 
-    [Job("chaos-counting", AuditLevel = DefinitionAuditLevelCode.Audit)]
+    [Job("chaos-counting", EventRecording = EventRecordingCode.Audit)]
     public static Task Counting(JobContext ctx, CancellationToken ct)
     {
         CountingInvocations.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);
@@ -46,7 +46,7 @@ public static class ChaosProbes
     }
 
     // Counting with a result, for a fact that must see the one run's result land as well as count it.
-    [Job("chaos-counting-result", AuditLevel = DefinitionAuditLevelCode.Audit)]
+    [Job("chaos-counting-result", EventRecording = EventRecordingCode.Audit)]
     public static Task<string> CountingResult(JobContext ctx, CancellationToken ct)
     {
         CountingInvocations.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);
@@ -55,12 +55,12 @@ public static class ChaosProbes
 
     // The same gate with the framework's five-minute timeout, for a fact that needs an executor held
     // for as long as the fact runs rather than freed by the timeout ten seconds in.
-    [Job("chaos-holding", AuditLevel = DefinitionAuditLevelCode.Audit)]
+    [Job("chaos-holding", EventRecording = EventRecordingCode.Audit)]
     public static Task Holding(JobContext ctx, CancellationToken ct) => Blocking(ctx, ct);
 
     // Short ExecutionTimeout so a stolen-lease attempt that finalizes via the per-attempt timeout
     // caps at seconds, not the 5-minute framework default.
-    [Job("chaos-blocking", AuditLevel = DefinitionAuditLevelCode.Audit, ExecutionTimeout = "PT10S")]
+    [Job("chaos-blocking", EventRecording = EventRecordingCode.Audit, ExecutionTimeout = "PT10S")]
     public static async Task Blocking(JobContext ctx, CancellationToken ct)
     {
         CountingInvocations.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);
@@ -77,7 +77,7 @@ public static class ChaosProbes
         }
     }
 
-    [Job("chaos-step-before-complete", AuditLevel = DefinitionAuditLevelCode.Audit)]
+    [Job("chaos-step-before-complete", EventRecording = EventRecordingCode.Audit)]
     public static async Task<string> StepBeforeComplete(JobContext ctx, CancellationToken ct)
     {
         await ctx.RunStepAsync(

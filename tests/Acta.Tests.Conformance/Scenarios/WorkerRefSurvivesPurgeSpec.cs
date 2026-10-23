@@ -7,15 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for worker identity across retention: an event names its worker by <c>worker_id</c> alone, with a null
-/// <c>actor</c>, so the sweep keeps a terminal worker's row for as long as the events window and the joined
-/// <c>workerRef</c> keeps resolving on every event that survives.
+/// Conformance for worker identity across retention: an event names its worker by <c>worker_id</c> alone, so the
+/// sweep keeps a terminal worker's row for as long as the events window and the joined <c>workerRef</c> keeps
+/// resolving on every event that survives.
 /// </summary>
 [ConformanceSpec(
     "worker-ref.survives-purge",
     "A worker's events keep resolving its ref through retention",
     Area = "Retention",
-    Contract = "Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves, and worker events carry a null actor."
+    Contract = "Retention keeps a terminal worker's row while its events last, so their joined worker ref resolves."
 )]
 public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -43,7 +43,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
             workerRef.Value
         );
 
-        // One attempt claimed and completed by this worker writes its job.execution-finished event.
+        // One attempt claimed and completed by this worker writes its succeeded event.
         var enqueued = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
             ct
@@ -71,12 +71,10 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
             await Operations.Ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct)
         ).Items;
         Assert.Equal(
-            [EventCode.JobExecutionFinished, EventCode.WorkerStarted, EventCode.WorkerStopped],
+            [EventCode.JobExecutionSucceeded, EventCode.WorkerStarted, EventCode.WorkerStopped],
             events.Select(e => e.EventCode).Order()
         );
         Assert.All(events, e => Assert.Equal<WorkerRef?>(workerRef, e.WorkerRef));
-        Assert.All(events, e => Assert.Equal(ActorCode.Worker, e.ActorCode));
-        Assert.All(events, e => Assert.Null(e.Actor));
     }
 
     [Fact(DisplayName = "A terminal worker aged past the window survives a sweep while it still leases an Executing job")]
@@ -107,7 +105,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaRuntimeTestBase<Conformance
         Assert.NotNull(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
         var orphaned = Assert.Single(
             (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct)).Items,
-            e => e.JobRef == jobRef && e.ExecutionStatus == ExecutionStatusCode.Orphaned
+            e => e.JobRef == jobRef && e.EventCode == EventCode.JobExecutionOrphaned
         );
         Assert.Equal<WorkerRef?>(workerRef, orphaned.WorkerRef);
     }

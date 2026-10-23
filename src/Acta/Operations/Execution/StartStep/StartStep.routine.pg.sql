@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION {{schema}}.start_step(
     p_job_id BIGINT,
-    p_name VARCHAR,
+    p_step_name VARCHAR,
     p_at_most_once BOOLEAN
 )
 RETURNS TABLE (
@@ -10,8 +10,8 @@ RETURNS TABLE (
     next_retry_at_utc TIMESTAMPTZ,
     result_format_id SMALLINT,
     result BYTEA,
-    reason_code SMALLINT,
-    reason_message VARCHAR
+    failure_code SMALLINT,
+    failure_message VARCHAR
 )
 LANGUAGE plpgsql
 AS $$
@@ -28,26 +28,26 @@ DECLARE
 BEGIN
 
     SELECT
-        a.status_code,
+        a.step_status_code,
         a.attempt_number,
         a.version,
         a.next_retry_at_utc,
         a.result_format_id,
         a.result,
-        a.reason_code,
-        a.reason_message
+        a.failure_code,
+        a.failure_message
     INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
     FROM {{schema}}.steps a
     WHERE
         a.job_id = p_job_id
-        AND a.name = p_name
+        AND a.step_name = p_step_name
     FOR UPDATE;
 
     IF NOT FOUND THEN
         INSERT INTO {{schema}}.steps (
             job_id,
-            name,
-            status_code,
+            step_name,
+            step_status_code,
             attempt_number,
             result_format_id,
             created_at_utc,
@@ -55,14 +55,14 @@ BEGIN
             version)
         VALUES (
             p_job_id,
-            p_name,
+            p_step_name,
             10 /* StepStatusCode.Pending */,
             1,
             0 /* JobPayloadFormat.None */,
             v_now,
             v_now,
             0)
-        ON CONFLICT (job_id, name) DO NOTHING
+        ON CONFLICT (job_id, step_name) DO NOTHING
         RETURNING steps.attempt_number, steps.version
         INTO v_attempt, v_version;
 
@@ -75,19 +75,19 @@ BEGIN
         -- A concurrent first start inserted the slot first: read it as a replay would, as SQL Server's step lock
         -- queues this caller behind that insert.
         SELECT
-            a.status_code,
+            a.step_status_code,
             a.attempt_number,
             a.version,
             a.next_retry_at_utc,
             a.result_format_id,
             a.result,
-            a.reason_code,
-            a.reason_message
+            a.failure_code,
+            a.failure_message
         INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
         FROM {{schema}}.steps a
         WHERE
             a.job_id = p_job_id
-            AND a.name = p_name
+            AND a.step_name = p_step_name
         FOR UPDATE;
     END IF;
 
@@ -113,15 +113,15 @@ BEGIN
         -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
         UPDATE {{schema}}.steps a
         SET
-            status_code = 230 /* StepStatusCode.Interrupted */,
+            step_status_code = 230 /* StepStatusCode.Interrupted */,
             next_retry_at_utc = NULL,
-            reason_code = 63 /* EventReasonCode.JobStepInterrupted */,
-            reason_message = 'At-most-once step re-entered before completion; outcome unknown.',
+            failure_code = 20 /* StepFailureCode.Interrupted */,
+            failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
             modified_at_utc = v_now,
             version = a.version + 1
         WHERE
             a.job_id = p_job_id
-            AND a.name = p_name
+            AND a.step_name = p_step_name
         RETURNING a.version INTO v_version;
 
         RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
@@ -134,7 +134,7 @@ BEGIN
             version = a.version + 1
         WHERE
             a.job_id = p_job_id
-            AND a.name = p_name
+            AND a.step_name = p_step_name
         RETURNING a.attempt_number, a.version INTO v_attempt, v_version;
 
         RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,

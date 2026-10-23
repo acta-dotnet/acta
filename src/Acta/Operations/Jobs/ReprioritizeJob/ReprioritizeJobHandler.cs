@@ -21,9 +21,9 @@ internal sealed class ReprioritizeJobHandler(
             new StoreCommand("ReprioritizeJob"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.PriorityCode, command.Priority));
-                JobControl.BindActor(cmd, dialect, input);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.JobPriorityCode, command.Priority));
+                JobControl.BindEvent(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<ReprioritizeJobRow>(),

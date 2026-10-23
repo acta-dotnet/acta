@@ -10,9 +10,22 @@ internal sealed class AlertsOperations(
     GetAlertableEventsHandler getAlertableEvents,
     GetDeliverableAlertsHandler getDeliverableAlerts,
     UpdateAlertDeliveryHandler updateAlertDelivery,
-    ResolveAlertsHandler resolveAlerts
+    ResolveAlertsHandler resolveAlerts,
+    GetAlertFloorHandler getAlertFloor,
+    GetPoisonAlertEventsHandler getPoisonAlertEvents
 ) : IAlerts
 {
+    /// <summary>
+    /// What the namespace's <c>sys.alerts</c> projector has consumed: its cursor and the poison events it skipped and
+    /// still owes a replay. Retention and an explicit purge keep every alert-required event past it, and its job.
+    /// </summary>
+    internal Task<GetAlertFloorResponse> GetAlertFloorAsync(int namespaceId, CancellationToken ct) =>
+        getAlertFloor.HandleAsync(new GetAlertFloorQuery(NamespaceId: namespaceId), ct);
+
+    /// <summary>The skipped events still on the ledger, each marked when a newer success of its job supersedes it.</summary>
+    internal Task<GetPoisonAlertEventsResponse> GetPoisonAlertEventsAsync(int namespaceId, string poisonJson, CancellationToken ct) =>
+        getPoisonAlertEvents.HandleAsync(new GetPoisonAlertEventsQuery(namespaceId, poisonJson), ct);
+
     public ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
         string? reasonMessage = null,

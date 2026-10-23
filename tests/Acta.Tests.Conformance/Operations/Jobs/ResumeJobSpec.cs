@@ -27,15 +27,14 @@ public sealed class ResumeJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         return enqueued.JobId;
     }
 
-    private static JobControlInput ControlInput(string reason) =>
-        new(new JobControlActor(ActorCode.Operator, "test"), EventReasonCode.JobControlManual, reason);
+    private static JobControlInput ControlInput(string message) => new("test", null, message);
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 
     private static Task SetFailureCountAsync(IDbSession db, long jobId, short count, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET failure_count = @p_count WHERE job_id = @p_id",
+            "UPDATE {schema}.jobs_state SET failure_count = @p_count WHERE job_id = @p_id",
             ct,
             ("@p_count", count),
             ("@p_id", jobId)

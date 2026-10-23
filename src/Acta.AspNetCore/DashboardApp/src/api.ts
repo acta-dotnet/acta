@@ -126,6 +126,28 @@ export interface Paged<T> {
   totalCount: number | null;
 }
 
+// One ledger event, as every events read returns it (the /events feed, a job's timeline, a definition's
+// trail). The subject is the kebab `entityKind` plus its numeric `entityId`, the one id the wire carries;
+// `jobRef` is set while a job subject's row exists. `message` is human text only, and `detailsText` is the
+// details payload decoded to text, usually a small JSON object of text facts: read it with eventFacts.
+export interface EventItem {
+  eventId: number;
+  eventCode: string;
+  createdAtUtc: string;
+  jobNamespace: string;
+  entityKind: string;
+  entityId: number;
+  jobName: string | null;
+  jobRef: string | null;
+  lineageRootJobRef: string | null;
+  tenantName: string | null;
+  workerRef: string | null;
+  executionNumber: number | null;
+  durationMs: number | null;
+  message: string | null;
+  detailsText: string | null;
+}
+
 export async function api<T>(
   path: string,
   query: Record<string, unknown> = {},
@@ -344,11 +366,11 @@ export interface ScheduleControlResponse {
 // (controlRequest, above) rather than a per-verb fetch function.
 
 // Read-only forecast of a schedule's upcoming fire instants (effective expression/timezone plus the
-// next N run instants); not a control endpoint, so no confirmation header and always available.
+// next N occurrence instants); not a control endpoint, so no confirmation header and always available.
 export interface SchedulePreview {
   expression: string;
   timeZoneId: string;
-  nextRunsUtc: string[];
+  nextOccurrencesUtc: string[];
 }
 
 export async function previewSchedule(
@@ -383,7 +405,7 @@ export interface JobScheduleView {
   expressionKind: string;
   expression: string;
   timeZoneId: string;
-  nextRunAtUtc: string | null;
+  nextOccurrenceAtUtc: string | null;
   status: string;
   pausedUntilUtc: string | null;
   version: number;

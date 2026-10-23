@@ -22,7 +22,7 @@ public class ScheduleWalkerReconcileTests
 
         // Under the declared minute the cursor would land at 12:18; the override in force says 13:00.
         var row = Assert.Single(schedules);
-        Assert.Equal(Utc(13, 0), row.NextRunAtUtc);
+        Assert.Equal(Utc(13, 0), row.NextOccurrenceAtUtc);
         Assert.Equal("PT1M", row.Expression);
     }
 
@@ -35,7 +35,7 @@ public class ScheduleWalkerReconcileTests
 
         // 22:00 in Tokyo is 13:00 UTC; the declared UTC zone would say 22:00 UTC.
         var row = Assert.Single(schedules);
-        Assert.Equal(Utc(13, 0), row.NextRunAtUtc);
+        Assert.Equal(Utc(13, 0), row.NextOccurrenceAtUtc);
         Assert.Equal("UTC", row.TimeZoneId);
     }
 
@@ -47,7 +47,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, _, _) = ScheduleWalker.Reconcile([Interval("PT5M")], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextOccurrenceAtUtc);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, status, nextRun) = ScheduleWalker.Reconcile([Cron("*/5 * * * *")], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextOccurrenceAtUtc);
         Assert.Equal(JobStatusCode.Suspended, status);
         Assert.Null(nextRun);
     }
@@ -77,7 +77,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, status, nextRun) = ScheduleWalker.Reconcile([Cron("*/5 * * * *")], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextOccurrenceAtUtc);
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal(Utc(12, 19), nextRun);
     }
@@ -89,7 +89,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, status, nextRun) = ScheduleWalker.Reconcile([Cron("*/5 * * * *")], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextOccurrenceAtUtc);
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal(Utc(12, 20), nextRun);
     }
@@ -102,7 +102,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, status, nextRun) = ScheduleWalker.Reconcile([Cron("*/5 * * * *")], Map(stored), Now);
 
-        Assert.Equal(due, Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(due, Assert.Single(schedules).NextOccurrenceAtUtc);
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal(due, nextRun);
     }
@@ -115,7 +115,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, _, _) = ScheduleWalker.Reconcile([CatchUp()], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextOccurrenceAtUtc);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, _, _) = ScheduleWalker.Reconcile([CatchUp() with { Description = "edited" }], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextOccurrenceAtUtc);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class ScheduleWalkerReconcileTests
 
         var (schedules, _, _) = ScheduleWalker.Reconcile([CatchUp() with { Description = "edited" }], Map(stored), Now);
 
-        Assert.Equal(Utc(12, 5), Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(Utc(12, 5), Assert.Single(schedules).NextOccurrenceAtUtc);
     }
 
     private static StoredScheduleState InFlight(DateTime cursor, DateTime armedAt) =>

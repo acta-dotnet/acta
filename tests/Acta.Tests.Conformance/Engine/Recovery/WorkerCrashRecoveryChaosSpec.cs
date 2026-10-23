@@ -42,13 +42,13 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
         Assert.Equal(1, (await Jobs.GetAsync(enqueued, ct))!.FailureCount);
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        Assert.Equal(worker, (await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct)).WorkerId);
+        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Ready);
+        Assert.Equal(worker, (await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionOrphaned, ct)).WorkerId);
 
         // --- 3. A later tick finishes the job with a single Succeeded execution.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var finished = (await GetEventsByJobId.Run(Services, enqueued.JobId, ct))
-            .Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded)
+            .Where(e => e.EventCode == EventCode.JobExecutionSucceeded)
             .ToList();
         Assert.Single(finished);
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
@@ -75,8 +75,8 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 3. One orphaned recovery event and one Succeeded finish.
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
+        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Ready);
+        ChaosSpecHelpers.AssertSingleAttempt(events, EventCode.JobExecutionSucceeded);
     }
 
     [Fact(DisplayName = "Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once")]
@@ -117,8 +117,8 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
-        ChaosSpecHelpers.AssertSingleFinished(events, ExecutionStatusCode.Succeeded, JobStatusCode.Executing, JobStatusCode.Succeeded);
+        ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Ready);
+        ChaosSpecHelpers.AssertSingleAttempt(events, EventCode.JobExecutionSucceeded);
     }
 
     [Fact(DisplayName = "Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed")]
@@ -131,11 +131,11 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // recurring-ping declares MaxAttempts = 2: one accumulated failed occurrence plus this
         // crashed one lands exactly on the budget - the count the Failed arm used to fire on.
-        var affected = await Db.From<Acta.RuntimeEntity>()
+        var affected = await Db.From<Acta.JobStateEntity>()
             .Where(r => r.Id == slotId)
             .UpdateOnlyAsync(
                 () =>
-                    new Acta.RuntimeEntity
+                    new Acta.JobStateEntity
                     {
                         Status = JobStatusCode.Executing,
                         FailureCount = 1,

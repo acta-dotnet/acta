@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
-  import { api, type Paged } from '../../api.ts';
+  import { api, type EventItem, type Paged } from '../../api.ts';
   import { displayFormatter } from '../../format.ts';
   import { now } from '../../time';
   import { keys, listPage } from '../../query.ts';
@@ -8,7 +8,6 @@
   import JobTimeline from '../../components/JobTimeline.svelte';
   import StateView from '../../components/StateView.svelte';
   import TimeCell from '../../components/TimeCell.svelte';
-  import type { JobEvent } from './types.ts';
   import { mergeJobEvents } from './jobDetailState.ts';
   import { livePaused, listRefetchInterval } from '../../polling.ts';
 
@@ -23,7 +22,7 @@
     polling?: boolean;
     nextRunAtUtc?: string | null;
     initialAttempt?: number | null;
-    onEventsChange?: (events: JobEvent[]) => void;
+    onEventsChange?: (events: EventItem[]) => void;
   } = $props();
 
   // The router remounts this component for a different job ref.
@@ -32,21 +31,21 @@
   const history = createInfiniteQuery(() => ({
     queryKey: keys.feed(endpoint, { pageSize: 100 }),
     queryFn: ({ pageParam, signal }: { pageParam: string | null; signal: AbortSignal }) =>
-      api<Paged<JobEvent>>(endpoint, { pageSize: 100, cursor: pageParam }, { signal }),
+      api<Paged<EventItem>>(endpoint, { pageSize: 100, cursor: pageParam }, { signal }),
     initialPageParam: null as string | null,
-    getNextPageParam: (last: Paged<JobEvent>) => (last.hasMore ? last.nextCursor : null),
+    getNextPageParam: (last: Paged<EventItem>) => (last.hasMore ? last.nextCursor : null),
     // Loaded history is immutable. Polling this infinite query would refetch every accumulated page.
     staleTime: Infinity
   }));
 
   // Poll only the newest page, then merge it over the static accumulated history by durable event id.
   const head = createQuery(() => ({
-    ...listPage<JobEvent>(endpoint, {}, { pageSize: 100, cursor: null }),
+    ...listPage<EventItem>(endpoint, {}, { pageSize: 100, cursor: null }),
     refetchInterval: polling && !$livePaused ? listRefetchInterval : false
   }));
 
   let historyPages = $derived(history.data?.pages.map((page) => page.items) ?? []);
-  let events: JobEvent[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
+  let events: EventItem[] = $derived(mergeJobEvents(head.data?.items ?? [], historyPages));
   $effect(() => onEventsChange(events));
 
   export function refresh(): void {
@@ -78,13 +77,13 @@
       <summary>Raw events ({displayFormatter.number(events.length)} loaded) <span class="dim">· {displayFormatter.zoneNote($now)}</span></summary>
       <DataTable>
         <caption class="sr-only">Loaded raw job events</caption>
-        <thead><tr><th>Time</th><th>Event</th><th class="col-num">Attempt</th><th>From</th><th>To</th><th>Outcome</th><th class="col-num">Duration</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Time</th><th>Event</th><th class="col-num">Attempt</th><th class="col-num">Duration</th><th>Message</th><th>Details</th></tr></thead>
         <tbody>
-          {#each events as event (event.jobEventId)}
+          {#each events as event (event.eventId)}
             <tr>
               <td><TimeCell value={event.createdAtUtc} /></td><td>{event.eventCode}</td><td class="col-num">{event.executionNumber == null ? '·' : displayFormatter.number(event.executionNumber)}</td>
-              <td>{event.fromStatus ?? '·'}</td><td>{event.toStatus ?? '·'}</td><td>{event.executionStatus ?? '·'}</td>
-              <td class="col-num">{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '·'}</td><td>{event.reasonMessage ?? event.reasonCode ?? '·'}</td>
+              <td class="col-num">{event.durationMs != null ? displayFormatter.milliseconds(event.durationMs) : '·'}</td>
+              <td class="wrap">{event.message ?? '·'}</td><td class="wrap mono">{event.detailsText ?? '·'}</td>
             </tr>
           {/each}
         </tbody>

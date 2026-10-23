@@ -13,6 +13,7 @@ internal static class CompletionTestOps
             succeeded,
             JobPayloadFormat.None.Id,
             ReadOnlyMemory<byte>.Empty,
+            succeeded ? EventCode.JobExecutionSucceeded : EventCode.JobFailed,
             null,
             null,
             null,
@@ -21,7 +22,7 @@ internal static class CompletionTestOps
         )
         {
             HasLane = claimed.LaneId is not null,
-            HasParent = claimed.ParentId is not null,
+            HasParent = claimed.ParentJobId is not null,
         };
 
     /// <summary>Writes <paramref name="row"/> alone as <paramref name="workerId"/> and answers its row.</summary>

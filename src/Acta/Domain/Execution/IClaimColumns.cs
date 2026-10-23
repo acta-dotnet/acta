@@ -34,5 +34,5 @@ internal interface IClaimColumns
 
     long? LaneId { get; }
 
-    long? ParentId { get; }
+    long? ParentJobId { get; }
 }

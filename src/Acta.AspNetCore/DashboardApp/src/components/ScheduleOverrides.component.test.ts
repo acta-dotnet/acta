@@ -12,7 +12,7 @@ function stubFetch(): unknown[] {
       const body = url.endsWith('/api/v1/capabilities')
         ? { controlsEnabled: true, version: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' }
         : (bodies.push(JSON.parse(init?.body as string)),
-          { action: 'applied', status: 'active', pausedUntilUtc: null, nextRunAtUtc: null, version: 5 });
+          { action: 'applied', status: 'active', pausedUntilUtc: null, nextOccurrenceAtUtc: null, version: 5 });
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
     })
   );

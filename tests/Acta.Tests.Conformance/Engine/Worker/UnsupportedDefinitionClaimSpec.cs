@@ -30,7 +30,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
 {
     private const string AuditedJob = "add-numbers";
 
-    // Declared at AuditLevel.Failures, which is the level a bounce must write nothing at: nothing failed.
+    // Declared at EventRecording = Failures, which is the level a bounce must write nothing at: nothing failed.
     private const string FailuresAuditedJob = "failures-audit-probe";
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -83,7 +83,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         Assert.Null(job.LeaseExpiresAtUtc);
     }
 
-    [Fact(DisplayName = "Under Audit the bounce writes one execution-finished row naming the definition; under Failures it writes none")]
+    [Fact(DisplayName = "Under Audit the bounce writes one yielded attempt naming the definition; under Failures it writes none")]
     public async Task The_bounce_is_recorded_under_audit_and_silent_under_failures()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -93,22 +93,21 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(audited, ct));
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(quiet, ct));
 
-        var finished = await ReadSingleEventAsync(audited.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(ExecutionStatusCode.Rescheduled, finished.ExecutionStatus);
-        Assert.Equal(JobStatusCode.Ready, finished.ToStatus);
+        var yielded = await ReadSingleEventAsync(audited.JobId, EventCode.JobExecutionYielded, ct);
+        Assert.Equal("rescheduled", EventDetail(yielded, "outcome"));
 
-        // Unclassified is the reason a worker declining a claim carries, and the message is where the
+        // No reason describes a worker declining a claim, so none is written; the message is where the
         // operator-readable story lives: it names the definition whose handler is missing.
-        Assert.Equal(EventReasonCode.Unclassified, finished.ReasonCode);
-        Assert.NotNull(finished.ReasonMessage);
+        Assert.Null(EventDetail(yielded, "reason"));
+        Assert.NotNull(yielded.EventMessage);
         Assert.Contains(
             $"definition_id={(await ReadJobAsync(audited.JobId, ct)).DefinitionId}",
-            finished.ReasonMessage!,
+            yielded.EventMessage!,
             StringComparison.Ordinal
         );
 
         // Failures records every failed attempt, and a bounce is not one.
-        Assert.Equal(0, await CountEventsAsync(quiet.JobId, EventCode.JobExecutionFinished, ct));
+        Assert.Empty(await GetEventsByJobId.Run(Services, quiet.JobId, ct));
     }
 
     [Fact(DisplayName = "A handed-back job runs to completion on the next tick once a descriptor for it is back")]

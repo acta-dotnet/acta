@@ -46,7 +46,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "Parent and children are independent jobs in one lineage",
     """
-    SELECT job_id, job_name, status, parent_id, lineage_root_job_id, leased_by_worker_id
+    SELECT job_id, job_name, status, parent_job_id, lineage_root_job_id, leased_by_worker_id
     FROM jobs_view
     WHERE lineage_root_job_id = @rootJobId
     ORDER BY job_id
@@ -81,7 +81,7 @@ else
 await lab.ShowAsync(
     "Closed latches release the parent for a later execution",
     """
-    SELECT job_id, job_name, status, execution_number, parent_id
+    SELECT job_id, job_name, status, execution_number, parent_job_id
     FROM jobs_view
     WHERE lineage_root_job_id = @rootJobId
     ORDER BY job_id
@@ -101,7 +101,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Parent and child events retain the independent failure history",
     """
-    SELECT job_id, job_name, event, to_status, execution_number, reason
+    SELECT entity_id AS job_id, job_name, event, execution_number, details_text
     FROM events_view
     WHERE lineage_root_job_id = @rootJobId
     ORDER BY event_id

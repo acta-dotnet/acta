@@ -4,12 +4,12 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Test-support entry point into the Workers feature: the atomic bootstrap through the store port
-/// with production namespace canonicalization and catalog-hash computation. A caller that needs to
-/// address the registration afterwards supplies <c>workerRef</c>; otherwise a fresh one is minted.
+/// with production namespace canonicalization. A caller that needs to address the registration
+/// afterwards supplies <c>workerRef</c>; otherwise a fresh one is minted.
 /// </summary>
 internal static class WorkerTestOps
 {
-    public static Task<StartWorkerResponse> StartAsync(
+    public static async Task<(int NamespaceId, int WorkerId)> StartAsync(
         IServiceProvider services,
         string namespaceName,
         string? ownerTeam,
@@ -19,11 +19,12 @@ internal static class WorkerTestOps
         string? engineVersion,
         string? dotnetVersion,
         int processId,
-        int maxConcurrency,
+        int maxConcurrentExecutors,
         CancellationToken ct,
         Guid? workerRef = null
-    ) =>
-        services
+    )
+    {
+        var started = await services
             .GetRequiredService<WorkersOperations>()
             .StartWorkerAsync(
                 StartWorkerCommand.Create(
@@ -35,9 +36,11 @@ internal static class WorkerTestOps
                     engineVersion,
                     dotnetVersion,
                     processId,
-                    maxConcurrency,
+                    maxConcurrentExecutors,
                     workerRef ?? WorkerRef.New().Value
                 ),
                 ct
             );
+        return (started.NamespaceId, started.WorkerId);
+    }
 }

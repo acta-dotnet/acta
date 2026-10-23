@@ -28,18 +28,18 @@ BEGIN
         last_seen_at_utc = now(),
         -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
         -- moment it heartbeats; Stopped stays Stopped.
-        status_code = CASE
-            WHEN p_draining AND status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
+        worker_status_code = CASE
+            WHEN p_draining AND worker_status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
                 THEN 80 /* WorkerStatusCode.Draining */
-            WHEN status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
-            ELSE status_code
+            WHEN worker_status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
+            ELSE worker_status_code
         END,
         modified_at_utc = now(),
         version = version + 1
-    WHERE id = p_leased_by_worker_id
+    WHERE worker_id = p_leased_by_worker_id
     RETURNING namespace_id INTO v_namespace_id;
 
-    -- Lock holds renew first and never skip: no routine locks both locks and runtimes. A hold whose token
+    -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A hold whose token
     -- moved is not answered, and the attempt that relied on it stops.
     RETURN QUERY
     UPDATE {{schema}}.locks k
@@ -60,24 +60,24 @@ BEGIN
     ),
     matched AS (
         SELECT r0.job_id, r0.execution_number
-        FROM {{schema}}.runtimes r0
+        FROM {{schema}}.jobs_state r0
         WHERE
             (r0.job_id, r0.execution_number) IN (SELECT h.job_id, h.execution_number FROM held h)
             AND r0.leased_by_worker_id = p_leased_by_worker_id
-            AND r0.status_code = 50 /* JobStatusCode.Executing */
+            AND r0.job_status_code = 50 /* JobStatusCode.Executing */
     ),
     locked AS (
         SELECT r1.job_id
-        FROM {{schema}}.runtimes r1
+        FROM {{schema}}.jobs_state r1
         WHERE
             (r1.job_id, r1.execution_number) IN (SELECT h.job_id, h.execution_number FROM held h)
             AND r1.leased_by_worker_id = p_leased_by_worker_id
-            AND r1.status_code = 50 /* JobStatusCode.Executing */
+            AND r1.job_status_code = 50 /* JobStatusCode.Executing */
         ORDER BY r1.job_id
         FOR UPDATE SKIP LOCKED
     ),
     extended AS (
-        UPDATE {{schema}}.runtimes r
+        UPDATE {{schema}}.jobs_state r
         SET lease_expires_at_utc = v_new_expiry
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
         RETURNING r.job_id
@@ -91,10 +91,10 @@ BEGIN
     IF p_recovery_interval_seconds IS NOT NULL THEN
         UPDATE {{schema}}.namespaces n
         SET recovery_due_at_utc = now() + (p_recovery_interval_seconds * INTERVAL '1 second')
-        WHERE n.id = (
-            SELECT n0.id
+        WHERE n.namespace_id = (
+            SELECT n0.namespace_id
             FROM {{schema}}.namespaces n0
-            WHERE n0.id = v_namespace_id AND (n0.recovery_due_at_utc IS NULL OR n0.recovery_due_at_utc <= now())
+            WHERE n0.namespace_id = v_namespace_id AND (n0.recovery_due_at_utc IS NULL OR n0.recovery_due_at_utc <= now())
             FOR UPDATE SKIP LOCKED
         );
         v_recovery_claimed := FOUND;

@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace Acta;
 
 /// <summary>
-/// Canonicalizes tag filters into the <c>[{"name", "value_search"}]</c> JSON projection the
+/// Canonicalizes tag filters into the <c>[{"tag_name", "tag_value_search"}]</c> JSON projection the
 /// provider SQL matches against; the shape is a contract with the stores' tag-filter queries.
 /// </summary>
 internal static class TagFilterJson
@@ -55,8 +55,8 @@ internal static class TagFilterJson
                 }
 
                 writer.WriteStartObject();
-                writer.WriteString("name", name);
-                writer.WriteString("value_search", TagValueSearch.Normalize(filter.Value));
+                writer.WriteString("tag_name", name);
+                writer.WriteString("tag_value_search", TagValueSearch.Normalize(filter.Value));
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();

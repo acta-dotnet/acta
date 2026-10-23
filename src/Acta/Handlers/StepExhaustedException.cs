@@ -8,7 +8,7 @@ namespace Acta;
 /// On a parent replay the slot is already <c>Exhausted</c>, so the next call for the same name re-throws at once until
 /// an operator restart gives the step a fresh budget. Carries the step name, the attempt count, and the final failure context.
 /// </summary>
-public sealed class StepExhaustedException(string stepName, int attemptCount, EventReasonCode? lastReasonCode, string? lastReasonMessage)
+public sealed class StepExhaustedException(string stepName, int attemptCount, StepFailureCode? lastReasonCode, string? lastReasonMessage)
     : Exception(
         $"Step '{stepName}' exhausted after {attemptCount} attempt(s): {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}."
     )
@@ -20,7 +20,7 @@ public sealed class StepExhaustedException(string stepName, int attemptCount, Ev
     public int AttemptCount { get; } = attemptCount;
 
     /// <summary>Reason code of the final failed attempt, or <c>null</c> when none was recorded.</summary>
-    public EventReasonCode? LastReasonCode { get; } = lastReasonCode;
+    public StepFailureCode? LastReasonCode { get; } = lastReasonCode;
 
     /// <summary>Operator-readable message of the final failed attempt.</summary>
     public string? LastReasonMessage { get; } = lastReasonMessage;

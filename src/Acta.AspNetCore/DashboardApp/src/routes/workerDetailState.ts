@@ -2,12 +2,12 @@ export interface WorkerDetailShape {
   workerRef: string;
   jobNamespace: string;
   status: string;
-  host: string;
+  hostName: string;
   deploymentVersion: string;
   engineVersion: string | null;
   dotnetVersion: string | null;
   processId: number | null;
-  maxConcurrency: number;
+  maxConcurrentExecutors: number;
   lastSeenAtUtc: string;
   startedAtUtc: string;
   modifiedAtUtc: string;
@@ -33,11 +33,11 @@ export function workerSupportSummary(worker: WorkerDetailShape): string {
     `Acta worker ${worker.workerRef}`,
     `Namespace: ${worker.jobNamespace}`,
     `Status: ${worker.status}`,
-    `Host/PID: ${worker.host}/${worker.processId ?? 'unknown'}`,
+    `Host/PID: ${worker.hostName}/${worker.processId ?? 'unknown'}`,
     `Deployment: ${worker.deploymentVersion}`,
     `Engine: ${worker.engineVersion ?? 'unknown'}`,
     `.NET: ${worker.dotnetVersion ?? 'unknown'}`,
-    `Concurrency: ${worker.maxConcurrency}`,
+    `Executors: ${worker.maxConcurrentExecutors}`,
     `Last heartbeat: ${worker.lastSeenAtUtc}`,
     `Started: ${worker.startedAtUtc}`
   ].join('\n');

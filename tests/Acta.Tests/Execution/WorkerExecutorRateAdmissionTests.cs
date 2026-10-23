@@ -63,7 +63,7 @@ public sealed class WorkerExecutorRateAdmissionTests
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(CompletionKind.Rescheduled, completion.Outcome);
-        Assert.Equal(EventReasonCode.JobRateLimited, completion.EventReasonCode);
+        Assert.Equal(EventReason.RateLimited, completion.Reason);
 
         // The reserved turn verbatim, not a delay: the meter booked a place in its queue, so any
         // recomputation here would land the job somewhere other than where the bucket expects it.
@@ -163,7 +163,7 @@ public sealed class WorkerExecutorRateAdmissionTests
         Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(CompletionKind.Cancelled, harness.Completion.Outcome);
-        Assert.Equal(EventReasonCode.JobDeadlineExceeded, harness.Completion.EventReasonCode);
+        Assert.Equal(EventReason.DeadlineExceeded, harness.Completion.Reason);
         Assert.Equal(1, harness.SlotReleases);
     }
 
@@ -221,7 +221,7 @@ public sealed class WorkerExecutorRateAdmissionTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
-        Assert.Equal(EventReasonCode.Unclassified, completion.EventReasonCode);
+        Assert.Null(completion.Reason);
         Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
         Assert.Null(completion.RescheduleResumeAtUtc);
         Assert.Null(completion.FailureCount);
@@ -239,6 +239,6 @@ public sealed class WorkerExecutorRateAdmissionTests
 
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Empty(harness.RateRequests);
-        Assert.Equal(EventReasonCode.JobConcurrencyKeyHeld, harness.Completion.EventReasonCode);
+        Assert.Equal(EventReason.ConcurrencyKeyHeld, harness.Completion.Reason);
     }
 }

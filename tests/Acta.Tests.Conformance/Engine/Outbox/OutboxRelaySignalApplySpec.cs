@@ -32,19 +32,19 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, row);
 
         // A ledger job stands in for the sys.outbox slot (this harness drives the relay composition
-        // directly, like the crash-window specs); the runtimes row backs the evidence event join.
+        // directly, like the crash-window specs); the jobs_state row backs the evidence event join.
         var seeder = new ActaTestSeeder(Db);
         var (slotJobId, _) = await seeder.SeedJobAsync(NamespaceId, ct: ct);
-        await Db.From<RuntimeEntity>()
+        await Db.From<JobStateEntity>()
             .InsertAsync<long>(
-                new RuntimeEntity
+                new JobStateEntity
                 {
                     Id = slotJobId,
                     NamespaceId = NamespaceId,
                     Status = JobStatusCode.Ready,
                     Priority = JobPriorityCode.Critical,
                     // Ready carries its due instant the way register_schedules writes the real
-                    // slot row; ck_runtimes_ready_due rejects the pair otherwise.
+                    // slot row; ck_jobs_state_ready_due rejects the pair otherwise.
                     NextRunAtUtc = DateTime.UtcNow,
                     ExecutionNumber = 1,
                 },
@@ -76,12 +76,13 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         Assert.Equal((byte)OutboxStatusCode.Pending, state.StatusCode);
         Assert.Equal(0, state.FailureCount);
 
-        var evidence = Assert.Single(await Db.From<EventEntity>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
+        var evidence = Assert.Single(
+            await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct)
+        );
         Assert.Equal(EventCode.OutboxRequeued, evidence.EventCode);
-        Assert.Equal(ActorCode.Operator, evidence.ActorCode);
-        Assert.Equal("marko", evidence.Actor);
-        Assert.Contains("fixed the target route", evidence.ReasonMessage);
-        Assert.Contains(row.OutboxId.ToString(), evidence.ReasonMessage);
+        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Contains("fixed the target route", evidence.EventMessage);
+        Assert.Contains(row.OutboxId.ToString(), evidence.EventMessage);
 
         // The same pass's drain now claims the freed row and relays it into a ledger job.
         var summary = await relay.RunTickAsync(TickOptions(), ct);

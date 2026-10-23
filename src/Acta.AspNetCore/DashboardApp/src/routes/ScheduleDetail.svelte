@@ -13,6 +13,7 @@
   import CopyButton from '../components/CopyButton.svelte';
   import PageFreshness from '../components/PageFreshness.svelte';
   import { mergeHistory, type HistoryEvent } from '../components/changeHistory.ts';
+  import { eventFacts } from '../lib/eventFacts.ts';
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
 
@@ -27,8 +28,8 @@
     expression: string;
     timeZoneId: string;
     misfireStrategy: string;
-    nextRunAtUtc: string | null;
-    orphanedAtUtc: string | null;
+    nextOccurrenceAtUtc: string | null;
+    lastAdvancedOccurrenceAtUtc: string | null;
     status: string;
     pausedUntilUtc: string | null;
     createdAtUtc: string;
@@ -76,15 +77,16 @@
 
   // Schedule lifecycle events (schedule.*) are recorded against the slot job, whose timeline is
   // dominated by execution/rollover rows. Query each lifecycle code directly (server-side eventCode
-  // filter) so a busy schedule's executions can't crowd them out, then merge newest-first.
+  // filter) so a busy schedule's executions can't crowd them out, then merge newest-first. The slot
+  // can carry several schedules, so a row whose details.schedule names another one is dropped.
   const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered'];
   const history = createQuery(() => ({
-    queryKey: keys.detail('schedule-history', schedule?.jobRef ?? ''),
+    queryKey: keys.detail('schedule-history', `${schedule?.jobRef ?? ''}/${scheduleName}`),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const pages = await Promise.all(
         HISTORY_CODES.map((eventCode) =>
           api<Paged<HistoryEvent>>('events', { jobRef: schedule!.jobRef, eventCode, pageSize: 20 }, { signal }).then(
-            (page) => page.items
+            (page) => page.items.filter((ev) => (eventFacts(ev.detailsText).schedule ?? scheduleName) === scheduleName)
           )
         )
       );
@@ -139,7 +141,7 @@
             <div><dt>Expression kind</dt><dd>{schedule.expressionKind}</dd></div>
             <div><dt>Misfire strategy</dt><dd>{schedule.misfireStrategy}</dd></div>
             <div><dt>Origin</dt><dd>{schedule.origin}</dd></div>
-            <div><dt>Next run</dt><dd><RelativeTime value={schedule.nextRunAtUtc} /></dd></div>
+            <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
           </dl>
           <p class="detail-help">
             Misfire strategy governs fires missed while the host was down: it decides, on recovery, whether to

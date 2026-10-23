@@ -86,7 +86,7 @@ public sealed class WorkerRuntimeHostStartupTests
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT COUNT(*) FROM main.{table} t JOIN main.namespaces n ON n.id = t.namespace_id WHERE n.name = @namespace;";
+            $"SELECT COUNT(*) FROM main.{table} t JOIN main.namespaces n ON n.namespace_id = t.namespace_id WHERE n.namespace_name = @namespace;";
         command.Parameters.AddWithValue("@namespace", WorkerNamespace);
         return Convert.ToInt32(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
@@ -97,7 +97,8 @@ public sealed class WorkerRuntimeHostStartupTests
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT w.status_code FROM main.workers w JOIN main.namespaces n ON n.id = w.namespace_id WHERE n.name = @namespace;";
+            "SELECT w.worker_status_code FROM main.workers w JOIN main.namespaces n ON n.namespace_id = w.namespace_id"
+            + " WHERE n.namespace_name = @namespace;";
         command.Parameters.AddWithValue("@namespace", WorkerNamespace);
         var status = await command.ExecuteScalarAsync(ct);
         Assert.NotNull(status);

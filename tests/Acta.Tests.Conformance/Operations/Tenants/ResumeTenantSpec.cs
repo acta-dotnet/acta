@@ -18,7 +18,9 @@ public sealed class ResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
         await Db.From<TenantEntity>().Where(t => t.TenantName == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int tenantId, EventCode code, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.TenantId == tenantId && e.EventCode == code).CountAsync(ct);
+        await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Tenant && e.EntityId == tenantId && e.EventCode == code)
+            .CountAsync(ct);
 
     [Fact(DisplayName = "Resuming a suspended tenant applies and emits one tenant.resumed")]
     public async Task Resume_applies_and_emits()

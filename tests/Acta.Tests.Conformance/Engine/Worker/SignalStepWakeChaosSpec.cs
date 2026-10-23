@@ -43,10 +43,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(
-            events,
-            e => e.EventCode == EventCode.JobSignalRaised && e.FromStatus == JobStatusCode.Ready && e.ToStatus == JobStatusCode.Ready
-        );
+        Assert.Single(events, e => e.EventCode == EventCode.JobSignalRaised);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobSuspended);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobResumed);
     }
@@ -68,21 +65,13 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(
-            events,
-            e => e.EventCode == EventCode.JobSuspended && e.FromStatus == JobStatusCode.Executing && e.ToStatus == JobStatusCode.Suspended
-        );
-        // RaiseSignal records the raise without moving status (from == to); the Suspended->Ready
-        // transition is the separate JobResumed event below.
-        Assert.Single(
-            events,
-            e =>
-                e.EventCode == EventCode.JobSignalRaised && e.FromStatus == JobStatusCode.Suspended && e.ToStatus == JobStatusCode.Suspended
-        );
-        Assert.Single(
-            events,
-            e => e.EventCode == EventCode.JobResumed && e.FromStatus == JobStatusCode.Suspended && e.ToStatus == JobStatusCode.Ready
-        );
+        var suspended = Assert.Single(events, e => e.EventCode == EventCode.JobSuspended);
+        Assert.Equal(JobStatusCode.Suspended.Code, suspended.To);
+        // RaiseSignal records the raise without moving status; the Suspended->Ready transition is the
+        // separate JobResumed event that follows it.
+        var raised = Assert.Single(events, e => e.EventCode == EventCode.JobSignalRaised);
+        var resumed = Assert.Single(events, e => e.EventCode == EventCode.JobResumed);
+        Assert.True(suspended.Id < raised.Id && raised.Id < resumed.Id);
     }
 
     [Fact(DisplayName = "Step retry exhaustion fails the parent exactly once")]
@@ -106,8 +95,8 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(JobStatusCode.Failed, job!.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(EventReasonCode.JobNonRetryableException, finished.EventReasonCode);
+        var failed = Assert.Single(events, e => e.EventCode == EventCode.JobFailed);
+        Assert.Equal(EventReason.NonRetryableException, failed.Reason);
         Assert.Single(events, e => e.EventCode == EventCode.JobRescheduled);
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }

@@ -287,13 +287,44 @@ public sealed class AnvilStateReader(
                 EventCode: row.EventCode.ToString(),
                 WorkerName: row.WorkerId is { } id ? workerNames.GetValueOrDefault(id) ?? $"worker {id}" : null,
                 JobRef: row.JobRef?.ToString(),
-                FromStatus: row.FromStatus?.ToString(),
-                ToStatus: row.ToStatus?.ToString(),
-                ExecutionStatus: row.ExecutionStatus?.ToString(),
+                FromStatus: null,
+                ToStatus: Detail(row.DetailsText, "to"),
+                ExecutionStatus: row.EventCode
+                    is EventCode.JobExecutionSucceeded
+                        or EventCode.JobExecutionFailed
+                        or EventCode.JobExecutionOrphaned
+                        or EventCode.JobExecutionYielded
+                        or EventCode.JobFailed
+                    ? row.EventCode.ToString()
+                    : null,
                 DurationMs: row.DurationMs,
-                Reason: row.ReasonMessage ?? row.ReasonCode?.ToString()
+                Reason: row.Message ?? Detail(row.DetailsText, "reason")
             ))
             .ToArray();
+
+    // The named text fact of an event's JSON details text, or null.
+    private static string? Detail(string? detailsText, string name)
+    {
+        if (detailsText is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(detailsText);
+            return
+                document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && document.RootElement.TryGetProperty(name, out var value)
+                && value.ValueKind == System.Text.Json.JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
 
     private static string DbReason(Exception ex)
     {

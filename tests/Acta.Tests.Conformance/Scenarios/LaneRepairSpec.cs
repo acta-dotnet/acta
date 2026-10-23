@@ -42,14 +42,9 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.Equal(JobStatusCode.Ready, await StatusAsync(follower, ct));
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(last, ct));
-        var repaired = Assert.Single(
-            await Db.From<EventEntity>()
-                .Where(e => e.JobId == follower.JobId && e.ReasonCode == EventReasonCode.JobLaneRepaired)
-                .ToListAsync(ct)
-        );
-        Assert.Equal(ActorCode.Sys, repaired.ActorCode);
-        Assert.Equal(JobStatusCode.Blocked, repaired.FromStatus);
-        Assert.Equal(JobStatusCode.Ready, repaired.ToStatus);
+        var repaired = await ReadSingleEventAsync(follower.JobId, EventCode.JobResumed, ct);
+        Assert.Equal(EventReason.LaneRepaired, EventDetail(repaired, "reason"));
+        Assert.Null(EventDetail(repaired, "actor"));
         Assert.Contains(_wakeups.Published.Skip(before), c => c.Kind == WorkerWakeupChannelKind.WorkerNamespace);
     }
 
@@ -116,10 +111,10 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             enqueued.AddRange((await Jobs.EnqueueBatchAsync(chunk, ct)).Jobs);
         }
         // Every head hand-set to Succeeded, so every lane is stranded behind a Blocked follower.
-        await RuntimeStateStaging.UpdateAsync(
+        await JobStateStaging.UpdateAsync(
             Db,
             enqueued.Where((_, i) => i % 2 == 0).Select(head => head.JobId),
-            $"status_code = {(int)JobStatusCode.Succeeded}",
+            $"job_status_code = {(int)JobStatusCode.Succeeded}",
             ct
         );
 
@@ -127,7 +122,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.Equal(
             100,
-            await Db.From<RuntimeEntity>()
+            await Db.From<JobStateEntity>()
                 .Where(r => r.NamespaceId == ns && r.LaneId != null && r.Status == JobStatusCode.Ready)
                 .CountAsync(ct)
         );
@@ -142,16 +137,16 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     private async Task AssertUntouchedAsync(EnqueueJobResponse follower, CancellationToken ct)
     {
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(follower, ct));
-        Assert.Empty(
-            await Db.From<EventEntity>()
-                .Where(e => e.JobId == follower.JobId && e.ReasonCode == EventReasonCode.JobLaneRepaired)
-                .ToListAsync(ct)
-        );
+        Assert.Equal(0, await CountReasonAsync(follower.JobId, EventReason.LaneRepaired, ct));
     }
 
     // A hand UPDATE, the way an operator or a bug strands a lane: no settle runs, so nothing promotes.
     private Task SetStatusAsync(EnqueueJobResponse job, JobStatusCode status, CancellationToken ct) =>
-        Db.ExecuteRawAsync($"UPDATE {{schema}}.runtimes SET status_code = {(int)status} WHERE job_id = @p_id", ct, ("@p_id", job.JobId));
+        Db.ExecuteRawAsync(
+            $"UPDATE {{schema}}.jobs_state SET job_status_code = {(int)status} WHERE job_id = @p_id",
+            ct,
+            ("@p_id", job.JobId)
+        );
 
     private async Task<EnqueueJobResponse> StepAsync(string lane, string label, CancellationToken ct) =>
         await Jobs.EnqueueAsync(

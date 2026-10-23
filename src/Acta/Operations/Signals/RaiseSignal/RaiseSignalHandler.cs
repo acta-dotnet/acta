@@ -30,7 +30,7 @@ internal sealed class RaiseSignalHandler(
             return new RaiseSignalResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var input = new JobControlInput(JobControlActor.Operator(command.Actor), EventReasonCode.JobSignalReleased, null);
+        var input = new JobControlInput(JobControlActor.Operator(command.Actor), EventReason.SignalReleased, null);
         var response = await RaiseSlotAsync(
             new RaiseSignalSlot(jobId, CheckpointKindCode.Signal, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), input),
             ct
@@ -47,11 +47,11 @@ internal sealed class RaiseSignalHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, raise.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.KindCode, raise.Kind));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, raise.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointKindCode, raise.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointName, raise.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, raise.ValueFormatId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, raise.Value));
-                JobControl.BindActor(cmd, dialect, raise.Input);
+                JobControl.BindEvent(cmd, dialect, raise.Input);
             },
             DbProjectionResolver.Resolve<RaiseSignalRow>(),
             ct

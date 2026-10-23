@@ -1,46 +1,26 @@
 WITH stopped AS (
     UPDATE {{schema}}.workers
     SET
-        status_code = 100 /* WorkerStatusCode.Stopped */,
+        worker_status_code = 100 /* WorkerStatusCode.Stopped */,
         modified_at_utc = now(),
         version = version + 1
     WHERE
-        id = @p_worker_id
-        AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-    RETURNING id
+        worker_id = @p_worker_id
+        AND worker_status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+    RETURNING worker_id
 )
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    execution_number,
-    lineage_root_id,
-    definition_id,
     worker_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    entity_code,
+    entity_id)
 SELECT
     121 /* EventCode.WorkerStopped */,
     now(),
     @p_namespace_id,
-    70 /* ActorCode.Worker */,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    s.id,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    100 /* EventReasonCode.WorkerCleanShutdown */,
-    NULL
+    s.worker_id,
+    130 /* EntityCode.Worker */,
+    s.worker_id
 FROM stopped s;

@@ -5,4 +5,4 @@ namespace Acta;
 /// <see cref="LaneRepaired"/> the released Blocked member of a stranded lane.
 /// </summary>
 [DbProjection]
-internal readonly record struct ReclaimStuckJobsRow(long JobId, JobStatusCode ToStatus, long? ParentId, bool LaneRepaired);
+internal readonly record struct ReclaimStuckJobsRow(long JobId, JobStatusCode ToStatus, long? ParentJobId, bool LaneRepaired);

@@ -53,4 +53,32 @@ describe('JobSummary', () => {
     const { queryByText } = render(JobSummary, { job: job({ lane: 'customer-42' }) });
     expect(queryByText('Blocked behind')).toBeNull();
   });
+
+  it('reads a saturated failure count as a floor', () => {
+    const { getByText } = render(JobSummary, { job: job({ executionNumber: 40000, failureCount: 32767 }) });
+    expect(getByText(/40000 started, 32,767\+ consecutive failures/)).toBeTruthy();
+  });
+
+  it('quotes the last event\'s reason from its details and its message', () => {
+    const lastEvent = {
+      eventId: 9,
+      eventCode: 'job.execution-failed',
+      createdAtUtc: '2026-07-14T08:00:00Z',
+      jobNamespace: 'billing',
+      entityKind: 'job',
+      entityId: 3,
+      jobName: 'send-invoice',
+      jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
+      lineageRootJobRef: null,
+      tenantName: null,
+      workerRef: null,
+      executionNumber: 1,
+      durationMs: 12,
+      message: 'Invoice provider timed out.',
+      detailsText: '{"reason":"unhandled-exception","to":"ready"}'
+    };
+    const { getByText } = render(JobSummary, { job: job({}), lastEvent });
+    expect(getByText('· unhandled-exception')).toBeTruthy();
+    expect(getByText(/“Invoice provider timed out\.”/)).toBeTruthy();
+  });
 });

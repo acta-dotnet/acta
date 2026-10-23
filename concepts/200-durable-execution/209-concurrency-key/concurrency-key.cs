@@ -116,9 +116,9 @@ while (
 await lab.ShowAsync(
     "The event ledger explains the budget-neutral admission bounce",
     """
-    SELECT job_id, event, to_status, reason, execution_number
+    SELECT entity_id AS job_id, event, details_text, execution_number
     FROM events_view
-    WHERE job_id IN (@firstJobId, @secondJobId)
+    WHERE entity_kind = 'job' AND entity_id IN (@firstJobId, @secondJobId)
     ORDER BY event_id
     """,
     new { firstJobId = first.JobId, secondJobId = second.JobId }
@@ -175,9 +175,9 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "An early job a quarter second or more from its turn re-arms once, budget-neutral, at its reserved instant",
     """
-    SELECT job_id, event, to_status, reason, execution_number
+    SELECT entity_id AS job_id, event, details_text, execution_number
     FROM events_view
-    WHERE job_name = 'ping-endpoint' AND reason = 'job.rate-limited'
+    WHERE job_name = 'ping-endpoint' AND event = 'job.rescheduled' AND details_text LIKE '%"reason":"rate-limited"%'
     ORDER BY event_id
     """
 );

@@ -36,7 +36,7 @@ public sealed class WorkerRuntimeDescriptorGateSpec : ActaRuntimeTestBase<Confor
 
         // The namespace row may or may not have been written before the gate; the worker row and its
         // event are what must not exist, because a start that threw did not start anything.
-        var nsId = (await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))?.Id;
+        var nsId = (await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct))?.Id;
         Assert.Equal(0, nsId is null ? 0 : await Db.From<WorkerEntity>().Where(w => w.NamespaceId == nsId.Value).CountAsync(ct));
         Assert.Equal(
             0,
@@ -69,7 +69,7 @@ public sealed class InvalidBackoffManifest : IJobManifest
                     OutputPayloadFormat: null,
                     Priority: JobPriorityCode.Normal,
                     MaxAttempts: 1,
-                    AuditLevel: DefinitionAuditLevelCode.Audit,
+                    EventRecording: EventRecordingCode.Audit,
                     AlertProfile: AlertProfileCode.None,
                     Invoker: static async (_, _, _, _) =>
                     {

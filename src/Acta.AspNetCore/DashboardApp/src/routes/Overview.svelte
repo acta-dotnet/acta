@@ -288,7 +288,7 @@
       {:else}
         <DataTable ledger>
           <caption class="sr-only">Next schedules</caption>
-          <thead><tr><th>Schedule</th><th>Expression</th><th>Namespace</th><th>Next run</th></tr></thead>
+          <thead><tr><th>Schedule</th><th>Expression</th><th>Namespace</th><th>Next occurrence</th></tr></thead>
           <tbody>
             {#each schedules.items as schedule}
               <tr>
@@ -300,7 +300,7 @@
                 </td>
                 <td class="mono">{schedule.expression}</td>
                 <td class="dim">{schedule.jobNamespace}</td>
-                <td><RelativeTime value={schedule.nextRunAtUtc} /></td>
+                <td><RelativeTime value={schedule.nextOccurrenceAtUtc} /></td>
               </tr>
             {/each}
           </tbody>

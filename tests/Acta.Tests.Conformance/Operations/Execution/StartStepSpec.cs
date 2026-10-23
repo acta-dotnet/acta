@@ -67,7 +67,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var interrupted = await ReadStepAsync(job, ct);
         Assert.Equal(StepStatusCode.Interrupted, interrupted.Status);
         Assert.Equal(1, interrupted.AttemptNumber);
-        Assert.Equal(EventReasonCode.JobStepInterrupted, interrupted.ReasonCode);
+        Assert.Equal(StepFailureCode.Interrupted, interrupted.FailureCode);
 
         // Interrupted is terminal: a later entry answers the same and writes nothing.
         Assert.Equal(StartStepOutcomeCode.Interrupted, (await Execution.StartStepAsync(job, StepName, atMostOnce: true, ct)).Outcome);
@@ -93,7 +93,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(
             1,
             await Db.From<StepEntity>()
-                .Where(s => s.JobId == job && s.Name == StepName)
+                .Where(s => s.JobId == job && s.StepName == StepName)
                 .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due }, ct)
         );
 
@@ -139,8 +139,8 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             var refused = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
             Assert.Equal(StartStepOutcomeCode.Exhausted, refused.Outcome);
             Assert.Equal(1, refused.AttemptNumber);
-            Assert.Equal(EventReasonCode.JobUnhandledException, refused.ReasonCode);
-            Assert.Equal("card declined", refused.ReasonMessage);
+            Assert.Equal(StepFailureCode.UnhandledException, refused.FailureCode);
+            Assert.Equal("card declined", refused.FailureMessage);
         }
         Assert.Equal(StepStatusCode.Exhausted, (await ReadStepAsync(job, ct)).Status);
     }
@@ -172,7 +172,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                     false,
                     0,
                     null,
-                    EventReasonCode.JobUnhandledException,
+                    StepFailureCode.UnhandledException,
                     "card declined",
                     DelaySeconds: 600,
                     maxAttempts,
@@ -183,5 +183,5 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         );
 
     private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct));
+        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.StepName == StepName).ToListAsync(ct));
 }

@@ -60,7 +60,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
@@ -108,11 +108,10 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleRow> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
-        return Assert.Single(rows);
+        return Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == scheduleName);
     }
 
     private async Task<TestJobRow> SlotAsync(string jobName, CancellationToken ct)
@@ -132,7 +131,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            AuditLevel: default,
+            EventRecording: default,
             AlertProfile: default,
             Invoker: null!,
             DeserializeInput: null!,
@@ -162,8 +161,8 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         await Schedules.PauseAsync(Lookup(skipJob, "only"), ct: ct);
         var skipResumed = await Schedules.ResumeAsync(Lookup(skipJob, "only"), ct: ct);
         Assert.Equal(ControlAction.Applied, skipResumed.Action);
-        Assert.NotNull(skipResumed.NextRunAtUtc);
-        Assert.True(skipResumed.NextRunAtUtc > now, "Skip resume advances strictly past now");
+        Assert.NotNull(skipResumed.NextOccurrenceAtUtc);
+        Assert.True(skipResumed.NextOccurrenceAtUtc > now, "Skip resume advances strictly past now");
 
         // CatchUpOnce: the past instant is kept so the slot fires once on resume.
         var catchJob = Unique("catch");
@@ -182,7 +181,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         await Schedules.PauseAsync(Lookup(catchJob, "only"), ct: ct);
         var catchResumed = await Schedules.ResumeAsync(Lookup(catchJob, "only"), ct: ct);
         Assert.Equal(ControlAction.Applied, catchResumed.Action);
-        Assert.NotNull(catchResumed.NextRunAtUtc);
-        Assert.True(catchResumed.NextRunAtUtc <= now, "CatchUpOnce resume keeps a past instant for one catch-up fire");
+        Assert.NotNull(catchResumed.NextOccurrenceAtUtc);
+        Assert.True(catchResumed.NextOccurrenceAtUtc <= now, "CatchUpOnce resume keeps a past instant for one catch-up fire");
     }
 }

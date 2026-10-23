@@ -6413,7 +6413,11 @@
                 "namespace.updated",
                 "definition.overrides-updated",
                 "definition.retired",
-                "job.execution-finished",
+                "job.execution-succeeded",
+                "job.execution-failed",
+                "job.execution-orphaned",
+                "job.execution-yielded",
+                "job.failed",
                 "job.recurring-rolled-over",
                 "job.suspended",
                 "job.rescheduled",
@@ -6444,55 +6448,36 @@
             }
           },
           {
-            "name": "actorCode",
+            "name": "entityKind",
             "in": "query",
-            "description": "Exact actor as its kebab code.",
+            "description": "Only events about this kind of subject.",
             "schema": {
               "enum": [
                 "unspecified",
-                "sys",
-                "operator",
+                "alert",
+                "checkpoint",
+                "definition",
+                "event",
                 "job",
+                "lane",
+                "lock",
+                "namespace",
+                "schedule",
+                "step",
+                "tag",
+                "tenant",
                 "worker"
               ],
               "type": "string"
             }
           },
           {
-            "name": "reasonCode",
+            "name": "entityId",
             "in": "query",
-            "description": "Exact reason as its kebab code.",
+            "description": "Only events about this subject id; requires entityKind.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "job.unclassified",
-                "job.unhandled-exception",
-                "job.lease-expired",
-                "job.execution-timeout",
-                "job.non-retryable-exception",
-                "job.deadline-exceeded",
-                "job.attempt-aborted",
-                "job.schedules-exhausted",
-                "job.control-manual",
-                "job.parent-cancelled",
-                "job.definition-retired",
-                "job.handler-rescheduled",
-                "job.handler-suspended",
-                "job.handler-failed",
-                "job.handler-cancelled",
-                "job.handler-paused",
-                "job.signal-released",
-                "job.step-retry-scheduled",
-                "job.concurrency-key-held",
-                "job.step-interrupted",
-                "job.result-oversized",
-                "job.wait-timed-out",
-                "job.rate-limited",
-                "job.lane-repaired",
-                "worker.clean-shutdown",
-                "worker.heartbeat-stale"
-              ],
-              "type": "string"
+              "type": "integer",
+              "format": "int64"
             }
           },
           {
@@ -6649,7 +6634,11 @@
                 "namespace.updated",
                 "definition.overrides-updated",
                 "definition.retired",
-                "job.execution-finished",
+                "job.execution-succeeded",
+                "job.execution-failed",
+                "job.execution-orphaned",
+                "job.execution-yielded",
+                "job.failed",
                 "job.recurring-rolled-over",
                 "job.suspended",
                 "job.rescheduled",
@@ -6807,7 +6796,11 @@
                 "namespace.updated",
                 "definition.overrides-updated",
                 "definition.retired",
-                "job.execution-finished",
+                "job.execution-succeeded",
+                "job.execution-failed",
+                "job.execution-orphaned",
+                "job.execution-yielded",
+                "job.failed",
                 "job.recurring-rolled-over",
                 "job.suspended",
                 "job.rescheduled",
@@ -7095,7 +7088,6 @@
         },
         "description": "What acknowledging an alert did, and its timestamps after the attempt."
       },
-      "ActorCode": { },
       "AlertDeliveryStatusCode": {
         "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
       },
@@ -7162,7 +7154,7 @@
         "description": "What cancelling a job did, and the job's status and version after the attempt."
       },
       "CheckpointKindCode": {
-        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
+        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
       "CheckpointStatusCode": { },
       "ControlAction": {
@@ -7179,7 +7171,6 @@
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
-      "DefinitionAuditLevelCode": { },
       "DefinitionPolicyOverrides": {
         "type": "object",
         "properties": {
@@ -7242,7 +7233,7 @@
             ],
             "format": "int32"
           },
-          "auditLevel": { },
+          "eventRecording": { },
           "alertProfile": { },
           "alertChannelName": {
             "type": [
@@ -7412,11 +7403,13 @@
         },
         "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs."
       },
+      "EntityCode": {
+        "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build."
+      },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
       },
-      "EventReasonCode": { },
-      "ExecutionStatusCode": { },
+      "EventRecordingCode": { },
       "GetAlertResponse": {
         "required": [
           "alertRef",
@@ -7593,9 +7586,9 @@
           "jobRetentionSeconds",
           "jobRetentionSecondsOverride",
           "jobRetentionSecondsEffective",
-          "auditLevel",
-          "auditLevelOverride",
-          "auditLevelEffective",
+          "eventRecording",
+          "eventRecordingOverride",
+          "eventRecordingEffective",
           "alertProfile",
           "alertProfileOverride",
           "alertProfileEffective",
@@ -7865,21 +7858,21 @@
             ],
             "format": "int32"
           },
-          "auditLevel": {
-            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
+          "eventRecording": {
+            "$ref": "#/components/schemas/EventRecordingCode"
           },
-          "auditLevelOverride": {
+          "eventRecordingOverride": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DefinitionAuditLevelCode"
+                "$ref": "#/components/schemas/EventRecordingCode"
               }
             ]
           },
-          "auditLevelEffective": {
-            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
+          "eventRecordingEffective": {
+            "$ref": "#/components/schemas/EventRecordingCode"
           },
           "alertProfile": {
             "$ref": "#/components/schemas/AlertProfileCode"
@@ -8329,7 +8322,7 @@
             }
           }
         },
-        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `runtimes`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;GetJobExplanationResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
+        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `jobs_state`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;GetJobExplanationResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
       },
       "GetJobExplanationStep": {
         "required": [
@@ -8776,7 +8769,7 @@
             "format": "int32"
           }
         },
-        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `runtimes` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
+        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `jobs_state` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
       },
       "GetOverviewResponse": {
         "required": [
@@ -8974,12 +8967,12 @@
           "workerRef",
           "jobNamespace",
           "status",
-          "host",
+          "hostName",
           "deploymentVersion",
           "engineVersion",
           "dotnetVersion",
           "processId",
-          "maxConcurrency",
+          "maxConcurrentExecutors",
           "lastSeenAtUtc",
           "startedAtUtc",
           "modifiedAtUtc"
@@ -8995,7 +8988,7 @@
           "status": {
             "$ref": "#/components/schemas/WorkerStatusCode"
           },
-          "host": {
+          "hostName": {
             "type": "string"
           },
           "deploymentVersion": {
@@ -9022,7 +9015,7 @@
             ],
             "format": "int32"
           },
-          "maxConcurrency": {
+          "maxConcurrentExecutors": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -9046,7 +9039,7 @@
         "description": "Durable operator detail for one worker process registration."
       },
       "JobPriorityCode": {
-        "description": "Claim-priority value for `runtimes.priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
+        "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
       },
       "JobRef": {
         "description": "Public stable reference for one Job row: \"job_\" plus the Guid's 32 lowercase hex digits, such as\n`job_01a14f4e954e7bf68ac609f3fcad8e3d`. Dashboards, HTTP APIs, and clients address jobs by this\nvalue; the numeric JobId stays the internal engine identity. It copies and searches as one word,\nand a UUIDv7 reads in creation order."
@@ -9389,29 +9382,25 @@
       },
       "ListEventsItem": {
         "required": [
-          "jobEventId",
+          "eventId",
           "eventCode",
           "createdAtUtc",
           "jobNamespace",
+          "entityKind",
+          "entityId",
           "jobName",
           "jobRef",
           "lineageRootJobRef",
-          "executionNumber",
-          "actorCode",
-          "actor",
-          "fromStatus",
-          "toStatus",
-          "executionStatus",
-          "durationMs",
-          "reasonCode",
-          "reasonMessage",
-          "detailText",
+          "tenantName",
           "workerRef",
-          "tenantName"
+          "executionNumber",
+          "durationMs",
+          "message",
+          "detailsText"
         ],
         "type": "object",
         "properties": {
-          "jobEventId": {
+          "eventId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -9428,6 +9417,17 @@
           },
           "jobNamespace": {
             "type": "string"
+          },
+          "entityKind": {
+            "$ref": "#/components/schemas/EntityCode"
+          },
+          "entityId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
           },
           "jobName": {
             "type": [
@@ -9455,80 +9455,7 @@
               }
             ]
           },
-          "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "actorCode": {
-            "$ref": "#/components/schemas/ActorCode"
-          },
-          "actor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "fromStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "toStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "executionStatus": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ExecutionStatusCode"
-              }
-            ]
-          },
-          "durationMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "reasonCode": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/EventReasonCode"
-              }
-            ]
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "detailText": {
+          "tenantName": {
             "type": [
               "null",
               "string"
@@ -9544,14 +9471,38 @@
               }
             ]
           },
-          "tenantName": {
+          "executionNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "detailsText": {
             "type": [
               "null",
               "string"
             ]
           }
         },
-        "description": "One audit event row in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantName`, and `WorkerRef` are\nnull when absent or purged, and retention keeps a worker's row as long as its events. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
+        "description": "One event in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. The subject is `EntityKind` and `EntityId`,\nthe one numeric id on the wire, because the subject outlives its row: a purged job's events, and its\n`job.purged` tombstone, still name it. The joined refs and names (`JobRef` of a job subject,\n`LineageRootJobRef`, `WorkerRef`, `TenantName`, `JobName`) are null when absent or once their\nrow is gone. `Message` is the human text; `DetailsText` is the details payload decoded to text, null when\nthe event carries none or a non-text format."
       },
       "ListEventsResponse": {
         "required": [
@@ -10073,8 +10024,8 @@
           "expression",
           "timeZoneId",
           "misfireStrategy",
-          "nextRunAtUtc",
-          "lastRunAtUtc",
+          "nextOccurrenceAtUtc",
+          "lastAdvancedOccurrenceAtUtc",
           "status",
           "pausedUntilUtc",
           "createdAtUtc",
@@ -10108,14 +10059,14 @@
           "misfireStrategy": {
             "$ref": "#/components/schemas/MisfireStrategyCode"
           },
-          "nextRunAtUtc": {
+          "nextOccurrenceAtUtc": {
             "type": [
               "null",
               "string"
             ],
             "format": "date-time"
           },
-          "lastRunAtUtc": {
+          "lastAdvancedOccurrenceAtUtc": {
             "type": [
               "null",
               "string"
@@ -10159,7 +10110,7 @@
             ]
           }
         },
-        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `Expression` and `TimeZoneId` are the\neffective values, the operator override when present and else the original; `LastRunAtUtc` is the most recent\noccurrence the schedule was advanced past, misfires included; `Status` is Active, Paused, or Orphaned, with\n`PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as expected;\n`JobRef` is the recurring slot job's public ref, null when the slot row was purged."
+        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `Expression` and `TimeZoneId` are the\neffective values, the operator override when present and else the original; `LastAdvancedOccurrenceAtUtc` is the\nmost recent occurrence the schedule was advanced past, misfires included; `Status` is Active, Paused, or Orphaned, with\n`PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as expected;\n`JobRef` is the recurring slot job's public ref, null when the slot row was purged."
       },
       "ListSchedulesResponse": {
         "required": [
@@ -10315,12 +10266,12 @@
           "workerRef",
           "jobNamespace",
           "status",
-          "host",
+          "hostName",
           "deploymentVersion",
           "engineVersion",
           "dotnetVersion",
           "processId",
-          "maxConcurrency",
+          "maxConcurrentExecutors",
           "lastSeenAtUtc",
           "startedAtUtc",
           "modifiedAtUtc"
@@ -10336,7 +10287,7 @@
           "status": {
             "$ref": "#/components/schemas/WorkerStatusCode"
           },
-          "host": {
+          "hostName": {
             "type": "string"
           },
           "deploymentVersion": {
@@ -10363,7 +10314,7 @@
             ],
             "format": "int32"
           },
-          "maxConcurrency": {
+          "maxConcurrentExecutors": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -10516,7 +10467,7 @@
           "action",
           "status",
           "pausedUntilUtc",
-          "nextRunAtUtc",
+          "nextOccurrenceAtUtc",
           "version"
         ],
         "type": "object",
@@ -10541,7 +10492,7 @@
             ],
             "format": "date-time"
           },
-          "nextRunAtUtc": {
+          "nextOccurrenceAtUtc": {
             "type": [
               "null",
               "string"
@@ -10564,7 +10515,7 @@
         "required": [
           "expression",
           "timeZoneId",
-          "nextRunsUtc"
+          "nextOccurrencesUtc"
         ],
         "type": "object",
         "properties": {
@@ -10574,7 +10525,7 @@
           "timeZoneId": {
             "type": "string"
           },
-          "nextRunsUtc": {
+          "nextOccurrencesUtc": {
             "type": "array",
             "items": {
               "type": "string",
@@ -10582,7 +10533,7 @@
             }
           }
         },
-        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string PreviewScheduleResponse.Expression and string PreviewScheduleResponse.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; PreviewScheduleResponse.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
+        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string PreviewScheduleResponse.Expression and string PreviewScheduleResponse.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; PreviewScheduleResponse.NextOccurrencesUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ProblemDetails": {
         "type": "object",
@@ -11093,7 +11044,7 @@
           "action",
           "status",
           "pausedUntilUtc",
-          "nextRunAtUtc",
+          "nextOccurrenceAtUtc",
           "version"
         ],
         "type": "object",
@@ -11118,7 +11069,7 @@
             ],
             "format": "date-time"
           },
-          "nextRunAtUtc": {
+          "nextOccurrenceAtUtc": {
             "type": [
               "null",
               "string"
@@ -11302,7 +11253,7 @@
           "action",
           "status",
           "pausedUntilUtc",
-          "nextRunAtUtc",
+          "nextOccurrenceAtUtc",
           "version"
         ],
         "type": "object",
@@ -11327,7 +11278,7 @@
             ],
             "format": "date-time"
           },
-          "nextRunAtUtc": {
+          "nextOccurrenceAtUtc": {
             "type": [
               "null",
               "string"
@@ -11347,7 +11298,7 @@
         "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
       },
       "StepStatusCode": {
-        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
+        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same slot."
       },
       "SuspendNamespaceRequest": {
         "type": "object",
@@ -11434,7 +11385,7 @@
           "action",
           "status",
           "pausedUntilUtc",
-          "nextRunAtUtc",
+          "nextOccurrenceAtUtc",
           "version"
         ],
         "type": "object",
@@ -11459,7 +11410,7 @@
             ],
             "format": "date-time"
           },
-          "nextRunAtUtc": {
+          "nextOccurrenceAtUtc": {
             "type": [
               "null",
               "string"

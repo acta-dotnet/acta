@@ -49,13 +49,14 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(3, after3.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(EventReasonCode.JobUnhandledException, finished.EventReasonCode);
+        var failed = Assert.Single(events, e => e.EventCode == EventCode.JobFailed);
+        Assert.Equal(EventReason.UnhandledException, failed.Reason);
+        Assert.Equal(3, failed.ExecutionNumber);
 
         Assert.Equal(3, RetryProbe.Attempts(TestNamespace));
     }
 
-    [Fact(DisplayName = "A one-shot that throws twice and then succeeds records both retried attempts as failed at the audit level")]
+    [Fact(DisplayName = "A one-shot that throws twice and then succeeds records both retried attempts as failed at Audit recording")]
     public async Task Retried_failures_record_failed_and_the_success_records_succeeded()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -67,17 +68,17 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
         await Runtime.RunOnceAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
-        var finished = (await GetEventsByJobId.Run(Services, enqueued.JobId, ct))
-            .Where(e => e.EventCode == EventCode.JobExecutionFinished)
+        var attempts = (await GetEventsByJobId.Run(Services, enqueued.JobId, ct))
+            .Where(e => e.EventCode is EventCode.JobExecutionFailed or EventCode.JobExecutionSucceeded)
             .OrderBy(e => e.Id)
-            .Select(e => (e.ExecutionStatus, e.ToStatus))
+            .Select(e => (e.EventCode, e.To))
             .ToList();
-        (ExecutionStatusCode?, JobStatusCode?)[] expected =
+        (EventCode, string?)[] expected =
         [
-            (ExecutionStatusCode.Failed, JobStatusCode.Ready),
-            (ExecutionStatusCode.Failed, JobStatusCode.Ready),
-            (ExecutionStatusCode.Succeeded, JobStatusCode.Succeeded),
+            (EventCode.JobExecutionFailed, JobStatusCode.Ready.Code),
+            (EventCode.JobExecutionFailed, JobStatusCode.Ready.Code),
+            (EventCode.JobExecutionSucceeded, null),
         ];
-        Assert.Equal(expected, finished);
+        Assert.Equal(expected, attempts);
     }
 }

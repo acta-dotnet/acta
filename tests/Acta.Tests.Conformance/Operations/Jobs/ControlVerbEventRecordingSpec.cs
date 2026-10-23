@@ -7,28 +7,28 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for control-verb audit gating: Pause / Resume / Cancel / Restart / RaiseSignal each
+/// Conformance for control-verb event recording gating: Pause / Resume / Cancel / Restart / RaiseSignal each
 /// apply their status transition unconditionally but only insert a <c>events</c> row when the
-/// job's <c>audit_level_code</c> is 20 (Audit). Proves POLICY-03 closure across all five verbs.
+/// job's <c>event_recording_code</c> is 20 (Audit). Proves POLICY-03 closure across all five verbs.
 /// </summary>
 [ConformanceSpec(
-    "control.audit-gating",
-    "Control verbs transition unconditionally but emit events only at full audit",
+    "control.event-recording-gating",
+    "Control verbs transition unconditionally but emit events only at Audit recording",
     Area = "Control",
-    Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's audit level is full (code 20)."
+    Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's event recording is Audit (code 20)."
 )]
-public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class ControlVerbEventRecordingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "Pause applies transition regardless of audit level and emits event only at full audit")]
-    public async Task Pause_applies_transition_regardless_of_audit_level_and_emits_event_only_at_full_audit()
+    [Fact(DisplayName = "Pause applies transition at every event recording level and emits event only at Audit")]
+    public async Task Pause_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput();
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobL, input, ct);
         var outcomeF = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobF, input, ct);
@@ -42,8 +42,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobPaused, ct));
     }
 
-    [Fact(DisplayName = "Resume applies transition regardless of audit level and emits event only at full audit")]
-    public async Task Resume_applies_transition_regardless_of_audit_level_and_emits_event_only_at_full_audit()
+    [Fact(DisplayName = "Resume applies transition at every event recording level and emits event only at Audit")]
+    public async Task Resume_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput();
@@ -52,8 +52,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var jobF = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Paused, ct);
         await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Paused, ct);
-        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, null, ct);
         var outcomeF = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobF, input, null, ct);
@@ -67,16 +67,16 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobResumed, ct));
     }
 
-    [Fact(DisplayName = "Cancel applies transition regardless of audit level and emits event only at full audit")]
-    public async Task Cancel_applies_transition_regardless_of_audit_level_and_emits_event_only_at_full_audit()
+    [Fact(DisplayName = "Cancel applies transition at every event recording level and emits event only at Audit")]
+    public async Task Cancel_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput();
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, ct);
         var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, ct);
@@ -90,8 +90,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobCancelled, ct));
     }
 
-    [Fact(DisplayName = "Restart applies transition regardless of audit level and emits event only at full audit")]
-    public async Task Restart_applies_transition_regardless_of_audit_level_and_emits_event_only_at_full_audit()
+    [Fact(DisplayName = "Restart applies transition at every event recording level and emits event only at Audit")]
+    public async Task Restart_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput();
@@ -100,8 +100,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var jobF = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Succeeded, ct);
         await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Succeeded, ct);
-        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobL, input, null, ct);
         var outcomeF = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobF, input, null, ct);
@@ -115,16 +115,16 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobRestarted, ct));
     }
 
-    [Fact(DisplayName = "RaiseSignal upserts the signal unconditionally and emits event only at full audit")]
-    public async Task RaiseSignal_upserts_signal_unconditionally_and_emits_event_only_at_full_audit()
+    [Fact(DisplayName = "RaiseSignal upserts the signal unconditionally and emits event only at Audit")]
+    public async Task RaiseSignal_upserts_signal_unconditionally_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
         var input = ControlInput();
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services
             .GetRequiredService<SignalsOperations>()
@@ -153,17 +153,16 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         return enqueued.JobId;
     }
 
-    private static JobControlInput ControlInput() =>
-        new(new JobControlActor(ActorCode.Operator, "test"), EventReasonCode.JobControlManual, "audit gate test");
+    private static JobControlInput ControlInput() => new("test", null, "event recording gate test");
 
-    private static Task SetAuditLevelAsync(IDbSession db, long jobId, DefinitionAuditLevelCode auditLevel, CancellationToken ct) =>
+    private static Task SetEventRecordingAsync(IDbSession db, long jobId, EventRecordingCode eventRecording, CancellationToken ct) =>
         db.ExecuteRawAsync(
-            "UPDATE {schema}.jobs SET audit_level_code = @p_level WHERE id = @p_id",
+            "UPDATE {schema}.jobs SET event_recording_code = @p_level WHERE job_id = @p_id",
             ct,
-            ("@p_level", (byte)auditLevel),
+            ("@p_level", (byte)eventRecording),
             ("@p_id", jobId)
         );
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
-        RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
+        JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 }

@@ -219,7 +219,7 @@ public interface IJobs
     /// matches. A <see cref="JobLookupKind.JobId"/> lookup returns the id directly with no DB
     /// round-trip; a <see cref="JobLookupKind.JobRef"/> lookup resolves over the unique
     /// <c>job_ref</c> index; a <see cref="JobLookupKind.DeduplicationKey"/> lookup matches root jobs only
-    /// (<c>parent_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
+    /// (<c>parent_job_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
     /// </summary>
     ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default);
 
@@ -294,10 +294,10 @@ public interface IJobs
 
     /// <summary>
     /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the
-    /// cancel cascades to the job's non-terminal descendant subtree (<c>reason = ParentCancelled</c>). Stamps
-    /// <c>actor = Operator</c>, <c>reason = ControlManual</c> on the target; <paramref name="reasonMessage"/> is
-    /// persisted on the row and the audit event, and <paramref name="actor"/> is recorded on the audit event as the
-    /// operator identity (the authenticated principal name; null when unknown). An already-terminal job is
+    /// cancel cascades to the job's non-terminal descendant subtree (event reason <c>parent-cancelled</c>).
+    /// <paramref name="reasonMessage"/> is persisted on the row and as the audit event's message, and
+    /// <paramref name="actor"/> is recorded in the audit event's details as the operator identity (the authenticated
+    /// principal name; null when unknown). An already-terminal job is
     /// <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
     /// </summary>
     ValueTask<CancelJobResponse> CancelAsync(
@@ -409,7 +409,7 @@ public interface IJobs
     /// Hard-delete the terminal job identified by <paramref name="job"/>: its <c>events</c> and <c>alerts</c> rows,
     /// then the job row, which cascades to its runtime, schedule, step, result, checkpoint, and tag rows. A
     /// non-terminal job is <see cref="ControlAction.Rejected"/>, and so is a terminal job with children (deleting it
-    /// would orphan their lineage; <c>parent_id</c> has no cascade) or a child whose parent is not terminal (the
+    /// would orphan their lineage; <c>parent_job_id</c> has no cascade) or a child whose parent is not terminal (the
     /// parent's replay dedupes onto it and reads its result). Always emits <c>job.purged</c>, with a null job and the
     /// purged ref and name on its <c>ReasonMessage</c>, stamped <paramref name="actor"/>; there is no caller reason.
     /// </summary>

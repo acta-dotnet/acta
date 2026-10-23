@@ -35,7 +35,7 @@ public sealed class ExecutionTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(JobStatusCode.Failed, snapshot!.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(EventReasonCode.JobExecutionTimeout, finished.EventReasonCode);
+        var failed = Assert.Single(events, e => e.EventCode == EventCode.JobFailed);
+        Assert.Equal(EventReason.ExecutionTimeout, failed.Reason);
     }
 }

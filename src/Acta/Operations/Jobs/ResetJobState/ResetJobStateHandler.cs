@@ -6,7 +6,7 @@ internal sealed class ResetJobStateHandler(IDbSession session, ISqlDialect diale
     public Task HandleAsync(ResetJobStateCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
             new StoreCommand("ResetJobState"),
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, command.JobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, command.JobId)),
             ct
         );
 }

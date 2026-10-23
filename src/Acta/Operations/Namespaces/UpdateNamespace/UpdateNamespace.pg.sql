@@ -1,20 +1,27 @@
 -- One statement: the name's row is locked, then updated and audited only at the expected version.
 WITH target AS (
-    SELECT n.id, n.version
+    SELECT n.namespace_id, n.version
     FROM {{schema}}.namespaces n
-    WHERE n.name = @p_namespace_name
+    WHERE n.namespace_name = @p_namespace_name
     FOR UPDATE
 ),
 updated AS (
     UPDATE {{schema}}.namespaces AS n
     SET owner_team = @p_owner_team, description = @p_description, modified_at_utc = now(), version = n.version + 1
     FROM target t
-    WHERE n.id = t.id AND t.version = @p_expected_version
-    RETURNING n.id, n.version
+    WHERE n.namespace_id = t.namespace_id AND t.version = @p_expected_version
+    RETURNING n.namespace_id, n.version
 ),
 audit AS (
-    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor, reason_message)
-    SELECT 22 /* EventCode.NamespaceUpdated */, now(), u.id, @p_actor_code, @p_actor, @p_reason_message
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id,
+        entity_code, entity_id,
+        event_message, details_format_id, details
+    )
+    SELECT
+        22 /* EventCode.NamespaceUpdated */, now(), u.namespace_id,
+        80 /* EntityCode.Namespace */, u.namespace_id,
+        @p_event_message, @p_details_format_id, @p_details
     FROM updated u
 )
 SELECT 1 /* ControlAction.Applied */::SMALLINT AS action, u.version AS version

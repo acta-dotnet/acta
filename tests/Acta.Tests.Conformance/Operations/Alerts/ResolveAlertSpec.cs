@@ -65,11 +65,12 @@ public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.NotNull(result.ResolvedAtUtc);
 
         var evt = await Db.From<EventEntity>()
-            .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved)
+            .Where(e => e.LineageRootJobId == jobId && e.EventCode == EventCode.AlertResolved)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
-        Assert.Equal(ActorCode.Operator, evt!.ActorCode);
-        Assert.Contains($"alert {alertRef}", evt.ReasonMessage);
+        Assert.Equal(EntityCode.Alert, evt!.EntityCode);
+        Assert.Equal("spec-actor", EventDetail(evt, "actor"));
+        Assert.Contains($"alert {alertRef}", evt.EventMessage);
     }
 
     [Fact(DisplayName = "Re-resolving an already-resolved alert is Applied without mutation and emits no second event")]
@@ -84,7 +85,9 @@ public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.ResolvedAtUtc, second.ResolvedAtUtc);
 
-        var eventCount = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).CountAsync(ct);
+        var eventCount = await Db.From<EventEntity>()
+            .Where(e => e.LineageRootJobId == jobId && e.EventCode == EventCode.AlertResolved)
+            .CountAsync(ct);
         Assert.Equal(1, eventCount);
     }
 

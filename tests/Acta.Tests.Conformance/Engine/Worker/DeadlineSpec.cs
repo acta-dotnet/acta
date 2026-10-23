@@ -33,8 +33,9 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(0, snapshot.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(EventReasonCode.JobDeadlineExceeded, finished.EventReasonCode);
+        var yielded = events.Where(e => e.EventCode == EventCode.JobExecutionYielded).OrderByDescending(e => e.Id).First();
+        Assert.Equal("cancelled", yielded.Outcome);
+        Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
 
         var ran = await CheckpointSlot.GetAsync(
             Services.GetRequiredService<ExecutionOperations>(),
@@ -59,8 +60,9 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(0, snapshot.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(EventReasonCode.JobDeadlineExceeded, finished.EventReasonCode);
+        var yielded = events.Where(e => e.EventCode == EventCode.JobExecutionYielded).OrderByDescending(e => e.Id).First();
+        Assert.Equal("cancelled", yielded.Outcome);
+        Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
     }
 
     [Fact(DisplayName = "Advisory never auto-terminates")]
@@ -86,7 +88,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.NotNull(overdue);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.DoesNotContain(events, e => e.EventReasonCode == EventReasonCode.JobDeadlineExceeded);
+        Assert.DoesNotContain(events, e => e.Reason == EventReason.DeadlineExceeded);
     }
 
     /// <summary>

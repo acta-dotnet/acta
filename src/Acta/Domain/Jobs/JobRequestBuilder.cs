@@ -142,7 +142,7 @@ public sealed class JobRequestBuilder
 
     /// <summary>
     /// Override the job-definition's policy priority for this row only. <c>null</c> via not
-    /// calling <see cref="Priority"/> falls back to the definition's effective <c>priority_code</c>.
+    /// calling <see cref="Priority"/> falls back to the definition's <c>job_priority_code_effective</c>.
     /// </summary>
     public JobRequestBuilder Priority(JobPriorityCode priority)
     {

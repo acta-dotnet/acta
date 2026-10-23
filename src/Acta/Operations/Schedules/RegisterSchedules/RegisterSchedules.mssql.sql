@@ -8,14 +8,12 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @lock_result INT;
-    DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.register_schedules';
+    DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.schedules.' + CAST(@p_namespace_id AS NVARCHAR(12));
 
-    EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction';
-
+    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-execution-policy.md, "Schedule lock").
+    EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
     IF @lock_result < 0
-        BEGIN
-            THROW 50004, 'register_schedules could not acquire the recurring slot lock.', 1;
-        END
+        THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
     -- Each slot's key lock, named as enqueue_job names it, so an enqueue of a slot's key and this insert wait for
     -- each other (docs/sql-execution-policy.md, "Deduplication lock").
@@ -38,53 +36,53 @@ BEGIN TRY
     SET
         input_format_id = d.input_format_id,
         input = d.input,
-        audit_level_code = d.audit_level_code
+        event_recording_code = d.event_recording_code
     FROM {{schema}}.jobs AS j
     INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
     WHERE
         j.namespace_id = @p_namespace_id
-        AND j.parent_id IS NULL
+        AND j.parent_job_id IS NULL
         -- A row already holding the key is the slot only when it owns schedules; an ordinary job that
         -- took the key is left untouched and missing from the result, which fails the worker's startup.
-        AND EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.id);
+        AND EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.job_id);
 
     UPDATE r
     SET
-        status_code = d.slot_status_code,
-        priority_code = jd.priority_code_effective,
+        job_status_code = d.slot_status_code,
+        job_priority_code = jd.job_priority_code_effective,
         next_run_at_utc = d.slot_next_run_at_utc,
         modified_at_utc = @now,
         version = r.version + 1
-    FROM {{schema}}.runtimes AS r
-    INNER JOIN {{schema}}.jobs AS j ON j.id = r.job_id
+    FROM {{schema}}.jobs_state AS r
+    INNER JOIN {{schema}}.jobs AS j ON j.job_id = r.job_id
     INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
-    INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
+    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
     WHERE
         j.namespace_id = @p_namespace_id
-        AND j.parent_id IS NULL
-        AND EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.id)
+        AND j.parent_job_id IS NULL
+        AND EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.job_id)
         -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
-        AND r.status_code NOT IN (
+        AND r.job_status_code NOT IN (
             50 /* JobStatusCode.Executing */,
             100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
-        AND NOT (r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
+        AND NOT (r.job_status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
         -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
         -- signal woke after the start read it would otherwise go back to sleep.
-        AND r.status_code <> 20 /* JobStatusCode.Suspended */
+        AND r.job_status_code <> 20 /* JobStatusCode.Suspended */
         AND d.slot_status_code <> 20 /* JobStatusCode.Suspended */
         -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
         -- EXCEPT compares NULL-safely, which <> does not.
         AND EXISTS (
-            SELECT r.status_code, r.priority_code, r.next_run_at_utc
+            SELECT r.job_status_code, r.job_priority_code, r.next_run_at_utc
             EXCEPT
-            SELECT d.slot_status_code, jd.priority_code_effective, d.slot_next_run_at_utc);
+            SELECT d.slot_status_code, jd.job_priority_code_effective, d.slot_next_run_at_utc);
 
     INSERT INTO {{schema}}.jobs (
-        job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
+        job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
         namespace_id, definition_id,
         input_format_id, input,
-        concurrency_key, audit_level_code,
+        concurrency_key, event_recording_code,
         created_at_utc
     )
     SELECT
@@ -98,7 +96,7 @@ BEGIN TRY
         d.input_format_id,
         d.input,
         NULL,
-        d.audit_level_code,
+        d.event_recording_code,
         @now
     FROM @p_definitions AS d
     WHERE NOT EXISTS (
@@ -107,19 +105,19 @@ BEGIN TRY
         WHERE
             j.namespace_id = @p_namespace_id
             AND j.deduplication_key = d.deduplication_key
-            AND j.parent_id IS NULL
+            AND j.parent_job_id IS NULL
     );
 
-    INSERT INTO {{schema}}.runtimes (
-        job_id, namespace_id, status_code, priority_code, next_run_at_utc,
+    INSERT INTO {{schema}}.jobs_state (
+        job_id, namespace_id, job_status_code, job_priority_code, next_run_at_utc,
         execution_number, failure_count, retention_until_utc,
         modified_at_utc, version
     )
     SELECT
-        j.id,
+        j.job_id,
         @p_namespace_id,
         d.slot_status_code,
-        jd.priority_code_effective,
+        jd.job_priority_code_effective,
         d.slot_next_run_at_utc,
         0,
         0,
@@ -131,11 +129,11 @@ BEGIN TRY
         ON
             j.namespace_id = @p_namespace_id
             AND j.deduplication_key = d.deduplication_key
-            AND j.parent_id IS NULL
-    INNER JOIN {{schema}}.definitions AS jd ON jd.id = d.definition_id
+            AND j.parent_job_id IS NULL
+    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
     WHERE NOT EXISTS (
-        SELECT 1 FROM {{schema}}.runtimes AS r
-        WHERE r.job_id = j.id
+        SELECT 1 FROM {{schema}}.jobs_state AS r
+        WHERE r.job_id = j.job_id
     );
 
     DECLARE @slots TABLE (definition_id INT NOT NULL PRIMARY KEY, slot_id BIGINT NOT NULL);
@@ -143,16 +141,17 @@ BEGIN TRY
     INSERT INTO @slots (definition_id, slot_id)
     SELECT
         d.definition_id,
-        j.id
+        j.job_id
     FROM @p_definitions AS d
     INNER JOIN {{schema}}.jobs AS j
         ON
             j.namespace_id = @p_namespace_id
             AND j.deduplication_key = d.deduplication_key
-            AND j.parent_id IS NULL
+            AND j.parent_job_id IS NULL
     -- The slot this call inserted, or one that already owns schedules.
-    WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.id);
+    WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.job_id);
 
+    -- The schedule writes seek by key (docs/sql-execution-policy.md, "Locking reads seek").
     UPDATE tgt
     SET
         expression = src.expression,
@@ -164,49 +163,60 @@ BEGIN TRY
             ELSE tgt.expression_override
         END,
         misfire_strategy_code = src.misfire_strategy_code,
-        next_run_at_utc = src.next_run_at_utc,
         definition_id = src.definition_id,
-        status_code = CASE
-            WHEN tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
+        schedule_status_code = CASE
+            WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
                 THEN 10 /* ScheduleStatusCode.Active */
-            ELSE tgt.status_code
+            ELSE tgt.schedule_status_code
         END,
         description = src.description,
         modified_at_utc = @now,
         version = tgt.version + 1
-    FROM {{schema}}.schedules AS tgt
+    FROM {{schema}}.schedules AS tgt WITH (FORCESEEK)
     INNER JOIN @slots AS sl ON sl.slot_id = tgt.job_id
     INNER JOIN @p_schedules AS src
         ON
             src.definition_id = sl.definition_id
-            AND src.name = tgt.name
+            AND src.schedule_name = tgt.schedule_name
+    INNER JOIN {{schema}}.schedules_state AS st ON st.job_id = tgt.job_id AND st.schedule_name = tgt.schedule_name
     WHERE
-        tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
+        tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         OR EXISTS (
             SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
-                tgt.next_run_at_utc, tgt.definition_id, tgt.description
+                st.next_occurrence_at_utc, tgt.definition_id, tgt.description
             EXCEPT
             SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
-                src.next_run_at_utc, src.definition_id, src.description);
+                src.next_occurrence_at_utc, src.definition_id, src.description);
+
+    UPDATE st
+    SET
+        next_occurrence_at_utc = src.next_occurrence_at_utc,
+        modified_at_utc = @now
+    FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
+    INNER JOIN @slots AS sl ON sl.slot_id = st.job_id
+    INNER JOIN @p_schedules AS src
+        ON
+            src.definition_id = sl.definition_id
+            AND src.schedule_name = st.schedule_name
+    WHERE EXISTS (SELECT st.next_occurrence_at_utc EXCEPT SELECT src.next_occurrence_at_utc);
 
     INSERT INTO {{schema}}.schedules (
-        namespace_id, job_id, definition_id, name, origin_code,
+        namespace_id, job_id, definition_id, schedule_name, schedule_origin_code,
         expression, time_zone_id, expression_kind_code, misfire_strategy_code,
-        next_run_at_utc, expression_override, time_zone_id_override,
-        status_code, paused_until_utc, description,
+        expression_override, time_zone_id_override,
+        schedule_status_code, paused_until_utc, description,
         created_at_utc, modified_at_utc, version
     )
     SELECT
         @p_namespace_id,
         sl.slot_id,
         src.definition_id,
-        src.name,
+        src.schedule_name,
         40 /* ScheduleOriginCode.Definition */,
         src.expression,
         src.time_zone_id,
         src.expression_kind_code,
         src.misfire_strategy_code,
-        src.next_run_at_utc,
         NULL,
         NULL,
         10 /* ScheduleStatusCode.Active */,
@@ -222,34 +232,92 @@ BEGIN TRY
         FROM {{schema}}.schedules AS tgt
         WHERE
             tgt.job_id = sl.slot_id
-            AND tgt.name = src.name
+            AND tgt.schedule_name = src.schedule_name
     );
 
-    DECLARE @candidates TABLE (job_id BIGINT NOT NULL, name VARCHAR(128) NOT NULL, PRIMARY KEY (job_id, name));
+    INSERT INTO {{schema}}.schedules_state (
+        job_id, schedule_name, namespace_id,
+        next_occurrence_at_utc, last_advanced_occurrence_at_utc, modified_at_utc
+    )
+    SELECT
+        sl.slot_id,
+        src.schedule_name,
+        @p_namespace_id,
+        src.next_occurrence_at_utc,
+        NULL,
+        @now
+    FROM @p_schedules AS src
+    INNER JOIN @slots AS sl ON sl.definition_id = src.definition_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.schedules_state AS st
+        WHERE
+            st.job_id = sl.slot_id
+            AND st.schedule_name = src.schedule_name
+    );
 
-    INSERT INTO @candidates (job_id, name)
-    SELECT js.job_id, js.name
+    DECLARE @candidates TABLE (
+        job_id BIGINT NOT NULL,
+        schedule_name VARCHAR(128) NOT NULL,
+        PRIMARY KEY (job_id, schedule_name));
+
+    INSERT INTO @candidates (job_id, schedule_name)
+    SELECT js.job_id, js.schedule_name
     FROM {{schema}}.schedules AS js
     INNER JOIN @slots AS sl ON sl.slot_id = js.job_id
     WHERE
-        js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-        AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
+        js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        AND js.schedule_origin_code = 40 /* ScheduleOriginCode.Definition */
         AND NOT EXISTS (
             SELECT 1
             FROM @p_schedules AS src
             WHERE
                 src.definition_id = sl.definition_id
-                AND src.name = js.name
+                AND src.schedule_name = js.schedule_name
         );
 
     UPDATE js
     SET
-        status_code = 230 /* ScheduleStatusCode.Orphaned */,
+        schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */,
         paused_until_utc = NULL,
         modified_at_utc = @now,
         version = js.version + 1
-    FROM {{schema}}.schedules AS js
-    INNER JOIN @candidates AS c ON c.job_id = js.job_id AND c.name = js.name;
+    FROM {{schema}}.schedules AS js WITH (FORCESEEK)
+    INNER JOIN @candidates AS c ON c.job_id = js.job_id AND c.schedule_name = js.schedule_name;
+
+    UPDATE st
+    SET
+        next_occurrence_at_utc = NULL,
+        last_advanced_occurrence_at_utc = NULL,
+        modified_at_utc = @now
+    FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
+    INNER JOIN @candidates AS c ON c.job_id = st.job_id AND c.schedule_name = st.schedule_name;
+
+    /* A retire that commits after the worker read its stored schedules leaves this call writing cursors for the
+       retired definition's schedules; the heal clears every orphaned or retired schedule's cursor in the namespace. */
+    UPDATE st
+    SET
+        next_occurrence_at_utc = NULL,
+        last_advanced_occurrence_at_utc = NULL,
+        modified_at_utc = @now
+    FROM {{schema}}.schedules_state AS st WITH (INDEX (ix_schedules_state_namespace_next), FORCESEEK)
+    INNER JOIN {{schema}}.schedules AS s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+    INNER JOIN {{schema}}.definitions AS d ON d.definition_id = s.definition_id
+    WHERE
+        st.namespace_id = @p_namespace_id
+        AND st.next_occurrence_at_utc IS NOT NULL
+        AND (
+            s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
+            OR d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
+        );
+
+    -- The catalog this call registered; a start that computes the same hash and moves no cursor skips the call.
+    UPDATE n
+    SET catalog_hash = @p_catalog_hash
+    FROM {{schema}}.namespaces AS n
+    WHERE
+        n.namespace_id = @p_namespace_id
+        AND EXISTS (SELECT n.catalog_hash EXCEPT SELECT @p_catalog_hash);
 
     SELECT
         definition_id,

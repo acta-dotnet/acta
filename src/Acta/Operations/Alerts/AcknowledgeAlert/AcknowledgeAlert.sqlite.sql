@@ -2,11 +2,10 @@ DROP TABLE IF EXISTS temp._ack_job_alert;
 
 CREATE TEMP TABLE _ack_job_alert AS
 SELECT
-    a.id,
+    a.alert_id,
     a.alert_ref,
     a.namespace_id,
     a.job_id,
-    a.job_ref,
     a.acknowledged_at_utc,
     a.resolved_at_utc,
     CASE WHEN a.acknowledged_at_utc IS NOT NULL THEN 1 ELSE 0 END AS already_ack,
@@ -18,39 +17,28 @@ INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
     namespace_id,
-    actor_code,
-    actor,
-    job_id,
-    job_ref,
-    execution_number,
-    lineage_root_id,
+    entity_code,
+    entity_id,
     definition_id,
-    from_status_code,
-    to_status_code,
-    execution_status_code,
-    duration_ms,
-    reason_code,
-    reason_message)
+    tenant_id,
+    lineage_root_job_id,
+    event_message,
+    details_format_id,
+    details)
 SELECT
     140 /* EventCode.AlertAcknowledged */,
     t.now_utc,
     t.namespace_id,
-    @p_actor_code,
-    @p_actor,
-    t.job_id,
-    t.job_ref,
-    r.execution_number,
-    COALESCE(j.lineage_root_id, t.job_id),
+    10 /* EntityCode.Alert */,
+    t.alert_id,
     j.definition_id,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    @p_reason_message
+    j.tenant_id,
+    COALESCE(j.lineage_root_job_id, t.job_id),
+    @p_event_message,
+    @p_details_format_id,
+    @p_details
 FROM temp._ack_job_alert t
-LEFT JOIN {{schema}}.jobs j ON j.id = t.job_id
-LEFT JOIN {{schema}}.runtimes r ON r.job_id = t.job_id
+LEFT JOIN {{schema}}.jobs j ON j.job_id = t.job_id
 WHERE t.already_ack = 0;
 
 UPDATE {{schema}}.alerts
@@ -64,11 +52,11 @@ WHERE
 
 SELECT
     CASE
-        WHEN t.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.alert_id IS NULL THEN 2 /* ControlAction.NotFound */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
-        WHEN t.id IS NULL THEN NULL
+        WHEN t.alert_id IS NULL THEN NULL
         WHEN t.already_ack = 1 THEN t.acknowledged_at_utc
         ELSE t.now_utc
     END AS acknowledged_at_utc,

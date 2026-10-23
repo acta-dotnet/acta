@@ -468,11 +468,11 @@ Total:  5,426.50
           <figcaption><span class="note">Output from our test run (trimmed)</span></figcaption>
           <pre><code>Events for job job_01a0de39d88773688d0471583be99b40 (newest first)
 
-2026-09-26T14:59:28.3810000Z  job.rescheduled  executing -&gt; ready  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
-  reason: job.unhandled-exception
+2026-09-26T14:59:28.3810000Z  job.rescheduled  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
+  reason: unhandled-exception
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
-2026-09-26T14:59:28.3810000Z  job.execution-finished  executing -&gt; ready  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
-  reason: job.unhandled-exception
+2026-09-26T14:59:28.3810000Z  job.execution-failed  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
+  reason: unhandled-exception
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.</code></pre>
         </figure>
         <p>Now play the part of the upstream system and deliver the export. Create <code>data/sales-2026-09.csv</code> while the job is still retrying:</p>
@@ -595,7 +595,7 @@ app.Run();</code></pre>
         <p>With a two-second heartbeat the lease lasts eight seconds, and a dead process's jobs become reclaimable almost immediately. <code>SalesFiles.cs</code> and the CSV files stay as they are. That is the complete program.</p>
         <aside class="callout" aria-label="Sidebar: step retries and job retries">
           <h3>Step retries are not job retries</h3>
-          <p>Steps change how failures are counted. If September's file were missing now, the exception would happen inside <code>load-sales</code>, and the step would retry on its own: the job goes back to Ready with the reason <code>job.step-retry-scheduled</code>, the execution number still goes up, but the job's failure count stays at zero. A step inherits <code>MaxAttempts</code> and <code>Backoff</code> from the <code>[Job]</code> attribute unless you pass it its own settings. If the step runs out of attempts, it is marked exhausted and throws <code>StepExhaustedException</code>. Uncaught, that fails the job at once and leaves its own retry budget untouched, since every retry would throw again. Restarting the job gives the step a fresh budget.</p>
+          <p>Steps change how failures are counted. If September's file were missing now, the exception would happen inside <code>load-sales</code>, and the step would retry on its own: the job goes back to Ready with the reason <code>step-retry-scheduled</code>, the execution number still goes up, but the job's failure count stays at zero. A step inherits <code>MaxAttempts</code> and <code>Backoff</code> from the <code>[Job]</code> attribute unless you pass it its own settings. If the step runs out of attempts, it is marked exhausted and throws <code>StepExhaustedException</code>. Uncaught, that fails the job at once and leaves its own retry budget untouched, since every retry would throw again. Restarting the job gives the step a fresh budget.</p>
         </aside>
       </section>
 
@@ -663,7 +663,7 @@ info: Reports.SalesReportJobs[0]
         </figure>
         <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. In our run the app came back a few seconds after 15:01 UTC, just missing that minute's recovery pass; the 15:02 pass reclaimed the job, and the report was written fifteen seconds later.</p>
         <figure class="shot">
-          <a href="assets/learn-recovered.webp" title="Open the full-size screenshot"><img src="assets/learn-recovered.webp" width="1600" height="1070" loading="lazy" alt="The dashboard's Executions tab for the recovered job. Execution 2 succeeded in about 15 seconds on one worker. Execution 1, on a different worker, is marked Orphaned with the reason job.lease-expired: Worker lease expired; reclaimed by crash recovery." /></a>
+          <a href="assets/learn-recovered.webp" title="Open the full-size screenshot"><img src="assets/learn-recovered.webp" width="1600" height="1070" loading="lazy" alt="The dashboard's Executions tab for the recovered job. Execution 2 succeeded in about 15 seconds on one worker. Execution 1, on a different worker, is marked Orphaned with the reason lease-expired: Worker lease expired; reclaimed by crash recovery." /></a>
           <figcaption>One job, two executions on two different worker processes. The first was orphaned by the kill and reclaimed by crash recovery.</figcaption>
         </figure>
         <p>The Executions tab tells the story in two rows, each with its own worker ref, because every run of the application registers as a new worker. The Details tab lists both steps as "succeeded and will not rerun", and the failure count is 1: an attempt lost to a dead process counts against the retry budget like any other failed attempt.</p>

@@ -2,34 +2,34 @@
 DROP TABLE IF EXISTS temp._tag_target;
 
 CREATE TEMP TABLE _tag_target AS
-SELECT t.id AS scope_id
+SELECT t.tenant_id AS entity_id
 FROM {{schema}}.tenants t
-WHERE @p_scope_code = 20 /* TagScopeCode.Tenant */ AND t.tenant_name = @p_lookup_name
+WHERE @p_entity_code = 120 /* EntityCode.Tenant */ AND t.tenant_name = @p_lookup_name
 UNION ALL
-SELECT n.id
+SELECT n.namespace_id
 FROM {{schema}}.namespaces n
-WHERE @p_scope_code = 30 /* TagScopeCode.Namespace */ AND n.name = @p_lookup_name
+WHERE @p_entity_code = 80 /* EntityCode.Namespace */ AND n.namespace_name = @p_lookup_name
 UNION ALL
-SELECT d.id
+SELECT d.definition_id
 FROM {{schema}}.definitions d
-WHERE @p_scope_code = 40 /* TagScopeCode.Definition */ AND d.id = @p_lookup_id
+WHERE @p_entity_code = 30 /* EntityCode.Definition */ AND d.definition_id = @p_lookup_id
 UNION ALL
-SELECT j.id
+SELECT j.job_id
 FROM {{schema}}.jobs j
-WHERE @p_scope_code = 50 /* TagScopeCode.Job */ AND j.id = @p_lookup_id;
+WHERE @p_entity_code = 50 /* EntityCode.Job */ AND j.job_id = @p_lookup_id;
 
 DELETE FROM {{schema}}.tags
 WHERE
-    scope_code = @p_scope_code
-    AND scope_id = (SELECT scope_id FROM temp._tag_target);
+    entity_code = @p_entity_code
+    AND entity_id = (SELECT entity_id FROM temp._tag_target);
 
-INSERT INTO {{schema}}.tags (scope_code, scope_id, name, value, value_search)
+INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
 SELECT
-    @p_scope_code,
-    x.scope_id,
-    json_extract(i.value, '$.name'),
-    json_extract(i.value, '$.value'),
-    json_extract(i.value, '$.value_search')
+    @p_entity_code,
+    x.entity_id,
+    json_extract(i.value, '$.tag_name'),
+    json_extract(i.value, '$.tag_value'),
+    json_extract(i.value, '$.tag_value_search')
 FROM temp._tag_target x, json_each(@p_items_json) i;
 
 SELECT

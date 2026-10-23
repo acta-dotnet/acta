@@ -228,7 +228,7 @@ The graphical view should have an equivalent count table and should not rely on 
 makes the information accessible, gives exact values on small screens, and still leaves the chart as
 the fast visual entry point.
 
-The first version can be a current snapshot read from the jobs and runtimes tables. A later version
+The first version can be a current snapshot read from the jobs and jobs_state tables. A later version
 could add a pipeline-depth graph over time, but that is a different feature: it would need to derive
 historical counts from events or maintain disposable rollups rather than pretending the current rows
 contain history.
@@ -260,8 +260,8 @@ profile. A marker for deployment versions on the trend graph would make performa
 easier to spot. Common windows such as the last hour, day, week, and month are probably enough at
 first, with the available range limited by event retention.
 
-The dashboard also needs to state when its sample is incomplete. The default `Audit` level records
-every finished execution, but quieter audit levels suppress some or all of those events. In that
+The dashboard also needs to state when its sample is incomplete. The default `Audit` recording level
+records every execution outcome, but quieter levels suppress some or all of those events. In that
 case, Acta should say that the numbers cover failures only or that no complete distribution is
 available, rather than presenting a misleading percentile.
 

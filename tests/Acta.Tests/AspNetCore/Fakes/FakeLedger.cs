@@ -15,7 +15,7 @@ internal sealed class FakeLedger : ILedger
         TenantName: null,
         ParentJobId: null,
         ParentJobRef: null,
-        LineageRootId: null,
+        LineageRootJobId: null,
         LineageRootJobRef: null,
         DeduplicationKey: "ck-1",
         CorrelationKey: "trace-1",

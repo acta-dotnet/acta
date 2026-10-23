@@ -31,7 +31,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var job = Assert.Single(jobs);
         Assert.Equal(deduplicationKey, job.DeduplicationKey);
-        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
         Assert.Equal(JobStatusCode.Ready, runtime!.Status);
     }
 
@@ -43,14 +43,14 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var deduplicationKey = await EnqueueJob(ct);
 
         var jobs = await Db.From<JobEntity>()
-            .Where(j => j.NamespaceId == namespaceId && j.ParentId == null && j.DeduplicationKey == deduplicationKey)
+            .Where(j => j.NamespaceId == namespaceId && j.ParentJobId == null && j.DeduplicationKey == deduplicationKey)
             .ToListAsync(ct);
 
         var job = Assert.Single(jobs);
-        var runtimes = await Db.From<RuntimeEntity>()
+        var states = await Db.From<JobStateEntity>()
             .Where(r => r.Id == job.Id && r.Status == JobStatusCode.Ready && r.ExecutionNumber == 0)
             .ToListAsync(ct);
-        Assert.Single(runtimes);
+        Assert.Single(states);
     }
 
     [Fact(DisplayName = "Count returns the matching row count")]
@@ -72,7 +72,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
         var inflight = new List<JobStatusCode> { JobStatusCode.Ready, JobStatusCode.Executing };
-        var rows = await Db.From<RuntimeEntity>().Where(r => r.Id == job!.Id && inflight.Contains(r.Status)).ToListAsync(ct);
+        var rows = await Db.From<JobStateEntity>().Where(r => r.Id == job!.Id && inflight.Contains(r.Status)).ToListAsync(ct);
 
         Assert.Single(rows);
     }

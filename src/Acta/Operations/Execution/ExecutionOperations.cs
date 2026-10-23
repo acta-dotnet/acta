@@ -21,8 +21,8 @@ internal sealed class ExecutionOperations(
 {
     /// <summary>
     /// Atomic batched claim: transitions <c>Ready</c> to <c>Executing</c>, stamping the execution lease columns and incrementing
-    /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED. It writes no event: the
-    /// <c>runtimes</c> row is the live attempt, and <c>job.execution-finished</c> records it once it ends.
+    /// <c>execution_number</c> in the same <c>jobs_state</c> UPDATE, via provider-native SKIP-LOCKED. It writes no event: the
+    /// <c>jobs_state</c> row is the live attempt, and its attempt event records it once it ends.
     /// Empty claim carries the horizon sentinel.
     /// </summary>
     public Task<ClaimJobsResponse> ClaimJobsAsync(ClaimOptions options, int leaseTtlSeconds, CancellationToken ct) =>
@@ -38,7 +38,7 @@ internal sealed class ExecutionOperations(
 
     /// <summary>
     /// Finalizes a batch of attempts in one transaction, each CAS-guarded on (job id, worker, execution number): flips the
-    /// status to terminal or re-arm, writes <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>,
+    /// status to terminal or re-arm, writes <c>results</c> when the outcome carries bytes, inlines the attempt's event,
     /// raises a parent's child-done latch, hands a lane on, and answers every row. A recurring rollover applies each planned
     /// advance only where the schedule still carries the planned version, then reads the slot from the schedules as they
     /// stand: one a deployment orphaned meanwhile is never advanced, and the slot lands Ready or Paused accordingly.
@@ -85,7 +85,7 @@ internal sealed class ExecutionOperations(
     /// describes, so none claims a transition that did not commit; a note claims nothing but itself. The caller supplies
     /// the attempt and its own worker: a lapsed lease can be reclaimed as the next attempt while the handler still runs
     /// (cancellation reaches it asynchronously, and a handler that ignores its token never sees it), so reading the
-    /// runtime row would file the note under the attempt, and the worker, that replaced its author.
+    /// <c>jobs_state</c> row would file the note under the attempt, and the worker, that replaced its author.
     /// </summary>
     public Task RecordNoteAsync(long jobId, int executionNumber, int workerId, string message, JobPayload? detail, CancellationToken ct) =>
         recordNote.HandleAsync(new RecordNoteCommand(jobId, executionNumber, workerId, message, detail), ct);

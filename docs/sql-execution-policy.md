@@ -79,11 +79,13 @@ immediate transaction. Source reads use the query path. Schema bootstrap and obj
 their separate migration transaction and lock.
 
 `PurgeExpiredData` remains one routine identity, but each invocation purges one selected section's
-bounded batch. `RetentionJob` reads database time once, calculates fixed sweep cutoffs, and
+bounded batch. The events and jobs sections honor the alert floor: an alert-required event above
+the alerts projector's consumed cursor, and the job that owns it, are excluded until projected.
+`RetentionJob` reads database time once, calculates fixed sweep cutoffs, and
 visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, expired locks,
 and unreferenced lanes in that order. Defaults remain 1,000 rows and 50 iterations per section, and an
 empty batch ends its section. The jobs section is the exception: no index finds expired jobs, so each
-call walks `runtimes` down by job id from the cursor the previous tick stored on the slot
+call walks `jobs_state` down by job id from the cursor the previous tick stored on the slot
 (`p_before_job_id`, the `purge-cursor` job variable), scans ten batches' worth of rows, deletes the
 namespace's expired jobs among them, and answers where it stopped; a tick takes up to 200 such slices,
 two million rows, or stops early at the oldest row or once a delete budget's worth of jobs is gone.
@@ -91,18 +93,18 @@ Each batch is atomic; failure or cancellation later in the sweep preserves compl
 `RetentionJob` never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
 
-Every SQL Server statement that updates `runtimes` through a join carries `WITH (FORCESEEK)`, except
+Every SQL Server statement that updates `jobs_state` through a join carries `WITH (FORCESEEK)`, except
 `register_schedules` (see the foreign-key section below). The
 driving set is always a CTE or table variable, which the optimizer estimates at low cardinality;
-without the hint it may source the update from a clustered scan of `runtimes`, take an update lock per
+without the hint it may source the update from a clustered scan of `jobs_state`, take an update lock per
 row, escalate to a table lock once the backlog passes the escalation threshold, and hold it to commit,
-so every concurrent insert waits out the whole statement. `pk_runtimes` is keyed on `job_id` and every
+so every concurrent insert waits out the whole statement. `pk_jobs_state` is keyed on `job_id` and every
 such join predicate resolves through it, so a seek is always available and the hint cannot fail to
 compile. The claim batch, the single claim, batch completion, and the stuck-job reclaim all take it.
 
-Statements that touch many `runtimes` rows lock the base row first and never hold an index key while
-waiting for one. `CompleteExecutions` changes `status_code` and
-`leased_by_worker_id`, both key columns of `ix_runtimes_worker_inflight`, so it locks the clustered
+Statements that touch many `jobs_state` rows lock the base row first and never hold an index key while
+waiting for one. `CompleteExecutions` changes `job_status_code` and
+`leased_by_worker_id`, both key columns of `ix_jobs_state_worker_inflight`, so it locks the clustered
 row and then moves the index key; a worker heartbeat that walked that index instead would hold the key
 and wait for the row, which is the inversion that deadlocks. `ExtendWorkerLeases` therefore reads the
 in-flight ids first and updates through a primary-key seek.
@@ -110,23 +112,23 @@ in-flight ids first and updates through a primary-key seek.
 `ExtendWorkerLeases` takes the (job, execution) pairs and the lock holds the process holds, and
 never waits for a row: it skips one another transaction holds (`READPAST` on SQL Server, `SKIP
 LOCKED` on PostgreSQL) and answers each pair it still finds leased by the worker at that execution
-with a flag saying whether it was renewed. A child's completion locks its own `runtimes` row and then
+with a flag saying whether it was renewed. A child's completion locks its own `jobs_state` row and then
 its parent's, the reverse of `job_id` order, so a renewal that waited on either would deadlock with it
 when one worker runs both. The caller cancels an attempt only when its pair is not answered, and
 moves its lease deadline only when the row was renewed; a skipped row is renewed on the next beat,
-well inside the lease window. The lock holds renew first and without skipping, then the runtimes rows with
-skipping, so the routine never waits on a `runtimes` row while it holds a `locks` row. The answer also carries the namespace's
+well inside the lease window. The lock holds renew first and without skipping, then the `jobs_state` rows with
+skipping, so the routine never waits on a `jobs_state` row while it holds a `locks` row. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
-Statements that lock both `checkpoints` and `runtimes` take the checkpoint slot first. `raise_signal` does,
-and `complete_executions` takes the slots its rows await before their `runtimes` rows; a child that
-lands then takes its parent's latch before the parent's `runtimes` row, both after its own. A batch
+Statements that lock both `checkpoints` and `jobs_state` take the checkpoint slot first. `raise_signal` does,
+and `complete_executions` takes the slots its rows await before their `jobs_state` rows; a child that
+lands then takes its parent's latch before the parent's `jobs_state` row, both after its own. A batch
 holding a parent and one of its grandchildren can therefore deadlock with a batch landing the child
-between them; the victim's write repeats. `ResetJobState` takes the `runtimes` row and then deletes the
+between them; the victim's write repeats. `ResetJobState` takes the `jobs_state` row and then deletes the
 job's checkpoints, and `PurgeJob` deletes them before the job row; both run on a
 job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
 exception, taking the
-`runtimes` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
+`jobs_state` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
 signal raise on the same job acquires the two in opposite orders. No deadlock graph has ever shown
 that pair, and it is not reachable while both hold row locks on different slots, so the mutex stays
 until a run demonstrates otherwise; removing it would drop the serialization that two different timer
@@ -144,7 +146,7 @@ first compile, or at a recompile after a statistic the plan read goes stale. An 
 can therefore switch to that scan at any time. A pinned seek reads more pages than a scan of a small
 child table, but it locks only the batch's own keys.
 
-- Both `runtimes` inserts in `enqueue_jobs` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_lanes` seeks
+- Both `jobs_state` inserts in `enqueue_jobs` carry `OPTION (LOOP JOIN)`, so `fk_jobs_state_lanes` seeks
   each lane by key and locks only rows the batch inserted or already holds.
 - The same rule covers set-based deletes and locking reads driven by a table variable.
   `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through
@@ -159,16 +161,18 @@ child table, but it locks only the batch's own keys.
   `reserve_rate` moving a bucket's expiry. It now stages without holding locks. Its delete locks each
   row by clustered key with `READPAST`, skipping one a writer holds, and re-checks the expiry.
 - An unlaned batch runs the plain inserts: no identity ordering, no lane probe. A laned batch orders
-  its `jobs` insert by ordinal and marks each idle lane's head before the `runtimes` insert, reading
-  `ix_runtimes_lane` once per lane through `WITH (FORCESEEK)`, so that insert reads table variables
+  its `jobs` insert by ordinal and marks each idle lane's head before the `jobs_state` insert, reading
+  `ix_jobs_state_lane` once per lane through `WITH (FORCESEEK)`, so that insert reads table variables
   alone.
 - Every lookup of a lane's unfinished members, its head or whether any of them runs, carries `WITH (INDEX
-  (ix_runtimes_lane), FORCESEEK)`. The lane id is a variable and the lookup wants one row, so unhinted the
-  optimizer can walk `pk_runtimes` from the oldest job until it meets the lane, a cost that grows with
+  (ix_jobs_state_lane), FORCESEEK)`. The lane id is a variable and the lookup wants one row, so unhinted the
+  optimizer can walk `pk_jobs_state` from the oldest job until it meets the lane, a cost that grows with
   every job the table retains. Each lookup names `lane_id IS NOT NULL` and a status list inside the
   index filter, so the hint always compiles.
-- `register_schedules` stays unhinted. It runs under one exclusive application lock, so two calls
-  never race, and its set is one manifest's recurring definitions, which stays small.
+- `register_schedules` stays unhinted outside its schedule writes. It runs under its namespace's exclusive schedule lock
+  ("Schedule lock"), so two calls in one namespace never race, and its set is one manifest's recurring definitions, which
+  stays small. Its updates of `schedules` and `schedules_state` seek by key ("Locking reads seek"), and the heal seeks
+  the namespace's cursors through `ix_schedules_state_namespace_next` by name.
 - Row-at-a-time writes, updates that leave foreign-key columns alone, and writes to `tags`, `events`,
   and `alerts`, which carry no foreign key, validate nothing.
 - PostgreSQL checks each foreign key with a per-row key lookup in a trigger and needs no hint. SQLite
@@ -186,12 +190,15 @@ filter so the hint always compiles:
   or `ux_jobs_deduplication_key_child`; the parent lookup seeks `pk_jobs`. In `enqueue_jobs` the probe
   is a join's inner side and names both seek columns: with the index alone the optimizer may seek the
   leading column and test the key as a residual, reading every key under it once per batch row.
-- The retention purge's staging read seeks `runtimes` from its cursor and `jobs` by key, and its event
+- The retention purge's staging read seeks `jobs_state` from its cursor and `jobs` by key, and its event
   read seeks `ix_events_namespace_created`.
 - The outbox claim and its lease recovery seek without naming an index, because the producer owns that
   table's DDL.
+- A completion's and a registration's updates of `schedules` and `schedules_state` seek by key. Fires in one namespace
+  share its schedule lock and registrations in different namespaces run at once, so an update that scanned would wait
+  on rows another holds, and two such scans deadlock on each other.
 
-The claim and the completion read `jobs` and `runtimes` without locks, through joins from a table
+The claim and the completion read `jobs` and `jobs_state` without locks, through joins from a table
 variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose
 cost grows with every job the table retains.
 
@@ -224,14 +231,14 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 - `start_step` locks `<schema>.step:<job id>:<name>`.
 - `access_checkpoint` (Set and GetOrSet), `wait_signal`, `raise_signal`, and `ParkOutboxSignal` lock
   `<schema>.slot:<job id>:<kind>:<name>`.
-- `complete_executions` locks the same name for each awaited slot, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any slot or runtime row, so no path holds a slot row while it waits for a slot lock.
+- `complete_executions` locks the same name for each awaited slot, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any slot or `jobs_state` row, so no path holds a slot row while it waits for a slot lock.
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
-The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `runtimes` row first.
+The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `jobs_state` row first.
 
 ### Claim watermark
 
-A claim removes each row it takes from `ix_runtimes_claim_ready`, and the removed entries stay at the
+A claim removes each row it takes from `ix_jobs_state_claim_ready`, and the removed entries stay at the
 head of the row's band until the database cleans them up. SQL Server leaves ghost records that its
 cleanup task removes every few seconds; PostgreSQL marks a dead entry killed only once no transaction
 can still see the row. A seek from the head walks every such entry before it reaches a live row, so
@@ -265,7 +272,7 @@ finds the job gone is refused, so no alert outlives its job.
   a raiser's key-share ends under a waiting purge. The share path rechecks for an exclusive lock after
   relocking, and on `jobs` it adds a conflict only with `UpdateJobInput`'s update.
 
-- `ix_alerts_job` (`job_id, id`, filtered to rows with a job) holds a job's alerts. On SQL Server,
+- `ix_alerts_job` (`job_id, alert_id`, filtered to rows with a job) holds a job's alerts. On SQL Server,
   purge and resolve seek it without locks, which the held job row makes safe, and then lock each row by
   primary key. On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
   each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
@@ -283,11 +290,11 @@ finds the job gone is refused, so no alert outlives its job.
 
 ### Lane lock order
 
-Every routine that touches a laned job locks the `lanes` rows it needs first, in ascending `lanes.id`,
-and only then locks `jobs`, `checkpoints`, or `runtimes` rows, CAS updates included. `runtimes.lane_id`
+Every routine that touches a laned job locks the `lanes` rows it needs first, in ascending `lanes.lane_id`,
+and only then locks `jobs`, `checkpoints`, or `jobs_state` rows, CAS updates included. `jobs_state.lane_id`
 never changes after insert, so a routine may read it unlocked to learn which lane to lock. The lane
 lock is what serializes a lane: enqueue decides Ready or Blocked under it, every settle to Succeeded,
-Failed, or Cancelled promotes the next member under it, and retention deletes a lane that no runtime
+Failed, or Cancelled promotes the next member under it, and retention deletes a lane that no `jobs_state`
 row references under it, skipping a lane another transaction holds and re-checking the reference under
 the lock.
 
@@ -297,13 +304,14 @@ the lock.
 - An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
   rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
   invisible to every other transaction, so no settle can contend for it.
-- The completion batch (`CompleteExecutions`) locks every lane its rows belong to first, in id order,
-  then the awaited signal slots, its own `runtimes` rows in `job_id` order, schedules, and last the
-  parents' latches and `runtimes` rows in parent id order, and promotes each settled lane once.
+- The completion batch (`CompleteExecutions`) takes the schedule lock of each namespace it fires a recurring slot in
+  first ("Schedule lock"), then locks every lane its rows belong to, in id order, then the awaited signal slots, its own
+  `jobs_state` rows in `job_id` order, its fired slots' `schedules` rows and cursors, and last the parents' latches and
+  `jobs_state` rows in parent id order, and promotes each settled lane once.
 - The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
   no row, and the next pass inserts the lane again.
-- On SQL Server every lane lock is an `UPDLOCK` seek by `id` on the clustered key. A lookup by name
-  resolves the id first without a lock, because `ux_lanes_namespace_name` covers `id`, so a lock taken
+- On SQL Server every lane lock is an `UPDLOCK` seek by `lane_id` on the clustered key. A lookup by name
+  resolves the id first without a lock, because `ux_lanes_namespace_name` covers `lane_id`, so a lock taken
   through it would land on that index's key alone and never meet a lock taken by id.
 - A lane runs at most one member at a time: Ready, Suspended, and Executing are the running statuses. A restarted member is older than the members already waiting, so it can wait Blocked below
   the running one.
@@ -328,16 +336,39 @@ the lock.
 - `reclaim_stuck_jobs` also repairs stranded lanes, whose lowest-id unfinished member is Blocked while
   no member runs.
   Each pass visits at most 1,000 of its namespace's lanes, starting at a random lane id and wrapping,
-  seeks each one's head through `ix_runtimes_lane`, and repairs at most 100 of the stranded lanes it
+  seeks each one's head through `ix_jobs_state_lane`, and repairs at most 100 of the stranded lanes it
   finds, in visiting order, so the cost is bounded and stateless and every lane is visited
   eventually. Repair is a safety net for hand edits, so the cap trades a large backlog's drain time
   for a pass that stays short. The walk reads without locks. The pass then locks the stranded lanes
   and the stuck rows' lanes in one id-ordered pass that skips a lane another transaction holds. On SQL
   Server it re-reads the heads under those locks and promotes them in one statement, then writes the
-  `job.lane-repaired` events in one more.
+  `job.resumed` events (reason `lane-repaired`) in one more.
 - A caller transaction that combines several operations can still take a lane after a row it already
   holds. The database breaks that deadlock, and the aborted owned call is retried like any `40P01` or
   `1205` victim.
+
+### Schedule lock
+
+Each namespace has one schedule lock, held until its transaction ends: `sp_getapplock` on
+`{schema}.schedules.{namespace_id}` with a `Transaction` owner on SQL Server, and
+`pg_advisory_xact_lock(hashtext('{schema}.schedules'), namespace_id)` or its `_shared` form on PostgreSQL.
+
+- `register_schedules` and `RetireDefinition` take it exclusive.
+- A completion that fires a recurring slot and the schedule verbs (pause, resume, overrides, trigger) take it shared, so
+  fires and verbs run together and wait only for a registration or a retire. A completion that fires nothing takes none.
+- It is a transaction's first lock: a shared holder that took a row first could wait on a registration that waits on
+  that row.
+- A statement that starts after the grant reads committed schedule config, because a read-committed-snapshot statement
+  and a PostgreSQL read-committed statement take their snapshot when they start. The config joins therefore take no row
+  locks, and the retirement and orphan filters stay in every reader and writer.
+- Rows inside it still lock in order. A verb locks the slot's `jobs_state` row before its `schedules` row, the order a
+  fire's completion takes them in. On PostgreSQL, registration locks its slots' `jobs_state` rows in key order, because
+  a completion that settles a child locks its slot parent's row without the schedule lock.
+- The registration heal clears every orphaned or retired schedule's cursor in the namespace: a retire that commits after
+  a worker read its stored schedules leaves that worker's registration writing cursors for the retired definition.
+- A worker start skips `register_schedules`, and so the lock, when the namespace stores the start's catalog hash and the
+  start's plan moves no stored cursor or slot.
+- SQLite runs one writer at a time and takes none of these locks.
 
 ## Provisioning, compatibility, and SQL access
 

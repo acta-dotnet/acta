@@ -26,7 +26,7 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
     public async Task MarkStartAsync(CancellationToken ct)
     {
         await using var connection = await database.OpenAsync(ct);
-        await using var command = Command(connection, $"SELECT COALESCE(MAX(id), 0) FROM {_prefix}jobs");
+        await using var command = Command(connection, $"SELECT COALESCE(MAX(job_id), 0) FROM {_prefix}jobs");
         _lastIdBeforeRun = Convert.ToInt64(await command.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
     }
 
@@ -60,10 +60,10 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
                 connection,
                 // A recurring slot is one reused row per schedule, not work the run enqueued.
                 $"""
-                SELECT r.status_code, COUNT(*) FROM {_prefix}runtimes r
+                SELECT r.job_status_code, COUNT(*) FROM {_prefix}jobs_state r
                 WHERE r.job_id > @after AND r.namespace_id = @ns
                     AND NOT EXISTS (SELECT 1 FROM {_prefix}schedules s WHERE s.job_id = r.job_id)
-                GROUP BY r.status_code
+                GROUP BY r.job_status_code
                 """,
                 ("@after", _lastIdBeforeRun),
                 ("@ns", namespaceId)
@@ -114,7 +114,11 @@ public sealed class RunCounts(AnvilDatabase database, string schema, string name
 
     private async Task<int?> NamespaceIdAsync(DbConnection connection, CancellationToken ct)
     {
-        await using var command = Command(connection, $"SELECT id FROM {_prefix}namespaces WHERE name = @name", ("@name", namespaceName));
+        await using var command = Command(
+            connection,
+            $"SELECT namespace_id FROM {_prefix}namespaces WHERE namespace_name = @name",
+            ("@name", namespaceName)
+        );
         return await command.ExecuteScalarAsync(ct) is { } id and not DBNull ? Convert.ToInt32(id, CultureInfo.InvariantCulture) : null;
     }
 

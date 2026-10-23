@@ -128,11 +128,11 @@ public sealed class SqlCodePolicyAssertTests
 {
     [Fact]
     public void Unannotated_persisted_code_comparison_fails() =>
-        Assert.NotEmpty(SqlCodePolicyAssert.ScanRequiredAnnotations("Fake/Fake.sql", "SELECT 1 WHERE status_code = 30;"));
+        Assert.NotEmpty(SqlCodePolicyAssert.ScanRequiredAnnotations("Fake/Fake.sql", "SELECT 1 WHERE job_status_code = 30;"));
 
     [Fact]
     public void Unannotated_reversed_code_comparison_fails() =>
-        Assert.NotEmpty(SqlCodePolicyAssert.ScanRequiredAnnotations("Fake/Fake.sql", "SELECT 1 WHERE 30 = status_code;"));
+        Assert.NotEmpty(SqlCodePolicyAssert.ScanRequiredAnnotations("Fake/Fake.sql", "SELECT 1 WHERE 30 = job_status_code;"));
 
     [Fact]
     public void Unannotated_internal_discriminator_fails() =>
@@ -143,7 +143,7 @@ public sealed class SqlCodePolicyAssertTests
         Assert.Empty(
             SqlCodePolicyAssert.ScanRequiredAnnotations(
                 "Fake/Fake.sql",
-                "SELECT 1 WHERE status_code IN (10 /* JobStatusCode.Ready */, 100 /* JobStatusCode.Succeeded */);"
+                "SELECT 1 WHERE job_status_code IN (10 /* JobStatusCode.Ready */, 100 /* JobStatusCode.Succeeded */);"
             )
         );
 
@@ -180,7 +180,7 @@ public sealed class SqlCodePolicyAssertTests
     {
         var failures = SqlCodePolicyAssert.ScanRequiredAnnotations(
             "Fake/Fake.sql",
-            "INSERT INTO jobs (status_code) VALUES (10 /* JobStatusCode.Ready */), (100);"
+            "INSERT INTO jobs_state (job_status_code) VALUES (10 /* JobStatusCode.Ready */), (100);"
         );
 
         Assert.Single(failures);
@@ -191,7 +191,7 @@ public sealed class SqlCodePolicyAssertTests
         Assert.NotEmpty(
             SqlCodePolicyAssert.ScanRequiredAnnotations(
                 "Fake/Fake.sql",
-                "INSERT INTO jobs (status_code) OUTPUT inserted.id INTO @ids VALUES (30);"
+                "INSERT INTO jobs_state (job_status_code) OUTPUT inserted.job_id INTO @ids VALUES (30);"
             )
         );
 

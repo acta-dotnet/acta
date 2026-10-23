@@ -28,7 +28,7 @@ public sealed class DefinitionRegistrationValidationTests
             OutputPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.None,
             Invoker: static async (_, _, _, _) =>
             {
@@ -51,7 +51,7 @@ public sealed class DefinitionRegistrationValidationTests
     /// all this gate looks at, so every other policy field is an arbitrary but valid placeholder.</summary>
     private static StoredDefinitionContract Stored(string name, string? effectiveRate, string? rateName = null) =>
         new(
-            Name: name,
+            DefinitionName: name,
             ManifestGenerationAtUtc: Gen,
             Contract: new DefinitionContract(
                 "Input",
@@ -61,7 +61,7 @@ public sealed class DefinitionRegistrationValidationTests
                 0,
                 JobPayloadFormat.NoneName
             ),
-            Id: 1,
+            DefinitionId: 1,
             DefinitionHash: "hash",
             Status: DefinitionStatusCode.Active,
             Effective: new EffectiveJobPolicy(
@@ -75,7 +75,7 @@ public sealed class DefinitionRegistrationValidationTests
                 DeadlineSeconds: 0,
                 DeadlineBehavior: DeadlineBehaviorCode.Strict,
                 JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
-                AuditLevel: DefinitionAuditLevelCode.Audit,
+                EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.None,
                 AlertChannelName: null,
                 RunbookUrl: null

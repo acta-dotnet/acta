@@ -187,9 +187,9 @@ internal static class AlertTestOps
     }
 
     /// <summary>
-    /// Records one poison-skip variable for <paramref name="eventId"/> through the same checkpoint
-    /// write the projector uses, so a spec can stage the rows retention prunes without having to
-    /// manufacture an event that is genuinely unprojectable.
+    /// Records one poison-skip variable for <paramref name="eventId"/> of <paramref name="jobId"/> through the same
+    /// checkpoint write and record format the projector uses, so a spec can stage the rows retention keeps
+    /// without having to manufacture an event that is genuinely unprojectable.
     /// </summary>
     public static Task RecordProjectionSkipAsync(
         IServiceProvider services,
@@ -197,10 +197,16 @@ internal static class AlertTestOps
         int namespaceId,
         long slotJobId,
         long eventId,
-        CancellationToken ct
+        CancellationToken ct,
+        long jobId = 0,
+        long ticks = 0
     ) =>
         BuildAlertsContext(services, jobNamespace, namespaceId, slotJobId)
-            .SetVariableAsync(SkipVariableName(eventId), $"namespace={jobNamespace};eventId={eventId};reason=unknown-job", ct);
+            .SetVariableAsync(
+                SkipVariableName(eventId),
+                new PoisonAlertEvent(eventId, jobId, ticks).Record(jobNamespace, "unknown-job", nameof(ArgumentException), "staged"),
+                ct
+            );
 
     /// <summary>The projector's variable name for one skipped event, from the projector's own prefix.</summary>
     public static string SkipVariableName(long eventId) =>
@@ -257,9 +263,9 @@ internal static class AlertTestOps
         var due = DateTime.UtcNow.AddMinutes(-5);
         return services
             .GetRequiredService<IDbSession>()
-            .From<RuntimeEntity>()
+            .From<JobStateEntity>()
             .Where(r => r.Id == slotId)
-            .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = due }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = due }, ct);
     }
 
     // A JobContext standing in for the sys.alerts slot: the projector reads ctx.NamespaceId / JobNamespace

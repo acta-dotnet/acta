@@ -37,7 +37,7 @@ public static class RecurringPingHandler
     public static IReadOnlyList<IReadOnlyList<string>> TriggersFor(string jobNamespace) =>
         Triggers.TryGetValue(jobNamespace, out var list) ? list : Array.Empty<IReadOnlyList<string>>();
 
-    [Job("recurring-ping", AuditLevel = DefinitionAuditLevelCode.Audit, MaxAttempts = 2)]
+    [Job("recurring-ping", EventRecording = EventRecordingCode.Audit, MaxAttempts = 2)]
     [JobSchedule("every-5-minutes", Cron.Every5Minutes)]
     public static async Task<RecurringPingResult> Run(RecurringPing input, JobContext ctx, CancellationToken ct)
     {
