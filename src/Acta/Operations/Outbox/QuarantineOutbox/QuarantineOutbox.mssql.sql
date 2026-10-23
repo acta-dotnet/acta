@@ -1,6 +1,7 @@
 /* Token-CAS set-based quarantine of a claimed group in one round trip: exclude each row from normal claims
    (status 90), clear the claim pair, and record its own consumed failure count and bounded error, so a
    coalesced group can partially quarantine. A row whose token no longer matches changes nothing. */
+-- Seeks by key, so a producer's uncommitted rows never hold it up (docs/sql-internals.md, "Locking reads seek").
 UPDATE o
 SET
     status_code = 90 /* OutboxStatusCode.Quarantined */,
@@ -8,7 +9,7 @@ SET
     claim_until_utc = NULL,
     failure_count = r.failure_count,
     last_error = r.last_error
-FROM {{table_ref}} AS o
+FROM {{table_ref}} AS o WITH (FORCESEEK)
 INNER JOIN
     OPENJSON (@p_rows)
     WITH (

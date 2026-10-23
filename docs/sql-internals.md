@@ -192,8 +192,9 @@ filter so the hint always compiles:
   leading column and test the key as a residual, reading every key under it once per batch row.
 - The retention purge's staging read seeks `jobs_state` from its cursor and `jobs` by key, and its event
   read seeks `ix_events_namespace_created`.
-- The outbox claim and its lease recovery seek without naming an index, because the producer owns that
-  table's DDL.
+- The outbox claim, its lease recovery, the relay's finalizes, and the operator requeue and discard seek
+  without naming an index, because the producer owns that table's DDL. A scan of the producer's table would
+  also wait on every row a producer transaction still holds uncommitted.
 - A completion's and a registration's updates of `schedules` and `schedules_state` seek by key. Fires in one namespace
   share its schedule lock and registrations in different namespaces run at once, so an update that scanned would wait
   on rows another holds, and two such scans deadlock on each other.

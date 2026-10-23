@@ -1,6 +1,7 @@
 /* Token-CAS set-based reschedule of a recoverable claimed group: each row returns to Pending with its own
    bumped failure count, per-row backoff added to the source clock (SYSUTCDATETIME), and bounded error; the
    claim pair clears. A row whose token no longer matches changes nothing. */
+-- Seeks by key, so a producer's uncommitted rows never hold it up (docs/sql-internals.md, "Locking reads seek").
 UPDATE o
 SET
     status_code = 10 /* OutboxStatusCode.Pending */,
@@ -9,7 +10,7 @@ SET
     failure_count = r.failure_count,
     next_attempt_at_utc = DATEADD(SECOND, r.backoff_seconds, SYSUTCDATETIME()),
     last_error = r.last_error
-FROM {{table_ref}} AS o
+FROM {{table_ref}} AS o WITH (FORCESEEK)
 INNER JOIN
     OPENJSON (@p_rows)
     WITH (
