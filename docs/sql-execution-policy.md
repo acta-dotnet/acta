@@ -202,6 +202,16 @@ The claim and the completion read `jobs` and `jobs_state` without locks, through
 variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose
 cost grows with every job the table retains.
 
+On PostgreSQL the predicate does the pinning. `complete_executions` locks its batch's `jobs_state` rows,
+and `extend_worker_leases` reads and locks the held ones, by `pk_jobs_state` probes, with the worker test
+written `leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id`. Written `=`, the test implies
+the filter of the partial `ix_jobs_state_worker_inflight`, and a cached generic plan may walk the worker's
+whole range of that index instead. That range holds a dead entry for every attempt the worker finished
+until vacuum removes it, so the walk grows between vacuums, and which plan runs depends on the statistics
+autoanalyze last took. No index serves `IS NOT DISTINCT FROM` and it implies no `IS NOT NULL`, so the
+primary key is the only index the planner can use. The worker id is never NULL and
+`ck_jobs_state_inflight_leased` gives every Executing row a worker, so the rows matched are the same.
+
 ### Deduplication lock
 
 On SQL Server an enqueue serializes on its deduplication key through an application lock, not a range

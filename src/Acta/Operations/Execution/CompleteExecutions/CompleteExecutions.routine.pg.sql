@@ -63,7 +63,11 @@ BEGIN
             SELECT r.job_id, r.execution_number, r.failure_count AS prior_failure_count
             FROM {{schema}}.jobs_state r
             INNER JOIN completions c ON c.job_id = r.job_id AND c.execution_number = r.execution_number
-            WHERE r.job_status_code = 50 /* JobStatusCode.Executing */ AND r.leased_by_worker_id = p_leased_by_worker_id
+            -- The rows lock by pk_jobs_state probes: "=" would imply ix_jobs_state_worker_inflight's filter and let a generic plan
+            -- walk the worker's range of it, dead entries included (docs/sql-execution-policy.md, "Locking reads seek").
+            WHERE
+                r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
             ORDER BY r.job_id
             FOR UPDATE OF r
         ),
@@ -187,7 +191,7 @@ BEGIN
             handler_job_status_code, final_job_status_code, job_next_run_at_utc
         )
     ),
-    -- The jobs_state rows lock in job_id order.
+    -- The jobs_state rows lock in job_id order by pk_jobs_state probes, the worker test written as in the plain path.
     eligible AS (
         SELECT
             r.job_id,
@@ -208,7 +212,7 @@ BEGIN
                 AND s.checkpoint_name = c.wait_signal_name
         WHERE
             r.job_status_code = 50 /* JobStatusCode.Executing */
-            AND r.leased_by_worker_id = p_leased_by_worker_id
+            AND r.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
         ORDER BY r.job_id
         FOR UPDATE OF r
     ),

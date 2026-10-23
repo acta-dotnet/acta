@@ -58,12 +58,14 @@ BEGIN
         SELECT h.job_id, h.execution_number
         FROM unnest(p_job_ids, p_execution_numbers) AS h (job_id, execution_number)
     ),
+    -- Both reads find the held rows by pk_jobs_state probes: "=" in the worker test would imply ix_jobs_state_worker_inflight's
+    -- filter and let a generic plan walk the worker's range of it (docs/sql-execution-policy.md, "Locking reads seek").
     matched AS (
         SELECT r0.job_id, r0.execution_number
         FROM {{schema}}.jobs_state r0
         WHERE
             (r0.job_id, r0.execution_number) IN (SELECT h.job_id, h.execution_number FROM held h)
-            AND r0.leased_by_worker_id = p_leased_by_worker_id
+            AND r0.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
             AND r0.job_status_code = 50 /* JobStatusCode.Executing */
     ),
     locked AS (
@@ -71,7 +73,7 @@ BEGIN
         FROM {{schema}}.jobs_state r1
         WHERE
             (r1.job_id, r1.execution_number) IN (SELECT h.job_id, h.execution_number FROM held h)
-            AND r1.leased_by_worker_id = p_leased_by_worker_id
+            AND r1.leased_by_worker_id IS NOT DISTINCT FROM p_leased_by_worker_id
             AND r1.job_status_code = 50 /* JobStatusCode.Executing */
         ORDER BY r1.job_id
         FOR UPDATE SKIP LOCKED
