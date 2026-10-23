@@ -1569,6 +1569,44 @@ public class ManifestGeneratorDiagnosticTests
         AssertCompilesCleanly(compilation);
     }
 
+    // Roslyn names a method declared `@event` as `event`; the generated call writes the @ back, for a static or an
+    // instance handler, for `await`, which the async invoker would otherwise read as the operator, and for a keyword
+    // segment of the root namespace.
+    [Theory]
+    [InlineData("static", "GenTests")]
+    [InlineData("", "GenTests")]
+    [InlineData("", "GenTests.@event")]
+    public void Keyword_named_handlers_compile_cleanly(string modifier, string sourceNamespace)
+    {
+        var result = RunGenerator(
+            $$"""
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Acta;
+            namespace {{sourceNamespace}};
+
+            #pragma warning disable CS8981
+            public sealed record @class(int @int);
+            #pragma warning restore CS8981
+
+            public {{modifier}} class Handlers
+            {
+                [Job("do-work")]
+                public {{modifier}} Task @event(@class @in, JobContext @ref, CancellationToken @checked) => Task.CompletedTask;
+
+                [Job("do-more")]
+                public {{modifier}} Task<@class> await(CancellationToken @checked) => Task.FromResult(new @class(1));
+            }
+            """,
+            sourceNamespace.Replace("@", "", StringComparison.Ordinal),
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Single(result.GeneratedTrees);
+        AssertCompilesCleanly(compilation);
+    }
+
     private static void AssertCompilesCleanly(Compilation compilation) =>
         Assert.Empty(
             compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity >= DiagnosticSeverity.Warning)

@@ -94,6 +94,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - A note written with `ctx.NoteAsync` records the worker whose attempt wrote it. It stored worker 0, so on SQL Server every worker's notes appended at one point of the events key.
 - On SQL Server, a binary parameter bound without a size is declared `varbinary(max)`, so a statement keeps one cached plan instead of one per payload length.
 - Under reflection-off Native AOT, `sys.alerts` writes and reads its poison-event records when the application's JSON resolver has no `string` metadata: Acta's own context now covers every value Acta persists, `string` and `long` included. The write failed, and since it lands before the cursor moves, the projector could not get past that event.
+- A `[Job]` handler named with a C# keyword, declared as `@event` or named `await`, compiles: the generated invoker writes the name with its `@`, as it now does a keyword segment of the root namespace. It emitted `Handlers.event()` and failed the build.
 
 ### Evidence
 

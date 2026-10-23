@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Microsoft.CodeAnalysis.CSharp;
 using static Acta.Generators.DbProjectionGenerator;
 
 namespace Acta.Generators;
@@ -188,7 +187,7 @@ internal static class ProjectionSourceWriter
         for (var i = 0; i < projection.Members.Length; i++)
         {
             var member = projection.Members[i];
-            sb.Append("            ").Append(EscapeIdentifier(member.Name)).Append(": ").Append(BindExpression(member, i));
+            sb.Append("            ").Append(GeneratorText.EscapeIdentifier(member.Name)).Append(": ").Append(BindExpression(member, i));
             sb.AppendLine(i == projection.Members.Length - 1 ? "" : ",");
         }
         sb.AppendLine("        );");
@@ -258,11 +257,6 @@ internal static class ProjectionSourceWriter
 
         return member.EnumTypeFqn is null ? readExpr : "(" + member.EnumTypeFqn + ")" + readExpr;
     }
-
-    internal static string EscapeIdentifier(string name) =>
-        SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None && SyntaxFacts.GetContextualKeywordKind(name) == SyntaxKind.None
-            ? name
-            : "@" + name;
 
     internal static string HintPart(string value)
     {
