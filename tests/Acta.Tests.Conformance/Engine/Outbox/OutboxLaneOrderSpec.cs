@@ -6,8 +6,8 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Outbox;
 
 /// <summary>
-/// The relay claims a lane's rows in staging order, one at a time, so a lane staged through the outbox
-/// runs in the order its rows were staged. Priority reorders nothing on the way; it still applies to the
+/// The relay claims a lane's rows in staging order, one at a time, so a lane staged in sequence through the
+/// outbox runs in the order its rows were staged. Priority reorders nothing on the way; it still applies to the
 /// enqueued jobs. What holds a lane behind a waiting row is <c>outbox.lane-hold</c>.
 /// </summary>
 [ConformanceSpec(

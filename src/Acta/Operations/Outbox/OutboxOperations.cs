@@ -89,8 +89,9 @@ internal sealed class OutboxOperations(
         /// <summary>
         /// One short source transaction: expired Claimed leases back to Pending, then a bounded batch of due
         /// Pending rows claimed by next attempt then id under a fresh token, returned in staging order. A laned
-        /// row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger
-        /// in staging order; that check must not skip locked rows, or a row another relay holds would read as gone.
+        /// row is claimed only while no older row of its lane is Pending or Claimed, so rows staged into a lane in
+        /// sequence reach the ledger in that order; that check must not skip locked rows, or a row another relay
+        /// holds would read as gone. It sees committed rows only, so it cannot order producers still open.
         /// </summary>
         public Task<ClaimOutboxResponse> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) => _claim.HandleAsync(command, ct);
 

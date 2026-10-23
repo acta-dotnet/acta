@@ -35,6 +35,14 @@ public sealed partial class PgConformanceFixture
         await tx.CommitAsync();
     }
 
+    public async ValueTask<OutboxProducer> BeginOutboxProducerAsync(string outboxTable)
+    {
+        var c = new NpgsqlConnection(Conn);
+        await c.OpenAsync();
+        var tx = await c.BeginTransactionAsync();
+        return new OutboxProducer(c, tx, request => tx.AddToActaOutboxAsync(request, outboxTable, Schema));
+    }
+
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
         Acta.EnqueueJobRequest request,

@@ -128,6 +128,13 @@ public interface IConformanceFixture
     ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests);
 
     /// <summary>
+    /// Open a native connection and transaction that stages into <paramref name="outboxTable"/> through the
+    /// provider's <c>AddToActaOutboxAsync</c> extension and stays open until the spec commits, rolls back, or
+    /// disposes it, so a spec can hold one producer open beside another.
+    /// </summary>
+    ValueTask<OutboxProducer> BeginOutboxProducerAsync(string outboxTable);
+
+    /// <summary>
     /// Build the provider's external-outbox source connection (an internal <c>OutboxSourceConnection</c>, returned
     /// as <see cref="object"/> so the public fixture surface does not leak the internal type) over
     /// <paramref name="table"/>; the outbox operations open the source over it.

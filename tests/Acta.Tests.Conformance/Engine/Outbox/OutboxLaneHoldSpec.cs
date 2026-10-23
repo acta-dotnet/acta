@@ -6,15 +6,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Outbox;
 
 /// <summary>
-/// A lane keeps its staging order from the outbox to the ledger. A laned row is claimed only while no
-/// older row of its lane is still Pending or Claimed, so a rejected row holds the rows behind it, a
-/// claim another relay holds does too, and a quarantined row lets its lane move on. Other lanes flow.
+/// Rows staged into a lane in sequence keep their staging order from the outbox to the ledger. A laned row
+/// is claimed only while no older row of its lane is still Pending or Claimed, so a rejected row holds the
+/// rows behind it, a claim another relay holds does too, and a quarantined row lets its lane move on. Other
+/// lanes flow. Producers open at the same time are <c>outbox.lane-producers</c>.
 /// </summary>
 [ConformanceSpec(
     "outbox.lane-hold",
     "An outbox lane waits behind its oldest waiting row until that row leaves",
     Area = "Outbox",
-    Contract = "A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger in staging order."
+    Contract = "A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane staged in sequence reaches the ledger in staging order."
 )]
 public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
 {

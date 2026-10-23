@@ -37,6 +37,14 @@ public sealed partial class SqlServerConformanceFixture
         await tx.CommitAsync();
     }
 
+    public async ValueTask<OutboxProducer> BeginOutboxProducerAsync(string outboxTable)
+    {
+        var c = new SqlConnection(Conn);
+        await c.OpenAsync();
+        var tx = (SqlTransaction)await c.BeginTransactionAsync();
+        return new OutboxProducer(c, tx, request => tx.AddToActaOutboxAsync(request, outboxTable, Schema));
+    }
+
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
         Acta.EnqueueJobRequest request,

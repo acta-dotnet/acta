@@ -34,6 +34,14 @@ public sealed partial class SqliteConformanceFixture
         await tx.CommitAsync();
     }
 
+    public async ValueTask<OutboxProducer> BeginOutboxProducerAsync(string outboxTable)
+    {
+        var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
+        await c.OpenAsync();
+        var tx = (SqliteTransaction)await c.BeginTransactionAsync();
+        return new OutboxProducer(c, tx, request => tx.AddToActaOutboxAsync(request, outboxTable, "main"));
+    }
+
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
         Acta.EnqueueJobRequest request,

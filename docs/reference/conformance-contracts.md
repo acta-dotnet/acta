@@ -1338,7 +1338,7 @@
   - A rolled-back stage discards both the business row and the outbox row
 
 ### An outbox lane waits behind its oldest waiting row until that row leaves
-- **Contract:** A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger in staging order.
+- **Contract:** A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane staged in sequence reaches the ledger in staging order.
 - **Guarantees:**
   - A rejected row holds its lane across ticks while another lane relays
   - A quarantined row releases its lane and the row behind it relays
@@ -1349,6 +1349,13 @@
 - **Contract:** The relay claims a lane's rows in staging order, so a lane's rows reach the ledger in that order however their priorities differ.
 - **Guarantees:**
   - A low-priority row staged first leads its lane ahead of a high-priority row staged after it
+
+### Concurrent producer transactions relay as each commits, in their own order
+- **Contract:** The relay sees a producer's rows only once it commits: a laned row can pass an older uncommitted one, a rolled-back row never relays, and other lanes flow.
+- **Guarantees:**
+  - Rows of a transaction that commits second relay after a younger transaction's rows that committed first
+  - A rolled-back producer's row never relays and holds nothing behind it
+  - An open producer on one lane holds no other lane
 
 ### AddOutboxRelay dispatches sys.outbox and a broken source fails only it
 - **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick.

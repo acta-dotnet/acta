@@ -56,6 +56,7 @@ provisioned before 1.0.
   - a cycle of waits across lanes is invisible to Acta; give such waits a timeout;
   - a restarted job runs right after the current head, out of its original place;
   - cancelling or recovering a running head can let the next one start while the old handler still runs.
+- **Outbox lanes order sequential producers only.** Rows staged into a lane in sequence reach the ledger in staging order, but producer transactions open at the same time have no order between them: a row whose transaction commits first can be relayed ahead of an older row still uncommitted.
 
 ## Contract evolution
 

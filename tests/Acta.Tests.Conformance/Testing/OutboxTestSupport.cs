@@ -36,6 +36,23 @@ public readonly record struct OutboxRowState(
     string? LastError
 );
 
+/// <summary>A producer transaction a spec holds open, staging through the provider's extension until it ends.</summary>
+public sealed class OutboxProducer(DbConnection connection, DbTransaction transaction, Func<Acta.EnqueueJobRequest, Task> stage)
+    : IAsyncDisposable
+{
+    public Task StageAsync(Acta.EnqueueJobRequest request) => stage(request);
+
+    public Task CommitAsync() => transaction.CommitAsync();
+
+    public Task RollbackAsync() => transaction.RollbackAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        await transaction.DisposeAsync();
+        await connection.DisposeAsync();
+    }
+}
+
 /// <summary>Opens the provider's outbox source over <paramref name="table"/>, the one place the fixture's connection is unboxed.</summary>
 internal static class OutboxFixtureExtensions
 {
