@@ -59,19 +59,19 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         );
         Assert.Equal(1, superseded.Action);
 
-        Assert.False(
-            (await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, first, ct)).Consumed,
-            "a superseded command must miss"
-        );
+        Assert.False((await store.ConsumeOutboxSignalAsync(Consume(jobId, first), ct)).Consumed, "a superseded command must miss");
         var current = (await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct))?.Signal;
         Assert.NotNull(current);
         Assert.Equal(superseding, current!.Value);
         Assert.Equal(1, current.Version);
 
-        Assert.True((await store.ConsumeOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, superseding, ct)).Consumed);
+        Assert.True((await store.ConsumeOutboxSignalAsync(Consume(jobId, superseding), ct)).Consumed);
         Assert.Null(await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Requeue, ct));
 
         // The two fixed names are independent slots: the discard slot was never touched.
         Assert.Null(await store.GetOutboxSignalAsync(jobId, OutboxSignalNames.Discard, ct));
     }
+
+    private static ConsumeOutboxSignalCommand Consume(long jobId, byte[] value) =>
+        new(jobId, OutboxSignalNames.Requeue, value, EventCode.OutboxRequeued, Actor: null, ReasonMessage: null);
 }

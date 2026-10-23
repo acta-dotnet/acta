@@ -166,7 +166,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListOutboxQuarantinedHandler>();
         services.TryAddSingleton<ListOutboxSourcesHandler>();
         services.TryAddSingleton<ParkOutboxSignalHandler>();
-        services.TryAddSingleton<RecordOutboxEventHandler>();
+        services.TryAddSingleton<PlanOutboxSignalHandler>();
         services.TryAddSingleton<RequeueOutboxHandler>();
         services.TryAddSingleton<OutboxOperations>();
         services.TryAddSingleton<IOutbox>(sp => sp.GetRequiredService<OutboxOperations>());

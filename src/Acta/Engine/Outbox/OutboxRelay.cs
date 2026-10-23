@@ -35,11 +35,12 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     internal OutboxOperations.Source Source => source;
 
     /// <summary>
-    /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the
-    /// same tick, then discard. Per command: apply against the source, write the evidence event, then
-    /// consume the command read. Crash-safe in that order - a reapplied command finds nothing left to touch
-    /// (both verbs only match Quarantined rows), and a consume miss means another command now stands under
-    /// the name, which applies next tick.
+    /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the same tick, then
+    /// discard. Per command: store the Quarantined rows it targets as its plan in its own row, apply it to those rows
+    /// at the source, then consume it with its evidence event in one ledger statement. A pass that finds the command
+    /// planned replays the plan, which skips rows already moved (both verbs match Quarantined rows only), and its
+    /// event names the planned rows. A pass whose read no longer matches the stored command stops before the source
+    /// when it would plan, and records nothing when it would consume.
     /// </summary>
     public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(
         long slotJobId,
@@ -73,25 +74,60 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         if (payload is null)
         {
             // A malformed command must not wedge the two-name inbox: consume it, leave the trail.
-            await outbox.RecordOutboxEventAsync(
-                new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), null, "Malformed operator command discarded unapplied."),
+            await outbox.ConsumeOutboxSignalAsync(
+                new ConsumeOutboxSignalCommand(
+                    slotJobId,
+                    name,
+                    row.Value,
+                    EventCodeFor(name),
+                    null,
+                    "Malformed operator command discarded unapplied."
+                ),
                 ct
             );
-            await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Value, ct);
             return 0;
+        }
+
+        var value = row.Value;
+        var planned = payload.PlannedIds;
+        if (planned is null)
+        {
+            planned = (await source.MatchQuarantinedAsync(new MatchQuarantinedOutboxQuery(payload.OutboxIds), ct)).OutboxIds;
+            var plannedValue = JsonSerializer.SerializeToUtf8Bytes(
+                payload with
+                {
+                    PlannedIds = planned,
+                },
+                OutboxSignalJsonContext.Default.OutboxSignalPayload
+            );
+            if (!(await outbox.PlanOutboxSignalAsync(slotJobId, name, value, plannedValue, ct)).Planned)
+            {
+                return 0;
+            }
+
+            value = plannedValue;
         }
 
         var affected =
             name == OutboxSignalNames.Requeue
-                ? (await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds
-                : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct)).OutboxIds;
+                ? (await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(planned), ct)).OutboxIds
+                : (await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(planned), ct)).OutboxIds;
 
-        await outbox.RecordOutboxEventAsync(
-            new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.Actor, Evidence(payload.ReasonMessage, affected)),
+        // A pass that found the command planned changes only what an earlier pass left undone, so its evidence is
+        // the plan.
+        var evidence = payload.PlannedIds is null ? affected : planned;
+        var consumed = await outbox.ConsumeOutboxSignalAsync(
+            new ConsumeOutboxSignalCommand(
+                slotJobId,
+                name,
+                value,
+                EventCodeFor(name),
+                payload.Actor,
+                Evidence(payload.ReasonMessage, evidence)
+            ),
             ct
         );
-        await outbox.ConsumeOutboxSignalAsync(slotJobId, name, row.Value, ct);
-        return affected.Count;
+        return consumed.Consumed ? evidence.Count : 0;
     }
 
     private static EventCode EventCodeFor(string name) =>

@@ -110,12 +110,12 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
     }
 
     // Parks one operator command by marko on the slot with a fresh command id, as IOutbox parks it, and
-    // answers the admission's ControlAction id.
+    // answers the admission's ControlAction id. Null ids target every quarantined row.
     private protected async Task<byte> ParkAsync(
         long slotJobId,
         string name,
         string reasonMessage,
-        IReadOnlyList<Guid> outboxIds,
+        IReadOnlyList<Guid>? outboxIds,
         CancellationToken ct
     )
     {

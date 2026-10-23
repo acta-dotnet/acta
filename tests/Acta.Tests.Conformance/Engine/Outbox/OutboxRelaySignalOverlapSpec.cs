@@ -30,7 +30,7 @@ public sealed class OutboxRelaySignalOverlapSpec : OutboxRelayIntegrationBase
         var slotJobId = await SeedSlotJobAsync(ct);
         Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "first command", [first.OutboxId], ct));
 
-        // The stale pass reads the first command, then holds before its source requeue.
+        // The stale pass reads and plans the first command, then holds before its source requeue.
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var staleStore = new HookedOutboxStore(SourceConnection)

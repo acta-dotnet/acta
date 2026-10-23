@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// The Outbox operations: <see cref="IOutbox"/> for applications, plus the relay's calls. The slot's operator-command inbox
 /// is Signal-kind checkpoint rows on the slot job, durable, cross-peer, and bounded by the two fixed names, where
-/// operators park commands that the relay tick reads, applies, records, and consumes.
+/// operators park commands that the relay tick reads, plans, applies, and consumes with their evidence.
 /// </summary>
 internal sealed class OutboxOperations(
     ListOutboxSourcesHandler listOutboxSources,
@@ -11,8 +11,8 @@ internal sealed class OutboxOperations(
     RequeueOutboxHandler requeueOutbox,
     DiscardOutboxHandler discardOutbox,
     GetOutboxSignalHandler getOutboxSignal,
-    ConsumeOutboxSignalHandler consumeOutboxSignal,
-    RecordOutboxEventHandler recordOutboxEvent
+    PlanOutboxSignalHandler planOutboxSignal,
+    ConsumeOutboxSignalHandler consumeOutboxSignal
 ) : IOutbox
 {
     public ValueTask<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default) =>
@@ -44,16 +44,24 @@ internal sealed class OutboxOperations(
         getOutboxSignal.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct);
 
     /// <summary>
-    /// Deletes an applied command row whose stored value is still the <paramref name="value"/> the tick read. The
-    /// value carries the command id minted per park, so a command that superseded it, or was parked after another
-    /// pass consumed it, is not consumed and applies on the next tick.
+    /// Replaces the command row whose stored value is still the <paramref name="value"/> the tick read with its plan,
+    /// <paramref name="plannedValue"/>. A pass whose read no longer matches stores nothing and must not touch the source.
     /// </summary>
-    internal Task<ConsumeOutboxSignalResponse> ConsumeOutboxSignalAsync(long slotJobId, string name, byte[] value, CancellationToken ct) =>
-        consumeOutboxSignal.HandleAsync(new ConsumeOutboxSignalCommand(slotJobId, name, value), ct);
+    internal Task<PlanOutboxSignalResponse> PlanOutboxSignalAsync(
+        long slotJobId,
+        string name,
+        byte[] value,
+        byte[] plannedValue,
+        CancellationToken ct
+    ) => planOutboxSignal.HandleAsync(new PlanOutboxSignalCommand(slotJobId, name, value, plannedValue), ct);
 
-    /// <summary>Appends the applied-command evidence event against the slot job; it is always audited.</summary>
-    internal Task RecordOutboxEventAsync(RecordOutboxEventCommand command, CancellationToken ct) =>
-        recordOutboxEvent.HandleAsync(command, ct);
+    /// <summary>
+    /// Deletes an applied command row whose stored value is still the one the tick read and, only then, writes its
+    /// always-audited evidence event. The value carries the command id minted per park, so a command that superseded
+    /// it, or was parked after another pass consumed it, is not consumed and applies on the next tick.
+    /// </summary>
+    internal Task<ConsumeOutboxSignalResponse> ConsumeOutboxSignalAsync(ConsumeOutboxSignalCommand command, CancellationToken ct) =>
+        consumeOutboxSignal.HandleAsync(command, ct);
 
     /// <summary>Opens a producer's outbox table over the connection its provider package built; opening contacts no database.</summary>
     internal static Source OpenSource(OutboxSourceConnection connection) => new(connection.Session, connection.Dialect);
@@ -76,6 +84,7 @@ internal sealed class OutboxOperations(
         private readonly ListQuarantinedOutboxHandler _listQuarantined = new(session, dialect);
         private readonly RequeueQuarantinedOutboxHandler _requeueQuarantined = new(session, dialect);
         private readonly DiscardQuarantinedOutboxHandler _discardQuarantined = new(session, dialect);
+        private readonly MatchQuarantinedOutboxHandler _matchQuarantined = new(session, dialect);
 
         /// <summary>
         /// One short source transaction: expired Claimed leases back to Pending, then a bounded batch of due
@@ -140,5 +149,12 @@ internal sealed class OutboxOperations(
             DiscardQuarantinedOutboxCommand command,
             CancellationToken ct
         ) => _discardQuarantined.HandleAsync(command, ct);
+
+        /// <summary>
+        /// The ids of the Quarantined rows an operator command targets, read without changing any, so the applying
+        /// tick can record them as the command's plan before it requeues or discards.
+        /// </summary>
+        public Task<MatchQuarantinedOutboxResponse> MatchQuarantinedAsync(MatchQuarantinedOutboxQuery query, CancellationToken ct) =>
+            _matchQuarantined.HandleAsync(query, ct);
     }
 }

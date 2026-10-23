@@ -1175,14 +1175,15 @@
 
 ## Outbox
 
-### Consume deletes an applied command only while it is the command the tick read
-- **Contract:** ConsumeOutboxSignal deletes a signal row only while it holds the value the tick read, so a repeat misses and any other command under the name survives.
+### Consume deletes only the command the tick read and writes its one evidence event
+- **Contract:** ConsumeOutboxSignal deletes a signal row only while it holds the value the tick read and only then writes its evidence event, so a repeat changes nothing.
 - **Guarantees:**
   - A consume of the command read deletes the row and answers true, and a repeat answers false
   - A consume of a superseded command answers false and the newer command survives
   - A late consume of a command another pass consumed misses the command parked after it at the same version
   - A consume of an empty slot answers false
   - A consume deletes only the named command of that job
+  - A consume writes one evidence event with the operator and reason, and a repeat writes none
 
 ### The quarantine count totals the source's Quarantined rows as they come and go
 - **Contract:** CountOutboxQuarantined returns the number of Quarantined rows in the source, zero when there are none, excluding Pending and Claimed rows.
@@ -1242,6 +1243,11 @@
 - **Contract:** DiscardQuarantined deletes targeted (or all, when ids are null) Quarantined rows, returns the deleted ids, and never touches a row in any other status.
 - **Guarantees:**
   - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
+
+### Match reads the Quarantined rows a command targets without changing them
+- **Contract:** MatchQuarantined returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row.
+- **Guarantees:**
+  - An id-scoped match returns only its quarantined ids, the null form returns every one, and no row moves
 
 ### Discard parks on the relay slot and the next pass deletes the rows
 - **Contract:** Discard parks once per pending command on the slot's own discard inbox, and the next relay pass deletes the targeted quarantined rows and records their ids.
@@ -1304,15 +1310,16 @@
 - **Guarantees:**
   - Requeue applies before the drain: row freed, evidence written, signal consumed, job relayed
 
-### An applied operator command leaves an always-emitted evidence event
-- **Contract:** RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job records no other events.
-- **Guarantees:**
-  - The evidence event lands on the slot job with the operator actor and reason intact
-
 ### Park admission and consume of the command read bound the operator inbox
 - **Contract:** Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one, and consume deletes only the command read.
 - **Guarantees:**
   - Free and stale slots admit, a pending slot rejects with its age, and consume takes only the command read
+
+### A replayed operator command records one event and changes only its planned rows
+- **Contract:** A command replayed after a crash before its evidence records one event naming its planned rows, and a pass that loses the plan never touches the source.
+- **Guarantees:**
+  - A requeue replayed after a crash before its evidence records one event for its planned rows only
+  - A pass that read the command before another pass planned it never touches the source
 
 ### A stale relay pass never consumes a command parked after the one it read
 - **Contract:** A pass that read a command another pass already consumed leaves a command parked since then in place, and the next pass applies that command once.
@@ -1376,6 +1383,12 @@
   - The stale cutoff is inclusive: a command parked at it is superseded and one a millisecond younger is not
   - A retried park of the same command reads as landed and writes nothing again
   - Each command name on each job is its own slot
+
+### Plan replaces only the command the tick read with its plan
+- **Contract:** PlanOutboxSignal replaces a signal row with the planned value only while it holds the value the tick read, so a pass that read an older value stores nothing.
+- **Guarantees:**
+  - A plan of the command read replaces it and answers true, and a plan from the old read answers false
+  - A plan of an empty slot answers false and stores nothing
 
 ## Payloads
 
@@ -2315,9 +2328,11 @@
 | `ListWorkers` | yes | yes | yes |
 | `LoadAppliedMigrations` | yes | yes | yes |
 | `MarkDeadWorkers` | yes | yes | yes |
+| `MatchQuarantinedOutbox` | yes | yes | yes |
 | `ParkOutboxSignal` | yes | yes | yes |
 | `PauseJob` | yes | yes | yes |
 | `PauseSchedule` | yes | yes | yes |
+| `PlanOutboxSignal` | yes | yes | yes |
 | `PurgeExpiredData` | yes | yes | yes |
 | `PurgeJob` | yes | yes | yes |
 | `QuarantineOutbox` | yes | yes | yes |
@@ -2325,7 +2340,6 @@
 | `RaiseSignal` | yes | yes | yes |
 | `ReclaimStuckJobs` | yes | yes | yes |
 | `RecordNote` | yes | yes | yes |
-| `RecordOutboxEvent` | yes | yes | yes |
 | `RegisterDefinitions` | yes | yes | yes |
 | `RegisterSchedules` | yes | yes | yes |
 | `RegisterTenant` | yes | yes | yes |

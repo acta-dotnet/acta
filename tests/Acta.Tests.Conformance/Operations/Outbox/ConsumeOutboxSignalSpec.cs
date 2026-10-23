@@ -5,15 +5,20 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Outbox;
 
-/// <summary>Conformance for the delete that closes an applied operator command on a <c>sys.outbox</c> slot.</summary>
+/// <summary>
+/// Conformance for the delete that closes an applied operator command on a <c>sys.outbox</c> slot and writes its
+/// evidence event, the one trail for rows that live, or lived, in the producer's database.
+/// </summary>
 [ConformanceSpec(
     "consume-outbox-signal.command-identity",
-    "Consume deletes an applied command only while it is the command the tick read",
+    "Consume deletes only the command the tick read and writes its one evidence event",
     Area = "Outbox",
-    Contract = "ConsumeOutboxSignal deletes a signal row only while it holds the value the tick read, so a repeat misses and any other command under the name survives."
+    Contract = "ConsumeOutboxSignal deletes a signal row only while it holds the value the tick read and only then writes its evidence event, so a repeat changes nothing."
 )]
 public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture>
 {
+    private const string Reason = "poison batch - 2 row(s): [a, b]";
+
     private static readonly DateTime NothingIsStale = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime EverythingIsStale = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -98,11 +103,41 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         Assert.Equal(1, await CountAsync(otherJobId, OutboxSignalNames.Requeue, ct));
     }
 
+    [Fact(DisplayName = "A consume writes one evidence event with the operator and reason, and a repeat writes none")]
+    public async Task Consume_writes_one_evidence_event()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await SeedSlotJobAsync(ct);
+        await ParkAsync(jobId, OutboxSignalNames.Discard, [1], NothingIsStale, ct);
+
+        Assert.True(await ConsumeAsync(jobId, OutboxSignalNames.Discard, [1], ct));
+        Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Discard, [1], ct));
+
+        // The seeded job records no events, which proves the evidence event has no recording gate.
+        var evidence = Assert.Single(
+            await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct)
+        );
+        Assert.Equal(EventCode.OutboxDiscarded, evidence.EventCode);
+        Assert.Equal("marko", EventDetail(evidence, "actor"));
+        Assert.Equal(Reason, evidence.EventMessage);
+        Assert.Equal(1, evidence.ExecutionNumber);
+    }
+
     private async Task<bool> ConsumeAsync(long jobId, string name, byte[] value, CancellationToken ct) =>
         (
             await Services
                 .GetRequiredService<ConsumeOutboxSignalHandler>()
-                .HandleAsync(new ConsumeOutboxSignalCommand(jobId, name, value), ct)
+                .HandleAsync(
+                    new ConsumeOutboxSignalCommand(
+                        jobId,
+                        name,
+                        value,
+                        name == OutboxSignalNames.Requeue ? EventCode.OutboxRequeued : EventCode.OutboxDiscarded,
+                        "marko",
+                        Reason
+                    ),
+                    ct
+                )
         ).Consumed;
 
     private Task<ParkOutboxSignalResponse> ParkAsync(
@@ -123,5 +158,25 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
 
     private async Task<int> CountAsync(long jobId, string name, CancellationToken ct) => (await RowsAsync(jobId, name, ct)).Count;
 
-    private async Task<long> SeedSlotJobAsync(CancellationToken ct) => (await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct)).JobId;
+    // The jobs_state row backs the evidence event's join, as the real slot's does.
+    private async Task<long> SeedSlotJobAsync(CancellationToken ct)
+    {
+        var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
+        await Db.From<JobStateEntity>()
+            .InsertAsync<long>(
+                new JobStateEntity
+                {
+                    Id = jobId,
+                    NamespaceId = TestNamespaceId,
+                    Status = JobStatusCode.Ready,
+                    Priority = JobPriorityCode.Critical,
+                    // Ready carries its due instant the way register_schedules writes the real
+                    // slot row; ck_jobs_state_ready_due rejects the pair otherwise.
+                    NextRunAtUtc = DateTime.UtcNow,
+                    ExecutionNumber = 1,
+                },
+                ct
+            );
+        return jobId;
+    }
 }
