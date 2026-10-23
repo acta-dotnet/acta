@@ -1345,7 +1345,7 @@
       "start_step": "7fd76ffb218bc6e5094476844aff7b8d95ced83e35c1653f1ce1d91691e75c44",
       "steps_view": "7af07ffc7ebd54d1a97d42ac91353874e2bb804ee1ffeccbce8ea0c731454380",
       "tags_view": "8ba6f3cd40ab636b977e77ecec2b7684d9fe9859f3e51e330891e541dc0c560e",
-      "wait_signal": "d0a108b593b654cf749355f26cc6897b95f88aba9545091202c6d44c3f492719",
+      "wait_signal": "09ed16f6e36cee171bef2affd7a5bd675b2a48f2c2930a937fc462b152f0e28d",
       "workers_view": "9e7f7a984ee4553ad4a50b07da1025109384eff8c29c1e4055ed59ff7a61a855"
     },
     "pg": {
@@ -1370,7 +1370,7 @@
       "start_step": "c2ad8dcfd427bd4a09989fa1f94ae0829dfd81e718cb81be2ab8ef405782e769",
       "steps_view": "95e8f6a0c217ef6cc0241aa647a6704db11a6c89fec62a40fa57b833a54d6161",
       "tags_view": "d1689cfc259ad186f478f3d0f571dd60545935dfe6e3c2d9666faeb114697aad",
-      "wait_signal": "836f5d1cf65aa441cb9f8fa19f0a6dd8ec3866881f31ed239d3c2f44672503b2",
+      "wait_signal": "0bca51e6ee8cf22ffbef78e577dc89983f4cf142a62121fb7a4f965cf7ef3a77",
       "workers_view": "9cb3bd7e8e52176698ce819ad36075a3281eb2a159523de8ce87bf00f85fff5e"
     },
     "sqlite": {

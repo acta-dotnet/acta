@@ -358,7 +358,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var next = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct, executionNumber: 2);
         var decision = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(next, CheckpointKindCode.Signal, "go", timeoutSeconds: 900, ct);
+            .WaitSignalAsync(next, CheckpointKindCode.Signal, "go", timeoutSeconds: 900, dueAtUtc: null, ct);
 
         // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so
         // the job the next suspend caches it on can be claimed back at that instant.

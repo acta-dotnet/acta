@@ -1,13 +1,14 @@
 /* Slot arbiter for one durable wait, ordered so the final SELECT reads a settled row: flip an overdue
    Pending to Expired first, then arm. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
-   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
+   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
+   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
 /* Nothing here reads a captured pre-state, so a first arrival that loses the insert needs no re-read
    the way pg's routine does: the arming update below applies to whatever row now stands, and the
    final SELECT reports it settled. */
-/* A wait this call armed suspends once, even with an already-elapsed deadline: the flip runs before
-   the arm, so only a wait armed by an earlier call can expire. Pg and mssql state the same rule. */
+/* A wait this call armed with a length suspends once: the length is positive and the flip runs before
+   the arm. A slot this call arms at or past an instant is armed Expired, so a child landing after it
+   cannot revive the wait, and the wait times out now. Pg and mssql state the same rules. */
 -- The wait changes the slot only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
 SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:wait_signal: the job is no longer executing this attempt.')
 WHERE NOT EXISTS (
@@ -37,8 +38,11 @@ INSERT INTO {{schema}}.checkpoints (
 )
 VALUES (
     @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
-    10 /* CheckpointStatusCode.Pending */,
-    CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE {{now}} + (@p_timeout_seconds) * 1000 END,
+    CASE
+        WHEN COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000) <= {{now}} THEN 30 /* CheckpointStatusCode.Expired */
+        ELSE 10 /* CheckpointStatusCode.Pending */
+    END,
+    COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000),
     0 /* JobPayloadFormat.None */,
     NULL, {{now}}, 0
 )
@@ -46,14 +50,18 @@ ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO NOTHING;
 
 UPDATE {{schema}}.checkpoints
 SET
-    due_at_utc = {{now}} + (@p_timeout_seconds) * 1000,
+    checkpoint_status_code = CASE
+        WHEN COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000) <= {{now}} THEN 30 /* CheckpointStatusCode.Expired */
+        ELSE 10 /* CheckpointStatusCode.Pending */
+    END,
+    due_at_utc = COALESCE(@p_due_at_utc, {{now}} + (@p_timeout_seconds) * 1000),
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
     AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND due_at_utc IS NULL
-    AND @p_timeout_seconds IS NOT NULL;
+    AND COALESCE(@p_due_at_utc, @p_timeout_seconds) IS NOT NULL;
 
 SELECT
     CASE

@@ -26,6 +26,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
             CheckpointKindCode.Signal,
             "go",
             null,
+            null,
             ct
         );
         Assert.Equal(WaitSignalOutcomeCode.SuspendPending, wait.Outcome);

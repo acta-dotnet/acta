@@ -433,13 +433,13 @@
   - A child completing in another namespace carries the parent link and releases the waiting parent
 
 ### A bounded group wait spends one stored deadline across every child and replay
-- **Contract:** A bounded group wait stores one absolute deadline, spends it across all children and replays, and cancels only unfinished members on expiry.
+- **Contract:** A bounded group wait spends one stored deadline across all children and replays, and on expiry cancels only its unfinished members, all in one pass.
 - **Guarantees:**
   - A group that finishes before its deadline returns what the unbounded form returns
   - An expired group cancels its unfinished member's subtree and spares the child it never awaited
   - A crash replay reuses the stored group deadline byte for byte and extends no slot
-  - A member armed on a subsequent pass counts down to the group deadline, not from its own arm
-  - A member first armed after the deadline passed resolves TimedOut on its next tick
+  - A member armed on a subsequent pass is due at the group deadline, not a full bound from its own arm
+  - An expired group times out every member in one pass, however many were never armed
   - A replay over an expired group re-runs every member cancel as a no-op
   - Two groups in one job keep separate deadlines and expire independently
   - Re-waiting the same children reuses the stored deadline and resolves off the latches
@@ -2079,13 +2079,15 @@
   - An unbounded wait still suspends with no due instant and stays unclaimable
 
 ### A wait arms its slot once and answers suspend, continue, or timed out
-- **Contract:** Wait arms a Pending slot once and answers SuspendPending, continues with the payload of a Set slot, and answers TimedOut once a stored expiry has passed.
+- **Contract:** Wait arms a Pending slot once, continues with a Set slot's payload, and answers TimedOut past a stored expiry or at once for a slot first armed past an instant.
 - **Guarantees:**
   - A first wait arms a Pending slot and answers SuspendPending without touching the job
   - A repeat wait while Pending answers SuspendPending and leaves the slot untouched
   - A wait on a Set slot continues with the stored payload
   - A bounded wait stores its expiry once, and a later wait neither moves nor clears it
   - Once the stored expiry passes the slot turns Expired and every later wait answers TimedOut
+  - A wait bounded by an instant stores that instant, and a later instant neither moves nor clears it
+  - A slot first armed at or past its instant is armed Expired and answers TimedOut at once
   - A Set slot of another kind does not satisfy a wait of the same name
 
 ## Steps

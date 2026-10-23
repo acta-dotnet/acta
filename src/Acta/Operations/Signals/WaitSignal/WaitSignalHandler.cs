@@ -15,6 +15,7 @@ internal sealed class WaitSignalHandler(IDbSession session, ISqlDialect dialect)
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointKindCode, command.Kind));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointName, command.Name));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WaitTimeoutSeconds, command.TimeoutSeconds));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WaitDueAtUtc, command.DueAtUtc));
                 },
                 DbProjectionResolver.Resolve<WaitSignalResponse>(),
                 ct

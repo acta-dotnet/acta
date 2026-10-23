@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -36,15 +35,23 @@ public abstract partial class JobContext
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), seconds, resumeOnTimeout: true, linked.Token);
+        return await ResolveChildWaitAsync(childJobId, outcome, linked.Token);
+    }
+
+    /// <summary>
+    /// A landed child's outcome, or, for a timed-out wait, the child cancelled first. The parent has stopped waiting,
+    /// so the child's work is no longer wanted: cancelling before the result is handed back means the handler never
+    /// sees TimedOut while the subtree is still burning workers, and a replay re-runs a cancel that is a no-op on
+    /// terminal rows.
+    /// </summary>
+    private async Task<ChildWaitOutcome> ResolveChildWaitAsync(long childJobId, SignalSlotState outcome, CancellationToken ct)
+    {
         if (!outcome.TimedOut)
         {
             return ChildWaitOutcome.Landed(ParseChildOutcome(childJobId, outcome));
         }
 
-        // The parent has stopped waiting, so the child's work is no longer wanted. Cancelling before
-        // the result is handed back means the handler never sees TimedOut while the subtree is still
-        // burning workers, and a replay re-runs a cancel that is a no-op on terminal rows.
-        await CancelTimedOutChildCoreAsync(childJobId, linked.Token);
+        await CancelTimedOutChildCoreAsync(childJobId, ct);
         return ChildWaitOutcome.Expired(childJobId);
     }
 
@@ -135,11 +142,9 @@ public abstract partial class JobContext
 
     /// <summary>
     /// The one home of the group deadline rule; every bounded group API funnels through it, and a null timeout is the
-    /// unbounded loop. At most one child arms per pass, but reaching it costs a round trip per resolved member, so the
-    /// pass reads the DB clock once, anchors a monotonic stopwatch to it, and measures each member's remaining budget
-    /// when it runs: the arming member neither inherits the walk as overshoot nor loses budget it never spent. Each
-    /// arm rounds the remaining up to whole seconds (<see cref="RemainingWait"/>), so a due lands at most a second
-    /// plus a round trip past the deadline, never accumulating since every arm measures from the deadline itself.
+    /// unbounded loop. Every member's wait is bounded by the group's stored instant itself, so each latch expires at
+    /// that instant whenever it is armed, and a member first reached after the instant has passed times out in the same
+    /// pass as the rest instead of arming a fresh bound and suspending the parent once per member.
     /// </summary>
     private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
         IReadOnlyList<long> childJobIds,
@@ -152,34 +157,16 @@ public abstract partial class JobContext
             return await WaitChildrenAsync(childJobIds, ct);
         }
 
-        var deadline = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
+        var deadlineAtUtc = await GetOrSetWaitDeadlineCoreAsync(GroupDeadlineName(childJobIds), bound, ct);
 
         var outcomes = new ChildJobOutcome[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
         {
-            // Elapsed since the implementation captured NowUtc, so the checkpoint write that followed
-            // the clock read is charged to the budget while the request leg before it is not.
-            var remaining = RemainingWait(deadline.DeadlineAtUtc, deadline.NowUtc, Stopwatch.GetElapsedTime(deadline.AnchorTimestamp));
-            var result = await TryWaitChildAsync(childJobIds[i], remaining, ct);
+            var latch = await WaitSignalUntilCoreAsync(ChildLatchName(childJobIds[i]), deadlineAtUtc, ct);
+            var result = await ResolveChildWaitAsync(childJobIds[i], latch, ct);
             outcomes[i] = result.Outcome ?? ChildJobOutcome.Expired(childJobIds[i]);
         }
         return outcomes;
-    }
-
-    /// <summary>
-    /// The whole seconds left until the group deadline, rounded up, floor one. The anchor is the pass's one DB clock
-    /// reading advanced by the monotonic time since, so the walk over resolved members is spent out of the budget, not
-    /// added to it. A group deadline is a not-before, so rounding goes up: a floored value once armed a slot a second
-    /// short, and a replay in that gap expired a child still inside its budget. A passed deadline arms one second, not
-    /// zero, so a child whose latch does not exist yet suspends once before it can expire: one extra tick, accepted
-    /// over a special case in the arbiter. Internal over bare instants so a unit test can pin the arithmetic.
-    /// </summary>
-    internal static TimeSpan RemainingWait(DateTime deadlineAtUtc, DateTime passNowUtc, TimeSpan elapsed)
-    {
-        var remaining = deadlineAtUtc - (passNowUtc + elapsed);
-        var seconds =
-            remaining.Ticks <= TimeSpan.TicksPerSecond ? 1L : (remaining.Ticks + TimeSpan.TicksPerSecond - 1) / TimeSpan.TicksPerSecond;
-        return TimeSpan.FromSeconds(seconds);
     }
 
     /// <summary>
@@ -232,26 +219,12 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// A bounded group wait's fixed end instant plus the clock reading it was measured against, so the
-    /// caller can derive the remaining time without a second round trip.
-    /// <c>AnchorTimestamp</c> is the <see cref="Stopwatch.GetTimestamp"/> taken the moment
-    /// <c>NowUtc</c> was obtained: elapsed measured from it maps the monotonic clock onto the DB
-    /// clock, while a timestamp taken before or after the round trip would count time the reading
-    /// does not cover and shift every derived remaining by that leg.
-    /// </summary>
-    private protected readonly record struct WaitDeadline(DateTime DeadlineAtUtc, DateTime NowUtc, long AnchorTimestamp);
-
-    /// <summary>
     /// Subclass sink: read the group's stored absolute deadline, writing <c>db_now + timeout</c> on the
     /// first call and returning the stored instant unchanged on every call after it (first-write-wins,
-    /// the <see cref="GetOrSetVariableAsync{T}(string, Func{T}, CancellationToken)"/> shape). The
-    /// returned <c>NowUtc</c> is the same clock reading the write used. The default computes an instant
-    /// from the host clock and stores nothing, so a <see cref="JobContext"/> subclass without durable
-    /// storage keeps working; only a durable implementation makes the deadline survive a replay.
+    /// the <see cref="GetOrSetVariableAsync{T}(string, Func{T}, CancellationToken)"/> shape). The default
+    /// computes an instant from the host clock and stores nothing, so a <see cref="JobContext"/> subclass
+    /// without durable storage keeps working; only a durable implementation makes the deadline survive a replay.
     /// </summary>
-    private protected virtual Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
-    {
-        var nowUtc = DateTime.UtcNow;
-        return Task.FromResult(new WaitDeadline(nowUtc + timeout, nowUtc, Stopwatch.GetTimestamp()));
-    }
+    private protected virtual Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct) =>
+        Task.FromResult(DateTime.UtcNow + timeout);
 }

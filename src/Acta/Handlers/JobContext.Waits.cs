@@ -182,6 +182,15 @@ public abstract partial class JobContext
     ) => WaitSignalCoreAsync(name, ct);
 
     /// <summary>
+    /// Subclass sink for a wait bounded by an instant, a group's stored deadline, rather than a length: the store arms
+    /// that instant as the slot's expiration, a slot first armed at or past it times out at once, and a timeout
+    /// resumes the handler. The default passes the whole seconds left on the host clock, at least one, to the
+    /// length-bounded sink, so a subclass without durable storage keeps working.
+    /// </summary>
+    private protected virtual Task<SignalSlotState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
+        WaitSignalCoreAsync(name, (int)Math.Max(1, Math.Ceiling((dueAtUtc - DateTime.UtcNow).TotalSeconds)), resumeOnTimeout: true, ct);
+
+    /// <summary>
     /// Subclass sink: deserializes a raised signal payload via the runtime serializer registry.
     /// </summary>
     private protected abstract T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value);

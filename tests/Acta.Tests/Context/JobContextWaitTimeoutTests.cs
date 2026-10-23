@@ -1,3 +1,4 @@
+using System.Globalization;
 using Xunit;
 
 namespace Acta.Tests.Context;
@@ -175,28 +176,17 @@ public sealed class JobContextWaitTimeoutTests
     }
 
     [Fact]
-    public void A_member_reached_later_in_the_walk_counts_down_from_where_the_walk_got_to()
+    public async Task Every_group_member_waits_toward_the_stored_deadline_itself()
     {
-        var passNowUtc = new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc);
-        var deadlineAtUtc = passNowUtc.AddSeconds(100);
+        var ct = TestContext.Current.CancellationToken;
+        var ctx = new FixedDeadlineContext();
 
-        // The first member is measured at the pass's own clock reading; a member reached after the walk
-        // has spent 30 seconds on earlier members is measured from where the walk got to, so the walk
-        // comes out of the group's budget instead of being added to its deadline as overshoot.
-        Assert.Equal(TimeSpan.FromSeconds(100), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.Zero));
-        Assert.Equal(TimeSpan.FromSeconds(70), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(30)));
+        await ctx.TryWaitChildrenAsync([7, 9, 11], TimeSpan.FromMinutes(5), ct);
 
-        // However late in the walk a member arms, its due lands at or after the deadline (a group
-        // deadline is a not-before: a member must not give up while the group still has budget), and
-        // never more than one rounded-up second past it. Flooring instead armed a slot up to a second
-        // short, and a replay in that gap durably expired a child that was still inside its budget.
-        foreach (var elapsed in (TimeSpan[])[TimeSpan.Zero, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(60.7), TimeSpan.FromSeconds(98)])
-        {
-            var armedAtUtc = passNowUtc + elapsed;
-            var due = armedAtUtc + JobContext.RemainingWait(deadlineAtUtc, passNowUtc, elapsed);
-            Assert.True(due >= deadlineAtUtc, $"a member armed {elapsed} into the walk could give up before the deadline.");
-            Assert.True(due <= deadlineAtUtc.AddSeconds(1), $"a member armed {elapsed} into the walk overshot by more than the rounding.");
-        }
+        // Each member is bounded by the one stored instant rather than by a length measured when the walk
+        // reaches it, so however long the walk takes, no member's expiry lands past the group's deadline.
+        var due = FixedDeadlineContext.GroupDeadlineUtc.ToString("O", CultureInfo.InvariantCulture);
+        Assert.Equal([$"until:sys.child.7@{due}", $"until:sys.child.9@{due}", $"until:sys.child.11@{due}"], ctx.Events);
     }
 
     [Fact]
@@ -209,19 +199,6 @@ public sealed class JobContextWaitTimeoutTests
         Assert.Equal(canonical, JobContext.GroupDeadlineName([9, 7]));
         Assert.Equal(canonical, JobContext.GroupDeadlineName([7, 7, 9]));
         Assert.NotEqual(canonical, JobContext.GroupDeadlineName([7, 9, 11]));
-    }
-
-    [Fact]
-    public void A_walk_that_outlasts_the_deadline_still_arms_a_positive_bound()
-    {
-        var passNowUtc = new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc);
-        var deadlineAtUtc = passNowUtc.AddSeconds(10);
-
-        // Sub-second and already-passed both floor to one second: a wait must carry a positive bound,
-        // and the arbiter resolves the overshoot on the next re-entry rather than at the arm.
-        Assert.Equal(TimeSpan.FromSeconds(1), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(9.5)));
-        Assert.Equal(TimeSpan.FromSeconds(1), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromSeconds(10)));
-        Assert.Equal(TimeSpan.FromSeconds(1), JobContext.RemainingWait(deadlineAtUtc, passNowUtc, TimeSpan.FromMinutes(5)));
     }
 
     [Fact]
@@ -266,10 +243,25 @@ public sealed class JobContextWaitTimeoutTests
             return Task.CompletedTask;
         }
 
-        private protected override Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+        private protected override Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
         {
             Events.Add($"deadline:{name}");
             return base.GetOrSetWaitDeadlineCoreAsync(name, timeout, ct);
+        }
+    }
+
+    /// <summary>A context whose group deadline is one known instant and whose instant-bounded wait records what it was given.</summary>
+    private sealed class FixedDeadlineContext : RecordingJobContext
+    {
+        public static readonly DateTime GroupDeadlineUtc = new(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc);
+
+        private protected override Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct) =>
+            Task.FromResult(GroupDeadlineUtc);
+
+        private protected override Task<SignalSlotState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct)
+        {
+            Events.Add($"until:{name}@{dueAtUtc.ToString("O", CultureInfo.InvariantCulture)}");
+            return Task.FromResult(new SignalSlotState(0, null, TimedOut: true));
         }
     }
 }

@@ -11,21 +11,27 @@ namespace Acta.Tests.Conformance.Operations.Signals;
     "wait-signal.decision",
     "A wait arms its slot once and answers suspend, continue, or timed out",
     Area = "Signals",
-    Contract = "Wait arms a Pending slot once and answers SuspendPending, continues with the payload of a Set slot, and answers TimedOut once a stored expiry has passed."
+    Contract = "Wait arms a Pending slot once, continues with a Set slot's payload, and answers TimedOut past a stored expiry or at once for a slot first armed past an instant."
 )]
 public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private SignalsOperations Slots => Services.GetRequiredService<SignalsOperations>();
 
-    // The wait of the execution EnqueueAsync stages.
+    // The wait of the execution EnqueueAsync stages, bounded by a length or by an instant.
     private Task<WaitSignalResponse> WaitAsync(long jobId, string name, int? timeoutSeconds, CancellationToken ct) =>
-        Slots.WaitSignalAsync(
-            new ExecutionFence(jobId, 1, JobStateStaging.StagedWorkerId),
-            CheckpointKindCode.Signal,
-            name,
-            timeoutSeconds,
-            ct
-        );
+        Slots.WaitSignalAsync(Staged(jobId), CheckpointKindCode.Signal, name, timeoutSeconds, dueAtUtc: null, ct);
+
+    private Task<WaitSignalResponse> WaitUntilAsync(long jobId, string name, DateTime dueAtUtc, CancellationToken ct) =>
+        Slots.WaitSignalAsync(Staged(jobId), CheckpointKindCode.Signal, name, timeoutSeconds: null, dueAtUtc, ct);
+
+    private static ExecutionFence Staged(long jobId) => new(jobId, 1, JobStateStaging.StagedWorkerId);
+
+    // DB now cut to whole seconds, so the instant a test arms survives every provider's stored precision unchanged.
+    private async Task<DateTime> DbNowAsync(CancellationToken ct)
+    {
+        var now = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
+        return new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerSecond), DateTimeKind.Utc);
+    }
 
     private async Task<CheckpointEntity> ReadSlotAsync(long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
         Assert.Single(
@@ -126,6 +132,36 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", 60, ct)).Outcome);
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct)).Status);
         Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", null, ct)).Outcome);
+    }
+
+    [Fact(DisplayName = "A wait bounded by an instant stores that instant, and a later instant neither moves nor clears it")]
+    public async Task Instant_bound_is_armed_once()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await EnqueueAsync(ct);
+        var due = (await DbNowAsync(ct)).AddMinutes(10);
+
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitUntilAsync(jobId, "go", due, ct)).Outcome);
+        Assert.Equal(due, (await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct)).DueAtUtc);
+
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitUntilAsync(jobId, "go", due.AddHours(1), ct)).Outcome);
+        Assert.Equal(due, (await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct)).DueAtUtc);
+    }
+
+    [Fact(DisplayName = "A slot first armed at or past its instant is armed Expired and answers TimedOut at once")]
+    public async Task Passed_instant_times_out_without_suspending()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await EnqueueAsync(ct);
+        var past = (await DbNowAsync(ct)).AddMinutes(-1);
+
+        Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitUntilAsync(jobId, "go", past, ct)).Outcome);
+        Assert.Equal(CheckpointStatusCode.Expired, (await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct)).Status);
+
+        // An unbounded Pending slot takes a passed instant the same way, so a member armed without a bound times out too.
+        await WaitAsync(jobId, "later", null, ct);
+        Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitUntilAsync(jobId, "later", past, ct)).Outcome);
+        Assert.Equal(CheckpointStatusCode.Expired, (await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "later", ct)).Status);
     }
 
     [Fact(DisplayName = "A Set slot of another kind does not satisfy a wait of the same name")]

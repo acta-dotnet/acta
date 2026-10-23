@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261023211737_init')
+    WHERE name NOT IN ('M20261023212758_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261023211737_init =====
+-- ===== BEGIN M20261023212758_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -4386,21 +4386,23 @@ GO
 
 /* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
    Expired, Expired replays TimedOut forever. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
-   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
+   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
+   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
 /* The read below needs no re-read after a lost insert the way pg's does: the slot's own lock, taken
    first (docs/sql-internals.md, "Slot locks"), makes a concurrent first arrival wait
    here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
-/* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
-   act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
+/* A wait this call armed with a length suspends once: the length is positive and the arm is the last
+   act of its branch. A slot this call arms at or past an instant is armed Expired, so a child landing
+   after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
 CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
     @p_execution_number INT,
     @p_leased_by_worker_id INT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
-    @p_timeout_seconds INT = NULL
+    @p_timeout_seconds INT = NULL,
+    @p_due_at_utc DATETIME2(3) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -4416,6 +4418,11 @@ BEGIN
         DECLARE @val VARBINARY(MAX) = NULL;
         DECLARE @due DATETIME2(3) = NULL;
         DECLARE @outcome SMALLINT;
+        DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
+        DECLARE @arm_state TINYINT = CASE
+            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
+            ELSE 10 /* CheckpointStatusCode.Pending */
+        END;
 
         DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'acta.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
         DECLARE @slot_lock_result INT;
@@ -4470,6 +4477,7 @@ BEGIN
             END
         ELSE
             BEGIN
+                SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;
                 IF @state IS NULL
                     BEGIN
                         INSERT INTO acta.checkpoints (
@@ -4477,24 +4485,27 @@ BEGIN
                             created_at_utc, modified_at_utc, version
                         )
                         VALUES (
-                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 10 /* CheckpointStatusCode.Pending */,
-                            CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
+                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                            SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                     END
-                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
+                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
                     BEGIN
                         UPDATE acta.checkpoints
                         SET
-                            due_at_utc = DATEADD(SECOND, @p_timeout_seconds, @now),
+                            checkpoint_status_code = @arm_state,
+                            due_at_utc = @arm_due,
                             modified_at_utc = @now,
                             version = version + 1
                         WHERE
                             job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
                             AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
+                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                            SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                     END
-                SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -4858,11 +4869,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023211737_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023212758_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023211737_init');
+VALUES ('M20261023212758_init');
 GO
--- ===== END M20261023211737_init =====
+-- ===== END M20261023212758_init =====
 GO
 COMMIT TRANSACTION;
 GO

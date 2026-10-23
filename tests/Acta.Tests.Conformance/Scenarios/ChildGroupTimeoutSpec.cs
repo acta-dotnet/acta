@@ -10,14 +10,14 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for bounded group waits: one absolute deadline is stored for the whole group and reused
 /// by every child and every replay, so the budget never restarts. An expired group cancels only its
-/// unfinished members and their subtrees, leaves children outside the group alone, and always leaves
-/// the parent running.
+/// unfinished members and their subtrees in one pass, leaves children outside the group alone, and
+/// always leaves the parent running.
 /// </summary>
 [ConformanceSpec(
     "child-jobs.group-wait-timeout",
     "A bounded group wait spends one stored deadline across every child and replay",
     Area = "ChildJobs",
-    Contract = "A bounded group wait stores one absolute deadline, spends it across all children and replays, and cancels only unfinished members on expiry."
+    Contract = "A bounded group wait spends one stored deadline across all children and replays, and on expiry cancels only its unfinished members, all in one pass."
 )]
 public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -144,14 +144,14 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(stored.Version, replayed.Version);
 
         // The slot armed before the budget was spent keeps its own due, and the one armed after the
-        // replays counts down to the deadline as it now stands.
+        // replays is due at the deadline as it now stands.
         var latches = await ReadLatchesAsync(parent.JobId, ct);
         Assert.Equal(2, latches.Count);
         Assert.Equal(firstLatch.DueAtUtc, latches.Single(l => l.CheckpointName == firstLatch.CheckpointName).DueAtUtc);
-        AssertWithinGroupDeadline(latches.Single(l => l.CheckpointName != firstLatch.CheckpointName), deadlineAtUtc);
+        AssertDueAtGroupDeadline(latches.Single(l => l.CheckpointName != firstLatch.CheckpointName), deadlineAtUtc);
     }
 
-    [Fact(DisplayName = "A member armed on a subsequent pass counts down to the group deadline, not from its own arm")]
+    [Fact(DisplayName = "A member armed on a subsequent pass is due at the group deadline, not a full bound from its own arm")]
     public async Task Duration_does_not_restart_for_a_member_armed_after_the_first()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -174,42 +174,56 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // The whole point of the slice: the second member's expiration lands on the group's instant
         // rather than a fresh 30 minutes from its own arm.
-        AssertWithinGroupDeadline(second, deadlineAtUtc);
-        Assert.True(
-            deadlineAtUtc - second.DueAtUtc!.Value <= TimeSpan.FromSeconds(5),
-            $"the second member gave up at {second.DueAtUtc} well before the group deadline {deadlineAtUtc}."
-        );
+        AssertDueAtGroupDeadline(second, deadlineAtUtc);
 
         // The member armed first keeps the due it was armed with, even though the remaining time shrank
         // under it: a stored expiration is never rewritten, and both were derived from the same instant.
         Assert.Equal(first.DueAtUtc, latches.Single(l => l.CheckpointName == first.CheckpointName).DueAtUtc);
     }
 
-    [Fact(DisplayName = "A member first armed after the deadline passed resolves TimedOut on its next tick")]
-    public async Task An_already_expired_deadline_resolves_a_freshly_armed_member()
+    [Theory(DisplayName = "An expired group times out every member in one pass, however many were never armed")]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(20)]
+    public async Task An_expired_group_resolves_in_one_pass_whatever_its_size(int size)
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await StartGroupParentAsync("job-parent-try-wait-children", ["job-wait-signal", "job-wait-signal"], ct);
+        var parent = await StartGroupParentAsync("job-parent-try-wait-children", [.. Enumerable.Repeat("job-wait-signal", size)], ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
+        // The first pass arms the first member and suspends; every other member is first reached after the deadline.
         var first = Assert.Single(await ReadLatchesAsync(parent.JobId, ct));
         await ExpireGroupWaitAsync(parent.JobId, ct);
 
-        // The first member expires immediately: its slot was armed by an earlier pass. The second was
-        // never armed, so the arbiter suspends it once before it can expire, which is the accepted cost
-        // of a wait always carrying a positive bound.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var second = (await ReadLatchesAsync(parent.JobId, ct)).Single(l => l.CheckpointName != first.CheckpointName);
-        Assert.Equal(CheckpointStatusCode.Pending, second.Status);
-        Assert.NotNull(second.DueAtUtc);
-
-        await RewindLatchAsync(parent.JobId, second.CheckpointName, ct);
+        // One replay settles the group: a member first armed past the deadline is armed Expired and times out in the same
+        // pass, so the parent overshoots its deadline by one claim whatever the group's size, not by one suspension a member.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
+        var parentJob = await ReadJobAsync(parent.JobId, ct);
+        Assert.Equal(JobStatusCode.Succeeded, parentJob.Status);
+        Assert.Equal(2, parentJob.ExecutionNumber);
+
+        // Every member, the one armed before the expiry and those armed after it, carries the group's instant as its due.
+        var deadlineAtUtc = DeadlineOf(Assert.Single(await ReadDeadlineSlotsAsync(parent.JobId, ct)));
+        var latches = await ReadLatchesAsync(parent.JobId, ct);
+        Assert.Equal(size, latches.Count);
+        Assert.Contains(latches, l => l.CheckpointName == first.CheckpointName);
+        Assert.All(
+            latches,
+            l =>
+            {
+                Assert.Equal(CheckpointStatusCode.Expired, l.Status);
+                AssertDueAtGroupDeadline(l, deadlineAtUtc);
+            }
+        );
 
         var report = await Jobs.GetResultAsync<ChildGroupReport>(parent, ct);
         Assert.True(report!.TimedOut);
+        Assert.Equal(size, report.Children.Count);
         Assert.All(report.Children, c => Assert.True(c.TimedOut));
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
+        foreach (var member in (await ChildIdsAsync(parent.JobId, ct)).Values)
+        {
+            Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(member, ct)).Status);
+        }
     }
 
     [Fact(DisplayName = "A replay over an expired group re-runs every member cancel as a no-op")]
@@ -219,11 +233,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var parent = await StartGroupParentAsync("job-parent-try-wait-children", ["job-wait-signal", "job-wait-signal"], ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
-        var first = Assert.Single(await ReadLatchesAsync(parent.JobId, ct));
         await ExpireGroupWaitAsync(parent.JobId, ct);
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var second = (await ReadLatchesAsync(parent.JobId, ct)).Single(l => l.CheckpointName != first.CheckpointName);
-        await RewindLatchAsync(parent.JobId, second.CheckpointName, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
         var members = (await ChildIdsAsync(parent.JobId, ct)).Values.ToArray();
@@ -455,18 +465,14 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     private async Task<IReadOnlyList<CheckpointEntity>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
         [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == CheckpointKindCode.ChildLatch)];
 
-    // Two seconds is the coarsest overshoot an arm can legitimately produce: RemainingWait rounds the
-    // remaining UP to whole seconds (a group deadline is a not-before, so a member never gives up
-    // early), which puts a due at most one second past the deadline, and the arm's own store round
-    // trip adds a sub-second on top - together under two. The walk to reach the arming member is not
-    // in that residual: the remaining is recomputed against a monotonic reading at each iteration, so
-    // time spent on earlier members comes out of the budget. Both are bounded, neither accumulates.
-    private static void AssertWithinGroupDeadline(CheckpointEntity latch, DateTime deadlineAtUtc)
+    // A member's latch is armed with the group's stored instant itself, so its due is that instant to the
+    // millisecond every provider stores, however long the walk took to reach it.
+    private static void AssertDueAtGroupDeadline(CheckpointEntity latch, DateTime deadlineAtUtc)
     {
         Assert.NotNull(latch.DueAtUtc);
         Assert.True(
-            latch.DueAtUtc!.Value <= deadlineAtUtc.AddSeconds(2),
-            $"{latch.CheckpointName} due {latch.DueAtUtc} outlived the group deadline {deadlineAtUtc} by more than the arm's rounding."
+            (latch.DueAtUtc!.Value - deadlineAtUtc).Duration() <= TimeSpan.FromMilliseconds(1),
+            $"{latch.CheckpointName} due {latch.DueAtUtc:O} is not the group deadline {deadlineAtUtc:O}."
         );
     }
 

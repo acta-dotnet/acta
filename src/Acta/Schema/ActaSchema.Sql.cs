@@ -86,6 +86,12 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<int?> WaitTimeoutSeconds = new("p_timeout_seconds", DbKind.Int32);
 
         /// <summary>
+        /// wait_signal: the bound as an instant, a group's stored deadline, armed exactly instead of a length. A slot
+        /// first armed at or past it is stored Expired and the wait times out at once.
+        /// </summary>
+        public static readonly DbValueSpec<DateTime?> WaitDueAtUtc = new("p_due_at_utc", DbKind.UtcInstant);
+
+        /// <summary>
         /// Step completion receives the outcome discriminator and the live-resolved retry policy used
         /// to decide retry versus exhaustion. The application precomputes jittered backoff seconds;
         /// storage compares the delayed retry time against the retry window.

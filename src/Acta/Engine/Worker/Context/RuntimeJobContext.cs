@@ -1,6 +1,5 @@
 #nullable enable
 
-using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -177,14 +176,11 @@ internal sealed partial class RuntimeJobContext(
     /// rather than a serialized DateTime, so the stored bytes are exact and carry no format or kind
     /// ambiguity across a round trip.
     /// </summary>
-    private protected override async Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+    private protected override async Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
-        // The DB clock, not the host's: the slot dues this deadline is spent against are stamped by the
-        // database, so measuring the group against anything else would import the worker's skew. The
-        // anchor is stamped the moment the reading lands so elapsed-since covers exactly what the
-        // reading does not - including the checkpoint write below.
+        // The DB clock, not the host's: the slot dues this deadline is compared with are stamped by the
+        // database, so measuring the group against anything else would import the worker's skew.
         var nowUtc = await Clock().GetUtcNowAsync(ct);
-        var anchor = Stopwatch.GetTimestamp();
         var stored = await FencedAsync(() =>
             CheckpointSlot.GetOrSetAsync(
                 _executionStore,
@@ -195,7 +191,7 @@ internal sealed partial class RuntimeJobContext(
                 ct
             )
         );
-        return new WaitDeadline(new DateTime(Deserialize<long>(stored), DateTimeKind.Utc), nowUtc, anchor);
+        return new DateTime(Deserialize<long>(stored), DateTimeKind.Utc);
     }
 
     private Acta.IActaClock Clock() =>
@@ -244,9 +240,20 @@ internal sealed partial class RuntimeJobContext(
     /// the absolute expiration, so timeout policy lives in code, and a replay of the other
     /// overload against the same slot is free to decide differently.
     /// </summary>
-    private protected override async Task<SignalSlotState> WaitSignalCoreAsync(
+    private protected override Task<SignalSlotState> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
+        bool resumeOnTimeout,
+        CancellationToken ct
+    ) => WaitSlotAsync(name, timeoutSeconds, dueAtUtc: null, resumeOnTimeout, ct);
+
+    private protected override Task<SignalSlotState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
+        WaitSlotAsync(name, timeoutSeconds: null, dueAtUtc, resumeOnTimeout: true, ct);
+
+    private async Task<SignalSlotState> WaitSlotAsync(
+        string name,
+        int? timeoutSeconds,
+        DateTime? dueAtUtc,
         bool resumeOnTimeout,
         CancellationToken ct
     )
@@ -254,7 +261,7 @@ internal sealed partial class RuntimeJobContext(
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? CheckpointKindCode.ChildLatch
             : CheckpointKindCode.Signal;
-        var decision = await FencedAsync(() => _signals.WaitSignalAsync(Fence, kind, name, timeoutSeconds, ct));
+        var decision = await FencedAsync(() => _signals.WaitSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
         return decision.Outcome switch
         {
             WaitSignalOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
