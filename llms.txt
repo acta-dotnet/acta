@@ -245,6 +245,9 @@ blob storage with the job carrying a reference: URI, checksum, size.
   (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
   starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
   erasing its own progress, so a failing step never exhausts and an `AtMostOnce` body can run twice.
+- Children a recurring job starts are never purged while its schedule lives, since retention keeps a
+  child as long as its parent is unfinished. For per-occurrence fan-out, enqueue one root job per
+  occurrence with a per-period deduplication key, and start the children from that job.
 
 ## When you are unsure
 

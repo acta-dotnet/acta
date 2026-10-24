@@ -155,6 +155,32 @@ Execution is at-least-once: a crash or lease expiry re-runs the attempt, so a ha
 
 Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new slot (see [durable slot evolution](#durable-slot-evolution)). Durable state belongs to the job, not to one fire, so a recurring job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
+Retention follows the same rule. A job keeps its slots and the children it started for as long as it exists, and a recurring job exists for as long as its schedule, so a child or a slot it names per period is never purged. Give per-occurrence work a job of its own: the recurring handler enqueues one root job per occurrence, deduplicated by the period, and that job starts the children and runs the steps, lands terminal, and drains with retention.
+
+```csharp
+public sealed record ImportHour(DateTimeOffset Hour);
+
+public sealed class ImportJobs(IJobs jobs)
+{
+    [Job("import-files")]
+    [JobSchedule("default", "PT1H")]
+    public async Task ImportFiles(CancellationToken ct)
+    {
+        var hour = DateTimeOffset.UtcNow;
+        await jobs.EnqueueAsync(
+            new ImportHour(hour),
+            o => o.DeduplicationKey(DeduplicationKey.PerHour("import-hour", "files", hour)),
+            ct);
+    }
+
+    [Job("import-hour")]
+    public async Task ImportHourFiles(ImportHour input, JobContext ctx, CancellationToken ct)
+    {
+        // The hour's children and steps belong to this job, which retention purges once it is terminal.
+    }
+}
+```
+
 A step that spends its retry budget is `Exhausted`, and `RunStepAsync` then throws `StepExhaustedException` without running it; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job gives the step a fresh budget.
 
 #### At-most-once steps
@@ -175,7 +201,7 @@ catch (StepInterruptedException)
 
 If the worker dies after the step's start is recorded but before its outcome, the step becomes `Interrupted` and `RunStepAsync` throws `StepInterruptedException`: the body ran zero or one times, and Acta cannot tell which. Reconcile against the external system; never assume the effect happened. Uncaught, the exception fails the job terminally (`job.step-interrupted`).
 
-`AtMostOnce()` allows no retries, so pairing it with a retry override other than `MaxAttempts(1)` throws. In a recurring job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule.
+`AtMostOnce()` allows no retries, so pairing it with a retry override other than `MaxAttempts(1)` throws. In a recurring job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
 
 ### Job attribute placement
 
