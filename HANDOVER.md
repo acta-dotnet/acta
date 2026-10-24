@@ -1,6 +1,6 @@
 # Handover
 
-State of rc6 on 2026-10-24. Nothing is pushed. temp-plan.md stays the maintained plan; EVENTS-SPEC.md and RENAME-MANIFEST.md are implemented except the SQL Server events clustering decision, which Marko moved to rc7.
+State of rc6 on 2026-10-24. Nothing is pushed. temp-plan.md stays the maintained plan; EVENTS-SPEC.md and RENAME-MANIFEST.md were implemented and deleted, and temp-plan.md keeps the two SQL Server events layouts that rc7 decides between.
 
 ## State
 
@@ -16,14 +16,16 @@ State of rc6 on 2026-10-24. Nothing is pushed. temp-plan.md stays the maintained
 - Startup and apply refuse a database cut from another baseline.
 - Recurring retention: the developer guide, known limitations and llms.txt teach one root job per occurrence; the engine keeps the live-parent guard.
 - Metrics: `acta.executions.fenced`, `acta.lease.headroom`, `acta.alerts.lag`.
+- MISSION.md states the mission and how a release follows it; Marko asked that releases follow it.
+- Acta Bench `--full` is the release evidence: trimmed to about nine hours for all three databases (3 repetitions at 0.8 of the discovered rate, 30 s trials, a 10-minute soak, 7 minutes of chaos), resumable after a crash, with the drive's Windows disk counters before, through and after the run in the report.
 - First whole-bench check of the review fixes (`--standard`, stopped after PostgreSQL): SQLite and PostgreSQL passed every case they ran, F09 included on both.
 
 ## Release path
 
 1. Commit the batch; it is the certified commit A unless a run finds a defect (CONTRIBUTING.md, "Two commits").
 2. The candidate checks on A: the Release suites and concepts, csharpier, the Emit check, `tests/PackageSmoke/run.ps1`.
-3. Evidence on A from a clean worktree: `acta-bench --standard --db all`, then the PostgreSQL release round (L01 canonical and workers-16, L04 1M drains, 3 repetitions) for the front-page line.
-4. Commit B, docs only: `acta-bench publish` to docs/benchmark.md, the release notes' evidence paragraph and header date, the front-page line in site/index.html and the README from the validated L01 row.
+3. Evidence on A from a clean worktree: `acta-bench --full --db all` with `--output` on D:, where Docker's disk lives, about nine hours. After a crash, the same command resumes it.
+4. Commit B, docs only: `acta-bench publish` of that one bundle to docs/benchmark.md, the release notes' evidence paragraph and header date, the front-page line in site/index.html and the README from its validated PostgreSQL L01 row.
 5. Marko tags, pushes and publishes.
 
 ## After rc.6
