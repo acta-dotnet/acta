@@ -396,10 +396,11 @@
       "rate": "lowest_non_qualifying_discovery_rate_above_the_best_qualifying_rate_else_a_multiple_of_the_best",
       "rate_multiple_without_a_failed_discovery_rate": 2,
       "recovery_rate_fraction_of_validated_capacity": 0.7,
-      "saturation": "backlog_slope_above_the_stability_tolerance_during_the_overload_half",
+      "saturation": "backlog_slope_above_the_saturation_threshold_during_the_overload_half",
       "recovery": "backlog_below_the_threshold_at_least_once_during_the_recovery_half",
       "backlog_threshold_floor_roots": 8,
-      "backlog_threshold_fraction_of_overload_rate": 0.1
+      "backlog_threshold_fraction_of_overload_rate": 0.1,
+      "saturation_backlog_slope_fraction_of_overload_rate": 0.001
     },
     "require_latency_slo": true,
     "require_backlog_stability": true,

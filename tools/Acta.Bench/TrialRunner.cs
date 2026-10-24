@@ -512,7 +512,15 @@ internal static class TrialRunner
             plan.Policy("capacity", "overload", "backlog_threshold_floor_roots"),
             overloadRate * plan.Policy("capacity", "overload", "backlog_threshold_fraction_of_overload_rate")
         );
-        var saturated = scenario.Id != "E03" || overloadSlope > SlopeTolerance(overloadRate, seconds / 2);
+        // Saturation has its own threshold, not the measured trials' stability band: that band is wide enough to absorb a
+        // short window's jitter, and overload growth below it is still growth.
+        var saturated =
+            scenario.Id != "E03"
+            || overloadSlope
+                > Math.Max(
+                    overloadRate * plan.Policy("capacity", "overload", "saturation_backlog_slope_fraction_of_overload_rate"),
+                    seconds / 2 > 0 ? plan.Policy("capacity", "backlog_slope_resolution_floor_roots_per_interval") / (seconds / 2) : 0
+                );
         var recovered =
             scenario.Id != "E03"
             || backlogSamples.Any(t => t.Timestamp >= overloadEnd && t.Timestamp < end && t.Backlog < recoveryThreshold);
