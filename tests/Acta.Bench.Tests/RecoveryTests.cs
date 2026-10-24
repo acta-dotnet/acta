@@ -252,6 +252,102 @@ public sealed class RecoveryTests : IDisposable
         );
     }
 
+    [Fact]
+    public void The_same_command_resumes_the_newest_unfinished_run_with_its_plan()
+    {
+        var plan = Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]);
+        string Bundle(RunPlan p, bool finished)
+        {
+            var bundle = new EvidenceBundle(_root, p.RunId);
+            bundle.Write("resolved-plan.json", p, BenchJson.Default.RunPlan);
+            if (finished)
+            {
+                File.WriteAllText(bundle.Resolve("result.json"), "{}");
+            }
+            return p.RunId;
+        }
+        Bundle(Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]), finished: true);
+        var unfinished = Bundle(Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]), finished: false);
+        Bundle(Protocol.Plan("full", ["sqlite"], 1729, ["L01"]), finished: false);
+
+        Assert.Equal(unfinished, RunResume.Find(_root, plan));
+        Assert.Null(RunResume.Find(_root, Protocol.Plan("full", ["pg"], 1729, ["L01"])));
+    }
+
+    [Fact]
+    public void A_cancelled_run_resumes_and_a_finished_one_does_not()
+    {
+        var plan = Protocol.Plan("full", ["pg"], 1729, ["L01"]);
+        var passed = new EvidenceBundle(_root, plan.RunId);
+        passed.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
+        File.WriteAllText(passed.Resolve("result.json"), "{\"status\":\"PASS\"}");
+        Assert.Null(RunResume.Find(_root, plan));
+
+        File.WriteAllText(passed.Resolve("result.json"), "{\"status\":\"ABORTED\"}");
+        File.WriteAllText(passed.Resolve("report.md"), "# ABORTED");
+        Assert.Equal(plan.RunId, RunResume.Find(_root, plan));
+        RunResume.Reopen(passed.DirectoryPath);
+        Assert.False(File.Exists(passed.Resolve("result.json")));
+        Assert.False(File.Exists(passed.Resolve("report.md")));
+    }
+
+    [Fact]
+    public void A_partial_set_of_harness_checks_and_a_cut_journal_line_are_not_kept()
+    {
+        var plan = Protocol.Plan("full", ["sqlite"], 1729, ["L01"]);
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
+        bundle.AppendCase(HarnessControls.Run(plan, bundle)[0]);
+        bundle.AppendCase(new("L01", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\"}", "{\"provider\":\"sql"]);
+        RunResume.MarkFinished(bundle, "sqlite", complete: true, settingsVerified: true, wallSeconds: 1);
+
+        var kept = RunResume.Load(bundle, plan);
+
+        Assert.DoesNotContain(kept.Results, r => r.Provider == "harness");
+        Assert.Contains(kept.Results, r => r.Provider == "sqlite");
+        Assert.Equal(["{\"provider\":\"sqlite\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
+    }
+
+    [Fact]
+    public void A_resume_keeps_the_providers_that_finished_and_removes_every_trace_of_the_rest()
+    {
+        var plan = Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]);
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
+        foreach (var row in HarnessControls.Run(plan, bundle))
+        {
+            bundle.AppendCase(row);
+        }
+        bundle.AppendCase(new("L01", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        bundle.AppendCase(new("L01", "pg", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        File.AppendAllText(bundle.Resolve("cases.jsonl"), "{\"cut\":");
+        File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\"}", "{\"provider\":\"pg\"}"]);
+        File.WriteAllLines(
+            bundle.Resolve("metrics.jsonl"),
+            ["{\"Component\":\"sqlite-L01-verify-1-0/worker\"}", "{\"Component\":\"pg-L01-verify-1-0/worker\"}"]
+        );
+        File.WriteAllText(bundle.Resolve("histories/sqlite-L01-verify-1-0-checks.json"), "{}");
+        File.WriteAllText(bundle.Resolve("histories/pg-L01-verify-1-0-checks.json"), "{}");
+        Directory.CreateDirectory(bundle.Resolve("repro/state/pg-L01-verify-1-0"));
+        RunResume.MarkFinished(bundle, "sqlite", complete: true, settingsVerified: true, wallSeconds: 120);
+
+        var kept = RunResume.Load(bundle, plan);
+
+        Assert.Equal(["sqlite"], kept.Finished);
+        Assert.Equal(["sqlite"], kept.Complete);
+        Assert.Equal(120, kept.WallSeconds);
+        Assert.DoesNotContain(kept.Results, r => r.Provider == "pg");
+        Assert.Contains(kept.Results, r => r.Provider == "sqlite");
+        Assert.Contains(kept.Results, r => r.Provider == "harness");
+        Assert.Equal(kept.Results.Count, File.ReadAllLines(bundle.Resolve("cases.jsonl")).Length);
+        Assert.Equal(["{\"provider\":\"sqlite\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
+        Assert.Equal(["{\"Component\":\"sqlite-L01-verify-1-0/worker\"}"], File.ReadAllLines(bundle.Resolve("metrics.jsonl")));
+        Assert.True(File.Exists(bundle.Resolve("histories/sqlite-L01-verify-1-0-checks.json")));
+        Assert.False(File.Exists(bundle.Resolve("histories/pg-L01-verify-1-0-checks.json")));
+        Assert.False(Directory.Exists(bundle.Resolve("repro/state/pg-L01-verify-1-0")));
+    }
+
     public void Dispose()
     {
         var target = Path.GetFullPath(_root);

@@ -23,7 +23,10 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all
 |---|---|---|---|
 | `--quick` | 1 s warmup, one 3 s trial per rate, a small default case set | 5 s | 1,000 jobs, 3 workers, 30 s of chaos, compressed lease timings |
 | `--standard` | 5 s warmup, one 15 s trial per rate, every case | 60 s | 10,000 jobs, 8 workers (3 on SQLite), 7 minutes of chaos, shipped lease timings |
-| `--full` | 30 s warmup, five 180 s trials per rate, every case and diagnostic cell | 30 min | 10,000 jobs (`--chaos-jobs` scales it), 24 workers of 64 executors (3 on SQLite), 12 minutes of chaos, shipped lease timings |
+| `--full` | 10 s warmup, three 30 s trials at 0.8 of the discovered rate, every case and diagnostic cell | 10 min | 10,000 jobs (`--chaos-jobs` scales it), 24 workers of 64 executors (3 on SQLite), 7 minutes of chaos, shipped lease timings |
+
+- `--full` on all three databases is the release evidence and fits one night, about nine hours on the reference machine.
+- A run that stops, by a crash or a cancel, resumes when the same command runs again with the same `--output`: the databases that finished keep their results, and the interrupted one runs again from its start. The report records each resume. To start over instead, use another `--output`.
 
 ## What a run checks
 
@@ -92,7 +95,7 @@ acta-bench list
 ## Evidence and exit codes
 
 - **The bundle:** each run writes `artifacts/bench/<run-id>/`. It holds `result.json`, offline HTML and Markdown reports, the frozen plan, the environment, the checks, the fault and resource journals, the histograms, the per-trial aggregates, the per-job rows of any trial that did not pass, and `checksums.sha256`. Raw database state under `repro/state/` is outside the checksums.
-- **The report:** `report.md`, and `report.html` rendered from it, lead with a table per measured case (a row per cell, with its medians and the trials the instability rule added) and the run's overhead: wall time, bundle size, and the median setup, seeding, window, verification, ledger and evidence-writing time per trial. Results that did not pass are listed individually, and the environment closes the report. The console prints the same lead at the end of a run.
+- **The report:** `report.md`, and `report.html` rendered from it, lead with a table per measured case (a row per cell, with its medians and the trials the instability rule added) and the run's overhead: wall time, bundle size, and the median setup, seeding, window, verification, ledger and evidence-writing time per trial. On Windows it also lists each drive's write latency, writes per second and idle time before, through and after the run, from the Windows disk counters, since a QLC drive whose write cache folded halves the server cells. Results that did not pass are listed individually, and the environment closes the report. The console prints the same lead at the end of a run.
 - **The evidence budget:** a passing run's bundle, everything outside `repro/state/`, stays under `output.passing_bundle_budget_mb`. A passing run over it prints the overrun, writes `logs/evidence-budget.txt`, and ends INCONCLUSIVE with a harness error.
 - **The external effect service:** it runs outside the workers with its own SQLite store, so idempotent effects are attributed to it, not to the engine.
 - **Exit codes:**

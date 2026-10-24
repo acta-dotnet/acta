@@ -260,7 +260,10 @@ public static class BenchCommand
                 : plan.PreloadedBacklogRoots,
         };
         Protocol.Validate(plan);
-        return await SuiteRunner.RunAsync(plan, output, ct);
+        // The same command against the same output continues the run a crash or a stop interrupted there.
+        return replay is null && RunResume.Find(output, plan) is { } interrupted
+            ? await SuiteRunner.RunAsync(plan with { RunId = interrupted }, output, ct, resume: true)
+            : await SuiteRunner.RunAsync(plan, output, ct);
     }
 
     private static string Value(string[] args, ref int index) =>

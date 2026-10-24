@@ -7,29 +7,85 @@ namespace Acta.Bench;
 
 internal static class SuiteRunner
 {
-    public static async Task<int> RunAsync(RunPlan plan, string output, CancellationToken ct)
+    /// <summary>
+    /// Runs <paramref name="plan"/> into a new bundle, or with <paramref name="resume"/> continues the unfinished bundle of
+    /// the same run id: the build must be the one that started it, and only the providers that did not finish run again.
+    /// </summary>
+    public static async Task<int> RunAsync(RunPlan plan, string output, CancellationToken ct, bool resume = false)
     {
         var wall = Stopwatch.StartNew();
-        var bundle = new EvidenceBundle(output, plan.RunId);
-        using var runLease = new FileStream(bundle.Resolve("run.lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
-        bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
+        EvidenceBundle bundle;
+        FileStream lease;
+        if (resume)
+        {
+            // The lease comes first: nothing of an interrupted run is touched while another process still holds it.
+            var directory = Path.Combine(output, plan.RunId);
+            lease = Lease(Path.Combine(directory, "run.lock"), resume);
+            RunResume.Reopen(directory);
+            bundle = new EvidenceBundle(directory);
+        }
+        else
+        {
+            bundle = new EvidenceBundle(output, plan.RunId);
+            lease = Lease(bundle.Resolve("run.lock"), resume);
+        }
+        using var runLease = lease;
         Provenance provenance;
         Exception? captureError = null;
-        try
+        RunResume.Kept? kept = null;
+        if (resume)
         {
-            provenance = await CaptureAsync(plan, bundle, ct);
+            provenance = JsonSerializer.Deserialize(File.ReadAllText(bundle.Resolve("provenance.json")), BenchJson.Default.Provenance)!;
+            if (
+                !BinaryManifest()
+                    .Values.Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)
+                    .SequenceEqual(provenance.BinarySha256)
+            )
+            {
+                throw new InvalidOperationException(
+                    $"Run {plan.RunId} was started by another build; a resumed run must keep its build. Start a fresh run in another output directory."
+                );
+            }
+            kept = RunResume.Load(bundle, plan);
+            var resumes = JsonSerializer
+                .Deserialize(File.ReadAllText(bundle.Resolve("environment.json")), BenchJson.Default.DictionaryStringString)!
+                .GetValueOrDefault("resumes", "0");
+            RecordEnvironment(
+                bundle,
+                new()
+                {
+                    ["resumes"] = (int.Parse(resumes, System.Globalization.CultureInfo.InvariantCulture) + 1).ToString(
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ),
+                    ["providers_kept_on_resume"] = kept.Finished.Count == 0 ? "none" : string.Join(",", kept.Finished),
+                }
+            );
+            Console.WriteLine(
+                $"Resuming {plan.RunId}: kept {(kept.Finished.Count == 0 ? "no provider" : string.Join(", ", kept.Finished))}."
+            );
         }
-        catch (Exception ex)
+        else
         {
-            captureError = ex;
-            provenance = EvidenceRecovery.UnknownProvenance(plan, bundle);
+            bundle.Write("resolved-plan.json", plan, BenchJson.Default.RunPlan);
+            try
+            {
+                provenance = await CaptureAsync(plan, bundle, ct);
+            }
+            catch (Exception ex)
+            {
+                captureError = ex;
+                provenance = EvidenceRecovery.UnknownProvenance(plan, bundle);
+            }
+            bundle.Write("provenance.json", provenance, BenchJson.Default.Provenance);
         }
-        bundle.Write("provenance.json", provenance, BenchJson.Default.Provenance);
-        List<CaseResult> results = [];
-        List<string> complete = [];
-        var settingsVerified = true;
+        List<CaseResult> results = [.. kept?.Results ?? []];
+        List<string> complete = [.. kept?.Complete ?? []];
+        var settingsVerified = kept?.SettingsVerified ?? true;
         var aborted = false;
         var harnessError = false;
+        using var disk = DiskCounters.Start();
+        disk.Enter(resume ? "at resume" : "before");
         Console.WriteLine($"Acta Bench {plan.Profile} | {string.Join(", ", plan.Providers)} | {bundle.DirectoryPath}");
         if (plan.Profile == "standard")
         {
@@ -44,19 +100,26 @@ internal static class SuiteRunner
             {
                 throw new InvalidOperationException($"Build/environment capture failed: {captureError.Message}", captureError);
             }
-            var controls = HarnessControls.Run(plan, bundle);
-            foreach (var result in controls)
+            CaseResult[] controls = [.. results.Where(r => r.Provider == "harness")];
+            if (controls.Length == 0)
             {
-                Record(result);
+                controls = HarnessControls.Run(plan, bundle);
+                foreach (var result in controls)
+                {
+                    Record(result);
+                }
             }
             if (controls.Any(c => c.Status != "PASS"))
             {
                 harnessError = true;
                 throw new InvalidOperationException("Harness negative controls failed.");
             }
-            foreach (var provider in plan.Providers)
+            // Half a minute of the drive at rest before any provider writes to it.
+            await Task.Delay(TimeSpan.FromSeconds(30), ct);
+            foreach (var provider in plan.Providers.Where(p => kept?.Finished.Contains(p) != true))
             {
                 ct.ThrowIfCancellationRequested();
+                disk.Enter(provider);
                 if (
                     plan.Profile != "quick"
                     && typeof(BenchCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration != "Release"
@@ -78,6 +141,9 @@ internal static class SuiteRunner
                     continue;
                 }
                 var before = results.Count;
+                var providerWall = Stopwatch.StartNew();
+                var providerVerified = true;
+                var providerEnded = false;
 #pragma warning disable CA2000 // Disposed in the finally below, where a failed disposal is logged.
                 var environment = new OwnedProvider(provider, bundle.Resolve($"repro/state/{provider}"));
 #pragma warning restore CA2000
@@ -93,7 +159,7 @@ internal static class SuiteRunner
                         RecordEnvironment(bundle, environment.ServerSpecs);
                     }
                     var settings = await environment.CaptureSettingsAsync(ct);
-                    settingsVerified &= environment.SettingsVerified;
+                    providerVerified = environment.SettingsVerified;
                     bundle.Write($"histories/{provider}-settings.json", settings, BenchJson.Default.DictionaryStringString);
                     await ScenarioRunner.RunAsync(plan, environment, bundle, Record, ct);
                     foreach (var gap in CoveragePolicy.Missing(plan, provider, results))
@@ -105,6 +171,7 @@ internal static class SuiteRunner
                         complete.Add(provider);
                         environment.RetainState = false;
                     }
+                    providerEnded = true;
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -112,7 +179,8 @@ internal static class SuiteRunner
                 }
                 catch (Exception ex) when (ex is not ServerSetupException)
                 {
-                    settingsVerified = false;
+                    providerVerified = false;
+                    providerEnded = true;
                     Console.WriteLine($"{provider}: incomplete ({ex.GetType().Name}: {ex.Message}); retained evidence.");
                     File.WriteAllText(bundle.Resolve($"logs/{provider}-error.txt"), ex.ToString());
                     foreach (var c in plan.Cases.Where(c => c.Family != "harness" && !results.Skip(before).Any(r => r.Id == c.Id)))
@@ -144,6 +212,19 @@ internal static class SuiteRunner
                         );
                         File.WriteAllText(bundle.Resolve($"logs/{provider}-cleanup-error.txt"), ex.ToString());
                     }
+                    settingsVerified &= providerVerified;
+                    // Only a provider that ran to its end is kept by a resume; an interrupted one runs again.
+                    if (providerEnded)
+                    {
+                        disk.Save(bundle);
+                        RunResume.MarkFinished(
+                            bundle,
+                            provider,
+                            complete.Contains(provider),
+                            providerVerified,
+                            providerWall.Elapsed.TotalSeconds
+                        );
+                    }
                 }
             }
         }
@@ -157,6 +238,13 @@ internal static class SuiteRunner
             Console.WriteLine($"Harness failure ({ex.GetType().Name}: {ex.Message}); no full verdict is established.");
             File.WriteAllText(bundle.Resolve("logs/harness-error.txt"), $"No full verdict is established.\n{ex}");
         }
+        // And half a minute after the last provider, while the drive settles from the run's writes.
+        disk.Enter("after");
+        if (!aborted)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+        }
+        disk.Stop(bundle);
         foreach (var provider in plan.Providers)
         {
             foreach (var c in plan.Cases.Where(c => c.Family != "harness" && !results.Any(r => r.Provider == provider && r.Id == c.Id)))
@@ -217,7 +305,13 @@ internal static class SuiteRunner
         );
         RecordEnvironment(
             bundle,
-            new() { ["run_wall_seconds"] = wall.Elapsed.TotalSeconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) }
+            new()
+            {
+                ["run_wall_seconds"] = (wall.Elapsed.TotalSeconds + (kept?.WallSeconds ?? 0)).ToString(
+                    "F0",
+                    System.Globalization.CultureInfo.InvariantCulture
+                ),
+            }
         );
         report = bundle.Finish(report);
         Console.WriteLine(Report.Lead(bundle.DirectoryPath, report));
@@ -314,26 +408,7 @@ internal static class SuiteRunner
             $"CPU: {environment["cpu_model"]} ({environment["physical_cores"]} cores, {Environment.ProcessorCount} available logical processors)"
         );
         bundle.Write("environment.json", environment, BenchJson.Default.DictionaryStringString);
-        var binaryFiles = Directory
-            .EnumerateFiles(AppContext.BaseDirectory, "*", SearchOption.AllDirectories)
-            .Where(p =>
-                p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
-                || p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                || p.EndsWith(".so", StringComparison.OrdinalIgnoreCase)
-                || p.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)
-                || p.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase)
-                || p.EndsWith(".runtimeconfig.json", StringComparison.OrdinalIgnoreCase)
-            )
-            .Order(StringComparer.Ordinal)
-            .ToDictionary(
-                p => Path.GetRelativePath(AppContext.BaseDirectory, p).Replace('\\', '/'),
-                EvidenceBundle.FileHash,
-                StringComparer.Ordinal
-            );
-        if (Environment.ProcessPath is { } executable)
-        {
-            binaryFiles["runtime_host/" + Path.GetFileName(executable)] = EvidenceBundle.FileHash(executable);
-        }
+        var binaryFiles = BinaryManifest();
         bundle.Write("repro/build-manifest.json", binaryFiles, BenchJson.Default.DictionaryStringString);
         var informational = typeof(BenchCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var compiledCommit = informational?.Split('+').Last().Split('.').Last();
@@ -359,6 +434,50 @@ internal static class SuiteRunner
             binaryFiles.Values.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
             "environment.json"
         );
+    }
+
+    /// <summary>The hash of every binary this executable runs, by path relative to it, the runtime host included.</summary>
+    private static Dictionary<string, string> BinaryManifest()
+    {
+        var binaryFiles = Directory
+            .EnumerateFiles(AppContext.BaseDirectory, "*", SearchOption.AllDirectories)
+            .Where(p =>
+                p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+                || p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                || p.EndsWith(".so", StringComparison.OrdinalIgnoreCase)
+                || p.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)
+                || p.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase)
+                || p.EndsWith(".runtimeconfig.json", StringComparison.OrdinalIgnoreCase)
+            )
+            .Order(StringComparer.Ordinal)
+            .ToDictionary(
+                p => Path.GetRelativePath(AppContext.BaseDirectory, p).Replace('\\', '/'),
+                EvidenceBundle.FileHash,
+                StringComparer.Ordinal
+            );
+        if (Environment.ProcessPath is { } executable)
+        {
+            binaryFiles["runtime_host/" + Path.GetFileName(executable)] = EvidenceBundle.FileHash(executable);
+        }
+        return binaryFiles;
+    }
+
+    /// <summary>
+    /// The run's lease, held while it runs. A resume takes the lease an interrupted run left exclusively, which fails
+    /// while that run still holds it, on Unix too, where a shared lease would not conflict.
+    /// </summary>
+    private static FileStream Lease(string path, bool resume)
+    {
+        try
+        {
+            return resume
+                ? new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)
+                : new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+        }
+        catch (IOException ex) when (resume)
+        {
+            throw new InvalidOperationException("The unfinished run is still active in another process; it cannot be resumed.", ex);
+        }
     }
 
     private static async Task<string> GitAsync(string[] arguments, CancellationToken ct)

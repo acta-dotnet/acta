@@ -737,17 +737,19 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 
 ### Benchmark and conformance evidence
 
-The evidence is one [Acta Bench](tools/Acta.Bench/README.md) run against A, on all three databases:
+The evidence is one [Acta Bench](tools/Acta.Bench/README.md) `--full` run against A, on all three databases, which fits one night:
 
 ```bash
-dotnet run -c Release --project tools/Acta.Bench -- --standard --db all --output artifacts/bench
+dotnet run -c Release --project tools/Acta.Bench -- --full --db all --output artifacts/bench
 ```
+
+- A run a crash or a cancel stopped resumes when the same command runs again: the databases that finished keep their results, and the report records the resume.
 
 - Run it from a clean worktree of A on an idle box: no builds, other load tests, or disk-heavy work alongside, and the disk the databases live on checked first, since a QLC drive folded by sustained writes halves the server cells. Leave PostgreSQL autovacuum on.
 - The run starts its own PostgreSQL and SQL Server containers, one at a time, sized from the Docker VM and tuned for capacity, and records the VM, the limits, and the settings each server reads back in the bundle. The Compose servers stay sized for CI and serve the test suites; `--use-compose-servers` runs on them instead, and no release evidence does.
 - `dotnet run` gives the managed build, which covers SQL Server; a native publish covers only PostgreSQL and SQLite.
 - The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and F09 is the certification run under the shipped lease timings. A `--quick` or `--standard` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and F09) and reports capacity as information; `--full` also gates on measurement.
-- A release that changes the execution model runs `--full`; any other release may run `--standard`. The release notes' evidence paragraph names the profile and the scope that ran.
+- The release notes' evidence paragraph names the profile and the scope that ran, and any resume.
 - Compare with the previous tag's bundle from the same machine: `acta-bench compare <previous> <candidate>`. Rerun a cell that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
 - Publish the report in B with `acta-bench publish <run-directory> --to docs/benchmark.md`, then remove the run's leftovers with `acta-bench cleanup --yes`.
 

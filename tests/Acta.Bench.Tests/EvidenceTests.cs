@@ -92,12 +92,25 @@ public sealed class EvidenceTests
     {
         var plan = Protocol.Plan("full", ["sqlite", "pg", "mssql"], 1729);
         Assert.Equal(69, plan.Cases.Count);
-        Assert.Equal(30, plan.WarmupSeconds);
-        Assert.Equal(180, plan.MeasurementSeconds);
-        Assert.Equal(5, plan.Repetitions);
-        Assert.Equal(1800, plan.SoakSeconds);
+        Assert.Equal(10, plan.WarmupSeconds);
+        Assert.Equal(30, plan.MeasurementSeconds);
+        Assert.Equal(3, plan.Repetitions);
+        Assert.Equal(600, plan.SoakSeconds);
         var roundTrip = JsonSerializer.Deserialize(JsonSerializer.Serialize(plan, BenchJson.Default.RunPlan), BenchJson.Default.RunPlan)!;
         Assert.Equal(plan.Cases.Select(c => c.Id), roundTrip.Cases.Select(c => c.Id));
+    }
+
+    [Fact]
+    public void Disk_counters_summarize_write_latency_over_the_samples_that_wrote()
+    {
+        Assert.Null(DiskCounters.Parse("Get-Counter : no data"));
+        string[] lines = ["1 d:|2.5|400|10", "1 d:|0|0|100", "1 d:|3.5|600|20", "0 c:|0.4|5|99"];
+        var samples = lines.Select(line => ("pg", DiskCounters.Parse(line)!)).ToArray();
+
+        var summary = DiskCounters.Summarize(samples);
+
+        Assert.Equal("write 3.00 ms mean, 3.50 ms p95, 333 writes/s, 43% idle, 3 samples", summary["pg | 1 d:"]);
+        Assert.Equal("write 0.40 ms mean, 0.40 ms p95, 5 writes/s, 99% idle, 1 samples", summary["pg | 0 c:"]);
     }
 
     [Fact]

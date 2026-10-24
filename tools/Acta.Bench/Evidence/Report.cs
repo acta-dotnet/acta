@@ -174,6 +174,15 @@ public static partial class Report
         {
             lead.Append(CultureInfo.InvariantCulture, $"| {label}, median per trial | {Number(Median(result.Cases, metric))} s |\n");
         }
+        // The drive's Windows counters before, through and after the run: a folded QLC write cache shows as write latency.
+        if (Read(directory, "histories/host-disk.json", BenchJson.Default.DictionaryStringString) is { Count: > 0 } disk)
+        {
+            lead.Append("\n| Disk, by phase and drive | Windows counters |\n|---|---|\n");
+            foreach (var (key, value) in disk.OrderBy(e => DiskPhaseRank(e.Key)).ThenBy(e => e.Key, StringComparer.Ordinal))
+            {
+                lead.Append(CultureInfo.InvariantCulture, $"| {key} | {value} |\n");
+            }
+        }
         lead.Append("\n| Slowest cases | Provider | Wall time s | Results |\n|---|---|---:|---:|\n");
         foreach (
             var slow in result
@@ -245,6 +254,11 @@ public static partial class Report
 
     private static string Inline(string text) =>
         Strong().Replace(Code().Replace(WebUtility.HtmlEncode(text.Trim()), "<code>$1</code>"), "<strong>$1</strong>");
+
+    private static int DiskPhaseRank(string key) =>
+        key.StartsWith("before |", StringComparison.Ordinal) || key.StartsWith("at resume |", StringComparison.Ordinal) ? 0
+        : key.StartsWith("after |", StringComparison.Ordinal) ? 2
+        : 1;
 
     private static T? Read<T>(string directory, string name, JsonTypeInfo<T> type)
         where T : class

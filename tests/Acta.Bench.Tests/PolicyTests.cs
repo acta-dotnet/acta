@@ -92,7 +92,7 @@ public sealed class PolicyTests
         var candidate = Row("discover", 0, 1600, "UNSTABLE");
         candidate.Metrics["calibration_candidate"] = new(1, "boolean");
         var plan = Protocol.Plan("full", ["pg"], 1729);
-        Assert.Equal([800d, 1280d, 1600d], CoveragePolicy.SelectedRates(plan, [candidate]));
+        Assert.Equal([1280d], CoveragePolicy.SelectedRates(plan, [candidate]));
         Assert.Equal(0, CoveragePolicy.ValidatedCapacity(plan, [candidate]));
         Assert.False(CoveragePolicy.IsDiscoveryCandidate(candidate with { Measurement = "GENERATOR_LIMITED" }));
     }
@@ -102,7 +102,7 @@ public sealed class PolicyTests
     {
         var plan = Protocol.Plan("full", ["sqlite"], 1729, ["L04"]);
         var initial = Enumerable
-            .Range(1, 5)
+            .Range(1, 3)
             .Select(i =>
                 Row("measure", i, 0) with
                 {
@@ -113,7 +113,7 @@ public sealed class PolicyTests
             )
             .ToArray();
         Assert.False(CoveragePolicy.RepetitionsComplete(plan, initial));
-        var extra = Enumerable.Range(6, 5).Select(i => initial[0] with { Repetition = i });
+        var extra = Enumerable.Range(4, 2).Select(i => initial[0] with { Repetition = i });
         Assert.True(CoveragePolicy.RepetitionsComplete(plan, initial.Concat(extra)));
     }
 
@@ -121,7 +121,7 @@ public sealed class PolicyTests
     public void Open_loop_dispersion_reads_p99_latency_because_completed_rate_tracks_the_offered_rate()
     {
         var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
-        var rows = Enumerable.Range(1, 5).Select(i => Row("measure", i, 50)).ToArray();
+        var rows = Enumerable.Range(1, 3).Select(i => Row("measure", i, 50)).ToArray();
         foreach (var row in rows)
         {
             row.Metrics["primary_latency_p99"] = new(100.0 * row.Repetition, "milliseconds");
@@ -210,7 +210,7 @@ public sealed class PolicyTests
     {
         var plan = Protocol.Plan("full", ["pg"], 1729);
         Assert.Empty(CoveragePolicy.SelectedRates(plan, [Row("discover", 0, 50, "UNSTABLE")]));
-        Assert.Equal([6d, 9d, 12d], CoveragePolicy.SelectedRates(plan, [Row("discover", 0, 50, "UNSTABLE"), Row("discover", 1, 12)]));
+        Assert.Equal([9d], CoveragePolicy.SelectedRates(plan, [Row("discover", 0, 50, "UNSTABLE"), Row("discover", 1, 12)]));
     }
 
     [Fact]
