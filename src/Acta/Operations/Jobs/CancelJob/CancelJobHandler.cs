@@ -27,21 +27,35 @@ internal sealed class CancelJobHandler(
         }
 
         var row = await CancelAsync(jobId, JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion), ct);
+
+        // What follows the commit does not take the caller's token: a caller that stops waiting, as a closed dashboard
+        // tab does, leaves the latch, the wake and the walk running to the end.
+        await FollowUpAsync(jobId, row).WaitAsync(ct);
+        return new CancelJobResponse(jobId, row.Action, row.Status, row.Version);
+    }
+
+    private async Task FollowUpAsync(long jobId, CancelJobRow row)
+    {
         if (row.Action == ControlAction.Applied)
         {
             var released =
                 row.ParentJobId is { } parentId
-                && await RaiseChildLatch.Run(signals, jobId, parentId, JobStatusCode.Cancelled, childExecutionNumber: null, ct);
-            await JobControl.WakeWorkersIfAsync(wakeup, released || row.LanePromoted, ct);
+                && await RaiseChildLatch.Run(
+                    signals,
+                    jobId,
+                    parentId,
+                    JobStatusCode.Cancelled,
+                    childExecutionNumber: null,
+                    CancellationToken.None
+                );
+            await JobControl.WakeWorkersIfAsync(wakeup, released || row.LanePromoted, CancellationToken.None);
         }
 
         // An already-cancelled job walks too, so cancelling it again resumes a walk a crash cut short.
         if (row.Status == JobStatusCode.Cancelled)
         {
-            await CancelDescendantsAsync(jobId, ParentCancelled, ct);
+            await CancelDescendantsAsync(jobId, ParentCancelled, CancellationToken.None);
         }
-
-        return new CancelJobResponse(jobId, row.Action, row.Status, row.Version);
     }
 
     /// <summary>One <c>cancel_job</c> call by id that wakes the job's waiters when it applied: no lookup, no latch, no worker wake.</summary>

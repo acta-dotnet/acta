@@ -34,7 +34,7 @@ provisioned before 1.0.
 - **A meter can run at two rates** when a deploy moves a definition onto another meter or a retune races a worker start. Workers warn, and one override on any participant fixes it.
 - **A provider error at admission bounces the attempt** with `job.unclassified`, spending no budget and raising no alert; a concurrency slot it took without an answer stays taken for up to one lease.
 - **A wait deadline added in a code upgrade arms at the job's next claim**, so a job already suspended under the old code needs a reschedule.
-- **A worker that dies right after its handler cancels the job leaves the descendants running.** Cancelling the job again walks them.
+- **A descendant walk that stops early leaves the rest of the tree running.** It stops when the process walking it dies, or when an operator's cancel hits a database error after its caller stopped waiting. Cancelling the job again walks them.
 - **On SQL Server, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits. Cancelling the parent again walks it.
 - **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
 - **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which roll over instead of landing Failed. Use `OnFailure` for recurring work.

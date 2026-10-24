@@ -403,7 +403,7 @@ internal sealed partial class WorkerFinalizer(
                     }
                     else
                     {
-                        await jobs.CancelDescendantsAsync(job.JobId, hostCt);
+                        await WalkDescendantsAsync(job.JobId, hostCt);
                     }
                 }
 
@@ -451,17 +451,31 @@ internal sealed partial class WorkerFinalizer(
         await Task.Yield();
         try
         {
-            await jobs.CancelDescendantsAsync(jobId, hostCt);
+            await WalkDescendantsAsync(jobId, hostCt);
         }
-        catch (Exception ex)
+        catch (Exception) when (hostCt.IsCancellationRequested)
         {
-            // A hard stop leaves the rest running, as a failure does, until an operator cancels the job again.
-            if (!hostCt.IsCancellationRequested)
-            {
-                log.LogError(ex, "WorkerRuntime: cancelling job {JobId}'s descendants failed; cancel the job again to walk them.", jobId);
-            }
+            // The walk repeats until it finishes, so only a hard stop ends it early; the rest run until an
+            // operator cancels the job again.
         }
     }
+
+    /// <summary>
+    /// Walks <paramref name="jobId"/>'s descendants, running a walk that fails again from the root until one finishes or
+    /// the worker stops: nothing else cancels the rest of a tree whose root its own handler cancelled.
+    /// </summary>
+    private async Task WalkDescendantsAsync(long jobId, CancellationToken hostCt) =>
+        await RepeatAsync(
+            async token =>
+            {
+                await jobs.CancelDescendantsAsync(jobId, token);
+                return true;
+            },
+            log,
+            jobId,
+            hostCt,
+            firstDelay: RepeatFirstDelay
+        );
 
     /// <summary>
     /// Repeats a write an execution cannot afford to lose until it lands or the worker stops: an abandoned completion
@@ -515,7 +529,7 @@ internal sealed partial class WorkerFinalizer(
                         log.Log(
                             attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error,
                             ex,
-                            "WorkerRuntime: completion write for job {JobId} failed on try {Count}; retrying in {DurationMs}ms until it lands or this worker stops.",
+                            "WorkerRuntime: a database call for job {JobId} failed on try {Count}; retrying in {DurationMs}ms until it lands or this worker stops.",
                             jobId,
                             attempt,
                             (long)delay.TotalMilliseconds

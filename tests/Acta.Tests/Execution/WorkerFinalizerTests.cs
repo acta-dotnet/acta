@@ -395,6 +395,7 @@ public sealed class WorkerFinalizerTests
     {
         var ct = TestContext.Current.CancellationToken;
         var writes = 0;
+        var childReads = 0;
         var land = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var walking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var walked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -423,6 +424,11 @@ public sealed class WorkerFinalizerTests
                             }
                             : throw new ProviderDown();
                     case "GetChildJobIds":
+                        // The walk's first read fails, so the walk the row starts apart runs again before it gets here.
+                        if (Interlocked.Increment(ref childReads) == 1)
+                        {
+                            throw new ProviderDown();
+                        }
                         walking.TrySetResult();
                         await walked.Task.WaitAsync(token);
                         return Array.Empty<long>();
@@ -482,6 +488,56 @@ public sealed class WorkerFinalizerTests
 
         walked.SetResult();
         await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        Assert.Equal(2, childReads);
+    }
+
+    [Fact(DisplayName = "A handler cancel's descendant walk that fails partway runs again from the root and cancels the rest")]
+    public async Task A_failed_descendant_walk_runs_again_from_the_root()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var refused = 0;
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "CompleteExecutions" => new List<CompleteExecutionsRow>
+                {
+                    new(1, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Cancelled, null, DateTime.UtcNow, false, false),
+                },
+                "GetChildJobIds" => call.Get(ActaSchema.Job.ParentJobId) == 1 ? new long[] { 2, 3 } : Array.Empty<long>(),
+                "CancelJob" when call.Get(ActaSchema.Job.JobId) == 3 && Interlocked.Increment(ref refused) == 1 => throw new ProviderDown(),
+                "CancelJob" => new CancelJobRow(ControlAction.Applied, JobStatusCode.Cancelled, null, 1, false),
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        var services = session.Services();
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new WorkerFinalizer(
+            services.GetRequiredService<ExecutionOperations>(),
+            services.GetRequiredService<JobsOperations>(),
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        )
+        {
+            RepeatFirstDelay = TimeSpan.Zero,
+        };
+        var entry = WorkerHeartbeatLeaseRunwayTests.Entry(1, state: InFlightJobState.Finalizing);
+        entry.Descriptor = Descriptor;
+        entry.Completion = new ExecutionCompletion(CompletionKind.Cancelled) { HandlerStatusCode = JobStatusCode.Cancelled };
+        registry.TryAdd(entry);
+
+        Assert.Equal(RunOnceStatus.Completed, await finalizer.FinalizeAsync(entry, ct));
+        Assert.Equal(
+            [2L, 3L, 2L, 3L],
+            session.Calls.Where(call => call.Stem == "CancelJob").Select(call => call.Get(ActaSchema.Job.JobId))
+        );
     }
 
     // A one-shot definition: the batch reads only its retention, and the plan its budget and deadline behavior.

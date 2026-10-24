@@ -294,10 +294,10 @@ public interface IJobs
 
     /// <summary>
     /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the
-    /// cancel cascades to the job's non-terminal descendant subtree (event reason <c>parent-cancelled</c>).
-    /// <paramref name="reasonMessage"/> is persisted on the row and as the audit event's message, and
-    /// <paramref name="actor"/> is recorded in the audit event's details as the operator identity (the authenticated
-    /// principal name; null when unknown). An already-terminal job is
+    /// cancel cascades to its non-terminal descendants (event reason <c>parent-cancelled</c>), running to the end when
+    /// <paramref name="ct"/> stops the wait for it. <paramref name="reasonMessage"/> is persisted on the row and as the
+    /// audit event's message, and <paramref name="actor"/> is recorded in the audit event's details as the operator
+    /// identity (the authenticated principal name; null when unknown). An already-terminal job is
     /// <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
     /// </summary>
     ValueTask<CancelJobResponse> CancelAsync(
