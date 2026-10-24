@@ -30,6 +30,23 @@ public sealed class MigrationHistoryPreflightTests
     }
 
     [Fact]
+    public void A_newer_migration_whose_name_ends_in_init_is_not_a_baseline()
+    {
+        Verify("M20260101000000_init", "M20260102000000_add_flags", "M20260103000000_cache_init");
+    }
+
+    [Fact]
+    public void A_baseline_this_build_does_not_ship_is_refused_by_name()
+    {
+        // An earlier release candidate's cut: applying this build's baseline over it would change nothing.
+        var exception = Assert.Throws<InvalidOperationException>(() => Verify("M20251201000000_init", "M20260101000000_init"));
+
+        Assert.Contains("M20251201000000_init", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("ships M20260101000000_init", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("docs/reference/schema-sqlite.sql", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Missing_shipped_migration_is_named_with_the_provisioning_script()
     {
         var exception = Assert.Throws<InvalidOperationException>(() => Verify("M20260101000000_init"));

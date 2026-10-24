@@ -108,4 +108,23 @@ public sealed class SchemaMigrationChainTests
 
         Assert.Equal(3, (await HistoryAsync(conn)).Count);
     }
+
+    [Fact]
+    public async Task A_database_cut_from_another_baseline_is_refused_and_left_unchanged()
+    {
+        await using var conn = await OpenFreshAsync();
+        await Apply(conn);
+        // An earlier release candidate's cut: its baseline row under another name, and no widgets table yet.
+        await ExecAsync(
+            conn,
+            $"DROP TABLE main.widgets; DELETE FROM main.migrations WHERE name = '{AddWidgets}'; "
+                + $"UPDATE main.migrations SET name = 'M20251201000000_init' WHERE name = '{Init}';"
+        );
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Apply(conn));
+
+        Assert.Contains("M20251201000000_init", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(["M20251201000000_init"], await HistoryAsync(conn));
+        Assert.False(await TableExistsAsync(conn, "widgets"));
+    }
 }

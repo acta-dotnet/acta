@@ -11,11 +11,12 @@ schema, and persisted codes are frozen, and the migration history with them: sch
 as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone.
 
-Every baseline statement is existence-guarded, so a pre-1.0 database pointed at a later build would
-take the re-cut baseline as a no-op and keep, for example, `events.actor` as `varchar(128)` on SQL
-Server, folding an operator's non-ASCII name to `?`. Nothing at startup detects that: a history row
-is a migration name and when it was applied, never a fingerprint of the schema, so an operator who
-adapts the applied script keeps the recorded row and carries the difference themselves.
+Every baseline statement is existence-guarded, so a later build's re-cut baseline applied over a pre-1.0
+database would change nothing and keep, for example, `events.actor` as `varchar(128)` on SQL Server,
+folding an operator's non-ASCII name to `?`. Startup and migration apply refuse such a database instead,
+naming the baseline its history holds. A history row is still only a migration name and when it was
+applied, never a fingerprint of the schema, so an operator who adapts the applied script keeps the
+recorded row and carries the difference themselves.
 
 Reprovisioning is a manual step, and it is destructive: there is no upgrade path from a database
 provisioned before 1.0.

@@ -12,6 +12,9 @@ internal static partial class SchemaMigrations
 {
     internal const int CommandTimeoutSeconds = 120;
 
+    // A baseline's stem is its datetime prefix and the name init, so a migration named cache_init is not one.
+    private static readonly int BaselineStemLength = "M00000000000000_init".Length;
+
     /// <summary>
     /// Applies every shipped migration with no history row, in stem order, in one transaction under the per-schema lock,
     /// so concurrent bootstrappers serialize.
@@ -33,6 +36,7 @@ internal static partial class SchemaMigrations
             await schema.AcquireSchemaLockAsync(tx, schemaName, ct);
             await schema.EnsureMigrationsAsync(tx, ct);
             var applied = (await schema.LoadAppliedMigrationsAsync(tx, ct)).Names;
+            RefuseForeignBaseline(migrations, applied, dialectToken);
 
             foreach (var migration in migrations.Where(m => !applied.Contains(m.Name)))
             {
@@ -108,6 +112,7 @@ internal static partial class SchemaMigrations
     /// </summary>
     internal static void Verify(IReadOnlyList<SchemaMigration> shipped, IReadOnlySet<string> applied, string dialectToken)
     {
+        RefuseForeignBaseline(shipped, applied, dialectToken);
         var missing = shipped.Where(m => !applied.Contains(m.Name)).ToList();
         if (missing.Count == 0)
         {
@@ -122,6 +127,30 @@ internal static partial class SchemaMigrations
                 + $"current provisioning script ({ProvisionScript(dialectToken)}) against the database before starting "
                 + "workers; it applies exactly what is missing and skips what is present. Migrations are never applied at "
                 + "startup while ApplyMigrationsOnStartup is false."
+        );
+    }
+
+    /// <summary>
+    /// Fails when the history names a baseline this build does not ship. Each release candidate before 1.0 re-cut the
+    /// baseline under a new name, and every baseline statement is existence-guarded, so this build's baseline applied
+    /// over another's would change nothing and leave that cut's schema in place.
+    /// </summary>
+    internal static void RefuseForeignBaseline(IReadOnlyList<SchemaMigration> shipped, IReadOnlySet<string> applied, string dialectToken)
+    {
+        var foreign = applied
+            .Where(name => name.Length == BaselineStemLength && name.EndsWith("_init", StringComparison.Ordinal))
+            .Where(name => !shipped.Any(m => m.Name == name))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        if (foreign.Count == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"This database was provisioned from baseline {string.Join(", ", foreign)}, and this build of Acta ships "
+                + $"{shipped[0].Name}. Release candidates before 1.0 re-cut the baseline, and nothing translates one into "
+                + $"another: drop the database and provision it with the current script ({ProvisionScript(dialectToken)})."
         );
     }
 
