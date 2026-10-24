@@ -390,6 +390,100 @@ public sealed class WorkerFinalizerTests
         await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
     }
 
+    [Fact(DisplayName = "A drain waits for the descendant cancel that a row repeating apart starts when it lands")]
+    public async Task A_drain_waits_for_the_cancel_a_row_landing_apart_starts()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var writes = 0;
+        var land = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var walking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var walked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // Each call yields, so the refused row's zero-delay repeat cannot spin the test's own thread.
+        var session = new ScriptedSession(
+            async (call, token) =>
+            {
+                await Task.Yield();
+                switch (call.Stem)
+                {
+                    case "CompleteExecutions":
+                        Interlocked.Increment(ref writes);
+                        return land.Task.IsCompleted
+                            ? new List<CompleteExecutionsRow>
+                            {
+                                new(
+                                    1,
+                                    0,
+                                    CompleteExecutionsAction.Completed,
+                                    (byte)JobStatusCode.Cancelled,
+                                    null,
+                                    DateTime.UtcNow,
+                                    false,
+                                    false
+                                ),
+                            }
+                            : throw new ProviderDown();
+                    case "GetChildJobIds":
+                        walking.TrySetResult();
+                        await walked.Task.WaitAsync(token);
+                        return Array.Empty<long>();
+                    default:
+                        throw new NotSupportedException(call.Stem);
+                }
+            }
+        );
+        var services = session.Services();
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new WorkerFinalizer(
+            services.GetRequiredService<ExecutionOperations>(),
+            services.GetRequiredService<JobsOperations>(),
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        )
+        {
+            RepeatFirstDelay = TimeSpan.Zero,
+        };
+
+        // A handler that cancelled its job, whose completion lands only after its batch tries ran out.
+        var entry = WorkerHeartbeatLeaseRunwayTests.Entry(1, state: InFlightJobState.Finalizing);
+        entry.Descriptor = Descriptor;
+        entry.Completion = new ExecutionCompletion(CompletionKind.Cancelled) { HandlerStatusCode = JobStatusCode.Cancelled };
+        registry.TryAdd(entry);
+        await registry.Completed.Writer.WriteAsync(entry, ct);
+        registry.Completed.Writer.Complete();
+
+        async Task WaitForAsync(Func<bool> condition)
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (!condition() && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(10, ct);
+            }
+            Assert.True(condition());
+        }
+
+        // The executors are done, so once the row repeats apart the loop leaves its channel for the drain.
+        var loop = finalizer.RunLoopAsync(ct);
+        await WaitForAsync(() => Volatile.Read(ref writes) > WorkerFinalizer.BatchTries);
+        land.SetResult();
+
+        // The row landed and left the registry, and the walk it started is still under way.
+        await walking.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await WaitForAsync(() => registry.Count() == 0);
+        await Task.WhenAny(loop, Task.Delay(50, ct));
+        Assert.False(loop.IsCompleted);
+
+        walked.SetResult();
+        await loop.WaitAsync(TimeSpan.FromSeconds(30), ct);
+    }
+
     // A one-shot definition: the batch reads only its retention, and the plan its budget and deadline behavior.
     private static readonly JobDescriptor Descriptor = new(
         "receipt",

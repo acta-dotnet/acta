@@ -101,7 +101,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - On SQL Server, a binary parameter bound without a size is declared `varbinary(max)`, so a statement keeps one cached plan instead of one per payload length.
 - Under reflection-off Native AOT, `sys.alerts` writes and reads its poison-event records when the application's JSON resolver has no `string` metadata: Acta's own context now covers every value Acta persists, `string` and `long` included. The write failed, and since it lands before the cursor moves, the projector could not get past that event.
 - A `[Job]` handler named with a C# keyword, declared as `@event` or named `await`, compiles: the generated invoker writes the name with its `@`, as it now does a keyword segment of the root namespace. It emitted `Handlers.event()` and failed the build.
-=======
+- A graceful drain waits for the descendant cancel that a completion repeating apart starts when it lands. It read which cancels to wait for before those completions landed, so the stop that followed could cut a handler-cancelled job's walk short and leave its descendants running.
 - A recurring job whose default input encodes to zero bytes, such as a handler that takes `ReadOnlyMemory<byte>`, registers at worker start. Its slot was written with NULL bytes beside a payload format, which the input pair check refuses, so the start failed; on SQLite a batch enqueue of an empty text or byte payload failed the same way.
 
 ### Evidence

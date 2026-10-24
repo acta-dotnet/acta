@@ -125,13 +125,15 @@ internal sealed partial class WorkerFinalizer(
             // A hard stop: completions still queued re-run after recovery, as an interrupted write does.
         }
 
-        // A drain ends once the rows repeating apart land and the descendant cancels finish; a hard stop ends them.
+        // A drain ends once the rows repeating apart land and the descendant cancels finish; a hard stop ends them. The
+        // rows go first, since a row that lands apart can start a cancel of its own, and only the loop sets rows apart.
+        await Task.WhenAll(_apart.Values);
         Task[] cancels;
         lock (_cancels)
         {
             cancels = [.. _cancels];
         }
-        await Task.WhenAll(_apart.Values.Concat(cancels));
+        await Task.WhenAll(cancels);
     }
 
     /// <summary>Waits for another completion until the window closes or the channel ends; false when nothing more comes.</summary>
