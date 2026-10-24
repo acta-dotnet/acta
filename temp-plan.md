@@ -1,6 +1,6 @@
 # Acta v1 data model plan
 
-Updated 2026-10-22. The maintained plan for the v1 data model, naming, and associated performance work. All decisions are settled; implementation is approved and runs in the slice order of [RENAME-MANIFEST.md](RENAME-MANIFEST.md), with the events schema in [EVENTS-SPEC.md](EVENTS-SPEC.md). No commits, pushes, or tags until explicitly authorized.
+Updated 2026-10-24. The maintained plan for the v1 data model, naming, and associated performance work. Every decision is settled and implemented except the SQL Server events layout, which rc7 decides by ruling 14; the schema reference is [docs/reference/data-model.md](docs/reference/data-model.md). No commits, pushes, or tags until explicitly authorized.
 
 The target is a small durable work model with narrow mutable state, compact retained events, and fast operator queries. Preserve replay, leases, ordered locking, alerting, and retention correctness while reducing hot writes.
 
@@ -8,7 +8,7 @@ The target is a small durable work model with narrow mutable state, compact reta
 
 1. **Naming: adopted fully.** The complete semantic rename per the convention and per-table lists below, PascalCase CLR properties, routines/TVPs/views/generators updated together. Persisted numeric code values and public ref parsing preserved.
 2. **State splits: `jobs_state` and `schedules_state` only.** `runtimes` → `jobs_state` / `JobStateEntity`; schedules gain a **cursor-only** state companion keyed `(job_id, schedule_name)` — the hot write is the per-occurrence cursor advance; operator lifecycle stays on config. No `workers_state`. Fifteen tables total.
-3. **Compact events: adopted** per EVENTS-SPEC.md. Details keep the format_id + blob pair convention shared with input/result/value; JSON is the default encoding, not a column type.
+3. **Compact events: adopted.** Details keep the format_id + blob pair convention shared with input/result/value; JSON is the default encoding, not a column type.
 4. **Event physical layout: decided by integrated bench.** Worker clustering is the compact control, namespace/bucket/time the candidate, the unchanged engine the control baseline. Win criteria in ruling 14.
 5. **Durations: history only.** Succeeded and failed execution facts carry `duration_ms`, served by a filtered covering duration index. No `duration_ms` on `jobs_state`.
 6. **Alerts are independent of recording policy — durable capture, not live polling.** Recording policy controls retained history; alert policy controls automatic alerts. Recording Off suppresses optional history only. Mechanism in ruling 13.
@@ -80,7 +80,7 @@ Unlisted columns keep their names. A removed field is a structural change with a
 | `alerts` | `id` → `alert_id`; `origin_code`/`severity_code`/`kind_code`/`message` → `alert_`-prefixed. Keep `delivery_status_code`. |
 | `checkpoints` | `name`/`kind_code`/`status_code` → `checkpoint_`-prefixed. Keep typed `value` pair, due time, version. |
 | `definitions` | `id` → `definition_id`; `name` → `definition_name`; `status_code` → `definition_status_code`; priority triple → `job_priority_code` variants; `lane` → `lane_name`; `audit_level_code` triple → `event_recording_code` / `EventRecordingCode` (family `event-recording`). |
-| `events` | Per EVENTS-SPEC.md. |
+| `events` | Compact generic ledger: typed columns on the `(entity_code, entity_id)` subject pair; see docs/reference/data-model.md. |
 | `jobs` | `id` → `job_id`; `parent_id` → `parent_job_id`; `lineage_root_id` → `lineage_root_job_id`; recording snapshot follows definitions. No invented `job_name`. |
 | `lanes` | `id` → `lane_id`; `name` → `lane_name`. |
 | `locks` | Unchanged. |
@@ -119,7 +119,12 @@ Steps stay separate from checkpoints for v1; both remain job-owned satellites wi
 
 ## Events
 
-The schema, event-code mapping, recording gates, alert capture, retention/purge protection, indexes, both clustering candidates, and reader rewrites are specified in [EVENTS-SPEC.md](EVENTS-SPEC.md). Dashboard access uses bounded namespace/time queries with `(created_at_utc, event_id)` pagination; duration graphs read the covering duration index with stated populations; hourly P95s are never averaged into wider P95s. Explicit purge deletes the job's scope and atomically writes the `JobPurged` tombstone; automatic retention emits one namespace summary per committed batch; both respect the alert-floor safeguards.
+The schema, event-code mapping, recording gates, alert capture, retention/purge protection, indexes, and reader rewrites are implemented; docs/reference/data-model.md is the schema reference. The two SQL Server layouts rc7 decides between, both PAGE-compressed:
+
+- **Control (worker clustering), shipping:** `pk_events (worker_id, event_id)` with OPTIMIZE_FOR_SEQUENTIAL_KEY, plus the lineage, namespace/event-code, entity and namespace-created timelines.
+- **Candidate (namespace/bucket/time):** a computed persisted `tinyint` `bucket = worker_id % 8` (workerless events in bucket 0) and a clustered `pk_events (namespace_id, bucket, created_at_utc, event_id)`, which replaces the separate namespace-created feed index (reads seek eight buckets and merge); the same lineage, namespace/event-code and entity timelines.
+
+Dashboard access uses bounded namespace/time queries with `(created_at_utc, event_id)` pagination; duration graphs read the covering duration index with stated populations; hourly P95s are never averaged into wider P95s. Explicit purge deletes the job's scope and atomically writes the `JobPurged` tombstone; automatic retention emits one namespace summary per committed batch; both respect the alert-floor safeguards.
 
 ## Evidence
 
@@ -134,8 +139,8 @@ Reports and protocols live in `../acta-bench-perf/artifacts/`; conclusions here,
 
 ## Implementation sequence
 
-1. **Rename manifest and public-contract mapping** — approved; [RENAME-MANIFEST.md](RENAME-MANIFEST.md), including the slice order.
-2. **Events schema specification** — approved; [EVENTS-SPEC.md](EVENTS-SPEC.md).
+1. **Rename manifest and public-contract mapping** — done.
+2. **Events schema specification** — done.
 3. **Compact events, durable alert capture, saturating failure_count.** Implement the spec; alert pipeline per ruling 13; saturation at both finalizer sites and all providers' reclaims, boundary tests; INT width kept. Preserve the settled projection horizon — an identity value is not a commit watermark.
 4. **Schedules config/state split.** Atomic config edits and cursor reconciliation; reload queries rewritten and measured before removing any namespace copy. CAS, execution fencing, atomic ownership lifetimes intact.
 5. **Regenerate baseline and references.** Re-cut the timestamped init baseline per provider via `tools/Acta.Emit`; regenerate every drift-checked artifact by its stated command. Never hand-edit generated files.
