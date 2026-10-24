@@ -239,6 +239,49 @@ public sealed class ActaMetricsTests
     }
 
     [Fact]
+    public void RecordFencedAttempt_increments_the_fenced_counter_with_namespace_and_job_name()
+    {
+        using var metrics = new ActaMetrics();
+
+        var (Value, Tags) = Assert.Single(
+            Collect<long>(metrics, "acta.executions.fenced", () => metrics.RecordFencedAttempt("billing", "send-receipt"))
+        );
+
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("send-receipt", Tags["job_name"]);
+        Assert.Equal("{execution}", CollectUnit(metrics, "acta.executions.fenced"));
+    }
+
+    [Fact]
+    public void RecordLeaseHeadroom_records_milliseconds_with_the_namespace_tag()
+    {
+        using var metrics = new ActaMetrics();
+
+        var (Value, Tags) = Assert.Single(
+            Collect<double>(metrics, "acta.lease.headroom", () => metrics.RecordLeaseHeadroom("billing", TimeSpan.FromSeconds(12.5)))
+        );
+
+        Assert.Equal(12_500, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("ms", CollectUnit(metrics, "acta.lease.headroom"));
+    }
+
+    [Fact]
+    public void RecordAlertLag_records_seconds_with_the_namespace_tag()
+    {
+        using var metrics = new ActaMetrics();
+
+        var (Value, Tags) = Assert.Single(
+            Collect<double>(metrics, "acta.alerts.lag", () => metrics.RecordAlertLag("billing", TimeSpan.FromMinutes(2)))
+        );
+
+        Assert.Equal(120, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal("s", CollectUnit(metrics, "acta.alerts.lag"));
+    }
+
+    [Fact]
     public void In_flight_gauge_reports_each_registered_namespace_by_state()
     {
         using var metrics = new ActaMetrics();

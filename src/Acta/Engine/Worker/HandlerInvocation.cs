@@ -12,7 +12,8 @@ internal sealed class HandlerInvocation(
     IJobPayloadSerializerRegistry serializers,
     JobBehaviorPipeline pipeline,
     int maxInlinePayloadBytes,
-    ILogger log
+    ILogger log,
+    ActaMetrics? metrics
 )
 {
     /// <summary>
@@ -44,7 +45,7 @@ internal sealed class HandlerInvocation(
         {
             // However the refusal surfaced, rethrown, swallowed and followed by another error, or turned into a control
             // verb, the attempt ends as a lost lease does.
-            return FencedOut(job);
+            return FencedOut(job, jobContext);
         }
         catch (JobControlException control)
         {
@@ -111,7 +112,7 @@ internal sealed class HandlerInvocation(
         if (jobContext.Fenced)
         {
             // The handler swallowed the refusal and ended normally.
-            return FencedOut(job);
+            return FencedOut(job, jobContext);
         }
 
         return completion with
@@ -124,13 +125,14 @@ internal sealed class HandlerInvocation(
     /// A fenced write proved another execution holds the row (docs/sql-internals.md, "Execution fence"), so no
     /// completion of this attempt could apply: none is written and no retry is charged.
     /// </summary>
-    private ExecutionCompletion? FencedOut(ClaimedJob job)
+    private ExecutionCompletion? FencedOut(ClaimedJob job, RuntimeJobContext jobContext)
     {
         log.LogInformation(
             "WorkerRuntime: job {JobId} attempt {Attempt} lost the job to another execution; a write was fenced out and the attempt stopped without a completion.",
             job.JobId,
             job.ExecutionNumber
         );
+        metrics?.RecordFencedAttempt(jobContext.JobNamespace, jobContext.JobName);
         return null;
     }
 

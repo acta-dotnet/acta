@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace Acta;
 
@@ -18,6 +19,9 @@ internal sealed class InFlightJob : IDisposable
     private readonly ConcurrentDictionary<LockToken, byte> _heldLocks = new();
     private volatile InFlightJobState _state;
     private int _permit;
+
+    // When the lease source fires, as a Stopwatch timestamp.
+    private long _leaseDeadline;
 
     public InFlightJob(ClaimedJob claim, TimeSpan? leaseRunway, CancellationToken hostCt, bool holdsPermit = false)
     {
@@ -74,6 +78,7 @@ internal sealed class InFlightJob : IDisposable
     /// </summary>
     public void ArmLease(TimeSpan delay)
     {
+        Volatile.Write(ref _leaseDeadline, Stopwatch.GetTimestamp() + (long)(delay.TotalSeconds * Stopwatch.Frequency));
         try
         {
             if (delay <= TimeSpan.Zero)
@@ -87,6 +92,10 @@ internal sealed class InFlightJob : IDisposable
         }
         catch (ObjectDisposedException) { }
     }
+
+    /// <summary>How long the attempt has before its lease source fires, negative once it has; null without one.</summary>
+    public TimeSpan? LeaseHeadroom =>
+        _lease is null ? null : Stopwatch.GetElapsedTime(Stopwatch.GetTimestamp(), Volatile.Read(ref _leaseDeadline));
 
     public void ArmTimeout(TimeSpan delay) => _timeout.CancelAfter(delay);
 

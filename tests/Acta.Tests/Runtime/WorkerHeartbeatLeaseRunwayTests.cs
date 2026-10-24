@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -43,6 +44,29 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
         // The renewal moved the deadline to the runway past its request start, minutes away.
         Assert.False(entry.AttemptToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task A_confirmed_renewal_reports_the_headroom_the_attempt_had_left()
+    {
+        using var metrics = new ActaMetrics();
+        using var entry = Held(Entry(1, leaseRunway: TimeSpan.FromMinutes(1)));
+        var headroomMs = new List<double>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (ReferenceEquals(instrument.Meter, metrics.Meter) && instrument.Name == "acta.lease.headroom")
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<double>((_, value, _, _) => headroomMs.Add(value));
+        listener.Start();
+
+        await Heartbeat(WorkerStore(_ => Lease(1)), metrics: metrics).TickAsync(TestContext.Current.CancellationToken);
+
+        // The deadline armed at the claim stood about a minute out when the renewal confirmed it.
+        Assert.InRange(Assert.Single(headroomMs), 50_000, 60_000);
     }
 
     [Fact]
@@ -221,7 +245,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         return entry;
     }
 
-    private WorkerHeartbeat Heartbeat(WorkersOperations workers, IOptions<JobsOptions>? options = null)
+    private WorkerHeartbeat Heartbeat(WorkersOperations workers, IOptions<JobsOptions>? options = null, ActaMetrics? metrics = null)
     {
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
@@ -233,7 +257,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             context,
             _registry,
             recoveryPass: null!,
-            NullLogger.Instance
+            NullLogger.Instance,
+            metrics
         );
     }
 

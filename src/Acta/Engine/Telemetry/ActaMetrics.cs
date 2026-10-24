@@ -33,6 +33,9 @@ internal sealed class ActaMetrics : IDisposable
     private readonly UpDownCounter<long> _unsettledCompletions;
     private readonly Histogram<int> _completionBatches;
     private readonly Counter<long> _recoveryPasses;
+    private readonly Counter<long> _fencedAttempts;
+    private readonly Histogram<double> _leaseHeadroomMs;
+    private readonly Histogram<double> _alertLagSeconds;
 
     /// <summary>
     /// Each worker registers its namespace's live in-flight count by state; the observable gauge reads them
@@ -90,6 +93,21 @@ internal sealed class ActaMetrics : IDisposable
             "acta.recovery.passes",
             "{pass}",
             "Recovery passes this process ran, tagged by outcome: completed or failed."
+        );
+        _fencedAttempts = Meter.CreateCounter<long>(
+            "acta.executions.fenced",
+            "{execution}",
+            "Attempts stopped without a completion because a write found their job held by another execution."
+        );
+        _leaseHeadroomMs = Meter.CreateHistogram<double>(
+            "acta.lease.headroom",
+            "ms",
+            "Time an attempt had left before its lease runway ran out when a renewal confirmed its lease."
+        );
+        _alertLagSeconds = Meter.CreateHistogram<double>(
+            "acta.alerts.lag",
+            "s",
+            "How far the alert projector's cursor stood behind the database clock when a pass began."
         );
         Meter.CreateObservableGauge(
             "acta.jobs.inflight",
@@ -208,6 +226,17 @@ internal sealed class ActaMetrics : IDisposable
 
     public void RecordAlertProjectionSkip(string @namespace, string reason) =>
         _alertProjectionSkips.Add(1, new TagList { { "namespace", @namespace }, { "reason", reason } });
+
+    public void RecordFencedAttempt(string @namespace, string jobName) =>
+        _fencedAttempts.Add(1, new TagList { { "namespace", @namespace }, { "job_name", jobName } });
+
+    /// <summary>A reading near zero is an attempt its worker almost stopped for want of a renewal.</summary>
+    public void RecordLeaseHeadroom(string @namespace, TimeSpan headroom) =>
+        _leaseHeadroomMs.Record(headroom.TotalMilliseconds, new KeyValuePair<string, object?>("namespace", @namespace));
+
+    /// <summary>The wait an alert-required event had before a pass could project it, the safe horizon included.</summary>
+    public void RecordAlertLag(string @namespace, TimeSpan lag) =>
+        _alertLagSeconds.Record(lag.TotalSeconds, new KeyValuePair<string, object?>("namespace", @namespace));
 
     public void AddInFlightSource(string @namespace, Func<InFlightJobState, int> liveCount)
     {

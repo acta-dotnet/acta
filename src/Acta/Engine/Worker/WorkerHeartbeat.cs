@@ -360,6 +360,7 @@ internal sealed class WorkerHeartbeat(
         }
 
         var runway = _leaseRunway - Stopwatch.GetElapsedTime(renewRequestedAt);
+        var ns = _workerRegistration?.NamespaceName;
         foreach (var (entry, locks) in snapshot)
         {
             if (!live.Contains(entry.Key) && entry.State != InFlightJobState.Finalizing)
@@ -369,7 +370,19 @@ internal sealed class WorkerHeartbeat(
             }
             if (renewed.Contains(entry.Key))
             {
+                var headroom = entry.LeaseHeadroom;
                 entry.ArmLease(runway);
+                try
+                {
+                    if (ns is not null && headroom is { } value)
+                    {
+                        metrics?.RecordLeaseHeadroom(ns, value);
+                    }
+                }
+                catch (Exception)
+                {
+                    // A listener that throws must not stop the feed: the renewals it reports have landed.
+                }
             }
 
             // A lock the handler released while the renewal was in flight is no longer held, so only a lock it

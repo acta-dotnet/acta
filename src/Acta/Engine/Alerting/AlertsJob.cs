@@ -127,10 +127,17 @@ internal sealed class AlertsJob(
     {
         // A monotonic clock bounds work cooperatively across replay and the forward drain.
         var elapsed = Stopwatch.StartNew();
+
+        // Read before the replay, which never moves the cursor, so a replay that keeps failing cannot hide the lag. A
+        // namespace's first pass has no cursor yet, so there is no wait to report.
+        var cursor = await ctx.GetVariableOrDefaultAsync(CursorVariableName, new AlertsCursor(0L, 0L), ct);
+        if (cursor.Ticks > 0)
+        {
+            _metrics?.RecordAlertLag(ctx.JobNamespace, nowUtc - cursor.Utc);
+        }
         await ReplaySkippedAsync(ctx, elapsed, ct);
 
         var horizonUtc = SafeHorizon(nowUtc, _alerts.SafeHorizonLag);
-        var cursor = await ctx.GetVariableOrDefaultAsync(CursorVariableName, new AlertsCursor(0L, 0L), ct);
         var cursorUtc = cursor.Utc;
         var cursorId = cursor.EventId;
         var projected = 0;
