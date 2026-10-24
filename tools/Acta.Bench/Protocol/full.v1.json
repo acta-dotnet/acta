@@ -403,7 +403,7 @@
     },
     "require_latency_slo": true,
     "require_backlog_stability": true,
-    "backlog_slope_tolerance_fraction_of_offered_rate": 0.001,
+    "backlog_slope_tolerance_fraction_of_offered_rate": 0.01,
     "reference_noop_root_p99_slo_ms": 2000,
     "latency_slo_ms": {
       "C01": 5000,

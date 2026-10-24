@@ -37,6 +37,7 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all
   - The run then quiesces and every job is reconciled.
 - **Capacity:**
   - Arrivals are open-loop. Discovery finds the highest qualifying rate, and measured trials validate fractions of it.
+  - A trial qualifies when its latency meets its target and its backlog trend stays within 1% of the offered rate, or one job over the window: a 30-second window at tens of jobs a second cannot tell a smaller trend from the one-second poll's jitter.
   - `--quick` and `--standard` verdicts rest on correctness (safety, liveness, coverage, the ledger checks, and the F09 certification) and report capacity as information; `--full` also gates on measurement.
   - Measured trials run workers on Acta's product defaults, and each trial records the resolved executors, heartbeat, lease, and safety poll.
   - Fault cases compress the heartbeat to 1 second, so a killed worker's lease lapses inside their recovery bound.
