@@ -132,7 +132,7 @@ Reopening an entry means writing a proposal, not editing this file.
 - **`MaxAttempts` is the unified cap** on jobs and steps; `Reschedule`/`Suspend`/`Pause` never consume the budget. *Reason:* one retry mental model across both tiers.
 - **Strict priority ordering** in the claim path; no aging, no weighted fairness; within a priority and next-run time the claim breaks ties by job id, which is enqueue order for one producer enqueuing sequentially; concurrent claims promise no global FIFO; strict per-key order is a lane. *Reason:* predictable semantics; fairness = separate namespaces.
 - **`ConcurrencyKey` is execution-time admission (at most `ConcurrencyLimit` per key, 1 by default), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
-- **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
+- **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive: `ScheduleAsync(input, TimeSpan)` is the first, `ScheduleAsync(input, DateTimeOffset)` the second. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
 - **Recurring schedules are a single slot job per `(namespace, definition)`** carrying many `schedules` rows; due schedules coalesce into one execution; cursors computed in C#, applied in SQL. *Reason:* single-cursor claim scan, no per-firing row inflation, no Cronos in SQL.
 - **A schedule's cursor is its own row.** `schedules` holds the declaration and operator lifecycle; `schedules_state` holds only the cursor, keyed alike and written with it wherever a schedule is created, edited, or deleted. A fire advances the cursor alone, refused when the schedule's version moved since the fire was planned. An orphaned or retired schedule has a NULL cursor. *Reason:* the per-occurrence write is the hot one, and the narrow row keeps it off the declaration and its version.
 - **Misfire is a two-strategy per-schedule choice.** `Skip` (default, forward-only) or `CatchUpOnce`. *Reason:* forward-only avoids startup catch-up bursts; catch-up is opt-in.
@@ -188,7 +188,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 - **Group:** the operations of one subject (Jobs, Schedules, Alerts, ...), with one hand-written facade of one line per operation and the types the group shares. There is no mediator and no layer between facade and handler. *Reason:* a group is a folder, not a boundary; its handlers call what they need directly.
 - **Engine:** `src/Acta/Engine/` runs jobs (workers, execution, recovery, retention, alert projection and delivery, the outbox relay, definition registration) and composes operations by calling their handlers. No operation references the engine. *Reason:* the dependency points one way, so an operation reads on its own.
 - **Adapter:** a project that connects an external technology: the providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
-- **Manifest:** the generated per-assembly set of job descriptors (`{Area}JobsManifest : IJobManifest`). The word is reserved for that.
+- **Manifest:** the generated per-assembly type of job descriptors and call factories (`{Area}Jobs : IJobManifest`, such as `ShippingJobs`). The word is reserved for that.
 - **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the folder tree.
 - **Tags follow the shared-substrate model:** each target's owner owns its tag rows by scope, the physical `tags` table is one partitioned substrate, and every write goes through the Tags group's SQL under the ownership map. There is no tag-metadata API in front of it. *Reason:* tags span tenants, namespaces, definitions, and jobs; a boundary around a table all four join would be theatre.
 
@@ -202,7 +202,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 
 ### Handler contract
 
-- **Two handler attributes and two invocation modes.** `[Job]` and `[JobSchedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` (fire-and-forget durable) or `RunAndWaitAsync` (durable enqueue + await). *Reason:* the declarative surface stays small.
+- **Two handler attributes and two invocation modes.** `[Job]` and `[JobSchedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` or `ScheduleAsync`, follow the answered `JobHandle` with `WaitAsync`, or do both in one `RunAndWaitAsync`. *Reason:* the declarative surface stays small.
 - **The handler-contract specification lives in [the handler contract](./developer-guide.md#handler-contract)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
 
 ### Tooling

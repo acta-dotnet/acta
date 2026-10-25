@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261023212758_init')
+        WHERE name NOT IN ('M20261024213527_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261023212758_init =====
+-- ===== BEGIN M20261024213527_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -3951,11 +3951,9 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || c.value_format_id::TEXT
     END AS value_format,
-    CASE WHEN c.value_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(c.value, 'UTF8') END
-        AS value_text,
+    CASE WHEN c.value_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(c.value, 'UTF8') END AS value_text,
     c.created_at_utc,
     c.modified_at_utc,
     c.version
@@ -4053,11 +4051,9 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || e.details_format_id::TEXT
     END AS details_format,
-    CASE WHEN e.details_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(e.details, 'UTF8') END
-        AS details_text
+    CASE WHEN e.details_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(e.details, 'UTF8') END AS details_text
 FROM acta.events AS e
 JOIN acta.namespaces AS ns ON ns.namespace_id = e.namespace_id
 LEFT JOIN acta.definitions AS d ON d.definition_id = e.definition_id
@@ -4088,20 +4084,16 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || j.input_format_id::TEXT
     END AS input_format,
-    CASE WHEN j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(j.input, 'UTF8') END
-        AS input_text,
+    CASE WHEN j.input_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(j.input, 'UTF8') END AS input_text,
     CASE r.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || r.result_format_id::TEXT
     END AS result_format,
-    CASE WHEN r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(r.result, 'UTF8') END
-        AS result_text,
+    CASE WHEN r.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(r.result, 'UTF8') END AS result_text,
     r.next_run_at_utc,
     r.execution_number,
     r.failure_count,
@@ -4176,11 +4168,9 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || s.result_format_id::TEXT
     END AS result_format,
-    CASE WHEN s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(s.result, 'UTF8') END
-        AS result_text,
+    CASE WHEN s.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(s.result, 'UTF8') END AS result_text,
     s.created_at_utc,
     s.modified_at_utc,
     s.version
@@ -4221,10 +4211,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023212758_init')
+VALUES ('M20261024213527_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261023212758_init =====
+-- ===== END M20261024213527_init =====
 
 COMMIT;
 

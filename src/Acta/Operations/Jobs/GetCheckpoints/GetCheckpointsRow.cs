@@ -22,7 +22,7 @@ internal sealed record GetCheckpointsRow(
             CheckpointName,
             Status,
             DueAtUtc,
-            ValueFormatId == 0 ? null : JobPayload.FromBytes(JobPayloadFormat.ForId(ValueFormatId), Value ?? []),
+            ValueFormatId == 0 ? null : JobPayload.Trusted(JobPayloadFormat.ForId(ValueFormatId), Value ?? []),
             CreatedAtUtc,
             ModifiedAtUtc
         );

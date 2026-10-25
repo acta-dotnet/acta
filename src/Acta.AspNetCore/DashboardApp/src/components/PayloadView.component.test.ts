@@ -5,15 +5,25 @@ import PayloadView from './PayloadView.svelte';
 
 describe('PayloadView', () => {
   it('pretty-prints a json payload', () => {
-    const { container } = render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: { a: 1, b: [2, 3] } } });
+    const { container } = render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: '{"a":1,"b":[2,3]}' } });
     const pre = container.querySelector('pre');
     expect(pre?.textContent).toBe('{\n  "a": 1,\n  "b": [\n    2,\n    3\n  ]\n}');
     expect(screen.getByRole('button', { name: 'Copy JSON' })).toBeTruthy();
   });
 
-  it('renders a text payload verbatim', () => {
-    const { container } = render(PayloadView, { payload: { formatName: 'text', formatId: 3, text: 'hello world' } });
-    expect(container.querySelector('pre')?.textContent).toBe('hello world');
+  it('shows a json payload with every digit of a number past 2^53', () => {
+    const { container } = render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: '{"orderId":9007199254740993}' } });
+    expect(container.querySelector('pre')?.textContent).toBe('{\n  "orderId": 9007199254740993\n}');
+  });
+
+  it('shows a malformed stored json row as bytes, with no editor', () => {
+    const { container } = render(PayloadView, {
+      payload: { formatName: 'json', formatId: 1, base64: 'e2Jyb2tlbg==', malformed: true },
+      editable: true
+    });
+    expect(container.textContent).toContain('stored JSON is malformed');
+    expect(container.textContent).toContain('7 bytes');
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
   it('shows byte length, hex, download, and copy-base64 for bytes', () => {
@@ -38,15 +48,15 @@ describe('PayloadView', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
-  it('offers no edit affordance unless editable and json/text', () => {
-    render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: {} }, editable: false });
+  it('offers no edit affordance unless editable and json', () => {
+    render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: '{}' }, editable: false });
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
   it('saves an edited json payload after successful validation', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: { a: 1 } }, editable: true, onSave });
+    render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: '{"a":1}' }, editable: true, onSave });
 
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     const editor = screen.getByRole('textbox', { name: 'Payload editor' }) as HTMLTextAreaElement;
@@ -62,7 +72,7 @@ describe('PayloadView', () => {
   it('blocks save and shows an error for invalid json', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: { a: 1 } }, editable: true, onSave });
+    render(PayloadView, { payload: { formatName: 'json', formatId: 1, json: '{"a":1}' }, editable: true, onSave });
 
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     const editor = screen.getByRole('textbox', { name: 'Payload editor' });

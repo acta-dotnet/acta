@@ -21,15 +21,15 @@ app.MapPost(
         var deduplicationKey = DeduplicationKey.ForDefinition("import-csv", businessKey);
         var correlationKey = http.TraceIdentifier;
 
-        var outcome = await jobs.EnqueueAsync(
+        var job = await jobs.EnqueueAsync(
             new ImportCsv(request.Tenant, request.ImportId, request.FileName),
             o => o.DeduplicationKey(deduplicationKey).CorrelationKey(correlationKey).Tag("tenant", request.Tenant).Tag("kind", "csv"),
             ct
         );
 
-        var statusUrl = $"/imports/{outcome.JobRef}";
+        var statusUrl = $"/imports/{job.JobRef}";
 
-        return Results.Accepted(statusUrl, new StartImportResponse(outcome.JobRef, outcome.Action.ToString(), statusUrl, correlationKey));
+        return Results.Accepted(statusUrl, new StartImportResponse(job.JobRef, job.Action.ToString(), statusUrl, correlationKey));
     }
 );
 

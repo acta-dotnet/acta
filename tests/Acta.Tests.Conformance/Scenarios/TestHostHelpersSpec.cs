@@ -22,7 +22,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
 
-        var sleep = await host.Jobs.EnqueueAsync(TestJobsManifest.JobSleepBasic, ct: ct);
+        var sleep = await host.Jobs.EnqueueAsync(TestJobsManifest.JobSleepBasic(), ct: ct);
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(sleep, ct));
         var timer = Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct));
         Assert.Equal(("nap", CheckpointStatusCode.Pending), (timer.CheckpointName, timer.Status));
@@ -34,7 +34,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct)).Status
         );
 
-        var step = await host.Jobs.EnqueueAsync(TestJobsManifest.JobStepRetry, ct: ct);
+        var step = await host.Jobs.EnqueueAsync(TestJobsManifest.JobStepRetry(), ct: ct);
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(step, ct));
         Assert.Equal(StepStatusCode.Pending, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
 
@@ -49,7 +49,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
 
-        var bounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobTryWaitSignalTimeout, new NoInput(), ct: ct);
+        var bounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobTryWaitSignalTimeout(), ct: ct);
         Assert.NotNull((await RunUntilWaitingAsync(host, bounded, "go", ct)).DueAtUtc);
 
         await host.ForceWaitTimeoutDueAsync(bounded.JobId, "go", ct);
@@ -61,7 +61,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         // An unbounded wait has no expiration to move, so the helper must say so rather than no-op into
         // a test that reads as passing.
-        var unbounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal, ct: ct);
+        var unbounded = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal(), ct: ct);
         await RunUntilWaitingAsync(host, unbounded, "go", ct);
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceWaitTimeoutDueAsync(unbounded.JobId, ct: ct));
     }
@@ -72,7 +72,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
 
-        var parent = await host.Jobs.EnqueueAsync(TestJobsManifest.JobParentTryWaitChild, new TryWaitChildStart("job-wait-signal"), ct: ct);
+        var parent = await host.Jobs.EnqueueAsync(TestJobsManifest.JobParentTryWaitChild(new TryWaitChildStart("job-wait-signal")), ct: ct);
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(parent, ct));
 
         // The helper reads the awaited slot by kind, so a child latch stages exactly like a signal does;
@@ -97,8 +97,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await using var host = await StartHostAsync(ct);
 
         var parent = await host.Jobs.EnqueueAsync(
-            TestJobsManifest.JobParentTryWaitChildren,
-            new ChildGroupStart(["job-wait-signal", "job-wait-signal"]),
+            TestJobsManifest.JobParentTryWaitChildren(new ChildGroupStart(["job-wait-signal", "job-wait-signal"])),
             ct: ct
         );
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(parent, ct));
@@ -114,7 +113,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         // A job that never armed a group wait stores no deadline, so the helper must say so rather than
         // no-op into a test that reads as passing.
-        var single = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal, ct: ct);
+        var single = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal(), ct: ct);
         await RunUntilWaitingAsync(host, single, "go", ct);
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceGroupWaitTimeoutDueAsync(single.JobId, ct));
     }

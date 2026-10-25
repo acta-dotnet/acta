@@ -14,7 +14,7 @@ internal sealed class GetJobInputHandler(GetJobIdHandler getJobId, IDbSession se
         // A None-format row carries no input; surface it as null like a missing job.
         return record is null || record.FormatId == 0
             ? null
-            : new GetJobInputResponse(JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Input ?? []));
+            : new GetJobInputResponse(JobPayload.Trusted(JobPayloadFormat.ForId(record.FormatId), record.Input ?? []));
     }
 
     /// <summary>The stored input payload and its format by id, or null when no row matches.</summary>

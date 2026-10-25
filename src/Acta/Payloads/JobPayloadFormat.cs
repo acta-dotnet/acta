@@ -56,14 +56,11 @@ public readonly record struct JobPayloadFormat
     /// <summary>No payload: zero id, null backing name, <see cref="Name"/> returns <c>"none"</c>.</summary>
     public static readonly JobPayloadFormat None = default;
 
-    /// <summary>UTF-8 JSON; default for record / class inputs.</summary>
+    /// <summary>UTF-8 JSON; the format of every typed value except raw bytes, scalars included.</summary>
     public static readonly JobPayloadFormat Json = BuiltIn(1, "json");
 
     /// <summary>Raw <c>byte[]</c> / <c>ReadOnlyMemory&lt;byte&gt;</c> passthrough.</summary>
     public static readonly JobPayloadFormat Bytes = BuiltIn(2, "bytes");
-
-    /// <summary>UTF-8 passthrough: strings and scalar values rendered through <c>Encoding.UTF8</c>.</summary>
-    public static readonly JobPayloadFormat Text = BuiltIn(3, "text");
 
     /// <summary>No-payload format name.</summary>
     public const string NoneName = "none";
@@ -73,9 +70,6 @@ public readonly record struct JobPayloadFormat
 
     /// <summary>Bytes format name.</summary>
     public const string BytesName = "bytes";
-
-    /// <summary>Text format name.</summary>
-    public const string TextName = "text";
 
     /// <summary>
     /// The built-in <see cref="JobPayloadFormat"/> for <paramref name="id"/>, or a synthetic <see cref="Custom"/>
@@ -90,7 +84,6 @@ public readonly record struct JobPayloadFormat
             0 => None,
             1 => Json,
             2 => Bytes,
-            3 => Text,
             _ => Custom(id, $"custom-{id}"),
         };
 }

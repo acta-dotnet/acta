@@ -40,10 +40,14 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
 
-await app.StartAsync();
-await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
-Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
-await app.WaitForShutdownAsync();
+// Your own endpoint enqueues: the job is a durable row before the response goes out.
+app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
+{
+    var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
+    return Results.Accepted("/acta", new { job.JobRef });
+});
+
+app.Run();
 
 public sealed record ShipOrder(int OrderId);
 
@@ -56,12 +60,23 @@ public static class ShippingHandlers
 
 ```bash
 dotnet run
-# Enqueued. Dashboard: http://localhost:5090/acta
-# Shipping order 1042
+# then, in a second terminal, on the port dotnet run printed:
+curl -X POST http://localhost:5090/orders/1042
+# the app prints: Shipping order 1042
 ```
 
-The program enqueues a job, a worker in the same process claims and runs it, and `acta-local.db`
-holds the row. Open the dashboard URL: the Jobs screen lists `ship-order` as completed.
+The endpoint returns `202 Accepted` with the job's ref as soon as the row is stored, and a worker in the same
+process runs it. To run a job later or follow it to its outcome:
+
+```csharp
+// Run it later: one job, held until its time. A recurring schedule is [JobSchedule].
+var reminder = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));
+
+// Follow a job: the handle waits for the outcome, and a timeout stops the wait, never the job.
+var outcome = await reminder.WaitAsync(TimeSpan.FromSeconds(30));
+```
+
+`acta-local.db` holds the row. Open `/acta` on the same port: the Jobs screen lists `ship-order` as completed.
 
 > **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
 > root namespace, while top-level statements live in the global namespace, so without it
@@ -76,8 +91,9 @@ The same program runs on the generic host without the dashboard: `dotnet new con
 `using Microsoft.Extensions.DependencyInjection;` and `using Microsoft.Extensions.Hosting;` (a console
 project's implicit usings cover neither), replace the builder lines with
 `var builder = Host.CreateApplicationBuilder(args);` and `using var host = builder.Build();`, drop
-the `MapActa` line, start `host` instead of `app`, and print just `Enqueued.`, since a generic host
-has no URL to show. Everything durable — the rows, the retries, the CLI — is identical; only the dashboard
+the `MapActa` line, and replace the endpoint and `app.Run();` with an enqueue at startup:
+`await host.StartAsync();`, `await host.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));`, and
+`await host.WaitForShutdownAsync();`. Everything durable — the rows, the retries, the CLI — is identical; only the dashboard
 needs a web host.
 
 ## Or explore the repository
@@ -171,8 +187,9 @@ What to know about these lines:
   last segment of `RootNamespace` plus `Jobs`. Register it once with `Run<UsersJobs>(...)`; one
   worker runtime owns one namespace. It is generated *into* that root namespace, so a file in a
   different namespace needs `using Users;` to see it.
-- **Enqueue is type-driven.** The input record's type alone routes the call; one `EnqueueAsync` for
-  every job you have.
+- **Enqueue is typed.** `jobs.EnqueueAsync(new SendWelcomeEmail(...))` routes by the input record's
+  type, and `UsersJobs.SendWelcomeEmail(...)` is the call that names the job outright; both answer a
+  `JobHandle`.
 - **The same binary is the worker.** The host's `IHostedService` wiring runs the claim loop; there
   is no separate worker process to deploy unless you want one.
 - Everything else is framework default policy: `MaxAttempts = 15`, exponential backoff
@@ -188,8 +205,8 @@ packages alone.
 ## Inspect the row
 
 ```csharp
-var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail(...), ct: ct);
-var job     = await jobs.GetAsync(outcome, ct);   // GetJobResponse? with Status, attempts, timestamps
+var job = await jobs.EnqueueAsync(new SendWelcomeEmail(...), ct: ct);   // JobHandle
+var row = await jobs.GetAsync(job, ct);                                 // GetJobResponse? with Status, attempts, timestamps
 ```
 
 Or with SQL, because the state is rows. Open `acta-local.db` in any SQLite client; on PostgreSQL or SQL Server

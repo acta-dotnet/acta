@@ -29,7 +29,7 @@ internal sealed class GetAlertFloorHandler(IDbSession session, ISqlDialect diale
             }
 
             var serializer = serializers.Resolve(formatId);
-            var payload = JobPayload.FromBytes(serializer.Format, row.Value);
+            var payload = JobPayload.Trusted(serializer.Format, row.Value);
             if (name == AlertsCursor.VariableName)
             {
                 cursor = serializer.Deserialize<AlertsCursor>(payload) ?? cursor;

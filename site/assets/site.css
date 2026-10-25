@@ -193,6 +193,9 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
 .data-table td { font-family: var(--mono); font-size: 0.9rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .data-table td.lead { color: var(--verdi); font-weight: 500; }
 .data-table td small { display: block; font: 0.72rem var(--sans); color: var(--faint); }
+/* a comparison table holds sentences, not numbers: cells wrap and read in the body face */
+.data-table.compare th, .data-table.compare td { white-space: normal; vertical-align: top; }
+.data-table.compare td { min-width: 11rem; font-family: var(--sans); }
 .data-table th:last-child, .data-table td:last-child { padding-right: 0; }
 
 /* facts: short titled paragraphs on a rule, three across */

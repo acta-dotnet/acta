@@ -48,7 +48,7 @@ public sealed class JobRequestBuilder
     /// <summary>
     /// Set the input payload to <paramref name="payload"/> verbatim. Accepts any
     /// <see cref="JobPayload"/> including <c>default</c> (= <see cref="JobPayload.None"/>).
-    /// Last-call-wins with the other payload setters (<see cref="Json"/>, <see cref="Text"/>,
+    /// Last-call-wins with the other payload setters (<see cref="Json{T}(T)"/>, <see cref="Json(string)"/>,
     /// <see cref="Bytes"/>, <see cref="NoPayload"/>).
     /// </summary>
     public JobRequestBuilder Payload(JobPayload payload)
@@ -69,10 +69,10 @@ public sealed class JobRequestBuilder
     public JobRequestBuilder Json<T>(T value) => Payload(JobPayload.Json(value));
 
     /// <summary>
-    /// UTF-8-encode <paramref name="value"/> through <see cref="JobPayload.Text"/> and set the input.
-    /// Empty string is allowed; a string holding U+0000 throws <see cref="ArgumentException"/>.
+    /// JSON-encode the string <paramref name="value"/> through <see cref="JobPayload.Json(string)"/>, which needs no
+    /// reflection, and set the input.
     /// </summary>
-    public JobRequestBuilder Text(string value) => Payload(JobPayload.Text(value));
+    public JobRequestBuilder Json(string value) => Payload(JobPayload.Json(value));
 
     /// <summary>
     /// Wrap <paramref name="value"/> as a bytes-format payload through <see cref="JobPayload.Bytes"/>

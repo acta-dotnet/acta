@@ -4,6 +4,7 @@
   import { capabilitiesQuery, canControl } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
   import { jobControlMessage } from '../lib/controlMessages.ts';
+  import { RawJson } from '../lib/rawJson.ts';
   import { validateSignalName, validateSignalPayload } from './signalDrawerState.ts';
 
   let {
@@ -28,10 +29,10 @@
   // Same shape as every other job verb (jobs/{jobRef}/{verb} -> JobControlResponse), but the body
   // is the caller's own JSON payload verbatim - not a reason-merged object - so this uses rawBody
   // rather than body: an empty payloadText resolves to `undefined`, which controlRequest sends as a
-  // request with zero body bytes (presence-only signal); any parsed JSON goes through unmodified.
-  const mutation = useControlMutation<{ jobRef: string; name: string; payload: unknown }, JobControlResponse>({
+  // request with zero body bytes (presence-only signal); any JSON text goes through verbatim.
+  const mutation = useControlMutation<{ jobRef: string; name: string; payload: string | undefined }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/signals/${vars.name}`,
-    rawBody: (vars) => vars.payload,
+    rawBody: (vars) => (vars.payload === undefined ? undefined : new RawJson(vars.payload)),
     notFound: () => ({ action: 'notFound', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
@@ -53,7 +54,7 @@
     if (!canSend) {
       return;
     }
-    const vars = { jobRef, name: name.trim(), payload: payloadResult.value };
+    const vars = { jobRef, name: name.trim(), payload: payloadResult.json };
     open = false;
     message = '';
     try {

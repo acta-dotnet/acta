@@ -296,8 +296,8 @@
             idempotencyKey: input.DeliveryId.ToString(), ct);
 }
 
-<span class="c">// enqueue from anywhere in the host</span>
-<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> DeliverWebhook(
+<span class="c">// enqueue from anywhere in the host; the handle follows the job</span>
+<span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> DeliverWebhook(
     Guid.CreateVersion7(),
     <span class="k">new</span> Uri(<span class="s">"https://partner.example.com/hooks/orders"</span>),
     <span class="s">"""{"orderId":"ORD-1042","status":"shipped"}"""</span>), ct: ct);</code></pre>
@@ -409,7 +409,7 @@
         </div>
         <div>
           <b>Durable, and still fast</b>
-          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box drained <em>66,405 jobs a second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md">Benchmark round</a></p>
+          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One box completed <em>66,405 fully executed, durably completed jobs per second</em> on PostgreSQL. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md">Benchmark round</a></p>
         </div>
         <div>
           <b>Bounded, and it heals</b>
@@ -593,7 +593,7 @@
 
     <section class="wrap" id="compare">
       <p class="record">How it compares</p>
-      <h2>How Acta compares with Hangfire, Quartz.NET, TickerQ, MassTransit, and Temporal.</h2>
+      <h2>How Acta compares with Hangfire, Quartz.NET, TickerQ, Temporal, and message brokers.</h2>
       <p class="lede">This table is the short version. The full fit guide covers when to keep exactly what you have. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a></p>
       <div class="vs">
         <div class="vs-row">
@@ -613,8 +613,8 @@
           <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers with no determinism contract, checkpoints instead of replayed history, and application-owned SQL state. <a class="golink" href="/vs-temporal">The longer answer</a></div>
         </div>
         <div class="vs-row">
-          <div class="who"><b>A message bus</b><span>MassTransit, NServiceBus, …</span></div>
-          <div class="why"><b>Keep a message bus when you need distributed messaging, pub/sub, transport abstraction, or endpoint contracts.</b> Consider Acta when the problem is recording and operating the lifecycle of application-owned work rather than moving messages between systems.</div>
+          <div class="who"><b>A broker or message bus</b><span>Kafka, RabbitMQ, SQS, MassTransit, NServiceBus, …</span></div>
+          <div class="why"><b>Keep a broker when you need distributed messaging, pub/sub, transport abstraction, or endpoint contracts.</b> Use Acta for the work a message starts, which needs a database to be durable: with a broker in front of it or without one. <a class="golink" href="/vs-brokers">The longer answer</a></div>
         </div>
         <div class="vs-row">
           <div class="who"><b>DIY queue table</b><span>+ hosted service</span></div>
@@ -642,7 +642,7 @@
       <p class="record">Numbers &amp; boundaries</p>
       <h2>Benchmarks, tests, and what Acta does not do.</h2>
       <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">66,405</a></b><span>jobs/s drain · PostgreSQL · 16 workers, completions group-committed, every job durable</span></div>
+        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">66,405</a></b><span>fully executed, durably completed jobs per second · PostgreSQL · 16 workers · rc.5 round</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">238,839</a></b><span>jobs/s batch enqueue · PostgreSQL · 200k-job fleet insert</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md" style="text-decoration:none">3.7 ms</a></b><span>p50 pickup latency · SQL Server · one job at a time</span></div>
         <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
@@ -682,7 +682,7 @@
         <div class="fcol">
           <h3>Jobs &amp; scheduling</h3>
           <ul>
-            <li><b>Fire-and-forget · delayed · recurring</b> under one model</li>
+            <li><b>Fire-and-forget · delayed · recurring</b> under one model: <code>EnqueueAsync</code>, <code>ScheduleAsync</code>, <code>[JobSchedule]</code></li>
             <li><b>Durable retries</b> with typed backoff: policy, not folklore</li>
             <li><b>Persistent schedule cursors</b>: missed windows explicit; one stable job row</li>
             <li><b>Deduplication keys</b> stop blind repeats at enqueue</li>

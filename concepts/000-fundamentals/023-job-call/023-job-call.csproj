@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Acta.Concepts.JobContract</RootNamespace>
+    <RootNamespace>Acta.Concepts.JobCall</RootNamespace>
   </PropertyGroup>
 </Project>

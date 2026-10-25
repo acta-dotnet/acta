@@ -20,23 +20,18 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // Enqueue the parent; it will start a child that deliberately fails.
 Console.WriteLine("enqueuing parent job...");
-var parentOutcome = await jobs.EnqueueAsync(new RunReport("q4-2024"));
+var parent = await jobs.EnqueueAsync(new RunReport("q4-2024"));
 
 // Wait for the lineage to reach a terminal state.
 Console.WriteLine("waiting for lineage to finish...");
-JobStatusCode? parentStatus;
-do
-{
-    await Task.Delay(200);
-    parentStatus = (await jobs.GetStatusAsync(parentOutcome))?.Status;
-} while (parentStatus is not null && !parentStatus.Value.IsTerminal);
+var finished = await parent.WaitAsync();
 
-Console.WriteLine($"parent finished with status: {parentStatus}");
+Console.WriteLine($"parent finished with status: {finished.TerminalStatus}");
 
 // Query the full lineage event timeline scoped to the lineage root (the parent job's id).
 // Events are returned newest-first; reverse to print in chronological order.
 Console.WriteLine("event timeline for the lineage:");
-var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRootJobId: parentOutcome.JobId, PageSize: 100));
+var eventsPage = await queries.Ledger.ListEventsAsync(new ListEventsQuery(LineageRootJobId: parent.JobId, PageSize: 100));
 var events = eventsPage.Items.Reverse().ToList();
 foreach (var e in events)
 {

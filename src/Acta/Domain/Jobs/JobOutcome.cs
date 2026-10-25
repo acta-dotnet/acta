@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.RunAndWaitAsync{TInput}"/>: the terminal outcome
+/// Await-to-completion outcome returned by <see cref="IJobs.WaitAsync"/> and <see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>: the terminal outcome
 /// (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; returned, never thrown.
 /// Construction is gated to the framework (private-protected constructor, internal factories) so no caller can
 /// synthesise an inconsistent <c>(TerminalStatus, IsTimedOut)</c> pair. The terminal cause is not carried here; read
@@ -9,14 +9,16 @@ namespace Acta;
 /// </summary>
 public class JobOutcome
 {
-    private protected JobOutcome(long jobId, JobStatusCode terminalStatus, bool isTimedOut)
+    private protected JobOutcome(long jobId, JobRef jobRef, JobStatusCode terminalStatus, bool isTimedOut)
     {
         JobId = jobId;
+        JobRef = jobRef;
         TerminalStatus = terminalStatus;
         IsTimedOut = isTimedOut;
     }
 
     public long JobId { get; }
+    public JobRef JobRef { get; }
     public JobStatusCode TerminalStatus { get; }
     public bool IsTimedOut { get; }
 
@@ -42,25 +44,26 @@ public class JobOutcome
         throw new JobFailedException(JobId, TerminalStatus);
     }
 
-    internal static JobOutcome Succeeded(long jobId) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false);
+    internal static JobOutcome Succeeded(long jobId, JobRef jobRef) => new(jobId, jobRef, JobStatusCode.Succeeded, isTimedOut: false);
 
-    internal static JobOutcome Failed(long jobId) => new(jobId, JobStatusCode.Failed, isTimedOut: false);
+    internal static JobOutcome Failed(long jobId, JobRef jobRef) => new(jobId, jobRef, JobStatusCode.Failed, isTimedOut: false);
 
-    internal static JobOutcome Cancelled(long jobId) => new(jobId, JobStatusCode.Cancelled, isTimedOut: false);
+    internal static JobOutcome Cancelled(long jobId, JobRef jobRef) => new(jobId, jobRef, JobStatusCode.Cancelled, isTimedOut: false);
 
-    internal static JobOutcome TimedOut(long jobId, JobStatusCode lastObservedStatus) => new(jobId, lastObservedStatus, isTimedOut: true);
+    internal static JobOutcome TimedOut(long jobId, JobRef jobRef, JobStatusCode lastObservedStatus) =>
+        new(jobId, jobRef, lastObservedStatus, isTimedOut: true);
 }
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>. Extends
+/// Await-to-completion outcome returned by <see cref="IJobs.WaitAsync{TResult}"/> and <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>. Extends
 /// <see cref="JobOutcome"/> with the handler's typed <typeparamref name="T"/> result on <c>Succeeded</c>;
 /// it is returned, never thrown.
 /// </summary>
 public sealed class JobOutcome<T> : JobOutcome
     where T : notnull
 {
-    private JobOutcome(long jobId, JobStatusCode terminalStatus, bool isTimedOut, T? value)
-        : base(jobId, terminalStatus, isTimedOut)
+    private JobOutcome(long jobId, JobRef jobRef, JobStatusCode terminalStatus, bool isTimedOut, T? value)
+        : base(jobId, jobRef, terminalStatus, isTimedOut)
     {
         Value = value;
     }
@@ -90,12 +93,15 @@ public sealed class JobOutcome<T> : JobOutcome
         return Value ?? throw new InvalidOperationException($"Job {JobId} succeeded but the result Value is null.");
     }
 
-    internal static JobOutcome<T> Succeeded(long jobId, T value) => new(jobId, JobStatusCode.Succeeded, isTimedOut: false, value);
+    internal static JobOutcome<T> Succeeded(long jobId, JobRef jobRef, T value) =>
+        new(jobId, jobRef, JobStatusCode.Succeeded, isTimedOut: false, value);
 
-    internal static new JobOutcome<T> Failed(long jobId) => new(jobId, JobStatusCode.Failed, isTimedOut: false, value: default);
+    internal static new JobOutcome<T> Failed(long jobId, JobRef jobRef) =>
+        new(jobId, jobRef, JobStatusCode.Failed, isTimedOut: false, value: default);
 
-    internal static new JobOutcome<T> Cancelled(long jobId) => new(jobId, JobStatusCode.Cancelled, isTimedOut: false, value: default);
+    internal static new JobOutcome<T> Cancelled(long jobId, JobRef jobRef) =>
+        new(jobId, jobRef, JobStatusCode.Cancelled, isTimedOut: false, value: default);
 
-    internal static new JobOutcome<T> TimedOut(long jobId, JobStatusCode lastObservedStatus) =>
-        new(jobId, lastObservedStatus, isTimedOut: true, value: default);
+    internal static new JobOutcome<T> TimedOut(long jobId, JobRef jobRef, JobStatusCode lastObservedStatus) =>
+        new(jobId, jobRef, lastObservedStatus, isTimedOut: true, value: default);
 }

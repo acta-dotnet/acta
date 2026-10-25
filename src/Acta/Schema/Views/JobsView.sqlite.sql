@@ -19,20 +19,16 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || CAST(j.input_format_id AS TEXT)
     END AS input_format,
-    CASE WHEN j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(j.input AS TEXT) END
-        AS input_text,
+    CASE WHEN j.input_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(j.input AS TEXT) END AS input_text,
     CASE r.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || CAST(r.result_format_id AS TEXT)
     END AS result_format,
-    CASE WHEN r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(r.result AS TEXT) END
-        AS result_text,
+    CASE WHEN r.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(r.result AS TEXT) END AS result_text,
     r.next_run_at_utc,
     r.execution_number,
     r.failure_count,

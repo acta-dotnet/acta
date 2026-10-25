@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Generator-emitted per-assembly manifest carrying every <c>[Job]</c>-decorated handler's
 /// descriptor. Namespace binding happens at registration time via
-/// <c>IActaBuilder.AddManifest&lt;TManifest&gt;</c>; the manifest is namespace-neutral and carries
+/// <c>IActaBuilder.Run&lt;TManifest&gt;</c> or <c>IWorkerBuilder.AddManifest&lt;TManifest&gt;</c>; the manifest is namespace-neutral and carries
 /// no runtime/worker identity.
 /// </summary>
 public interface IJobManifest

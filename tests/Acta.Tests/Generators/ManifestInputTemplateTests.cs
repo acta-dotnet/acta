@@ -105,13 +105,45 @@ public class ManifestInputTemplateTests
 
             public static class Handler
             {
-                [Job("relay", InputFormat = "text")]
+                [Job("relay", InputFormat = "bytes")]
                 public static void Run(Message input) { }
             }
             """
         );
 
         Assert.DoesNotContain("InputTemplateJson", generated);
+    }
+
+    // A null root would fail deserialization, so a scalar or collection input starts from its kind's empty value.
+    [Theory]
+    [InlineData("int", "0")]
+    [InlineData("decimal", "0")]
+    [InlineData("bool", "false")]
+    [InlineData("string", "\"\"")]
+    [InlineData("System.Guid", "\"\"")]
+    [InlineData("System.DateTimeOffset", "\"\"")]
+    [InlineData("GenTests.Color", "\"\"")]
+    [InlineData("int[]", "[]")]
+    [InlineData("System.Collections.Generic.List<string>", "[]")]
+    [InlineData("System.Collections.Generic.Dictionary<string, int>", "{}")]
+    public void Scalar_and_collection_inputs_start_from_an_empty_value(string inputType, string expectedJson)
+    {
+        var generated = Generate(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public enum Color { Red }
+
+            public static class Handler
+            {
+                [Job("echo")]
+                public static void Run({{inputType}} input) { }
+            }
+            """
+        );
+
+        AssertTemplate(generated, expectedJson);
     }
 
     [Fact]

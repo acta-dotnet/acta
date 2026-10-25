@@ -1,7 +1,9 @@
 // Pure seeding rules for the enqueue form's input editor, kept out of the component so node --test
-// can exercise them without the Svelte runtime (same split the rest of routes/*.ts uses).
+// can exercise them without the Svelte runtime (same split the rest of routes/*.ts uses). The editor
+// holds JSON text, never a parsed value, so a clone or a typed number keeps every digit (lib/rawJson.ts).
 
 import type { JobInputTemplate, JobPayloadView } from '../api.ts';
+import { jsonError, prettyJson, RawJson } from '../lib/rawJson.ts';
 
 // The muted contract line under the job-name field. Null when this host does not know the job, so
 // the form shows nothing rather than an empty hint.
@@ -17,44 +19,27 @@ export function inputContractLabel(template: JobInputTemplate | null | undefined
 export function templateSeed(
   template: JobInputTemplate | null | undefined,
   state: { edited: boolean; clonePrefilled: boolean }
-): unknown | undefined {
+): string | undefined {
   if (state.edited || state.clonePrefilled) return undefined;
   if (template?.templateJson === null || template?.templateJson === undefined) return undefined;
-  return JSON.parse(template.templateJson);
+  return prettyJson(template.templateJson);
 }
 
-// The enqueue form's input, kept format-faithful so a clone round-trips its stored format. v1 handles
-// the simple formats: `format` is the submit discriminator, `json`/`text` hold the editable value.
-export interface EnqueueInputState {
-  format: 'json' | 'text';
-  json: unknown;
-  text: string;
+// Clone prefill seeds the editor with a json source's stored text. Returns null to leave the form
+// untouched (none, a binary or malformed source, an over-cap truncated source with no body, or a clone
+// that could not be read); binary clones are out of scope.
+export function cloneInputState(payload: JobPayloadView | null | undefined): string | null {
+  if (payload?.truncated || payload?.formatName !== 'json' || payload.json === undefined) return null;
+  return prettyJson(payload.json);
 }
 
-// Clone prefill preserves the source format (input_id) for the simple formats: json/text seed their
-// editor. Returns null to leave the form untouched (none, a binary format, an over-cap truncated
-// source with no body, or a clone that could not be read); v1 does not seed binary clones.
-export function cloneInputState(payload: JobPayloadView | null | undefined): EnqueueInputState | null {
-  if (payload?.truncated) return null;
-  if (payload?.formatName === 'json' && payload.json !== undefined) {
-    return { format: 'json', json: payload.json, text: '' };
-  }
-  if (payload?.formatName === 'text' && payload.text !== undefined) {
-    return { format: 'text', json: {}, text: payload.text };
-  }
-  return null;
-}
-
-// The enqueue input fields for the active format: `input` (json) or `text`, or nothing when input is
-// disabled. Absent fields stay absent so the POST omits them. A literal null json is blocked with an
-// clear message (mirroring amendBody): the backend reads null as "no field", so submitting it would
-// silently enqueue a no-input job.
-export function enqueueInputFields(
-  include: boolean,
-  state: EnqueueInputState
-): { fields: { input?: unknown; text?: string } } | { error: string } {
+// The enqueue input field: the editor's JSON text sent verbatim, or nothing when input is disabled. A
+// literal null is blocked with a clear message (mirroring amendBody): the backend reads null as "no
+// field", so submitting it would silently enqueue a no-input job.
+export function enqueueInputFields(include: boolean, json: string): { fields: { input?: RawJson } } | { error: string } {
   if (!include) return { fields: {} };
-  if (state.format === 'text') return { fields: { text: state.text } };
-  if (state.json === null) return { error: 'A null input cannot be stored.' };
-  return { fields: { input: state.json } };
+  const error = jsonError(json);
+  if (error) return { error };
+  if (json.trim() === 'null') return { error: 'A null input cannot be stored.' };
+  return { fields: { input: new RawJson(json) } };
 }

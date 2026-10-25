@@ -18,14 +18,14 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // Same timing as 307 (2s deadline, first run held 4s), so the job is overdue when the handler starts.
 // An Advisory deadline never auto-terminates: the handler runs anyway and decides what to do.
-var outcome = await jobs.EnqueueAsync(new GenerateReport("q3"), o => o.Delayed(TimeSpan.FromSeconds(4)));
+var handle = await jobs.ScheduleAsync(new GenerateReport("q3"), TimeSpan.FromSeconds(4));
 Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] enqueued; 2s deadline, but the first run is held 4s.");
 
 GetJobResponse? snapshot;
 do
 {
     await Task.Delay(500);
-    snapshot = await jobs.GetAsync(outcome);
+    snapshot = await jobs.GetAsync(handle);
 } while (snapshot is null or { Status: not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled) });
 
 // Done: the handler ran past the deadline and chose the reduced path itself.

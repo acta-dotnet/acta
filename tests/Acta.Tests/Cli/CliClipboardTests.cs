@@ -150,6 +150,23 @@ public class CliRunnerClipboardTests
         Assert.Equal(json, System.Text.Encoding.UTF8.GetString(Value!));
     }
 
+    [Fact]
+    public async Task Signal_with_a_value_that_is_not_json_is_a_usage_error_and_raises_nothing()
+    {
+        var jobs = new NothingJobs();
+        var error = new StringWriter();
+        var runner = new CliCommandRunner(jobs, jobs, [], ["shop"], new StringWriter(), error, () => null);
+
+        var exit = await runner.RunAsync(
+            new CliCommand(CliVerb.Signal, Target: "42", SignalName: "approval", SignalValue: "approved", null, null, Json: false),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(64, exit);
+        Assert.StartsWith("--value:", error.ToString());
+        Assert.Empty(jobs.Signals);
+    }
+
     /// <summary>
     /// The read verbs resolve the target once, up front, then read again. Between the two the row can
     /// be purged - and "the job produced nothing" and "the job is gone" arrive at the CLI identically.
@@ -281,15 +298,18 @@ public class CliRunnerClipboardTests
 
         public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) => null;
 
-        public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
+        public ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
+            where TInput : notnull => throw new NotSupportedException();
+
+        public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
             TInput input,
-            JobEnqueueOptions? options = null,
+            JobExecutionOptions? options = null,
             CancellationToken ct = default
         )
             where TInput : notnull => throw new NotSupportedException();
 
         public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
-            TInput input,
+            JobCall<TInput> job,
             JobExecutionOptions? options = null,
             CancellationToken ct = default
         )
@@ -303,31 +323,46 @@ public class CliRunnerClipboardTests
             where TInput : notnull
             where TResult : notnull => throw new NotSupportedException();
 
+        public ValueTask<JobHandle> EnqueueAsync<TInput>(
+            JobCall<TInput> job,
+            Action<JobEnqueueOptionsBuilder>? configure = null,
+            CancellationToken ct = default
+        )
+            where TInput : notnull => throw new NotSupportedException();
+
+        public ValueTask<JobHandle<TResult>> EnqueueAsync<TInput, TResult>(
+            JobCall<TInput, TResult> job,
+            Action<JobEnqueueOptionsBuilder>? configure = null,
+            CancellationToken ct = default
+        )
+            where TInput : notnull
+            where TResult : notnull => throw new NotSupportedException();
+
         public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
-            JobContract<TInput> job,
-            TInput input,
-            JobEnqueueOptions? options = null,
+            System.Data.Common.DbTransaction transaction,
+            JobCall<TInput> job,
+            Action<JobEnqueueOptionsBuilder>? configure = null,
             CancellationToken ct = default
         )
             where TInput : notnull => throw new NotSupportedException();
 
         public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
-            JobContract<TInput, TResult> job,
-            TInput input,
-            JobEnqueueOptions? options = null,
+            System.Data.Common.DbTransaction transaction,
+            JobCall<TInput, TResult> job,
+            Action<JobEnqueueOptionsBuilder>? configure = null,
             CancellationToken ct = default
         )
-            where TInput : notnull => throw new NotSupportedException();
+            where TInput : notnull
+            where TResult : notnull => throw new NotSupportedException();
 
-        public ValueTask<EnqueueJobResponse> EnqueueAsync(
-            JobContract<NoInput> job,
-            JobEnqueueOptions? options = null,
-            CancellationToken ct = default
-        ) => throw new NotSupportedException();
+        public ValueTask<JobOutcome> WaitAsync(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
+            where TResult : notnull => throw new NotSupportedException();
 
         public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
-            JobContract<TInput, TResult> job,
-            TInput input,
+            JobCall<TInput, TResult> job,
             JobExecutionOptions? options = null,
             CancellationToken ct = default
         )
@@ -352,31 +387,6 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         )
             where TInput : notnull => throw new NotSupportedException();
-
-        public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
-            System.Data.Common.DbTransaction transaction,
-            JobContract<TInput> job,
-            TInput input,
-            JobEnqueueOptions? options = null,
-            CancellationToken ct = default
-        )
-            where TInput : notnull => throw new NotSupportedException();
-
-        public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
-            System.Data.Common.DbTransaction transaction,
-            JobContract<TInput, TResult> job,
-            TInput input,
-            JobEnqueueOptions? options = null,
-            CancellationToken ct = default
-        )
-            where TInput : notnull => throw new NotSupportedException();
-
-        public ValueTask<EnqueueJobResponse> EnqueueAsync(
-            System.Data.Common.DbTransaction transaction,
-            JobContract<NoInput> job,
-            JobEnqueueOptions? options = null,
-            CancellationToken ct = default
-        ) => throw new NotSupportedException();
 
         public ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(
             System.Data.Common.DbTransaction transaction,

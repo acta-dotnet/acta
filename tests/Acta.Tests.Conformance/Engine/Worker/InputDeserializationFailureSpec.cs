@@ -21,7 +21,8 @@ public sealed class InputDeserializationFailureSpec : ActaRuntimeTestBase<Confor
     public async Task Malformed_input_is_settled_and_recorded_on_the_job_timeline()
     {
         var ct = TestContext.Current.CancellationToken;
-        var malformed = JobPayload.CopyBytes(JobPayloadFormat.Json, "{\"left\":1} trailing"u8);
+        // Strict JSON that does not fit the handler's input type: an array where AddNumbers is an object.
+        var malformed = JobPayload.CopyBytes(JobPayloadFormat.Json, "[1,2]"u8);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", malformed), ct);
 
         await Runtime.RunOnceAsync(enqueued, ct);

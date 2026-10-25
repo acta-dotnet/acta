@@ -9,7 +9,7 @@ namespace Acta;
 /// Built-in <see cref="IJobPayloadSerializer"/> for <see cref="JobPayloadFormat.Json"/>. Wraps
 /// <see cref="System.Text.Json.JsonSerializer"/> with the framework's <see cref="DefaultJsonOptions"/>:
 /// Web defaults (camelCase property names, case-insensitive reads), enums as camelCase strings,
-/// trailing commas and comments tolerated, numbers readable from JSON strings. Consumer apps needing
+/// strict JSON on input, numbers readable from JSON strings. Consumer apps needing
 /// different behavior either supply their own <see cref="JsonSerializerOptions"/> through the
 /// constructor or register a different <see cref="IJobPayloadSerializer"/> for the <c>json</c> format id.
 /// </summary>
@@ -18,10 +18,10 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
     /// <summary>
     /// Framework defaults: the <see cref="JsonSerializerDefaults.Web"/> baseline (camelCase names plus
     /// <see cref="JsonNumberHandling.AllowReadingFromString"/>); reads are case-insensitive for property names and
-    /// enum strings; enums emit as camelCase strings but tolerate numbers; trailing commas and <c>//</c> comments are
-    /// accepted on input. <see cref="JsonSerializerOptions.DefaultIgnoreCondition"/> is pinned to
-    /// <see cref="JsonIgnoreCondition.Never"/> so nulls and defaults round-trip, letting the receiver tell a null field
-    /// from an omitted one.
+    /// enum strings; enums emit as camelCase strings but tolerate numbers; input is strict JSON, the rule
+    /// <see cref="JobPayload.FromBytes"/> enforces. <see cref="JsonSerializerOptions.DefaultIgnoreCondition"/> is
+    /// pinned to <see cref="JsonIgnoreCondition.Never"/> so nulls and defaults round-trip, letting the receiver tell a
+    /// null field from an omitted one.
     /// </summary>
     public static JsonSerializerOptions DefaultJsonOptions { get; } = BuildDefaults(resolver: null);
 
@@ -69,8 +69,6 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
             // JsonSerializerDefaults can't silently flip our wire shape, and so consumers copying
             // these options into a different baseline see what we depend on).
             PropertyNameCaseInsensitive = true,
-            AllowTrailingCommas = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         };
         // Read the feature switch DIRECTLY in the condition (not via a local): the trim/AOT analyzers
@@ -118,7 +116,7 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
     {
         var typeInfo = (JsonTypeInfo<T>)_options.GetTypeInfo(typeof(T));
         var bytes = JsonSerializer.SerializeToUtf8Bytes(value, typeInfo);
-        return JobPayload.FromBytes(Format, bytes);
+        return JobPayload.Trusted(Format, bytes);
     }
 
     public T Deserialize<T>(JobPayload payload)
@@ -135,12 +133,31 @@ public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJ
 }
 
 /// <summary>
-/// Source-generated metadata for every value Acta persists itself through the job payload serializer: the
-/// <c>sys.alerts</c> cursor and its poison records (a string), and the <c>sys.retention</c> jobs cursor and a bounded
-/// group wait's deadline (each a long). A reflection-off build chains it after the app's resolver
+/// Source-generated metadata for every value Acta persists itself through the job payload serializer (the
+/// <c>sys.alerts</c> cursor, its poison records, the <c>sys.retention</c> cursor, a bounded group wait's deadline)
+/// and for the standard scalars, so a reflection-off app needs no registration for a scalar input, result,
+/// variable, or schedule seed. A reflection-off build chains it after the app's resolver
 /// (<see cref="JsonJobPayloadSerializer.ReflectionFreeResolver"/>).
 /// </summary>
 [JsonSerializable(typeof(AlertsCursor))]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(char))]
+[JsonSerializable(typeof(sbyte))]
+[JsonSerializable(typeof(byte))]
+[JsonSerializable(typeof(short))]
+[JsonSerializable(typeof(ushort))]
+[JsonSerializable(typeof(int))]
+[JsonSerializable(typeof(uint))]
 [JsonSerializable(typeof(long))]
+[JsonSerializable(typeof(ulong))]
+[JsonSerializable(typeof(float))]
+[JsonSerializable(typeof(double))]
+[JsonSerializable(typeof(decimal))]
+[JsonSerializable(typeof(DateTime))]
+[JsonSerializable(typeof(DateTimeOffset))]
+[JsonSerializable(typeof(DateOnly))]
+[JsonSerializable(typeof(TimeOnly))]
+[JsonSerializable(typeof(TimeSpan))]
+[JsonSerializable(typeof(Guid))]
 internal sealed partial class ActaSystemJobJsonContext : JsonSerializerContext;

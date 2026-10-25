@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Serializer contract for encoding handler inputs, results, and checkpoint payloads to bytes and
 /// decoding bytes back to typed values. Built-in serializers occupy <see cref="JobPayloadFormat"/>
-/// ids 1 to 3 (<c>json</c>, <c>bytes</c>, <c>text</c>); operator-supplied serializers declare their
+/// ids 1 and 2 (<c>json</c>, <c>bytes</c>); operator-supplied serializers declare their
 /// format via <see cref="JobPayloadFormatDeclarationAttribute"/> and claim ids 128 to 255.
 /// </summary>
 public interface IJobPayloadSerializer

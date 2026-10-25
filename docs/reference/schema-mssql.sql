@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261023212758_init')
+    WHERE name NOT IN ('M20261024213527_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261023212758_init =====
+-- ===== BEGIN M20261024213527_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -4577,12 +4577,11 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', c.value_format_id)
     END AS value_format,
     CASE
         WHEN
-            c.value_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            c.value_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(c.value AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS value_text,
     c.created_at_utc,
@@ -4684,12 +4683,11 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', e.details_format_id)
     END AS details_format,
     CASE
         WHEN
-            e.details_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            e.details_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS details_text
 FROM acta.events AS e
@@ -4723,24 +4721,22 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', j.input_format_id)
     END AS input_format,
     CASE
         WHEN
-            j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            j.input_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(j.input AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS input_text,
     CASE r.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', r.result_format_id)
     END AS result_format,
     CASE
         WHEN
-            r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            r.result_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(r.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS result_text,
     r.next_run_at_utc,
@@ -4819,12 +4815,11 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', s.result_format_id)
     END AS result_format,
     CASE
         WHEN
-            s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            s.result_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(s.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS result_text,
     s.created_at_utc,
@@ -4869,11 +4864,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261023212758_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261024213527_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261023212758_init');
+VALUES ('M20261024213527_init');
 GO
--- ===== END M20261023212758_init =====
+-- ===== END M20261024213527_init =====
 GO
 COMMIT TRANSACTION;
 GO

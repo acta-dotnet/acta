@@ -16,16 +16,16 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-var outcome = await jobs.EnqueueAsync(new BigExport("export-1"));
+var handle = await jobs.EnqueueAsync(new BigExport("export-1"));
 await Task.Delay(500); // let it start running
-Console.WriteLine($"status while running: {(await jobs.GetStatusAsync(outcome))?.Status}");
+Console.WriteLine($"status while running: {(await handle.GetStatusAsync())?.Status}");
 
 // Operator cancel from outside the handler: any process holding an IJobs trips a running job's CancellationToken.
-var result = await jobs.CancelAsync(outcome, "operator aborted the export");
+var result = await handle.CancelAsync("operator aborted the export");
 Console.WriteLine($"cancel result: {result.Action}");
 
-await Task.Delay(500);
-var snapshot = await jobs.GetAsync(outcome);
+await handle.WaitAsync();
+var snapshot = await jobs.GetAsync(handle);
 Console.WriteLine($"final status: {snapshot!.Status}");
 
 await host.StopAsync();

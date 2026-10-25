@@ -43,12 +43,12 @@ internal static class EnqueueJobEndpoint
                     }
 
                     var hasInput = body.Input is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) };
-                    if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) > 1)
+                    if (hasInput && body.Base64 is not null)
                     {
                         return ControlEndpointValidation.Problem(
                             StatusCodes.Status400BadRequest,
                             "Invalid request.",
-                            "At most one of input, text, or base64 may be supplied."
+                            "At most one of input or base64 may be supplied."
                         );
                     }
 
@@ -88,21 +88,6 @@ internal static class EnqueueJobEndpoint
                         }
 
                         input = JobPayload.FromBytes(JobPayloadFormat.ForId(formatId), decoded);
-                    }
-                    else if (body.Text is not null)
-                    {
-                        try
-                        {
-                            input = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
-                        }
-                        catch (ArgumentException)
-                        {
-                            return ControlEndpointValidation.Problem(
-                                StatusCodes.Status400BadRequest,
-                                "Invalid request.",
-                                "text cannot contain U+0000."
-                            );
-                        }
                     }
                     else
                     {

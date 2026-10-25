@@ -35,34 +35,29 @@ internal sealed class JobsOperations(
     public ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
-        TInput input,
-        JobEnqueueOptions? options = null,
+    public ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
+        where TInput : notnull => HandleAsync(routing.FromInput(input, options), ct);
+
+    public ValueTask<JobHandle> EnqueueAsync<TInput>(
+        JobCall<TInput> job,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
-        where TInput : notnull => EnqueueAsync(routing.FromInput(input, options), ct);
+        where TInput : notnull => HandleAsync(routing.FromCall(job, Options(configure)), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
-        JobContract<TInput> job,
-        TInput input,
-        JobEnqueueOptions? options = null,
+    public ValueTask<JobHandle<TResult>> EnqueueAsync<TInput, TResult>(
+        JobCall<TInput, TResult> job,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
-        where TInput : notnull => EnqueueAsync(routing.FromContract(job, input, options), ct);
+        where TInput : notnull
+        where TResult : notnull => HandleAsync<TResult>(routing.FromCall(job, Options(configure)), ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
-        JobContract<TInput, TResult> job,
-        TInput input,
-        JobEnqueueOptions? options = null,
-        CancellationToken ct = default
-    )
-        where TInput : notnull => EnqueueAsync((JobContract<TInput>)job, input, options, ct);
+    public ValueTask<JobOutcome> WaitAsync(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default) =>
+        JobRunAndWait.WaitAsync(this, wakeup, job, timeout, ct);
 
-    public ValueTask<EnqueueJobResponse> EnqueueAsync(
-        JobContract<NoInput> job,
-        JobEnqueueOptions? options = null,
-        CancellationToken ct = default
-    ) => EnqueueAsync(routing.FromContract(job, default, options), ct);
+    public ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
+        where TResult : notnull => JobRunAndWait.WaitAsync<TResult>(this, wakeup, routing, getResult, job, timeout, ct);
 
     public ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default) =>
         enqueueJobs.HandleAsync(new EnqueueJobsCommand(requests), ct);
@@ -83,28 +78,20 @@ internal sealed class JobsOperations(
 
     public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
-        JobContract<TInput> job,
-        TInput input,
-        JobEnqueueOptions? options = null,
+        JobCall<TInput> job,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
-        where TInput : notnull => EnqueueAsync(transaction, routing.FromContract(job, input, options), ct);
+        where TInput : notnull => EnqueueAsync(transaction, routing.FromCall(job, Options(configure)), ct);
 
     public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
-        JobContract<TInput, TResult> job,
-        TInput input,
-        JobEnqueueOptions? options = null,
+        JobCall<TInput, TResult> job,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
-        where TInput : notnull => EnqueueAsync(transaction, (JobContract<TInput>)job, input, options, ct);
-
-    public ValueTask<EnqueueJobResponse> EnqueueAsync(
-        DbTransaction transaction,
-        JobContract<NoInput> job,
-        JobEnqueueOptions? options = null,
-        CancellationToken ct = default
-    ) => EnqueueAsync(transaction, routing.FromContract(job, default, options), ct);
+        where TInput : notnull
+        where TResult : notnull => EnqueueAsync(transaction, routing.FromCall(job, Options(configure)), ct);
 
     public ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(
         DbTransaction transaction,
@@ -124,23 +111,21 @@ internal sealed class JobsOperations(
         where TResult : notnull =>
         JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, getResult, o => routing.FromInput(input, o), options, ct);
 
+    public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
+        JobCall<TInput> job,
+        JobExecutionOptions? options = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromCall(job, o), options, ct);
+
     public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
-        JobContract<TInput, TResult> job,
-        TInput input,
+        JobCall<TInput, TResult> job,
         JobExecutionOptions? options = null,
         CancellationToken ct = default
     )
         where TInput : notnull
         where TResult : notnull =>
-        JobRunAndWait.RunAsync<TResult>(
-            this,
-            wakeup,
-            routing,
-            getResult,
-            o => routing.FromContract((JobContract<TInput>)job, input, o, typeof(TResult)),
-            options,
-            ct
-        );
+        JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, getResult, o => routing.FromCall(job, o), options, ct);
 
     public ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) =>
         getJobId.HandleAsync(new GetJobIdQuery(job), ct);
@@ -292,4 +277,29 @@ internal sealed class JobsOperations(
     /// <summary>A child enqueue of an explicit route, under its parent's fence like the typed one.</summary>
     internal ValueTask<EnqueueJobResponse> EnqueueChildAsync(EnqueueJobRequest request, ExecutionFence parent, CancellationToken ct) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request, ParentFence: parent), ct);
+
+    // A typed enqueue's handle carries the committed id, so each of its verbs is one round trip.
+    private async ValueTask<JobHandle> HandleAsync(EnqueueJobRequest request, CancellationToken ct)
+    {
+        var enqueued = await EnqueueAsync(request, ct);
+        return new JobHandle(this, enqueued.JobId, enqueued.JobRef, enqueued.Action);
+    }
+
+    private async ValueTask<JobHandle<TResult>> HandleAsync<TResult>(EnqueueJobRequest request, CancellationToken ct)
+        where TResult : notnull
+    {
+        var enqueued = await EnqueueAsync(request, ct);
+        return new JobHandle<TResult>(this, enqueued.JobId, enqueued.JobRef, enqueued.Action);
+    }
+
+    private static JobEnqueueOptions? Options(Action<JobEnqueueOptionsBuilder>? configure)
+    {
+        if (configure is null)
+        {
+            return null;
+        }
+        var builder = new JobEnqueueOptionsBuilder();
+        configure(builder);
+        return builder.Build();
+    }
 }

@@ -18,7 +18,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // EnqueueAsync returns immediately, before the job runs.
 var enqueued = await jobs.EnqueueAsync(new AddNumbers(1, 1));
-Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await jobs.GetStatusAsync(enqueued))?.Status}");
+Console.WriteLine($"EnqueueAsync returned right away: job {enqueued.JobRef}, status {(await enqueued.GetStatusAsync())?.Status}");
 
 // RunAndWaitAsync enqueues, then waits and returns the result. (See 013-read-result for the read-back path.)
 var executed = await jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(new AddNumbers(2, 2));

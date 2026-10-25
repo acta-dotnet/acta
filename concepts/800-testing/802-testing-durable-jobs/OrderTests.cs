@@ -18,7 +18,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         // First tick: reserve runs, then the job suspends waiting for approval (re-armed, not done).
         Assert.Equal(ActaRunStatus.Rearmed, await Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Suspended, (await Jobs.GetStatusAsync(enqueued, Ct))?.Status);
+        Assert.Equal(JobStatusCode.Suspended, (await enqueued.GetStatusAsync(Ct))?.Status);
 
         // The approval API raises a typed decision; the job moves to Ready.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(true, "alice"), ct: Ct);
@@ -26,9 +26,9 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         // Second tick: the job replays (reserve is NOT re-run), the signal is Set, charge runs, Done.
         Assert.Equal(ActaRunStatus.Completed, await Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, Ct))?.Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync(Ct))?.Status);
 
-        var result = await Jobs.GetResultAsync<OrderResult>(enqueued, Ct);
+        var result = await enqueued.GetResultAsync<OrderResult>(Ct);
         Assert.True(result!.Charged);
         Assert.Equal(1, OrderJob.ReserveCount); // reserve ran exactly once across the replay
     }
@@ -44,7 +44,7 @@ public sealed class OrderTests(ActaHostFixture acta) : ActaTestBase(acta)
         await Jobs.RaiseSignalAsync(enqueued, "approval", new ApprovalDecision(false, "bob"), ct: Ct);
 
         Assert.Equal(ActaRunStatus.Completed, await Host.RunOnceAsync(enqueued, Ct));
-        var result = await Jobs.GetResultAsync<OrderResult>(enqueued, Ct);
+        var result = await enqueued.GetResultAsync<OrderResult>(Ct);
         Assert.False(result!.Charged);
     }
 }

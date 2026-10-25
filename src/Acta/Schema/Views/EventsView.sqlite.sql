@@ -23,11 +23,9 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || CAST(e.details_format_id AS TEXT)
     END AS details_format,
-    CASE WHEN e.details_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.details AS TEXT) END
-        AS details_text
+    CASE WHEN e.details_format_id = 1 /* JobPayloadFormat.Json */ THEN CAST(e.details AS TEXT) END AS details_text
 FROM {{schema}}.events AS e
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = e.namespace_id
 LEFT JOIN {{schema}}.definitions AS d ON d.definition_id = e.definition_id

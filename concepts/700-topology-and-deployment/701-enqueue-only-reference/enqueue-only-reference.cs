@@ -37,24 +37,14 @@ Console.WriteLine("Frontend host started: Reference only - no worker, so no hand
 
 // Enqueue from the frontend host; it can reach the job type through the reference.
 var frontendJobs = frontendHost.Services.GetRequiredService<IJobs>();
-var outcome = await frontendJobs.EnqueueAsync(new WelcomeUser("alice"));
-Console.WriteLine($"Frontend enqueued job {outcome.JobRef} (action={outcome.Action})");
+var handle = await frontendJobs.EnqueueAsync(new WelcomeUser("alice"));
+Console.WriteLine($"Frontend enqueued job {handle.JobRef} (action={handle.Action})");
 
-// Poll until the worker finishes the job; polling lets the rung exit as soon as the job
-// is done rather than relying on a fixed sleep.
+// WaitAsync returns as soon as the worker finishes the job; the frontend reads the same database.
 Console.WriteLine("Waiting for worker to drain...");
-var workerJobs = workerHost.Services.GetRequiredService<IJobs>();
-while (true)
-{
-    var status = (await workerJobs.GetStatusAsync(outcome))?.Status;
-    if (status is { } s && s.IsTerminal)
-    {
-        break;
-    }
-    await Task.Delay(100);
-}
+await handle.WaitAsync();
 
-var snapshot = await workerJobs.GetAsync(outcome);
+var snapshot = await frontendJobs.GetAsync(handle);
 Console.WriteLine($"Job status after worker drain: {snapshot!.Status}");
 
 await frontendHost.StopAsync();

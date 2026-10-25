@@ -113,6 +113,22 @@ public sealed class SignalEndpointTests
         Assert.Empty(fakes.Jobs.SignalCalls);
     }
 
+    [Theory]
+    [InlineData("{\"approved\":true,}")]
+    [InlineData("{broken")]
+    [InlineData("approved")]
+    public async Task Body_that_is_not_one_strict_json_value_is_400_and_never_reaches_jobs(string body)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Post(Found, "approval", body), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Jobs.SignalCalls);
+    }
+
     [Fact]
     public async Task Unknown_job_is_404()
     {

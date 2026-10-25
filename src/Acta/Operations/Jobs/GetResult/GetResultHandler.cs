@@ -11,7 +11,7 @@ internal sealed class GetResultHandler(GetJobIdHandler getJobId, IDbSession sess
         }
 
         var record = await ReadAsync(jobId, executionNumber: null, ct);
-        return record is null ? null : new GetResultResponse(JobPayload.FromBytes(record.Format, record.Data.ToArray()));
+        return record is null ? null : new GetResultResponse(JobPayload.Trusted(record.Format, record.Data.ToArray()));
     }
 
     /// <summary>

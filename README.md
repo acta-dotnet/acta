@@ -46,10 +46,14 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
 
-await app.StartAsync();
-await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
-Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
-await app.WaitForShutdownAsync();
+// Your own endpoint enqueues: the job is a durable row before the response goes out.
+app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
+{
+    var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
+    return Results.Accepted("/acta", new { job.JobRef });
+});
+
+app.Run();
 
 public sealed record ShipOrder(int OrderId);
 
@@ -62,8 +66,20 @@ public static class ShippingHandlers
 
 ```bash
 dotnet run
-# Enqueued. Dashboard: http://localhost:5090/acta
-# Shipping order 1042
+# then, in a second terminal, on the port dotnet run printed:
+curl -X POST http://localhost:5090/orders/1042
+# the app prints: Shipping order 1042
+```
+
+The endpoint returns `202 Accepted` with the job's ref as soon as the row is stored, and a worker in the same
+process runs it. To run a job later or follow it to its outcome:
+
+```csharp
+// Run it later: one job, held until its time. A recurring schedule is [JobSchedule].
+var reminder = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));
+
+// Follow a job: the handle waits for the outcome, and a timeout stops the wait, never the job.
+var outcome = await reminder.WaitAsync(TimeSpan.FromSeconds(30));
 ```
 
 Open the dashboard: the Jobs screen lists `ship-order` as completed. The job was a row in `acta-local.db`

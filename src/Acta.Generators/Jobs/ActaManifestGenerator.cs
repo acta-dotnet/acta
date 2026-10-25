@@ -160,11 +160,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         var parameterModel = AnalyzeParameters(method, location, diagnostics);
         var returnModel = AnalyzeReturnType(method, location, parameterModel, diagnostics);
-
-        if (parameterModel?.InputType is { } forbiddenCandidate && IsForbiddenInputType(forbiddenCandidate))
-        {
-            diagnostics.Add(ManifestDiagnostics.ForbiddenInputType(method, forbiddenCandidate, location));
-        }
+        CheckInputParameters(method, parameterModel, location, diagnostics);
 
         return BuildDiscoveredJob(method, jobName, attr, diagnostics, parameterModel, returnModel, schedules);
     }
@@ -174,14 +170,15 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string jobName,
         AttributeData attr,
         List<DiagnosticRecord> diagnostics,
-        ParameterModel? parameterModel,
+        ParameterModel parameterModel,
         ReturnTypeModel? returnModel,
         ImmutableArray<DiscoveredSchedule> schedules
     )
     {
         var policy = ReadAttributePolicy(attr, diagnostics, method.Locations.FirstOrDefault() ?? Location.None);
 
-        var inputType = parameterModel?.InputType;
+        var inputType = parameterModel.InputType;
+        var takesArguments = parameterModel.InputParameters.Length > 1;
         var outputType = returnModel?.OutputType;
 
         // Symmetric to the input rule: a parameterless data-less TOut (e.g. `Task<Acked>` where
@@ -220,19 +217,41 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         // No input parameter (zero-input handler) ⇒ none format, same as a parameterless data-less
         // input record. The descriptor's InputType slot is filled with the NoInput sentinel at emit.
-        var inputFormatName = inputType is null ? "none" : (inputExplicit ?? InferPayloadFormatName(inputType, isInput: true));
+        // Several input parameters travel as the generated argument record, a JSON object by default.
+        var inputFormatName =
+            takesArguments ? inputExplicit ?? "json"
+            : inputType is null ? "none"
+            : inputExplicit ?? InferPayloadFormatName(inputType, isInput: true);
         var outputFormatName = outputType is null ? null : outputExplicit ?? InferPayloadFormatName(outputType, isInput: false);
+        if (takesArguments && inputFormatName is "none" or "bytes")
+        {
+            diagnostics.Add(
+                ManifestDiagnostics.ArgumentsFormat(method, inputFormatName, method.Locations.FirstOrDefault() ?? Location.None)
+            );
+        }
 
         var eventRecordingName = policy.EventRecordingName ?? DefaultEventRecordingName;
 
         // A scheduled definition seeds its slot from a fabricated default input (`new TIn()`).
-        // A TIn without an accessible parameterless ctor cannot be fabricated.
-        if (!schedules.IsDefaultOrEmpty && inputType is not null && !HasAccessibleParameterlessCtor(inputType))
+        // A TIn without an accessible parameterless ctor cannot be fabricated, nor can an argument record.
+        if (!schedules.IsDefaultOrEmpty && takesArguments)
+        {
+            diagnostics.Add(ManifestDiagnostics.ScheduledArguments(method, method.Locations.FirstOrDefault() ?? Location.None));
+        }
+        else if (!schedules.IsDefaultOrEmpty && inputType is not null && !HasAccessibleParameterlessCtor(inputType))
         {
             diagnostics.Add(
                 ManifestDiagnostics.ScheduledInputNotConstructible(method, inputType, method.Locations.FirstOrDefault() ?? Location.None)
             );
         }
+
+        // Operator-tooling shape hint, json inputs only: any other format has no object shape to
+        // seed, and a zero-input handler (NoInput) has no members at all.
+        var inputTemplateJson =
+            inputFormatName != "json" ? null
+            : takesArguments ? InputTemplateJson.BuildArguments(parameterModel.InputParameters)
+            : inputType is not null ? InputTemplateJson.Build(inputType)
+            : null;
 
         return new DiscoveredJob(
             JobName: jobName,
@@ -240,12 +259,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             MethodName: method.Name,
             IsStaticMethod: method.IsStatic,
             InputType: inputType,
+            InputParameters: parameterModel.InputParameters,
             OutputType: outputType,
             InputPayloadFormatName: inputFormatName,
             OutputPayloadFormatName: outputFormatName,
             InvocationKind: returnModel?.InvocationKind ?? JobInvocationKind.Task,
-            RequiresJobContext: parameterModel?.HasJobContext ?? false,
-            RequiresCancellationToken: parameterModel?.HasCancellationToken ?? false,
+            RequiresJobContext: parameterModel.HasJobContext,
+            RequiresCancellationToken: parameterModel.HasCancellationToken,
             PriorityName: policy.PriorityName,
             MaxAttempts: policy.MaxAttempts,
             ConcurrencyLimit: policy.ConcurrencyLimit,
@@ -255,9 +275,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             EventRecordingName: eventRecordingName,
             AlertProfileName: policy.AlertProfileName,
             TenantRequirementId: policy.TenantRequirementId,
-            // Operator-tooling shape hint, json inputs only: any other format has no object shape to
-            // seed, and a zero-input handler (NoInput) has no members at all.
-            InputTemplateJson: inputFormatName == "json" && inputType is not null ? InputTemplateJson.Build(inputType) : null,
+            InputTemplateJson: inputTemplateJson,
             Backoff: policy.Backoff,
             ExecutionTimeoutSeconds: policy.ExecutionTimeoutSeconds,
             DeadlineSeconds: policy.DeadlineSeconds,
@@ -392,11 +410,12 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
         }
 
-        // ACTA0106: job names whose contract member names collide once separators are removed and
-        // case is ignored (e.g. "send-mail"/"sendmail", or "job-1"/"job1"), or match a name the
-        // manifest class already has. Compared case-insensitively so members that differ only by a
-        // capital (SendMail vs Sendmail) also count as a collision. Warn and omit those members;
-        // Descriptors and the typed/raw enqueue paths are unaffected.
+        // ACTA0106: job names whose generated member names (the call factory, and the argument record of a
+        // job taking several parameters) collide once separators are removed and case is ignored (e.g.
+        // "send-mail"/"sendmail", or "job-1"/"job1"), or match a name the manifest class already has.
+        // Compared case-insensitively so members that differ only by a capital (SendMail vs Sendmail) also
+        // count as a collision. Warn and omit those members; Descriptors and the typed/raw enqueue paths are
+        // unaffected.
         var manifestTypeName = ManifestTypeName(rootNamespace);
         var reservedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -411,16 +430,21 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             "ToString",
         };
         var contractCollisions = new HashSet<string>(StringComparer.Ordinal);
+        var memberNames = valid
+            .Select(j => (Job: j, Name: PascalCase(j.JobName)))
+            .Concat(valid.Where(j => j.TakesArguments).Select(j => (Job: j, Name: ArgumentsName(j))));
         foreach (
-            var group in valid
-                .GroupBy(j => PascalCase(j.JobName), StringComparer.OrdinalIgnoreCase)
+            var group in memberNames
+                .GroupBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
                 .Where(g => g.Count() > 1 || reservedNames.Contains(g.Key))
         )
         {
-            foreach (var job in group)
+            foreach (var (job, name) in group)
             {
-                contractCollisions.Add(job.JobName);
-                ReportDiagnostic(spc, ManifestDiagnostics.ContractMemberCollision(job, PascalCase(job.JobName)));
+                if (contractCollisions.Add(job.JobName))
+                {
+                    ReportDiagnostic(spc, ManifestDiagnostics.ContractMemberCollision(job, name));
+                }
             }
         }
 
@@ -428,7 +452,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         spc.AddSource($"{manifestTypeName}.g.cs", manifest);
     }
 
-    internal static readonly string[] BuiltinFormatNames = ["json", "text", "bytes", "none"];
+    internal static readonly string[] BuiltinFormatNames = ["json", "bytes", "none"];
 
     /// <summary>
     /// ACTA0131: declaration validity; returns the name-to-id map of the clean declarations.
@@ -493,7 +517,16 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
     internal static bool HasBlockingDiagnostics(DiscoveredJob job) => job.Diagnostics.Any();
 
-    internal sealed record ParameterModel(ITypeSymbol? InputType, bool HasJobContext, bool HasCancellationToken);
+    /// <summary>
+    /// The handler's input parameters and framework parameters; <see cref="InputType"/> is the input's type when there is
+    /// exactly one input parameter.
+    /// </summary>
+    internal sealed record ParameterModel(
+        ITypeSymbol? InputType,
+        ImmutableArray<IParameterSymbol> InputParameters,
+        bool HasJobContext,
+        bool HasCancellationToken
+    );
 
     internal sealed record ReturnTypeModel(ITypeSymbol? OutputType, JobInvocationKind InvocationKind);
 
@@ -521,6 +554,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string MethodName,
         bool IsStaticMethod,
         ITypeSymbol? InputType,
+        ImmutableArray<IParameterSymbol> InputParameters,
         ITypeSymbol? OutputType,
         string InputPayloadFormatName,
         string? OutputPayloadFormatName,
@@ -551,6 +585,14 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         ImmutableArray<DiagnosticRecord> Diagnostics
     )
     {
+        /// <summary>
+        /// Several input parameters: the job's input is a generated argument record of them, named at emit.
+        /// </summary>
+        public bool TakesArguments => InputParameters.Length > 1;
+
+        /// <summary>The global-qualified name of the generated argument record, set at emit when <see cref="TakesArguments"/>.</summary>
+        public string? ArgumentsTypeName { get; init; }
+
         /// <summary>
         /// The suffix of this job's dispatch members. The job's index in the sorted job array keeps
         /// apart names that map to one identifier, such as `send.mail` and `send-mail`.

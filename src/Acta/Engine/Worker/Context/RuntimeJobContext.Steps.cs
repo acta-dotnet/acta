@@ -194,7 +194,7 @@ internal sealed partial class RuntimeJobContext
         try
         {
             var serializer = _serializers.Resolve(resultFormatId);
-            var payload = JobPayload.FromBytes(serializer.Format, result);
+            var payload = JobPayload.Trusted(serializer.Format, result);
             return serializer.Deserialize<TResult>(payload)!;
         }
         catch (Exception ex) when (ex is not StepResultContractMismatchException)

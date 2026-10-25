@@ -531,16 +531,6 @@ dotnet_diagnostic.CA1716.severity = none
 [src/Acta/Domain/Codes/ExecutionStatusExtensions.cs]
 dotnet_diagnostic.CA1024.severity = none
 
-# CA2225: the implicit widening from JobContract<TInput, TResult> to JobContract<TInput>, which drops
-# the result type so one generated member drives both RunAndWaitAsync and the fire-and-forget
-# EnqueueAsync. Both sides are readonly record structs over the identical (Type, string) pair, so the
-# conversion is total, allocation-free and cannot throw - there is no failure mode a named alternate
-# could report differently. Adding ToJobContract() would put a second public spelling of a
-# field-for-field copy on a type the manifest generator emits once per declared job, and the type is
-# on the frozen 1.0.0 surface.
-[src/Acta/Domain/Jobs/JobContract.cs]
-dotnet_diagnostic.CA2225.severity = none
-
 # CA1711: JobHandlerInvokeDelegate is a delegate declaration, so the suffix reports what the type is.
 # CA1711's reserved-suffix list exists to stop a type borrowing a word it does not earn; this one
 # earns it, and the name distinguishes the dispatch delegate from the generated invoker it points at.

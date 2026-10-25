@@ -16,7 +16,6 @@ WITH old_input (members) AS (
             || CASE j.input_format_id
                 WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
                 WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-                WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
                 ELSE 'custom-' || j.input_format_id
             END
             || '","bytes":' || length(j.input)

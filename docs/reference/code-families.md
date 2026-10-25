@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **27 families**, **158 values**.
+This release: **27 families**, **157 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -249,9 +249,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `None` | 0 | `none` | No payload: zero id, null backing name, `Name` returns `"none"`. | Active |
-| `Json` | 1 | `json` | UTF-8 JSON; default for record / class inputs. | Active |
+| `Json` | 1 | `json` | UTF-8 JSON; the format of every typed value except raw bytes, scalars included. | Active |
 | `Bytes` | 2 | `bytes` | Raw `byte[]` / `ReadOnlyMemory<byte>` passthrough. | Active |
-| `Text` | 3 | `text` | UTF-8 passthrough: strings and scalar values rendered through `Encoding.UTF8`. | Active |
 
 ### `JobPriorityCode` · `job-priority` <a id="code-family-jobprioritycode"></a>
 

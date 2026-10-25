@@ -78,7 +78,7 @@ scheduling.
 
 | Pain | Acta's answer |
 | --- | --- |
-| Every team uses a different timer, hosted service, or scheduler | One durable job model: `[Job]`, `EnqueueAsync`, delayed jobs, and `[JobSchedule]` |
+| Every team uses a different timer, hosted service, or scheduler | One durable job model: `[Job]`, `EnqueueAsync`, `ScheduleAsync`, and `[JobSchedule]` |
 | Scheduled jobs vanish or double-run after restarts | Jobs, schedules, cursors, leases, attempts, and events are persisted in SQL |
 | Nobody knows what happened last night | Job status, event timelines, alerts, dashboard/API, CLI, and SQL inspection |
 | A worker died mid-job | Worker leases lapse and recovery reclaims eligible jobs for retry |
@@ -133,13 +133,14 @@ because Acta also schedules jobs.
 | Existing concept | Acta equivalent |
 | --- | --- |
 | Background job | `[Job]` + `IJobs.EnqueueAsync` |
+| Delayed job | `IJobs.ScheduleAsync` with a `TimeSpan` or `DateTimeOffset` |
 | Recurring job | `[JobSchedule]` on the `[Job]` method |
 | Dashboard | `MapActa()` under `/acta` |
 | Retry policy | `[Job(MaxAttempts = ...)]` and backoff settings |
 | Queue | Job namespace and worker registration |
 | Job id | `JobRef` for public references, `JobId` internally |
 | Continuations / batches | Child jobs and fan-out / fan-in APIs |
-| Job parameters | Typed input contracts and payload formats |
+| Job parameters | The handler's parameters: one input record, or several parameters stored as one JSON record |
 | Job history / logs | Durable `events`, `jobs_view`, dashboard/API, CLI, and `events_view` SQL |
 | Application logs | Use normal app logging and correlate with `JobRef` / `JobId` when needed |
 

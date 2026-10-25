@@ -53,8 +53,8 @@ var client = app.GetTestClient();
 
 // Enqueue with a five-minute delay so the worker leaves it untouched during this demo while the
 // HTTP control API can still find it.
-var outcome = await jobs.EnqueueAsync(new SampleTask("task-1"), o => o.Delayed(TimeSpan.FromMinutes(5)));
-var jobRef = outcome.JobRef;
+var handle = await jobs.ScheduleAsync(new SampleTask("task-1"), TimeSpan.FromMinutes(5));
+var jobRef = handle.JobRef;
 Console.WriteLine($"enqueued delayed job: {jobRef}");
 
 var pauseUrl = $"/acta/api/v1/jobs/{jobRef}/pause";

@@ -60,19 +60,15 @@ internal static class RaiseSignalEndpoint
                         return error;
                     }
 
-                    // An empty body raises a presence-only signal; a JSON body passes through verbatim.
+                    // An empty body raises a presence-only signal; a body that is one strict JSON value passes through verbatim.
                     JobPayload payload;
                     try
                     {
                         payload = bytes is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, bytes);
                     }
-                    catch (ArgumentException)
+                    catch (ArgumentException ex)
                     {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid signal value.",
-                            "The body must be UTF-8 with no NUL (0x00) byte."
-                        );
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid signal value.", ex.Message);
                     }
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the

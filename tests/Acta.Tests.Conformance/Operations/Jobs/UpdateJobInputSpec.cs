@@ -154,13 +154,13 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(30, typed!.Sum);
     }
 
-    [Fact(DisplayName = "UpdateJobInput stores the new payload's format id, so a text job amends as text")]
+    [Fact(DisplayName = "UpdateJobInput stores the new payload's format id, so a bytes job amends as bytes")]
     public async Task Amend_stores_the_payloads_format_id()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var oldInput = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes("first"));
-        var newInput = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes("second"));
+        var oldInput = JobPayload.Bytes([1, 2]);
+        var newInput = JobPayload.Bytes([3, 4, 5]);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
         var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
@@ -168,7 +168,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var stored = (await Jobs.GetInputAsync(enqueued, ct))?.Input;
         Assert.NotNull(stored);
-        Assert.Equal(JobPayloadFormat.Text.Id, stored!.Value.Format.Id);
+        Assert.Equal(JobPayloadFormat.Bytes.Id, stored!.Value.Format.Id);
         Assert.Equal(newInput.Data.ToArray(), stored.Value.Data.ToArray());
     }
 

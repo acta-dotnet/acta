@@ -1130,6 +1130,8 @@ EXEC acta.enqueue_job
 The optional parameters keep their column names: `p_deduplication_key`, `p_correlation_key`,
 `p_job_priority_code_override`, `p_input_format_id`, `p_concurrency_key`, `p_next_run_at_utc` or
 `p_delay_seconds`, `p_parent_job_id`, `p_tenant_name` with `p_tenant_override`, and `p_lane_name`.
+With the default json format, `p_input` must be exactly one strict JSON value. The routine does not check it, so a
+malformed row stores, fails its handler's deserialization, and reads back over HTTP as `base64` with `malformed: true`.
 Postgres takes tags as the three arrays `p_tag_name`, `p_tag_value`, and `p_tag_value_search`.
 
 SQLite has no callable enqueue routine; enqueue through the application (`IJobs.EnqueueAsync`).
@@ -1144,7 +1146,7 @@ SELECT job_id, job_ref, namespace, job_name, status, failure_count, next_run_at_
  LIMIT 50;
 ```
 
-`input_text` and `result_text` decode only built-in `json` and `text` payloads. Binary and custom
+`input_text` and `result_text` decode only `json` payloads. Binary and custom
 formats stay opaque: the format columns tell you why the text column is `NULL`; inspect those payloads
 through application code.
 
@@ -1183,7 +1185,7 @@ SELECT event_id, created_at_utc, event, execution_number, duration_ms, event_mes
 ```
 
 `events_view` is a readable ledger, not a rollup. The `jobs_view` row tells you where work is now;
-events tell you why it moved. `details_text` decodes built-in `json` and `text` event details; binary
+events tell you why it moved. `details_text` decodes `json` event details; binary
 and custom details payloads stay opaque.
 
 ### Recent Terminal Failures
@@ -1210,7 +1212,7 @@ SELECT c.job_id, c.job_ref, c.namespace, c.job_name, c.checkpoint_name AS signal
 ```
 
 Raise the matching signal with `IJobs.RaiseSignalAsync`, the CLI, or the HTTP signal endpoint.
-`value_text` decodes built-in `json` and `text` signal values; presence-only, binary, and custom
+`value_text` decodes `json` signal values; presence-only, binary, and custom
 values stay opaque.
 
 ### Durable Sleeps And Timers

@@ -89,7 +89,7 @@ curated-view rows.
 | --- | --- | --- |
 | 001 | [hello-acta](../concepts/000-fundamentals/001-hello-acta/) | One `[Job]`, fire-and-forget enqueue, a worker runs it |
 | 002 | [job-input](../concepts/000-fundamentals/002-job-input/) | Typed input record, no result |
-| 003 | [job-result](../concepts/000-fundamentals/003-job-result/) | A job returns a typed result; read it with `GetResultAsync<T>` |
+| 003 | [job-result](../concepts/000-fundamentals/003-job-result/) | A job returns a typed result; wait for it with `WaitAsync<T>` |
 | 004 | [no-input-job](../concepts/000-fundamentals/004-no-input-job/) | A job with no input (`NoInput`) |
 | 005 | [scalar-input](../concepts/000-fundamentals/005-scalar-input/) | A bare scalar input, no request record |
 | 006 | [many-jobs-one-class](../concepts/000-fundamentals/006-many-jobs-one-class/) | Several `[Job]` methods in one class |
@@ -97,7 +97,7 @@ curated-view rows.
 | 008 | [cancellation-token](../concepts/000-fundamentals/008-cancellation-token/) | Async handler honoring `CancellationToken` |
 | 009 | [typed-enqueue](../concepts/000-fundamentals/009-typed-enqueue/) | `EnqueueAsync` routes by the input type (no name string) |
 | 010 | [deduplication-key](../concepts/000-fundamentals/010-deduplication-key/) | Idempotent enqueue (dedupe by deduplication key) |
-| 011 | [delayed-job](../concepts/000-fundamentals/011-delayed-job/) | Delay the earliest run with `Delayed` |
+| 011 | [delayed-job](../concepts/000-fundamentals/011-delayed-job/) | Run a job once, later, with `ScheduleAsync(input, delay)` |
 | 012 | [read-status](../concepts/000-fundamentals/012-read-status/) | Read a `GetJobResponse` with `GetAsync` |
 | 013 | [read-result](../concepts/000-fundamentals/013-read-result/) | `GetResultAsync<T>` is a point-in-time read (null before Succeeded) |
 | 014 | [read-by-deduplication-key](../concepts/000-fundamentals/014-read-by-deduplication-key/) | Look a job up by `JobLookup.ByDeduplicationKey` |
@@ -109,7 +109,7 @@ curated-view rows.
 | 020 | [raw-enqueue](../concepts/000-fundamentals/020-raw-enqueue/) | Enqueue by explicit (namespace, job-name) + payload |
 | 021 | [jobs-cli](../concepts/000-fundamentals/021-jobs-cli/) | **Engineering Lab.** Same-binary `info`/`events`/`explain`/`debug` over one signal-waiting identity |
 | 022 | [dashboard](../concepts/000-fundamentals/022-dashboard/) | **Engineering Lab.** Embedded dashboard seeded with varied states; experience controls-disabled safety first |
-| 023 | [job-contract](../concepts/000-fundamentals/023-job-contract/) | Enqueue by a generated, compile-checked `JobContract` token (no input-type inference) |
+| 023 | [job-call](../concepts/000-fundamentals/023-job-call/) | Enqueue by the manifest's generated call (no input-type inference); several handler parameters as one input |
 | 024 | [aspnet-enqueue-api](../concepts/000-fundamentals/024-aspnet-enqueue-api/) | Minimal HTTP API: POST returns 202 + JobRef; GET polls status/result; deduplication key, correlation id, tags |
 | 025 | [large-payload-reference](../concepts/000-fundamentals/025-large-payload-reference/) | Store big files in blob/object storage; enqueue a verified reference (URI + checksum + size), not the bytes |
 | 028 | [deduplication-time-buckets](../concepts/000-fundamentals/028-deduplication-time-buckets/) | Time-bucketed deduplication keys (`PerHour`/`PerDay`/`PerTimeBucket`) dedupe within a bucket, insert across it |
@@ -135,7 +135,7 @@ curated-view rows.
 | 214 | [reset-state](../concepts/200-durable-execution/214-reset-state/) | A recurring monitor uses durable state, then `ctx.ResetStateAsync` so the next fire starts blank |
 | 215 | [map-parallel-join](../concepts/200-durable-execution/215-map-parallel-join/) | `ParallelAsync`, `MapAsync`, and `JoinAsync` fan out child jobs and wait, all over the same latches |
 | 216 | [variable-lifecycle](../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
-| 217 | [absolute-time-controls](../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `NextRunAt`, `SleepUntilAsync`, `RescheduleUntilAsync` |
+| 217 | [absolute-time-controls](../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `ScheduleAsync(input, runAt)`, `SleepUntilAsync`, `RescheduleUntilAsync` |
 | 218 | [global-lock](../concepts/200-durable-execution/218-global-lock/) | A `LockScope.Global` lock serializes jobs across namespaces (vs 207's namespace scope) |
 | 219 | [child-failure-outcomes](../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ParallelOutcome`/`JoinOutcome` and `ThrowIfAnyFailed` |
 | 220 | [at-most-once-step](../concepts/200-durable-execution/220-at-most-once-step/) | **Engineering Lab.** Real process loss after a side effect: refuse body replay, surface ambiguity, reconcile |

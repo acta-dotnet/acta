@@ -187,7 +187,14 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord ExtraParameter(IMethodSymbol method, IParameterSymbol p, Location location) =>
         new(
             "ACTA0103",
-            $"`[Job]` method `{method.Name}` declares an extra parameter `{p.Type.ToDisplayString()} {p.Name}`. Handler methods accept only the request, optional `JobContext`, and optional `CancellationToken`; resolve dependencies through constructor injection.",
+            $"`[Job]` method `{method.Name}` declares parameter `{p.Type.ToDisplayString()} {p.Name}` after `JobContext` or `CancellationToken`. Input parameters come first, then the optional `JobContext` and `CancellationToken`; resolve dependencies through constructor injection.",
+            location
+        );
+
+    public static DiagnosticRecord InterfaceArgument(IMethodSymbol method, IParameterSymbol p, Location location) =>
+        new(
+            "ACTA0103",
+            $"`[Job]` method `{method.Name}` takes `{p.Type.ToDisplayString()} {p.Name}` among several input parameters, which the generated argument record serializes as one input, and an interface reads as a dependency rather than a value. Resolve dependencies through constructor injection, or take one input record.",
             location
         );
 
@@ -257,7 +264,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord ContractMemberCollision(DiscoveredJob job, string memberName) =>
         new(
             "ACTA0106",
-            $"`[Job(\"{job.JobName}\")]` produces contract member `{memberName}`, which collides with another job in this manifest, or with `Descriptors`, the manifest type name, or an `object` member, once separators are removed and case is ignored (e.g. `send-mail` and `sendmail`, or `descriptors`). Rename the job for a contract member; the colliding members are omitted (`Descriptors` and the typed/raw enqueue paths are unaffected).",
+            $"`[Job(\"{job.JobName}\")]` produces generated member `{memberName}`, which collides with another job's in this manifest, or with `Descriptors`, the manifest type name, or an `object` member, once separators are removed and case is ignored (e.g. `send-mail` and `sendmail`, or `descriptors`). Rename the job for a call factory; the colliding members are omitted (`Descriptors` and the typed/raw enqueue paths are unaffected).",
             job.Location
         );
 
@@ -346,6 +353,13 @@ internal static class ManifestDiagnostics
             location
         );
 
+    public static DiagnosticRecord ScheduledArguments(IMethodSymbol method, Location location) =>
+        new(
+            "ACTA0123",
+            $"`[Job]` method `{method.Name}` declares one or more `[JobSchedule]` but takes several input parameters. The recurring slot seeds its payload from a parameterless constructor, which the generated argument record has none of; take one input record with a parameterless constructor.",
+            location
+        );
+
     /// <summary>
     /// ACTA0131: invalid [JobPayloadFormatDeclaration]; one ID, per-variant messages.
     /// </summary>
@@ -359,7 +373,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord InvalidPayloadFormatName(CustomPayloadFormat format) =>
         new(
             "ACTA0131",
-            $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` is not a valid format name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 64 chars, and must not collide with the built-in `json`/`text`/`bytes`/`none`.",
+            $"`[JobPayloadFormatDeclaration({format.Id}, \"{format.Name}\")]` is not a valid format name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 64 chars, and must not collide with the built-in `json`/`bytes`/`none`.",
             format.Location
         );
 
@@ -394,10 +408,17 @@ internal static class ManifestDiagnostics
             location
         );
 
+    public static DiagnosticRecord ArgumentsFormat(IMethodSymbol method, string format, Location location) =>
+        new(
+            "ACTA0132",
+            $"`[Job]` method `{method.Name}` takes several input parameters, which travel as one generated record, and format `\"{format}\"` cannot carry a record. Leave the input format unset for JSON, or name a custom format.",
+            location
+        );
+
     public static DiagnosticRecord UnknownPayloadFormat(DiscoveredJob job, string name) =>
         new(
             "ACTA0132",
-            $"`[Job(\"{job.JobName}\")]` references payload format `\"{name}\"`, which is neither a built-in (`json`/`text`/`bytes`/`none`) nor a `[JobPayloadFormatDeclaration]` in this compilation. Declare a serializer for it or use a known format name.",
+            $"`[Job(\"{job.JobName}\")]` references payload format `\"{name}\"`, which is neither a built-in (`json`/`bytes`/`none`) nor a `[JobPayloadFormatDeclaration]` in this compilation. Declare a serializer for it or use a known format name.",
             job.Location
         );
 }

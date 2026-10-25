@@ -61,7 +61,8 @@
       <dl class="ref">
         <div class="ref-row"><dt>IJob and its Execute method</dt><dd><code>[Job("name")]</code> on an ordinary handler method, plus typed <code>EnqueueAsync</code> for on-demand work. The name is the durable, operator-facing contract.</dd></div>
         <div class="ref-row"><dt>Trigger, cron or interval</dt><dd><code>[JobSchedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, with <code>Cron</code> constants for the common cases.</dd></div>
-        <div class="ref-row"><dt>JobDataMap</dt><dd>Typed input contracts: a record you declare, validated at compile time, readable on the job row afterwards.</dd></div>
+        <div class="ref-row"><dt>One-shot trigger, StartAt</dt><dd><code>ScheduleAsync(input, DateTimeOffset)</code> or <code>ScheduleAsync(input, TimeSpan)</code>: one job row whose first claim waits for the time, counted on the database clock.</dd></div>
+        <div class="ref-row"><dt>JobDataMap</dt><dd>The handler's own parameters, or one record you declare: checked by the compiler, stored as JSON, readable on the job row afterwards.</dd></div>
         <div class="ref-row"><dt>Job key</dt><dd>The <code>[Job]</code> name, plus <code>JobRef</code> for public references and <code>JobId</code> internally.</dd></div>
         <div class="ref-row"><dt>Retry, refire, listeners</dt><dd><code>[Job("...", MaxAttempts = ...)]</code> and typed backoff settings: every attempt recorded, so how many times a job ran and when is a query.</dd></div>
         <div class="ref-row"><dt>Clustered job store</dt><dd>Worker leases with automatic lapse: a dead worker's jobs are reclaimed by any peer, leaderless, with no clustering configuration.</dd></div>
@@ -131,7 +132,7 @@
       <p class="record">What changes</p>
       <h2>The differences you will feel in week one.</h2>
       <ul class="changes">
-        <li><b>JobDataMap becomes a typed input.</b> The payload is a record with a compiler behind it, not a string-keyed map, and it is readable on the job row after the fact.</li>
+        <li><b>JobDataMap becomes the handler's parameters.</b> <code>Handle(Guid invoiceId, string recipient, CancellationToken ct)</code>, or one record: a compiler behind it instead of a string-keyed map, and the row stores JSON keyed by the names, readable after the fact.</li>
         <li><b>Misfires become explicit policy on persistent cursors.</b> A schedule carries a durable cursor; missed windows are visible and handled by declared misfire policy, not by per-trigger misfire instructions.</li>
         <li><b>Clustering configuration becomes leases.</b> No clustered job store to configure: a claimed job carries a lease held by a heartbeating worker, and when the worker dies the lease lapses and any peer reclaims the job, leaderless.</li>
         <li><b>Logs become a ledger.</b> Every job carries an append-only event timeline as queryable rows, and <code>jobs explain</code> answers why a job is in its current state from those rows, not from log archaeology.</li>

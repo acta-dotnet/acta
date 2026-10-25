@@ -22,32 +22,39 @@ internal sealed class JobRequestRouting(
     }
 
     /// <summary>
-    /// The request for a generated manifest contract, checked against the registered descriptor so a hand-built
-    /// contract with the wrong input or result type fails here. The no-input overload passes a default input.
+    /// The request for a generated call, checked against the registered descriptor so a hand-built call with the wrong
+    /// input type fails here.
     /// </summary>
-    public EnqueueJobRequest FromContract<TInput>(
-        JobContract<TInput> job,
+    public EnqueueJobRequest FromCall<TInput>(JobCall<TInput> call, JobEnqueueOptions? options)
+        where TInput : notnull => FromContract(call.Contract.ManifestType, call.Contract.JobName, call.Input, options, null);
+
+    /// <summary>The request for a generated call of a job that returns a result, its result type checked too.</summary>
+    public EnqueueJobRequest FromCall<TInput, TResult>(JobCall<TInput, TResult> call, JobEnqueueOptions? options)
+        where TInput : notnull
+        where TResult : notnull => FromContract(call.Contract.ManifestType, call.Contract.JobName, call.Input, options, typeof(TResult));
+
+    private EnqueueJobRequest FromContract<TInput>(
+        Type? manifestType,
+        string? jobName,
         TInput input,
         JobEnqueueOptions? options,
-        Type? expectedResultType = null
+        Type? expectedResultType
     )
     {
         ArgumentNullException.ThrowIfNull(input);
-        var route = contractRegistry.Resolve(ValidateContract(job), job.JobName, options?.JobNamespace);
+        var route = contractRegistry.Resolve(ValidateContract(manifestType, jobName), jobName!, options?.JobNamespace);
         if (route.InputType != typeof(TInput))
         {
             throw new ArgumentException(
-                $"JobContract for '{route.JobName}' expects input '{route.InputType.FullName}' but was used with "
-                    + $"'{typeof(TInput).FullName}'. Use the generated manifest member.",
-                nameof(job)
+                $"The call of '{route.JobName}' carries input '{typeof(TInput).FullName}' but the job takes "
+                    + $"'{route.InputType.FullName}'. Use the manifest's generated call."
             );
         }
         if (expectedResultType is not null && route.OutputType != expectedResultType)
         {
             throw new ArgumentException(
-                $"JobContract for '{route.JobName}' produces result '{route.OutputType?.FullName ?? "none"}' but was used "
-                    + $"with TResult '{expectedResultType.FullName}'.",
-                nameof(job)
+                $"The call of '{route.JobName}' expects result '{expectedResultType.FullName}' but the job produces "
+                    + $"'{route.OutputType?.FullName ?? "none"}'."
             );
         }
 
@@ -67,16 +74,16 @@ internal sealed class JobRequestRouting(
     private JobPayload Serialize<TInput>(JobPayloadFormat format, TInput input) =>
         format.IsNone ? JobPayload.None : serializers.Resolve(format.Id).Serialize(input);
 
-    /// <summary>A default(JobContract&lt;T&gt;) is rejected here rather than by an incidental NullReferenceException downstream.</summary>
-    private static Type ValidateContract<TInput>(JobContract<TInput> job)
+    /// <summary>A default call is rejected here rather than by an incidental NullReferenceException downstream.</summary>
+    private static Type ValidateContract(Type? manifestType, string? jobName)
     {
-        if (job.ManifestType is null || string.IsNullOrWhiteSpace(job.JobName))
+        if (manifestType is null || string.IsNullOrWhiteSpace(jobName))
         {
-            throw new ArgumentException("JobContract is uninitialized (default); use a generated manifest member.", nameof(job));
+            throw new ArgumentException("The call is uninitialized (default); use the manifest's generated call.");
         }
-        return !typeof(IJobManifest).IsAssignableFrom(job.ManifestType)
-            ? throw new ArgumentException($"JobContract.ManifestType '{job.ManifestType.FullName}' is not an IJobManifest.", nameof(job))
-            : job.ManifestType;
+        return !typeof(IJobManifest).IsAssignableFrom(manifestType)
+            ? throw new ArgumentException($"The call's manifest type '{manifestType.FullName}' is not an IJobManifest.")
+            : manifestType;
     }
 
     private static EnqueueJobRequest Request(string jobNamespace, string jobName, JobPayload input, JobEnqueueOptions? options) =>

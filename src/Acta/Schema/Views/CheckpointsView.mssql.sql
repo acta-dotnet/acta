@@ -13,12 +13,11 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', c.value_format_id)
     END AS value_format,
     CASE
         WHEN
-            c.value_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            c.value_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(c.value AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS value_text,
     c.created_at_utc,

@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { advanceNow } from './time.ts';
+import { stringifyBody, type RawJson } from './lib/rawJson.ts';
 import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
 
 export const online = writable(true);
@@ -81,7 +82,7 @@ async function request<T>(options: RequestOptions): Promise<{ response: Response
   }
 
   const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
-  const serializedBody = options.body === undefined ? undefined : JSON.stringify(options.body);
+  const serializedBody = options.body === undefined ? undefined : stringifyBody(options.body);
   if (serializedBody !== undefined) headers['Content-Type'] = 'application/json';
 
   let response: Response;
@@ -382,18 +383,19 @@ export async function previewSchedule(
 }
 
 // Format-dispatched payload projection served by the input/result/checkpoint reads (part of the
-// always-on read surface). The consumer reads whichever body field the `format` names: json -> parsed
-// JSON, text -> decoded string, none -> no body field, any other format (bytes or a consumer-defined
-// id) -> base64. A payload past the server's size cap ships no body field: `truncated` is true and
+// always-on read surface). The consumer reads whichever body field the `format` names: json -> the stored
+// JSON text (never parsed, see lib/rawJson.ts), none -> no body field, any other format (bytes or a
+// consumer-defined id) -> base64. A stored json row that is not strict JSON ships as base64 with
+// `malformed` set. A payload past the server's size cap ships no body field: `truncated` is true and
 // `byteLength` carries its stored size. PayloadView.svelte dispatches on `formatName` and renders the match.
 export interface JobPayloadView {
   formatName: string;
   formatId: number;
-  json?: unknown;
-  text?: string;
+  json?: string;
   base64?: string;
   byteLength?: number;
   truncated?: boolean;
+  malformed?: boolean;
 }
 
 // One schedule bound to a job's recurring slot, as it appears inside the aggregate detail (the same
@@ -476,8 +478,7 @@ export interface JobEnqueueResult {
 export interface EnqueueJobRequest {
   jobNamespace: string;
   jobName: string;
-  input?: unknown;
-  text?: string;
+  input?: RawJson;
   deduplicationKey?: string | null;
   correlationKey?: string | null;
   tenantName?: string | null;
@@ -487,8 +488,8 @@ export interface EnqueueJobRequest {
 
 // Enqueue a job through POST /jobs. A 201 returns the ref + action; validation (400), an enqueue
 // rejection (409), and an over-size input (413) all throw an ApiError carrying the problem detail so
-// the form can surface it inline. The input is format-faithful: `input` (raw JSON) or `text` (a text
-// job, e.g. a text clone); only the field the caller sets travels, so an absent input stays absent.
+// the form can surface it inline. `input` is the operator's JSON text, sent verbatim; an absent input
+// stays absent.
 export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueResult> {
   const { response, body } = await request<JobEnqueueResult>({
     path: 'jobs',
@@ -498,7 +499,6 @@ export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueRes
       jobNamespace: spec.jobNamespace.trim(),
       jobName: spec.jobName.trim(),
       input: spec.input ?? undefined,
-      text: spec.text ?? undefined,
       deduplicationKey: spec.deduplicationKey?.trim() || null,
       correlationKey: spec.correlationKey?.trim() || null,
       tenantName: spec.tenantName?.trim() || null,

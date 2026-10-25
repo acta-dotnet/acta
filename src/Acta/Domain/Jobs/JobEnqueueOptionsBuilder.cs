@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Fluent builder for <see cref="JobEnqueueOptions"/>, used by the typed
-/// <c>IJobs.EnqueueAsync(input, configure)</c> overload. Validation is eager at each setter; tag
+/// Fluent builder for <see cref="JobEnqueueOptions"/>: the <c>configure</c> callback of the typed and call
+/// <c>EnqueueAsync</c>, <c>ScheduleAsync</c>, and the child-start verbs. Validation is eager at each setter; tag
 /// dedupe is last-write-wins; <see cref="Build"/> snapshots repeatably.
 /// </summary>
 public sealed class JobEnqueueOptionsBuilder
@@ -21,7 +21,7 @@ public sealed class JobEnqueueOptionsBuilder
     private readonly Dictionary<string, TagInput> _tags = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Namespace to resolve the input type within; only needed when the type is registered under
+    /// Namespace to enqueue into; only needed when the input type, or the call's manifest, is registered under
     /// more than one namespace.
     /// </summary>
     public JobEnqueueOptionsBuilder JobNamespace(string namespaceName)

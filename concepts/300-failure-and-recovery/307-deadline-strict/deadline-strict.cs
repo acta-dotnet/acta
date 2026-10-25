@@ -23,14 +23,14 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // The deadline is 2s after creation, but Delayed holds the first run for 4s, so by the time the
 // worker can claim it the job is already overdue. A Strict deadline cancels it at admission and the
 // handler never runs. Delayed() and the deadline both resolve on the database clock.
-var outcome = await jobs.EnqueueAsync(new GenerateReport("q3"), o => o.Delayed(TimeSpan.FromSeconds(4)));
+var handle = await jobs.ScheduleAsync(new GenerateReport("q3"), TimeSpan.FromSeconds(4));
 Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] enqueued; 2s deadline, but the first run is held 4s.");
 
 GetJobResponse? snapshot;
 do
 {
     await Task.Delay(500);
-    snapshot = await jobs.GetAsync(outcome);
+    snapshot = await jobs.GetAsync(handle);
 } while (snapshot is null or { Status: not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled) });
 
 // Cancelled (the finishing event reason is JobDeadlineExceeded). FailureCount stays 0: a deadline

@@ -1,17 +1,16 @@
 namespace Acta;
 
 /// <summary>
-/// Common per-enqueue choices for the typed
-/// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> facade, the
-/// alternative to constructing a wire <see cref="EnqueueJobRequest"/>. Every member is optional; the
-/// job name, namespace, and payload format are resolved from the input type's generated descriptor.
+/// Common per-enqueue choices for the typed and call <c>EnqueueAsync</c> facades, the alternative to constructing a wire
+/// <see cref="EnqueueJobRequest"/>. Every member is optional; the job name, namespace, and payload format come from the
+/// generated manifest, through the input type's descriptor or the call.
 /// </summary>
 public class JobEnqueueOptions
 {
     /// <summary>
-    /// Namespace to resolve the input type within. Supply this only to disambiguate an input type
-    /// registered under more than one namespace; when <c>null</c> the type is resolved globally and
-    /// resolution throws if it is ambiguous.
+    /// Namespace to enqueue into when resolution is ambiguous: a typed input registered under more than one namespace, or
+    /// a call whose manifest is bound to more than one. When <c>null</c> the job resolves globally and resolution throws if
+    /// it is ambiguous.
     /// </summary>
     public string? JobNamespace { get; init; }
 
@@ -28,8 +27,8 @@ public class JobEnqueueOptions
     public string? CorrelationKey { get; init; }
 
     /// <summary>
-    /// Named mutual-exclusion key; at most one Job per <c>(namespace, key)</c> executes at a time
-    /// (mutual exclusion only, no per-key ordering).
+    /// Named admission key: at most the definition's <c>ConcurrencyLimit</c> Jobs per (namespace, key) are in flight
+    /// at a time, one when no limit is declared (admission only, no per-key ordering).
     /// </summary>
     public string? ConcurrencyKey { get; init; }
 

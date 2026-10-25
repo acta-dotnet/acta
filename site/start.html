@@ -124,10 +124,14 @@ builder.Services.UseActa(j =&gt;
 var app = builder.Build();
 app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
 
-await app.StartAsync();
-await app.Services.GetRequiredService&lt;IJobs&gt;().EnqueueAsync(new ShipOrder(1042));
-Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
-await app.WaitForShutdownAsync();
+// Your own endpoint enqueues: the job is a durable row before the response goes out.
+app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =&gt;
+{
+    var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
+    return Results.Accepted("/acta", new { job.JobRef });
+});
+
+app.Run();
 
 public sealed record ShipOrder(int OrderId);
 
@@ -137,13 +141,14 @@ public static class ShippingHandlers
     public static void Handle(ShipOrder input) =&gt; Console.WriteLine($"Shipping order {input.OrderId}");
 }</code></pre>
       </div>
-      <p class="lede"><code>dotnet run</code>, and success looks like this:</p>
+      <p class="lede"><code>dotnet run</code>, then enqueue from a second terminal on the port it printed:</p>
       <div class="code-card panel">
         <div class="panel-tab output">Output</div>
-        <pre>Enqueued. Dashboard: http://localhost:5090/acta
-Shipping order 1042</pre>
+        <pre>curl -X POST http://localhost:5090/orders/1042
+# the app prints: Shipping order 1042</pre>
       </div>
-      <p class="lede">Your port may differ; use the one printed. Open that URL: the Jobs screen lists <code>ship-order</code> as completed. Ctrl+C stops the app.</p>
+      <p class="lede">The endpoint answers <code>202 Accepted</code> with the job's ref once the row is stored. Open <code>/acta</code> on the same port: the Jobs screen lists <code>ship-order</code> as completed. Ctrl+C stops the app.</p>
+      <p class="hint">Run a job later with <code>ScheduleAsync(input, TimeSpan.FromMinutes(10))</code>, and follow one with <code>await job.WaitAsync()</code>: a timeout stops the wait, never the job. A recurring schedule is <code>[JobSchedule]</code>.</p>
       <p class="hint"><code>ShippingJobs</code> is generated: the last segment of your project's root namespace plus <code>Jobs</code>. Name the project <code>Orders</code> and it is <code>OrdersJobs</code>.</p>
       <p class="hint">The job was a row in <code>acta-local.db</code> before it was a method call. Swap the package and <code>UseSqlite</code> for <code>UsePostgres</code> or <code>UseSqlServer</code>, point the connection string at your server, and nothing else changes.</p>
     </section>

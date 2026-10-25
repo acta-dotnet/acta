@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>From Hangfire to Acta · the durable work ledger for .NET</title>
-  <meta name="description" content="A Hangfire alternative for .NET teams whose background jobs have become application state: typed contracts, durable steps, signals, lineage, and SQL you can read. Migrate one job at a time; keep Hangfire where it is enough." />
+  <meta name="description" content="A Hangfire alternative for .NET teams whose background jobs have become application state: typed job calls, durable steps, signals, lineage, and SQL you can read. Migrate one job at a time; keep Hangfire where it is enough." />
   <link rel="canonical" href="https://useacta.net/from-hangfire" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
   <meta property="og:title" content="From Hangfire to Acta · the durable work ledger for .NET" />
-  <meta property="og:description" content="A Hangfire alternative for .NET teams whose background jobs have become application state: typed contracts, durable steps, signals, lineage, and SQL you can read. Migrate one job at a time; keep Hangfire where it is enough." />
+  <meta property="og:description" content="A Hangfire alternative for .NET teams whose background jobs have become application state: typed job calls, durable steps, signals, lineage, and SQL you can read. Migrate one job at a time; keep Hangfire where it is enough." />
   <meta property="og:url" content="https://useacta.net/from-hangfire" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
@@ -59,28 +59,33 @@
       <h2>Every Hangfire concept has a place to land.</h2>
       <p class="lede">The model translates cleanly. What changes is where the state lives, and how much of it you can read afterwards.</p>
       <dl class="ref">
-        <div class="ref-row"><dt>Background job</dt><dd><code>[Job("name")]</code> on a handler method, plus typed <code>EnqueueAsync</code>. The name is the durable, operator-facing contract used in SQL, the dashboard, the CLI, and alerts.</dd></div>
+        <div class="ref-row"><dt>Background job</dt><dd><code>[Job("name")]</code> on a handler method; <code>jobs.EnqueueAsync(...)</code> stores the row and answers a <code>JobHandle</code> you can wait on. The name is the durable, operator-facing contract used in SQL, the dashboard, the CLI, and alerts.</dd></div>
+        <div class="ref-row"><dt>Delayed job</dt><dd><code>ScheduleAsync(input, TimeSpan)</code> or <code>ScheduleAsync(input, DateTimeOffset)</code>: one job row whose first claim waits for the time, counted on the database clock.</dd></div>
         <div class="ref-row"><dt>Recurring job</dt><dd><code>[JobSchedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, backed by persistent schedule cursors with explicit misfire policy.</dd></div>
         <div class="ref-row"><dt>Dashboard</dt><dd><code>MapActa()</code> serves the embedded dashboard under <code>/acta</code>: local-only by default, every mutating verb off until you enable it.</dd></div>
         <div class="ref-row"><dt>Retry policy</dt><dd><code>[Job("...", MaxAttempts = ...)]</code> and typed backoff settings: policy on the job, not folklore in a catch block.</dd></div>
         <div class="ref-row"><dt>Queue</dt><dd>A job namespace plus worker registration: one owning service per namespace, and its replicas are the peer workers that drain it.</dd></div>
-        <div class="ref-row"><dt>Job id</dt><dd><code>JobRef</code> for public references, <code>JobId</code> internally.</dd></div>
+        <div class="ref-row"><dt>Job id</dt><dd><code>JobRef</code> for public references, <code>JobId</code> internally. A <code>JobHandle</code> carries both plus <code>WaitAsync</code>, <code>GetResultAsync</code>, <code>CancelAsync</code>, and <code>ExplainAsync</code>; <code>GetHandleAsync(jobRef)</code> rebuilds one in another process.</dd></div>
         <div class="ref-row"><dt>Job filters</dt><dd><code>AddPipelineBehavior&lt;T&gt;</code>: one interface wraps every attempt, for cross-cutting logging, metrics, or guards.</dd></div>
-        <div class="ref-row"><dt>Continuations / batches</dt><dd>Child jobs with fan-out / fan-in: parent lineage is recorded, and the parent can wait on the children's results.</dd></div>
-        <div class="ref-row"><dt>Job parameters</dt><dd>Typed input contracts: a record you declare, not a serialized method-call expression.</dd></div>
+        <div class="ref-row"><dt>Continuations / batches</dt><dd>Child jobs with fan-out / fan-in: parent lineage is recorded, and the parent waits on the children's results without holding a worker. Code outside a job follows one with <code>await job.WaitAsync()</code>.</dd></div>
+        <div class="ref-row"><dt>Job parameters</dt><dd>The handler's own parameters, like a Hangfire method: <code>Deliver(Guid deliveryId, Uri endpoint, string payload, CancellationToken ct)</code>, stored as one JSON object keyed by their names, so renaming one is a contract change. A single record works too.</dd></div>
         <div class="ref-row"><dt>Job history</dt><dd>Durable <code>events</code> plus curated <code>jobs_view</code> and <code>events_view</code> SQL. The event timeline is the job log: no private storage schema to decode.</dd></div>
       </dl>
     </section>
 
     <section class="wrap">
       <p class="record">The code, side by side</p>
-      <h2>A serialized expression becomes a typed contract.</h2>
+      <h2>The method call you already write, stored as a row instead of an expression.</h2>
       <div class="pair lead-right">
         <div class="panel">
           <div class="panel-tab">Hangfire · enqueue by expression</div>
           <pre><code><span class="c">// fire-and-forget: a serialized method-call expression</span>
 BackgroundJob.Enqueue&lt;IWebhookSender&gt;(x =&gt;
     x.Send(deliveryId, endpoint, payload));
+
+<span class="c">// delayed</span>
+BackgroundJob.Schedule&lt;IWebhookSender&gt;(x =&gt;
+    x.Send(deliveryId, endpoint, payload), TimeSpan.FromMinutes(10));
 
 <span class="c">// recurring, by cron string</span>
 RecurringJob.AddOrUpdate&lt;ICleanupService&gt;(
@@ -91,30 +96,41 @@ RecurringJob.AddOrUpdate&lt;ICleanupService&gt;(
         <div>
           <div class="panel">
             <div class="panel-tab">Acta · the whole contract</div>
-            <pre><code><span class="k">public sealed record</span> DeliverWebhook(Guid DeliveryId, Uri Endpoint, <span class="k">string</span> Payload);
-
-<span class="k">public sealed class</span> WebhookJob(IWebhookSender sender)
+            <pre><code><span class="k">public sealed class</span> WebhookJobs(IWebhookSender sender)
 {
+    <span class="c">// The parameters are the input, stored as one JSON object keyed by their names.</span>
     <span class="a">[Job(<span class="s">"deliver-webhook"</span>)]</span>
-    <span class="k">public</span> Task Handle(DeliverWebhook input, CancellationToken ct) =&gt;
-        sender.SendAsync(input.Endpoint, input.Payload,
-            idempotencyKey: input.DeliveryId.ToString(), ct);
+    <span class="k">public</span> Task Deliver(Guid deliveryId, Uri endpoint, <span class="k">string</span> payload, CancellationToken ct) =&gt;
+        sender.SendAsync(endpoint, payload, idempotencyKey: deliveryId.ToString(), ct);
 }
 
-<span class="c">// enqueue from anywhere in the host</span>
-<span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> DeliverWebhook(
+<span class="k">public sealed class</span> CleanupJobs(ISessionStore sessions)
+{
+    <span class="c">// recurring: the schedule is declared on the job</span>
+    <span class="a">[Job(<span class="s">"cleanup-expired-sessions"</span>)]</span>
+    <span class="a">[JobSchedule(<span class="s">"every-5-minutes"</span>, <span class="s">"*/5 * * * *"</span>)]</span>
+    <span class="k">public</span> Task Cleanup(CancellationToken ct) =&gt; sessions.DeleteExpiredAsync(ct);
+}
+
+<span class="c">// enqueue from anywhere in the host: the generated manifest names the job</span>
+<span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(AppJobs.DeliverWebhook(
     Guid.CreateVersion7(),
     <span class="k">new</span> Uri(<span class="s">"https://partner.example.com/hooks/orders"</span>),
     <span class="s">"""{"orderId":"ORD-1042","status":"shipped"}"""</span>), ct: ct);
+<span class="k">await</span> job.WaitAsync(ct: ct);   <span class="c">// optional: a timeout stops the wait, never the job</span>
 
-<span class="c">// wiring, once at startup</span>
+<span class="c">// one job, later</span>
+<span class="k">await</span> jobs.ScheduleAsync(AppJobs.DeliverWebhook(deliveryId, endpoint, payload),
+    TimeSpan.FromMinutes(10), ct: ct);
+
+<span class="c">// wiring, once at startup; AppJobs is generated from the project's root namespace</span>
 builder.Services.UseActa(j =&gt;
 {
     j.UsePostgres(...);   <span class="c">// or UseSqlServer / UseSqlite</span>
     j.Run&lt;AppJobs&gt;(<span class="s">"webhooks"</span>);
 });</code></pre>
           </div>
-          <p class="pair-note">Enqueue takes a typed record, not an expression tree, and dispatch is source-generated: no reflection on the hot path. The <code>[Job]</code> name is what operators see everywhere, and the state it creates is rows you <code>SELECT</code>.</p>
+          <p class="pair-note">The call is a generated factory on the manifest, so the compiler checks the parameters and dispatch needs no reflection. What is stored is the parameter names and values as JSON, which the dashboard and your SQL can read, not a serialized expression. The <code>[Job]</code> name is what operators see everywhere, and the state it creates is rows you <code>SELECT</code>.</p>
         </div>
       </div>
     </section>
@@ -124,7 +140,8 @@ builder.Services.UseActa(j =&gt;
       <h2>The differences you will feel in week one.</h2>
       <ul class="changes">
         <li><b>Retries run for days, not hours.</b> Hangfire's default policy retries 10 times over roughly 4.5 hours; Acta's default is 15 attempts on <code>min(1m x 2^(n-1), 1d)</code> with about 10% jitter, a horizon of about 4.4 days with at most one retry per day at the tail.</li>
-        <li><b>Typed inputs replace serialized expressions.</b> The input is a record you declare and version, not a captured lambda.</li>
+        <li><b>Parameters are stored by name, not as an expression.</b> A handler takes its inputs as ordinary parameters, or as one record; either way the row holds JSON keyed by the names, so renaming a parameter is a contract change, and the input is readable on the row without decoding anything.</li>
+        <li><b>Enqueue answers a handle.</b> <code>var job = await jobs.EnqueueAsync(...)</code> gives you the <code>JobRef</code> plus <code>WaitAsync</code>, <code>GetResultAsync</code>, <code>CancelAsync</code>, and <code>ExplainAsync</code> on that job, in place of monitoring-API lookups by id string. Another process rebuilds the handle from the ref with <code>GetHandleAsync</code>.</li>
         <li><b>Curated SQL views replace a private storage schema.</b> <code>jobs_view</code>, <code>events_view</code>, and friends are the supported operator surface: backlog, stuck jobs, worker liveness, and history are queries, not dashboard-only knowledge.</li>
         <li><b>Durable steps, sleeps, signals, and lineage are first-class.</b> The patterns that continuations and batches approximate become recorded state: a step's outcome survives a crash, a wait holds no worker, and children stay traceable to their parent.</li>
         <li><b>Operators get verbs, not just views.</b> Pause, resume, cancel, restart, signal, reprioritize a live job in place, amend a payload before a restart, override a schedule's expression or time zone with version checks.</li>
@@ -142,7 +159,7 @@ builder.Services.UseActa(j =&gt;
         </div>
         <div class="vs-row">
           <div class="who"><b>Consider Acta</b><span>when</span></div>
-          <div class="why"><b>Job state should be first-class application data in SQL</b>: typed contracts, durable steps, signals, child jobs, and SQL-first inspection. The trigger is not cron; it is the day your continuations and batches need diagnosing.</div>
+          <div class="why"><b>Job state should be first-class application data in SQL</b>: typed job calls, durable steps, signals, child jobs, and SQL-first inspection. The trigger is not cron; it is the day your continuations and batches need diagnosing.</div>
         </div>
       </div>
     </section>

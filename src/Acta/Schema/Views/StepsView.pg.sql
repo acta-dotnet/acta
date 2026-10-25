@@ -15,11 +15,9 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || s.result_format_id::TEXT
     END AS result_format,
-    CASE WHEN s.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(s.result, 'UTF8') END
-        AS result_text,
+    CASE WHEN s.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(s.result, 'UTF8') END AS result_text,
     s.created_at_utc,
     s.modified_at_utc,
     s.version

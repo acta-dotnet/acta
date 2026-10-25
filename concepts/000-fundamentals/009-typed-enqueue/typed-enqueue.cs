@@ -17,8 +17,8 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // No job-name string: Acta picks the job from the input type.
-var outcome = await jobs.EnqueueAsync(new GreetUser("Sam"));
-Console.WriteLine($"Enqueued job {outcome.JobRef} ({outcome.Action}). Worker is running - press Ctrl+C to stop.");
+var handle = await jobs.EnqueueAsync(new GreetUser("Sam"));
+Console.WriteLine($"Enqueued job {handle.JobRef} ({handle.Action}). Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();
 await host.StopAsync();

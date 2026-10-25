@@ -128,6 +128,58 @@ authorization and confirmation rules. Name collisions between operator-owned and
 schedules must be rejected rather than resolved by precedence. The event ledger should record who
 created, changed, or removed the schedule and why.
 
+The same machinery could serve application code as well as operators: a registration created at
+runtime, such as `Recurring.AddOrUpdateAsync("customer-42-daily-report", new GenerateReport(42),
+Cron.Daily)`, the shape Hangfire users know. The difference from today is that each registration
+would own its input and tenant instead of sharing one slot's, so it needs its own slot job. The
+rules to settle first: the id is stable and namespace-scoped, repeating the call updates the
+registration, a running execution keeps the input it started with, removal stops future runs
+without cancelling the current one, and the time zone is UTC unless the caller says otherwise.
+Runtime registrations stay apart from code-declared ones, so a deploy never retires them.
+
+## Application actions over HTTP
+
+Exports, imports, and document generation all repeat the same web plumbing around a job: accept a
+request, answer `202 Accepted` with a place to check, report progress, return the result. Acta
+already owns every one of those facts, so an opt-in mapping such as
+`app.MapActaAction("/invoices/send", BillingJobs.SendInvoice).RequireAuthorization("billing")`
+could generate the submit, status, progress, result, and cancel routes for one job, with the
+application's own authorization on each. Only the jobs mapped this way are exposed, never the whole
+catalog or the control API.
+
+## Operation receipts
+
+A caller usually means "make sure this invoice is sent, and tell me what happened", not "insert
+another row each time the request is retried". Deduplication keys cover the retry today, but only
+while the job row exists: once retention purges it, the same key starts a new job. An `EnsureAsync`
+keyed by business operation could keep a small receipt whose retention is its own, return the same
+handle for a repeat, reject the same key used for different work, and require an explicit retry for
+a failed operation. It promises a stable operation identity, never that an external side effect
+happens exactly once.
+
+## A durability-aware development loop
+
+The development tools could make durability visible instead of only described: run a `[Job]`
+handler from the editor with an input form generated from its contract, stop the worker after a
+named step and restart it to show which step results were reused, and turn that run into a test
+skeleton with the input and the interruption already in place. The test host and the dashboard
+hold most of the pieces; the work is connecting them.
+
+## Durable debounce
+
+"After edits stop arriving for five seconds, reindex this document" is a common need that today
+takes delayed jobs, deduplication keys, and care. A `DebounceAsync(key, call, quietFor)` could fold
+repeated requests into one pending job, let a running execution keep its input while one successor
+waits, and survive restarts with its due time. It is new persistence behavior, not a renamed
+`ScheduleAsync`.
+
+## Typed human interaction
+
+An approval step could be one call, `ctx.RequestAsync<Approval>("approve-export", request, timeout)`,
+that stores a pending interaction an application renders as a form or an inbox item. Signals and
+waits are the foundation; the rest is a stored request schema, authorized responses, and one atomic
+rule for which response wins.
+
 ## An accessible and responsive dashboard
 
 The dashboard should work well for operators regardless of how they navigate it or how large their

@@ -16,8 +16,8 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Raw request names (namespace, job) explicitly instead of inferring from the input type: for
-// out-of-process callers without the manifest, or when the input type alone is ambiguous.
+// Raw request names (namespace, job) explicitly, for a caller without the manifest, such as a gateway relaying
+// a request body. An in-process caller with an ambiguous input type uses the generated call instead (023).
 var request = new EnqueueJobRequest(
     JobNamespace: "raw-enqueue",
     JobName: "send-welcome-email",
@@ -25,8 +25,8 @@ var request = new EnqueueJobRequest(
 );
 
 // The explicit CancellationToken picks the raw-request overload over the typed EnqueueAsync<T>.
-var outcome = await jobs.EnqueueAsync(request, CancellationToken.None);
-Console.WriteLine($"Enqueued job {outcome.JobRef} by name. Worker is running - press Ctrl+C to stop.");
+var enqueued = await jobs.EnqueueAsync(request, CancellationToken.None);
+Console.WriteLine($"Enqueued job {enqueued.JobRef} by name. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();
 await host.StopAsync();

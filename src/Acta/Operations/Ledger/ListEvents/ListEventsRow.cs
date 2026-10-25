@@ -3,8 +3,8 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// One event list row. Details bytes are decoded after binding: only text-shaped payload formats (json,
-/// text) surface as text, using the same UTF-8 convention operators use in raw SQL; opaque formats
+/// One event list row. Details bytes are decoded after binding: only json details surface as text, using
+/// the same UTF-8 convention operators use in raw SQL; opaque formats
 /// surface as absent text instead of mojibake because only the producing worker knows their schema.
 /// </summary>
 [DbProjection(ByName = true)]
@@ -51,8 +51,6 @@ internal sealed record ListEventsRow(
             ExecutionNumber,
             DurationMs,
             EventMessage,
-            Details is not null && (DetailsFormatId == JobPayloadFormat.Json.Id || DetailsFormatId == JobPayloadFormat.Text.Id)
-                ? Encoding.UTF8.GetString(Details)
-                : null
+            Details is not null && DetailsFormatId == JobPayloadFormat.Json.Id ? Encoding.UTF8.GetString(Details) : null
         );
 }

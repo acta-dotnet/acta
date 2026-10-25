@@ -16,8 +16,8 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// The contract names the job, and a plain scalar works as its input; no record needed.
-await jobs.EnqueueAsync(ScalarInputJobs.Shout, "durable jobs are simple");
+// The generated call names the job, and a plain scalar works as its input; no record needed.
+await jobs.EnqueueAsync(ScalarInputJobs.Shout("durable jobs are simple"));
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

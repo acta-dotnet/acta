@@ -3,7 +3,7 @@
   import { api, enqueueJob, inputTemplate, ApiError, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
-  import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed, type EnqueueInputState } from './enqueueTemplate.ts';
+  import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
   import { isSysNamespace } from './namespaceAdmin.ts';
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
@@ -19,9 +19,8 @@
   let namespace = $state(initial.get('ns') ?? '');
   let jobName = $state(initial.get('jobName') ?? '');
   let includeInput = $state(false);
-  // Format-faithful so a clone round-trips its stored format (v1: json and text). Manual enqueue keeps
-  // the json default; a text clone flips it to text so the string is sent verbatim, never json-quoted.
-  let input = $state<EnqueueInputState>({ format: 'json', json: {}, text: '' });
+  // The input editor's JSON text, sent verbatim so every digit survives (lib/rawJson.ts).
+  let inputJson = $state('{}');
   let deduplicationKey = $state('');
   let correlationKey = $state('');
   let tenantName = $state('');
@@ -96,8 +95,8 @@
   }
 
   // Clone prefill: load the source job's stored input on its own, not off the detail aggregate.
-  // Json/text seed the editor; none, a binary format, or a truncated (over-cap) input leaves the new
-  // job without input (binary clone is out of scope for v1).
+  // A json input seeds the editor; none, a binary or malformed format, or a truncated (over-cap) input
+  // leaves the new job without input (binary clone is out of scope).
   const cloneQuery = createQuery(() => ({
     queryKey: keys.detail('enqueue-clone-input', fromRef ?? ''),
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<JobPayloadView | null> => {
@@ -118,8 +117,8 @@
     if (!loaded || cloneApplied) return;
     cloneApplied = true;
     const seeded = cloneInputState(loaded);
-    if (seeded) {
-      input = seeded;
+    if (seeded !== null) {
+      inputJson = seeded;
       includeInput = true;
     }
   });
@@ -141,30 +140,24 @@
   let inputEdited = $state(false);
   $effect(() => {
     if (!includeInput) return;
-    // Template seeding is json-only and never fights a text clone (templateSeed guards on clonePrefilled).
+    // Template seeding never fights a clone (templateSeed guards on clonePrefilled).
     const seed = templateSeed(templateQuery.data, { edited: inputEdited, clonePrefilled: cloneApplied });
-    if (seed !== undefined) input.json = seed;
+    if (seed !== undefined) inputJson = seed;
   });
 
-  let inputPayload = $derived<JobPayloadView>(
-    input.format === 'text'
-      ? { formatName: 'text', formatId: 3, text: input.text }
-      : { formatName: 'json', formatId: 1, json: input.json }
-  );
+  let inputPayload = $derived<JobPayloadView>({ formatName: 'json', formatId: 1, json: inputJson });
 
-  // PayloadView reports the edited draft; dispatch on the active format (a text clone stays text, a
-  // json editor parses).
+  // PayloadView reports the validated draft text.
   function applyInput(value: string): void {
     inputEdited = true;
-    if (input.format === 'text') input.text = value;
-    else input.json = JSON.parse(value);
+    inputJson = value;
   }
 
   let canSubmit = $derived(canControlNow && !busy && namespace.trim().length > 0 && jobName.trim().length > 0);
 
   async function submit(): Promise<void> {
     if (!canSubmit) return;
-    const inputFields = enqueueInputFields(includeInput, input);
+    const inputFields = enqueueInputFields(includeInput, inputJson);
     if ('error' in inputFields) {
       message = inputFields.error;
       messageKind = 'bad';
@@ -235,7 +228,7 @@
 
             <label class="detail-field checkbox">
               <input type="checkbox" bind:checked={includeInput} disabled={busy} />
-              <span>Provide input{input.format === 'json' ? ' (JSON)' : ''}</span>
+              <span>Provide input (JSON)</span>
             </label>
             {#if includeInput}
               <div class="enqueue-input"><PayloadView payload={inputPayload} editable={!busy} onSave={applyInput} /></div>

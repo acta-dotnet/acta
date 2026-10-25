@@ -677,7 +677,7 @@
   - UpdateJobInput audit metadata outlives the purged job without leaking payload bytes
   - UpdateJobInput rejects an Executing job and leaves its input unchanged
   - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
-  - UpdateJobInput stores the new payload's format id, so a text job amends as text
+  - UpdateJobInput stores the new payload's format id, so a bytes job amends as bytes
   - UpdateJobInput returns NotFound for an unknown lookup
 
 ### Pause applies from Suspended and again from Paused
@@ -773,7 +773,7 @@
 ### Transactional enqueue is provisional, validated, wake-free, and caller-owned
 - **Contract:** Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller.
 - **Guarantees:**
-  - Typed and explicit-contract transactional overloads persist and vanish with the caller transaction
+  - Typed and call transactional overloads persist and vanish with the caller transaction
   - A deduplicated transactional outcome is provisional so rollback leaves no durable row
   - An enqueue of a key an open transaction holds waits for its commit and returns that job
   - An enqueue of another key never waits on an open transaction, even when its key sorts next
@@ -810,15 +810,35 @@
   - SYS.x is rejected as a deduplication key at enqueue and as a name at registration
   - A lookup names the seeded sys namespace in any case
 
-### Contract enqueue names the job explicitly and resolves its route
-- **Contract:** The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths.
+### A generated call enqueues, schedules, and runs its job
+- **Contract:** Enqueue, schedule, and run-and-wait take a generated call, which names its job and its input, and several handler parameters are stored as one JSON object.
 - **Guarantees:**
-  - Contract enqueue resolves the route without input-type inference and round-trips the typed result
-  - No-input contract enqueues a None-format row
-  - Contract RunAndWaitAsync round-trips the typed result
-  - A result job's fire-and-forget overload binds and enqueues, dropping the result
-  - A wrong input type on a hand-built contract throws before enqueue
-  - A wrong result type on a hand-built contract throws
+  - A call resolves its route without input-type inference and round-trips the typed result
+  - A call of a handler taking several parameters stores them as one object and answers the typed result
+  - A no-input call enqueues its own job
+  - A call's configure callback applies its options
+  - A call runs and waits for the outcome, with or without its result type
+  - A scheduled call holds its job until the delay passes
+  - A hand-built call with the wrong input type throws before enqueue
+  - A hand-built call with the wrong result type throws before enqueue
+
+### A typed enqueue's handle waits for the outcome without stopping the job
+- **Contract:** A typed enqueue's handle waits for the terminal outcome and typed result, and a timed-out or cancelled wait leaves the job running.
+- **Guarantees:**
+  - A result call's handle waits for the outcome and answers the typed result
+  - An input-typed enqueue's handle names the result type at the wait
+  - A wait that times out reports the job's status and leaves it to run
+  - A cancelled wait throws and never cancels the job
+  - A handle rebuilt from the ref addresses the same job, and an unknown ref has none
+  - Waiting on a job that does not exist throws at once
+
+### ScheduleAsync holds one job until its delay or instant
+- **Contract:** ScheduleAsync enqueues one job held until db_now plus the delay or until the given instant, which wins over a time set in configure.
+- **Guarantees:**
+  - A delayed schedule holds the job until the database clock plus the delay
+  - A timed schedule persists the instant, and it wins over a time set in configure
+  - A no-input call schedules its own job, not the call as an input
+  - A result call's schedule answers a typed handle
 
 ### Relative delay resolves on the DB clock; absolute run-at is preserved
 - **Contract:** Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant.
@@ -1394,7 +1414,7 @@
 - **Contract:** The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.
 - **Guarantees:**
   - The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet
-  - Malformed meta, an oversized payload, an unsupported format id, and text holding a NUL byte quarantine immediately without touching the target
+  - Malformed meta, an oversized payload, an unsupported format id, json holding a NUL byte, and json that is not one value quarantine immediately without touching the target
 
 ### An unknown route reschedules quietly and delivers after the route is registered
 - **Contract:** A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered.
@@ -2228,7 +2248,7 @@
 - **Contract:** The variable context API persists set/get/get-or-set/delete/exists with last-writer-wins versioning, idempotent delete, format fidelity and payload validation.
 - **Guarantees:**
   - The full variable lifecycle round-trips through the context API with a factory run once and idempotent delete
-  - Payload formats (JSON, empty Text, empty Bytes) persist faithfully
+  - Payload formats (JSON, an empty JSON string, empty Bytes) persist faithfully
   - Progress is written as the sys.progress progress checkpoint in JSON
   - Variables are inspectable as text with plain SQL over the checkpoints table
   - Set is last-writer-wins and increments the version

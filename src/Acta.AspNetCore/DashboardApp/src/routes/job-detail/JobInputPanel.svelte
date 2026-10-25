@@ -2,6 +2,7 @@
   import { type JobControlResponse, type JobPayloadView } from '../../api.ts';
   import { useControlMutation } from '../../lib/useControlMutation.ts';
   import PayloadView from '../../components/PayloadView.svelte';
+  import type { RawJson } from '../../lib/rawJson.ts';
   import { amendBody, amendOutcomeMessage, inputAmendable } from './inputAmend.ts';
 
   // Presentational: the stored input comes from the aggregate detail read (JobDetail owns the fetch and
@@ -18,7 +19,7 @@
   } = $props();
 
   // A none-format or over-cap (truncated) input has no wire body to amend into, so the editor never
-  // opens for one.
+  // opens for one; PayloadView itself offers the editor only for a well-formed json input.
   let editable = $derived(canControl && inputAmendable(status) && input.formatName !== 'none' && !input.truncated);
   let editing = $state(false);
   let reason = $state('');
@@ -30,18 +31,17 @@
     if (!editing) reason = '';
   });
 
-  const mutation = useControlMutation<{ jobRef: string; body: Record<string, unknown>; reason?: string }, JobControlResponse>({
+  const mutation = useControlMutation<{ jobRef: string; body: { input: RawJson }; reason?: string }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/input`,
     body: (vars) => vars.body,
     notFound: () => ({ action: 'notFound', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
 
-  // Dispatch on the job's stored format so the amend speaks the right wire field (a text job amends
-  // text, everything else json). Binary and none formats are not editable, so only json/text reach here.
+  // Only json inputs are editable, so the draft is JSON text and travels verbatim.
   async function amend(text: string): Promise<void> {
     message = '';
-    const built = amendBody(text, input.formatName);
+    const built = amendBody(text);
     if ('error' in built) {
       message = built.error;
       messageKind = 'bad';

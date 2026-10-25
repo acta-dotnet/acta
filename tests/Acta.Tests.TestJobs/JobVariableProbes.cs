@@ -20,7 +20,7 @@ public sealed record VariableLifecycleResult(
     bool RequiredAbsentValueTypeThrew
 );
 
-public sealed record VariablePersistenceResult(string EmptyText, int EmptyBytesLength);
+public sealed record VariablePersistenceResult(string EmptyString, int EmptyBytesLength);
 
 public sealed record VariableVersioningResult(
     string OverwrittenValue,
@@ -122,15 +122,15 @@ public static class JobVariableProbes
     {
         await ctx.SetVariableAsync("fetch.status", "done", ct);
 
-        await ctx.SetVariableAsync("payload.empty-text", JobPayload.Text(string.Empty), ct);
-        var emptyText = await ctx.GetRequiredVariableAsync<string>("payload.empty-text", ct);
+        await ctx.SetVariableAsync("payload.empty-string", JobPayload.Json(string.Empty), ct);
+        var emptyString = await ctx.GetRequiredVariableAsync<string>("payload.empty-string", ct);
 
         await ctx.SetVariableAsync("payload.empty-bytes", JobPayload.Bytes([]), ct);
         var emptyBytes = await ctx.GetRequiredVariableAsync<byte[]>("payload.empty-bytes", ct);
 
         await ctx.SetProgressAsync("stage-two", ct);
 
-        return new VariablePersistenceResult(emptyText, emptyBytes.Length);
+        return new VariablePersistenceResult(emptyString, emptyBytes.Length);
     }
 
     [Job("job-variable-versioning")]

@@ -65,8 +65,8 @@ namespace Acta.Concepts.VariableLifecycle
             var fallback = await context.GetVariableOrDefaultAsync("counter", "missing", ct);
             Console.WriteLine($"default fallback: {fallback}");
 
-            // Raw JobPayload variable: store pre-serialized text bytes; the format travels with the value.
-            var raw = JobPayload.Text("raw-value");
+            // Raw JobPayload variable: store a pre-serialized payload; the format travels with the value.
+            var raw = JobPayload.Json("raw-value");
             await context.SetVariableAsync("raw-var", raw, ct);
             var rawBack = await context.GetVariableOrDefaultAsync<string>("raw-var", ct);
             Console.WriteLine($"raw payload round-trip: {rawBack}");

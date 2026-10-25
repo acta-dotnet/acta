@@ -244,27 +244,44 @@ internal sealed class FakeJobs : IJobs
     ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
+    ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(
+        JobCall<TInput> job,
+        Action<JobEnqueueOptionsBuilder>? configure,
+        CancellationToken ct
+    ) => throw new NotSupportedException();
+
+    ValueTask<JobHandle<TResult>> IJobs.EnqueueAsync<TInput, TResult>(
+        JobCall<TInput, TResult> job,
+        Action<JobEnqueueOptionsBuilder>? configure,
+        CancellationToken ct
+    ) => throw new NotSupportedException();
+
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
-        JobContract<TInput> job,
-        TInput input,
-        JobEnqueueOptions? options,
+        DbTransaction transaction,
+        JobCall<TInput> job,
+        Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput, TResult>(
-        JobContract<TInput, TResult> job,
-        TInput input,
-        JobEnqueueOptions? options,
+        DbTransaction transaction,
+        JobCall<TInput, TResult> job,
+        Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<JobOutcome> IJobs.WaitAsync(JobLookup job, TimeSpan? timeout, CancellationToken ct) => throw new NotSupportedException();
+
+    ValueTask<JobOutcome<TResult>> IJobs.WaitAsync<TResult>(JobLookup job, TimeSpan? timeout, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<JobOutcome> IJobs.RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
+        throw new NotSupportedException();
+
+    ValueTask<JobOutcome> IJobs.RunAndWaitAsync<TInput>(JobCall<TInput> job, JobExecutionOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<JobOutcome<TResult>> IJobs.RunAndWaitAsync<TInput, TResult>(
@@ -274,8 +291,7 @@ internal sealed class FakeJobs : IJobs
     ) => throw new NotSupportedException();
 
     ValueTask<JobOutcome<TResult>> IJobs.RunAndWaitAsync<TInput, TResult>(
-        JobContract<TInput, TResult> job,
-        TInput input,
+        JobCall<TInput, TResult> job,
         JobExecutionOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
@@ -289,29 +305,6 @@ internal sealed class FakeJobs : IJobs
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
-        JobEnqueueOptions? options,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
-
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
-        DbTransaction transaction,
-        JobContract<TInput> job,
-        TInput input,
-        JobEnqueueOptions? options,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
-
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput, TResult>(
-        DbTransaction transaction,
-        JobContract<TInput, TResult> job,
-        TInput input,
-        JobEnqueueOptions? options,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
-
-    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(
-        DbTransaction transaction,
-        JobContract<NoInput> job,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();

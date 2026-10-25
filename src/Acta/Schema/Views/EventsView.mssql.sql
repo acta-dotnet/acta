@@ -23,12 +23,11 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE CONCAT('custom-', e.details_format_id)
     END AS details_format,
     CASE
         WHEN
-            e.details_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            e.details_format_id = 1 /* JobPayloadFormat.Json */
             THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
     END AS details_text
 FROM {{schema}}.events AS e

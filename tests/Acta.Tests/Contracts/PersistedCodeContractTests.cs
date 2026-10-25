@@ -197,9 +197,9 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)AlertDeliveryStatusCode.Failed);
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
-        var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes, JobPayloadFormat.Text };
-        Assert.Equal(158, actual.Count + payloads.Length);
-        Assert.Equal([0, 1, 2, 3], payloads.Select(p => (int)p.Id));
+        var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes };
+        Assert.Equal(157, actual.Count + payloads.Length);
+        Assert.Equal([0, 1, 2], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
             "\n",

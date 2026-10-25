@@ -50,10 +50,14 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta");           // dashboard + JSON API; local-only by default, controls disabled
 
-await app.StartAsync();
-await app.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));
-Console.WriteLine($"Enqueued. Dashboard: {app.Urls.First()}/acta");
-await app.WaitForShutdownAsync();
+// Your own endpoint enqueues: the job is a durable row before the response goes out.
+app.MapPost("/orders/{orderId:int}", async (int orderId, IJobs jobs) =>
+{
+    var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
+    return Results.Accepted("/acta", new { job.JobRef });
+});
+
+app.Run();
 
 public sealed record ShipOrder(int OrderId);
 
@@ -64,7 +68,8 @@ public static class ShippingHandlers
 }
 ```
 
-`dotnet run`, watch the job complete, open the dashboard. Rules this sample carries:
+`dotnet run`, then `curl -X POST http://localhost:<port>/orders/1042` on the port it printed: the app prints
+`Shipping order 1042` and the dashboard lists the job. Rules this sample carries:
 
 - `[Job("ship-order")]` is required and a name: dotted kebab-case, `[a-z][a-z0-9-]*` segments joined by `.`
   (`billing.send-invoice`), no underscores, no trailing dash, at most 128 chars. The bare `sys` and the `sys.` prefix are reserved for Acta's own jobs. The name is
@@ -74,8 +79,15 @@ public static class ShippingHandlers
   `Manifest` instead: `TestJobs` → `TestJobsManifest`). It is generated into that root namespace,
   so a `Program.cs` with a top-level namespace needs `using Shipping;` to see it.
 - Enqueue is type-driven: the input record's type routes the call, one `EnqueueAsync` for every
-  job. The host that enqueues can also execute; there is no separate worker process unless you
-  want one.
+  job. It answers a `JobHandle`: `await job.WaitAsync()` follows the job to its outcome without stopping it.
+  `ScheduleAsync(input, TimeSpan)` or `ScheduleAsync(input, DateTimeOffset)` runs one job later; a recurring
+  schedule is `[JobSchedule]`. The host that enqueues can also execute; there is no separate worker process
+  unless you want one.
+- Each job's member on `ShippingJobs` is a factory taking the handler's input parameters and returning the
+  job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)), o => o.DeduplicationKey(key))`
+  names the job outright, and a result job's call answers `JobHandle<TResult>`. A handler may take several input parameters before `JobContext` and
+  `CancellationToken`; they travel as one generated record, `ShippingJobs.{Job}Args`, whose parameter names
+  are stored JSON keys. Under Native AOT, register that record in the `UseJsonPayloads` context.
 - Handlers resolve through DI: an instance class's constructor dependencies must be registered.
 
 ## Wiring rules by situation
@@ -112,7 +124,8 @@ returns its recorded result instead of running the body. That promise has two co
 
 A failing step retries on its own backoff without charging the job's retry budget. A step that
 exhausts its budget stays exhausted: every later attempt throws `StepExhaustedException` for it without
-running the body, so left uncaught it fails every retry at once and, in a recurring job, every fire.
+running the body, so left uncaught it fails the job at once without spending its retry budget, and in a
+recurring job it fails every later fire the same way.
 Catch it where the job can go on without the step; an operator restart gives the step a fresh budget. For side effects where a duplicate is worse than an ambiguous
 interruption (a payment capture), `AtMostOnce()` runs the body zero-or-one times and hands the
 handler an explicit interrupted state to reconcile.
@@ -228,6 +241,10 @@ Inline payloads (inputs, step results, variables) are capped at 1 MiB (`MaxInlin
 Caller-supplied oversized writes throw `PayloadTooLargeException`; an oversized handler RESULT is
 dropped with a `job.result-oversized` event while the job still succeeds. Big artifacts belong in
 blob storage with the job carrying a reference: URI, checksum, size.
+
+By default an input with no data uses the `none` format, `byte[]`/`ReadOnlyMemory<byte>` use `bytes`, and every
+other input, scalars included, is JSON (`"hello"`, `42`); an explicit or custom format overrides that. A raw or
+HTTP enqueue in the json format sends strict JSON (one value, no comments or trailing commas) or is refused.
 
 ## Things that are not what they sound like
 

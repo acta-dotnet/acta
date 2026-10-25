@@ -16,8 +16,8 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// The generated contract names the job; a job without input takes no payload.
-await jobs.EnqueueAsync(NoInputJobJobs.Heartbeat);
+// The manifest's generated call names the job; a job without input takes no payload.
+await jobs.EnqueueAsync(NoInputJobJobs.Heartbeat());
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

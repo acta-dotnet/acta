@@ -106,7 +106,7 @@ public abstract partial class JobContext
     {
         var child = await StartChildAsync(name, input, configure, ct);
         var outcome = await WaitChildAsync(child.JobId, ct);
-        return ToJobOutcome(child.JobId, outcome.Status);
+        return ToJobOutcome(child, outcome.Status);
     }
 
     /// <summary>
@@ -142,8 +142,8 @@ public abstract partial class JobContext
         // persisted absolute instant, and a second copy of it could only drift.
         var result = await TryWaitChildAsync(child.JobId, timeout, ct);
         return result.Outcome is { } outcome
-            ? ToJobOutcome(child.JobId, outcome.Status)
-            : JobOutcome.TimedOut(child.JobId, TimedOutChildStatus);
+            ? ToJobOutcome(child, outcome.Status)
+            : JobOutcome.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
     }
 
     /// <summary>
@@ -155,12 +155,12 @@ public abstract partial class JobContext
     public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, TimeSpan timeout, CancellationToken ct)
         where TInput : notnull => ExecuteChildAsync(name, input, timeout, configure: null, ct: ct);
 
-    private static JobOutcome ToJobOutcome(long childJobId, JobStatusCode status) =>
+    private static JobOutcome ToJobOutcome(EnqueueJobResponse child, JobStatusCode status) =>
         status switch
         {
-            JobStatusCode.Succeeded => JobOutcome.Succeeded(childJobId),
-            JobStatusCode.Cancelled => JobOutcome.Cancelled(childJobId),
-            _ => JobOutcome.Failed(childJobId),
+            JobStatusCode.Succeeded => JobOutcome.Succeeded(child.JobId, child.JobRef),
+            JobStatusCode.Cancelled => JobOutcome.Cancelled(child.JobId, child.JobRef),
+            _ => JobOutcome.Failed(child.JobId, child.JobRef),
         };
 
     /// <summary>
@@ -192,11 +192,11 @@ public abstract partial class JobContext
         if (outcome.Status != JobStatusCode.Succeeded)
         {
             return outcome.Status == JobStatusCode.Cancelled
-                ? JobOutcome<TResult>.Cancelled(child.JobId)
-                : JobOutcome<TResult>.Failed(child.JobId);
+                ? JobOutcome<TResult>.Cancelled(child.JobId, child.JobRef)
+                : JobOutcome<TResult>.Failed(child.JobId, child.JobRef);
         }
 
-        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(outcome, name, ct));
+        return JobOutcome<TResult>.Succeeded(child.JobId, child.JobRef, await RequireChildResultAsync<TResult>(outcome, name, ct));
     }
 
     /// <summary>
@@ -231,16 +231,16 @@ public abstract partial class JobContext
         var result = await TryWaitChildAsync(child.JobId, timeout, ct);
         if (result.Outcome is not { } outcome)
         {
-            return JobOutcome<TResult>.TimedOut(child.JobId, TimedOutChildStatus);
+            return JobOutcome<TResult>.TimedOut(child.JobId, child.JobRef, TimedOutChildStatus);
         }
         if (outcome.Status != JobStatusCode.Succeeded)
         {
             return outcome.Status == JobStatusCode.Cancelled
-                ? JobOutcome<TResult>.Cancelled(child.JobId)
-                : JobOutcome<TResult>.Failed(child.JobId);
+                ? JobOutcome<TResult>.Cancelled(child.JobId, child.JobRef)
+                : JobOutcome<TResult>.Failed(child.JobId, child.JobRef);
         }
 
-        return JobOutcome<TResult>.Succeeded(child.JobId, await RequireChildResultAsync<TResult>(outcome, name, ct));
+        return JobOutcome<TResult>.Succeeded(child.JobId, child.JobRef, await RequireChildResultAsync<TResult>(outcome, name, ct));
     }
 
     /// <summary>

@@ -140,7 +140,7 @@ A handler is valid when its `[Job]` placement and compile-time signature match o
 
 ### Core principle
 
-A job handler has exactly one input and zero or one durable result. The declared compile-time signature is the contract; runtime values do not decide whether a result exists.
+A job handler has one input, a single parameter or several the generator folds into one record, and zero or one durable result. The declared compile-time signature is the contract; runtime values do not decide whether a result exists.
 
 ```csharp
 public Task Run(SendEmail request, CancellationToken ct);              // no durable result
@@ -302,7 +302,7 @@ public sealed class LoggingBehavior(ILogger<LoggingBehavior> log) : IJobPipeline
 
 ### Method handler shapes
 
-Four canonical shapes; 32 total supported (16 with an input, 16 payload-less).
+Four canonical shapes.
 
 ```csharp
 [Job("add-numbers")]
@@ -342,7 +342,7 @@ Parameter forms:
 (TIn, JobContext, CancellationToken)
 ```
 
-Total with an input: `6 × 3 − 2 = 16`. The two illegal shapes are synchronous handlers with `JobContext`:
+The two illegal shapes are synchronous handlers with `JobContext`:
 
 ```csharp
 void Handle(TIn input, JobContext context, CancellationToken ct);
@@ -369,18 +369,20 @@ Invalid:
 Handle(JobContext context, TIn request, CancellationToken ct)
 Handle(TIn request, CancellationToken ct, JobContext context)
 Handle(TIn request, JobContext context)
-Handle(TIn request, HttpClient http, CancellationToken ct)
+Handle(TIn request, CancellationToken ct, HttpClient http)
 ```
 
 A handler with no input drops the request parameter and keeps the rest of the order, so
 `Handle(CancellationToken ct)` and `Handle(JobContext context, CancellationToken ct)` are the
-payload-less shapes; see [Payload-less jobs](#payload-less-jobs).
+payload-less shapes; see [Payload-less jobs](#payload-less-jobs). A handler may instead take several input parameters
+before the rest, `Handle(Guid invoiceId, string recipient, CancellationToken ct)`; see
+[Handlers with several input parameters](#handlers-with-several-input-parameters).
 
-Constructor injection is the dependency-resolution mechanism. The signature carries only the request, optional `JobContext`, and optional `CancellationToken`.
+Constructor injection is the dependency-resolution mechanism. The signature carries only the input, optional `JobContext`, and optional `CancellationToken`.
 
 ### Input type
 
-Every job has exactly one input type, `TIn`.
+Every job has exactly one input type: `TIn`, or the record the generator emits for a handler taking several input parameters.
 
 Allowed:
 
@@ -415,7 +417,7 @@ The input parameter is optional. A job with no logical input omits it:
 [Job("tick")]            public void Handle() { }
 ```
 
-Dropping the input adds three more parameter forms (`()`, `(CancellationToken)`, `(JobContext, CancellationToken)`) the same matrix again for 16 more, so 32 shapes are supported in total. A recurring or scheduled job with no meaningful input is the common case.
+Dropping the input adds three more parameter forms (`()`, `(CancellationToken)`, `(JobContext, CancellationToken)`) with the same return forms. A recurring or scheduled job with no meaningful input is the common case.
 
 The descriptor's input slot is filled with the framework `NoInput` sentinel (`Acta.NoInput`), never written by handler authors, so the one-input invariant holds. The format is `JobPayloadFormat.None`: nothing is serialized.
 
@@ -430,6 +432,23 @@ public Task Handle(NightlyCleanup request, CancellationToken ct) => ...
 
 Such a record (no fields, no settable properties, no required members) also maps to `JobPayloadFormat.None`; the runtime fabricates `new TIn()` at dispatch.
 
+### Handlers with several input parameters
+
+The parameters before `JobContext` and `CancellationToken` are the input. Two or more become one record the generator nests in the manifest beside the job's call:
+
+```csharp
+[Job("send-invoice")]
+public Task<Receipt> Send(Guid invoiceId, string recipient, CancellationToken ct) => ...
+
+// generated: public sealed record SendInvoiceArgs(Guid invoiceId, string recipient), nested in BillingJobs
+JobHandle<Receipt> job = await jobs.EnqueueAsync(BillingJobs.SendInvoice(invoiceId, "billing@example.com"));
+```
+
+- The record is the job's `TIn`, stored as JSON: `{"invoiceId":"…","recipient":"billing@example.com"}`. The parameter names are its contract fields, so renaming one is a contract change; see [contract evolution](#contract-evolution).
+- Under Native AOT, add `[JsonSerializable(typeof(BillingJobs.SendInvoiceArgs))]` to the context passed to `UseJsonPayloads`.
+- An interface parameter other than a collection such as `IReadOnlyList<T>` is rejected (ACTA0103): it reads as a dependency, and dependencies come from the constructor.
+- Such a handler cannot carry `[JobSchedule]` (ACTA0123), since a recurring slot seeds its input from a parameterless constructor the record lacks.
+
 ### Input payload format inference
 
 Default input serializer is selected from the CLR shape of `TIn`.
@@ -438,8 +457,9 @@ Default input serializer is selected from the CLR shape of `TIn`.
 | ---------------------------------- | -------------- |
 | parameterless data-less record     | `none`         |
 | `byte[]`, `ReadOnlyMemory<byte>`   | `bytes`        |
-| `string`, primitive scalars, enums | `text`         |
-| records / classes / DTO structs    | `json`         |
+| everything else, scalars included  | `json`         |
+
+A scalar travels as its JSON value: `"hello"`, `42`, `true`. JSON has no NaN or Infinity, so serializing either throws at enqueue. Under reflection-free Native AOT, Acta supplies the metadata for the standard scalars; every other input or result type, an enum included, goes in the context passed to `UseJsonPayloads`, enums with `UseStringEnumConverter = true`.
 
 Explicit knobs override inference: `[Job(Format = "...")]` sets input and result formats together; `[Job(InputFormat = "...")]` and `[Job(OutputFormat = "...")]` set one side. `Format` is mutually exclusive with the per-side knobs; `OutputFormat` on a no-result handler is rejected (`ACTA0132`).
 
@@ -449,7 +469,6 @@ Built-in formats:
 none
 json
 bytes
-text
 ```
 
 Custom formats use `[JobPayloadFormatDeclarationAttribute(id, name)]`. Custom format IDs live in the consumer range `128–255`. Keep kebab-case names in an app-local `const string` class so handlers read clean (`[Job(Format = PayloadFormats.Msgpack)]`) and serializers reuse the same constant. That class is ordinary source, not generated: the generator reads the constant value while building the descriptor, so it must exist in the compilation it sees. A format name matching neither a built-in nor a declared custom is rejected (`ACTA0132`).
@@ -461,8 +480,7 @@ Same rules as input, applied to `TOut`.
 | `TOut`                             | Default format |
 | ---------------------------------- | -------------- |
 | `byte[]`, `ReadOnlyMemory<byte>`   | `bytes`        |
-| `string`, primitive scalars, enums | `text`         |
-| records / classes / DTO structs    | `json`         |
+| everything else, scalars included  | `json`         |
 
 A parameterless data-less record as `TOut` carries no information; it collapses to no durable result, the same as a void return.
 
@@ -569,15 +587,15 @@ The generator reports these at build time. All are errors unless noted, and an e
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ACTA0101` | Duplicate `[Job]` name within the manifest.                                                                                                                                                                       |
 | `ACTA0102` | Invalid `[Job]` name; dotted kebab-case, at most 128 chars, `sys` and the `sys.` prefix reserved for system jobs.                                                                                          |
-| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, extra parameter, forbidden `TIn`, open generic, private method or type, `JobContext` pairing, an input or output type whose name is not ASCII). |
+| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, an input parameter after `JobContext` or `CancellationToken`, forbidden `TIn`, a non-collection interface among several input parameters, open generic, private method or type, `JobContext` pairing, an input or output type whose name is not ASCII). |
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
-| `ACTA0106` | A job's contract member name collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out of the contract. |
+| `ACTA0106` | A job's generated member name (its call factory, or the argument record of a job taking several parameters) collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out and dispatch is unaffected. |
 | `ACTA0121` | Invalid `[JobSchedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                         |
 | `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of at least one second such as `5m`.                                                                                           |
-| `ACTA0123` | `[JobSchedule]` handler whose input has no accessible parameterless constructor.                                                                                                                                  |
+| `ACTA0123` | `[JobSchedule]` handler whose input has no accessible parameterless constructor, or that takes several input parameters.                                                                                         |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
-| `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`OutputFormat`, `OutputFormat` on a no-result handler, or a name matching no built-in or declared format).                               |
+| `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`OutputFormat`, `OutputFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
 | `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |
 
 Placement on anything but a method (for example a request DTO) is rejected by `[AttributeUsage(AttributeTargets.Method)]` at compile time, not by a diagnostic.
@@ -705,6 +723,28 @@ The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps 
 
 A job that arrives early is given the next free turn and re-arms Ready at that instant, budget-neutral, with reason `job.rate-limited`, so a backlog drains in arrival order at the rate. An override changes only turns not booked yet. The meter admits at most `R*T + B` starts in any `T` seconds, the burst `B` being one second's worth of the rate (at least one), and a booked turn may start up to one second late, or one interval when that is longer.
 
+## Enqueue, schedule, and follow a job
+
+```csharp
+var job = await jobs.EnqueueAsync(new ShipOrder(1042));                                 // run now
+var later = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));    // run once, later
+var receipt = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(7)));     // JobHandle<Receipt>
+var once = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(8)), o => o.DeduplicationKey("invoice-8"));
+
+JobOutcome outcome = await job.WaitAsync(TimeSpan.FromSeconds(30));
+Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
+```
+
+- Each job's member on the generated manifest is a factory (`BillingJobs.SendInvoice(...)`): it takes the handler's input parameters, none when the input carries no data, and returns the job's call. A call names its job, so nothing is inferred from the input's type. Enqueue and schedule take it with options as a `configure` callback, and run-and-wait with its `JobExecutionOptions`.
+- A typed enqueue or a call answers a `JobHandle`: the `EnqueueJobResponse` (`JobRef`, `JobId`, `Action`) plus `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `CancelAsync`, and `ExplainAsync`, each addressed by the job's id, so none spends a query resolving the job.
+- A result job's call answers `JobHandle<TResult>`, so the wait and the result read need no type argument; an input-typed enqueue names it: `job.WaitAsync<Receipt>()`.
+- `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. It throws when no job matches, for a non-positive timeout, when its token is cancelled, and when a typed wait finds a success that stored no result.
+- A successful wait's result is the one the execution it saw succeed stored.
+- `IJobs.WaitAsync(jobRef)` waits on a job another process enqueued, and `IJobs.GetHandleAsync(jobRef)` rebuilds a handle for it, or answers null when no job matches.
+- `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[JobSchedule]`.
+- `RunAndWaitAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`.
+- The raw `EnqueueJobRequest`, batch, transactional, and child enqueues answer the plain `EnqueueJobResponse`.
+
 ## Transactional enqueue and the external outbox
 
 When a business change and an enqueue must commit or roll back together, use the direct transactional enqueue if the business data and the Acta ledger share one database, and the external outbox if they do not. Neither makes execution exactly-once: handlers still own the idempotency of their side effects. [Choosing Acta](./choosing-acta.md#atomic-enqueue-with-business-data) helps decide.
@@ -716,7 +756,7 @@ Every enqueue shape has an overload that takes your open `DbTransaction` first a
 ```csharp
 await using var transaction = await connection.BeginTransactionAsync(ct);
 // ... your business writes on the same transaction ...
-await jobs.EnqueueAsync(transaction, request, ct);
+var receipt = await jobs.EnqueueAsync(transaction, request, ct);   // EnqueueJobResponse, not a handle
 await transaction.CommitAsync(ct);
 ```
 
@@ -724,7 +764,7 @@ With EF Core, pass `transaction.GetDbTransaction()`.
 
 - You own the transaction: Acta never commits, rolls back, disposes, or retries it.
 - No wakeup is published, because Acta cannot know when you commit; workers pick the job up by polling.
-- The returned `JobId` and `JobRef` exist only once you commit.
+- The returned `JobId` and `JobRef` are provisional until you commit and dead after a rollback, so the answer is the plain `EnqueueJobResponse`, not a handle; follow the job after the commit with `jobs.WaitAsync(receipt)`. `ScheduleAsync` has the same transactional twins.
 - After any enqueue exception, roll back the whole business transaction.
 - Supply a stable `DeduplicationKey` if you may retry the whole transaction after an ambiguous commit.
 - A null, closed, or wrong-provider transaction is rejected before any command runs; pointing it at the database that holds the Acta schema is your job.
@@ -740,7 +780,7 @@ When the business database is not the Acta ledger, stage an Acta-shaped row in t
 await using var tx = (NpgsqlTransaction)await connection.BeginTransactionAsync(ct);
 // ... your business writes ...
 await tx.AddToActaOutboxAsync(new EnqueueJobRequest(
-    "orders", "send-receipt", JobPayload.Text(orderId), DeduplicationKey: orderId), cancellationToken: ct);
+    "orders", "send-receipt", JobPayload.Json(orderId), DeduplicationKey: orderId), cancellationToken: ct);
 await tx.CommitAsync(ct);
 ```
 
@@ -933,8 +973,8 @@ var outcome = await host.RunOnceAsync(enqueued, ct);   // claim + execute exactl
 var outcome = await host.RunOnceAsync("users", ct);          // claim + execute at most one Ready job in the namespace
 ```
 
-Enqueue, drive, assert, in that order, deterministically. Assertions go through the same public
-`IJobs` read surface production uses (`GetAsync`, `GetStatusAsync`, `GetResultAsync<T>`).
+Enqueue, drive, assert, in that order, deterministically. Assertions go through the same public surface production uses:
+the `JobHandle` the enqueue answered (`GetStatusAsync`, `GetResultAsync<T>`, `WaitAsync`) or `host.Jobs` (`GetAsync`, `RaiseSignalAsync`).
 
 ### Dependency
 
@@ -1016,7 +1056,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
         var outcome = await _host.RunOnceAsync(enqueued);
 
         Assert.Equal(ActaRunStatus.Completed, outcome);
-        Assert.Equal(JobStatusCode.Succeeded, (await _host.Jobs.GetStatusAsync(enqueued))?.Status);
+        Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync())?.Status);
         var sent = Assert.Single(_email.Sent);
         Assert.Equal(userId, sent.UserId);
     }
@@ -1027,9 +1067,9 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
   `ApplyMigrationsOnStartup = true`; the host owns a fresh schema per test class.
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.
-- `GetStatusAsync(enqueued)` works because `EnqueueJobResponse` converts implicitly to `JobLookup`;
-  `JobLookup.ByRef(...)` and `JobLookup.ByDeduplicationKey(...)` are the explicit forms, and
-  `JobLookup.ById(...)` is the debug path.
+- `enqueued` is a `JobHandle`, so its reads address the job directly, and it converts implicitly to `JobLookup` for every
+  `host.Jobs` verb; `JobLookup.ByRef(...)` and `JobLookup.ByDeduplicationKey(...)` address a job something else enqueued,
+  and `JobLookup.ById(...)` is the debug path.
 - `RunOnceAsync(enqueued)` is sugar for `RunOnceAsync(enqueued.JobId)`. The by-id drive routes to
   the worker that owns the job's namespace, and retries a transiently missed claim for up to five
   seconds (the claim uses skip-locked reads), stopping as soon as the row can no longer be claimed.
@@ -1118,14 +1158,14 @@ public async Task Waits_for_the_approval_signal_then_completes()
 
     // Tick 1: the handler reaches WaitSignalAsync and parks durably.
     Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(enqueued));
-    Assert.Equal(JobStatusCode.Suspended, (await _host.Jobs.GetStatusAsync(enqueued))?.Status);
+    Assert.Equal(JobStatusCode.Suspended, (await enqueued.GetStatusAsync())?.Status);
 
     // Release: the signal moves the job back to Ready, due now.
     await _host.Jobs.RaiseSignalAsync(enqueued, "approval", true);
 
     // Tick 2: the handler resumes past the wait and completes.
     Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(enqueued));
-    Assert.Equal(JobStatusCode.Succeeded, (await _host.Jobs.GetStatusAsync(enqueued))?.Status);
+    Assert.Equal(JobStatusCode.Succeeded, (await enqueued.GetStatusAsync())?.Status);
 }
 ```
 
@@ -1141,7 +1181,7 @@ A handler that returns a value stores it on the job; read it back typed, before 
 var enqueued = await _host.Jobs.EnqueueAsync(new AddNumbers(2, 3));
 await _host.RunOnceAsync(enqueued);
 
-var result = await _host.Jobs.GetResultAsync<AddNumbersResult>(enqueued);
+var result = await enqueued.GetResultAsync<AddNumbersResult>();
 Assert.Equal(5, result!.Sum);
 ```
 

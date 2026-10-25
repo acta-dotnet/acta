@@ -377,7 +377,7 @@ internal sealed class HandlerInvocation(
         }
 
         var serializer = serializers.Resolve(job.InputFormatId);
-        var payload = JobPayload.FromBytes(serializer.Format, job.Input.ToArray());
+        var payload = JobPayload.Trusted(serializer.Format, job.Input.ToArray());
         return descriptor.DeserializeInput(serializer, payload);
     }
 }

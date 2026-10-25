@@ -17,7 +17,7 @@ public class ManifestGeneratorDiagnosticTests
         RunGenerator(source, rootNamespace, out _);
 
     /// <summary>Runs the generator and hands back the compilation with the generated source added.</summary>
-    private static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace, out Compilation output)
+    internal static GeneratorDriverRunResult RunGenerator(string source, string? rootNamespace, out Compilation output)
     {
         var referencePaths = new HashSet<string>(
             ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator),
@@ -236,7 +236,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Extra_parameter_errors_ACTA0103()
+    public void A_parameter_after_the_framework_parameters_errors_ACTA0103()
     {
         var result = RunGenerator(
             """
@@ -248,7 +248,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("extra-param")]
-                public static void Run(Input input, string other) { }
+                public static void Run(Input input, System.Threading.CancellationToken ct, string other) { }
             }
             """
         );
@@ -1340,13 +1340,12 @@ public class ManifestGeneratorDiagnosticTests
             using Acta;
             namespace GenTests;
 
-            public sealed record Input(int Value);
             public sealed record Output(int Value);
 
             public static class Handler
             {
-                [Job("echo", InputFormat = "json", OutputFormat = "text")]
-                public static System.Threading.Tasks.Task<Output> Handle(Input input) => null!;
+                [Job("echo", InputFormat = "bytes", OutputFormat = "json")]
+                public static System.Threading.Tasks.Task<Output> Handle(byte[] input) => null!;
             }
             """
         );
@@ -1367,7 +1366,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("echo", Format = "json", InputFormat = "text")]
+                [Job("echo", Format = "json", InputFormat = "bytes")]
                 public static System.Threading.Tasks.Task<Output> Handle(Input input) => null!;
             }
             """
@@ -1389,7 +1388,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("echo", Format = "json", OutputFormat = "text")]
+                [Job("echo", Format = "json", OutputFormat = "bytes")]
                 public static System.Threading.Tasks.Task<Output> Handle(Input input) => null!;
             }
             """
@@ -1607,7 +1606,7 @@ public class ManifestGeneratorDiagnosticTests
         AssertCompilesCleanly(compilation);
     }
 
-    private static void AssertCompilesCleanly(Compilation compilation) =>
+    internal static void AssertCompilesCleanly(Compilation compilation) =>
         Assert.Empty(
             compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity >= DiagnosticSeverity.Warning)
         );

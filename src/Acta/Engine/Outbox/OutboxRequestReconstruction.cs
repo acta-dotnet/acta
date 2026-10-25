@@ -7,7 +7,7 @@ namespace Acta;
 /// the raw enqueue vocabulary. A null <c>priority_code</c> stays null in the request (no override); the
 /// external table's <c>ParentJobId</c>-less contract means the reconstructed request is always a root job.
 /// A malformed <c>meta</c>, missing tag name, an over-cap payload, an unsupported <c>input_format_id</c>, or input
-/// its format rejects (json or text that is not UTF-8 or holds a NUL byte) throws <see cref="OutboxContractException"/>
+/// its format rejects (json that is not UTF-8 or holds a NUL byte) throws <see cref="OutboxContractException"/>
 /// for immediate quarantine.
 /// </summary>
 internal static class OutboxRequestReconstruction
@@ -29,7 +29,7 @@ internal static class OutboxRequestReconstruction
             JobPayloadFormat format;
             try
             {
-                // A reserved format id (4..127) is not a real payload format: turn the ForId reject into a
+                // A reserved format id (3..127) is not a real payload format: turn the ForId reject into a
                 // deterministic contract error so the row quarantines instead of failing the whole tick.
                 format = JobPayloadFormat.ForId(row.InputFormatId);
             }

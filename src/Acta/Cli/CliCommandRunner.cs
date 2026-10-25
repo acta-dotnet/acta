@@ -68,12 +68,7 @@ internal sealed class CliCommandRunner(
             CliVerb.Pause => Control("pause", jobRef, await jobs.PauseAsync(job, command.Reason, ct: ct), command.Json),
             CliVerb.Resume => Control("resume", jobRef, await jobs.ResumeAsync(job, command.Reason, ct: ct), command.Json),
             CliVerb.Restart => Control("restart", jobRef, await jobs.RestartAsync(job, command.Reason, ct: ct), command.Json),
-            CliVerb.Signal => Control(
-                "signal",
-                jobRef,
-                await jobs.RaiseSignalAsync(job, command.SignalName!, SignalPayload(command.SignalValue), ct: ct),
-                command.Json
-            ),
+            CliVerb.Signal => await SignalAsync(job, jobRef, command, ct),
             CliVerb.Debug => await DebugAsync(snapshot, command.Json, command.Break, ct),
             CliVerb.Events => await EventsAsync(job, jobRef, command.Take, command.Cursor, command.Json, ct),
             CliVerb.Explain => await ExplainAsync(job, command.Json, ct),
@@ -113,10 +108,26 @@ internal sealed class CliCommandRunner(
 
     /// <summary>
     /// A signal value is passed through verbatim as a JSON payload the handler reads via
-    /// WaitSignalAsync&lt;T&gt;; omitting --value raises a presence-only signal.
+    /// WaitSignalAsync&lt;T&gt;; omitting --value raises a presence-only signal, and a value that is not one JSON
+    /// value is a usage error.
     /// </summary>
-    private static JobPayload SignalPayload(string? value) =>
-        value is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(value));
+    private async Task<int> SignalAsync(JobLookup job, JobRef jobRef, CliCommand command, CancellationToken ct)
+    {
+        JobPayload payload;
+        try
+        {
+            payload = command.SignalValue is null
+                ? JobPayload.None
+                : JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(command.SignalValue));
+        }
+        catch (ArgumentException ex)
+        {
+            await error.WriteLineAsync($"--value: {ex.Message}");
+            return ExitUsage;
+        }
+
+        return Control("signal", jobRef, await jobs.RaiseSignalAsync(job, command.SignalName!, payload, ct: ct), command.Json);
+    }
 
     private int Control(string verb, JobRef jobRef, IJobControlResponse result, bool json)
     {
@@ -193,7 +204,7 @@ internal sealed class CliCommandRunner(
         }
 
         var value = payload.Value;
-        if (value.Format == JobPayloadFormat.Json || value.Format == JobPayloadFormat.Text)
+        if (value.Format == JobPayloadFormat.Json)
         {
             await output.WriteLineAsync(Encoding.UTF8.GetString(value.Data.Span));
         }

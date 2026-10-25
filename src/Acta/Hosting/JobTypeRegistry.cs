@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Maps a job input CLR type to its enqueue route, backing the typed
 /// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> and
-/// <see cref="IJobs.RunAndWaitAsync{TInput}"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>
+/// <see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>
 /// from the declared catalogs (Reference and Run); the raw <see cref="EnqueueJobRequest"/> path carries the namespace
 /// and name and needs no index. When one type is registered under several namespaces or appears as <c>NoInput</c> for
 /// several jobs in one, <see cref="Resolve"/> reports the ambiguity and points the caller at the namespace option or the raw path.
@@ -51,7 +51,7 @@ internal sealed class JobTypeRegistry
 
     /// <summary>
     /// Resolve <paramref name="inputType"/> to its enqueue route. <paramref name="namespaceHint"/>
-    /// (from <c>JobEnqueueOptions.Namespace</c>) narrows resolution to one namespace. Throws when the
+    /// (from <c>JobEnqueueOptions.JobNamespace</c>) narrows resolution to one namespace. Throws when the
     /// type is unregistered, absent from the hinted namespace, or ambiguous.
     /// </summary>
     public JobRoute Resolve(Type inputType, string? namespaceHint)
@@ -83,7 +83,7 @@ internal sealed class JobTypeRegistry
             var candidates = string.Join(", ", routes.Select(r => $"{r.Namespace}/{r.JobName}"));
             throw new InvalidOperationException(
                 $"Input type '{inputType.FullName}' maps to multiple jobs ({candidates}). Set "
-                    + "JobEnqueueOptions.Namespace to disambiguate, or use the raw EnqueueJobRequest path."
+                    + "JobEnqueueOptions.JobNamespace to disambiguate, or use the raw EnqueueJobRequest path."
             );
         }
 

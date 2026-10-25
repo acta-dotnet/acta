@@ -1,12 +1,11 @@
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// A <see cref="JobPayload"/> rendered for the wire: <see cref="FormatName"/> picks the body field, raw JSON, decoded
-/// text, or base64 (bytes and custom formats), and <c>none</c> carries none. <see cref="FormatId"/> is always sent, so a
+/// A <see cref="JobPayload"/> rendered for the wire: <see cref="FormatName"/> picks the body field, the raw JSON text
+/// or base64 (bytes and custom formats), and <c>none</c> carries none. <see cref="FormatId"/> is always sent, so a
 /// clone can round-trip a custom format. Payloads are never gated, only sized: past
 /// <c>JobsOptions.MaxInlinePayloadBytes</c> only the format, <see cref="ByteLength"/>, and <see cref="Truncated"/>
 /// travel, since a handler result may have been persisted past the cap.
@@ -14,11 +13,11 @@ namespace Acta.AspNetCore;
 internal sealed record GetJobInputBodyResponse(
     string FormatName,
     byte FormatId,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? Json = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Text = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Json = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Base64 = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ByteLength = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Truncated = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Truncated = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Malformed = null
 )
 {
     public static GetJobInputBodyResponse From(JobPayload payload, int maxInlineBytes)
@@ -37,15 +36,21 @@ internal sealed record GetJobInputBodyResponse(
             return new GetJobInputBodyResponse(format.Name, format.Id, ByteLength: payload.Data.Length, Truncated: true);
         }
 
-        if (format.Id == JobPayloadFormat.Json.Id)
+        if (format.Id != JobPayloadFormat.Json.Id)
         {
-            // Parse (not reflect) so the stored JSON re-emits verbatim without a reflection-based serializer.
-            using var doc = JsonDocument.Parse(payload.Data);
-            return new GetJobInputBodyResponse(format.Name, format.Id, Json: doc.RootElement.Clone());
+            return new GetJobInputBodyResponse(format.Name, format.Id, Base64: Convert.ToBase64String(payload.Data.Span));
         }
 
-        return format.Id == JobPayloadFormat.Text.Id
-            ? new GetJobInputBodyResponse(format.Name, format.Id, Text: Encoding.UTF8.GetString(payload.Data.Span))
-            : new GetJobInputBodyResponse(format.Name, format.Id, Base64: Convert.ToBase64String(payload.Data.Span));
+        // The text travels as a string and is never re-parsed, so a number past 2^53 reaches a browser exactly as
+        // stored. A stored row that is not strict JSON travels as base64 with Malformed set instead of failing the read.
+        try
+        {
+            _ = JobPayload.CopyBytes(format, payload.Data.Span);
+        }
+        catch (ArgumentException)
+        {
+            return new GetJobInputBodyResponse(format.Name, format.Id, Base64: Convert.ToBase64String(payload.Data.Span), Malformed: true);
+        }
+        return new GetJobInputBodyResponse(format.Name, format.Id, Json: Encoding.UTF8.GetString(payload.Data.Span));
     }
 }

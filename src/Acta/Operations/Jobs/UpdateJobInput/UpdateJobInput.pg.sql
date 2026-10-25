@@ -67,7 +67,6 @@ CROSS JOIN LATERAL (
             || CASE s.old_format_id
                 WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
                 WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-                WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
                 ELSE 'custom-' || s.old_format_id::text
             END
             || '","bytes":' || s.old_bytes::text

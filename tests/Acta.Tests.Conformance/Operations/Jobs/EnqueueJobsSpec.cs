@@ -157,12 +157,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     public async Task Enqueue_stores_an_empty_payload_with_a_format_as_a_zero_length_input()
     {
         var ct = TestContext.Current.CancellationToken;
-        JobPayload[] payloads =
-        [
-            JobPayload.Bytes([]),
-            JobPayload.Text(string.Empty),
-            JobPayload.FromBytes(JobPayloadFormat.Custom(200, "empty-custom"), []),
-        ];
+        JobPayload[] payloads = [JobPayload.Bytes([]), JobPayload.FromBytes(JobPayloadFormat.Custom(200, "empty-custom"), [])];
         JobEnqueueValues[] rows = [.. payloads.Select(payload => new JobEnqueueValues(TestNamespace, "add-numbers", payload))];
 
         // One row goes through enqueue_job and a longer batch through enqueue_jobs.

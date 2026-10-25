@@ -83,9 +83,9 @@ public sealed class OutboxStagingCoreTests
         {
             { "none", JobPayload.None },
             { "json", JobPayload.CopyBytes(JobPayloadFormat.Json, "{\"a\":1}"u8) },
-            { "text", JobPayload.Text("hello") },
-            { "empty-text", JobPayload.Text("") },
+            { "json-string", JobPayload.Json("hello") },
             { "bytes", JobPayload.Bytes([1, 2, 3, 4]) },
+            { "empty-bytes", JobPayload.Bytes([]) },
             { "custom-format", JobPayload.CopyBytes(JobPayloadFormat.Custom(200, "proto"), [9, 8, 7]) },
         };
 
@@ -113,7 +113,7 @@ public sealed class OutboxStagingCoreTests
     [Fact]
     public void Stage_rejects_a_parent_id()
     {
-        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.Text("hi"), DeduplicationKey: "k") with
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.Json("hi"), DeduplicationKey: "k") with
         {
             ParentJobId = 42,
         };
@@ -171,7 +171,7 @@ public sealed class OutboxStagingCoreTests
     // (no server): an uppercase table override is rejected before any I/O by the same lowercase identifier
     // validation the relay source uses, and a completed transaction is rejected by the structural transaction
     // validation that mirrors the transactional IJobs overloads.
-    private static EnqueueJobRequest Valid() => new("orders", "send", JobPayload.Text("hi"), DeduplicationKey: "k");
+    private static EnqueueJobRequest Valid() => new("orders", "send", JobPayload.Json("hi"), DeduplicationKey: "k");
 
     [Fact]
     public async Task An_uppercase_table_override_is_rejected()

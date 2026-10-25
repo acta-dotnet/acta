@@ -19,12 +19,12 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var now = DateTimeOffset.UtcNow;
 
-// --- Part 1: NextRunAt ---
+// --- Part 1: ScheduleAsync at an instant ---
 // Pin the earliest claim to an absolute wall-clock instant rather than a relative delay.
 // This demo uses a two-second offset so the run stays fast.
 var runAt = now.AddSeconds(2);
-Console.WriteLine($"Part 1 - NextRunAt: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
-var report = await jobs.EnqueueAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), o => o.NextRunAt(runAt));
+Console.WriteLine($"Part 1 - ScheduleAsync: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
+var report = await jobs.ScheduleAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), runAt);
 Console.WriteLine($"  job {report.JobRef} is Ready, due later; worker will not claim it before {runAt:HH:mm:ss.fff}");
 
 // --- Part 2: RescheduleUntilAsync ---
@@ -36,16 +36,8 @@ var poll = await jobs.EnqueueAsync(new PollExternal("batch-42", RescheduleUntil:
 
 // Wait for both to reach terminal Succeeded (poll completes ~2s out, report ~4s out after sleep)
 Console.WriteLine("Waiting for jobs to complete...");
-for (var i = 0; i < 60; i++)
-{
-    await Task.Delay(500);
-    var reportStatus = (await jobs.GetStatusAsync(report))?.Status;
-    var pollStatus = (await jobs.GetStatusAsync(poll))?.Status;
-    if (reportStatus == JobStatusCode.Succeeded && pollStatus == JobStatusCode.Succeeded)
-    {
-        break;
-    }
-}
+await report.WaitAsync();
+await poll.WaitAsync();
 
 var reportSnap = await jobs.GetAsync(report);
 var pollSnap = await jobs.GetAsync(poll);

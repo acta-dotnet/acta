@@ -6,7 +6,7 @@ State of rc6 on 2026-10-24. Nothing is pushed. temp-plan.md stays the maintained
 
 - rc6 is the rc.6 release, its follow-ups, the v1 data model, the PostgreSQL completion fix, the Acta Bench measurement standard, rc.6 polish, one commit per review fix (B1-B10), and the 2026-10-24 batch below.
 - Every unpushed commit is dated outside 09:00-17:00 and carries no attribution line.
-- The init baseline is `M20261023212758_init`. Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
+- The init baseline is `M20261024213527_init`. Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
 - Marko's goal: release the improved rc.6 on 2026-10-24 or 2026-10-25.
 
 ## Landed 2026-10-24

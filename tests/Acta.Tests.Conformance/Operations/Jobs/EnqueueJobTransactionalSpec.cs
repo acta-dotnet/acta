@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// The full direct caller-transaction enqueue contract, beyond the commit/rollback smoke: typed and
-/// explicit-contract overloads reach the transactional store path, deduplicated outcomes are provisional,
+/// call overloads reach the transactional store path, deduplicated outcomes are provisional,
 /// structurally invalid transactions (null, detached/disposed, wrong provider, closed connection) are
 /// rejected before any command, an enqueue rejection requires full caller rollback with no Acta retry,
 /// no transactional enqueue publishes a worker wakeup, and Acta neither commits nor rolls back the
@@ -41,8 +41,8 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         base.ConfigureServices(services, testNamespace);
     }
 
-    [Fact(DisplayName = "Typed and explicit-contract transactional overloads persist and vanish with the caller transaction")]
-    public async Task Typed_and_contract_overloads_reach_the_transactional_store_path()
+    [Fact(DisplayName = "Typed and call transactional overloads persist and vanish with the caller transaction")]
+    public async Task Typed_and_call_overloads_reach_the_transactional_store_path()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -59,28 +59,28 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         // untouched by any of that: what must not survive a rollback is THIS job, and the ref is the
         // only handle that means this job.
         Guid typedCommitted;
-        Guid contractCommitted;
+        Guid callCommitted;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             typedCommitted = (await Jobs.EnqueueAsync(tx, new AddNumbers(2, 3), ct: ct)).JobRef.Value;
-            contractCommitted = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers, new AddNumbers(4, 5), ct: ct)).JobRef.Value;
+            callCommitted = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers(new AddNumbers(4, 5)), ct: ct)).JobRef.Value;
             await tx.CommitAsync(ct);
         }
 
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == typedCommitted).SingleOrDefaultAsync(ct));
-        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == contractCommitted).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == callCommitted).SingleOrDefaultAsync(ct));
 
         Guid typedRolledBack;
-        Guid contractRolledBack;
+        Guid callRolledBack;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             typedRolledBack = (await Jobs.EnqueueAsync(tx, new AddNumbers(6, 7), ct: ct)).JobRef.Value;
-            contractRolledBack = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers, new AddNumbers(8, 9), ct: ct)).JobRef.Value;
+            callRolledBack = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers(new AddNumbers(8, 9)), ct: ct)).JobRef.Value;
             await tx.RollbackAsync(ct);
         }
 
         Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == typedRolledBack).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == contractRolledBack).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == callRolledBack).SingleOrDefaultAsync(ct));
     }
 
     [Fact(DisplayName = "A deduplicated transactional outcome is provisional so rollback leaves no durable row")]

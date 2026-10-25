@@ -31,12 +31,12 @@ Console.WriteLine("Enqueuing with source-generated type info (no reflection)..."
 var payload = JobPayload.Json(new ProcessOrder("ORD-001", 3), AotPayloadContext.Default.ProcessOrder);
 var request = JobRequestBuilder.Create("native-aot-json", "process-order").Payload(payload).Build();
 
-var outcome = await jobs.EnqueueAsync(request, CancellationToken.None);
-Console.WriteLine($"Enqueued {outcome.JobRef} ({outcome.Action})");
+var enqueued = await jobs.EnqueueAsync(request, CancellationToken.None);
+Console.WriteLine($"Enqueued {enqueued.JobRef} ({enqueued.Action})");
 
-await Task.Delay(600);
+await jobs.WaitAsync(enqueued);
 
-var snapshot = await jobs.GetAsync(outcome);
+var snapshot = await jobs.GetAsync(enqueued);
 Console.WriteLine($"Status: {snapshot!.Status}");
 
 await host.StopAsync();

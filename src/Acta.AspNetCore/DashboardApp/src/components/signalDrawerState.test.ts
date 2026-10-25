@@ -34,13 +34,13 @@ test('validateSignalName rejects empty, trailing hyphen, and names over 128 char
 });
 
 test('validateSignalPayload treats empty or whitespace-only text as presence-only', () => {
-  assert.deepEqual(validateSignalPayload(''), { ok: true, error: null, value: undefined });
-  assert.deepEqual(validateSignalPayload('   '), { ok: true, error: null, value: undefined });
+  assert.deepEqual(validateSignalPayload(''), { ok: true, error: null, json: undefined });
+  assert.deepEqual(validateSignalPayload('   '), { ok: true, error: null, json: undefined });
 });
 
-test('validateSignalPayload parses valid JSON, including non-object values', () => {
-  assert.deepEqual(validateSignalPayload('{"amount":5}'), { ok: true, error: null, value: { amount: 5 } });
-  assert.deepEqual(validateSignalPayload('42'), { ok: true, error: null, value: 42 });
+test('validateSignalPayload keeps valid JSON as its text, including non-object values and big numbers', () => {
+  assert.deepEqual(validateSignalPayload(' {"amount":5} '), { ok: true, error: null, json: '{"amount":5}' });
+  assert.deepEqual(validateSignalPayload('9007199254740993'), { ok: true, error: null, json: '9007199254740993' });
 });
 
 test('validateSignalPayload rejects malformed JSON', () => {

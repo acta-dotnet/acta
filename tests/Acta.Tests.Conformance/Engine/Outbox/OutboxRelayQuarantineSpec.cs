@@ -52,7 +52,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
     }
 
     [Fact(
-        DisplayName = "Malformed meta, an oversized payload, an unsupported format id, and text holding a NUL byte quarantine immediately without touching the target"
+        DisplayName = "Malformed meta, an oversized payload, an unsupported format id, json holding a NUL byte, and json that is not one value quarantine immediately without touching the target"
     )]
     public async Task Malformed_and_oversize_rows_quarantine_immediately()
     {
@@ -62,11 +62,13 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         // A valid-byte but reserved (unsupported) input_format_id: the DDL's 0-255 guard admits it, but the
         // relay's reconstruction rejects it as a contract error, so it quarantines rather than failing the tick.
         var unsupportedFormat = EchoRow(Unique("q8c"), inputFormatId: 4);
-        var textWithNul = EchoRow(Unique("q8d"), data: "a\0b"u8.ToArray(), inputFormatId: 3);
+        var jsonWithNul = EchoRow(Unique("q8d"), data: "\"a\0b\""u8.ToArray(), inputFormatId: 1);
+        var notJson = EchoRow(Unique("q8e"), data: "{broken"u8.ToArray(), inputFormatId: 1);
         await Fixture.SeedOutboxRowAsync(SourceTable, malformed);
         await Fixture.SeedOutboxRowAsync(SourceTable, oversize);
         await Fixture.SeedOutboxRowAsync(SourceTable, unsupportedFormat);
-        await Fixture.SeedOutboxRowAsync(SourceTable, textWithNul);
+        await Fixture.SeedOutboxRowAsync(SourceTable, jsonWithNul);
+        await Fixture.SeedOutboxRowAsync(SourceTable, notJson);
 
         var store = new HookedOutboxStore(SourceConnection);
         // The target must never be reached for a contract-rejected row; fail loudly if it is.
@@ -76,9 +78,9 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         var summary = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
             Relay(store.Source, target.Jobs).RunTickAsync(TickOptions(maxPayload: 64), ct)
         );
-        Assert.Contains("quarantined 4 row(s)", summary.Message, StringComparison.Ordinal);
+        Assert.Contains("quarantined 5 row(s)", summary.Message, StringComparison.Ordinal);
 
-        foreach (var seed in new[] { malformed, oversize, unsupportedFormat, textWithNul })
+        foreach (var seed in new[] { malformed, oversize, unsupportedFormat, jsonWithNul, notJson })
         {
             var row = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
             Assert.True(row.Exists);
@@ -87,8 +89,8 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         }
 
         Assert.Contains(
-            "input does not fit input_format_id 3",
-            (await Fixture.ReadOutboxRowAsync(SourceTable, textWithNul.OutboxId)).LastError,
+            "input does not fit input_format_id 1",
+            (await Fixture.ReadOutboxRowAsync(SourceTable, jsonWithNul.OutboxId)).LastError,
             StringComparison.Ordinal
         );
     }

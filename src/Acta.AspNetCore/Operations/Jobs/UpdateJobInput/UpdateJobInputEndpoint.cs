@@ -40,12 +40,12 @@ internal static class UpdateJobInputEndpoint
                     }
 
                     var hasInput = body!.Input is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) };
-                    if ((hasInput ? 1 : 0) + (body.Text is not null ? 1 : 0) + (body.Base64 is not null ? 1 : 0) != 1)
+                    if (hasInput == (body.Base64 is not null))
                     {
                         return ControlEndpointValidation.Problem(
                             StatusCodes.Status400BadRequest,
                             "Invalid request.",
-                            "Exactly one of input, text, or base64 is required."
+                            "Exactly one of input or base64 is required."
                         );
                     }
 
@@ -73,31 +73,7 @@ internal static class UpdateJobInputEndpoint
 
                     var storedFormat = stored.Format;
                     JobPayload payload;
-                    if (body.Text is not null)
-                    {
-                        if (storedFormat.Id != JobPayloadFormat.Text.Id)
-                        {
-                            return ControlEndpointValidation.Problem(
-                                StatusCodes.Status400BadRequest,
-                                "Format mismatch.",
-                                $"text can only amend a text-format job; this job's input format is {storedFormat.Name}."
-                            );
-                        }
-
-                        try
-                        {
-                            payload = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(body.Text));
-                        }
-                        catch (ArgumentException)
-                        {
-                            return ControlEndpointValidation.Problem(
-                                StatusCodes.Status400BadRequest,
-                                "Invalid request.",
-                                "text cannot contain U+0000."
-                            );
-                        }
-                    }
-                    else if (body.Base64 is not null)
+                    if (body.Base64 is not null)
                     {
                         if (storedFormat.Id != JobPayloadFormat.Bytes.Id && storedFormat.Id < 128)
                         {

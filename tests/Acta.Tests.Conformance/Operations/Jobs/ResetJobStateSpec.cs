@@ -102,7 +102,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
     private async Task SeedSubstrateAsync(IDbSession db, ExecutionFence job, CancellationToken ct)
     {
         var execution = Services.GetRequiredService<ExecutionOperations>();
-        await CheckpointSlot.SetAsync(execution, job, CheckpointKindCode.Variable, "v.test", JobPayload.Text("x"), ct);
+        await CheckpointSlot.SetAsync(execution, job, CheckpointKindCode.Variable, "v.test", JobPayload.Json("x"), ct);
         await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(job, "t.test", 60, null), ct);
         await Services
             .GetRequiredService<SignalsOperations>()

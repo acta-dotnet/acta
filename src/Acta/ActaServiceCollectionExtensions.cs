@@ -78,13 +78,12 @@ public static class ActaServiceCollectionExtensions
         // One recovery pass, shared by the worker heartbeat that takes it and the test host's recovery drive.
         services.TryAddSingleton<RecoveryPass>();
 
-        // The three built-in serializers register through TryAddEnumerable so the registry's
+        // The two built-in serializers register through TryAddEnumerable so the registry's
         // IEnumerable<IJobPayloadSerializer> ctor sees all of them (consumer apps add more by
         // registering additional implementations). Per-handler invokers and (de)serializers live on
         // the descriptor (generator-emitted), so no reflection invoker is registered.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, JsonJobPayloadSerializer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, BytesJobPayloadSerializer>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, TextJobPayloadSerializer>());
         services.TryAddSingleton<IJobPayloadSerializerRegistry, JobPayloadSerializerRegistry>();
     }
 
@@ -291,8 +290,8 @@ public static class ActaServiceCollectionExtensions
         var typeRegistry = JobTypeRegistry.Build(builder.Catalogs);
         services.AddSingleton(typeRegistry);
 
-        // Contract index: (manifest type, job name) -> route, backing the explicit-target
-        // IJobs.EnqueueAsync(JobContract<TInput>, ...) overloads. Same catalogs as JobTypeRegistry.
+        // Contract index: (manifest type, job name) -> route, backing the IJobs overloads that take a
+        // generated JobCall. Same catalogs as JobTypeRegistry.
         var contractRegistry = JobContractRegistry.Build(builder.Catalogs);
         services.AddSingleton(contractRegistry);
 

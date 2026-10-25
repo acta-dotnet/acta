@@ -21,19 +21,19 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 
 // Enqueue with a 5-second delay so the job sits in a schedulable state and the pause lands before
 // the worker can claim it. The delay is resolved on the database clock (db_now + 5s).
-var outcome = await jobs.EnqueueAsync(new ProcessReport("q3-summary"), o => o.Delayed(TimeSpan.FromSeconds(5)));
-Console.WriteLine($"Enqueued job {outcome.JobRef} with a 5-second delay.");
+var handle = await jobs.ScheduleAsync(new ProcessReport("q3-summary"), TimeSpan.FromSeconds(5));
+Console.WriteLine($"Enqueued job {handle.JobRef} with a 5-second delay.");
 
 // Step 1: pause - job is not yet claimable (delayed), so the transition is Applied.
-var pauseResult = await jobs.PauseAsync(outcome, "review window");
+var pauseResult = await jobs.PauseAsync(handle, "review window");
 Console.WriteLine($"PauseAsync -> action={pauseResult.Action} status={pauseResult.Status}");
 
 // Step 2: resume - moves the Paused job back to Ready so the worker can claim it now.
-var resumeResult = await jobs.ResumeAsync(outcome, "review complete");
+var resumeResult = await jobs.ResumeAsync(handle, "review complete");
 Console.WriteLine($"ResumeAsync -> action={resumeResult.Action} status={resumeResult.Status}");
 
 // Poll until the worker finishes the job (terminal status).
-var jobId = outcome.JobId;
+var jobId = handle.JobId;
 JobStatusCode? status;
 do
 {
@@ -44,7 +44,7 @@ do
 Console.WriteLine($"Job finished with status={status}");
 
 // Step 3: attempt to pause a terminal (Succeeded) job - must be Rejected because terminal jobs cannot be paused.
-var rejectedResult = await jobs.PauseAsync(outcome, "too late");
+var rejectedResult = await jobs.PauseAsync(handle, "too late");
 Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
 
 // Step 4: read the event timeline to confirm the pause and resume events with their message and details.

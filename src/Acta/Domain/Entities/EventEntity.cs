@@ -122,8 +122,8 @@ internal sealed class EventEntity : IEntity<long>
 
     /// <summary>
     /// Format id of <see cref="Details"/>; <c>0</c> means no payload. <c>ck_events_details_pair</c> enforces
-    /// <c>(details_format_id = 0) = (details IS NULL)</c>; operator views decode formats 1 (json) and 3 (text) as
-    /// UTF-8 text, while other formats stay opaque.
+    /// <c>(details_format_id = 0) = (details IS NULL)</c>; operator views decode format 1 (json) as UTF-8 text,
+    /// while other formats stay opaque.
     /// </summary>
     [DbColumn("details_format_id", DbKind.Byte, Default = DbDefault.Zero)]
     public byte DetailsFormatId { get; init; }

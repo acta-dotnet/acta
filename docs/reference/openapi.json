@@ -7329,12 +7329,6 @@
             ]
           },
           "input": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
           "base64": {
             "type": [
               "null",
@@ -7401,7 +7395,7 @@
             "$ref": "#/components/schemas/EnqueueJobAction"
           }
         },
-        "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs."
+        "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs. A typed enqueue answers\nthe derived JobHandle."
       },
       "EntityCode": {
         "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build."
@@ -8386,8 +8380,7 @@
             ],
             "format": "uint8"
           },
-          "json": { },
-          "text": {
+          "json": {
             "type": [
               "null",
               "string"
@@ -8409,6 +8402,12 @@
             "format": "int64"
           },
           "truncated": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "malformed": {
             "type": [
               "null",
               "boolean"
@@ -9502,7 +9501,7 @@
             ]
           }
         },
-        "description": "One event in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. The subject is `EntityKind` and `EntityId`,\nthe one numeric id on the wire, because the subject outlives its row: a purged job's events, and its\n`job.purged` tombstone, still name it. The joined refs and names (`JobRef` of a job subject,\n`LineageRootJobRef`, `WorkerRef`, `TenantName`, `JobName`) are null when absent or once their\nrow is gone. `Message` is the human text; `DetailsText` is the details payload decoded to text, null when\nthe event carries none or a non-text format."
+        "description": "One event in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. The subject is `EntityKind` and `EntityId`,\nthe one numeric id on the wire, because the subject outlives its row: a purged job's events, and its\n`job.purged` tombstone, still name it. The joined refs and names (`JobRef` of a job subject,\n`LineageRootJobRef`, `WorkerRef`, `TenantName`, `JobName`) are null when absent or once their\nrow is gone. `Message` is the human text; `DetailsText` is the details payload decoded to text, null when\nthe event carries none or a non-json format."
       },
       "ListEventsResponse": {
         "required": [
@@ -11433,12 +11432,6 @@
         "type": "object",
         "properties": {
           "input": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
           "base64": {
             "type": [
               "null",

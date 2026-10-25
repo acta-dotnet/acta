@@ -8,7 +8,7 @@ namespace Acta.Tests.Wire;
 /// repeatability isolation between consecutive <see cref="JobRequestBuilder.Build"/> calls. Also
 /// exercises the name rule a caller's names follow (<see cref="NameSyntax.Canonicalize"/> with the <c>sys</c>
 /// reservation) and the
-/// <see cref="JobPayload.Text"/> / <see cref="JobPayload.Bytes"/> factories independently of the
+/// <see cref="JobPayload.Json(string)"/> / <see cref="JobPayload.Bytes"/> factories independently of the
 /// builder.
 /// </summary>
 public class JobRequestBuilderTests
@@ -43,10 +43,10 @@ public class JobRequestBuilderTests
     }
 
     [Fact]
-    public void Text_sets_payload_via_JobPayload_Text()
+    public void Json_string_sets_payload_via_JobPayload_Json()
     {
-        var request = JobRequestBuilder.Create(Ns, Name).Text("hello").Build();
-        var expected = JobPayload.Text("hello");
+        var request = JobRequestBuilder.Create(Ns, Name).Json("hello").Build();
+        var expected = JobPayload.Json("hello");
         Assert.Equal(expected.Format.Id, request.Input.Format.Id);
         Assert.True(request.Input.Data.Span.SequenceEqual(expected.Data.Span));
     }
@@ -85,9 +85,8 @@ public class JobRequestBuilderTests
     [Fact]
     public void Last_payload_setter_wins()
     {
-        var built = JobRequestBuilder.Create(Ns, Name).Json(new { x = 1 }).Text("hello").Build();
-        var expected = JobPayload.Text("hello");
-        Assert.Equal(expected.Format.Id, built.Input.Format.Id);
+        var built = JobRequestBuilder.Create(Ns, Name).Json(new { x = 1 }).Bytes([1]).Build();
+        Assert.Equal(JobPayloadFormat.Bytes.Id, built.Input.Format.Id);
     }
 
     [Fact]
@@ -521,21 +520,19 @@ public class JobRequestBuilderTests
     public class JobPayloadConvenienceFactoryTests
     {
         [Fact]
-        public void Text_roundtrip_via_serializer()
+        public void Json_string_is_a_quoted_json_value()
         {
-            var payload = JobPayload.Text("hello world");
-            Assert.Equal(JobPayloadFormat.Text.Id, payload.Format.Id);
-            Assert.False(payload.IsNone);
-            Assert.False(payload.IsEmpty);
+            var payload = JobPayload.Json("hello world");
+            Assert.Equal(JobPayloadFormat.Json.Id, payload.Format.Id);
+            Assert.Equal("\"hello world\""u8.ToArray(), payload.Data.ToArray());
         }
 
         [Fact]
-        public void Text_empty_string_produces_zero_byte_Text_payload()
+        public void Json_empty_string_is_a_present_payload()
         {
-            var payload = JobPayload.Text(string.Empty);
-            Assert.Equal(JobPayloadFormat.Text.Id, payload.Format.Id);
+            var payload = JobPayload.Json(string.Empty);
             Assert.False(payload.IsNone);
-            Assert.True(payload.IsEmpty);
+            Assert.Equal("\"\""u8.ToArray(), payload.Data.ToArray());
         }
 
         [Fact]

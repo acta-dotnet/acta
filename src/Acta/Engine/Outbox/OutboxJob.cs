@@ -49,6 +49,6 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations o
             },
             OutboxTickSummaryJsonContext.Default.OutboxTickSummary
         );
-        await ctx.SetVariableAsync(OutboxTickSummary.VariableName, JobPayload.FromBytes(JobPayloadFormat.Json, status), ct);
+        await ctx.SetVariableAsync(OutboxTickSummary.VariableName, JobPayload.Trusted(JobPayloadFormat.Json, status), ct);
     }
 }

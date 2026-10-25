@@ -16,10 +16,10 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Each [Job] method gets its own generated contract, named after the job.
-await jobs.EnqueueAsync(ManyJobsOneClassJobs.Shout, "acta");
-await jobs.EnqueueAsync(ManyJobsOneClassJobs.DoubleIt, 21);
-await jobs.EnqueueAsync(ManyJobsOneClassJobs.Halve, 9.0);
+// Each [Job] method gets its own generated call, named after the job.
+await jobs.EnqueueAsync(ManyJobsOneClassJobs.Shout("acta"));
+await jobs.EnqueueAsync(ManyJobsOneClassJobs.DoubleIt(21));
+await jobs.EnqueueAsync(ManyJobsOneClassJobs.Halve(9.0));
 Console.WriteLine("Enqueued 3 jobs. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

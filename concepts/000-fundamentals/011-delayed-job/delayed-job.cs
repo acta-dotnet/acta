@@ -16,9 +16,9 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Delayed() resolves on the database clock (db_now + 5s); this host's clock does not affect timing.
-var outcome = await jobs.EnqueueAsync(new SendReminder("Sam"), o => o.Delayed(TimeSpan.FromSeconds(5)));
-Console.WriteLine($"Job {outcome.JobRef} enqueued at {DateTime.UtcNow:HH:mm:ss}; runs in ~5s.");
+// ScheduleAsync counts the delay on the database clock (db_now + 5s); this host's clock does not affect timing.
+var handle = await jobs.ScheduleAsync(new SendReminder("Sam"), TimeSpan.FromSeconds(5));
+Console.WriteLine($"Job {handle.JobRef} enqueued at {DateTime.UtcNow:HH:mm:ss}; runs in ~5s.");
 Console.WriteLine("Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

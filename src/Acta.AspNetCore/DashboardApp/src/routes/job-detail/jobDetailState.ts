@@ -63,7 +63,7 @@ export function activeWaitLabel(kind: string, name: string): { kind: string; nam
 }
 
 export function payloadFormatLabel(id: number): string {
-  return ({ 0: 'none', 1: 'json', 2: 'bytes', 3: 'text' } as Record<number, string>)[id] ?? `format #${id}`;
+  return ({ 0: 'none', 1: 'json', 2: 'bytes' } as Record<number, string>)[id] ?? `format #${id}`;
 }
 
 export function buildIncidentSummary(

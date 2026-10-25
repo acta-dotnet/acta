@@ -21,13 +21,76 @@ internal static class InputTemplateJson
     private const int MaxDepth = 3;
 
     /// <summary>
-    /// Compact JSON object for <paramref name="inputType"/>, or null when the type contributes no
-    /// usable members (the caller then emits no template at all).
+    /// Compact JSON for <paramref name="inputType"/>: the empty value of a scalar or collection input, otherwise an
+    /// object skeleton, or null when the object contributes no usable members (the caller then emits no template).
     /// </summary>
     public static string? Build(ITypeSymbol inputType)
     {
+        if (RootStandIn(inputType) is { } standIn)
+        {
+            return standIn;
+        }
+
         var sb = new StringBuilder();
         return WriteObject(sb, inputType, depth: 1, path: []) ? sb.ToString() : null;
+    }
+
+    /// <summary>
+    /// Compact JSON for a generated argument record: one member per input parameter, named as the record's property of
+    /// the parameter's name serializes.
+    /// </summary>
+    public static string BuildArguments(IEnumerable<IParameterSymbol> parameters)
+    {
+        var sb = new StringBuilder().Append('{');
+        foreach (var p in parameters)
+        {
+            if (sb.Length > 1)
+            {
+                sb.Append(',');
+            }
+            sb.Append('"').Append(Escape(CamelCase(p.Name))).Append("\":");
+            WriteValue(sb, p.Type, depth: 1, path: []);
+        }
+        return sb.Append('}').ToString();
+    }
+
+    /// <summary>
+    /// A scalar or collection input has no members to seed, so the editor starts from the empty value of its JSON
+    /// kind; unlike a member, the root cannot be null, because a null input fails deserialization. Null for an object.
+    /// </summary>
+    private static string? RootStandIn(ITypeSymbol type)
+    {
+        switch (type.SpecialType)
+        {
+            case SpecialType.System_Boolean:
+                return "false";
+            case SpecialType.System_SByte:
+            case SpecialType.System_Byte:
+            case SpecialType.System_Int16:
+            case SpecialType.System_UInt16:
+            case SpecialType.System_Int32:
+            case SpecialType.System_UInt32:
+            case SpecialType.System_Int64:
+            case SpecialType.System_UInt64:
+            case SpecialType.System_Single:
+            case SpecialType.System_Double:
+            case SpecialType.System_Decimal:
+                return "0";
+            case SpecialType.System_String:
+            case SpecialType.System_Char:
+            case SpecialType.System_DateTime:
+                return "\"\"";
+        }
+
+        if (type.TypeKind == TypeKind.Enum || IsStringShaped(type))
+        {
+            return "\"\"";
+        }
+        if (IsDictionary(type))
+        {
+            return "{}";
+        }
+        return IsCollection(type) ? "[]" : null;
     }
 
     /// <summary>
@@ -97,8 +160,7 @@ internal static class InputTemplateJson
                 return;
         }
 
-        var name = type.OriginalDefinition.ToDisplayString();
-        if (name is "System.Guid" or "System.DateTimeOffset" or "System.TimeSpan" or "System.DateOnly" or "System.TimeOnly" or "System.Uri")
+        if (IsStringShaped(type))
         {
             sb.Append("null");
             return;
@@ -155,6 +217,15 @@ internal static class InputTemplateJson
                 )
         );
     }
+
+    private static bool IsStringShaped(ITypeSymbol type) =>
+        type.OriginalDefinition.ToDisplayString()
+            is "System.Guid"
+                or "System.DateTimeOffset"
+                or "System.TimeSpan"
+                or "System.DateOnly"
+                or "System.TimeOnly"
+                or "System.Uri";
 
     private static bool IsCollection(ITypeSymbol type) =>
         type is IArrayTypeSymbol

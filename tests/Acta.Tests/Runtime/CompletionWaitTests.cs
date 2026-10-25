@@ -96,4 +96,24 @@ public sealed class CompletionWaitTests
         Assert.True(timedOut);
         Assert.False(snapshot!.Terminal);
     }
+
+    [Fact]
+    public async Task A_read_that_finds_no_row_ends_the_wait_at_once()
+    {
+        var started = Stopwatch.GetTimestamp();
+
+        var (snapshot, timedOut) = await CompletionWait.AwaitAsync(
+            new InProcessWakeup(),
+            JobId,
+            static _ => ValueTask.FromResult<Snapshot?>(null),
+            static s => s.Terminal,
+            Budget,
+            NoPoll,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.False(timedOut);
+        Assert.Null(snapshot);
+        Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5), "a missing job spent the budget");
+    }
 }

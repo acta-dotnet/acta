@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { RawJson } from '../../lib/rawJson.ts';
 import { amendBody, amendOutcomeMessage, inputAmendable } from './inputAmend.ts';
 
 test('input is amendable except while executing', () => {
@@ -9,22 +10,19 @@ test('input is amendable except while executing', () => {
   assert.equal(inputAmendable('executing'), false);
 });
 
-test('amendBody json format parses the draft into an input body', () => {
-  assert.deepEqual(amendBody('{"a":1}', 'json'), { body: { input: { a: 1 } } });
+test('amendBody sends the draft text verbatim, every digit kept', () => {
+  const draft = '{"id": 9007199254740993}';
+  assert.deepEqual(amendBody(draft), { body: { input: new RawJson(draft) } });
 });
 
-test('amendBody json format returns the parse error and no body', () => {
-  const result = amendBody('{not json', 'json');
+test('amendBody returns the parse error and no body', () => {
+  const result = amendBody('{not json');
   assert.ok('error' in result && result.error.length > 0);
 });
 
-test('amendBody json format blocks a literal null with a clear message and no body', () => {
-  const result = amendBody('null', 'json');
+test('amendBody blocks a literal null with a clear message and no body', () => {
+  const result = amendBody(' null ');
   assert.ok('error' in result && result.error.length > 0);
-});
-
-test('amendBody text format sends the raw text verbatim, never a quoted json string', () => {
-  assert.deepEqual(amendBody('order-42', 'text'), { body: { text: 'order-42' } });
 });
 
 test('applied outcome reports success', () => {

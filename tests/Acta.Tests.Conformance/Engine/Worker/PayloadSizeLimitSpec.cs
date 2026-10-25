@@ -31,7 +31,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Oversize_enqueue_input_throws()
     {
         var ct = TestContext.Current.CancellationToken;
-        var oversize = JobPayload.Text(new string('x', Cap * 4));
+        var oversize = JobPayload.Json(new string('x', Cap * 4));
 
         await Assert.ThrowsAsync<PayloadTooLargeException>(async () =>
             await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oversize), ct)

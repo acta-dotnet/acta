@@ -68,7 +68,6 @@ BEGIN TRY
                         + CASE @old_format_id
                             WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
                             WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-                            WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
                             ELSE 'custom-' + CONVERT(VARCHAR(3), @old_format_id)
                         END
                         + '","bytes":' + CONVERT(VARCHAR(20), DATALENGTH(@old_input));

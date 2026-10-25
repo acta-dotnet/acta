@@ -317,7 +317,7 @@ internal sealed partial class RuntimeJobContext(
         where T : default
     {
         var serializer = _serializers.Resolve(valueFormatId);
-        var payload = JobPayload.FromBytes(serializer.Format, value);
+        var payload = JobPayload.Trusted(serializer.Format, value);
         return serializer.Deserialize<T>(payload);
     }
 
@@ -342,7 +342,7 @@ internal sealed partial class RuntimeJobContext(
             return (false, default);
         }
         var serializer = _serializers.Resolve(row.FormatId);
-        return (true, serializer.Deserialize<TResult>(JobPayload.FromBytes(serializer.Format, row.Data.ToArray())));
+        return (true, serializer.Deserialize<TResult>(JobPayload.Trusted(serializer.Format, row.Data.ToArray())));
     }
 
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
@@ -396,7 +396,7 @@ internal sealed partial class RuntimeJobContext(
     private T Deserialize<T>(CheckpointValue row)
     {
         var serializer = _serializers.Resolve(row.ValueFormatId);
-        var payload = JobPayload.FromBytes(serializer.Format, row.Value);
+        var payload = JobPayload.Trusted(serializer.Format, row.Value);
         return serializer.Deserialize<T>(payload);
     }
 

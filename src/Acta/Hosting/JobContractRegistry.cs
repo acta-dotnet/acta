@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Maps a (manifest type, job name) pair to its enqueue route, backing the contract
-/// <c>IJobs.EnqueueAsync(JobContract&lt;TInput&gt;, ...)</c> / <c>RunAndWaitAsync</c> overloads. Built
+/// Maps a (manifest type, job name) pair to its enqueue route, backing the <see cref="IJobs"/> overloads that take a
+/// generated <see cref="JobCall{TInput}"/>. Built
 /// once at <see cref="ActaServiceCollectionExtensions.UseActa"/> from the declared catalogs
 /// (Reference and Run alike), the sibling of <see cref="JobTypeRegistry"/> for the explicit-target path.
 /// </summary>
@@ -73,7 +73,7 @@ internal sealed class JobContractRegistry
         return routes.Count > 1
             ? throw new InvalidOperationException(
                 $"Job '{jobName}' on manifest '{manifestType.FullName}' is registered in multiple namespaces "
-                    + $"({string.Join(", ", routes.Select(r => r.Namespace))}). Set JobEnqueueOptions.Namespace to disambiguate."
+                    + $"({string.Join(", ", routes.Select(r => r.Namespace))}). Set JobEnqueueOptions.JobNamespace to disambiguate."
             )
             : routes[0];
     }

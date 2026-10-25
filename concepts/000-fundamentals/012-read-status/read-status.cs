@@ -16,11 +16,11 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"));
-await Task.Delay(500);
+var handle = await jobs.EnqueueAsync(new SendWelcomeEmail("sam@example.com", "Sam"));
+await handle.WaitAsync();
 
 // GetAsync returns a snapshot of the job's current state.
-var snapshot = await jobs.GetAsync(outcome);
+var snapshot = await jobs.GetAsync(handle);
 Console.WriteLine($"job={snapshot!.JobRef} name={snapshot.JobName} ns={snapshot.JobNamespace}");
 Console.WriteLine($"status={snapshot.Status} created={snapshot.CreatedAtUtc:O}");
 

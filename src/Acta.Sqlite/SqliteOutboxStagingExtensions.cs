@@ -9,7 +9,7 @@ namespace Acta.Sqlite;
 /// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own
 /// open <see cref="SqliteTransaction"/>, so the outbox row commits or rolls back with the producer's own
 /// business writes. Zero configuration: no dependency injection, no <c>UseActa</c>, no ledger connection;
-/// reference the package, write <c>using Acta;</c>, and call the extension. The database defaults populate
+/// reference the package, write <c>using Acta.Sqlite;</c>, and call the extension. The database defaults populate
 /// the operational columns; the worker-side relay drains the table.
 /// </summary>
 public static class SqliteOutboxStagingExtensions

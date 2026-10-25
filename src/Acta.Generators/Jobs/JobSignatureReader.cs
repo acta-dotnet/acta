@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using static Acta.Generators.ActaManifestGenerator;
@@ -13,21 +14,18 @@ internal static class JobSignatureReader
     {
         var parameters = method.Parameters;
 
-        // The input is the first parameter UNLESS that parameter is itself a framework parameter
-        // (JobContext / CancellationToken), in which case the handler is zero-input. Any other first
-        // type, including a forbidden one (IServiceProvider, Task, ref-like), is treated as the
-        // input candidate and rejected downstream by IsForbiddenInputType (ACTA0103).
-        ITypeSymbol? inputType = null;
+        // The input is the parameters before the first framework parameter (JobContext / CancellationToken): none for a
+        // zero-input handler, one for TIn, several for the argument record the manifest generates. Any type, including a
+        // forbidden one (IServiceProvider, Task, ref-like), is an input candidate that CheckInputParameters rejects.
         var scanFrom = 0;
-        if (parameters.Length > 0)
+        while (
+            scanFrom < parameters.Length
+            && TypeFullName(parameters[scanFrom].Type) is not (JobContextMetadataName or CancellationTokenMetadataName)
+        )
         {
-            var firstName = TypeFullName(parameters[0].Type);
-            if (firstName is not (JobContextMetadataName or CancellationTokenMetadataName))
-            {
-                inputType = parameters[0].Type;
-                scanFrom = 1;
-            }
+            scanFrom++;
         }
+        var inputParameters = parameters.Take(scanFrom).ToImmutableArray();
 
         var hasJobContext = false;
         var hasCancellationToken = false;
@@ -64,8 +62,41 @@ internal static class JobSignatureReader
             diagnostics.Add(ManifestDiagnostics.JobContextWithoutCancellationToken(method, location));
         }
 
-        return new ParameterModel(inputType, hasJobContext, hasCancellationToken);
+        return new ParameterModel(
+            inputParameters.Length == 1 ? inputParameters[0].Type : null,
+            inputParameters,
+            hasJobContext,
+            hasCancellationToken
+        );
     }
+
+    /// <summary>
+    /// ACTA0103 for an input parameter no input can be: a forbidden framework type, or, among several parameters that
+    /// become one serialized record, an interface, which reads as a dependency to inject rather than a value.
+    /// </summary>
+    internal static void CheckInputParameters(
+        IMethodSymbol method,
+        ParameterModel parameters,
+        Location location,
+        List<DiagnosticRecord> diagnostics
+    )
+    {
+        foreach (var p in parameters.InputParameters)
+        {
+            if (IsForbiddenInputType(p.Type))
+            {
+                diagnostics.Add(ManifestDiagnostics.ForbiddenInputType(method, p.Type, location));
+            }
+            else if (parameters.InputParameters.Length > 1 && p.Type.TypeKind == TypeKind.Interface && !IsEnumerable(p.Type))
+            {
+                diagnostics.Add(ManifestDiagnostics.InterfaceArgument(method, p, location));
+            }
+        }
+    }
+
+    private static bool IsEnumerable(ITypeSymbol type) =>
+        type.SpecialType == SpecialType.System_Collections_IEnumerable
+        || type.AllInterfaces.Any(i => i.SpecialType == SpecialType.System_Collections_IEnumerable);
 
     internal static ReturnTypeModel? AnalyzeReturnType(
         IMethodSymbol method,
@@ -282,8 +313,6 @@ internal static class JobSignatureReader
 
     internal static string InferPayloadFormatName(ITypeSymbol type, bool isInput)
     {
-        var name = TypeFullName(type);
-
         // A parameterless data-less contract (e.g. `public sealed record FetchJoke;`) is a pure
         // dispatch key: no instance fields or properties. Serializing it to `{}`
         // is wasted bytes; map it to `none`. The dispatch class fabricates `new T()` at execute
@@ -293,51 +322,14 @@ internal static class JobSignatureReader
             return "none";
         }
 
-        // byte[], ReadOnlyMemory<byte>.
-        if (type is IArrayTypeSymbol array && array.ElementType.SpecialType == SpecialType.System_Byte)
-        {
-            return "bytes";
-        }
-        if (
+        // byte[] and ReadOnlyMemory<byte> pass through as raw bytes; every other value, scalars included, is JSON.
+        var isByteArray = type is IArrayTypeSymbol array && array.ElementType.SpecialType == SpecialType.System_Byte;
+        var isByteMemory =
             type is INamedTypeSymbol nm
             && nm.IsGenericType
             && TypeFullName(nm.ConstructedFrom) == "System.ReadOnlyMemory`1"
             && nm.TypeArguments.Length == 1
-            && nm.TypeArguments[0].SpecialType == SpecialType.System_Byte
-        )
-        {
-            return "bytes";
-        }
-
-        if (type.TypeKind == TypeKind.Enum)
-        {
-            return "text";
-        }
-
-        if (
-            type.SpecialType
-            is SpecialType.System_String
-                or SpecialType.System_Boolean
-                or SpecialType.System_Char
-                or SpecialType.System_SByte
-                or SpecialType.System_Byte
-                or SpecialType.System_Int16
-                or SpecialType.System_UInt16
-                or SpecialType.System_Int32
-                or SpecialType.System_UInt32
-                or SpecialType.System_Int64
-                or SpecialType.System_UInt64
-                or SpecialType.System_Single
-                or SpecialType.System_Double
-                or SpecialType.System_Decimal
-                or SpecialType.System_DateTime
-        )
-        {
-            return "text";
-        }
-
-        return name is "System.Guid" or "System.DateTimeOffset" or "System.TimeSpan" or "System.DateOnly" or "System.TimeOnly"
-            ? "text"
-            : "json";
+            && nm.TypeArguments[0].SpecialType == SpecialType.System_Byte;
+        return isByteArray || isByteMemory ? "bytes" : "json";
     }
 }

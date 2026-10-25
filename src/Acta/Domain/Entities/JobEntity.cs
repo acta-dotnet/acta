@@ -128,8 +128,8 @@ internal sealed class JobEntity : IEntity<long>
 
     /// <summary>
     /// Encoded input payload. NULL when <see cref="InputFormatId"/> is <c>0</c> (no input);
-    /// non-NULL otherwise (may be an empty byte sequence for legitimately empty
-    /// <c>text</c>/<c>bytes</c> payloads). Format governed by <see cref="InputFormatId"/>.
+    /// non-NULL otherwise (may be an empty byte sequence for a legitimately empty
+    /// <c>bytes</c> payload). Format governed by <see cref="InputFormatId"/>.
     /// </summary>
     [DbColumn("input", DbKind.BinaryPayload)]
     public byte[]? Input { get; init; }

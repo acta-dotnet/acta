@@ -19,20 +19,16 @@ SELECT
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || j.input_format_id::TEXT
     END AS input_format,
-    CASE WHEN j.input_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(j.input, 'UTF8') END
-        AS input_text,
+    CASE WHEN j.input_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(j.input, 'UTF8') END AS input_text,
     CASE r.result_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
         WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
         WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
         ELSE 'custom-' || r.result_format_id::TEXT
     END AS result_format,
-    CASE WHEN r.result_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(r.result, 'UTF8') END
-        AS result_text,
+    CASE WHEN r.result_format_id = 1 /* JobPayloadFormat.Json */ THEN CONVERT_FROM(r.result, 'UTF8') END AS result_text,
     r.next_run_at_utc,
     r.execution_number,
     r.failure_count,

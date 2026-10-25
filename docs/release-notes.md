@@ -37,15 +37,27 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - `JobAttribute.Tags` is gone; it never had an effect.
 - `ActaEndpointOptions.ControlConfirmationHeaderValue` is gone: the confirmation header's value is always `true`, and only its name is configurable.
 - `ExecutionStatusCode.ChargesFailureBudget` is gone: a `Failed` attempt charges the budget only when it retries, which the status alone cannot say.
-- `JobPayload.Text`, `FromBytes`, `CopyBytes`, and `JobRequestBuilder.Text` throw `ArgumentException` for json or text bytes that are not valid UTF-8 or hold a NUL byte; binary and custom formats are unaffected.
+- `JobPayload.FromBytes` and `CopyBytes` throw `ArgumentException` for json bytes that are not valid UTF-8 or hold a NUL byte; binary and custom formats are unaffected.
 - `JobAttribute.RecurringResultCap` and `JobDescriptor.RecurringResultCap` are gone: a job stores one result, and a handler that wants more history keeps it itself.
-- `ActaJobs.SysOutbox` is `JobContract<NoInput>`: the outbox relay returns no result and keeps its last tick's counts in the slot's `outbox-status` variable.
+- `ActaJobs.SysOutbox()` returns `JobCall<NoInput>`: the outbox relay returns no result and keeps its last tick's counts in the slot's `outbox-status` variable.
 - `jobs_view` replaces `last_result_execution_number`, `last_result_format`, `last_result_text`, and `last_result_created_at_utc` with `result_format` (`none` when there is no result) and `result_text`.
 - `tags_view` has no namespace columns: join `jobs_view` for a job tag's namespace.
 - The job explanation's `view-result` action is gone.
 - `events_view.worker_id` is 0, not NULL, for an event no worker wrote; `worker_ref` stays NULL for it.
 - A ref prints as its prefix and the Guid's 32 lowercase hex digits, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, and parses only in that form, with the hex in any casing. The Crockford form, a dashed or bare Guid, and an uppercase prefix no longer parse, and the HTTP routes answer 400 for them. `job.purged` names the job the same way.
 
+**Typed enqueue answers a handle, and payloads are JSON or bytes.**
+
+- A typed enqueue or a call answers `JobHandle`, a record deriving from `EnqueueJobResponse` that adds `GetStatusAsync`, `WaitAsync`, `GetResultAsync`, `CancelAsync`, and `ExplainAsync`; a result job's call answers `JobHandle<TResult>`, and its result type is checked before the enqueue. A `ValueTask<EnqueueJobResponse>` variable or wrapper becomes `ValueTask<JobHandle>`. A test double of `IJobs` returns `new JobHandle(jobs, jobId, jobRef, action)`.
+- `IJobs.WaitAsync(job, timeout)` and `WaitAsync<TResult>` wait on any job; `IJobs.GetHandleAsync(jobRef)` rebuilds a handle; `JobOutcome` carries `JobRef`. `RunAndWaitAsync` throws when its job is purged while it waits, instead of timing out as `Ready`.
+- `ScheduleAsync(input, TimeSpan)` and `ScheduleAsync(input, DateTimeOffset)` enqueue one job for later, with call and transactional forms.
+- A manifest's job members are factories instead of `JobContract` properties: `ShippingJobs.ShipOrder(order)` returns the job's `JobCall`, which `EnqueueAsync` and `ScheduleAsync` take with a `configure` callback for options and `RunAndWaitAsync` with its `JobExecutionOptions`, so `jobs.EnqueueAsync(ShippingJobs.ShipOrder, order)` becomes `jobs.EnqueueAsync(ShippingJobs.ShipOrder(order))` and a no-input `ShippingJobs.Sweep` becomes `ShippingJobs.Sweep()`. The contract overloads of `EnqueueAsync`, `RunAndWaitAsync`, and `ScheduleAsync` are gone, with the conversion from `JobContract<TInput, TResult>` to `JobContract<TInput>`.
+- A handler may take several input parameters before `JobContext` and `CancellationToken`, which used to be ACTA0103: they travel as one generated record, `ShippingJobs.{Job}Args`, stored as JSON keyed by the parameter names. Such a handler cannot carry `[JobSchedule]` (ACTA0123), an interface parameter other than a collection is ACTA0103, and a Native AOT app registers the record in its `UseJsonPayloads` context.
+- The text payload format is gone: a typed value with no explicit format is JSON unless it is `byte[]` or `ReadOnlyMemory<byte>`, scalars included, so a scalar handler's stored input reads `"order-42"` or `42`. `JobPayload.Text`, `JobRequestBuilder.Text`, `JobPayloadFormat.Text`, and `TextJobPayloadSerializer` are gone; `JobPayload.Json(string)` and `JobRequestBuilder.Json(string)` replace them without reflection. `[Job(Format = "text")]` no longer compiles (ACTA0132).
+- Under reflection-free Native AOT, Acta supplies JSON metadata for the standard scalars; an enum input or result goes in the app's `UseJsonPayloads` context like any other type. JSON has no NaN or Infinity, so serializing one throws at enqueue.
+- A json payload is exactly one strict JSON value: `JobPayload.FromBytes` and `CopyBytes` reject comments, trailing commas, a second value, and an empty body, the JSON serializer reads strict JSON, an HTTP or CLI signal like that answers 400 or a usage error, and an outbox row like that quarantines.
+- HTTP: `POST /jobs` and `POST /jobs/{jobRef}/input` drop the `text` field; a payload's `json` field is the stored JSON text as a string, never a nested object, and a stored row within the inline size cap that is not strict JSON reads as `base64` with `malformed: true`.
+- The operator views decode only json payloads into the `*_text` columns.
 ### Behaviour changes
 
 - Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, retention never sweeps an alert-required event the projector has not consumed, and a poison event stays recoverable until replayed or dispositioned. One documented gap: a recurring job restarted after a terminal failure does not auto-resolve its incident at `Failures`/`Off` (see known-limitations).
@@ -65,7 +77,7 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 - A stale `expectedVersion` on definition overrides, retire, or schedule overrides answers `VersionConflict` (409 `versionConflict`) instead of `Rejected`, as every other versioned verb already did. `SetDefinitionOverridesResponse` and `RetireDefinitionResponse` carry the definition's `Version`.
 - The alert, definition, outbox, and tag response interfaces extend `IControlResponse`; the versionless families report a null `Version` and keep their JSON shape.
 - A failed attempt that retries within budget records execution status `failed` (200), not `rescheduled` (150), which now means only a handler-requested reschedule. A query that counted retries by 150 counts 200 with to-status `ready`.
-- HTTP enqueue and input amend with text holding U+0000, and a signal body that is not UTF-8 or holds a NUL byte, answer 400; an outbox row like that quarantines.
+- A signal body that is not UTF-8 or holds a NUL byte answers 400; an outbox row like that quarantines.
 - The descriptions of `job.rescheduled`, the `Failures` audit level, the `OnFailure` alert profile, the `job` and `worker` actors, and the `failed` execution status now say what Acta records; behaviour is unchanged.
 - A job stores at most one result, on its `jobs_state` row: a one-shot job's terminal success, or a recurring job's latest successful occurrence. Every claim and every restart clears it, so a running attempt or a failed occurrence leaves the job without one. The `results` table and its per-execution history are gone, and a successful completion writes one row instead of two.
 - The dashboard's job view shows the input and the result beside the status; the Input and Result tabs are gone.

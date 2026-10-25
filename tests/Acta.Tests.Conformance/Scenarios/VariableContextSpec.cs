@@ -44,7 +44,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Null(result.DeletedValue);
     }
 
-    [Fact(DisplayName = "Payload formats (JSON, empty Text, empty Bytes) persist faithfully")]
+    [Fact(DisplayName = "Payload formats (JSON, an empty JSON string, empty Bytes) persist faithfully")]
     public async Task Variable_payload_formats_are_persisted_as_expected()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -53,7 +53,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var result = (await Jobs.GetResultAsync<VariablePersistenceResult>(enqueued, ct))!;
-        Assert.Equal(string.Empty, result.EmptyText);
+        Assert.Equal(string.Empty, result.EmptyString);
         Assert.Equal(0, result.EmptyBytesLength);
 
         var rows = await Db.From<CheckpointEntity>()
@@ -63,7 +63,10 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Contains(rows, v => v.CheckpointName == "fetch.status" && v.ValueFormatId == JobPayloadFormat.Json.Id);
         Assert.Contains(
             rows,
-            v => v.CheckpointName == "payload.empty-text" && v.ValueFormatId == JobPayloadFormat.Text.Id && v.Value is { Length: 0 }
+            v =>
+                v.CheckpointName == "payload.empty-string"
+                && v.ValueFormatId == JobPayloadFormat.Json.Id
+                && v.Value is [(byte)'"', (byte)'"']
         );
         Assert.Contains(
             rows,

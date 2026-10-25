@@ -6,19 +6,18 @@ using System.Text.Unicode;
 namespace Acta;
 
 /// <summary>
-/// Wire-format payload: the serializer output that lands in <c>jobs.input</c>, <c>results.result</c>,
-/// <c>checkpoints.value</c>, or <c>steps.result</c>, pairing the encoded <see cref="Data"/> buffer with the
-/// <see cref="JobPayloadFormat"/> that produced it so the dispatcher routes the row to the right decoder;
-/// <c>Format.IsNone</c> means no payload and a handler returning <c>Task</c> or <c>void</c>. A <c>readonly struct</c>
-/// since it appears on every payload at scale, constructed only through <see cref="FromBytes"/> (no copy, ownership
-/// transfer) and <see cref="CopyBytes"/> (defensive copy), so the pair stays valid and the hot path never allocates silently.
+/// Wire-format payload: the encoded <see cref="Data"/> of an input, result, checkpoint value, or step result, paired
+/// with the <see cref="JobPayloadFormat"/> that routes it to its decoder; <c>Format.IsNone</c> means no payload. A
+/// <c>readonly struct</c> since it appears on every payload at scale, built through <see cref="FromBytes"/> (ownership
+/// transfer) or <see cref="CopyBytes"/> (defensive copy), which check json bytes, or unchecked through
+/// <see cref="Trusted"/> for serializer output and stored rows.
 /// </summary>
 public readonly struct JobPayload
 {
     public JobPayloadFormat Format { get; }
 
     /// <summary>The encoded payload buffer. Empty when <see cref="Format"/> is <c>None</c>, and may
-    /// also be empty for legitimate empty-string (Text) and empty-array (Bytes) payloads.</summary>
+    /// also be empty for a legitimate empty-array (Bytes) payload.</summary>
     public ReadOnlyMemory<byte> Data { get; }
 
     public bool IsNone => Format.IsNone;
@@ -31,21 +30,11 @@ public readonly struct JobPayload
     private JobPayload(JobPayloadFormat format, ReadOnlyMemory<byte> bytes)
     {
         // One-way invariant: a missing payload must not store bytes. Other formats may carry empty
-        // data because empty text and empty byte-array payloads are legitimate; serializers decide
-        // whether they accept empty input.
+        // data because an empty byte-array payload is legitimate; serializers decide whether they
+        // accept empty input.
         if (format.IsNone && !bytes.IsEmpty)
         {
             throw new ArgumentException("Payload format 'none' cannot contain bytes.", nameof(bytes));
-        }
-
-        // PostgreSQL's operator views decode json and text through CONVERT_FROM, which fails the whole SELECT on a
-        // NUL byte or invalid UTF-8, so one bad row would hide every row from the operator.
-        if (
-            (format.Id == JobPayloadFormat.Json.Id || format.Id == JobPayloadFormat.Text.Id)
-            && (bytes.Span.Contains((byte)0) || !Utf8.IsValid(bytes.Span))
-        )
-        {
-            throw new ArgumentException($"A {format.Name} payload must be valid UTF-8 with no NUL (0x00) byte.", nameof(bytes));
         }
 
         Format = format;
@@ -53,26 +42,69 @@ public readonly struct JobPayload
     }
 
     /// <summary>
-    /// Creates a payload by taking ownership of the provided byte array without copying. Json and text bytes must be
-    /// valid UTF-8 with no NUL (0x00) byte, so the operator views can decode them; other formats carry any bytes.
+    /// Creates a payload by taking ownership of the provided byte array without copying. Json bytes must be exactly
+    /// one strict JSON value in UTF-8 (no comments, no trailing comma, no NUL byte), so a handler can read it and the
+    /// operator views can decode it; other formats carry any bytes.
     /// </summary>
     /// <remarks>The caller must not mutate <paramref name="ownedBytes"/> afterwards; use <see cref="CopyBytes"/> when it may.</remarks>
-    /// <exception cref="ArgumentException">Json or text bytes that are not valid UTF-8 or hold a NUL byte.</exception>
+    /// <exception cref="ArgumentException">Json bytes that are not one strict JSON value in UTF-8.</exception>
     public static JobPayload FromBytes(JobPayloadFormat format, byte[] ownedBytes)
     {
         ArgumentNullException.ThrowIfNull(ownedBytes);
 
+        CheckJson(format, ownedBytes);
         return new JobPayload(format, ownedBytes);
     }
 
     /// <summary>
-    /// Creates a payload by copying the provided bytes into a new owned buffer, under the same UTF-8 rule for json and
-    /// text bytes as <see cref="FromBytes"/>.
+    /// Creates a payload by copying the provided bytes into a new owned buffer, under the same json rule as
+    /// <see cref="FromBytes"/>.
     /// </summary>
-    /// <exception cref="ArgumentException">Json or text bytes that are not valid UTF-8 or hold a NUL byte.</exception>
+    /// <exception cref="ArgumentException">Json bytes that are not one strict JSON value in UTF-8.</exception>
     public static JobPayload CopyBytes(JobPayloadFormat format, ReadOnlySpan<byte> bytes)
     {
+        CheckJson(format, bytes);
         return new JobPayload(format, bytes.ToArray());
+    }
+
+    /// <summary>
+    /// A payload whose bytes need no check: a serializer's own output, valid by construction, or a stored row, which
+    /// a read must surface as it is rather than refuse.
+    /// </summary>
+    internal static JobPayload Trusted(JobPayloadFormat format, byte[] ownedBytes) => new(format, ownedBytes);
+
+    // PostgreSQL's operator views decode json through CONVERT_FROM, which fails the whole SELECT on a NUL byte or invalid
+    // UTF-8, and a handler cannot read what the strict serializer rejects, so a json payload is checked where it enters.
+    private static void CheckJson(JobPayloadFormat format, ReadOnlySpan<byte> bytes)
+    {
+        if (format.Id != JobPayloadFormat.Json.Id)
+        {
+            return;
+        }
+        if (bytes.Contains((byte)0) || !Utf8.IsValid(bytes))
+        {
+            throw new ArgumentException("A json payload must be valid UTF-8 with no NUL (0x00) byte.", nameof(bytes));
+        }
+
+        // One value, read to its end; with the reader's strict defaults the next read throws on a trailing token. Depth
+        // stays the serializer's call: a value cannot nest deeper than it has bytes.
+        var reader = new Utf8JsonReader(bytes, new JsonReaderOptions { MaxDepth = bytes.Length });
+        try
+        {
+            if (reader.Read())
+            {
+                reader.Skip();
+                if (!reader.Read())
+                {
+                    return;
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException($"A json payload must be exactly one JSON value: {ex.Message}", nameof(bytes), ex);
+        }
+        throw new ArgumentException("A json payload must be exactly one JSON value.", nameof(bytes));
     }
 
     /// <summary>
@@ -96,16 +128,14 @@ public readonly struct JobPayload
     public static JobPayload Json<T>(T value, JsonTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
-        return FromBytes(JobPayloadFormat.Json, JsonSerializer.SerializeToUtf8Bytes(value, typeInfo));
+        return Trusted(JobPayloadFormat.Json, JsonSerializer.SerializeToUtf8Bytes(value, typeInfo));
     }
 
     /// <summary>
-    /// Encodes <paramref name="value"/> as UTF-8 through <see cref="TextJobPayloadSerializer.Default"/>.
-    /// Empty string is allowed and produces a zero-byte <see cref="JobPayloadFormat.Text"/> payload,
-    /// distinct from <see cref="None"/>.
+    /// <see cref="Json{T}(T)"/> for a string, with the framework's own metadata, so a string payload needs neither
+    /// reflection nor an app-supplied type info. Empty string produces <c>""</c>.
     /// </summary>
-    /// <exception cref="ArgumentException"><paramref name="value"/> holds U+0000, which a text payload cannot carry.</exception>
-    public static JobPayload Text(string value) => TextJobPayloadSerializer.Default.Serialize(value);
+    public static JobPayload Json(string value) => Json(value, ActaSystemJobJsonContext.Default.String);
 
     /// <summary>
     /// Wraps <paramref name="value"/> as a <see cref="JobPayloadFormat.Bytes"/>-format payload through

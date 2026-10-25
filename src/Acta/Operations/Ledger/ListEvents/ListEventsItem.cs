@@ -8,7 +8,7 @@ namespace Acta;
 /// <c>job.purged</c> tombstone, still name it. The joined refs and names (<c>JobRef</c> of a job subject,
 /// <c>LineageRootJobRef</c>, <c>WorkerRef</c>, <c>TenantName</c>, <c>JobName</c>) are null when absent or once their
 /// row is gone. <c>Message</c> is the human text; <c>DetailsText</c> is the details payload decoded to text, null when
-/// the event carries none or a non-text format.
+/// the event carries none or a non-json format.
 /// </summary>
 public sealed record ListEventsItem(
     long EventId,
