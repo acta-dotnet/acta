@@ -42,7 +42,7 @@ public sealed class ServerTuningTests
                 ["effective_cache_size"] = "24024MB",
                 ["maintenance_work_mem"] = "1024MB",
                 ["max_wal_size"] = "8192MB",
-                ["max_connections"] = "1000",
+                ["max_connections"] = "2500",
             },
             ServerTuning.PostgresFlags(Plan, 32032)
         );

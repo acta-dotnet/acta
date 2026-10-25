@@ -110,7 +110,7 @@
         "effective_cache_size_fraction_of_cap": 0.75,
         "maintenance_work_mem_mb": 1024,
         "max_wal_size_mb": 8192,
-        "max_connections": 1000,
+        "max_connections": 2500,
         "shm_size_fraction_of_cap": 0.25,
         "shm_size_max_mb": 8192
       },
@@ -424,6 +424,7 @@
     "chaos_seed": 1729,
     "reclaim_lease_terms": 2,
     "chaos_kill_interval_seconds": 5,
+    "chaos_replacement_start_attempts": 3,
     "chaos_mix": {
       "shape_fraction": 0.1,
       "metered_roots_cap": 10000,

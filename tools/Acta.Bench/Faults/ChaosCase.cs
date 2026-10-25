@@ -114,6 +114,7 @@ internal static class ChaosCase
             List<List<(long Id, int Execution)>> hits = [];
             var kills = 0;
             var refused = 0;
+            var failedStarts = 0;
             var started = Stopwatch.StartNew();
             using (var timer = new PeriodicTimer(TimeSpan.FromSeconds(plan.Policy("faults", "chaos_kill_interval_seconds"))))
             {
@@ -162,9 +163,23 @@ internal static class ChaosCase
                         ),
                         BenchJson.Default.FaultEvidence
                     );
-                    var replacement = Start();
-                    owned.Add(replacement);
-                    await replacement.ReadyAsync(ct);
+                    // A replacement that exits before readiness is started again, as a process supervisor would; a
+                    // start can fail on a saturated host (a login timeout). Every failed start stays in the evidence.
+                    for (var attempt = 1; ; attempt++)
+                    {
+                        var replacement = Start();
+                        owned.Add(replacement);
+                        try
+                        {
+                            await replacement.ReadyAsync(ct);
+                            break;
+                        }
+                        catch (InvalidOperationException ex) when (attempt < plan.Policy("faults", "chaos_replacement_start_attempts"))
+                        {
+                            failedStarts++;
+                            Console.WriteLine($"  {tag}: replacement start {attempt} failed, starting again: {ex.Message}");
+                        }
+                    }
                     var elapsed = started.Elapsed.TotalSeconds;
                     Console.WriteLine(
                         $"  {tag}: {elapsed:F0}s | kill {kills} | busy {hits.Count} | interrupted attempts {victims.Count} | "
@@ -279,6 +294,7 @@ internal static class ChaosCase
                     ["warmup_seconds"] = new(warmup, "seconds"),
                     ["chaos_window_seconds"] = new(chaos, "seconds"),
                     ["kills"] = new(kills, "kills"),
+                    ["failed_replacement_starts"] = new(failedStarts, "starts"),
                     ["observed_busy_kills"] = new(hits.Count, "kills"),
                     ["kills_with_reclaim"] = new(recoveredHits, "kills"),
                     ["interrupted_attempts"] = new(victims.Count, "attempts"),
