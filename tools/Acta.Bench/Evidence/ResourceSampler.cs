@@ -36,6 +36,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
     private int _containerCpuSamples;
     private bool _containerResetObserved;
     private double? _containerPeakMemory;
+    private double? _containerPeakWorkingMemory;
     private string _containerUnavailable = "No container samples were collected.";
     private long _nextContainerSample;
     private readonly string _tag;
@@ -165,7 +166,9 @@ internal sealed class ResourceSampler : IAsyncDisposable
             }
             lock (_summaryLock)
             {
-                BudgetExceeded |= memory + (_containerPeakMemory ?? 0) > _memoryBudget;
+                // Docker caps the container, and the kernel reclaims its file cache inside that cap, so only the memory
+                // it cannot reclaim competes with the host's processes.
+                BudgetExceeded |= memory + (_containerPeakWorkingMemory ?? 0) > _memoryBudget;
             }
             await Task.Delay(1000, _stop.Token);
         }
@@ -244,6 +247,13 @@ internal sealed class ResourceSampler : IAsyncDisposable
         }
     }
 
+    /// <summary>A <c>memory.stat</c> counter by name, or 0 when the kernel does not report it.</summary>
+    private static double Stat(string[] lines, string name) =>
+        lines.FirstOrDefault(l => l.StartsWith(name + " ", StringComparison.Ordinal)) is { } line
+        && double.TryParse(line.AsSpan(name.Length + 1), CultureInfo.InvariantCulture, out var value)
+            ? value
+            : 0;
+
     private async Task ContainerAsync(CancellationToken ct)
     {
         if (_provider.ContainerId is null)
@@ -269,7 +279,15 @@ internal sealed class ResourceSampler : IAsyncDisposable
                 },
             };
             foreach (
-                var argument in new[] { "exec", _provider.ContainerId, "cat", "/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/memory.current" }
+                var argument in new[]
+                {
+                    "exec",
+                    _provider.ContainerId,
+                    "cat",
+                    "/sys/fs/cgroup/cpu.stat",
+                    "/sys/fs/cgroup/memory.stat",
+                    "/sys/fs/cgroup/memory.current",
+                }
             )
             {
                 process.StartInfo.ArgumentList.Add(argument);
@@ -299,6 +317,9 @@ internal sealed class ResourceSampler : IAsyncDisposable
             {
                 throw new InvalidOperationException("Supported cgroup v2 counters are absent.");
             }
+            // File cache is reclaimable except shared memory, which memory.stat counts inside "file": PostgreSQL's
+            // shared_buffers live there and must stay counted.
+            var working = memory - Math.Max(0, Stat(lines, "file") - Stat(lines, "shmem"));
             var cpu = microseconds / 1000000;
             bool reset;
             lock (_summaryLock)
@@ -314,6 +335,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
                 _containerCpuLast = cpu;
                 _containerCpuSamples++;
                 _containerPeakMemory = Math.Max(_containerPeakMemory ?? 0, memory);
+                _containerPeakWorkingMemory = Math.Max(_containerPeakWorkingMemory ?? 0, working);
                 _containerUnavailable = "No complete trial-lifecycle interval is implied by sampled endpoints.";
             }
             Write(
@@ -325,6 +347,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
                 reset
             );
             Write("database_container", "memory_current", memory, "bytes", "Whole-container memory, not per-database memory.");
+            Write("database_container", "memory_working", working, "bytes", "Whole-container memory less reclaimable file cache.");
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {

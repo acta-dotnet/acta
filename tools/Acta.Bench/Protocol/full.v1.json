@@ -110,7 +110,7 @@
         "effective_cache_size_fraction_of_cap": 0.75,
         "maintenance_work_mem_mb": 1024,
         "max_wal_size_mb": 8192,
-        "max_connections": 500,
+        "max_connections": 1000,
         "shm_size_fraction_of_cap": 0.25,
         "shm_size_max_mb": 8192
       },

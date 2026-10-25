@@ -10,6 +10,7 @@ internal sealed class OwnedWorker : IDisposable
     private readonly Task _output;
     private readonly Task _error;
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly Queue<string> _errorTail = new();
     private bool _contractRejected;
     private int _droppedWakeups;
 
@@ -77,10 +78,40 @@ internal sealed class OwnedWorker : IDisposable
             {
                 Interlocked.Increment(ref _droppedWakeups);
             }
+            if (!readiness)
+            {
+                lock (_errorTail)
+                {
+                    _errorTail.Enqueue(line);
+                    if (_errorTail.Count > 5)
+                    {
+                        _errorTail.Dequeue();
+                    }
+                }
+            }
         }
         if (readiness)
         {
-            _ready.TrySetException(new InvalidOperationException("Owned worker exited before readiness."));
+            // The worker writes why it stopped to stderr; that reason is the only evidence of a failed start.
+            try
+            {
+                // Null only when stdout closed before the constructor started draining stderr.
+                if (_error is { } error)
+                {
+                    await error.WaitAsync(TimeSpan.FromSeconds(2));
+                }
+            }
+            catch (TimeoutException) { }
+            string tail;
+            lock (_errorTail)
+            {
+                tail = string.Join(" | ", _errorTail);
+            }
+            _ready.TrySetException(
+                new InvalidOperationException(
+                    tail.Length == 0 ? "Owned worker exited before readiness." : $"Owned worker exited before readiness: {tail}"
+                )
+            );
         }
     }
 
