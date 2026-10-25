@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.6
 
-Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
+Tagged 2026-10-26. Upgrading from rc.5 takes the changes below.
 
 ### What a consumer must change
 
@@ -122,16 +122,19 @@ Tagged 2026-10-19. Upgrading from rc.5 takes the changes below.
 
 ### Evidence
 
-The engine was certified on `fc5fbf1a` with the Acta Bench standard profile: all 61 engine cases on SQLite, PostgreSQL, and SQL Server, reported in [`docs/benchmark.md`](./benchmark.md).
-- **Result.** No case failed safety or liveness, every trial's ledger passed the certification checks, and all 60 fault-case instances ran.
-- **Two bench defects.** They left three instances unfinished, and the fixes touch only `tools/Acta.Bench`:
-  - F09 on SQLite started 8 workers of 64 executors on one database file and timed out waiting for them to report ready. F09 now runs 3 workers on SQLite and keeps 8 on the servers.
-  - O03 on PostgreSQL gave up on its recovery deadline while completions were still landing. Case waits now follow the same progress rule as a trial's drain.
-- **A third bench defect.** The first clean rerun of F09 on SQLite stopped three minutes in, with no ledger violation. SQLite refused the bench's probe of a paused victim's in-flight attempts with `SQLITE_PROTOCOL`. The bench now resumes that victim and kills on a later tick.
-- **Reruns.** The tagged commit adds the three fixes and leaves `src/` unchanged. With them, the affected cases were rerun from a clean tree against the same engine, and both passed:
-  - F09 on SQLite, on `4e7453a9`: 10,000 jobs, 3 workers of 64 executors, 7 minutes of chaos, 82 kills, 16 ledger checks with no violation. SQLite refused one probe; that victim resumed, and the next tick killed a worker.
-  - O03 on PostgreSQL, on `f5bbc7bb`. The third fix touches only F09.
-- **Capacity.** The standard profile reports capacity for information only. rc.5's round ran on Anvil, so there is no Acta Bench bundle to compare against. The figures on useacta.net stay linked to [rc.5's round](https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/reference/benchmark.md).
+The engine was certified on `599e28e8` with the Acta Bench full profile on SQLite, PostgreSQL, and SQL Server, in seven bundles reported in [`docs/benchmark.md`](./benchmark.md). The bench changes between the bundles touch only `tools/Acta.Bench` and its tests; `src/` is the same in all seven.
+- **Result.** No case failed safety or liveness in any bundle, and every trial's ledger passed the certification checks.
+- **Chaos certification.** F09 passed at 1,000,000 jobs on PostgreSQL and on SQL Server: 24 workers of 64 executors, a worker killed every 5 s for 7 minutes, 84 and 83 kills, every one of a busy worker whose work was reclaimed, and 16 ledger checks with no violation. SQLite passed at 10,000 jobs on 3 workers.
+- **Bench defects found during the run**, each fixed in the bench alone:
+  - The memory guard counted the database container's page cache as used memory and stopped PostgreSQL in the 64 KB payload trials. It now counts only memory the kernel cannot reclaim (`fb8f8414`).
+  - The owned PostgreSQL server allowed 500 connections, too few for the full chaos fleet. The refused attempts exhausted the host's TCP ports, so a replacement worker could not start. It now allows 2,500 (`fb8f8414`, `988764e6`).
+  - A replacement worker whose SQL Server login timed out on the saturated host ended F09. The bench now starts a replacement again, up to three times, as a process supervisor would, and records every failed start; neither rerun needed one (`988764e6`).
+  - 10,000 chaos jobs drained before enough kills hit busy workers on the servers. The reruns seeded 1,000,000, the scale useacta.net states.
+  - The full profile validated only at 0.8 of a case's discovered rate, which discovery's 15 s trials can overstate, so a case that missed it had no validated rate at all. A case where no rate holds at 0.8 is now measured at 0.7, 0.6, and 0.5 in turn (`05e5c27c`).
+  - On Linux, a bench worker read its controller's start time a few milliseconds off and stopped before it was ready; the tag's NativeAOT check found it. The evidence ran on Windows, where the two reads agree, and the release carries the fix (`5511252d`).
+- **Reruns.** PostgreSQL `--full` on `fb8f8414`, then F09 alone on SQL Server and on PostgreSQL on `988764e6`, both passing. Then every capacity row still unvalidated, on `05e5c27c`: P01 on SQLite; M02, M04, O02, O03, and P01 on SQL Server; L01, C01, P01, I05, M03, M04, O03, E01, and E03 on PostgreSQL. The other SQLite and SQL Server cases come from `599e28e8`.
+- **Capacity.** A row is validated only when an arrival rate passes every independent validation trial. One PostgreSQL worker of 64 executors validated at 7,680 no-op jobs per second end to end; at 8,960, one of five trials was limited by the bench's own load generator, and at 10,240 the backlog grew. Still INCONCLUSIVE, with correctness passed: O03, one hot concurrency key, on PostgreSQL and SQL Server; I05 on PostgreSQL, which sustained about 310 roots/s, below its lowest frozen rate of 400; and PostgreSQL's E01 soak, where the load generator fell behind. SQL Server's E03 offered 3,200 roots/s without growing the backlog, so it established no overload.
+- **useacta.net.** The homepage states 7,680 fully executed, durably completed jobs per second from L01 and a 77,662 roots/s steady drain at 8 workers from L04. The batch-enqueue and pickup-latency figures from rc.5's round are gone, since this bench has no comparable row. The million-job line points at this evidence.
 
 ## 1.0.0-rc.5
 

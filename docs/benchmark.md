@@ -1,998 +1,1120 @@
-# Acta Bench — INCONCLUSIVE
+# Acta Bench: rc.6 release evidence
+
+The rc.6 engine, `src/` at `599e28e8`, under the Acta Bench full profile on SQLite, PostgreSQL, and SQL Server. The evidence is seven bundles from four bench commits; the bench changes between them touch only `tools/Acta.Bench` and its tests. From `05e5c27c`, a case where no rate holds at 0.8 of its discovered rate is measured again at 0.7, 0.6, and 0.5 of it, in turn, until one holds. Each section below is a bundle's own report as `acta-bench publish` writes it, with its headings moved two levels down.
+
+| Section | Bench commit | Run | Covers |
+|---|---|---|---|
+| 1 | `599e28e8` | `20261025T084709291Z-ccfc5a01088f4cbdb63e9ca59f6131e6` | SQLite and SQL Server. Superseded: its PostgreSQL run, stopped by the bench's memory guard at M04 (sections 2 and 7); its SQL Server F09 (section 3); its SQLite P01 and its SQL Server M02, M04, O02, O03, and P01 (sections 5 and 6). |
+| 2 | `fb8f8414` | `20261025T171642830Z-10ff9a58c7ae475aab00670be4a4a073` | PostgreSQL, with 1,000,000 chaos jobs. Superseded: its F09 (section 4) and its L01, C01, P01, I05, M04, O03, E01, and E03 (section 7). |
+| 3 | `988764e6` | `20261025T212820450Z-7717e7b27a80435c9b87b0884064657f` | F09 on SQL Server, 1,000,000 jobs. |
+| 4 | `988764e6` | `20261025T215626759Z-e52c64f2055544aa81bc5754dda63c14` | F09 on PostgreSQL, 1,000,000 jobs. |
+| 5 | `05e5c27c` | `20261025T224336926Z-4223d27b87664c29ba0a7158fcaeda67` | P01 on SQLite. |
+| 6 | `05e5c27c` | `20261025T224812128Z-ad7e90b325424ee6acbd4810822c5bb8` | M02, M04, O02, O03, and P01 on SQL Server. |
+| 7 | `05e5c27c` | `20261025T234949411Z-7714ef9c9e834ecfb24afe4a626a9637` | L01, C01, P01, I05, M04, O03, E01, and E03 on PostgreSQL, and M03, which E01 takes its rate from. |
+
+- Correctness: 0 safety failures and 0 liveness failures in every bundle, and no ledger violation in any trial.
+- The chaos certification passed at 1,000,000 jobs on PostgreSQL and SQL Server (sections 3 and 4) and at 10,000 jobs on SQLite (section 1).
+- One PostgreSQL worker validated at 7,680 no-op jobs per second end to end (L01, section 7).
+- Still INCONCLUSIVE, with correctness passed: O03 on PostgreSQL and SQL Server, and I05 and the E01 soak on PostgreSQL. Each report lists its own under Not passing, along with the runs later sections supersede.
+
+## 1. SQLite and SQL Server, `599e28e8`
+
+### Acta Bench: INCONCLUSIVE
+
+full profile on sqlite, pg, mssql. 37 of 886 case results did not pass (0 safety failures, 0 liveness failures, 37 coverage gaps); they are listed under Not passing.
+
+#### L01: No-op end-to-end
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 1,280 | 3 VALID | 1,267 (1,263-1,291) | roots/second | 524 | 1,037 |
+| mssql | executor-1 | 1,280 | 5 UNSTABLE; 2 added by the instability rule | 330 (295-461) | roots/second | 76,423 | 122,414 |
+| mssql | executor-32 | 1,280 | 3 VALID | 1,290 (1,250-1,303) | roots/second | 521 | 1,043 |
+| mssql | workers-16 | 1,280 | 1 GENERATOR_LIMITED, 2 VALID | 1,286 (1,282-1,286) | roots/second | 116 | 566 |
+| mssql | workers-16-single-namespace | 1,280 | 1 GENERATOR_LIMITED, 4 VALID; 2 added by the instability rule | 1,281 (1,279-1,281) | roots/second | 86.4 | 486 |
+| mssql | workers-4 | 1,280 | 1 GENERATOR_LIMITED, 2 VALID | 1,272 (1,262-1,285) | roots/second | 427 | 1,010 |
+| pg | canonical | 5,120 | 3 VALID | 5,120 (5,099-5,213) | roots/second | 530 | 1,032 |
+| pg | executor-1 | 5,120 | 3 UNSTABLE | 245 (233-246) | roots/second | 451,453 | 711,481 |
+| pg | executor-32 | 5,120 | 3 VALID | 5,079 (4,975-5,185) | roots/second | 533 | 1,032 |
+| pg | workers-16 | 5,120 | 1 GENERATOR_LIMITED, 2 VALID | 5,200 (5,098-5,204) | roots/second | 413 | 951 |
+| pg | workers-16-single-namespace | 5,120 | 5 VALID; 2 added by the instability rule | 5,104 (5,065-5,204) | roots/second | 85 | 641 |
+| pg | workers-4 | 5,120 | 3 VALID | 5,128 (5,115-5,255) | roots/second | 494 | 1,015 |
+| sqlite | canonical | 40 | 3 VALID | 40.8 (39.9-40.9) | roots/second | 597 | 1,101 |
+| sqlite | executor-1 | 40 | 3 VALID | 39.7 (39.5-39.8) | roots/second | 691 | 1,188 |
+| sqlite | executor-32 | 40 | 3 VALID | 40.3 (40.1-40.8) | roots/second | 597 | 1,107 |
+
+#### L02: Single-call admission
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | Admission p50 ms | Admission p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 5,120 | 5 VALID; 2 added by the instability rule | 5,120 (5,119-5,140) | admissions/second | 17.7 | 61.7 |
+| pg | canonical | 10,240 | 5 VALID; 2 added by the instability rule | 10,239 (10,229-10,243) | admissions/second | 18.1 | 36.3 |
+| sqlite | canonical | 40 | 3 VALID | 40 (40-40) | admissions/second | 11 | 19.6 |
+
+#### L03: Batch admission
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | Admission p50 ms | Admission p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | batch-1 | 2,560 | 3 GENERATOR_LIMITED | 406 (368-446) | admissions/second | 2,467 | 2,998 |
+| mssql | batch-1000 | 2,560 | 3 VALID | 2,547 (2,547-2,547) | admissions/second | 65.5 | 179 |
+| mssql | canonical | 2,560 | 3 VALID | 2,560 (2,560-2,560) | admissions/second | 20.1 | 86.8 |
+| pg | batch-1 | 2,560 | 3 GENERATOR_LIMITED | 367 (351-376) | admissions/second | 2,794 | 2,934 |
+| pg | batch-1000 | 2,560 | 5 VALID; 2 added by the instability rule | 2,547 (2,547-2,547) | admissions/second | 63.4 | 89.7 |
+| pg | canonical | 2,560 | 1 GENERATOR_LIMITED, 4 VALID; 2 added by the instability rule | 2,560 (2,560-2,560) | admissions/second | 27.6 | 41.4 |
+| sqlite | batch-1 | 10,240 | 3 GENERATOR_LIMITED | 919 (910-1,137) | admissions/second | 800 | 2,562 |
+| sqlite | batch-1000 | 10,240 | 3 VALID | 10,253 (10,253-10,253) | admissions/second | 61.1 | 84.1 |
+| sqlite | canonical | 10,240 | 5 VALID; 2 added by the instability rule | 10,240 (10,237-10,240) | admissions/second | 17.9 | 30.2 |
+
+#### L04: Preloaded backlog drain
+
+| Provider | Cell | Workers | Roots | Measurement | Database steady roots/s | Steady roots/s | Drain roots/s, median (min-max) | First completion s |
+|---|---|---:|---:|---|---:|---:|---:|---:|
+| mssql | canonical | 1 | 200,000 | 5 VALID; 2 added by the instability rule | 11,517 | 11,524 | 10,711 (8,983-14,149) | 0.677 |
+| mssql | drain-workers-16 | 16 | 200,000 | 3 VALID | 41,783 | 41,054 | 34,033 (32,051-34,124) | 0.865 |
+| mssql | drain-workers-4 | 4 | 200,000 | 3 VALID | 34,159 | 34,168 | 30,334 (29,241-30,707) | 0.678 |
+| mssql | drain-workers-8 | 8 | 200,000 | 5 VALID; 2 added by the instability rule | 43,526 | 43,384 | 35,836 (32,611-39,912) | 0.761 |
+| pg | canonical | 1 | 200,000 | 3 VALID | 20,743 | 20,739 | 19,299 (18,905-19,380) | 0.569 |
+| pg | drain-workers-16 | 16 | 200,000 | 3 VALID | 60,328 | 52,190 | 42,605 (40,582-47,404) | 0.934 |
+| pg | drain-workers-4 | 4 | 200,000 | 3 VALID | 54,397 | 54,401 | 45,972 (45,961-48,913) | 0.582 |
+| pg | drain-workers-8 | 8 | 200,000 | 3 VALID | 74,908 | 74,411 | 59,508 (51,863-59,545) | 0.597 |
+| sqlite | canonical | 1 | 50,000 | 3 VALID | 5,837 | 5,786 | 5,458 (5,420-5,604) | 0.515 |
+
+#### C01: Three persisted steps
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 1,280 | 3 VALID | 1,254 (1,244-1,278) | roots/second | 569 | 1,119 |
+| pg | canonical | 1,280 | 3 VALID | 1,278 (1,253-1,288) | roots/second | 569 | 1,089 |
+| sqlite | canonical | 20 | 3 VALID | 19.9 (19.9-19.9) | roots/second | 901 | 2,238 |
+
+#### P01: Ten children and join
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 320 | 5 UNSTABLE; 2 added by the instability rule | 248 (247-280) | roots/second | 9,148 | 11,238 |
+| pg | canonical | 320 | 4 UNSTABLE, 1 VALID; 2 added by the instability rule | 276 (268-330) | roots/second | 6,574 | 8,209 |
+| sqlite | canonical | 20 | 1 UNSTABLE, 2 VALID | 19.9 (19.7-21.2) | roots/second | 2,350 | 8,209 |
+
+#### R01: Transient failure and retry
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 2,560 | 3 VALID | 2,559 (2,556-2,560) | roots/second | 53.9 | 2,214 |
+| pg | canonical | 5,120 | 3 VALID | 5,121 (5,120-5,126) | roots/second | 36.7 | 2,166 |
+| sqlite | canonical | 40 | 3 VALID | 40.4 (40.1-40.5) | roots/second | 146 | 2,549 |
+
+#### O01: Many independent lanes
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 1,280 | 3 VALID | 1,301 (1,275-1,305) | roots/second | 494 | 1,043 |
+| pg | canonical | 5,120 | 3 VALID | 5,145 (5,139-5,210) | roots/second | 536 | 1,032 |
+| sqlite | canonical | 40 | 3 VALID | 41 (40.9-41) | roots/second | 597 | 1,101 |
+
+#### O02: One hot lane
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 160 | 5 UNSTABLE; 2 added by the instability rule | 132 (129-154) | roots/second | 6,828 | 8,522 |
+| pg | canonical | 80 | 3 VALID | 79.5 (78.6-80.8) | roots/second | 508 | 1,021 |
+| sqlite | canonical | 20 | 3 VALID | 20.2 (20.2-20.3) | roots/second | 581 | 1,101 |
+
+#### O03: Hot concurrency key
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | - | 1 NOT_MEASURED | - |  | - | - |
+| pg | canonical | - | 1 NOT_MEASURED | - |  | - | - |
+| sqlite | canonical | 1 | 5 VALID; 2 added by the instability rule | 1 (1-1) | roots/second | 346 | 768 |
+
+#### S02: Parked-work skew
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 640 | 3 VALID | 640 (635-641) | roots/second | 508 | 1,032 |
+| pg | canonical | 5,120 | 3 VALID | 5,073 (5,062-5,151) | roots/second | 536 | 1,032 |
+| sqlite | canonical | 40 | 3 VALID | 39.6 (39.2-41) | roots/second | 597 | 1,101 |
+
+#### S03: Future high-priority skew
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 320 | 3 VALID | 325 (325-327) | roots/second | 513 | 1,021 |
+| pg | canonical | 5,120 | 3 VALID | 5,070 (5,006-5,128) | roots/second | 542 | 1,032 |
+| sqlite | canonical | 40 | 3 VALID | 39.5 (39.5-40.8) | roots/second | 594 | 1,101 |
+
+#### I05: Idempotent external sink
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 320 | 3 VALID | 320 (319-321) | roots/second | 655 | 1,137 |
+| pg | canonical | 320 | 5 UNSTABLE; 2 added by the instability rule | 313 (306-316) | roots/second | 1,591 | 2,008 |
+| sqlite | canonical | 9 | 3 VALID | 9 (8.9-9.13) | roots/second | 762 | 1,338 |
+
+#### M01: Fixed CPU work
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 2,560 | 3 VALID | 2,558 (2,532-2,627) | roots/second | 116 | 1,054 |
+| pg | canonical | 5,120 | 3 VALID | 5,043 (4,970-5,094) | roots/second | 406 | 1,043 |
+| sqlite | canonical | 40 | 3 VALID | 40.9 (40.9-41) | roots/second | 597 | 1,101 |
+
+#### M02: Controlled I/O work
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 640 | 5 UNSTABLE; 2 added by the instability rule | 440 (435-607) | roots/second | 11,177 | 14,574 |
+| pg | canonical | 640 | 5 UNSTABLE; 2 added by the instability rule | 310 (305-456) | roots/second | 27,912 | 39,473 |
+| sqlite | canonical | 9 | 3 VALID | 8.93 (8.93-9.03) | roots/second | 745 | 1,295 |
+
+#### M03: Short/long mixed workload
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 640 | 3 VALID | 640 (639-641) | roots/second | 106 | 1,181 |
+| pg | canonical | 640 | 3 VALID | 640 (638-640) | roots/second | 104 | 1,220 |
+| sqlite | canonical | 20 | 3 VALID | 19.9 (19.9-20.1) | roots/second | 250 | 1,549 |
+
+#### M04: Payload sweep
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 1,280 | 3 GENERATOR_LIMITED | 1,265 (1,248-1,282) | roots/second | 420 | 1,077 |
+| mssql | payload-256 | 1,280 | 1 GENERATOR_LIMITED, 2 VALID | 1,276 (1,267-1,299) | roots/second | 460 | 1,049 |
+| mssql | payload-4096 | 1,280 | 1 GENERATOR_LIMITED, 2 VALID | 1,283 (1,250-1,295) | roots/second | 510 | 1,037 |
+| mssql | payload-65536 | 1,280 | 2 GENERATOR_LIMITED, 1 VALID | 1,285 (1,266-1,317) | roots/second | 402 | 1,113 |
+| pg | canonical | 2,560 | 4 GENERATOR_LIMITED, 1 VALID; 2 added by the instability rule | 2,561 (2,452-2,607) | roots/second | 547 | 1,188 |
+| pg | payload-256 | 2,560 | 3 VALID | 2,581 (2,541-2,601) | roots/second | 521 | 1,021 |
+| pg | payload-4096 | 2,560 | 3 VALID | 2,525 (2,523-2,527) | roots/second | 524 | 1,021 |
+| pg | payload-65536 | 2,560 | 1 GENERATOR_LIMITED | 1,357 (1,357-1,357) | roots/second | 14,574 | 17,316 |
+| sqlite | canonical | 40 | 3 VALID | 40.9 (39.5-40.9) | roots/second | 600 | 1,101 |
+| sqlite | payload-256 | 40 | 3 VALID | 40.6 (39.5-40.7) | roots/second | 597 | 1,101 |
+| sqlite | payload-4096 | 40 | 3 VALID | 40.6 (39.6-40.9) | roots/second | 597 | 1,101 |
+| sqlite | payload-65536 | 40 | 3 VALID | 40.9 (39.8-41) | roots/second | 600 | 1,107 |
+
+#### E01: Mixed-workload soak
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 448 | 1 VALID | 448 (448-448) | roots/second | 140 | 1,125 |
+| sqlite | canonical | 14 | 1 VALID | 14 (14-14) | roots/second | 326 | 1,882 |
+
+#### E02: Queries during processing
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 2,560 | 3 VALID | 2,611 (2,553-2,632) | roots/second | 369 | 1,043 |
+| sqlite | canonical | 40 | 3 VALID | 40.6 (40.1-40.8) | roots/second | 600 | 1,101 |
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 28974 s |
+| Evidence written | 82.2 MB of a 50 MB budget |
+| Setup, median per trial | 0.722 s |
+| Seeding, median per trial | 5E-07 s |
+| Measured window and drain, median per trial | 17.4 s |
+| Verification, median per trial | 0.0742 s |
+| Ledger checks, median per trial | 0.0715 s |
+| Evidence writing, median per trial | 0.00206 s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 2.52 ms mean, 7.73 ms p95, 10 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 4.19 ms mean, 6.93 ms p95, 5 writes/s, 100% idle, 14 samples |
+| mssql | 0 c: | write 3.47 ms mean, 7.83 ms p95, 9 writes/s, 99% idle, 5314 samples |
+| mssql | 1 d: | write 0.37 ms mean, 2.33 ms p95, 1345 writes/s, 63% idle, 5314 samples |
+| pg | 0 c: | write 3.47 ms mean, 7.86 ms p95, 8 writes/s, 99% idle, 5182 samples |
+| pg | 1 d: | write 0.16 ms mean, 0.57 ms p95, 897 writes/s, 54% idle, 5182 samples |
+| sqlite | 0 c: | write 3.21 ms mean, 7.85 ms p95, 8 writes/s, 99% idle, 3903 samples |
+| sqlite | 1 d: | write 0.29 ms mean, 1.64 ms p95, 480 writes/s, 92% idle, 3903 samples |
+| after | 0 c: | write 4.22 ms mean, 8.55 ms p95, 5 writes/s, 101% idle, 15 samples |
+| after | 1 d: | write 1.68 ms mean, 7.31 ms p95, 7 writes/s, 100% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| L01 | pg | 3,159 | 30 |
+| L01 | mssql | 1,675 | 30 |
+| L03 | sqlite | 1,382 | 22 |
+| M04 | pg | 909 | 21 |
+| S02 | sqlite | 901 | 7 |
+| O03 | pg | 811 | 9 |
+| M04 | mssql | 804 | 20 |
+| F09 | sqlite | 766 | 1 |
+| O03 | mssql | 765 | 9 |
+| L03 | pg | 742 | 22 |
+
+#### Not passing
+
+| Case | Provider | Phase | Trial | Status | Safety | Liveness | Coverage | Measurement | Reason | Evidence |
+|---|---|---|---:|---|---|---|---|---|---|---|
+| P01 | sqlite | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| O03 | pg | measure | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Discovery did not establish a valid rate; no capacity score is available. |  |
+| F09 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Case did not finish (InvalidOperationException: Owned worker exited before readiness.); partial histories retained. | histories/pg-F09-chaos-ledger.json |
+| D01 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| D02 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| D03 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| D04 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| E01 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| E02 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| E03 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | The resource budget stopped this provider: Declared memory/disk resource budget exceeded; evidence retained. |  |
+| O03 | mssql | measure | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Discovery did not establish a valid rate; no capacity score is available. |  |
+| F09 | mssql | fault | 0 | INCONCLUSIVE | PASS | PASS | INCOMPLETE | NOT_MEASURED | Required busy-worker kills with observed reclaim were not all established. | histories/mssql-F09-chaos-checks.json histories/mssql-F09-chaos-model.json histories/mssql-F09-chaos-expected.json histories/mssql-F09-chaos-observed.json histories/mssql-F09-chaos-ledger.json |
+| E03 | mssql | fault | 1 | INCONCLUSIVE | PASS | PASS | INCOMPLETE | VALID | The offered overload of 3200 roots/s did not grow the backlog during the overload half. | histories/mssql-E03-fault-1-1280-checks.json histories/mssql-E03-fault-1-1280-backlog.csv histories/mssql-E03-fault-1-1280-window.json histories/mssql-E03-fault-1-1280-admissions.json histories/mssql-E03-fault-1-1280-observations.json histories/mssql-E03-fault-1-1280-expected.json histories/mssql-E03-fault-1-1280-observed.json histories/mssql-E03-fault-1-1280-ledger.json |
+| E03 | mssql | fault | 2 | INCONCLUSIVE | PASS | PASS | INCOMPLETE | VALID | The offered overload of 3200 roots/s did not grow the backlog during the overload half. | histories/mssql-E03-fault-2-1280-checks.json histories/mssql-E03-fault-2-1280-backlog.csv histories/mssql-E03-fault-2-1280-window.json histories/mssql-E03-fault-2-1280-admissions.json histories/mssql-E03-fault-2-1280-observations.json histories/mssql-E03-fault-2-1280-expected.json histories/mssql-E03-fault-2-1280-observed.json histories/mssql-E03-fault-2-1280-ledger.json |
+| P01 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| O02 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| O03 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Capacity discovery did not find a valid arrival rate. |  |
+| F09 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Required seeded busy kills, reclaim evidence, or acknowledged cohort accounting is incomplete. |  |
+| M02 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| M04 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| L03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| P01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| O03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Capacity discovery did not find a valid arrival rate. |  |
+| F09 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Required seeded busy kills, reclaim evidence, or acknowledged cohort accounting is incomplete. |  |
+| I05 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| M02 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| M04 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing diagnostic cell payload-65536, independent trial 2. |  |
+| M04 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing diagnostic cell payload-65536, independent trial 3. |  |
+| M04 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| D01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 1. |  |
+| D01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 2. |  |
+| D02 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 1. |  |
+| D02 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 2. |  |
+| E01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Required sustained soak interval or measurement validity is incomplete. |  |
+| E02 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Capacity discovery did not find a valid arrival rate. |  |
+| E03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 1. |  |
+| E03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 2. |  |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
 
 Protocol: `acta-bench.full/1`  
-Build: `fc5fbf1aa436013fbcb26b8bae1846cebe921efa` (source dirty: False)  
-Run: `20261019T044452329Z-eef32bb0d6bf498eb49bede6f79a21c9`
-
-Requested providers: sqlite, pg, mssql  
-Completed providers: mssql  
-Durability: single_node_durable; settings verified: True
-
-Case instances: safety failures 0; liveness failures 0; coverage gaps 3. Fault-case instances covered: 60 of 60.
-
-Requested profile: **standard**, 61 of 61 engine cases. A selected-case or quick PASS establishes only that declared scope.
-
-Standard uses one conservative arrival rate, one measured trial, reduced populations and fault repetitions. It does not establish maximum capacity, repeated-trial confidence, or extended endurance.
-
-Capacity measurement is informational in the standard profile: safety, liveness, correctness coverage, and the ledger checks decide each case and the verdict, and discovery, measured trials, and the E03 overload check are only reported.
-
+Build: `599e28e882e3cb43a565ebbe7198104a00285ed7` (source dirty: False)  
+Run: `20261025T084709291Z-ccfc5a01088f4cbdb63e9ca59f6131e6`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 243836198912  
+build_configuration: Release  
 compilation_mode: managed_jit  
-worker_compilation_mode: managed_jit  
 cpu_model: Intel(R) Core(TM) i9-14900K  
-physical_cores: 24  
-processor_count: 32  
-memory_available_to_runtime_bytes: 102818476032  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+docker_vm_cpus: 32  
+docker_vm_memory_bytes: 50379538432  
 filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+mssql_container_image_digest: sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090  
+mssql_container_memory_mb: 32031  
+mssql_cost_threshold_for_parallelism: 50  
+mssql_cpu_count: 32  
+mssql_database_data_files: 1 x 4096 MB, growth 512 MB  
+mssql_database_log_files: 1 x 2048 MB, growth 512 MB  
+mssql_max_degree_of_parallelism: 8  
+mssql_max_server_memory_mb: 27226  
+mssql_memory_optimized_tempdb_metadata: 1  
+mssql_optimize_for_ad_hoc_workloads: 1  
+mssql_physical_memory_mb: 32031  
+mssql_server_mode: owned_container  
+mssql_tempdb_data_files: 8 x 1024 MB, growth 256 MB  
+mssql_tempdb_log_files: 1 x 1024 MB, growth 256 MB  
+mssql_trace_flag_3979: on  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+pg_autovacuum: on  
+pg_container_image_digest: sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336  
+pg_container_memory_mb: 32031  
+pg_container_shm_mb: 8007  
+pg_effective_cache_size: 24023MB  
+pg_maintenance_work_mem: 1024MB  
+pg_max_connections: 500  
+pg_max_wal_size: 8192MB  
+pg_server_mode: owned_container  
+pg_shared_buffers: 8007MB  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 28974  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
 
-| Case | Provider | Phase | Safety | Liveness | Coverage | Measurement | Status | Reason |
-|---|---|---|---|---|---|---|---|---|
-| H01 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H02 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H03 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H04 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H05 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H06 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H07 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| H08 | harness | self_test | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Synthetic harness evidence; not an engine case. |
-| L01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| L01 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L02 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L02 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L04 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L04 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C03 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C04 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C05 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P01 | sqlite | discover | PASS | PASS | COMPLETE | OBSERVER_LIMITED | PASS |  |
-| P01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | sqlite | discover | PASS | PASS | COMPLETE | OBSERVER_LIMITED | PASS |  |
-| P01 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| P02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P04 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P05 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P06 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P07 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P08 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T01 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T04 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T05 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T06 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| R01 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| R02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R03 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| O01 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O04 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Finite strict-priority/tenant contention; no starvation-freedom claim. |
-| O05 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F01 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F02 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F03 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F04 | sqlite | fault | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | SQLite uses embedded storage; this profile has no worker-to-database TCP connection. |
-| F05 | sqlite | fault | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | SQLite is embedded; the profile has no separate database process. |
-| F06 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F07 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F08 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | In-process wakeup accelerator disabled; durable safety polling completed the same native child/join workload. |
-| F09 | sqlite | verify | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | INCONCLUSIVE | Case did not finish (TimeoutException: The operation has timed out.); partial histories retained. |
-| S01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| S02 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| S03 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S04 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S05 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I03 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I04 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M01 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M01 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| M01 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | sqlite | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M04 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M04 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| M04 | sqlite | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| D01 | sqlite | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| D02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades. |
-| D03 | sqlite | verify | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades. |
-| D04 | sqlite | verify | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | This pre-1.0 tree publishes one baseline migration per provider and no supported predecessor upgrade pair. |
-| E01 | sqlite | soak | PASS | PASS | COMPLETE | VALID | PASS |  |
-| E02 | sqlite | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| E02 | sqlite | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | sqlite | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| E02 | sqlite | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E03 | sqlite | fault | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| F09 | sqlite | reconcile | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | INCONCLUSIVE | Required seeded busy kills, reclaim evidence, or acknowledged cohort accounting is incomplete. |
-| E02 | sqlite | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| L01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | pg | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L04 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L04 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | pg | discover | PASS | PASS | COMPLETE | OBSERVER_LIMITED | PASS |  |
-| C01 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C03 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C04 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C05 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| P01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| P01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| P01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | pg | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P03 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P04 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P05 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P06 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P07 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P08 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T01 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T03 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T04 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T05 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T06 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| R02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R03 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O01 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O03 | pg | verify | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | INCONCLUSIVE | Case did not finish (TimeoutException: Declared recovery bound elapsed.); partial histories retained. |
-| O04 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Finite strict-priority/tenant contention; no starvation-freedom claim. |
-| O05 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F01 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F02 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F03 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F04 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Black-box connectivity failure; no specific lost-transaction-reply boundary is inferred. |
-| F05 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Controller probes retry transient post-crash reads; the worker process is not restarted by the harness. |
-| F06 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F07 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F08 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | In-process wakeup accelerator disabled; durable safety polling completed the same native child/join workload. |
-| F09 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S03 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S03 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S04 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S05 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I03 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I04 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | pg | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | pg | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | pg | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | pg | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| D01 | pg | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| D02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades. |
-| D03 | pg | verify | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades. |
-| D04 | pg | verify | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | This pre-1.0 tree publishes one baseline migration per provider and no supported predecessor upgrade pair. |
-| E01 | pg | soak | PASS | PASS | COMPLETE | OBSERVER_LIMITED | PASS | Ran at M03's best qualifying discovery rate of 1600 roots/s: no M03 rate validated, and the standard profile does not gate its verdict on measurement. |
-| E02 | pg | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | pg | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| E03 | pg | fault | PASS | PASS | COMPLETE | VALID | PASS | Ran at L01's best qualifying discovery rate of 6400 roots/s: no L01 rate validated, and the standard profile does not gate its verdict on measurement. |
-| L01 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| P01 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| O03 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | Capacity discovery did not find a valid arrival rate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| I05 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| M01 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| M02 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| M03 | pg | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| L01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| L01 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| L01 | mssql | measure | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| L02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L02 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L03 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| L04 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| L04 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C01 | mssql | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| C02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C03 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C04 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| C05 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| P01 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| P02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P04 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P05 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P06 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P07 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| P08 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T01 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T04 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T05 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| T06 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| R01 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| R01 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| R02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| R03 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O01 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| O01 | mssql | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O02 | mssql | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| O03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O03 | mssql | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| O04 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Finite strict-priority/tenant contention; no starvation-freedom claim. |
-| O05 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F01 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F02 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F03 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F04 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Black-box connectivity failure; no specific lost-transaction-reply boundary is inferred. |
-| F05 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Controller probes retry transient post-crash reads; the worker process is not restarted by the harness. |
-| F06 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F07 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| F08 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | In-process wakeup accelerator disabled; durable safety polling completed the same native child/join workload. |
-| F09 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S02 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| S02 | mssql | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| S03 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| S03 | mssql | measure | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| S04 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| S05 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I03 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I04 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| I05 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| I05 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| I05 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M01 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M01 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| M01 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M02 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M03 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M03 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M04 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| M04 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| M04 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| D01 | mssql | fault | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| D02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS | Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades. |
-| D03 | mssql | verify | PASS | NOT_APPLICABLE | COMPLETE | NOT_MEASURED | PASS | Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades. |
-| D04 | mssql | verify | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | This pre-1.0 tree publishes one baseline migration per provider and no supported predecessor upgrade pair. |
-| E01 | mssql | soak | PASS | PASS | COMPLETE | VALID | PASS |  |
-| E02 | mssql | verify | PASS | PASS | COMPLETE | NOT_MEASURED | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | UNSTABLE | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | VALID | PASS |  |
-| E02 | mssql | discover | PASS | PASS | COMPLETE | GENERATOR_LIMITED | PASS |  |
-| E02 | mssql | measure | PASS | PASS | COMPLETE | VALID | PASS |  |
-| E03 | mssql | fault | PASS | PASS | COMPLETE | VALID | PASS | Ran at L01's best qualifying discovery rate of 3200 roots/s: no L01 rate validated, and the standard profile does not gate its verdict on measurement. |
-| L01 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| C01 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| O01 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| O02 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| O03 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| S02 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
-| S03 | mssql | reconcile | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | NOT_MEASURED | NOT_APPLICABLE | No arrival rate passed all required independent validation trials; correctness results remain separate. Informational: capacity measurement does not decide the standard profile's verdict. |
+## 2. PostgreSQL, `fb8f8414`
 
-Capacity is qualified per workload and repetition. Missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+### Acta Bench: INCONCLUSIVE
 
-| Workload | Provider | Cell | Offered roots/s | Trials | Valid trials | Median observed rate | Unit | Min-max | MAD (dispersion metric) | Validated |
-|---|---|---|---:|---:|---:|---:|---|---|---:|---|
-| L01 | sqlite | canonical | 25 | 1 | 1 | 25.4 | roots/second | 25.4-25.4 | 0 primary_latency_p99 | True |
-| L02 | sqlite | canonical | 25 | 1 | 1 | 25 | admissions/second | 25-25 | 0 primary_latency_p99 | True |
-| L03 | sqlite | canonical | 3200 | 1 | 1 | 3193.3 | admissions/second | 3193.3-3193.3 | 0 primary_latency_p99 | True |
-| L04 | sqlite | canonical | 0 | 1 | 1 | 1996.9 | backlog_roots/second | 1996.9-1996.9 | 0 primary_rate | True |
-| C01 | sqlite | canonical | 12 | 1 | 1 | 11.867 | roots/second | 11.867-11.867 | 0 primary_latency_p99 | True |
-| P01 | sqlite | canonical | 12 | 1 | 1 | 12 | roots/second | 12-12 | 0 primary_latency_p99 | True |
-| R01 | sqlite | canonical | 25 | 1 | 1 | 25.667 | roots/second | 25.667-25.667 | 0 primary_latency_p99 | True |
-| O01 | sqlite | canonical | 25 | 1 | 1 | 26 | roots/second | 26-26 | 0 primary_latency_p99 | True |
-| O02 | sqlite | canonical | 12 | 1 | 1 | 12 | roots/second | 12-12 | 0 primary_latency_p99 | True |
-| O03 | sqlite | canonical | 1 | 1 | 1 | 1.0667 | roots/second | 1.0667-1.0667 | 0 primary_latency_p99 | True |
-| S02 | sqlite | canonical | 25 | 1 | 1 | 23.8 | roots/second | 23.8-23.8 | 0 primary_latency_p99 | True |
-| S03 | sqlite | canonical | 25 | 1 | 1 | 25.067 | roots/second | 25.067-25.067 | 0 primary_latency_p99 | True |
-| I05 | sqlite | canonical | 6 | 1 | 1 | 6 | roots/second | 6-6 | 0 primary_latency_p99 | True |
-| M01 | sqlite | canonical | 25 | 1 | 1 | 25.6 | roots/second | 25.6-25.6 | 0 primary_latency_p99 | True |
-| M02 | sqlite | canonical | 6 | 1 | 1 | 5.9333 | roots/second | 5.9333-5.9333 | 0 primary_latency_p99 | True |
-| M03 | sqlite | canonical | 12 | 1 | 1 | 11.8 | roots/second | 11.8-11.8 | 0 primary_latency_p99 | True |
-| M04 | sqlite | canonical | 25 | 1 | 1 | 25.733 | roots/second | 25.733-25.733 | 0 primary_latency_p99 | True |
-| E02 | sqlite | canonical | 25 | 1 | 0 | 24.867 | roots/second | 24.867-24.867 | 0 primary_latency_p99 | False |
-| L01 | pg | canonical | 3200 | 1 | 0 | 3039.8 | roots/second | 3039.8-3039.8 | 0 primary_latency_p99 | False |
-| L02 | pg | canonical | 3200 | 1 | 1 | 3197.7 | admissions/second | 3197.7-3197.7 | 0 primary_latency_p99 | True |
-| L03 | pg | canonical | 3200 | 1 | 1 | 3200 | admissions/second | 3200-3200 | 0 primary_latency_p99 | True |
-| L04 | pg | canonical | 0 | 1 | 1 | 1922.3 | backlog_roots/second | 1922.3-1922.3 | 0 primary_rate | True |
-| C01 | pg | canonical | 1600 | 1 | 1 | 1565.2 | roots/second | 1565.2-1565.2 | 0 primary_latency_p99 | True |
-| P01 | pg | canonical | 400 | 1 | 0 | 253.6 | roots/second | 253.6-253.6 | 0 primary_latency_p99 | False |
-| R01 | pg | canonical | 3200 | 1 | 1 | 3204.9 | roots/second | 3204.9-3204.9 | 0 primary_latency_p99 | True |
-| O01 | pg | canonical | 3200 | 1 | 1 | 3163.6 | roots/second | 3163.6-3163.6 | 0 primary_latency_p99 | True |
-| O02 | pg | canonical | 100 | 1 | 1 | 97.733 | roots/second | 97.733-97.733 | 0 primary_latency_p99 | True |
-| S02 | pg | canonical | 3200 | 1 | 1 | 3177.5 | roots/second | 3177.5-3177.5 | 0 primary_latency_p99 | True |
-| S03 | pg | canonical | 3200 | 1 | 1 | 3112.1 | roots/second | 3112.1-3112.1 | 0 primary_latency_p99 | True |
-| I05 | pg | canonical | 800 | 1 | 0 | 304.8 | roots/second | 304.8-304.8 | 0 primary_latency_p99 | False |
-| M01 | pg | canonical | 3200 | 1 | 0 | 3100.1 | roots/second | 3100.1-3100.1 | 0 primary_latency_p99 | False |
-| M02 | pg | canonical | 800 | 1 | 0 | 300.07 | roots/second | 300.07-300.07 | 0 primary_latency_p99 | False |
-| M03 | pg | canonical | 800 | 1 | 0 | 797.6 | roots/second | 797.6-797.6 | 0 primary_latency_p99 | False |
-| M04 | pg | canonical | 1600 | 1 | 1 | 1675.3 | roots/second | 1675.3-1675.3 | 0 primary_latency_p99 | True |
-| E02 | pg | canonical | 3200 | 1 | 1 | 3341.9 | roots/second | 3341.9-3341.9 | 0 primary_latency_p99 | True |
-| L01 | mssql | canonical | 1600 | 1 | 0 | 1653.1 | roots/second | 1653.1-1653.1 | 0 primary_latency_p99 | False |
-| L02 | mssql | canonical | 3200 | 1 | 1 | 3199 | admissions/second | 3199-3199 | 0 primary_latency_p99 | True |
-| L03 | mssql | canonical | 3200 | 1 | 1 | 3200 | admissions/second | 3200-3200 | 0 primary_latency_p99 | True |
-| L04 | mssql | canonical | 0 | 1 | 1 | 1376.4 | backlog_roots/second | 1376.4-1376.4 | 0 primary_rate | True |
-| C01 | mssql | canonical | 800 | 1 | 0 | 826.13 | roots/second | 826.13-826.13 | 0 primary_latency_p99 | False |
-| P01 | mssql | canonical | 50 | 1 | 1 | 53.667 | roots/second | 53.667-53.667 | 0 primary_latency_p99 | True |
-| R01 | mssql | canonical | 1600 | 1 | 1 | 1596.1 | roots/second | 1596.1-1596.1 | 0 primary_latency_p99 | True |
-| O01 | mssql | canonical | 1600 | 1 | 0 | 1602.7 | roots/second | 1602.7-1602.7 | 0 primary_latency_p99 | False |
-| O02 | mssql | canonical | 100 | 1 | 0 | 102.67 | roots/second | 102.67-102.67 | 0 primary_latency_p99 | False |
-| O03 | mssql | canonical | 1 | 1 | 0 | 1 | roots/second | 1-1 | 0 primary_latency_p99 | False |
-| S02 | mssql | canonical | 1600 | 1 | 0 | 1604.9 | roots/second | 1604.9-1604.9 | 0 primary_latency_p99 | False |
-| S03 | mssql | canonical | 1600 | 1 | 0 | 1650.4 | roots/second | 1650.4-1650.4 | 0 primary_latency_p99 | False |
-| I05 | mssql | canonical | 400 | 1 | 1 | 384.93 | roots/second | 384.93-384.93 | 0 primary_latency_p99 | True |
-| M01 | mssql | canonical | 800 | 1 | 1 | 813.4 | roots/second | 813.4-813.4 | 0 primary_latency_p99 | True |
-| M02 | mssql | canonical | 200 | 1 | 1 | 204.07 | roots/second | 204.07-204.07 | 0 primary_latency_p99 | True |
-| M03 | mssql | canonical | 50 | 1 | 1 | 49.867 | roots/second | 49.867-49.867 | 0 primary_latency_p99 | True |
-| M04 | mssql | canonical | 800 | 1 | 1 | 792 | roots/second | 792-792 | 0 primary_latency_p99 | True |
-| E02 | mssql | canonical | 1600 | 1 | 1 | 1628.3 | roots/second | 1628.3-1628.3 | 0 primary_latency_p99 | True |
+full profile on pg. 12 of 354 case results did not pass (0 safety failures, 0 liveness failures, 12 coverage gaps); they are listed under Not passing.
 
-MAD is the median absolute deviation, across independent trials, of the dispersion metric named beside it. Latency distributions remain per trial; percentiles are never averaged.
+#### L01: No-op end-to-end
 
-| Workload | Provider | Trial | Offered roots/s | Observed roots/s | p99 ms | Backlog slope | Measurement |
-|---|---|---:|---:|---:|---:|---:|---|
-| L01 | sqlite | 0 | 50 | 40.2 | 1131.2 | 1.468 | UNSTABLE |
-| L01 | sqlite | 1 | 100 | 76.8 | 4500.2 | 5.474 | GENERATOR_LIMITED |
-| L01 | sqlite | 1 | 25 | 25.4 | 1125.1 | 0.013144 | VALID |
-| L02 | sqlite | 0 | 50 | 0 | 33.666 | 50.007 | VALID |
-| L02 | sqlite | 1 | 100 | 0 | 3888.1 | 95.477 | UNSTABLE |
-| L02 | sqlite | 1 | 25 | 0 | 29.563 | 25 | VALID |
-| L03 | sqlite | 0 | 50 | 50 | 32.661 | 40.494 | VALID |
-| L03 | sqlite | 1 | 100 | 100 | 26.745 | 100.27 | VALID |
-| L03 | sqlite | 2 | 200 | 179.2 | 36.119 | 179.6 | VALID |
-| L03 | sqlite | 3 | 400 | 0 | 49.184 | 399.34 | VALID |
-| L03 | sqlite | 4 | 800 | 0 | 29.087 | 800.23 | VALID |
-| L03 | sqlite | 5 | 1600 | 0 | 36.184 | 1600.2 | VALID |
-| L03 | sqlite | 6 | 3200 | 0 | 29.087 | 3197.3 | VALID |
-| L03 | sqlite | 7 | 6400 | 0 | 35.157 | 6405.1 | VALID |
-| L03 | sqlite | 1 | 3200 | 0 | 32.945 | 3199.2 | VALID |
-| L04 | sqlite | 1 | unavailable | 66.667 | 551.08 | unavailable | VALID |
-| C01 | sqlite | 0 | 50 | 32.8 | 6574.4 | 8.5285 | UNSTABLE |
-| C01 | sqlite | 1 | 25 | 17.4 | 3804.8 | 5.6807 | UNSTABLE |
-| C01 | sqlite | 2 | 50 | 29 | 6364.3 | 8.8849 | UNSTABLE |
-| C01 | sqlite | 1 | 12 | 11.867 | 1443.3 | 0.010176 | VALID |
-| P01 | sqlite | 0 | 50 | 22.8 | 8480 | 22.683 | OBSERVER_LIMITED |
-| P01 | sqlite | 1 | 25 | 4.2 | 7053.9 | 19.343 | UNSTABLE |
-| P01 | sqlite | 2 | 50 | 13.2 | 9398.9 | 30.812 | OBSERVER_LIMITED |
-| P01 | sqlite | 1 | 12 | 12 | 2019.1 | 0.024546 | VALID |
-| R01 | sqlite | 0 | 50 | 39 | 3063.8 | 5.4165 | UNSTABLE |
-| R01 | sqlite | 1 | 100 | 0 | 6865.5 | 93.248 | GENERATOR_LIMITED |
-| R01 | sqlite | 1 | 25 | 25.667 | 3199.4 | -0.27582 | VALID |
-| O01 | sqlite | 0 | 50 | 40 | 1112.9 | 0.82062 | UNSTABLE |
-| O01 | sqlite | 1 | 100 | 54 | 4725 | 43.354 | GENERATOR_LIMITED |
-| O01 | sqlite | 1 | 25 | 26 | 1125.1 | 0.027903 | VALID |
-| O02 | sqlite | 0 | 50 | 10.8 | 5322.8 | 36.112 | UNSTABLE |
-| O02 | sqlite | 1 | 25 | 21.8 | 1100.9 | 2.0236 | UNSTABLE |
-| O02 | sqlite | 2 | 50 | 11 | 5649.5 | 35.545 | UNSTABLE |
-| O02 | sqlite | 1 | 12 | 12 | 1088.3 | 0.023387 | VALID |
-| O03 | sqlite | 0 | 50 | 2 | 8298.2 | 43.147 | UNSTABLE |
-| O03 | sqlite | 1 | 25 | 15.4 | 6194.3 | 8.9976 | UNSTABLE |
-| O03 | sqlite | 2 | 12 | 10.8 | 3187.1 | -0.1828 | UNSTABLE |
-| O03 | sqlite | 3 | 6 | 4.6 | 3110.9 | 0.61909 | UNSTABLE |
-| O03 | sqlite | 4 | 3 | 2.6 | 3077.7 | -0.34694 | UNSTABLE |
-| O03 | sqlite | 5 | 1 | 0.8 | 1014.5 | 0.0095772 | VALID |
-| O03 | sqlite | 6 | 2 | 1.8 | 3078.8 | -0.218 | UNSTABLE |
-| O03 | sqlite | 1 | 1 | 1.0667 | 1035.4 | -0.0045399 | VALID |
-| S02 | sqlite | 0 | 50 | 41.8 | 1143.5 | 1.1214 | UNSTABLE |
-| S02 | sqlite | 1 | 100 | 66.6 | 5528.4 | 11.89 | GENERATOR_LIMITED |
-| S02 | sqlite | 1 | 25 | 23.8 | 1137.3 | -0.043588 | VALID |
-| S03 | sqlite | 0 | 50 | 40.4 | 1149.7 | 1.0715 | UNSTABLE |
-| S03 | sqlite | 1 | 100 | 14.8 | 5351.7 | 80.596 | GENERATOR_LIMITED |
-| S03 | sqlite | 1 | 25 | 25.067 | 1137.3 | 0.029161 | VALID |
-| I05 | sqlite | 0 | 50 | 27.2 | 7286.9 | 9.3794 | UNSTABLE |
-| I05 | sqlite | 1 | 25 | 17.2 | 3763.8 | 6.0602 | UNSTABLE |
-| I05 | sqlite | 2 | 12 | 10.4 | 1608.8 | 0.70166 | UNSTABLE |
-| I05 | sqlite | 3 | 24 | 16 | 3287.2 | 5.418 | UNSTABLE |
-| I05 | sqlite | 1 | 6 | 6 | 1285.6 | 0.012468 | VALID |
-| M01 | sqlite | 0 | 50 | 40.6 | 1155.9 | 1.1261 | UNSTABLE |
-| M01 | sqlite | 1 | 100 | 73.6 | 4309.4 | 16.887 | GENERATOR_LIMITED |
-| M01 | sqlite | 1 | 25 | 25.6 | 1137.3 | -0.057189 | VALID |
-| M02 | sqlite | 0 | 50 | 14 | 6503.6 | 26.192 | UNSTABLE |
-| M02 | sqlite | 1 | 25 | 17 | 3784.2 | 7.0022 | UNSTABLE |
-| M02 | sqlite | 2 | 12 | 9.8 | 1513.8 | 0.64287 | UNSTABLE |
-| M02 | sqlite | 3 | 24 | 16 | 3341.1 | 5.0208 | UNSTABLE |
-| M02 | sqlite | 1 | 6 | 5.9333 | 1322.3 | 0.0066678 | VALID |
-| M03 | sqlite | 0 | 50 | 7.4 | 7486.9 | 37.313 | UNSTABLE |
-| M03 | sqlite | 1 | 25 | 17.4 | 5097.1 | 5.6942 | UNSTABLE |
-| M03 | sqlite | 2 | 12 | 10.8 | 2259.4 | -0.082391 | VALID |
-| M03 | sqlite | 3 | 24 | 19.8 | 3014.4 | 2.206 | UNSTABLE |
-| M03 | sqlite | 4 | 48 | 8.2 | 6574.4 | 37.93 | UNSTABLE |
-| M03 | sqlite | 1 | 12 | 11.8 | 2213.8 | 0.059776 | VALID |
-| M04 | sqlite | 0 | 50 | 40.6 | 1162.2 | 1.4516 | UNSTABLE |
-| M04 | sqlite | 1 | 100 | 39 | 4802.4 | 42.623 | GENERATOR_LIMITED |
-| M04 | sqlite | 1 | 25 | 25.733 | 1137.3 | 0.040037 | VALID |
-| E01 | sqlite | 1 | 8 | 7.9 | 2213.8 | -0.0038127 | VALID |
-| E02 | sqlite | 0 | 50 | 40.6 | 1125.1 | 0.9769 | UNSTABLE |
-| E02 | sqlite | 1 | 100 | 71.4 | 5152.6 | 3.7768 | GENERATOR_LIMITED |
-| E02 | sqlite | 1 | 25 | 24.867 | 1125.1 | 0.12955 | UNSTABLE |
-| L01 | pg | 0 | 50 | 40.4 | 1106.9 | 0.75538 | UNSTABLE |
-| L01 | pg | 1 | 100 | 80.4 | 1095 | 1.9107 | UNSTABLE |
-| L01 | pg | 2 | 200 | 160.4 | 1031.7 | 1.956 | UNSTABLE |
-| L01 | pg | 3 | 400 | 327 | 1048.6 | -0.35366 | VALID |
-| L01 | pg | 4 | 800 | 663.6 | 1048.6 | 10.217 | UNSTABLE |
-| L01 | pg | 5 | 1600 | 1566.8 | 1065.7 | 122.26 | UNSTABLE |
-| L01 | pg | 6 | 3200 | 2960.6 | 1048.6 | 137.33 | UNSTABLE |
-| L01 | pg | 7 | 6400 | 5524 | 1083.2 | 27.282 | UNSTABLE |
-| L01 | pg | 1 | 3200 | 3039.8 | 1071.5 | 9.9239 | UNSTABLE |
-| L02 | pg | 0 | 50 | 0 | 23.935 | 49.998 | VALID |
-| L02 | pg | 1 | 100 | 0 | 22.92 | 99.979 | VALID |
-| L02 | pg | 2 | 200 | 0 | 23.677 | 199.98 | VALID |
-| L02 | pg | 3 | 400 | 0 | 22.429 | 399.99 | VALID |
-| L02 | pg | 4 | 800 | 0 | 25.13 | 799.95 | VALID |
-| L02 | pg | 5 | 1600 | 0 | 28.463 | 1600.6 | VALID |
-| L02 | pg | 6 | 3200 | 0 | 26.385 | 3199.1 | VALID |
-| L02 | pg | 7 | 6400 | 0 | 22.429 | 6400.4 | VALID |
-| L02 | pg | 1 | 3200 | 0 | 21.594 | 3199.9 | VALID |
-| L03 | pg | 0 | 50 | 50 | 26.62 | 40.926 | VALID |
-| L03 | pg | 1 | 100 | 100 | 26.169 | 100.71 | VALID |
-| L03 | pg | 2 | 200 | 106.6 | 37.132 | 196.91 | VALID |
-| L03 | pg | 3 | 400 | 0 | 45.33 | 402.66 | VALID |
-| L03 | pg | 4 | 800 | 0 | 33.639 | 801.5 | VALID |
-| L03 | pg | 5 | 1600 | 0 | 30.986 | 1600.4 | VALID |
-| L03 | pg | 6 | 3200 | 0 | 30.705 | 3203.1 | VALID |
-| L03 | pg | 7 | 6400 | 0 | 24.327 | 6396.4 | VALID |
-| L03 | pg | 1 | 3200 | 0 | 34.218 | 3193.9 | VALID |
-| L04 | pg | 1 | unavailable | 66.667 | 574.14 | unavailable | VALID |
-| C01 | pg | 0 | 50 | 40.8 | 1125.1 | 1.3824 | UNSTABLE |
-| C01 | pg | 1 | 100 | 83 | 1119 | 2.3113 | UNSTABLE |
-| C01 | pg | 2 | 200 | 173 | 1089.1 | 2.8453 | UNSTABLE |
-| C01 | pg | 3 | 400 | 383.8 | 1106.9 | 18.277 | UNSTABLE |
-| C01 | pg | 4 | 800 | 671.4 | 1106.9 | 2.8778 | UNSTABLE |
-| C01 | pg | 5 | 1600 | 1459.6 | 1100.9 | -40.056 | VALID |
-| C01 | pg | 6 | 3200 | 1883 | 2178.2 | 1104.9 | UNSTABLE |
-| C01 | pg | 7 | 6400 | 1481 | 7208.4 | 6000.2 | OBSERVER_LIMITED |
-| C01 | pg | 1 | 1600 | 1565.2 | 1106.9 | -5.1192 | VALID |
-| P01 | pg | 0 | 50 | 48.2 | 1162.2 | -4.4432 | VALID |
-| P01 | pg | 1 | 100 | 97.2 | 1260.6 | -11.034 | VALID |
-| P01 | pg | 2 | 200 | 193.6 | 1591.1 | -32.289 | VALID |
-| P01 | pg | 3 | 400 | 239.4 | 2274.6 | 155.3 | UNSTABLE |
-| P01 | pg | 4 | 800 | 165.8 | 6061.5 | 645.58 | UNSTABLE |
-| P01 | pg | 5 | 1600 | 0 | 17904 | 1600.4 | UNSTABLE |
-| P01 | pg | 1 | 400 | 253.6 | 10938 | 145.05 | UNSTABLE |
-| R01 | pg | 0 | 50 | 43.4 | 3147.9 | 3.6523 | UNSTABLE |
-| R01 | pg | 1 | 100 | 87.6 | 3030.8 | 4.7925 | UNSTABLE |
-| R01 | pg | 2 | 200 | 174.2 | 3014.4 | 11.802 | UNSTABLE |
-| R01 | pg | 3 | 400 | 347.2 | 2918 | 24.322 | UNSTABLE |
-| R01 | pg | 4 | 800 | 695.4 | 2871 | 44.524 | UNSTABLE |
-| R01 | pg | 5 | 1600 | 1409 | 2902.3 | 87.395 | UNSTABLE |
-| R01 | pg | 6 | 3200 | 2786 | 2981.9 | 159.22 | UNSTABLE |
-| R01 | pg | 7 | 6400 | 3968 | 4549.2 | 2007.9 | UNSTABLE |
-| R01 | pg | 1 | 3200 | 3204.9 | 2262.3 | 0.49941 | VALID |
-| O01 | pg | 0 | 50 | 40 | 1100.9 | 0.65329 | UNSTABLE |
-| O01 | pg | 1 | 100 | 84.2 | 1089.1 | 3.227 | UNSTABLE |
-| O01 | pg | 2 | 200 | 161.2 | 1042.9 | 0.75561 | UNSTABLE |
-| O01 | pg | 3 | 400 | 326.8 | 1037.3 | 6.4476 | UNSTABLE |
-| O01 | pg | 4 | 800 | 669.6 | 1054.3 | 6.845 | UNSTABLE |
-| O01 | pg | 5 | 1600 | 1449.8 | 1060 | 25.819 | UNSTABLE |
-| O01 | pg | 6 | 3200 | 2819.8 | 1054.3 | 21.288 | UNSTABLE |
-| O01 | pg | 7 | 6400 | 6084.6 | 1065.7 | -341.25 | VALID |
-| O01 | pg | 1 | 3200 | 3163.6 | 1065.7 | -9.4604 | VALID |
-| O02 | pg | 0 | 50 | 49.8 | 1036.7 | 1.8638 | UNSTABLE |
-| O02 | pg | 1 | 100 | 96.6 | 1042.9 | 1.5258 | UNSTABLE |
-| O02 | pg | 2 | 200 | 186.6 | 1054.3 | -23.865 | VALID |
-| O02 | pg | 3 | 400 | 166.8 | 4194.3 | 214.63 | UNSTABLE |
-| O02 | pg | 1 | 100 | 97.733 | 1031.7 | -0.62753 | VALID |
-| S02 | pg | 0 | 50 | 49.4 | 1100.9 | 1.2729 | UNSTABLE |
-| S02 | pg | 1 | 100 | 97.8 | 1106.9 | 3.7756 | UNSTABLE |
-| S02 | pg | 2 | 200 | 184.4 | 1065.7 | 5.5922 | UNSTABLE |
-| S02 | pg | 3 | 400 | 329.4 | 1060 | 1.3822 | UNSTABLE |
-| S02 | pg | 4 | 800 | 661.4 | 1048.6 | 12.104 | UNSTABLE |
-| S02 | pg | 5 | 1600 | 1372.6 | 1054.3 | 29.086 | UNSTABLE |
-| S02 | pg | 6 | 3200 | 3012 | 1071.5 | 125.73 | UNSTABLE |
-| S02 | pg | 7 | 6400 | 5789.2 | 1089.1 | 11.663 | UNSTABLE |
-| S02 | pg | 1 | 3200 | 3177.5 | 1060 | -10.438 | VALID |
-| S03 | pg | 0 | 50 | 39.8 | 1100.9 | 0.7218 | UNSTABLE |
-| S03 | pg | 1 | 100 | 79.8 | 1095 | 0.83415 | UNSTABLE |
-| S03 | pg | 2 | 200 | 162 | 1060 | 2.1668 | UNSTABLE |
-| S03 | pg | 3 | 400 | 323.2 | 1037.3 | -0.97822 | VALID |
-| S03 | pg | 4 | 800 | 666.4 | 1048.6 | 9.4029 | UNSTABLE |
-| S03 | pg | 5 | 1600 | 1405.2 | 1065.7 | 29.082 | UNSTABLE |
-| S03 | pg | 6 | 3200 | 2911.6 | 1065.7 | 173.33 | UNSTABLE |
-| S03 | pg | 7 | 6400 | 5533.6 | 1095 | 27.17 | UNSTABLE |
-| S03 | pg | 1 | 3200 | 3112.1 | 1060 | 0.45302 | VALID |
-| I05 | pg | 0 | 50 | 46.8 | 1137.3 | 3.9368 | UNSTABLE |
-| I05 | pg | 1 | 100 | 85 | 1125.1 | 2.6697 | UNSTABLE |
-| I05 | pg | 2 | 200 | 184.4 | 1131.2 | 5.7381 | UNSTABLE |
-| I05 | pg | 3 | 400 | 333 | 1131.2 | 3.793 | UNSTABLE |
-| I05 | pg | 4 | 800 | 731.2 | 1131.2 | -16.87 | VALID |
-| I05 | pg | 5 | 1600 | 1087.6 | 1670.5 | 407.29 | UNSTABLE |
-| I05 | pg | 6 | 3200 | 1020.6 | 6902.8 | 2073.4 | UNSTABLE |
-| I05 | pg | 1 | 800 | 304.8 | 27912 | 496.22 | UNSTABLE |
-| M01 | pg | 0 | 50 | 40.6 | 1125.1 | 0.63657 | UNSTABLE |
-| M01 | pg | 1 | 100 | 81.6 | 1112.9 | 1.9391 | UNSTABLE |
-| M01 | pg | 2 | 200 | 178.4 | 1083.2 | -2.6557 | VALID |
-| M01 | pg | 3 | 400 | 345.8 | 1060 | 5.1382 | UNSTABLE |
-| M01 | pg | 4 | 800 | 752.8 | 1083.2 | 30.026 | UNSTABLE |
-| M01 | pg | 5 | 1600 | 1405.6 | 1089.1 | 5.6849 | UNSTABLE |
-| M01 | pg | 6 | 3200 | 2814.2 | 1077.4 | 167.97 | UNSTABLE |
-| M01 | pg | 7 | 6400 | 4213.2 | 1763.5 | 1799.9 | UNSTABLE |
-| M01 | pg | 1 | 3200 | 3100.1 | 1095 | 13.348 | UNSTABLE |
-| M02 | pg | 0 | 50 | 41 | 1143.5 | 0.88543 | UNSTABLE |
-| M02 | pg | 1 | 100 | 85.4 | 1143.5 | 1.4809 | UNSTABLE |
-| M02 | pg | 2 | 200 | 184.6 | 1137.3 | 6.7845 | UNSTABLE |
-| M02 | pg | 3 | 400 | 335 | 1137.3 | 1.3722 | UNSTABLE |
-| M02 | pg | 4 | 800 | 729.6 | 1137.3 | -14.05 | VALID |
-| M02 | pg | 5 | 1600 | 1077.2 | 1697.9 | 415.07 | UNSTABLE |
-| M02 | pg | 6 | 3200 | 952.8 | 12123 | 2111.2 | UNSTABLE |
-| M02 | pg | 1 | 800 | 300.07 | 20835 | 501.13 | UNSTABLE |
-| M03 | pg | 0 | 50 | 46.4 | 1773.1 | -3.0297 | VALID |
-| M03 | pg | 1 | 100 | 93.4 | 1754 | -5.5952 | VALID |
-| M03 | pg | 2 | 200 | 187.4 | 1782.7 | -11.261 | VALID |
-| M03 | pg | 3 | 400 | 373.4 | 1871.7 | -26.936 | VALID |
-| M03 | pg | 4 | 800 | 569.8 | 2576.3 | 194.04 | UNSTABLE |
-| M03 | pg | 5 | 1600 | 1090.2 | 3047.2 | 424.17 | UNSTABLE |
-| M03 | pg | 6 | 3200 | 1133.8 | 7208.4 | 1924.6 | UNSTABLE |
-| M03 | pg | 1 | 800 | 797.6 | 1143.5 | 0.89718 | UNSTABLE |
-| M04 | pg | 0 | 50 | 40.4 | 1106.9 | 1.0143 | UNSTABLE |
-| M04 | pg | 1 | 100 | 81.2 | 1112.9 | 2.2389 | UNSTABLE |
-| M04 | pg | 2 | 200 | 164.4 | 1060 | 1.7336 | UNSTABLE |
-| M04 | pg | 3 | 400 | 345.4 | 1077.4 | 5.8078 | UNSTABLE |
-| M04 | pg | 4 | 800 | 720 | 1065.7 | 6.7275 | UNSTABLE |
-| M04 | pg | 5 | 1600 | 1267.8 | 1071.5 | 58.522 | UNSTABLE |
-| M04 | pg | 6 | 3200 | 2744 | 1106.9 | 107.8 | UNSTABLE |
-| M04 | pg | 7 | 6400 | 1894 | 3643.5 | 4515.5 | UNSTABLE |
-| M04 | pg | 1 | 1600 | 1675.3 | 1071.5 | 0.11104 | VALID |
-| E01 | pg | 1 | 1120 | 808.72 | 33014 | 342.99 | OBSERVER_LIMITED |
-| E02 | pg | 0 | 50 | 40 | 1100.9 | 1.1722 | UNSTABLE |
-| E02 | pg | 1 | 100 | 79.6 | 1095 | 1.9484 | UNSTABLE |
-| E02 | pg | 2 | 200 | 162.6 | 1048.6 | 2.697 | UNSTABLE |
-| E02 | pg | 3 | 400 | 329.6 | 1048.6 | 5.148 | UNSTABLE |
-| E02 | pg | 4 | 800 | 681.4 | 1065.7 | 11.762 | UNSTABLE |
-| E02 | pg | 5 | 1600 | 1469.2 | 1048.6 | 31.813 | UNSTABLE |
-| E02 | pg | 6 | 3200 | 2602.4 | 1065.7 | 53.879 | UNSTABLE |
-| E02 | pg | 7 | 6400 | 5786.4 | 1089.1 | 454.04 | UNSTABLE |
-| E02 | pg | 1 | 3200 | 3341.9 | 1065.7 | -3.8053 | VALID |
-| L01 | mssql | 0 | 50 | 40.8 | 1106.9 | 0.30749 | UNSTABLE |
-| L01 | mssql | 1 | 100 | 80.6 | 1119 | 1.373 | UNSTABLE |
-| L01 | mssql | 2 | 200 | 168.4 | 1071.5 | 0.64811 | UNSTABLE |
-| L01 | mssql | 3 | 400 | 335.8 | 1071.5 | 3.4109 | UNSTABLE |
-| L01 | mssql | 4 | 800 | 712.6 | 1083.2 | 20.078 | UNSTABLE |
-| L01 | mssql | 5 | 1600 | 1278.2 | 1100.9 | 18.358 | UNSTABLE |
-| L01 | mssql | 6 | 3200 | 2532.8 | 1220.3 | 73.946 | UNSTABLE |
-| L01 | mssql | 7 | 6400 | 3969.2 | 2143.1 | 2230.7 | GENERATOR_LIMITED |
-| L01 | mssql | 1 | 1600 | 1653.1 | 1065.7 | 10.73 | GENERATOR_LIMITED |
-| L02 | mssql | 0 | 50 | 0 | 31.04 | 50 | VALID |
-| L02 | mssql | 1 | 100 | 0 | 29.404 | 99.987 | VALID |
-| L02 | mssql | 2 | 200 | 0 | 28.005 | 200.05 | VALID |
-| L02 | mssql | 3 | 400 | 0 | 26.243 | 399.98 | VALID |
-| L02 | mssql | 4 | 800 | 0 | 25.404 | 799.95 | VALID |
-| L02 | mssql | 5 | 1600 | 0 | 27.854 | 1600.7 | VALID |
-| L02 | mssql | 6 | 3200 | 0 | 52.487 | 3199.7 | VALID |
-| L02 | mssql | 7 | 6400 | 0 | 81.827 | 6452.4 | VALID |
-| L02 | mssql | 1 | 3200 | 0 | 24.065 | 3199.7 | VALID |
-| L03 | mssql | 0 | 50 | 50 | 80.757 | 41.854 | VALID |
-| L03 | mssql | 1 | 100 | 100 | 65.799 | 92.917 | VALID |
-| L03 | mssql | 2 | 200 | 0 | 70.704 | 201.64 | VALID |
-| L03 | mssql | 3 | 400 | 0 | 82.99 | 401.83 | VALID |
-| L03 | mssql | 4 | 800 | 0 | 77.34 | 803.45 | VALID |
-| L03 | mssql | 5 | 1600 | 0 | 71.757 | 1609.5 | VALID |
-| L03 | mssql | 6 | 3200 | 0 | 58.49 | 3192.4 | VALID |
-| L03 | mssql | 7 | 6400 | 0 | 44.858 | 6417.7 | VALID |
-| L03 | mssql | 1 | 3200 | 0 | 25.542 | 3200.2 | VALID |
-| L04 | mssql | 1 | unavailable | 66.667 | 837.9 | unavailable | VALID |
-| C01 | mssql | 0 | 50 | 43.2 | 1187.7 | 0.063474 | VALID |
-| C01 | mssql | 1 | 100 | 88 | 1187.7 | 3.3139 | UNSTABLE |
-| C01 | mssql | 2 | 200 | 196.2 | 1187.7 | 11.517 | UNSTABLE |
-| C01 | mssql | 3 | 400 | 375.8 | 1260.6 | 6.8074 | UNSTABLE |
-| C01 | mssql | 4 | 800 | 713.8 | 1427.7 | 22.479 | UNSTABLE |
-| C01 | mssql | 5 | 1600 | 903.2 | 2427.3 | 610.01 | UNSTABLE |
-| C01 | mssql | 6 | 3200 | 751.4 | 8572.3 | 2375.9 | UNSTABLE |
-| C01 | mssql | 1 | 800 | 826.13 | 1162.2 | 2.9544 | UNSTABLE |
-| P01 | mssql | 0 | 50 | 34.4 | 4403.8 | 2.1009 | UNSTABLE |
-| P01 | mssql | 1 | 100 | 33 | 3951.8 | 64.122 | UNSTABLE |
-| P01 | mssql | 2 | 200 | 116.6 | 15789 | 28.17 | UNSTABLE |
-| P01 | mssql | 1 | 50 | 53.667 | 4881 | -15.507 | VALID |
-| R01 | mssql | 0 | 50 | 43.2 | 3269.5 | 4.6927 | UNSTABLE |
-| R01 | mssql | 1 | 100 | 86.8 | 3113.9 | 6.4875 | UNSTABLE |
-| R01 | mssql | 2 | 200 | 174.8 | 3097.1 | 10.753 | UNSTABLE |
-| R01 | mssql | 3 | 400 | 346 | 3113.9 | 26.041 | UNSTABLE |
-| R01 | mssql | 4 | 800 | 690.4 | 2998.1 | 41.698 | UNSTABLE |
-| R01 | mssql | 5 | 1600 | 1391 | 3164.9 | 69.092 | UNSTABLE |
-| R01 | mssql | 6 | 3200 | 2774.8 | 3234.2 | 114.38 | UNSTABLE |
-| R01 | mssql | 7 | 6400 | 2877 | 5322.8 | 4676.5 | GENERATOR_LIMITED |
-| R01 | mssql | 1 | 1600 | 1596.1 | 2362.5 | -0.95268 | VALID |
-| O01 | mssql | 0 | 50 | 40.6 | 1112.9 | 0.53338 | UNSTABLE |
-| O01 | mssql | 1 | 100 | 81.2 | 1220.3 | 0.48803 | UNSTABLE |
-| O01 | mssql | 2 | 200 | 168.4 | 1131.2 | 2.1998 | UNSTABLE |
-| O01 | mssql | 3 | 400 | 350 | 1077.4 | 4.2011 | UNSTABLE |
-| O01 | mssql | 4 | 800 | 772.2 | 1143.5 | 43.772 | UNSTABLE |
-| O01 | mssql | 5 | 1600 | 1271 | 1119 | 48.254 | UNSTABLE |
-| O01 | mssql | 6 | 3200 | 3140 | 1260.6 | -153.62 | VALID |
-| O01 | mssql | 7 | 6400 | 2946.6 | 2933.9 | 1914.4 | GENERATOR_LIMITED |
-| O01 | mssql | 1 | 1600 | 1602.7 | 1083.2 | 6.6289 | UNSTABLE |
-| O02 | mssql | 0 | 50 | 42 | 1054.3 | 0.046385 | VALID |
-| O02 | mssql | 1 | 100 | 80.2 | 1089.1 | -0.99371 | VALID |
-| O02 | mssql | 2 | 200 | 150.6 | 1330.7 | 37.447 | UNSTABLE |
-| O02 | mssql | 3 | 400 | 132.8 | 6295.7 | 253.71 | UNSTABLE |
-| O02 | mssql | 1 | 100 | 102.67 | 1048.6 | 0.19481 | UNSTABLE |
-| O03 | mssql | 0 | 50 | 11.8 | 90392 | 37.875 | UNSTABLE |
-| O03 | mssql | 1 | 25 | 3.8 | 70461 | 20.534 | UNSTABLE |
-| O03 | mssql | 2 | 12 | 2.6 | 38610 | 9.0098 | UNSTABLE |
-| O03 | mssql | 3 | 6 | 2.2 | 17870 | 3.6355 | UNSTABLE |
-| O03 | mssql | 4 | 3 | 1.2 | 9288.8 | 1.5871 | UNSTABLE |
-| O03 | mssql | 5 | 1 | 1 | 1088.3 | 0.00065339 | VALID |
-| O03 | mssql | 6 | 2 | 1.2 | 5179 | 0.53671 | UNSTABLE |
-| O03 | mssql | 1 | 1 | 1 | 1042.9 | 0.09631 | UNSTABLE |
-| S02 | mssql | 0 | 50 | 48 | 1100.9 | 2.437 | UNSTABLE |
-| S02 | mssql | 1 | 100 | 84.6 | 1112.9 | 4.3741 | UNSTABLE |
-| S02 | mssql | 2 | 200 | 160.4 | 1089.1 | 7.0809 | UNSTABLE |
-| S02 | mssql | 3 | 400 | 325.4 | 1083.2 | 9.3452 | UNSTABLE |
-| S02 | mssql | 4 | 800 | 673.8 | 1095 | 21.968 | UNSTABLE |
-| S02 | mssql | 5 | 1600 | 1561.8 | 1089.1 | 92.982 | UNSTABLE |
-| S02 | mssql | 6 | 3200 | 3013.8 | 1100.9 | 46.76 | UNSTABLE |
-| S02 | mssql | 7 | 6400 | 4089 | 1975.9 | 1501.4 | GENERATOR_LIMITED |
-| S02 | mssql | 1 | 1600 | 1604.9 | 1089.1 | 4.7639 | UNSTABLE |
-| S03 | mssql | 0 | 50 | 39.8 | 1112.9 | 0.90274 | UNSTABLE |
-| S03 | mssql | 1 | 100 | 80 | 1125.1 | 0.50407 | UNSTABLE |
-| S03 | mssql | 2 | 200 | 160 | 1060 | 3.594 | UNSTABLE |
-| S03 | mssql | 3 | 400 | 338.8 | 1095 | -4.834 | VALID |
-| S03 | mssql | 4 | 800 | 736 | 1065.7 | 22.911 | UNSTABLE |
-| S03 | mssql | 5 | 1600 | 1508.8 | 1083.2 | -23.044 | VALID |
-| S03 | mssql | 6 | 3200 | 2791.6 | 1162.2 | -157.99 | VALID |
-| S03 | mssql | 7 | 6400 | 4213.2 | 2190 | 1267.6 | GENERATOR_LIMITED |
-| S03 | mssql | 1 | 1600 | 1650.4 | 1095 | 3.6931 | UNSTABLE |
-| I05 | mssql | 0 | 50 | 41.6 | 1143.5 | 0.93917 | UNSTABLE |
-| I05 | mssql | 1 | 100 | 87.8 | 1220.3 | 2.3749 | UNSTABLE |
-| I05 | mssql | 2 | 200 | 193.8 | 1174.9 | 11.439 | UNSTABLE |
-| I05 | mssql | 3 | 400 | 378.4 | 1226.9 | 18.488 | UNSTABLE |
-| I05 | mssql | 4 | 800 | 628.8 | 1213.7 | -6.3202 | VALID |
-| I05 | mssql | 5 | 1600 | 870 | 3047.2 | 646.93 | UNSTABLE |
-| I05 | mssql | 1 | 400 | 384.93 | 1137.3 | -0.60676 | VALID |
-| M01 | mssql | 0 | 50 | 41 | 1207.1 | 0.035046 | VALID |
-| M01 | mssql | 1 | 100 | 82.4 | 1119 | 1.2745 | UNSTABLE |
-| M01 | mssql | 2 | 200 | 174.4 | 1100.9 | 3.439 | UNSTABLE |
-| M01 | mssql | 3 | 400 | 369.6 | 1155.9 | 14.533 | UNSTABLE |
-| M01 | mssql | 4 | 800 | 702.4 | 1174.9 | -10.897 | VALID |
-| M01 | mssql | 5 | 1600 | 1398.8 | 1112.9 | 110.92 | UNSTABLE |
-| M01 | mssql | 6 | 3200 | 2550.6 | 1316.4 | 274.51 | GENERATOR_LIMITED |
-| M01 | mssql | 1 | 800 | 813.4 | 1112.9 | -0.87755 | VALID |
-| M02 | mssql | 0 | 50 | 42 | 1220.3 | 1.2396 | UNSTABLE |
-| M02 | mssql | 1 | 100 | 88.2 | 1247 | 5.9899 | UNSTABLE |
-| M02 | mssql | 2 | 200 | 166.6 | 1247 | 1.7201 | UNSTABLE |
-| M02 | mssql | 3 | 400 | 278.2 | 1944 | 92.304 | UNSTABLE |
-| M02 | mssql | 4 | 800 | 259 | 7366.3 | 509.5 | UNSTABLE |
-| M02 | mssql | 1 | 200 | 204.07 | 1137.3 | -0.62243 | VALID |
-| M03 | mssql | 0 | 50 | 45.8 | 1933.5 | -2.4871 | VALID |
-| M03 | mssql | 1 | 100 | 94.2 | 1811.9 | -7.314 | VALID |
-| M03 | mssql | 2 | 200 | 29 | 6261.7 | 167.69 | UNSTABLE |
-| M03 | mssql | 1 | 50 | 49.867 | 1253.7 | -0.049223 | VALID |
-| M04 | mssql | 0 | 50 | 40.8 | 1119 | 1.385 | UNSTABLE |
-| M04 | mssql | 1 | 100 | 81.8 | 1125.1 | 1.9694 | UNSTABLE |
-| M04 | mssql | 2 | 200 | 184 | 1106.9 | 3.0931 | UNSTABLE |
-| M04 | mssql | 3 | 400 | 369.6 | 1106.9 | 11.632 | UNSTABLE |
-| M04 | mssql | 4 | 800 | 782.4 | 1089.1 | 49.191 | UNSTABLE |
-| M04 | mssql | 5 | 1600 | 1432.2 | 1174.9 | -68.818 | VALID |
-| M04 | mssql | 6 | 3200 | 2317 | 1643.6 | 623.44 | GENERATOR_LIMITED |
-| M04 | mssql | 1 | 800 | 792 | 1131.2 | -1.4147 | VALID |
-| E01 | mssql | 1 | 35 | 34.85 | 1352.5 | -0.026084 | VALID |
-| E02 | mssql | 0 | 50 | 40.2 | 1106.9 | 0.85579 | UNSTABLE |
-| E02 | mssql | 1 | 100 | 81 | 1112.9 | 1.5064 | UNSTABLE |
-| E02 | mssql | 2 | 200 | 163.2 | 1071.5 | 2.795 | UNSTABLE |
-| E02 | mssql | 3 | 400 | 337.2 | 1077.4 | 6.504 | UNSTABLE |
-| E02 | mssql | 4 | 800 | 781.2 | 1077.4 | 32.118 | UNSTABLE |
-| E02 | mssql | 5 | 1600 | 1312.2 | 1106.9 | 87.936 | UNSTABLE |
-| E02 | mssql | 6 | 3200 | 2938 | 1181.2 | -42.94 | VALID |
-| E02 | mssql | 7 | 6400 | 4048 | 2311.9 | 4535.1 | GENERATOR_LIMITED |
-| E02 | mssql | 1 | 1600 | 1628.3 | 1071.5 | 1.2144 | VALID |
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 10,240 | 2 GENERATOR_LIMITED, 3 UNSTABLE; 2 added by the instability rule | 9,647 (9,404-10,493) | roots/second | 2,633 | 3,414 |
+| pg | executor-1 | 10,240 | 3 UNSTABLE | 391 (363-444) | roots/second | 912,738 | 1,462,017 |
+| pg | executor-32 | 10,240 | 5 UNSTABLE; 2 added by the instability rule | 5,692 (5,495-9,109) | roots/second | 14,185 | 15,893 |
+| pg | workers-16 | 10,240 | 3 GENERATOR_LIMITED | 10,139 (9,844-10,215) | roots/second | 162 | 931 |
+| pg | workers-16-single-namespace | 10,240 | 3 GENERATOR_LIMITED, 2 VALID; 2 added by the instability rule | 10,227 (10,110-10,232) | roots/second | 81.8 | 766 |
+| pg | workers-4 | 10,240 | 2 GENERATOR_LIMITED, 1 VALID | 10,231 (10,089-10,246) | roots/second | 74.2 | 972 |
+
+#### L02: Single-call admission
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | Admission p50 ms | Admission p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 10,240 | 5 VALID; 2 added by the instability rule | 10,240 (10,236-10,252) | admissions/second | 17.1 | 28 |
+
+#### L03: Batch admission
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | Admission p50 ms | Admission p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | batch-1 | 2,560 | 3 GENERATOR_LIMITED | 430 (369-527) | admissions/second | 2,720 | 2,966 |
+| pg | batch-1000 | 2,560 | 5 VALID; 2 added by the instability rule | 2,547 (2,547-2,547) | admissions/second | 59.4 | 84.7 |
+| pg | canonical | 2,560 | 3 VALID | 2,560 (2,560-2,560) | admissions/second | 27.9 | 41.8 |
+
+#### L04: Preloaded backlog drain
+
+| Provider | Cell | Workers | Roots | Measurement | Database steady roots/s | Steady roots/s | Drain roots/s, median (min-max) | First completion s |
+|---|---|---:|---:|---|---:|---:|---:|---:|
+| pg | canonical | 1 | 200,000 | 3 VALID | 20,881 | 20,862 | 19,317 (18,913-19,335) | 0.571 |
+| pg | drain-workers-16 | 16 | 200,000 | 3 VALID | 59,368 | 59,055 | 47,254 (44,384-47,422) | 0.91 |
+| pg | drain-workers-4 | 4 | 200,000 | 3 VALID | 57,169 | 57,213 | 48,903 (48,456-49,193) | 0.579 |
+| pg | drain-workers-8 | 8 | 200,000 | 3 VALID | 77,662 | 77,125 | 59,368 (58,952-59,533) | 0.592 |
+
+#### C01: Three persisted steps
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 2,560 | 5 UNSTABLE; 2 added by the instability rule | 1,834 (1,808-2,345) | roots/second | 11,672 | 15,893 |
+
+#### P01: Ten children and join
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 320 | 4 UNSTABLE, 1 VALID; 2 added by the instability rule | 276 (263-331) | roots/second | 6,296 | 7,990 |
+
+#### R01: Transient failure and retry
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 5,120 | 3 VALID | 5,122 (5,118-5,124) | roots/second | 38.5 | 2,166 |
+
+#### O01: Many independent lanes
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 5,120 | 3 VALID | 5,139 (5,044-5,264) | roots/second | 539 | 1,032 |
+
+#### O02: One hot lane
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 80 | 3 VALID | 80.7 (80.4-81.3) | roots/second | 513 | 1,021 |
+
+#### O03: Hot concurrency key
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 1 | 2 UNSTABLE, 3 VALID; 2 added by the instability rule | 1 (1-1) | roots/second | 431 | 1,022 |
+
+#### S02: Parked-work skew
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 5,120 | 3 VALID | 5,134 (5,095-5,213) | roots/second | 527 | 1,026 |
+
+#### S03: Future high-priority skew
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 5,120 | 3 VALID | 5,066 (4,992-5,132) | roots/second | 539 | 1,032 |
+
+#### I05: Idempotent external sink
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 640 | 5 UNSTABLE; 2 added by the instability rule | 307 (304-319) | roots/second | 27,761 | 43,515 |
+
+#### M01: Fixed CPU work
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 5,120 | 3 VALID | 5,150 (5,050-5,164) | roots/second | 536 | 1,043 |
+
+#### M02: Controlled I/O work
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 160 | 3 VALID | 160 (159-161) | roots/second | 630 | 1,143 |
+
+#### M03: Short/long mixed workload
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 640 | 3 VALID | 640 (640-640) | roots/second | 111 | 1,150 |
+
+#### M04: Payload sweep
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 2,560 | 2 GENERATOR_LIMITED, 1 VALID | 2,572 (2,567-2,602) | roots/second | 545 | 1,054 |
+| pg | payload-256 | 2,560 | 1 GENERATOR_LIMITED, 2 VALID | 2,535 (2,494-2,555) | roots/second | 521 | 1,021 |
+| pg | payload-4096 | 2,560 | 3 VALID | 2,541 (2,517-2,569) | roots/second | 519 | 1,026 |
+| pg | payload-65536 | 2,560 | 5 GENERATOR_LIMITED; 2 added by the instability rule | 1,346 (1,218-1,454) | roots/second | 14,574 | 17,807 |
+
+#### E01: Mixed-workload soak
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 448 | 1 GENERATOR_LIMITED | 448 (448-448) | roots/second | 157 | 1,119 |
+
+#### E02: Queries during processing
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 5,120 | 3 VALID | 5,235 (5,187-5,235) | roots/second | 530 | 1,032 |
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 14491 s |
+| Evidence written | 28.7 MB of a 50 MB budget |
+| Setup, median per trial | 0.66 s |
+| Seeding, median per trial | 5E-07 s |
+| Measured window and drain, median per trial | 17.2 s |
+| Verification, median per trial | 0.17 s |
+| Ledger checks, median per trial | 0.0406 s |
+| Evidence writing, median per trial | 0.00211 s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 3.38 ms mean, 8.36 ms p95, 14 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 5.67 ms mean, 6.95 ms p95, 3 writes/s, 100% idle, 14 samples |
+| pg | 0 c: | write 3.58 ms mean, 7.95 ms p95, 10 writes/s, 99% idle, 7188 samples |
+| pg | 1 d: | write 0.32 ms mean, 0.99 ms p95, 968 writes/s, 45% idle, 7188 samples |
+| after | 0 c: | write 3.88 ms mean, 8.37 ms p95, 9 writes/s, 99% idle, 15 samples |
+| after | 1 d: | write 0.12 ms mean, 0.21 ms p95, 21 writes/s, 99% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| L01 | pg | 5,705 | 35 |
+| M04 | pg | 1,241 | 23 |
+| O03 | pg | 1,035 | 14 |
+| L03 | pg | 651 | 20 |
+| E01 | pg | 614 | 1 |
+| L02 | pg | 581 | 16 |
+| I05 | pg | 559 | 15 |
+| C01 | pg | 451 | 14 |
+| S02 | pg | 421 | 14 |
+| M01 | pg | 407 | 13 |
+
+#### Not passing
+
+| Case | Provider | Phase | Trial | Status | Safety | Liveness | Coverage | Measurement | Reason | Evidence |
+|---|---|---|---:|---|---|---|---|---|---|---|
+| F09 | pg | verify | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Case did not finish (InvalidOperationException: Owned worker exited before readiness: Acta Bench could not complete the command (SocketException: Only one usage of each socket address (protocol/network address/port) is normally permitted.).); partial histories retained. | histories/pg-F09-chaos-ledger.json |
+| E03 | pg | fault | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No independently validated L01 capacity is available for this declared workload. |  |
+| L01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| C01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| P01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| O03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| F09 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Required seeded busy kills, reclaim evidence, or acknowledged cohort accounting is incomplete. |  |
+| I05 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| M04 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| E01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Required sustained soak interval or measurement validity is incomplete. |  |
+| E03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 1. |  |
+| E03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Missing required boundary repetition 2. |  |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
+
+Protocol: `acta-bench.full/1`  
+Build: `fb8f841476c904354633e1b26432c74602fb3f07` (source dirty: False)  
+Run: `20261025T171642830Z-10ff9a58c7ae475aab00670be4a4a073`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 236727373824  
+build_configuration: Release  
+compilation_mode: managed_jit  
+cpu_model: Intel(R) Core(TM) i9-14900K  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+docker_vm_cpus: 32  
+docker_vm_memory_bytes: 50379538432  
+filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+pg_autovacuum: on  
+pg_container_image_digest: sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336  
+pg_container_memory_mb: 32031  
+pg_container_shm_mb: 8007  
+pg_effective_cache_size: 24023MB  
+pg_maintenance_work_mem: 1024MB  
+pg_max_connections: 1000  
+pg_max_wal_size: 8192MB  
+pg_server_mode: owned_container  
+pg_shared_buffers: 8007MB  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 14491  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
+
+## 3. F09 on SQL Server, `988764e6`
+
+### Acta Bench: PASS
+
+full profile on mssql. All 9 case results passed, with safety, liveness and coverage complete.
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 1686 s |
+| Evidence written | 0.1 MB of a 50 MB budget |
+| Setup, median per trial | - s |
+| Seeding, median per trial | - s |
+| Measured window and drain, median per trial | - s |
+| Verification, median per trial | - s |
+| Ledger checks, median per trial | 10.6 s |
+| Evidence writing, median per trial | - s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 2.66 ms mean, 7.51 ms p95, 7 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 5.31 ms mean, 6.97 ms p95, 3 writes/s, 100% idle, 14 samples |
+| mssql | 0 c: | write 3.58 ms mean, 8.09 ms p95, 6 writes/s, 101% idle, 810 samples |
+| mssql | 1 d: | write 0.25 ms mean, 0.93 ms p95, 1053 writes/s, 65% idle, 810 samples |
+| after | 0 c: | write 3.45 ms mean, 8.40 ms p95, 11 writes/s, 99% idle, 15 samples |
+| after | 1 d: | write 0.29 ms mean, 1.06 ms p95, 14 writes/s, 99% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| F09 | mssql | 1,450 | 1 |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
+
+Protocol: `acta-bench.full/1`  
+Build: `988764e6b64d0017e79287eb158fe370ee8b4a3a` (source dirty: False)  
+Run: `20261025T212820450Z-7717e7b27a80435c9b87b0884064657f`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 236609167360  
+build_configuration: Release  
+compilation_mode: managed_jit  
+cpu_model: Intel(R) Core(TM) i9-14900K  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+docker_vm_cpus: 32  
+docker_vm_memory_bytes: 50379538432  
+filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+mssql_container_image_digest: sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090  
+mssql_container_memory_mb: 32031  
+mssql_cost_threshold_for_parallelism: 50  
+mssql_cpu_count: 32  
+mssql_database_data_files: 1 x 4096 MB, growth 512 MB  
+mssql_database_log_files: 1 x 2048 MB, growth 512 MB  
+mssql_max_degree_of_parallelism: 8  
+mssql_max_server_memory_mb: 27226  
+mssql_memory_optimized_tempdb_metadata: 1  
+mssql_optimize_for_ad_hoc_workloads: 1  
+mssql_physical_memory_mb: 32031  
+mssql_server_mode: owned_container  
+mssql_tempdb_data_files: 8 x 1024 MB, growth 256 MB  
+mssql_tempdb_log_files: 1 x 1024 MB, growth 256 MB  
+mssql_trace_flag_3979: on  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 1686  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
+
+## 4. F09 on PostgreSQL, `988764e6`
+
+### Acta Bench: PASS
+
+full profile on pg. All 9 case results passed, with safety, liveness and coverage complete.
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 1101 s |
+| Evidence written | 0.1 MB of a 50 MB budget |
+| Setup, median per trial | - s |
+| Seeding, median per trial | - s |
+| Measured window and drain, median per trial | - s |
+| Verification, median per trial | - s |
+| Ledger checks, median per trial | 9.73 s |
+| Evidence writing, median per trial | - s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 3.55 ms mean, 6.59 ms p95, 9 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 5.38 ms mean, 8.02 ms p95, 3 writes/s, 100% idle, 14 samples |
+| pg | 0 c: | write 3.66 ms mean, 8.06 ms p95, 6 writes/s, 101% idle, 518 samples |
+| pg | 1 d: | write 0.08 ms mean, 0.06 ms p95, 1014 writes/s, 43% idle, 518 samples |
+| after | 0 c: | write 3.42 ms mean, 8.19 ms p95, 8 writes/s, 99% idle, 15 samples |
+| after | 1 d: | write 1.64 ms mean, 6.92 ms p95, 19 writes/s, 100% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| F09 | pg | 1,038 | 1 |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
+
+Protocol: `acta-bench.full/1`  
+Build: `988764e6b64d0017e79287eb158fe370ee8b4a3a` (source dirty: False)  
+Run: `20261025T215626759Z-e52c64f2055544aa81bc5754dda63c14`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 236602216448  
+build_configuration: Release  
+compilation_mode: managed_jit  
+cpu_model: Intel(R) Core(TM) i9-14900K  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+docker_vm_cpus: 32  
+docker_vm_memory_bytes: 50379538432  
+filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+pg_autovacuum: on  
+pg_container_image_digest: sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336  
+pg_container_memory_mb: 32031  
+pg_container_shm_mb: 8007  
+pg_effective_cache_size: 24023MB  
+pg_maintenance_work_mem: 1024MB  
+pg_max_connections: 2500  
+pg_max_wal_size: 8192MB  
+pg_server_mode: owned_container  
+pg_shared_buffers: 8007MB  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 1101  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
+
+## 5. P01 on SQLite, `05e5c27c`
+
+### Acta Bench: PASS
+
+full profile on sqlite. All 16 case results passed, with safety, liveness and coverage complete.
+
+#### P01: Ten children and join
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| sqlite | canonical | 9 | 3 VALID | 9.03 (8.77-9.2) | roots/second | 213 | 1,842 |
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 274 s |
+| Evidence written | 0.6 MB of a 50 MB budget |
+| Setup, median per trial | 0.358 s |
+| Seeding, median per trial | 5E-07 s |
+| Measured window and drain, median per trial | 26.5 s |
+| Verification, median per trial | 0.0219 s |
+| Ledger checks, median per trial | 0.0109 s |
+| Evidence writing, median per trial | 0.00191 s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 3.83 ms mean, 8.45 ms p95, 5 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 5.32 ms mean, 7.20 ms p95, 3 writes/s, 100% idle, 14 samples |
+| sqlite | 0 c: | write 3.38 ms mean, 7.63 ms p95, 7 writes/s, 99% idle, 107 samples |
+| sqlite | 1 d: | write 0.04 ms mean, 0.04 ms p95, 850 writes/s, 91% idle, 107 samples |
+| after | 0 c: | write 3.56 ms mean, 8.05 ms p95, 7 writes/s, 102% idle, 15 samples |
+| after | 1 d: | write 4.34 ms mean, 7.52 ms p95, 20 writes/s, 100% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| P01 | sqlite | 214 | 8 |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
+
+Protocol: `acta-bench.full/1`  
+Build: `05e5c27cdc1adad696ae116e75ea2bf6140318a5` (source dirty: False)  
+Run: `20261025T224336926Z-4223d27b87664c29ba0a7158fcaeda67`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 236531445760  
+build_configuration: Release  
+compilation_mode: managed_jit  
+cpu_model: Intel(R) Core(TM) i9-14900K  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 274  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
+
+## 6. Capacity on SQL Server, `05e5c27c`
+
+### Acta Bench: INCONCLUSIVE
+
+full profile on mssql. 2 of 92 case results did not pass (0 safety failures, 0 liveness failures, 2 coverage gaps); they are listed under Not passing.
+
+#### P01: Ten children and join
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 160 | 5 VALID; 2 added by the instability rule | 160 (160-161) | roots/second | 230 | 458 |
+
+#### O02: One hot lane
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 120 | 3 VALID | 123 (122-123) | roots/second | 641 | 1,032 |
+| mssql | canonical | 140 | 5 UNSTABLE; 2 added by the instability rule | 128 (122-136) | roots/second | 3,846 | 4,674 |
+| mssql | canonical | 160 | 5 UNSTABLE; 2 added by the instability rule | 119 (116-169) | roots/second | 9,148 | 10,234 |
+
+#### O03: Hot concurrency key
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | - | 1 NOT_MEASURED | - |  | - | - |
+
+#### M02: Controlled I/O work
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 400 | 3 VALID | 403 (396-404) | roots/second | 673 | 1,137 |
+| mssql | canonical | 480 | 5 UNSTABLE; 2 added by the instability rule | 432 (427-438) | roots/second | 3,604 | 4,802 |
+| mssql | canonical | 560 | 5 UNSTABLE; 2 added by the instability rule | 442 (439-575) | roots/second | 7,568 | 11,484 |
+| mssql | canonical | 640 | 2 GENERATOR_LIMITED, 3 UNSTABLE; 2 added by the instability rule | 439 (425-635) | roots/second | 10,305 | 15,302 |
+
+#### M04: Payload sweep
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| mssql | canonical | 320 | 3 VALID | 318 (318-321) | roots/second | 542 | 1,060 |
+| mssql | payload-256 | 320 | 3 VALID | 321 (312-327) | roots/second | 513 | 1,026 |
+| mssql | payload-4096 | 320 | 3 VALID | 317 (316-324) | roots/second | 521 | 1,032 |
+| mssql | payload-65536 | 320 | 4 GENERATOR_LIMITED, 1 VALID; 2 added by the instability rule | 321 (316-327) | roots/second | 533 | 1,101 |
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 3696 s |
+| Evidence written | 8.1 MB of a 50 MB budget |
+| Setup, median per trial | 1.28 s |
+| Seeding, median per trial | 5E-07 s |
+| Measured window and drain, median per trial | 40.9 s |
+| Verification, median per trial | 0.0599 s |
+| Ledger checks, median per trial | 0.143 s |
+| Evidence writing, median per trial | 0.00207 s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 4.18 ms mean, 8.14 ms p95, 6 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 5.03 ms mean, 7.98 ms p95, 4 writes/s, 100% idle, 14 samples |
+| mssql | 0 c: | write 3.24 ms mean, 7.80 ms p95, 10 writes/s, 99% idle, 1811 samples |
+| mssql | 1 d: | write 0.29 ms mean, 1.39 ms p95, 1121 writes/s, 61% idle, 1811 samples |
+| after | 0 c: | write 3.19 ms mean, 8.41 ms p95, 5 writes/s, 99% idle, 15 samples |
+| after | 1 d: | write 4.46 ms mean, 7.68 ms p95, 12 writes/s, 100% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| M02 | mssql | 1,029 | 25 |
+| M04 | mssql | 736 | 20 |
+| O02 | mssql | 715 | 19 |
+| O03 | mssql | 683 | 9 |
+| P01 | mssql | 296 | 10 |
+
+#### Not passing
+
+| Case | Provider | Phase | Trial | Status | Safety | Liveness | Coverage | Measurement | Reason | Evidence |
+|---|---|---|---:|---|---|---|---|---|---|---|
+| O03 | mssql | measure | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Discovery did not establish a valid rate; no capacity score is available. |  |
+| O03 | mssql | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Capacity discovery did not find a valid arrival rate. |  |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
+
+Protocol: `acta-bench.full/1`  
+Build: `05e5c27cdc1adad696ae116e75ea2bf6140318a5` (source dirty: False)  
+Run: `20261025T224812128Z-ad7e90b325424ee6acbd4810822c5bb8`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 236453855232  
+build_configuration: Release  
+compilation_mode: managed_jit  
+cpu_model: Intel(R) Core(TM) i9-14900K  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+docker_vm_cpus: 32  
+docker_vm_memory_bytes: 50379538432  
+filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+mssql_container_image_digest: sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090  
+mssql_container_memory_mb: 32031  
+mssql_cost_threshold_for_parallelism: 50  
+mssql_cpu_count: 32  
+mssql_database_data_files: 1 x 4096 MB, growth 512 MB  
+mssql_database_log_files: 1 x 2048 MB, growth 512 MB  
+mssql_max_degree_of_parallelism: 8  
+mssql_max_server_memory_mb: 27226  
+mssql_memory_optimized_tempdb_metadata: 1  
+mssql_optimize_for_ad_hoc_workloads: 1  
+mssql_physical_memory_mb: 32031  
+mssql_server_mode: owned_container  
+mssql_tempdb_data_files: 8 x 1024 MB, growth 256 MB  
+mssql_tempdb_log_files: 1 x 1024 MB, growth 256 MB  
+mssql_trace_flag_3979: on  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 3696  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
+
+## 7. Capacity on PostgreSQL, `05e5c27c`
+
+### Acta Bench: INCONCLUSIVE
+
+full profile on pg. 3 of 171 case results did not pass (0 safety failures, 0 liveness failures, 3 coverage gaps); they are listed under Not passing.
+
+#### L01: No-op end-to-end
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 7,680 | 3 VALID | 7,636 (7,502-7,830) | roots/second | 536 | 1,032 |
+| pg | canonical | 8,960 | 1 GENERATOR_LIMITED, 4 VALID; 2 added by the instability rule | 9,026 (8,826-9,433) | roots/second | 547 | 1,037 |
+| pg | canonical | 10,240 | 4 GENERATOR_LIMITED, 1 UNSTABLE; 2 added by the instability rule | 9,156 (9,122-10,420) | roots/second | 2,887 | 4,428 |
+| pg | executor-1 | 10,240 | 3 UNSTABLE | 408 (301-413) | roots/second | 912,738 | 1,462,017 |
+| pg | executor-32 | 10,240 | 5 UNSTABLE; 2 added by the instability rule | 7,223 (5,785-9,600) | roots/second | 11,863 | 14,974 |
+| pg | workers-16 | 10,240 | 3 GENERATOR_LIMITED | 10,228 (10,146-10,249) | roots/second | 93.2 | 936 |
+| pg | workers-16-single-namespace | 10,240 | 2 GENERATOR_LIMITED, 1 VALID | 10,229 (10,074-10,238) | roots/second | 83.2 | 840 |
+| pg | workers-4 | 10,240 | 3 GENERATOR_LIMITED | 10,208 (9,977-10,342) | roots/second | 228 | 999 |
+
+#### C01: Three persisted steps
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 1,280 | 3 VALID | 1,259 (1,252-1,302) | roots/second | 591 | 1,101 |
+
+#### P01: Ten children and join
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 280 | 3 VALID | 291 (291-294) | roots/second | 1,540 | 2,075 |
+| pg | canonical | 320 | 4 UNSTABLE, 1 VALID; 2 added by the instability rule | 276 (268-308) | roots/second | 6,646 | 8,298 |
+
+#### O03: Hot concurrency key
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 1 | 3 UNSTABLE, 2 VALID; 2 added by the instability rule | 1 (1-1) | roots/second | 617 | 6,474 |
+
+#### I05: Idempotent external sink
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 400 | 3 UNSTABLE | 306 (304-309) | roots/second | 8,389 | 13,078 |
+| pg | canonical | 480 | 5 UNSTABLE; 2 added by the instability rule | 311 (306-322) | roots/second | 14,653 | 22,844 |
+| pg | canonical | 560 | 5 UNSTABLE; 2 added by the instability rule | 309 (304-435) | roots/second | 21,062 | 33,373 |
+| pg | canonical | 640 | 3 UNSTABLE | 431 (317-441) | roots/second | 17,615 | 31,105 |
+
+#### M03: Short/long mixed workload
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 800 | 3 VALID | 815 (795-826) | roots/second | 287 | 2,109 |
+| pg | canonical | 960 | 3 UNSTABLE | 837 (835-843) | roots/second | 3,764 | 11,546 |
+| pg | canonical | 1,120 | 5 UNSTABLE; 2 added by the instability rule | 878 (847-968) | roots/second | 7,248 | 19,524 |
+| pg | canonical | 1,280 | 5 UNSTABLE; 2 added by the instability rule | 889 (872-1,433) | roots/second | 9,198 | 27,912 |
+
+#### M04: Payload sweep
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 1,920 | 3 VALID | 1,930 (1,907-1,933) | roots/second | 539 | 1,107 |
+| pg | canonical | 2,240 | 1 GENERATOR_LIMITED, 2 VALID | 2,248 (2,204-2,268) | roots/second | 542 | 1,054 |
+| pg | canonical | 2,560 | 1 GENERATOR_LIMITED, 2 VALID | 2,605 (2,592-2,605) | roots/second | 527 | 1,043 |
+| pg | payload-256 | 2,560 | 3 VALID | 2,548 (2,527-2,576) | roots/second | 533 | 1,026 |
+| pg | payload-4096 | 2,560 | 3 VALID | 2,530 (2,514-2,553) | roots/second | 527 | 1,026 |
+| pg | payload-65536 | 2,560 | 3 GENERATOR_LIMITED | 1,434 (1,306-1,480) | roots/second | 13,510 | 17,145 |
+
+#### E01: Mixed-workload soak
+
+| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | End-to-end p50 ms | End-to-end p99 ms |
+|---|---|---:|---|---:|---|---:|---:|
+| pg | canonical | 560 | 1 GENERATOR_LIMITED | 560 (560-560) | roots/second | 165 | 1,214 |
+
+#### Overhead
+
+| Measure | Value |
+|---|---:|
+| Run wall time | 12001 s |
+| Evidence written | 21.5 MB of a 50 MB budget |
+| Setup, median per trial | 0.812 s |
+| Seeding, median per trial | 5E-07 s |
+| Measured window and drain, median per trial | 40.8 s |
+| Verification, median per trial | 0.317 s |
+| Ledger checks, median per trial | 0.132 s |
+| Evidence writing, median per trial | 0.00217 s |
+
+| Disk, by phase and drive | Windows counters |
+|---|---|
+| before | 0 c: | write 2.37 ms mean, 8.28 ms p95, 12 writes/s, 99% idle, 14 samples |
+| before | 1 d: | write 5.06 ms mean, 7.22 ms p95, 5 writes/s, 100% idle, 14 samples |
+| pg | 0 c: | write 3.64 ms mean, 7.86 ms p95, 8 writes/s, 99% idle, 5949 samples |
+| pg | 1 d: | write 0.32 ms mean, 0.55 ms p95, 1158 writes/s, 32% idle, 5949 samples |
+| after | 0 c: | write 3.68 ms mean, 8.35 ms p95, 5 writes/s, 99% idle, 15 samples |
+| after | 1 d: | write 0.09 ms mean, 0.18 ms p95, 18 writes/s, 99% idle, 15 samples |
+
+| Slowest cases | Provider | Wall time s | Results |
+|---|---|---:|---:|
+| L01 | pg | 5,958 | 41 |
+| M04 | pg | 1,343 | 27 |
+| I05 | pg | 1,175 | 26 |
+| M03 | pg | 1,014 | 24 |
+| O03 | pg | 939 | 14 |
+| E01 | pg | 617 | 1 |
+| P01 | pg | 483 | 14 |
+| C01 | pg | 252 | 11 |
+| E03 | pg | 153 | 2 |
+
+#### Not passing
+
+| Case | Provider | Phase | Trial | Status | Safety | Liveness | Coverage | Measurement | Reason | Evidence |
+|---|---|---|---:|---|---|---|---|---|---|---|
+| O03 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| I05 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | No arrival rate passed all required independent validation trials; correctness results remain separate. |  |
+| E01 | pg | reconcile | 0 | INCONCLUSIVE | UNVERIFIED | UNVERIFIED | INCOMPLETE | NOT_MEASURED | Required sustained soak interval or measurement validity is incomplete. |  |
+
+#### Notes
+
+Measurement counts each trial's verdict: VALID qualifies it as capacity evidence, UNSTABLE means its latency target or backlog trend did not qualify, and GENERATOR_LIMITED or OBSERVER_LIMITED means the harness could not offer or observe the load.
+
+A selected-case or quick PASS establishes only its declared scope. Capacity is qualified per workload and repetition, and missing evidence never establishes a guarantee. Process-crash tests do not certify physical power loss.
+
+#### Environment
+
+Protocol: `acta-bench.full/1`  
+Build: `05e5c27cdc1adad696ae116e75ea2bf6140318a5` (source dirty: False)  
+Run: `20261025T234949411Z-7714ef9c9e834ecfb24afe4a626a9637`  
+architecture: X64  
+artifact_disk_free_at_start_bytes: 236369747968  
+build_configuration: Release  
+compilation_mode: managed_jit  
+cpu_model: Intel(R) Core(TM) i9-14900K  
+database_backing_disk: Unavailable for Docker volumes; artifact-drive free space is guarded across the complete run.  
+docker_vm_cpus: 32  
+docker_vm_memory_bytes: 50379538432  
+filesystem: ReFS  
+gc_server: False  
+hybrid_cpu: True  
+machine_name: DESKTOP-MVKQH5M  
+memory_available_to_runtime_bytes: 102818476032  
+missing_metrics: Physical disk, per-database CPU/waits, live/allocation storage and network metrics require collectors. Whole-container CPU/memory are sampled where cgroup v2 is available; unavailable values are not zero.  
+monotonic_clock_frequency: 10000000  
+observer: Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.  
+os: Microsoft Windows 10.0.26300  
+performance_logical_processors: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15  
+pg_autovacuum: on  
+pg_container_image_digest: sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336  
+pg_container_memory_mb: 32031  
+pg_container_shm_mb: 8007  
+pg_effective_cache_size: 24023MB  
+pg_maintenance_work_mem: 1024MB  
+pg_max_connections: 2500  
+pg_max_wal_size: 8192MB  
+pg_server_mode: owned_container  
+pg_shared_buffers: 8007MB  
+physical_cores: 24  
+preloaded_backlog_roots: sqlite=50000,pg=200000,mssql=200000  
+processor_count: 32  
+repetitions: 3  
+run_wall_seconds: 12001  
+runtime: .NET 10.0.12  
+worker_compilation_mode: managed_jit  
+workers_pinned_to_performance_cores: True  
