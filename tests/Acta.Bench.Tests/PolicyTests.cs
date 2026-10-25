@@ -214,6 +214,24 @@ public sealed class PolicyTests
     }
 
     [Fact]
+    public void A_full_run_validates_the_highest_fallback_rate_that_holds_when_the_selected_rate_fails()
+    {
+        var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
+        CaseResult[] discovery = [Row("discover", 0, 6400), Row("discover", 1, 12800)];
+        Assert.Equal([10240d], CoveragePolicy.SelectedRates(plan, discovery));
+        Assert.Equal([8960d, 7680d, 6400d], CoveragePolicy.FallbackRates(plan, discovery));
+        Assert.Empty(CoveragePolicy.FallbackRates(Protocol.Plan("standard", ["pg"], 1729), discovery));
+        var rows = discovery.Concat(
+            Enumerable.Range(1, 5).SelectMany(i => new[] { Row("measure", i, 10240, "UNSTABLE"), Row("measure", i, 8960) })
+        );
+        Assert.Equal(8960, CoveragePolicy.ValidatedCapacity(plan, rows));
+        Assert.DoesNotContain(
+            CoveragePolicy.Missing(plan, "pg", rows),
+            r => r.Reason!.Contains("No arrival rate", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
     public void A_replayed_plan_cannot_relax_a_target_tolerance_or_cohort()
     {
         var plan = Protocol.Plan("standard", ["pg"], 1729);

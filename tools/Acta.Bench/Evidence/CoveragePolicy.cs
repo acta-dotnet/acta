@@ -12,7 +12,20 @@ public static class CoveragePolicy
             .Any(e => e.GetString() == id);
 
     /// <summary>The profile's validation fractions of the best qualifying discovery rate, frozen before measurement.</summary>
-    public static double[] SelectedRates(RunPlan plan, IEnumerable<CaseResult> results)
+    public static double[] SelectedRates(RunPlan plan, IEnumerable<CaseResult> results) =>
+        Rates(plan, results, "validation_load_fractions");
+
+    /// <summary>
+    /// The profile's lower fractions of the same rate, frozen with the selected rates; the runner measures each in turn
+    /// only while no higher rate has validated.
+    /// </summary>
+    public static double[] FallbackRates(RunPlan plan, IEnumerable<CaseResult> results)
+    {
+        var rows = results.ToArray();
+        return [.. Rates(plan, rows, "fallback_load_fractions").Except(SelectedRates(plan, rows))];
+    }
+
+    private static double[] Rates(RunPlan plan, IEnumerable<CaseResult> results, string fractions)
     {
         var best = BestDiscoveryRate(results);
         return best <= 0
@@ -20,7 +33,7 @@ public static class CoveragePolicy
             : plan
                 .FullPolicy.GetProperty("profiles")
                 .GetProperty(plan.Profile)
-                .GetProperty("validation_load_fractions")
+                .GetProperty(fractions)
                 .EnumerateArray()
                 .Select(f => (double)Math.Max(1, (int)(best * f.GetDouble())))
                 .Distinct()

@@ -23,7 +23,7 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all
 |---|---|---|---|
 | `--quick` | 1 s warmup, one 3 s trial per rate, a small default case set | 5 s | 1,000 jobs, 3 workers, 30 s of chaos, compressed lease timings |
 | `--standard` | 5 s warmup, one 15 s trial per rate, every case | 60 s | 10,000 jobs, 8 workers (3 on SQLite), 7 minutes of chaos, shipped lease timings |
-| `--full` | 10 s warmup, three 30 s trials at 0.8 of the discovered rate, every case and diagnostic cell | 10 min | 10,000 jobs (`--chaos-jobs` scales it), 24 workers of 64 executors (3 on SQLite), 7 minutes of chaos, shipped lease timings |
+| `--full` | 10 s warmup, three 30 s trials at 0.8 of the discovered rate, then at 0.7, 0.6 and 0.5 of it while no rate has held, every case and diagnostic cell | 10 min | 10,000 jobs (`--chaos-jobs` scales it), 24 workers of 64 executors (3 on SQLite), 7 minutes of chaos, shipped lease timings |
 
 - `--full` on all three databases is the release evidence and fits one night, about nine hours on the reference machine.
 - A run that stops, by a crash or a cancel, resumes when the same command runs again with the same `--output`: the databases that finished keep their results, and the interrupted one runs again from its start. The report records each resume. To start over instead, use another `--output`.

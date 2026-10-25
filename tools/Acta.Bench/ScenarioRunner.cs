@@ -304,11 +304,13 @@ internal static class ScenarioRunner
                     continue;
                 }
                 var selectedRates = CoveragePolicy.SelectedRates(plan, completed.Where(r => r.Id == descriptor.Id));
+                var fallbackRates = CoveragePolicy.FallbackRates(plan, completed.Where(r => r.Id == descriptor.Id));
                 bundle.Write(
                     $"histories/{environment.Provider}-{descriptor.Id}-selected-rates.json",
                     new Dictionary<string, string>
                     {
                         ["offered_rates"] = string.Join(",", selectedRates),
+                        ["fallback_rates"] = string.Join(",", fallbackRates),
                         ["frozen_before_measured_trials"] = "true",
                         ["discovery_stop_reason"] = discoveryStop,
                         ["harness_bound"] = harnessBound ? "true" : "false",
@@ -326,40 +328,21 @@ internal static class ScenarioRunner
                         );
                     }
                 }
-                if (plan.IsExtended)
+                foreach (var selectedRate in selectedRates)
                 {
-                    foreach (var selectedRate in selectedRates)
+                    await RepeatVariableCellAsync(descriptor, (int)selectedRate, null);
+                }
+                foreach (var fallbackRate in fallbackRates)
+                {
+                    if (CoveragePolicy.ValidatedCapacity(plan, completed.Where(r => r.Id == descriptor.Id)) > 0)
+                        break;
+                    for (var repetition = 1; repetition <= plan.Repetitions; repetition++)
                     {
-                        var trials = completed
-                            .Where(r =>
-                                r.Id == descriptor.Id
-                                && r.Phase == "measure"
-                                && r.Metrics.GetValueOrDefault("offered_rate")?.Value == selectedRate
-                            )
-                            .ToArray();
-                        if (PerformanceSummary.IsVariable(plan, trials))
-                        {
-                            for (
-                                var repetition = plan.Repetitions + 1;
-                                repetition <= plan.Repetitions + plan.AdditionalRepetitions;
-                                repetition++
-                            )
-                            {
-                                await RecordAsync(
-                                    await TrialRunner.RunAsync(
-                                        plan,
-                                        descriptor,
-                                        environment,
-                                        bundle,
-                                        "measure",
-                                        repetition,
-                                        (int)selectedRate,
-                                        ct
-                                    )
-                                );
-                            }
-                        }
+                        await RecordAsync(
+                            await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "measure", repetition, (int)fallbackRate, ct)
+                        );
                     }
+                    await RepeatVariableCellAsync(descriptor, (int)fallbackRate, null);
                 }
                 foreach (var cell in CoveragePolicy.RequiredCells(plan, environment.Provider, descriptor.Id))
                 {
