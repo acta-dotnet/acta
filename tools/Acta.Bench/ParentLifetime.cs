@@ -40,7 +40,9 @@ internal sealed class ParentLifetime : IDisposable
                 try
                 {
                     using var parent = Process.GetProcessById(pid);
-                    alive = !parent.HasExited && parent.StartTime.ToUniversalTime().Ticks == started;
+                    // On Linux each process derives start times from its own read of the boot time, so this process
+                    // reads the controller's start a few milliseconds off the value the controller passed.
+                    alive = !parent.HasExited && Math.Abs(parent.StartTime.ToUniversalTime().Ticks - started) < TimeSpan.TicksPerSecond;
                 }
                 catch (ArgumentException) { }
                 catch (InvalidOperationException) { }
