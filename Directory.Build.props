@@ -39,10 +39,10 @@
          failure message a maintainer reads; CA1707's no-underscores rule conflicts with that. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1707</NoWarn>
     <!-- xUnit discovers fixtures and theory data by reflection and requires them public, and
-         Acta.Bench.Tests reads Acta Bench's types with no InternalsVisibleTo grant; CA1515's
+         Acta.Verify.Tests reads Acta Verify's types with no InternalsVisibleTo grant; CA1515's
          internal-by-default guidance breaks both. -->
     <NoWarn
-      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/Acta.Bench`))' == 'true'"
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/Acta.Verify`))' == 'true'"
       >$(NoWarn);CA1515</NoWarn>
     <!-- Suppressed for spec and harness code only, where these are Assert.Contains/StartsWith over test
          literals. NOT suppressed in src: an ASCII protocol token is a reason to be MORE explicit about
@@ -118,16 +118,16 @@
          and used still reads as uninstantiated. Enforced in src, where an unreferenced internal type
          really is dead. -->
     <NoWarn Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true'">$(NoWarn);CA1812</NoWarn>
-    <!-- Outside src only. A spec, Anvil, Acta Bench and a local-dev helper take their arguments from the
+    <!-- Outside src only. A spec, Anvil, Acta Verify and a local-dev helper take their arguments from the
          code that calls them one line above, so a null guard on each is ceremony rather than a contract.
          The five src sites were judged individually: one gained a guard, four already validate through
          NameSyntax or are owned by System.Text.Json, which never passes a null writer.
          support/Acta.LocalHost has sites too, so a tests-and-anvil scope would leave them firing. -->
     <NoWarn
-      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/Acta.Bench`))' == 'true' or '$(_ActaTree.Contains(`/support/`))' == 'true'"
+      Condition="'$(_ActaTree.Contains(`/tests/`))' == 'true' or '$(_ActaTree.Contains(`/anvil/`))' == 'true' or '$(_ActaTree.Contains(`/tools/Acta.Verify`))' == 'true' or '$(_ActaTree.Contains(`/support/`))' == 'true'"
       >$(NoWarn);CA1062</NoWarn>
     <!-- Outside src only, and for the same reason it is kept in src: a catch-all belongs at a boundary
-         whose job is not to die. Out here those are Acta Bench's run loops, Anvil's chaos injectors and
+         whose job is not to die. Out here those are Acta Verify's run loops, Anvil's chaos injectors and
          the Doctor's top-level Main handlers, where the alternative to a broad catch is a crashed harness
          and no diagnostic. In src the 32 sites are ruled on per file in .editorconfig, each naming the
          boundary and what would happen if the exception escaped. -->

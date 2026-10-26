@@ -24,8 +24,8 @@ State of rc6 on 2026-10-25. Nothing is pushed. temp-plan.md stays the maintained
 
 1. Commit the batch; it is the certified commit A unless a run finds a defect (CONTRIBUTING.md, "Two commits").
 2. The candidate checks on A: the Release suites and concepts, csharpier, the Emit check, `tests/PackageSmoke/run.ps1`.
-3. Evidence on A from a clean worktree: `acta-bench --full --db all` with `--output` on D:, where Docker's disk lives, about nine hours. After a crash, the same command resumes it.
-4. Commit B, docs only: `acta-bench publish` of that one bundle to docs/benchmark.md, the release notes' evidence paragraph and header date, the front-page line in site/index.html and the README from its validated PostgreSQL L01 row.
+3. Evidence on A from a clean worktree: `acta-verify --full --db all` with `--output` on D:, where Docker's disk lives, about nine hours. After a crash, the same command resumes it.
+4. Commit B, docs only: `acta-verify publish` of that one bundle to docs/benchmark.md, the release notes' evidence paragraph and header date, the front-page line in site/index.html and the README from its validated PostgreSQL L01 row.
 5. Marko tags, pushes and publishes.
 
 ## After rc.6
@@ -48,4 +48,4 @@ State of rc6 on 2026-10-25. Nothing is pushed. temp-plan.md stays the maintained
 
 - Clustering kit: D:\Dev\acta-bench-perf\artifacts\clustering-20261022 (protocol-lean.json, run-campaign.ps1, gate.ps1, evaluate.py); frozen builds in the acta-bench-perf, acta-bench-candidate and acta-bench-baseline worktrees.
 - Release round, 1M drain and probe scripts: copied to the 2026-10-24 session scratchpad (release-pg.sh, measure-1m.sh, probe-backlog.sh); temp files, copy them before relying on them.
-- Measurement standard: tools/Acta.Bench/README.md.
+- Measurement standard: tools/Acta.Verify/README.md.

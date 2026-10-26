@@ -169,7 +169,7 @@ Start at [`docs/README.md`](./docs/README.md), which orders every page by the qu
 
 **NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API, SDK, and engine; a transitive dependency of the providers), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
-**Repository tooling** (not published to NuGet): `Acta.Bench` (benchmark and release evidence suite), `Acta.Emit` (doc/migration emitter), and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
+**Repository tooling** (not published to NuGet): `Acta.Verify` (benchmark and release evidence suite), `Acta.Emit` (doc/migration emitter), and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
 
 ## Status
 

@@ -706,10 +706,10 @@ dashboard visibility, and benchmark runs:
 
 ```bash
 dotnet run --project anvil/Anvil                                        # loopback UI + embedded dashboard at /acta
-dotnet run -c Release --project tools/Acta.Bench -- --quick --db sqlite # quick benchmark and conformance check
+dotnet run -c Release --project tools/Acta.Verify -- --quick --db sqlite # quick benchmark and conformance check
 ```
 
-Anvil defaults to SQLite for a quick dashboard look. [Acta Bench](tools/Acta.Bench/README.md) is the headless benchmark and conformance standard: `--quick` checks a change, and `--standard` and `--full` are the longer campaigns. Each run writes an evidence bundle under `artifacts/bench/` and never touches tracked documentation.
+Anvil defaults to SQLite for a quick dashboard look. [Acta Verify](tools/Acta.Verify/README.md) is the headless benchmark and conformance standard: `--quick` checks a change, and `--standard` and `--full` are the longer campaigns. Each run writes an evidence bundle under `artifacts/bench/` and never touches tracked documentation.
 
 ## Releasing
 
@@ -732,14 +732,14 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 
 - The certified commit, A, is the last commit that touches code, schema, routines, tests, tools, anvil, project files, or a generated artifact. Every suite, the benchmark round, and the certification run against exactly A.
 - The tag commit, B, adds only documentation after A: the benchmark report, the release notes' evidence paragraph, and the release-notes header flip. `A..B` touches only `docs/`, `site/`, `README.md`, and `llms.txt`.
-- A defect found by any of A's runs abandons A: the fix makes a new candidate, and every piece of evidence is re-run against it. A fix that touches only `tests/` keeps the evidence, since the certification and the benchmark round measured the same binaries: the fix becomes A without a re-run, and the release notes say what it changed. A fix that touches only `tools/Acta.Bench` keeps the engine evidence the same way: the cases it affects are rerun with the fixed bench against the same engine, and the evidence paragraph names those reruns.
+- A defect found by any of A's runs abandons A: the fix makes a new candidate, and every piece of evidence is re-run against it. A fix that touches only `tests/` keeps the evidence, since the certification and the benchmark round measured the same binaries: the fix becomes A without a re-run, and the release notes say what it changed. A fix that touches only `tools/Acta.Verify` keeps the engine evidence the same way: the cases it affects are rerun with the fixed bench against the same engine, and the evidence paragraph names those reruns.
 
 ### Benchmark and conformance evidence
 
-The evidence is one [Acta Bench](tools/Acta.Bench/README.md) `--full` run against A, on all three databases, which fits one night:
+The evidence is one [Acta Verify](tools/Acta.Verify/README.md) `--full` run against A, on all three databases, which fits one night:
 
 ```bash
-dotnet run -c Release --project tools/Acta.Bench -- --full --db all --output artifacts/bench
+dotnet run -c Release --project tools/Acta.Verify -- --full --db all --output artifacts/bench
 ```
 
 - A run a crash or a cancel stopped resumes when the same command runs again: the databases that finished keep their results, and the report records the resume.
@@ -749,8 +749,8 @@ dotnet run -c Release --project tools/Acta.Bench -- --full --db all --output art
 - `dotnet run` gives the managed build, which covers SQL Server; a native publish covers only PostgreSQL and SQLite.
 - The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and F09 is the certification run under the shipped lease timings. A `--quick` or `--standard` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and F09) and reports capacity as information; `--full` also gates on measurement.
 - The release notes' evidence paragraph names the profile and the scope that ran, and any resume.
-- Compare with the previous tag's bundle from the same machine: `acta-bench compare <previous> <candidate>`. Rerun a cell that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
-- Publish the report in B with `acta-bench publish <run-directory> --to docs/benchmark.md`, then remove the run's leftovers with `acta-bench cleanup --yes`.
+- Compare with the previous tag's bundle from the same machine: `acta-verify compare <previous> <candidate>`. Rerun a cell that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
+- Publish the report in B with `acta-verify publish <run-directory> --to docs/benchmark.md`, then remove the run's leftovers with `acta-verify cleanup --yes`.
 
 ### Release notes and docs
 
@@ -775,7 +775,7 @@ demos/      larger multi-project apps (production shapes); consume the published
             so they are not in Acta.slnx and build independently of src/
 anvil/      Acta Anvil (interactive proof/dashboard harness)
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
-tools/      Acta.Bench (headless evidence suite), Acta.Emit (generated references), Acta.Doctor (preflight)
+tools/      Acta.Verify (headless evidence suite), Acta.Emit (generated references), Acta.Doctor (preflight)
 ```
 
 ## Reading the source

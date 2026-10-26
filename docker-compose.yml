@@ -14,7 +14,7 @@ name: acta-dev
 services:
   postgres:
     image: postgres:18
-    # Every developer and CI run on these settings; Acta Bench starts its own larger containers. 8 GB of shared memory keeps parallel
+    # Every developer and CI run on these settings; Acta Verify starts its own larger containers. 8 GB of shared memory keeps parallel
     # plans off the 64 MB Docker default, which fails them with "could not resize shared memory segment".
     command: postgres -c max_connections=500 -c shared_buffers=2GB -c effective_cache_size=6GB -c maintenance_work_mem=512MB
     shm_size: 8gb
@@ -51,7 +51,7 @@ services:
       MSSQL_SA_PASSWORD: "${ACTA_MSSQL_SA_PASSWORD:-AbitMOREsecure_PASSWORD}"
       # SQL Server otherwise targets most of the host RAM. 8 GB is the same for every developer and CI, and
       # fits a GitHub runner; too tight and commands cancel under load with "A severe error occurred on
-      # the current command". Acta Bench starts its own larger containers.
+      # the current command". Acta Verify starts its own larger containers.
       MSSQL_MEMORY_LIMIT_MB: "8192"
     volumes:
       - acta-mssql-data:/var/opt/mssql

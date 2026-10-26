@@ -9,7 +9,7 @@ database you already run. Each page below answers one question, in the order you
 - [Choosing Acta](./choosing-acta.md): does Acta fit my problem, when should I keep what I have, and how do I move from another scheduler?
 - [Known limitations](./known-limitations.md): what does Acta not do, and which of those limits are permanent?
 - [Compatibility and support](./compatibility-and-support.md): which .NET target, providers, and packages are supported, how do fixes ship, and what evidence stands behind the claims?
-- [Benchmark](./benchmark.md): what did the latest published benchmark round measure? [Acta Bench](../tools/Acta.Bench/README.md)'s `publish` command writes it.
+- [Benchmark](./benchmark.md): what did the latest published benchmark round measure? [Acta Verify](../tools/Acta.Verify/README.md)'s `publish` command writes it.
 
 ## Get started
 

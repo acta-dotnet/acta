@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Guards that the Anvil lab and Acta Bench publish with NativeAOT: <c>dotnet publish</c> of each must exit 0,
+/// Guards that the Anvil lab and Acta Verify publish with NativeAOT: <c>dotnet publish</c> of each must exit 0,
 /// which catches a trim/AOT regression that breaks native compilation. The published bench then runs one
 /// SQLite checkpoint case and must report native compilation in its evidence.
 /// Gated behind <c>ACTA_AOT_PUBLISH_TEST</c> because the publish needs the ILCompiler toolchain and a
@@ -16,7 +16,7 @@ public sealed class NativeAotPublishTests
 {
     [Theory]
     [InlineData("anvil/Anvil/Anvil.csproj", "Anvil", false)]
-    [InlineData("tools/Acta.Bench/Acta.Bench.csproj", "acta-bench", true)]
+    [InlineData("tools/Acta.Verify/Acta.Verify.csproj", "acta-verify", true)]
     public async Task Executables_publish_with_native_aot(string projectPath, string executableName, bool runCheckpointSmoke)
     {
         if (Environment.GetEnvironmentVariable("ACTA_AOT_PUBLISH_TEST") is null)

@@ -56,8 +56,8 @@
     <!-- Code-emission tool reads the [DbTable]/[DbColumn] attribute graph and the ActaSchema metadata
          to render DDL and docs. -->
     <InternalsVisibleTo Include="Acta.Emit" />
-    <!-- Acta Bench wraps IDbSession to inject faults after a store command commits. -->
-    <InternalsVisibleTo Include="Acta.Bench" />
+    <!-- Acta Verify wraps IDbSession to inject faults after a store command commits. -->
+    <InternalsVisibleTo Include="Acta.Verify" />
   </ItemGroup>
 
   <ItemGroup>

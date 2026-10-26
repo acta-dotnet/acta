@@ -33,7 +33,7 @@ Published on [nuget.org](https://www.nuget.org/packages?q=Acta):
 - `Acta.Testing`: test host.
 
 Source-generated dispatch (`Acta.Generators`) ships bundled inside these packages; there is no
-separate reference. Repository tooling (`Acta.Bench`, `Acta.Emit`, `Acta.Doctor`) is not published to NuGet.
+separate reference. Repository tooling (`Acta.Verify`, `Acta.Emit`, `Acta.Doctor`) is not published to NuGet.
 
 ## Patch policy
 
@@ -55,7 +55,7 @@ produced by the project, on the project's machine, and published in this reposit
 - The certification: chaos runs that kill a worker every five seconds and then judge the ledger with
   SQL; each release's notes record the scale that ran and the verdicts
   ([release notes](./release-notes.md)).
-- The benchmark round: an [Acta Bench](../tools/Acta.Bench/README.md) run on one machine, the latest
+- The benchmark round: an [Acta Verify](../tools/Acta.Verify/README.md) run on one machine, the latest
   kept in [benchmark.md](./benchmark.md).
 
 There is no independent evidence yet: no third-party audit, no published production case study, no

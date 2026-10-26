@@ -81,8 +81,8 @@ public static class SlowSuccessJob
     // their worker is to show that recorded steps do not run twice. A loop would re-run everything
     // from the top and prove nothing.
     //
-    // Each body writes one note before doing its work, the witness Acta Bench's ledger checks read
-    // (tools/Acta.Bench/Certification/certify.sql check 7): `steps` keeps only current state (one row per
+    // Each body writes one note before doing its work, the witness Acta Verify's ledger checks read
+    // (tools/Acta.Verify/Certification/certify.sql check 7): `steps` keeps only current state (one row per
     // (job, name), UPDATE-in-place), so without it a body that ran again leaves no trace at all. A second
     // note is legal on its own - at-least-once means an interrupted body re-runs - but more notes than the
     // step's admitted attempts is not.
@@ -260,7 +260,7 @@ public static class LanedJob
     // Seeded ten to a lane, so the lane runs them one at a time in enqueue order while workers die under
     // them. Durable steps with a body long enough that a kill lands inside one, and each step writes the
     // same step-body note slow-success does, so check 7 covers a replayed lane head too. The same notes
-    // stand as each member's start for the lane order (Acta Bench's certify.sql check 15), because the claim writes no event.
+    // stand as each member's start for the lane order (Acta Verify's certify.sql check 15), because the claim writes no event.
     [Job("laned")]
     public static async Task<string> Handle(Laned input, JobContext ctx, CancellationToken ct)
     {

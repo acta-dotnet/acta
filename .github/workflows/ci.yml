@@ -255,7 +255,7 @@ jobs:
     # goes green, and the break surfaces on the merge to main instead. Trim-warning analysis still
     # runs on every build (IsAotCompatible), so a PR is not entirely blind to it - only the native
     # link step is deferred.
-    # Drives NativeAotPublishTests, which publishes anvil/Anvil and tools/Acta.Bench with NativeAOT, then runs
+    # Drives NativeAotPublishTests, which publishes anvil/Anvil and tools/Acta.Verify with NativeAOT, then runs
     # one SQLite checkpoint case on the native bench, with no capacity claim or chaos on the shared runner
     # (ACTA_AOT_PUBLISH_TEST=1 enables the otherwise-skipped test).
     if: github.event_name != 'pull_request'
