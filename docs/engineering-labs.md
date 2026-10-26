@@ -39,7 +39,7 @@ Six labs, in order, that cover the model end to end:
 | [`705-worker-crash-recovery`](../concepts/700-topology-and-deployment/705-worker-crash-recovery/) | Leaderless recovery after a real process kill. |
 | [`204-wait-signal`](../concepts/200-durable-execution/204-wait-signal/), [`205-durable-sleep`](../concepts/200-durable-execution/205-durable-sleep/) | Waiting for signals and timers without occupying workers. |
 | [`021-jobs-cli`](../concepts/000-fundamentals/021-jobs-cli/) | The worker binary as admin tool, including Explain and `jobs debug` under a breakpoint. |
-| [`501-payload-formats`](../concepts/500-payloads/501-payload-formats/) | JSON, MessagePack, and gzip payload codecs per job. |
+| [`501-payload-formats`](../concepts/500-payloads/501-payload-formats/) | JSON, gzip JSON, and custom scalar payload codecs per job. |
 | [`211-child-jobs`](../concepts/200-durable-execution/211-child-jobs/) | Fan-out as ordinary jobs with recorded lineage. |
 | [`022-dashboard`](../concepts/000-fundamentals/022-dashboard/) | The embedded dashboard and opt-in operator controls. |
 | [`209-concurrency-key`](../concepts/200-durable-execution/209-concurrency-key/) | Admitting hot keys one or N at a time, and metering starts, without blocking unrelated workers. |

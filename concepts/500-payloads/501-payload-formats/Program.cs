@@ -6,7 +6,6 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton(new ConceptLab(builder.Configuration, args));
 
 builder.Services.AddSingleton<IJobPayloadSerializer, ScalarV1Serializer>();
-builder.Services.AddSingleton<IJobPayloadSerializer, MsgpackSerializer>();
 builder.Services.AddSingleton<IJobPayloadSerializer, JsonGzipSerializer>();
 
 builder.Services.UseActa(j =>

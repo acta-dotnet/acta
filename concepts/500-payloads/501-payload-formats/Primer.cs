@@ -4,7 +4,7 @@ using Acta.Labs;
 namespace Acta.Concepts.PayloadFormats;
 
 /// <summary>
-/// Bulk-enqueues 250 echo jobs per format (1000 total) in four round-trips via
+/// Bulk-enqueues 250 echo jobs per format (750 total) in three round-trips via
 /// <see cref="IJobs.EnqueueBatchAsync"/>. Every job round-trips a single Guid; only the wire
 /// format differs.
 /// </summary>
@@ -24,14 +24,12 @@ internal sealed class Primer(
         var runId = $"payload-formats-{Guid.CreateVersion7():N}";
         var json = serializers.Resolve(JobPayloadFormat.Json.Id);
         var scalar = serializers.Resolve(PayloadFormats.ScalarV1Format.Id);
-        var msgpack = serializers.Resolve(PayloadFormats.MsgpackFormat.Id);
         var gzip = serializers.Resolve(PayloadFormats.JsonGzipFormat.Id);
 
-        Console.WriteLine($"Primer: bulk-enqueueing 4 x {RowsPerFormat} echo jobs (1 round-trip per format)...");
+        Console.WriteLine($"Primer: bulk-enqueueing 3 x {RowsPerFormat} echo jobs (1 round-trip per format)...");
 
         await EnqueueBatchAsync("echo-json", runId, _ => json.Serialize(new EchoJson(Guid.NewGuid())), ct);
         await EnqueueBatchAsync("echo-scalar", runId, _ => scalar.Serialize(Guid.NewGuid()), ct);
-        await EnqueueBatchAsync("echo-msgpack", runId, _ => msgpack.Serialize(new EchoMsgpack(Guid.NewGuid())), ct);
         await EnqueueBatchAsync("echo-gzip", runId, _ => gzip.Serialize(new EchoGzip(Guid.NewGuid())), ct);
 
         using var completionTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -48,7 +46,7 @@ internal sealed class Primer(
                 ),
                 completionTimeout.Token
             );
-            if (done.TotalCount == RowsPerFormat * 4)
+            if (done.TotalCount == RowsPerFormat * 3)
             {
                 break;
             }

@@ -2,7 +2,4 @@
   <PropertyGroup>
     <RootNamespace>Acta.Concepts.PayloadFormats</RootNamespace>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="MessagePack" />
-  </ItemGroup>
 </Project>

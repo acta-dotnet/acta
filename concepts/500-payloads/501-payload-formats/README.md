@@ -1,7 +1,7 @@
 <!-- engineering-lab
-lab: can-jobs-choose-messagepack-over-json
+lab: can-jobs-choose-a-format-other-than-json
 views: jobs_view
-alternatives: json, messagepack, gzip-json, custom-scalar
+alternatives: json, gzip-json, custom-scalar
 -->
 
 # Engineering Lab: payload format is a durable contract choice
@@ -17,7 +17,7 @@ harder.
 | Format | Strength | Cost |
 | --- | --- | --- |
 | JSON | Inspectable, interoperable, easy to evolve | Larger and often slower |
-| MessagePack | Compact and fast | Less SQL/operator readability |
+| Binary codec (MessagePack, protobuf) | Compact and fast | A package to depend on, and less SQL/operator readability |
 | Gzip JSON | Preserves the JSON model with fewer bytes | CPU cost and no direct readability |
 | Custom scalar | Minimal representation | Tight contract and migration burden |
 
@@ -38,9 +38,11 @@ formats reduce operator readability, and compression may cost more CPU than the 
 dotnet run --project concepts/500-payloads/501-payload-formats
 ```
 
-The program runs a built-in JSON baseline plus three custom formats, times serialization separately from
-the batch-enqueue round trip, waits for completion, and executes the printed byte-size comparison. Every
-run gets a fresh correlation key, so completion waits and measurements exclude historical rows.
+The program runs a built-in JSON baseline plus two custom formats, gzip JSON and a custom scalar, times
+serialization separately from the batch-enqueue round trip, waits for completion, and executes the printed
+byte-size comparison. Both custom serializers are plain .NET with no package: a binary codec plugs into the
+same `IJobPayloadSerializer` seam. Every run gets a fresh correlation key, so completion waits and
+measurements exclude historical rows.
 
 ## Rows to inspect
 
