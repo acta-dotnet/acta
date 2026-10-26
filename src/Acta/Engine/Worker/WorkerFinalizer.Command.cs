@@ -97,12 +97,14 @@ internal sealed partial class WorkerFinalizer
         // jobs_state.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
         // Every shape but the recurring and the success one writes no result payload.
-        var payloadless = new CompleteExecutionsValues(
+        // A one-shot success carries its result immediately, avoiding a second command object for the common path.
+        var oneShotSuccess = fire is null && s.Outcome == CompletionKind.Succeeded && s.HandlerStatusCode is null;
+        var command = new CompleteExecutionsValues(
             job.JobId,
             job.ExecutionNumber,
             s.Outcome == CompletionKind.Succeeded,
-            0,
-            ReadOnlyMemory<byte>.Empty,
+            oneShotSuccess ? s.ResultFormatId : (byte)0,
+            oneShotSuccess ? s.Result : ReadOnlyMemory<byte>.Empty,
             s.Outcome == CompletionKind.Succeeded ? EventCode.JobExecutionSucceeded : EventCode.JobFailed,
             s.Reason,
             s.ReasonMessage,
@@ -115,12 +117,17 @@ internal sealed partial class WorkerFinalizer
             HasParent = job.ParentJobId is not null,
         };
 
+        if (oneShotSuccess)
+        {
+            return command;
+        }
+
         if (fire is { NothingDue: true })
         {
             // The recurring shape applies the advances, which clear the elapsed pauses, and reads the slot's
             // next run from the schedules; the re-arm records a yield rather than a run, so the failure count and
             // any open incident stand as they were.
-            return payloadless with
+            return command with
             {
                 EventCode = EventCode.JobExecutionYielded,
                 Reason = null,
@@ -137,7 +144,7 @@ internal sealed partial class WorkerFinalizer
         {
             // Re-arm takes the non-recurring shape even on a recurring slot so its schedule
             // cursors are never advanced; no result payload is written (budget-neutral re-arm).
-            return payloadless with
+            return command with
             {
                 EventCode = EventCode.JobExecutionYielded,
                 RescheduleEventCode = s.Outcome == CompletionKind.Suspended ? EventCode.JobSuspended : EventCode.JobRescheduled,
@@ -154,7 +161,7 @@ internal sealed partial class WorkerFinalizer
             // Handler fail/cancel/pause: a deliberate terminal/hold decision. Takes the non-recurring
             // shape even on a recurring slot (like the re-arm shape) so its schedule cursors are never
             // advanced; the whole Job stops. No result payload; budget untouched.
-            return payloadless with
+            return command with
             {
                 EventCode = handlerStatus == JobStatusCode.Failed ? EventCode.JobFailed : EventCode.JobExecutionYielded,
                 HandlerStatusCode = (byte)handlerStatus,
@@ -170,7 +177,7 @@ internal sealed partial class WorkerFinalizer
                 s.Reason,
                 s.ReasonMessage
             );
-            return payloadless with
+            return command with
             {
                 ResultFormatId = s.ResultFormatId,
                 Result = s.Result,
@@ -194,20 +201,20 @@ internal sealed partial class WorkerFinalizer
             // The Strict deadline guard may have already converted this to Cancelled with a handler status,
             // routing to the handler-status shape before this one is reached.
             return retry.InBudget
-                ? payloadless with
+                ? command with
                 {
                     EventCode = EventCode.JobExecutionFailed,
                     RescheduleEventCode = EventCode.JobRescheduled,
                     RescheduleDelaySeconds = retry.DelaySeconds,
                     FailureCount = retry.Attempted,
                 }
-                : payloadless with
+                : command with
                 {
                     FailureCount = retry.Attempted,
                 };
         }
 
-        return payloadless with
+        return command with
         {
             ResultFormatId = s.ResultFormatId,
             Result = s.Result,
